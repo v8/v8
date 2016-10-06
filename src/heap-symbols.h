@@ -140,6 +140,7 @@
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(stackTraceLimit_string, "stackTraceLimit")                     \
+  V(sticky_string, "sticky")                                       \
   V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
@@ -163,6 +164,7 @@
   V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
+  V(unicode_string, "unicode")                                     \
   V(URIError_string, "URIError")                                   \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \

@@ -23,6 +23,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(BooleanMap, BooleanMap)                   \
   V(empty_string, EmptyString)                \
   V(EmptyFixedArray, EmptyFixedArray)         \
+  V(FalseValue, False)                        \
   V(FixedArrayMap, FixedArrayMap)             \
   V(FixedCOWArrayMap, FixedCOWArrayMap)       \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
@@ -31,6 +32,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(NanValue, Nan)                            \
   V(NullValue, Null)                          \
   V(TheHoleValue, TheHole)                    \
+  V(TrueValue, True)                          \
   V(UndefinedValue, Undefined)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the

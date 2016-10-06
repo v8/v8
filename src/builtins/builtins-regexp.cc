@@ -437,5 +437,476 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
   }
 }
 
+namespace {
+
+compiler::Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
+                                     compiler::Node* context,
+                                     compiler::Node* value,
+                                     char const* method_name) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label out(a), throw_exception(a, Label::kDeferred);
+  Variable var_value_map(a, MachineRepresentation::kTagged);
+
+  a->GotoIf(a->WordIsSmi(value), &throw_exception);
+
+  // Load the instance type of the {value}.
+  var_value_map.Bind(a->LoadMap(value));
+  Node* const value_instance_type =
+      a->LoadMapInstanceType(var_value_map.value());
+
+  a->Branch(a->IsJSReceiverInstanceType(value_instance_type), &out,
+            &throw_exception);
+
+  // The {value} is not a compatible receiver for this method.
+  a->Bind(&throw_exception);
+  {
+    Node* const message_id =
+        a->SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonObject));
+    Node* const method_name_str = a->HeapConstant(
+        isolate->factory()->NewStringFromAsciiChecked(method_name, TENURED));
+
+    Callable callable = CodeFactory::ToString(isolate);
+    Node* const value_str = a->CallStub(callable, context, value);
+
+    a->CallRuntime(Runtime::kThrowTypeError, context, message_id,
+                   method_name_str, value_str);
+    var_value_map.Bind(a->UndefinedConstant());
+    a->Goto(&out);  // Never reached.
+  }
+
+  a->Bind(&out);
+  return var_value_map.value();
+}
+
+compiler::Node* IsInitialRegExpMap(CodeStubAssembler* a,
+                                   compiler::Node* context,
+                                   compiler::Node* map) {
+  typedef compiler::Node Node;
+
+  Node* const native_context = a->LoadNativeContext(context);
+  Node* const regexp_fun =
+      a->LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+  Node* const initial_map =
+      a->LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* const has_initialmap = a->WordEqual(map, initial_map);
+
+  return has_initialmap;
+}
+
+}  // namespace
+
+void Builtins::Generate_RegExpPrototypeFlagsGetter(CodeStubAssembler* a) {
+  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* const receiver = a->Parameter(0);
+  Node* const context = a->Parameter(3);
+
+  Isolate* isolate = a->isolate();
+  Node* const int_zero = a->IntPtrConstant(0);
+  Node* const int_one = a->IntPtrConstant(1);
+
+  Node* const map = ThrowIfNotJSReceiver(a, isolate, context, receiver,
+                                         "RegExp.prototype.flags");
+
+  Variable var_length(a, MachineType::PointerRepresentation());
+  Variable var_flags(a, MachineType::PointerRepresentation());
+
+  // First, count the number of characters we will need and check which flags
+  // are set.
+
+  var_length.Bind(int_zero);
+
+  Label if_isunmodifiedjsregexp(a),
+      if_isnotunmodifiedjsregexp(a, Label::kDeferred);
+  a->Branch(IsInitialRegExpMap(a, context, map), &if_isunmodifiedjsregexp,
+            &if_isnotunmodifiedjsregexp);
+
+  Label construct_string(a);
+  a->Bind(&if_isunmodifiedjsregexp);
+  {
+    // Refer to JSRegExp's flag property on the fast-path.
+    Node* const flags_smi =
+        a->LoadObjectField(receiver, JSRegExp::kFlagsOffset);
+    Node* const flags_intptr = a->SmiUntag(flags_smi);
+    var_flags.Bind(flags_intptr);
+
+    Label label_global(a), label_ignorecase(a), label_multiline(a),
+        label_unicode(a), label_sticky(a);
+
+#define CASE_FOR_FLAG(FLAG, LABEL, NEXT_LABEL)                        \
+  do {                                                                \
+    a->Bind(&LABEL);                                                  \
+    Node* const mask = a->IntPtrConstant(FLAG);                       \
+    a->GotoIf(a->WordEqual(a->WordAnd(flags_intptr, mask), int_zero), \
+              &NEXT_LABEL);                                           \
+    var_length.Bind(a->IntPtrAdd(var_length.value(), int_one));       \
+    a->Goto(&NEXT_LABEL);                                             \
+  } while (false)
+
+    a->Goto(&label_global);
+    CASE_FOR_FLAG(JSRegExp::kGlobal, label_global, label_ignorecase);
+    CASE_FOR_FLAG(JSRegExp::kIgnoreCase, label_ignorecase, label_multiline);
+    CASE_FOR_FLAG(JSRegExp::kMultiline, label_multiline, label_unicode);
+    CASE_FOR_FLAG(JSRegExp::kUnicode, label_unicode, label_sticky);
+    CASE_FOR_FLAG(JSRegExp::kSticky, label_sticky, construct_string);
+#undef CASE_FOR_FLAG
+  }
+
+  a->Bind(&if_isnotunmodifiedjsregexp);
+  {
+    // Fall back to GetProperty stub on the slow-path.
+    var_flags.Bind(int_zero);
+
+    Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
+    Label label_global(a), label_ignorecase(a), label_multiline(a),
+        label_unicode(a), label_sticky(a);
+
+#define CASE_FOR_FLAG(NAME, FLAG, LABEL, NEXT_LABEL)                          \
+  do {                                                                        \
+    a->Bind(&LABEL);                                                          \
+    Node* const name =                                                        \
+        a->HeapConstant(isolate->factory()->NewStringFromAsciiChecked(NAME)); \
+    Node* const flag =                                                        \
+        a->CallStub(getproperty_callable, context, receiver, name);           \
+    Label if_isflagset(a);                                                    \
+    a->BranchIfToBooleanIsTrue(flag, &if_isflagset, &NEXT_LABEL);             \
+    a->Bind(&if_isflagset);                                                   \
+    var_length.Bind(a->IntPtrAdd(var_length.value(), int_one));               \
+    var_flags.Bind(a->WordOr(var_flags.value(), a->IntPtrConstant(FLAG)));    \
+    a->Goto(&NEXT_LABEL);                                                     \
+  } while (false)
+
+    a->Goto(&label_global);
+    CASE_FOR_FLAG("global", JSRegExp::kGlobal, label_global, label_ignorecase);
+    CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase, label_ignorecase,
+                  label_multiline);
+    CASE_FOR_FLAG("multiline", JSRegExp::kMultiline, label_multiline,
+                  label_unicode);
+    CASE_FOR_FLAG("unicode", JSRegExp::kUnicode, label_unicode, label_sticky);
+    CASE_FOR_FLAG("sticky", JSRegExp::kSticky, label_sticky, construct_string);
+#undef CASE_FOR_FLAG
+  }
+
+  // Allocate a string of the required length and fill it with the corresponding
+  // char for each set flag.
+
+  a->Bind(&construct_string);
+  {
+    Node* const result =
+        a->AllocateSeqOneByteString(context, var_length.value());
+    Node* const flags_intptr = var_flags.value();
+
+    Variable var_offset(a, MachineType::PointerRepresentation());
+    var_offset.Bind(
+        a->IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+
+    Label label_global(a), label_ignorecase(a), label_multiline(a),
+        label_unicode(a), label_sticky(a), out(a);
+
+#define CASE_FOR_FLAG(FLAG, CHAR, LABEL, NEXT_LABEL)                  \
+  do {                                                                \
+    a->Bind(&LABEL);                                                  \
+    Node* const mask = a->IntPtrConstant(FLAG);                       \
+    a->GotoIf(a->WordEqual(a->WordAnd(flags_intptr, mask), int_zero), \
+              &NEXT_LABEL);                                           \
+    Node* const value = a->IntPtrConstant(CHAR);                      \
+    a->StoreNoWriteBarrier(MachineRepresentation::kWord8, result,     \
+                           var_offset.value(), value);                \
+    var_offset.Bind(a->IntPtrAdd(var_offset.value(), int_one));       \
+    a->Goto(&NEXT_LABEL);                                             \
+  } while (false)
+
+    a->Goto(&label_global);
+    CASE_FOR_FLAG(JSRegExp::kGlobal, 'g', label_global, label_ignorecase);
+    CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i', label_ignorecase,
+                  label_multiline);
+    CASE_FOR_FLAG(JSRegExp::kMultiline, 'm', label_multiline, label_unicode);
+    CASE_FOR_FLAG(JSRegExp::kUnicode, 'u', label_unicode, label_sticky);
+    CASE_FOR_FLAG(JSRegExp::kSticky, 'y', label_sticky, out);
+#undef CASE_FOR_FLAG
+
+    a->Bind(&out);
+    a->Return(result);
+  }
+}
+
+// ES6 21.2.5.10.
+BUILTIN(RegExpPrototypeSourceGetter) {
+  HandleScope scope(isolate);
+
+  Handle<Object> recv = args.receiver();
+  if (!recv->IsJSRegExp()) {
+    Handle<JSFunction> regexp_fun = isolate->regexp_function();
+    if (*recv == regexp_fun->prototype()) {
+      isolate->CountUsage(v8::Isolate::kRegExpPrototypeSourceGetter);
+      return *isolate->factory()->NewStringFromAsciiChecked("(?:)");
+    }
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kRegExpNonRegExp,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "RegExp.prototype.source")));
+  }
+
+  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(recv);
+  return regexp->source();
+}
+
+// ES6 21.2.4.2.
+BUILTIN(RegExpPrototypeSpeciesGetter) {
+  HandleScope scope(isolate);
+  return *args.receiver();
+}
+
+namespace {
+
+void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
+                         v8::Isolate::UseCounterFeature counter,
+                         const char* method_name) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* const receiver = a->Parameter(0);
+  Node* const context = a->Parameter(3);
+
+  Isolate* isolate = a->isolate();
+  Node* const int_zero = a->IntPtrConstant(0);
+
+  // Check whether we have an unmodified regexp instance.
+  Label if_isunmodifiedjsregexp(a),
+      if_isnotunmodifiedjsregexp(a, Label::kDeferred);
+
+  a->GotoIf(a->WordIsSmi(receiver), &if_isnotunmodifiedjsregexp);
+
+  Node* const receiver_map = a->LoadMap(receiver);
+  Node* const instance_type = a->LoadMapInstanceType(receiver_map);
+
+  a->Branch(a->Word32Equal(instance_type, a->Int32Constant(JS_REGEXP_TYPE)),
+            &if_isunmodifiedjsregexp, &if_isnotunmodifiedjsregexp);
+
+  a->Bind(&if_isunmodifiedjsregexp);
+  {
+    // Refer to JSRegExp's flag property on the fast-path.
+    Node* const flags_smi =
+        a->LoadObjectField(receiver, JSRegExp::kFlagsOffset);
+    Node* const flags_intptr = a->SmiUntag(flags_smi);
+    Node* const mask = a->IntPtrConstant(flag);
+    Node* const is_global =
+        a->WordNotEqual(a->WordAnd(flags_intptr, mask), int_zero);
+    a->Return(a->Select(is_global, a->TrueConstant(), a->FalseConstant()));
+  }
+
+  a->Bind(&if_isnotunmodifiedjsregexp);
+  {
+    Node* const native_context = a->LoadNativeContext(context);
+    Node* const regexp_fun =
+        a->LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+    Node* const initial_map = a->LoadObjectField(
+        regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* const initial_prototype = a->LoadMapPrototype(initial_map);
+
+    Label if_isprototype(a), if_isnotprototype(a);
+    a->Branch(a->WordEqual(receiver, initial_prototype), &if_isprototype,
+              &if_isnotprototype);
+
+    a->Bind(&if_isprototype);
+    {
+      Node* const counter_smi = a->SmiConstant(Smi::FromInt(counter));
+      a->CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
+      a->Return(a->UndefinedConstant());
+    }
+
+    a->Bind(&if_isnotprototype);
+    {
+      Node* const message_id =
+          a->SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonRegExp));
+      Node* const method_name_str = a->HeapConstant(
+          isolate->factory()->NewStringFromAsciiChecked(method_name));
+      a->CallRuntime(Runtime::kThrowTypeError, context, message_id,
+                     method_name_str);
+      a->Return(a->UndefinedConstant());  // Never reached.
+    }
+  }
+}
+
+}  // namespace
+
+// ES6 21.2.5.4.
+void Builtins::Generate_RegExpPrototypeGlobalGetter(CodeStubAssembler* a) {
+  Generate_FlagGetter(a, JSRegExp::kGlobal,
+                      v8::Isolate::kRegExpPrototypeOldFlagGetter,
+                      "RegExp.prototype.global");
+}
+
+// ES6 21.2.5.5.
+void Builtins::Generate_RegExpPrototypeIgnoreCaseGetter(CodeStubAssembler* a) {
+  Generate_FlagGetter(a, JSRegExp::kIgnoreCase,
+                      v8::Isolate::kRegExpPrototypeOldFlagGetter,
+                      "RegExp.prototype.ignoreCase");
+}
+
+// ES6 21.2.5.7.
+void Builtins::Generate_RegExpPrototypeMultilineGetter(CodeStubAssembler* a) {
+  Generate_FlagGetter(a, JSRegExp::kMultiline,
+                      v8::Isolate::kRegExpPrototypeOldFlagGetter,
+                      "RegExp.prototype.multiline");
+}
+
+// ES6 21.2.5.12.
+void Builtins::Generate_RegExpPrototypeStickyGetter(CodeStubAssembler* a) {
+  Generate_FlagGetter(a, JSRegExp::kSticky,
+                      v8::Isolate::kRegExpPrototypeStickyGetter,
+                      "RegExp.prototype.sticky");
+}
+
+// ES6 21.2.5.15.
+void Builtins::Generate_RegExpPrototypeUnicodeGetter(CodeStubAssembler* a) {
+  Generate_FlagGetter(a, JSRegExp::kUnicode,
+                      v8::Isolate::kRegExpPrototypeUnicodeGetter,
+                      "RegExp.prototype.unicode");
+}
+
+namespace {
+
+// Constants for accessing RegExpLastMatchInfo.
+// TODO(jgruber): Currently, RegExpLastMatchInfo is still a JSObject maintained
+// and accessed from JS. This is a crutch until all RegExp logic is ported, then
+// we can take care of RegExpLastMatchInfo.
+
+Handle<Object> GetLastMatchField(Isolate* isolate, int index) {
+  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+  return JSReceiver::GetElement(isolate, last_match_info, index)
+      .ToHandleChecked();
+}
+
+void SetLastMatchField(Isolate* isolate, int index, Handle<Object> value) {
+  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+  JSReceiver::SetElement(isolate, last_match_info, index, value, SLOPPY)
+      .ToHandleChecked();
+}
+
+int GetLastMatchNumberOfCaptures(Isolate* isolate) {
+  Handle<Object> obj =
+      GetLastMatchField(isolate, RegExpImpl::kLastCaptureCount);
+  return Handle<Smi>::cast(obj)->value();
+}
+
+Handle<String> GetLastMatchSubject(Isolate* isolate) {
+  return Handle<String>::cast(
+      GetLastMatchField(isolate, RegExpImpl::kLastSubject));
+}
+
+Handle<Object> GetLastMatchInput(Isolate* isolate) {
+  return GetLastMatchField(isolate, RegExpImpl::kLastInput);
+}
+
+int GetLastMatchCapture(Isolate* isolate, int i) {
+  Handle<Object> obj =
+      GetLastMatchField(isolate, RegExpImpl::kFirstCapture + i);
+  return Handle<Smi>::cast(obj)->value();
+}
+
+Object* GenericCaptureGetter(Isolate* isolate, int capture) {
+  HandleScope scope(isolate);
+  const int index = capture * 2;
+  if (index >= GetLastMatchNumberOfCaptures(isolate)) {
+    return isolate->heap()->empty_string();
+  }
+
+  const int match_start = GetLastMatchCapture(isolate, index);
+  const int match_end = GetLastMatchCapture(isolate, index + 1);
+  if (match_start == -1 || match_end == -1) {
+    return isolate->heap()->empty_string();
+  }
+
+  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  return *isolate->factory()->NewSubString(last_subject, match_start,
+                                           match_end);
+}
+
+}  // namespace
+
+// The properties $1..$9 are the first nine capturing substrings of the last
+// successful match, or ''.  The function RegExpMakeCaptureGetter will be
+// called with indices from 1 to 9.
+#define DEFINE_CAPTURE_GETTER(i)             \
+  BUILTIN(RegExpCapture##i##Getter) {        \
+    HandleScope scope(isolate);              \
+    return GenericCaptureGetter(isolate, i); \
+  }
+DEFINE_CAPTURE_GETTER(1)
+DEFINE_CAPTURE_GETTER(2)
+DEFINE_CAPTURE_GETTER(3)
+DEFINE_CAPTURE_GETTER(4)
+DEFINE_CAPTURE_GETTER(5)
+DEFINE_CAPTURE_GETTER(6)
+DEFINE_CAPTURE_GETTER(7)
+DEFINE_CAPTURE_GETTER(8)
+DEFINE_CAPTURE_GETTER(9)
+#undef DEFINE_CAPTURE_GETTER
+
+// The properties `input` and `$_` are aliases for each other.  When this
+// value is set, the value it is set to is coerced to a string.
+// Getter and setter for the input.
+
+BUILTIN(RegExpInputGetter) {
+  HandleScope scope(isolate);
+  Handle<Object> obj = GetLastMatchInput(isolate);
+  return obj->IsUndefined(isolate) ? isolate->heap()->empty_string()
+                                   : String::cast(*obj);
+}
+
+BUILTIN(RegExpInputSetter) {
+  HandleScope scope(isolate);
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  Handle<String> str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
+                                     Object::ToString(isolate, value));
+  SetLastMatchField(isolate, RegExpImpl::kLastInput, str);
+  return isolate->heap()->undefined_value();
+}
+
+// Getters for the static properties lastMatch, lastParen, leftContext, and
+// rightContext of the RegExp constructor.  The properties are computed based
+// on the captures array of the last successful match and the subject string
+// of the last successful match.
+BUILTIN(RegExpLastMatchGetter) {
+  HandleScope scope(isolate);
+  return GenericCaptureGetter(isolate, 0);
+}
+
+BUILTIN(RegExpLastParenGetter) {
+  HandleScope scope(isolate);
+  const int length = GetLastMatchNumberOfCaptures(isolate);
+  if (length <= 2) return isolate->heap()->empty_string();  // No captures.
+
+  DCHECK_EQ(0, length % 2);
+  const int last_capture = (length / 2) - 1;
+
+  // We match the SpiderMonkey behavior: return the substring defined by the
+  // last pair (after the first pair) of elements of the capture array even if
+  // it is empty.
+  return GenericCaptureGetter(isolate, last_capture);
+}
+
+BUILTIN(RegExpLeftContextGetter) {
+  HandleScope scope(isolate);
+  const int start_index = GetLastMatchCapture(isolate, 0);
+  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  return *isolate->factory()->NewSubString(last_subject, 0, start_index);
+}
+
+BUILTIN(RegExpRightContextGetter) {
+  HandleScope scope(isolate);
+  const int start_index = GetLastMatchCapture(isolate, 1);
+  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  const int len = last_subject->length();
+  return *isolate->factory()->NewSubString(last_subject, start_index, len);
+}
+
 }  // namespace internal
 }  // namespace v8

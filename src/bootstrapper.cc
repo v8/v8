@@ -364,17 +364,6 @@ void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
   InstallFunction(target, name, function, name_string, attributes);
 }
 
-Handle<JSFunction> InstallGetter(Handle<JSObject> target,
-                                 Handle<Name> property_name,
-                                 Handle<JSFunction> getter,
-                                 PropertyAttributes attributes = DONT_ENUM) {
-  Handle<Object> setter = target->GetIsolate()->factory()->undefined_value();
-  JSObject::DefineAccessor(target, property_name, getter, setter, attributes)
-      .Check();
-  getter->shared()->set_native(true);
-  return getter;
-}
-
 Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
                                   InstanceType type, int instance_size,
                                   MaybeHandle<JSObject> maybe_prototype,
@@ -460,17 +449,54 @@ Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
   return fun;
 }
 
+void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
+                               Builtins::Name call_getter,
+                               Builtins::Name call_setter,
+                               PropertyAttributes attribs) {
+  Isolate* const isolate = base->GetIsolate();
+
+  Handle<String> getter_name =
+      Name::ToFunctionName(name, isolate->factory()->get_string())
+          .ToHandleChecked();
+  Handle<JSFunction> getter =
+      SimpleCreateFunction(isolate, getter_name, call_getter, 0, false);
+  getter->shared()->set_native(true);
+
+  Handle<String> setter_name =
+      Name::ToFunctionName(name, isolate->factory()->set_string())
+          .ToHandleChecked();
+  Handle<JSFunction> setter =
+      SimpleCreateFunction(isolate, setter_name, call_setter, 0, false);
+  setter->shared()->set_native(true);
+
+  JSObject::DefineAccessor(base, name, getter, setter, attribs).Check();
+}
+
+Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
+                                       Handle<String> name,
+                                       Handle<Name> property_name,
+                                       Builtins::Name call, bool adapt) {
+  Isolate* const isolate = base->GetIsolate();
+
+  Handle<String> getter_name =
+      Name::ToFunctionName(name, isolate->factory()->get_string())
+          .ToHandleChecked();
+  Handle<JSFunction> getter =
+      SimpleCreateFunction(isolate, getter_name, call, 0, adapt);
+  getter->shared()->set_native(true);
+
+  Handle<Object> setter = isolate->factory()->undefined_value();
+
+  JSObject::DefineAccessor(base, property_name, getter, setter, DONT_ENUM)
+      .Check();
+
+  return getter;
+}
+
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
                                        Handle<String> name, Builtins::Name call,
                                        bool adapt) {
-  Isolate* const isolate = base->GetIsolate();
-  Handle<String> fun_name =
-      Name::ToFunctionName(name, isolate->factory()->get_string())
-          .ToHandleChecked();
-  Handle<JSFunction> fun =
-      SimpleCreateFunction(isolate, fun_name, call, 0, adapt);
-  InstallGetter(base, name, fun);
-  return fun;
+  return SimpleInstallGetter(base, name, name, call, adapt);
 }
 
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
@@ -1660,14 +1686,105 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->DontAdaptArguments();
     shared->set_length(2);
 
-    // RegExp.prototype setup.
+    {
+      // RegExp.prototype setup.
 
-    // Install the "constructor" property on the {prototype}.
-    JSObject::AddProperty(prototype, factory->constructor_string(), regexp_fun,
-                          DONT_ENUM);
+      // Install the "constructor" property on the {prototype}.
+      JSObject::AddProperty(prototype, factory->constructor_string(),
+                            regexp_fun, DONT_ENUM);
 
-    SimpleInstallFunction(prototype, "exec", Builtins::kRegExpPrototypeExec, 1,
-                          true, DONT_ENUM);
+      SimpleInstallFunction(prototype, "exec", Builtins::kRegExpPrototypeExec,
+                            1, true, DONT_ENUM);
+
+      SimpleInstallGetter(prototype, factory->flags_string(),
+                          Builtins::kRegExpPrototypeFlagsGetter, true);
+      SimpleInstallGetter(prototype, factory->global_string(),
+                          Builtins::kRegExpPrototypeGlobalGetter, true);
+      SimpleInstallGetter(prototype, factory->ignoreCase_string(),
+                          Builtins::kRegExpPrototypeIgnoreCaseGetter, true);
+      SimpleInstallGetter(prototype, factory->multiline_string(),
+                          Builtins::kRegExpPrototypeMultilineGetter, true);
+      SimpleInstallGetter(prototype, factory->source_string(),
+                          Builtins::kRegExpPrototypeSourceGetter, false);
+      SimpleInstallGetter(prototype, factory->sticky_string(),
+                          Builtins::kRegExpPrototypeStickyGetter, true);
+      SimpleInstallGetter(prototype, factory->unicode_string(),
+                          Builtins::kRegExpPrototypeUnicodeGetter, true);
+    }
+
+    {
+      // RegExp getters and setters.
+
+      // TODO(jgruber): This should really be DONT_ENUM | DONT_DELETE.
+      // However, that currently breaks layout test expectations. Note that
+      // Firefox sets a couple of these as enumerable.
+      // On the other hand, installing attributes as DONT_ENUM matches the draft
+      // specification at
+      // https://github.com/claudepache/es-regexp-legacy-static-properties.
+      const PropertyAttributes no_enum = DONT_ENUM;
+
+      SimpleInstallGetter(regexp_fun,
+                          factory->InternalizeUtf8String("[Symbol.species]"),
+                          factory->species_symbol(),
+                          Builtins::kRegExpPrototypeSpeciesGetter, false);
+
+      // Static properties set by a successful match.
+
+      SimpleInstallGetterSetter(regexp_fun, factory->input_string(),
+                                Builtins::kRegExpInputGetter,
+                                Builtins::kRegExpInputSetter, DONT_DELETE);
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("$_"),
+          Builtins::kRegExpInputGetter, Builtins::kRegExpInputSetter, no_enum);
+
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("lastMatch"),
+          Builtins::kRegExpLastMatchGetter, Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("$&"),
+          Builtins::kRegExpLastMatchGetter, Builtins::kEmptyFunction, no_enum);
+
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("lastParen"),
+          Builtins::kRegExpLastParenGetter, Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("$+"),
+          Builtins::kRegExpLastParenGetter, Builtins::kEmptyFunction, no_enum);
+
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("leftContext"),
+                                Builtins::kRegExpLeftContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("$`"),
+                                Builtins::kRegExpLeftContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("rightContext"),
+                                Builtins::kRegExpRightContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("$'"),
+                                Builtins::kRegExpRightContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+
+#define INSTALL_CAPTURE_GETTER(i)                                   \
+  SimpleInstallGetterSetter(regexp_fun,                             \
+                            factory->InternalizeUtf8String("$" #i), \
+                            Builtins::kRegExpCapture##i##Getter,    \
+                            Builtins::kEmptyFunction, DONT_DELETE)
+      INSTALL_CAPTURE_GETTER(1);
+      INSTALL_CAPTURE_GETTER(2);
+      INSTALL_CAPTURE_GETTER(3);
+      INSTALL_CAPTURE_GETTER(4);
+      INSTALL_CAPTURE_GETTER(5);
+      INSTALL_CAPTURE_GETTER(6);
+      INSTALL_CAPTURE_GETTER(7);
+      INSTALL_CAPTURE_GETTER(8);
+      INSTALL_CAPTURE_GETTER(9);
+#undef INSTALL_CAPTURE_GETTER
+    }
 
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());

@@ -533,8 +533,31 @@ namespace internal {
   CPP(ReflectSetPrototypeOf)                                                  \
                                                                               \
   /* RegExp */                                                                \
+  CPP(RegExpCapture1Getter)                                                   \
+  CPP(RegExpCapture2Getter)                                                   \
+  CPP(RegExpCapture3Getter)                                                   \
+  CPP(RegExpCapture4Getter)                                                   \
+  CPP(RegExpCapture5Getter)                                                   \
+  CPP(RegExpCapture6Getter)                                                   \
+  CPP(RegExpCapture7Getter)                                                   \
+  CPP(RegExpCapture8Getter)                                                   \
+  CPP(RegExpCapture9Getter)                                                   \
   CPP(RegExpConstructor)                                                      \
+  CPP(RegExpInputGetter)                                                      \
+  CPP(RegExpInputSetter)                                                      \
+  CPP(RegExpLastMatchGetter)                                                  \
+  CPP(RegExpLastParenGetter)                                                  \
+  CPP(RegExpLeftContextGetter)                                                \
   TFJ(RegExpPrototypeExec, 2)                                                 \
+  TFJ(RegExpPrototypeFlagsGetter, 1)                                          \
+  TFJ(RegExpPrototypeGlobalGetter, 1)                                         \
+  TFJ(RegExpPrototypeIgnoreCaseGetter, 1)                                     \
+  TFJ(RegExpPrototypeMultilineGetter, 1)                                      \
+  CPP(RegExpPrototypeSourceGetter)                                            \
+  CPP(RegExpPrototypeSpeciesGetter)                                           \
+  TFJ(RegExpPrototypeStickyGetter, 1)                                         \
+  TFJ(RegExpPrototypeUnicodeGetter, 1)                                        \
+  CPP(RegExpRightContextGetter)                                               \
                                                                               \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \

@@ -325,6 +325,7 @@ namespace internal {
   F(ThrowNotGeneric, 1, 1)                          \
   F(ThrowReferenceError, 1, 1)                      \
   F(ThrowStackOverflow, 0, 1)                       \
+  F(ThrowTypeError, -1 /* >= 1 */, 1)               \
   F(ThrowWasmError, 2, 1)                           \
   F(ThrowUndefinedOrNullToObject, 1, 1)             \
   F(Typeof, 1, 1)                                   \

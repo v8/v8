@@ -100,6 +100,23 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   return isolate->StackOverflow();
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  Handle<Object> arg0 = (args.length() > 1) ? args.at<Object>(1) : undefined;
+  Handle<Object> arg1 = (args.length() > 2) ? args.at<Object>(2) : undefined;
+  Handle<Object> arg2 = (args.length() > 3) ? args.at<Object>(3) : undefined;
+
+  MessageTemplate::Template message_id =
+      static_cast<MessageTemplate::Template>(message_id_smi);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(message_id, arg0, arg1, arg2));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
