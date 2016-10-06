@@ -186,6 +186,7 @@
       'test-thread-termination.cc',
       'test-threads.cc',
       'test-trace-event.cc',
+      'test-traced-value.cc',
       'test-transitions.cc',
       'test-typedarrays.cc',
       'test-ast-types.cc',

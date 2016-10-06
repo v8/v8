@@ -1212,6 +1212,8 @@
         'ic/stub-cache.h',
         'tracing/trace-event.cc',
         'tracing/trace-event.h',
+        'tracing/traced-value.cc',
+        'tracing/traced-value.h',
         'transitions-inl.h',
         'transitions.cc',
         'transitions.h',

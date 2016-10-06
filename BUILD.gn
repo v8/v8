@@ -1642,6 +1642,8 @@ v8_source_set("v8_base") {
     "src/strtod.h",
     "src/tracing/trace-event.cc",
     "src/tracing/trace-event.h",
+    "src/tracing/traced-value.cc",
+    "src/tracing/traced-value.h",
     "src/transitions-inl.h",
     "src/transitions.cc",
     "src/transitions.h",
