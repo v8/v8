@@ -21,11 +21,7 @@ OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
   Factory* factory = isolate->factory();
   infinity_ = Type::Constant(factory->infinity_value(), zone);
   minus_infinity_ = Type::Constant(factory->minus_infinity_value(), zone);
-  // Unfortunately, the infinities created in other places might be different
-  // ones (eg the result of NewNumber in TypeNumberConstant).
-  Type* truncating_to_zero =
-      Type::Union(Type::Union(infinity_, minus_infinity_, zone),
-                  Type::MinusZeroOrNaN(), zone);
+  Type* truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero->Maybe(Type::Integral32()));
 
   singleton_false_ = Type::Constant(factory->false_value(), zone);
