@@ -295,7 +295,6 @@ DEFINE_BOOL(ignition, false, "use ignition interpreter")
 DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
 DEFINE_IMPLICATION(ignition_staging, ignition)
 DEFINE_IMPLICATION(ignition_staging, ignition_osr)
-DEFINE_IMPLICATION(ignition_staging, turbo_from_bytecode)
 DEFINE_IMPLICATION(ignition_staging, ignition_preserve_bytecode)
 DEFINE_BOOL(ignition_eager, false, "eagerly compile and parse with ignition")
 DEFINE_STRING(ignition_filter, "*", "filter for ignition interpreter")
@@ -430,7 +429,7 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
 DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
 DEFINE_IMPLICATION(turbo, turbo_loop_peeling)
-DEFINE_BOOL(turbo_from_bytecode, false, "enable building graphs from bytecode")
+DEFINE_BOOL(turbo_from_bytecode, true, "enable building graphs from bytecode")
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,

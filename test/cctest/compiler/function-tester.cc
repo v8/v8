@@ -161,23 +161,19 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Zone zone(function->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, function);
-  info.MarkAsDeoptimizationEnabled();
 
-  if (!FLAG_turbo_from_bytecode) {
-    CHECK(Parser::ParseStatic(info.parse_info()));
-  }
   info.SetOptimizing();
+  info.MarkAsDeoptimizationEnabled();
   if (flags_ & CompilationInfo::kNativeContextSpecializing) {
     info.MarkAsNativeContextSpecializing();
   }
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
-  if (FLAG_turbo_from_bytecode) {
-    CHECK(Compiler::EnsureBytecode(&info));
+  if (Compiler::EnsureBytecode(&info)) {
     info.MarkAsOptimizeFromBytecode();
   } else {
-    CHECK(Compiler::Analyze(info.parse_info()));
+    CHECK(Compiler::ParseAndAnalyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
   }
   JSFunction::EnsureLiterals(function);
