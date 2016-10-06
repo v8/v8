@@ -105,7 +105,6 @@ class SmallMapList;
   V(LoadContextSlot)                          \
   V(LoadFieldByIndex)                         \
   V(LoadFunctionPrototype)                    \
-  V(LoadGlobalGeneric)                        \
   V(LoadKeyed)                                \
   V(LoadKeyedGeneric)                         \
   V(LoadNamedField)                           \
@@ -4823,48 +4822,6 @@ class HUnknownOSRValue final : public HTemplateInstruction<0> {
   HEnvironment* environment_;
   int index_;
   HPhi* incoming_value_;
-};
-
-class HLoadGlobalGeneric final : public HTemplateInstruction<1> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HLoadGlobalGeneric,
-                                              Handle<String>, TypeofMode,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-
-  HValue* context() { return OperandAt(0); }
-  Handle<String> name() const { return name_; }
-  TypeofMode typeof_mode() const { return typeof_mode_; }
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric)
-
- private:
-  HLoadGlobalGeneric(HValue* context, Handle<String> name,
-                     TypeofMode typeof_mode, Handle<TypeFeedbackVector> vector,
-                     FeedbackVectorSlot slot)
-      : name_(name),
-        typeof_mode_(typeof_mode),
-        feedback_vector_(vector),
-        slot_(slot) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  Handle<String> name_;
-  TypeofMode typeof_mode_;
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
 };
 
 class HAllocate final : public HTemplateInstruction<3> {

@@ -89,7 +89,6 @@ class LCodeGen;
   V(LoadRoot)                                \
   V(LoadFieldByIndex)                        \
   V(LoadFunctionPrototype)                   \
-  V(LoadGlobalGeneric)                       \
   V(LoadKeyed)                               \
   V(LoadKeyedGeneric)                        \
   V(LoadNamedField)                          \
@@ -1587,24 +1586,6 @@ class LLoadKeyedGeneric final : public LTemplateInstruction<1, 3, 1> {
   LOperand* key() { return inputs_[2]; }
   LOperand* temp_vector() { return temps_[0]; }
 };
-
-class LLoadGlobalGeneric final : public LTemplateInstruction<1, 1, 1> {
- public:
-  explicit LLoadGlobalGeneric(LOperand* context, LOperand* vector) {
-    inputs_[0] = context;
-    temps_[0] = vector;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalGeneric)
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* temp_vector() { return temps_[0]; }
-
-  Handle<Object> name() const { return hydrogen()->name(); }
-  TypeofMode typeof_mode() const { return hydrogen()->typeof_mode(); }
-};
-
 
 class LLoadContextSlot final : public LTemplateInstruction<1, 1, 0> {
  public:

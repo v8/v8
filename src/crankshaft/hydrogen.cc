@@ -5590,9 +5590,16 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         }
       } else {
         Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
-        HLoadGlobalGeneric* instr = New<HLoadGlobalGeneric>(
-            variable->name(), ast_context()->typeof_mode(), vector,
-            expr->VariableFeedbackSlot());
+
+        HValue* vector_value = Add<HConstant>(vector);
+        HValue* slot_value =
+            Add<HConstant>(vector->GetIndex(expr->VariableFeedbackSlot()));
+        Callable callable = CodeFactory::LoadGlobalICInOptimizedCode(
+            isolate(), ast_context()->typeof_mode());
+        HValue* stub = Add<HConstant>(callable.code());
+        HValue* values[] = {context(), slot_value, vector_value};
+        HCallWithDescriptor* instr = New<HCallWithDescriptor>(
+            stub, 0, callable.descriptor(), ArrayVector(values));
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
     }
