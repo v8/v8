@@ -1646,6 +1646,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         uint32_t num_properties;
         if (!ReadVarint<uint32_t>().To(&num_properties) ||
             stack.size() / 2 < num_properties) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
@@ -1657,6 +1659,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_object, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
@@ -1673,6 +1677,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         if (!ReadVarint<uint32_t>().To(&num_properties) ||
             !ReadVarint<uint32_t>().To(&length) ||
             stack.size() / 2 < num_properties) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
@@ -1685,6 +1691,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_array, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
