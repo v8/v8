@@ -55,12 +55,7 @@ enum WasmInstanceObjectFields {
   kWasmModuleCodeTable,
   kWasmMemArrayBuffer,
   kWasmGlobalsArrayBuffer,
-  // TODO(clemensh): Remove function name array, extract names from module
-  // bytes.
-  kWasmFunctionNamesArray,
-  kWasmModuleBytesString,
   kWasmDebugInfo,
-  kWasmNumImportedFunctions,
   kWasmModuleInternalFieldCount
 };
 
@@ -352,6 +347,7 @@ Address GetGlobalStartAddressFromCodeTemplate(Object* undefined,
 }
 
 Handle<FixedArray> EncodeImports(Factory* factory, const WasmModule* module) {
+  // TODO(wasm): Encode this in one big FixedArray.
   Handle<FixedArray> ret = factory->NewFixedArray(
       static_cast<int>(module->import_table.size()), TENURED);
 
@@ -852,10 +848,20 @@ Object* GetOwningWasmInstance(Code* code) {
   return cell->value();
 }
 
-uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object) {
-  return static_cast<uint32_t>(
-      Smi::cast(wasm_object->GetInternalField(kWasmNumImportedFunctions))
-          ->value());
+int GetNumImportedFunctions(Handle<JSObject> wasm_object) {
+  // TODO(wasm): Cache this number if it ever becomes a performance problem.
+  DCHECK(IsWasmObject(*wasm_object));
+  Object* compiled_module = wasm_object->GetInternalField(kWasmCompiledModule);
+  Handle<FixedArray> imports =
+      WasmCompiledModule::cast(compiled_module)->imports();
+  int num_imports = imports->length();
+  int num_imported_functions = 0;
+  for (int i = 0; i < num_imports; ++i) {
+    FixedArray* encoded_import = FixedArray::cast(imports->get(i));
+    int kind = Smi::cast(encoded_import->get(kImportKind))->value();
+    if (kind == kExternalFunction) ++num_imported_functions;
+  }
+  return num_imported_functions;
 }
 
 WasmModule::WasmModule(byte* module_start)
@@ -1305,26 +1311,6 @@ class WasmInstanceBuilder {
     // Process the initialization for the module's globals.
     //--------------------------------------------------------------------------
     ProcessInits(globals);
-
-    //--------------------------------------------------------------------------
-    // Set up the debug support for the new instance.
-    //--------------------------------------------------------------------------
-    // TODO(clemensh): avoid referencing this stuff from the instance, use it
-    // off the compiled module instead. See the following 3 assignments:
-    if (compiled_module_->has_module_bytes()) {
-      instance->SetInternalField(kWasmModuleBytesString,
-                                 compiled_module_->ptr_to_module_bytes());
-    }
-
-    if (compiled_module_->has_function_names()) {
-      instance->SetInternalField(kWasmFunctionNamesArray,
-                                 compiled_module_->ptr_to_function_names());
-    }
-
-    {
-      Handle<Object> handle = factory->NewNumber(num_imported_functions);
-      instance->SetInternalField(kWasmNumImportedFunctions, *handle);
-    }
 
     //--------------------------------------------------------------------------
     // Set up the runtime support for the new instance.
@@ -1934,15 +1920,14 @@ void WasmCompiledModule::PrintInstancesChain() {
 Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
                                          uint32_t func_index) {
   if (!wasm->IsUndefined(isolate)) {
-    Handle<ByteArray> func_names_arr_obj(
-        ByteArray::cast(Handle<JSObject>::cast(wasm)->GetInternalField(
-            kWasmFunctionNamesArray)),
-        isolate);
+    DCHECK(IsWasmObject(*wasm));
+    WasmCompiledModule* compiled_module = WasmCompiledModule::cast(
+        Handle<JSObject>::cast(wasm)->GetInternalField(kWasmCompiledModule));
+    Handle<ByteArray> func_names = compiled_module->function_names();
     // TODO(clemens): Extract this from the module bytes; skip whole function
     // name table.
     Handle<Object> name;
-    if (GetWasmFunctionNameFromTable(func_names_arr_obj, func_index)
-            .ToHandle(&name)) {
+    if (GetWasmFunctionNameFromTable(func_names, func_index).ToHandle(&name)) {
       return name;
     }
   }
@@ -1971,7 +1956,6 @@ bool IsWasmObject(Object* object) {
   Object* mem = obj->GetInternalField(kWasmMemArrayBuffer);
   if (!obj->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() ||
       !(mem->IsUndefined(isolate) || mem->IsJSArrayBuffer()) ||
-      !obj->GetInternalField(kWasmFunctionNamesArray)->IsByteArray() ||
       !WasmCompiledModule::IsWasmCompiledModule(
           obj->GetInternalField(kWasmCompiledModule))) {
     return false;
@@ -1981,8 +1965,10 @@ bool IsWasmObject(Object* object) {
   return true;
 }
 
-SeqOneByteString* GetWasmBytes(JSObject* wasm) {
-  return SeqOneByteString::cast(wasm->GetInternalField(kWasmModuleBytesString));
+Handle<SeqOneByteString> GetWasmBytes(Handle<JSObject> wasm) {
+  DCHECK(IsWasmObject(*wasm));
+  Object* compiled_module = wasm->GetInternalField(kWasmCompiledModule);
+  return WasmCompiledModule::cast(compiled_module)->module_bytes();
 }
 
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm) {
@@ -2061,10 +2047,13 @@ void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
   }
 }
 
-int GetNumberOfFunctions(JSObject* wasm) {
-  Object* func_names_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
+int GetNumberOfFunctions(Handle<JSObject> wasm) {
+  DCHECK(IsWasmObject(*wasm));
+  WasmCompiledModule* compiled_module =
+      WasmCompiledModule::cast(wasm->GetInternalField(kWasmCompiledModule));
+  ByteArray* func_names_arr = compiled_module->ptr_to_function_names();
   // TODO(clemensh): this looks inside an array constructed elsewhere. Refactor.
-  return ByteArray::cast(func_names_obj)->get_int(0);
+  return func_names_arr->get_int(0);
 }
 
 Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,

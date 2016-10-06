@@ -478,14 +478,14 @@ Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
                                          uint32_t func_index);
 
 // Return the binary source bytes of a wasm module.
-SeqOneByteString* GetWasmBytes(JSObject* wasm);
+Handle<SeqOneByteString> GetWasmBytes(Handle<JSObject> wasm);
 
 // Get the debug info associated with the given wasm object.
 // If no debug info exists yet, it is created automatically.
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 
 // Return the number of functions in the given wasm object.
-int GetNumberOfFunctions(JSObject* wasm);
+int GetNumberOfFunctions(Handle<JSObject> wasm);
 
 // Create and export JSFunction
 Handle<JSFunction> WrapExportCodeAsJSFunction(Isolate* isolate,
@@ -530,7 +530,7 @@ V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            ModuleOrigin origin);
 
 // Get the number of imported functions for a WASM instance.
-uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object);
+int GetNumImportedFunctions(Handle<JSObject> wasm_object);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.

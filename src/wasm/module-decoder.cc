@@ -1104,7 +1104,7 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Take care of invalid input here.
   if (functions_count < static_cast<unsigned>(code_section.length()) / 2)
-    table.reserve(functions_count);
+    table.reserve(num_imported_functions + functions_count);
   int section_offset = static_cast<int>(code_section.start() - module_start);
   DCHECK_LE(0, section_offset);
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {

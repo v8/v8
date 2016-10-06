@@ -31,12 +31,11 @@ ByteArray *GetOrCreateFunctionOffsetTable(Handle<WasmDebugInfo> debug_info) {
 
   FunctionOffsetsResult function_offsets;
   {
-    DisallowHeapAllocation no_gc;
     Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
     uint32_t num_imported_functions =
-        wasm::GetNumImportedFunctions(wasm_object);
-    SeqOneByteString *wasm_bytes =
-        wasm::GetWasmBytes(debug_info->wasm_object());
+        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_object));
+    Handle<SeqOneByteString> wasm_bytes = wasm::GetWasmBytes(wasm_object);
+    DisallowHeapAllocation no_gc;
     const byte *bytes_start = wasm_bytes->GetChars();
     const byte *bytes_end = bytes_start + wasm_bytes->length();
     function_offsets = wasm::DecodeWasmFunctionOffsets(bytes_start, bytes_end,
@@ -72,8 +71,8 @@ std::pair<int, int> GetFunctionOffsetAndLength(Handle<WasmDebugInfo> debug_info,
 
 Vector<const uint8_t> GetFunctionBytes(Handle<WasmDebugInfo> debug_info,
                                        int func_index) {
-  SeqOneByteString *module_bytes =
-      wasm::GetWasmBytes(debug_info->wasm_object());
+  Handle<JSObject> wasm_object(debug_info->wasm_object());
+  Handle<SeqOneByteString> module_bytes = wasm::GetWasmBytes(wasm_object);
   std::pair<int, int> offset_and_length =
       GetFunctionOffsetAndLength(debug_info, func_index);
   return Vector<const uint8_t>(
@@ -90,7 +89,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<JSObject> wasm) {
       factory->NewFixedArray(kWasmDebugInfoNumEntries, TENURED);
   arr->set(kWasmDebugInfoWasmObj, *wasm);
   int hash = 0;
-  Handle<SeqOneByteString> wasm_bytes(GetWasmBytes(*wasm), isolate);
+  Handle<SeqOneByteString> wasm_bytes = GetWasmBytes(wasm);
   {
     DisallowHeapAllocation no_gc;
     hash = StringHasher::HashSequentialString(
@@ -130,7 +129,8 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   Object *scripts_obj = debug_info->get(kWasmDebugInfoFunctionScripts);
   Handle<FixedArray> scripts;
   if (scripts_obj->IsUndefined(isolate)) {
-    int num_functions = wasm::GetNumberOfFunctions(debug_info->wasm_object());
+    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
+    int num_functions = wasm::GetNumberOfFunctions(wasm_object);
     scripts = isolate->factory()->NewFixedArray(num_functions, TENURED);
     debug_info->set(kWasmDebugInfoFunctionScripts, *scripts);
   } else {
