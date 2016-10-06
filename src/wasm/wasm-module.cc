@@ -1127,7 +1127,8 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     Handle<String> module_bytes_string =
         factory->NewStringFromOneByte(module_bytes_vec, TENURED)
             .ToHandleChecked();
-    ret->set_module_bytes(module_bytes_string);
+    DCHECK(module_bytes_string->IsSeqOneByteString());
+    ret->set_module_bytes(Handle<SeqOneByteString>::cast(module_bytes_string));
   }
 
   Handle<ByteArray> function_name_table =
@@ -1308,8 +1309,8 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     // Set up the debug support for the new instance.
     //--------------------------------------------------------------------------
-    // TODO(wasm): avoid referencing this stuff from the instance, use it off
-    // the compiled module instead. See the following 3 assignments:
+    // TODO(clemensh): avoid referencing this stuff from the instance, use it
+    // off the compiled module instead. See the following 3 assignments:
     if (compiled_module_->has_module_bytes()) {
       instance->SetInternalField(kWasmModuleBytesString,
                                  compiled_module_->ptr_to_module_bytes());
@@ -1413,8 +1414,6 @@ class WasmInstanceBuilder {
       }
     }
 
-    DCHECK(wasm::IsWasmObject(*instance));
-
     {
       Handle<WeakCell> link_to_owner = factory->NewWeakCell(instance);
 
@@ -1441,6 +1440,9 @@ class WasmInstanceBuilder {
                                 v8::WeakCallbackType::kFinalizer);
       }
     }
+
+    DCHECK(wasm::IsWasmObject(*instance));
+
     TRACE("Finishing instance %d\n", compiled_module_->instance_id());
     TRACE_CHAIN(WasmCompiledModule::cast(module_object_->GetInternalField(0)));
     return instance;
@@ -1871,8 +1873,12 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
            Smi::FromInt(static_cast<int>(min_memory_pages)));
   ret->set(kID_globals_size, Smi::FromInt(static_cast<int>(globals_size)));
   ret->set(kID_origin, Smi::FromInt(static_cast<int>(origin)));
-  WasmCompiledModule::cast(*ret)->Init();
-  return handle(WasmCompiledModule::cast(*ret));
+
+  // WasmCompiledModule::cast would fail since module bytes are not set yet.
+  Handle<WasmCompiledModule> module(reinterpret_cast<WasmCompiledModule*>(*ret),
+                                    isolate);
+  module->Init();
+  return module;
 }
 
 void WasmCompiledModule::Init() {
@@ -1881,6 +1887,34 @@ void WasmCompiledModule::Init() {
   set(kID_instance_id, Smi::FromInt(instance_id_counter++));
   TRACE("New compiled module id: %d\n", instance_id());
 #endif
+}
+
+bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
+  if (!obj->IsFixedArray()) return false;
+  FixedArray* arr = FixedArray::cast(obj);
+  if (arr->length() != PropertyIndices::Count) return false;
+  Isolate* isolate = arr->GetIsolate();
+#define WCM_CHECK_SMALL_NUMBER(TYPE, NAME) \
+  if (!arr->get(kID_##NAME)->IsSmi()) return false;
+#define WCM_CHECK_OBJECT_OR_WEAK(TYPE, NAME)         \
+  if (!arr->get(kID_##NAME)->IsUndefined(isolate) && \
+      !arr->get(kID_##NAME)->Is##TYPE())             \
+    return false;
+#define WCM_CHECK_OBJECT(TYPE, NAME) WCM_CHECK_OBJECT_OR_WEAK(TYPE, NAME)
+#define WCM_CHECK_WEAK_LINK(TYPE, NAME) WCM_CHECK_OBJECT_OR_WEAK(WeakCell, NAME)
+#define WCM_CHECK(KIND, TYPE, NAME) WCM_CHECK_##KIND(TYPE, NAME)
+  WCM_PROPERTY_TABLE(WCM_CHECK)
+#undef WCM_CHECK
+
+  WasmCompiledModule* compiled_module =
+      reinterpret_cast<WasmCompiledModule*>(obj);
+  if (!compiled_module->has_module_bytes()) return false;
+  SeqOneByteString* module_bytes = compiled_module->ptr_to_module_bytes();
+  if (module_bytes->length() < 4) return false;
+  if (memcmp(module_bytes->GetChars(), "\0asm", 4)) return false;
+
+  // All checks passed.
+  return true;
 }
 
 void WasmCompiledModule::PrintInstancesChain() {
@@ -1935,23 +1969,16 @@ bool IsWasmObject(Object* object) {
   }
 
   Object* mem = obj->GetInternalField(kWasmMemArrayBuffer);
-  if (obj->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() &&
-      (mem->IsUndefined(isolate) || mem->IsJSArrayBuffer()) &&
-      obj->GetInternalField(kWasmFunctionNamesArray)->IsByteArray()) {
-    Object* debug_bytes = obj->GetInternalField(kWasmModuleBytesString);
-    if (!debug_bytes->IsUndefined(isolate)) {
-      if (!debug_bytes->IsSeqOneByteString()) {
-        return false;
-      }
-      DisallowHeapAllocation no_gc;
-      SeqOneByteString* bytes = SeqOneByteString::cast(debug_bytes);
-      if (bytes->length() < 4) return false;
-      if (memcmp(bytes->GetChars(), "\0asm", 4)) return false;
-      // All checks passed.
-    }
-    return true;
+  if (!obj->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() ||
+      !(mem->IsUndefined(isolate) || mem->IsJSArrayBuffer()) ||
+      !obj->GetInternalField(kWasmFunctionNamesArray)->IsByteArray() ||
+      !WasmCompiledModule::IsWasmCompiledModule(
+          obj->GetInternalField(kWasmCompiledModule))) {
+    return false;
   }
-  return false;
+
+  // All checks passed.
+  return true;
 }
 
 SeqOneByteString* GetWasmBytes(JSObject* wasm) {

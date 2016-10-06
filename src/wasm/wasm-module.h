@@ -347,6 +347,7 @@ typedef Result<FunctionOffsets> FunctionOffsetsResult;
 class WasmCompiledModule : public FixedArray {
  public:
   static WasmCompiledModule* cast(Object* fixed_array) {
+    SLOW_DCHECK(IsWasmCompiledModule(fixed_array));
     return reinterpret_cast<WasmCompiledModule*>(fixed_array);
   }
 
@@ -393,7 +394,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, inits)                    \
   MACRO(OBJECT, FixedArray, startup_function)         \
   MACRO(OBJECT, FixedArray, indirect_function_tables) \
-  MACRO(OBJECT, String, module_bytes)                 \
+  MACRO(OBJECT, SeqOneByteString, module_bytes)       \
   MACRO(OBJECT, ByteArray, function_names)            \
   MACRO(SMALL_NUMBER, uint32_t, min_memory_pages)     \
   MACRO(OBJECT, FixedArray, data_segments_info)       \
@@ -453,6 +454,8 @@ class WasmCompiledModule : public FixedArray {
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
   WCM_PROPERTY_TABLE(DECLARATION)
 #undef DECLARATION
+
+  static bool IsWasmCompiledModule(Object* obj);
 
   void PrintInstancesChain();
 
