@@ -886,7 +886,6 @@ class Isolate {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
-  Zone* runtime_zone() { return runtime_zone_; }
 
   UnicodeCache* unicode_cache() {
     return unicode_cache_;
@@ -926,6 +925,8 @@ class Isolate {
   }
 
   RegExpStack* regexp_stack() { return regexp_stack_; }
+
+  List<int>* regexp_indices() { return &regexp_indices_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
@@ -1326,7 +1327,6 @@ class Isolate {
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   AccountingAllocator* allocator_;
-  Zone* runtime_zone_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
@@ -1339,6 +1339,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
+  List<int> regexp_indices_;
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;

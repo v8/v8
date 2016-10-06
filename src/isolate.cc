@@ -2002,7 +2002,6 @@ Isolate::Isolate(bool enable_serializer)
       allocator_(FLAG_trace_gc_object_stats
                      ? new VerboseAccountingAllocator(&heap_, 256 * KB)
                      : new AccountingAllocator()),
-      runtime_zone_(new Zone(allocator_)),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -2197,9 +2196,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
-  // Has to be called while counters_ are still alive
-  runtime_zone_->DeleteKeptSegment();
-
   // The entry stack must be empty when we get here.
   DCHECK(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
 
@@ -2275,9 +2271,6 @@ Isolate::~Isolate() {
 
   delete cancelable_task_manager_;
   cancelable_task_manager_ = nullptr;
-
-  delete runtime_zone_;
-  runtime_zone_ = nullptr;
 
   delete allocator_;
   allocator_ = nullptr;

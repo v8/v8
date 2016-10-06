@@ -279,10 +279,8 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
   }
 }
 
-
 void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
-                              ZoneList<int>* indices, unsigned int limit,
-                              Zone* zone) {
+                              List<int>* indices, unsigned int limit) {
   DCHECK(limit > 0);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
@@ -293,32 +291,29 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
     pos = reinterpret_cast<const uint8_t*>(
         memchr(pos, pattern, subject_end - pos));
     if (pos == NULL) return;
-    indices->Add(static_cast<int>(pos - subject_start), zone);
+    indices->Add(static_cast<int>(pos - subject_start));
     pos++;
     limit--;
   }
 }
 
-
 void FindTwoByteStringIndices(const Vector<const uc16> subject, uc16 pattern,
-                              ZoneList<int>* indices, unsigned int limit,
-                              Zone* zone) {
+                              List<int>* indices, unsigned int limit) {
   DCHECK(limit > 0);
   const uc16* subject_start = subject.start();
   const uc16* subject_end = subject_start + subject.length();
   for (const uc16* pos = subject_start; pos < subject_end && limit > 0; pos++) {
     if (*pos == pattern) {
-      indices->Add(static_cast<int>(pos - subject_start), zone);
+      indices->Add(static_cast<int>(pos - subject_start));
       limit--;
     }
   }
 }
 
-
 template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
-                       Vector<const PatternChar> pattern,
-                       ZoneList<int>* indices, unsigned int limit, Zone* zone) {
+                       Vector<const PatternChar> pattern, List<int>* indices,
+                       unsigned int limit) {
   DCHECK(limit > 0);
   // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
@@ -328,16 +323,15 @@ void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
   while (limit > 0) {
     index = search.Search(subject, index);
     if (index < 0) return;
-    indices->Add(index, zone);
+    indices->Add(index);
     index += pattern_length;
     limit--;
   }
 }
 
-
 void FindStringIndicesDispatch(Isolate* isolate, String* subject,
-                               String* pattern, ZoneList<int>* indices,
-                               unsigned int limit, Zone* zone) {
+                               String* pattern, List<int>* indices,
+                               unsigned int limit) {
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent subject_content = subject->GetFlatContent();
@@ -351,14 +345,14 @@ void FindStringIndicesDispatch(Isolate* isolate, String* subject,
             pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
           FindOneByteStringIndices(subject_vector, pattern_vector[0], indices,
-                                   limit, zone);
+                                   limit);
         } else {
           FindStringIndices(isolate, subject_vector, pattern_vector, indices,
-                            limit, zone);
+                            limit);
         }
       } else {
         FindStringIndices(isolate, subject_vector,
-                          pattern_content.ToUC16Vector(), indices, limit, zone);
+                          pattern_content.ToUC16Vector(), indices, limit);
       }
     } else {
       Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
@@ -367,24 +361,41 @@ void FindStringIndicesDispatch(Isolate* isolate, String* subject,
             pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
           FindTwoByteStringIndices(subject_vector, pattern_vector[0], indices,
-                                   limit, zone);
+                                   limit);
         } else {
           FindStringIndices(isolate, subject_vector, pattern_vector, indices,
-                            limit, zone);
+                            limit);
         }
       } else {
         Vector<const uc16> pattern_vector = pattern_content.ToUC16Vector();
         if (pattern_vector.length() == 1) {
           FindTwoByteStringIndices(subject_vector, pattern_vector[0], indices,
-                                   limit, zone);
+                                   limit);
         } else {
           FindStringIndices(isolate, subject_vector, pattern_vector, indices,
-                            limit, zone);
+                            limit);
         }
       }
     }
   }
 }
+
+namespace {
+static List<int>* GetRewindedRegexpIndicesList(Isolate* isolate) {
+  List<int>* list = isolate->regexp_indices();
+  list->Rewind(0);
+  return list;
+}
+
+static void TruncateRegexpIndicesList(Isolate* isolate) {
+  // Same size as smallest zone segment, preserving behavior from the runtime
+  // zone.
+  static const size_t kMaxRegexpIndicesListCapacity = 8 * KB;
+  if (isolate->regexp_indices()->capacity() > kMaxRegexpIndicesListCapacity) {
+    isolate->regexp_indices()->Clear();  //  Throw away backing storage
+  }
+}
+}  // namespace
 
 template <typename ResultSeqString>
 MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
@@ -393,8 +404,8 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
-  ZoneScope zone_scope(isolate->runtime_zone());
-  ZoneList<int> indices(8, zone_scope.zone());
+  List<int>* indices = GetRewindedRegexpIndicesList(isolate);
+
   DCHECK_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -402,10 +413,9 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   int pattern_len = pattern->length();
   int replacement_len = replacement->length();
 
-  FindStringIndicesDispatch(isolate, *subject, pattern, &indices, 0xffffffff,
-                            zone_scope.zone());
+  FindStringIndicesDispatch(isolate, *subject, pattern, indices, 0xffffffff);
 
-  int matches = indices.length();
+  int matches = indices->length();
   if (matches == 0) return *subject;
 
   // Detect integer overflow.
@@ -436,10 +446,10 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
 
   for (int i = 0; i < matches; i++) {
     // Copy non-matched subject content.
-    if (subject_pos < indices.at(i)) {
+    if (subject_pos < indices->at(i)) {
       String::WriteToFlat(*subject, result->GetChars() + result_pos,
-                          subject_pos, indices.at(i));
-      result_pos += indices.at(i) - subject_pos;
+                          subject_pos, indices->at(i));
+      result_pos += indices->at(i) - subject_pos;
     }
 
     // Replace match.
@@ -449,7 +459,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
       result_pos += replacement_len;
     }
 
-    subject_pos = indices.at(i) + pattern_len;
+    subject_pos = indices->at(i) + pattern_len;
   }
   // Add remaining subject content at the end.
   if (subject_pos < subject_len) {
@@ -457,9 +467,11 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
                         subject_len);
   }
 
-  int32_t match_indices[] = {indices.at(matches - 1),
-                             indices.at(matches - 1) + pattern_len};
+  int32_t match_indices[] = {indices->at(matches - 1),
+                             indices->at(matches - 1) + pattern_len};
   RegExpImpl::SetLastMatchInfo(last_match_info, subject, 0, match_indices);
+
+  TruncateRegexpIndicesList(isolate);
 
   return *result;
 }
@@ -474,8 +486,8 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   int subject_length = subject->length();
 
   // CompiledReplacement uses zone allocation.
-  ZoneScope zone_scope(isolate->runtime_zone());
-  CompiledReplacement compiled_replacement(zone_scope.zone());
+  Zone zone(isolate->allocator());
+  CompiledReplacement compiled_replacement(&zone);
   bool simple_replace =
       compiled_replacement.Compile(replacement, capture_count, subject_length);
 
@@ -709,25 +721,18 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   subject = String::Flatten(subject);
   pattern = String::Flatten(pattern);
 
-  static const int kMaxInitialListCapacity = 16;
+  List<int>* indices = GetRewindedRegexpIndicesList(isolate);
 
-  ZoneScope zone_scope(isolate->runtime_zone());
+  FindStringIndicesDispatch(isolate, *subject, *pattern, indices, limit);
 
-  // Find (up to limit) indices of separator and end-of-string in subject
-  int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
-  ZoneList<int> indices(initial_capacity, zone_scope.zone());
-
-  FindStringIndicesDispatch(isolate, *subject, *pattern, &indices, limit,
-                            zone_scope.zone());
-
-  if (static_cast<uint32_t>(indices.length()) < limit) {
-    indices.Add(subject_length, zone_scope.zone());
+  if (static_cast<uint32_t>(indices->length()) < limit) {
+    indices->Add(subject_length);
   }
 
   // The list indices now contains the end of each part to create.
 
   // Create JSArray of substrings separated by separator.
-  int part_count = indices.length();
+  int part_count = indices->length();
 
   Handle<JSArray> result =
       isolate->factory()->NewJSArray(FAST_ELEMENTS, part_count, part_count,
@@ -737,12 +742,12 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   Handle<FixedArray> elements(FixedArray::cast(result->elements()));
 
-  if (part_count == 1 && indices.at(0) == subject_length) {
+  if (part_count == 1 && indices->at(0) == subject_length) {
     elements->set(0, *subject);
   } else {
     int part_start = 0;
     FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < part_count, i++, {
-      int part_end = indices.at(i);
+      int part_end = indices->at(i);
       Handle<String> substring =
           isolate->factory()->NewProperSubString(subject, part_start, part_end);
       elements->set(i, *substring);
@@ -757,6 +762,8 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
     }
   }
+
+  TruncateRegexpIndicesList(isolate);
 
   return *result;
 }
