@@ -429,3 +429,94 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
   CHECK(try_catch.HasCaught());
   isolate->clear_pending_exception();
 }
+
+TEST(Run_WasmModule_Global_init) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  TestSignatures sigs;
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint32_t global1 =
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(777777));
+  uint32_t global2 =
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(222222));
+  WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
+  byte code[] = {
+      WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
+  f1->EmitCode(code, sizeof(code));
+  ExportAsMain(f1);
+  TestModule(&zone, builder, 999999);
+}
+
+template <typename CType>
+static void RunWasmModuleGlobalInitTest(LocalType type, CType expected) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  TestSignatures sigs;
+
+  LocalType types[] = {type};
+  FunctionSig sig(1, 0, types);
+
+  for (int padding = 0; padding < 5; padding++) {
+    // Test with a simple initializer
+    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+
+    for (int i = 0; i < padding; i++) {  // pad global before
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 20000));
+    }
+    uint32_t global =
+        builder->AddGlobal(type, false, false, WasmInitExpr(expected));
+    for (int i = 0; i < padding; i++) {  // pad global after
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 30000));
+    }
+
+    WasmFunctionBuilder* f1 = builder->AddFunction(&sig);
+    byte code[] = {WASM_GET_GLOBAL(global)};
+    f1->EmitCode(code, sizeof(code));
+    ExportAsMain(f1);
+    TestModule(&zone, builder, expected);
+  }
+
+  for (int padding = 0; padding < 5; padding++) {
+    // Test with a global index
+    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    for (int i = 0; i < padding; i++) {  // pad global before
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 40000));
+    }
+
+    uint32_t global1 =
+        builder->AddGlobal(type, false, false, WasmInitExpr(expected));
+
+    for (int i = 0; i < padding; i++) {  // pad global middle
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 50000));
+    }
+
+    uint32_t global2 = builder->AddGlobal(
+        type, false, false, WasmInitExpr(WasmInitExpr::kGlobalIndex, global1));
+
+    for (int i = 0; i < padding; i++) {  // pad global after
+      builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 60000));
+    }
+
+    WasmFunctionBuilder* f1 = builder->AddFunction(&sig);
+    byte code[] = {WASM_GET_GLOBAL(global2)};
+    f1->EmitCode(code, sizeof(code));
+    ExportAsMain(f1);
+    TestModule(&zone, builder, expected);
+  }
+}
+
+TEST(Run_WasmModule_Global_i32) {
+  RunWasmModuleGlobalInitTest<int32_t>(kAstI32, -983489);
+  RunWasmModuleGlobalInitTest<int32_t>(kAstI32, 11223344);
+}
+
+TEST(Run_WasmModule_Global_f32) {
+  RunWasmModuleGlobalInitTest<float>(kAstF32, -983.9f);
+  RunWasmModuleGlobalInitTest<float>(kAstF32, 1122.99f);
+}
+
+TEST(Run_WasmModule_Global_f64) {
+  RunWasmModuleGlobalInitTest<double>(kAstF64, -833.9);
+  RunWasmModuleGlobalInitTest<double>(kAstF64, 86374.25);
+}

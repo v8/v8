@@ -318,7 +318,7 @@ class ModuleDecoder : public Decoder {
             // ===== Imported global =========================================
             import->index = static_cast<uint32_t>(module->globals.size());
             module->globals.push_back(
-                {kAstStmt, false, NO_INIT, 0, true, false});
+                {kAstStmt, false, WasmInitExpr(), 0, true, false});
             WasmGlobal* global = &module->globals.back();
             global->type = consume_value_type();
             global->mutability = consume_u8("mutability") != 0;
@@ -399,7 +399,8 @@ class ModuleDecoder : public Decoder {
         TRACE("DecodeGlobal[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
         // Add an uninitialized global and pass a pointer to it.
-        module->globals.push_back({kAstStmt, false, NO_INIT, 0, false, false});
+        module->globals.push_back(
+            {kAstStmt, false, WasmInitExpr(), 0, false, false});
         WasmGlobal* global = &module->globals.back();
         DecodeGlobalInModule(module, i, global);
       }
@@ -545,9 +546,9 @@ class ModuleDecoder : public Decoder {
         TRACE("DecodeDataSegment[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
         module->data_segments.push_back({
-            NO_INIT,  // dest_addr
-            0,        // source_offset
-            0         // source_size
+            WasmInitExpr(),  // dest_addr
+            0,               // source_offset
+            0                // source_size
         });
         WasmDataSegment* segment = &module->data_segments.back();
         DecodeDataSegmentInModule(module, segment);
@@ -647,13 +648,19 @@ class ModuleDecoder : public Decoder {
     const byte* pos = pc();
     global->init = consume_init_expr(module, kAstStmt);
     switch (global->init.kind) {
-      case WasmInitExpr::kGlobalIndex:
-        if (global->init.val.global_index >= index) {
+      case WasmInitExpr::kGlobalIndex: {
+        uint32_t other_index = global->init.val.global_index;
+        if (other_index >= index) {
           error("invalid global index in init expression");
-        } else if (module->globals[index].type != global->type) {
-          error("type mismatch in global initialization");
+        } else if (module->globals[other_index].type != global->type) {
+          error(pos, pos,
+                "type mismatch in global initialization "
+                "(from global #%u), expected %s, got %s",
+                other_index, WasmOpcodes::TypeName(global->type),
+                WasmOpcodes::TypeName(module->globals[other_index].type));
         }
         break;
+      }
       default:
         if (global->type != TypeOf(module, global->init)) {
           error(pos, pos,

@@ -3151,8 +3151,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
-                                    Handle<String> import_module,
-                                    MaybeHandle<String> import_function) {
+                                    Handle<String> module_name,
+                                    MaybeHandle<String> import_name) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -3215,14 +3215,14 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     const char* function_name = nullptr;
     int function_name_size = 0;
-    if (!import_function.is_null()) {
-      Handle<String> handle = import_function.ToHandleChecked();
+    if (!import_name.is_null()) {
+      Handle<String> handle = import_name.ToHandleChecked();
       function_name = handle->ToCString().get();
       function_name_size = handle->length();
     }
     RecordFunctionCompilation(
         CodeEventListener::FUNCTION_TAG, isolate, code, "wasm-to-js", index,
-        {import_module->ToCString().get(), import_module->length()},
+        {module_name->ToCString().get(), module_name->length()},
         {function_name, function_name_size});
   }
 

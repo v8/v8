@@ -212,7 +212,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     imports_[index].name_length = name_length;
   }
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
-  uint32_t AddGlobal(LocalType type, bool exported, bool mutability = true);
+  uint32_t AddGlobal(LocalType type, bool exported, bool mutability = true,
+                     const WasmInitExpr& init = WasmInitExpr());
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   void AddIndirectFunction(uint32_t index);
@@ -241,6 +242,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     LocalType type;
     bool exported;
     bool mutability;
+    WasmInitExpr init;
   };
 
   struct WasmDataSegment {

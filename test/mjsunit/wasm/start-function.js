@@ -38,7 +38,7 @@ function assertVerifies(sig, body) {
 }
 
 assertVerifies(kSig_v_v, [kExprNop]);
-assertVerifies(kSig_i, [kExprI8Const, 0]);
+assertVerifies(kSig_i_v, [kExprI8Const, 0]);
 
 // Arguments aren't allow to start functions.
 assertFails(kSig_i_i, [kExprGetLocal, 0]);
