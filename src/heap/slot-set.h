@@ -401,20 +401,21 @@ class TypedSlotSet {
         }
       }
 
+      Chunk* next = chunk->next.Value();
       if (mode == PREFREE_EMPTY_CHUNKS && empty) {
         // We remove the chunk from the list but let it still point its next
         // chunk to allow concurrent iteration.
         if (previous) {
-          previous->next.SetValue(chunk->next.Value());
+          previous->next.SetValue(next);
         } else {
-          chunk_.SetValue(chunk->next.Value());
+          chunk_.SetValue(next);
         }
         base::LockGuard<base::Mutex> guard(&to_be_freed_chunks_mutex_);
         to_be_freed_chunks_.push(chunk);
       } else {
         previous = chunk;
       }
-      chunk = chunk->next.Value();
+      chunk = next;
     }
     return new_count;
   }
