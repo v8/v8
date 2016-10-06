@@ -5261,11 +5261,10 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     }
     set_current_block(if_slow);
     {
-      ForInFilterStub stub(isolate());
+      Callable callable = CodeFactory::ForInFilter(isolate());
       HValue* values[] = {context(), key, enumerable};
-      HConstant* stub_value = Add<HConstant>(stub.GetCode());
-      Push(Add<HCallWithDescriptor>(stub_value, 0,
-                                    stub.GetCallInterfaceDescriptor(),
+      HConstant* stub_value = Add<HConstant>(callable.code());
+      Push(Add<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
                                     ArrayVector(values)));
       Add<HSimulate>(stmt->FilterId());
       FinishCurrentBlock(New<HCompareObjectEqAndBranch>(

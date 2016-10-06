@@ -108,22 +108,11 @@ class ObjectLiteral;
   V(CreateAllocationSite)                     \
   V(CreateWeakCell)                           \
   V(StringLength)                             \
-  V(Add)                                      \
   V(AddWithFeedback)                          \
-  V(Subtract)                                 \
   V(SubtractWithFeedback)                     \
-  V(Multiply)                                 \
   V(MultiplyWithFeedback)                     \
-  V(Divide)                                   \
   V(DivideWithFeedback)                       \
-  V(Modulus)                                  \
   V(ModulusWithFeedback)                      \
-  V(ShiftRight)                               \
-  V(ShiftRightLogical)                        \
-  V(ShiftLeft)                                \
-  V(BitwiseAnd)                               \
-  V(BitwiseOr)                                \
-  V(BitwiseXor)                               \
   V(Inc)                                      \
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
@@ -134,23 +123,10 @@ class ObjectLiteral;
   V(FastCloneShallowObject)                   \
   V(FastNewClosure)                           \
   V(FastNewFunctionContext)                   \
-  V(InstanceOf)                               \
-  V(LessThan)                                 \
-  V(LessThanOrEqual)                          \
-  V(GreaterThan)                              \
-  V(GreaterThanOrEqual)                       \
-  V(Equal)                                    \
-  V(NotEqual)                                 \
   V(KeyedLoadSloppyArguments)                 \
   V(KeyedStoreSloppyArguments)                \
   V(LoadScriptContextField)                   \
   V(StoreScriptContextField)                  \
-  V(StrictEqual)                              \
-  V(StrictNotEqual)                           \
-  V(ToInteger)                                \
-  V(ToLength)                                 \
-  V(HasProperty)                              \
-  V(ForInFilter)                              \
   V(GetProperty)                              \
   V(LoadICTF)                                 \
   V(KeyedLoadICTF)                            \
@@ -164,8 +140,6 @@ class ObjectLiteral;
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
   V(GrowArrayElements)                        \
-  V(ToObject)                                 \
-  V(Typeof)                                   \
   /* These are only called from FGC and */    \
   /* can be removed when we use ignition */   \
   /* only */                                  \
@@ -756,14 +730,6 @@ class StringLengthStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(StringLength, TurboFanCodeStub);
 };
 
-class AddStub final : public TurboFanCodeStub {
- public:
-  explicit AddStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Add, TurboFanCodeStub);
-};
-
 class AddWithFeedbackStub final : public TurboFanCodeStub {
  public:
   explicit AddWithFeedbackStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -771,14 +737,6 @@ class AddWithFeedbackStub final : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(AddWithFeedback,
                                                     TurboFanCodeStub);
-};
-
-class SubtractStub final : public TurboFanCodeStub {
- public:
-  explicit SubtractStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Subtract, TurboFanCodeStub);
 };
 
 class SubtractWithFeedbackStub final : public TurboFanCodeStub {
@@ -791,14 +749,6 @@ class SubtractWithFeedbackStub final : public TurboFanCodeStub {
                                                     TurboFanCodeStub);
 };
 
-class MultiplyStub final : public TurboFanCodeStub {
- public:
-  explicit MultiplyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Multiply, TurboFanCodeStub);
-};
-
 class MultiplyWithFeedbackStub final : public TurboFanCodeStub {
  public:
   explicit MultiplyWithFeedbackStub(Isolate* isolate)
@@ -807,14 +757,6 @@ class MultiplyWithFeedbackStub final : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(MultiplyWithFeedback,
                                                     TurboFanCodeStub);
-};
-
-class DivideStub final : public TurboFanCodeStub {
- public:
-  explicit DivideStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Divide, TurboFanCodeStub);
 };
 
 class DivideWithFeedbackStub final : public TurboFanCodeStub {
@@ -827,14 +769,6 @@ class DivideWithFeedbackStub final : public TurboFanCodeStub {
                                                     TurboFanCodeStub);
 };
 
-class ModulusStub final : public TurboFanCodeStub {
- public:
-  explicit ModulusStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Modulus, TurboFanCodeStub);
-};
-
 class ModulusWithFeedbackStub final : public TurboFanCodeStub {
  public:
   explicit ModulusWithFeedbackStub(Isolate* isolate)
@@ -843,55 +777,6 @@ class ModulusWithFeedbackStub final : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(ModulusWithFeedback,
                                                     TurboFanCodeStub);
-};
-
-class ShiftRightStub final : public TurboFanCodeStub {
- public:
-  explicit ShiftRightStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ShiftRight, TurboFanCodeStub);
-};
-
-class ShiftRightLogicalStub final : public TurboFanCodeStub {
- public:
-  explicit ShiftRightLogicalStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ShiftRightLogical, TurboFanCodeStub);
-};
-
-class ShiftLeftStub final : public TurboFanCodeStub {
- public:
-  explicit ShiftLeftStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ShiftLeft, TurboFanCodeStub);
-};
-
-class BitwiseAndStub final : public TurboFanCodeStub {
- public:
-  explicit BitwiseAndStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseAnd, TurboFanCodeStub);
-};
-
-class BitwiseOrStub final : public TurboFanCodeStub {
- public:
-  explicit BitwiseOrStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseOr, TurboFanCodeStub);
-};
-
-class BitwiseXorStub final : public TurboFanCodeStub {
- public:
-  explicit BitwiseXorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseXor, TurboFanCodeStub);
 };
 
 class IncStub final : public TurboFanCodeStub {
@@ -908,96 +793,6 @@ class DecStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
   DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Dec, TurboFanCodeStub);
-};
-
-class InstanceOfStub final : public TurboFanCodeStub {
- public:
-  explicit InstanceOfStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(InstanceOf, TurboFanCodeStub);
-};
-
-class LessThanStub final : public TurboFanCodeStub {
- public:
-  explicit LessThanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(LessThan, TurboFanCodeStub);
-};
-
-class LessThanOrEqualStub final : public TurboFanCodeStub {
- public:
-  explicit LessThanOrEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(LessThanOrEqual, TurboFanCodeStub);
-};
-
-class GreaterThanStub final : public TurboFanCodeStub {
- public:
-  explicit GreaterThanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(GreaterThan, TurboFanCodeStub);
-};
-
-class GreaterThanOrEqualStub final : public TurboFanCodeStub {
- public:
-  explicit GreaterThanOrEqualStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(GreaterThanOrEqual, TurboFanCodeStub);
-};
-
-class EqualStub final : public TurboFanCodeStub {
- public:
-  explicit EqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Equal, TurboFanCodeStub);
-};
-
-class NotEqualStub final : public TurboFanCodeStub {
- public:
-  explicit NotEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(NotEqual, TurboFanCodeStub);
-};
-
-class StrictEqualStub final : public TurboFanCodeStub {
- public:
-  explicit StrictEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(StrictEqual, TurboFanCodeStub);
-};
-
-class StrictNotEqualStub final : public TurboFanCodeStub {
- public:
-  explicit StrictNotEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(StrictNotEqual, TurboFanCodeStub);
-};
-
-class ToIntegerStub final : public TurboFanCodeStub {
- public:
-  explicit ToIntegerStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_TURBOFAN_CODE_STUB(ToInteger, TurboFanCodeStub);
-};
-
-class ToLengthStub final : public TurboFanCodeStub {
- public:
-  explicit ToLengthStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_TURBOFAN_CODE_STUB(ToLength, TurboFanCodeStub);
 };
 
 class StoreInterceptorStub : public TurboFanCodeStub {
@@ -1023,23 +818,6 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
-};
-
-// ES6 section 12.10.3 "in" operator evaluation.
-class HasPropertyStub : public TurboFanCodeStub {
- public:
-  explicit HasPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(HasProperty);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(HasProperty, TurboFanCodeStub);
-};
-
-class ForInFilterStub : public TurboFanCodeStub {
- public:
-  explicit ForInFilterStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ForInFilter);
-  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ForInFilter, TurboFanCodeStub);
 };
 
 // ES6 [[Get]] operation.
@@ -1076,14 +854,6 @@ class NumberToStringStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_HYDROGEN_CODE_STUB(NumberToString, HydrogenCodeStub);
-};
-
-class TypeofStub final : public TurboFanCodeStub {
- public:
-  explicit TypeofStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Typeof);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(Typeof, TurboFanCodeStub);
 };
 
 class FastNewClosureStub : public TurboFanCodeStub {
@@ -3116,13 +2886,6 @@ class SubStringStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(SubString, TurboFanCodeStub);
 };
 
-class ToObjectStub final : public TurboFanCodeStub {
- public:
-  explicit ToObjectStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_TURBOFAN_CODE_STUB(ToObject, TurboFanCodeStub);
-};
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB

@@ -10,9 +10,10 @@
 namespace v8 {
 namespace internal {
 
-namespace {
+typedef CodeStubAssembler::ResultMode ResultMode;
+typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 
-enum ResultMode { kDontNegateResult, kNegateResult };
+namespace {
 
 void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
@@ -168,9 +169,10 @@ void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
         {
           // TODO(bmeurer): Add fast case support for flattened cons strings;
           // also add support for two byte string equality checks.
-          Runtime::FunctionId function_id = (mode == kDontNegateResult)
-                                                ? Runtime::kStringEqual
-                                                : Runtime::kStringNotEqual;
+          Runtime::FunctionId function_id =
+              (mode == ResultMode::kDontNegateResult)
+                  ? Runtime::kStringEqual
+                  : Runtime::kStringNotEqual;
           assembler->TailCallRuntime(function_id, context, lhs, rhs);
         }
       }
@@ -184,18 +186,14 @@ void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
   }
 
   assembler->Bind(&if_equal);
-  assembler->Return(assembler->BooleanConstant(mode == kDontNegateResult));
+  assembler->Return(
+      assembler->BooleanConstant(mode == ResultMode::kDontNegateResult));
 
   assembler->Bind(&if_notequal);
-  assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
+  assembler->Return(
+      assembler->BooleanConstant(mode == ResultMode::kNegateResult));
 }
 
-enum RelationalComparisonMode {
-  kLessThan,
-  kLessThanOrEqual,
-  kGreaterThan,
-  kGreaterThanOrEqual
-};
 
 void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
                                         RelationalComparisonMode mode) {
@@ -320,19 +318,19 @@ void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
       // TODO(bmeurer): Add fast case support for flattened cons strings;
       // also add support for two byte string relational comparisons.
       switch (mode) {
-        case kLessThan:
+        case RelationalComparisonMode::kLessThan:
           assembler->TailCallRuntime(Runtime::kStringLessThan, context, lhs,
                                      rhs);
           break;
-        case kLessThanOrEqual:
+        case RelationalComparisonMode::kLessThanOrEqual:
           assembler->TailCallRuntime(Runtime::kStringLessThanOrEqual, context,
                                      lhs, rhs);
           break;
-        case kGreaterThan:
+        case RelationalComparisonMode::kGreaterThan:
           assembler->TailCallRuntime(Runtime::kStringGreaterThan, context, lhs,
                                      rhs);
           break;
-        case kGreaterThanOrEqual:
+        case RelationalComparisonMode::kGreaterThanOrEqual:
           assembler->TailCallRuntime(Runtime::kStringGreaterThanOrEqual,
                                      context, lhs, rhs);
           break;
@@ -342,39 +340,39 @@ void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
 
   assembler->Bind(&if_less);
   switch (mode) {
-    case kLessThan:
-    case kLessThanOrEqual:
+    case RelationalComparisonMode::kLessThan:
+    case RelationalComparisonMode::kLessThanOrEqual:
       assembler->Return(assembler->BooleanConstant(true));
       break;
 
-    case kGreaterThan:
-    case kGreaterThanOrEqual:
+    case RelationalComparisonMode::kGreaterThan:
+    case RelationalComparisonMode::kGreaterThanOrEqual:
       assembler->Return(assembler->BooleanConstant(false));
       break;
   }
 
   assembler->Bind(&if_equal);
   switch (mode) {
-    case kLessThan:
-    case kGreaterThan:
+    case RelationalComparisonMode::kLessThan:
+    case RelationalComparisonMode::kGreaterThan:
       assembler->Return(assembler->BooleanConstant(false));
       break;
 
-    case kLessThanOrEqual:
-    case kGreaterThanOrEqual:
+    case RelationalComparisonMode::kLessThanOrEqual:
+    case RelationalComparisonMode::kGreaterThanOrEqual:
       assembler->Return(assembler->BooleanConstant(true));
       break;
   }
 
   assembler->Bind(&if_greater);
   switch (mode) {
-    case kLessThan:
-    case kLessThanOrEqual:
+    case RelationalComparisonMode::kLessThan:
+    case RelationalComparisonMode::kLessThanOrEqual:
       assembler->Return(assembler->BooleanConstant(false));
       break;
 
-    case kGreaterThan:
-    case kGreaterThanOrEqual:
+    case RelationalComparisonMode::kGreaterThan:
+    case RelationalComparisonMode::kGreaterThanOrEqual:
       assembler->Return(assembler->BooleanConstant(true));
       break;
   }
@@ -384,32 +382,36 @@ void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
 
 // static
 void Builtins::Generate_StringEqual(CodeStubAssembler* assembler) {
-  GenerateStringEqual(assembler, kDontNegateResult);
+  GenerateStringEqual(assembler, ResultMode::kDontNegateResult);
 }
 
 // static
 void Builtins::Generate_StringNotEqual(CodeStubAssembler* assembler) {
-  GenerateStringEqual(assembler, kNegateResult);
+  GenerateStringEqual(assembler, ResultMode::kNegateResult);
 }
 
 // static
 void Builtins::Generate_StringLessThan(CodeStubAssembler* assembler) {
-  GenerateStringRelationalComparison(assembler, kLessThan);
+  GenerateStringRelationalComparison(assembler,
+                                     RelationalComparisonMode::kLessThan);
 }
 
 // static
 void Builtins::Generate_StringLessThanOrEqual(CodeStubAssembler* assembler) {
-  GenerateStringRelationalComparison(assembler, kLessThanOrEqual);
+  GenerateStringRelationalComparison(
+      assembler, RelationalComparisonMode::kLessThanOrEqual);
 }
 
 // static
 void Builtins::Generate_StringGreaterThan(CodeStubAssembler* assembler) {
-  GenerateStringRelationalComparison(assembler, kGreaterThan);
+  GenerateStringRelationalComparison(assembler,
+                                     RelationalComparisonMode::kGreaterThan);
 }
 
 // static
 void Builtins::Generate_StringGreaterThanOrEqual(CodeStubAssembler* assembler) {
-  GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
+  GenerateStringRelationalComparison(
+      assembler, RelationalComparisonMode::kGreaterThanOrEqual);
 }
 
 // -----------------------------------------------------------------------------

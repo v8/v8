@@ -154,12 +154,6 @@ Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
 }
 
 // static
-Callable CodeFactory::InstanceOf(Isolate* isolate) {
-  InstanceOfStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::GetProperty(Isolate* isolate) {
   GetPropertyStub stub(isolate);
   return make_callable(stub);
@@ -190,33 +184,9 @@ Callable CodeFactory::StringToNumber(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::ToString(Isolate* isolate) {
-  return Callable(isolate->builtins()->ToString(),
-                  TypeConversionDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::ToName(Isolate* isolate) {
   return Callable(isolate->builtins()->ToName(),
                   TypeConversionDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ToInteger(Isolate* isolate) {
-  ToIntegerStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ToLength(Isolate* isolate) {
-  ToLengthStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ToObject(Isolate* isolate) {
-  ToObjectStub stub(isolate);
-  return make_callable(stub);
 }
 
 // static
@@ -251,71 +221,45 @@ Callable CodeFactory::RegExpExec(Isolate* isolate) {
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
-// static
-Callable CodeFactory::Add(Isolate* isolate) {
-  AddStub stub(isolate);
-  return make_callable(stub);
-}
+#define DECLARE_TFS(Name, Kind, Extra, InterfaceDescriptor) \
+  typedef InterfaceDescriptor##Descriptor Name##Descriptor;
+BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TFS,
+             IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#undef DECLARE_TFS
 
-// static
-Callable CodeFactory::Subtract(Isolate* isolate) {
-  SubtractStub stub(isolate);
-  return make_callable(stub);
-}
+#define TFS_BUILTIN(Name)                             \
+  Callable CodeFactory::Name(Isolate* isolate) {      \
+    Handle<Code> code(isolate->builtins()->Name());   \
+    return Callable(code, Name##Descriptor(isolate)); \
+  }
 
-// static
-Callable CodeFactory::Multiply(Isolate* isolate) {
-  MultiplyStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::Divide(Isolate* isolate) {
-  DivideStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::Modulus(Isolate* isolate) {
-  ModulusStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ShiftRight(Isolate* isolate) {
-  ShiftRightStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ShiftRightLogical(Isolate* isolate) {
-  ShiftRightLogicalStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ShiftLeft(Isolate* isolate) {
-  ShiftLeftStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::BitwiseAnd(Isolate* isolate) {
-  BitwiseAndStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::BitwiseOr(Isolate* isolate) {
-  BitwiseOrStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::BitwiseXor(Isolate* isolate) {
-  BitwiseXorStub stub(isolate);
-  return make_callable(stub);
-}
+TFS_BUILTIN(ToString)
+TFS_BUILTIN(Add)
+TFS_BUILTIN(Subtract)
+TFS_BUILTIN(Multiply)
+TFS_BUILTIN(Divide)
+TFS_BUILTIN(Modulus)
+TFS_BUILTIN(BitwiseAnd)
+TFS_BUILTIN(BitwiseOr)
+TFS_BUILTIN(BitwiseXor)
+TFS_BUILTIN(ShiftLeft)
+TFS_BUILTIN(ShiftRight)
+TFS_BUILTIN(ShiftRightLogical)
+TFS_BUILTIN(LessThan)
+TFS_BUILTIN(LessThanOrEqual)
+TFS_BUILTIN(GreaterThan)
+TFS_BUILTIN(GreaterThanOrEqual)
+TFS_BUILTIN(Equal)
+TFS_BUILTIN(NotEqual)
+TFS_BUILTIN(StrictEqual)
+TFS_BUILTIN(StrictNotEqual)
+TFS_BUILTIN(HasProperty)
+TFS_BUILTIN(ToInteger)
+TFS_BUILTIN(ToLength)
+TFS_BUILTIN(ToObject)
+TFS_BUILTIN(Typeof)
+TFS_BUILTIN(InstanceOf)
+TFS_BUILTIN(ForInFilter)
 
 // static
 Callable CodeFactory::Inc(Isolate* isolate) {
@@ -326,54 +270,6 @@ Callable CodeFactory::Inc(Isolate* isolate) {
 // static
 Callable CodeFactory::Dec(Isolate* isolate) {
   DecStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::LessThan(Isolate* isolate) {
-  LessThanStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::LessThanOrEqual(Isolate* isolate) {
-  LessThanOrEqualStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::GreaterThan(Isolate* isolate) {
-  GreaterThanStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::GreaterThanOrEqual(Isolate* isolate) {
-  GreaterThanOrEqualStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::Equal(Isolate* isolate) {
-  EqualStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::NotEqual(Isolate* isolate) {
-  NotEqualStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::StrictEqual(Isolate* isolate) {
-  StrictEqualStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::StrictNotEqual(Isolate* isolate) {
-  StrictNotEqualStub stub(isolate);
   return make_callable(stub);
 }
 
@@ -454,12 +350,6 @@ Callable CodeFactory::SubString(Isolate* isolate) {
 Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
   return Callable(isolate->builtins()->ResumeGeneratorTrampoline(),
                   ResumeGeneratorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::Typeof(Isolate* isolate) {
-  TypeofStub stub(isolate);
-  return make_callable(stub);
 }
 
 // static
@@ -582,18 +472,6 @@ Callable CodeFactory::Construct(Isolate* isolate) {
 Callable CodeFactory::ConstructFunction(Isolate* isolate) {
   return Callable(isolate->builtins()->ConstructFunction(),
                   ConstructTrampolineDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::HasProperty(Isolate* isolate) {
-  HasPropertyStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ForInFilter(Isolate* isolate) {
-  ForInFilterStub stub(isolate);
-  return make_callable(stub);
 }
 
 // static

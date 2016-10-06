@@ -862,6 +862,36 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                   FixedArray::kHeaderSize);
   }
 
+  enum RelationalComparisonMode {
+    kLessThan,
+    kLessThanOrEqual,
+    kGreaterThan,
+    kGreaterThanOrEqual
+  };
+
+  compiler::Node* RelationalComparison(RelationalComparisonMode mode,
+                                       compiler::Node* lhs, compiler::Node* rhs,
+                                       compiler::Node* context);
+
+  enum ResultMode { kDontNegateResult, kNegateResult };
+
+  compiler::Node* Equal(ResultMode mode, compiler::Node* lhs,
+                        compiler::Node* rhs, compiler::Node* context);
+
+  compiler::Node* StrictEqual(ResultMode mode, compiler::Node* lhs,
+                              compiler::Node* rhs, compiler::Node* context);
+
+  compiler::Node* HasProperty(
+      compiler::Node* object, compiler::Node* key, compiler::Node* context,
+      Runtime::FunctionId fallback_runtime_function_id = Runtime::kHasProperty);
+  compiler::Node* ForInFilter(compiler::Node* key, compiler::Node* object,
+                              compiler::Node* context);
+
+  compiler::Node* Typeof(compiler::Node* value, compiler::Node* context);
+
+  compiler::Node* InstanceOf(compiler::Node* object, compiler::Node* callable,
+                             compiler::Node* context);
+
  private:
   enum ElementSupport { kOnlyProperties, kSupportElements };
 

@@ -906,5 +906,38 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
+void Builtins::Generate_HasProperty(CodeStubAssembler* assembler) {
+  typedef HasPropertyDescriptor Descriptor;
+  typedef compiler::Node Node;
+
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(
+      assembler->HasProperty(object, key, context, Runtime::kHasProperty));
+}
+
+void Builtins::Generate_ForInFilter(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef ForInFilterDescriptor Descriptor;
+
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->ForInFilter(key, object, context));
+}
+
+void Builtins::Generate_InstanceOf(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CompareDescriptor Descriptor;
+  Node* object = assembler->Parameter(Descriptor::kLeft);
+  Node* callable = assembler->Parameter(Descriptor::kRight);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->InstanceOf(object, callable, context));
+}
+
 }  // namespace internal
 }  // namespace v8

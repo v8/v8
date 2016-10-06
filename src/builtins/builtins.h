@@ -52,6 +52,8 @@ namespace internal {
   /* Code aging */                                                            \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                       \
                                                                               \
+  TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion)                     \
+                                                                              \
   /* Calls */                                                                 \
   ASM(ArgumentsAdaptorTrampoline)                                             \
   /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */             \
@@ -172,6 +174,9 @@ namespace internal {
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                     \
   TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                     \
+  TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion)                    \
+  TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion)                     \
+  TFS(Typeof, BUILTIN, kNoExtraICState, Typeof)                               \
                                                                               \
   /* Handlers */                                                              \
   ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
@@ -482,6 +487,25 @@ namespace internal {
   CPP(NumberPrototypeToString)                                                \
   /* ES6 section 20.1.3.7 Number.prototype.valueOf ( ) */                     \
   TFJ(NumberPrototypeValueOf, 1)                                              \
+  TFS(Add, BUILTIN, kNoExtraICState, BinaryOp)                                \
+  TFS(Subtract, BUILTIN, kNoExtraICState, BinaryOp)                           \
+  TFS(Multiply, BUILTIN, kNoExtraICState, BinaryOp)                           \
+  TFS(Divide, BUILTIN, kNoExtraICState, BinaryOp)                             \
+  TFS(Modulus, BUILTIN, kNoExtraICState, BinaryOp)                            \
+  TFS(BitwiseAnd, BUILTIN, kNoExtraICState, BinaryOp)                         \
+  TFS(BitwiseOr, BUILTIN, kNoExtraICState, BinaryOp)                          \
+  TFS(BitwiseXor, BUILTIN, kNoExtraICState, BinaryOp)                         \
+  TFS(ShiftLeft, BUILTIN, kNoExtraICState, BinaryOp)                          \
+  TFS(ShiftRight, BUILTIN, kNoExtraICState, BinaryOp)                         \
+  TFS(ShiftRightLogical, BUILTIN, kNoExtraICState, BinaryOp)                  \
+  TFS(LessThan, BUILTIN, kNoExtraICState, Compare)                            \
+  TFS(LessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                     \
+  TFS(GreaterThan, BUILTIN, kNoExtraICState, Compare)                         \
+  TFS(GreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)                  \
+  TFS(Equal, BUILTIN, kNoExtraICState, Compare)                               \
+  TFS(NotEqual, BUILTIN, kNoExtraICState, Compare)                            \
+  TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare)                         \
+  TFS(StrictNotEqual, BUILTIN, kNoExtraICState, Compare)                      \
                                                                               \
   /* Object */                                                                \
   CPP(ObjectAssign)                                                           \
@@ -512,6 +536,10 @@ namespace internal {
   CPP(ObjectPrototypePropertyIsEnumerable)                                    \
   CPP(ObjectSeal)                                                             \
   CPP(ObjectValues)                                                           \
+                                                                              \
+  TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty)                     \
+  TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                          \
+  TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \

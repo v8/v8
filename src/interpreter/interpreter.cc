@@ -904,14 +904,24 @@ void Interpreter::DoPopContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// TODO(mythria): Remove this function once all BinaryOps record type feedback.
-template <class Generator>
-void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
+// TODO(mythria): Remove this function once all CompareOps record type feedback.
+void Interpreter::DoCompareOp(Token::Value compare_op,
+                              InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* lhs = __ LoadRegister(reg_index);
   Node* rhs = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  Node* result;
+  switch (compare_op) {
+    case Token::IN:
+      result = assembler->HasProperty(rhs, lhs, context);
+      break;
+    case Token::INSTANCEOF:
+      result = assembler->InstanceOf(lhs, rhs, context);
+      break;
+    default:
+      UNREACHABLE();
+  }
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -930,8 +940,8 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-template <class Generator>
-void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
+void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
+                                          InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* lhs = __ LoadRegister(reg_index);
   Node* rhs = __ GetAccumulator();
@@ -999,7 +1009,39 @@ void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
   __ Goto(&skip_feedback_update);
 
   __ Bind(&skip_feedback_update);
-  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  Node* result;
+  switch (compare_op) {
+    case Token::EQ:
+      result = assembler->Equal(CodeStubAssembler::kDontNegateResult, lhs, rhs,
+                                context);
+      break;
+    case Token::NE:
+      result =
+          assembler->Equal(CodeStubAssembler::kNegateResult, lhs, rhs, context);
+      break;
+    case Token::EQ_STRICT:
+      result = assembler->StrictEqual(CodeStubAssembler::kDontNegateResult, lhs,
+                                      rhs, context);
+      break;
+    case Token::LT:
+      result = assembler->RelationalComparison(CodeStubAssembler::kLessThan,
+                                               lhs, rhs, context);
+      break;
+    case Token::GT:
+      result = assembler->RelationalComparison(CodeStubAssembler::kGreaterThan,
+                                               lhs, rhs, context);
+      break;
+    case Token::LTE:
+      result = assembler->RelationalComparison(
+          CodeStubAssembler::kLessThanOrEqual, lhs, rhs, context);
+      break;
+    case Token::GTE:
+      result = assembler->RelationalComparison(
+          CodeStubAssembler::kGreaterThanOrEqual, lhs, rhs, context);
+      break;
+    default:
+      UNREACHABLE();
+  }
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1393,15 +1435,6 @@ Node* Interpreter::BuildUnaryOp(Callable callable,
 }
 
 template <class Generator>
-void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = Generator::Generate(assembler, value, context);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-template <class Generator>
 void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* context = __ GetContext();
@@ -1520,7 +1553,11 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
 // Load the accumulator with the string representating type of the
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
-  DoUnaryOp<TypeofStub>(assembler);
+  Node* value = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = assembler->Typeof(value, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 void Interpreter::DoDelete(Runtime::FunctionId function_id,
@@ -1698,35 +1735,35 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<EqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::EQ, assembler);
 }
 
 // TestNotEqual <src>
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<NotEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::NE, assembler);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<StrictEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::EQ_STRICT, assembler);
 }
 
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<LessThanStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::LT, assembler);
 }
 
 // TestGreaterThan <src>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<GreaterThanStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::GT, assembler);
 }
 
 // TestLessThanOrEqual <src>
@@ -1734,7 +1771,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<LessThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::LTE, assembler);
 }
 
 // TestGreaterThanOrEqual <src>
@@ -1742,7 +1779,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<GreaterThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::GTE, assembler);
 }
 
 // TestIn <src>
@@ -1750,7 +1787,7 @@ void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
 void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
-  DoBinaryOp<HasPropertyStub>(assembler);
+  DoCompareOp(Token::IN, assembler);
 }
 
 // TestInstanceOf <src>
@@ -1758,7 +1795,7 @@ void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
-  DoBinaryOp<InstanceOfStub>(assembler);
+  DoCompareOp(Token::INSTANCEOF, assembler);
 }
 
 // Jump <imm>
