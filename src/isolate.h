@@ -33,6 +33,7 @@ class RandomNumberGenerator;
 
 namespace internal {
 
+class AccessCompilerData;
 class BasicBlockProfiler;
 class Bootstrapper;
 class CancelableTaskManager;
@@ -1029,6 +1030,8 @@ class Isolate {
 
   CallInterfaceDescriptorData* call_descriptor_data(int index);
 
+  AccessCompilerData* access_compiler_data() { return access_compiler_data_; }
+
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1342,6 +1345,7 @@ class Isolate {
   List<int> regexp_indices_;
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
+  AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::AtomicValue<RAILMode> rail_mode_;
 

@@ -950,6 +950,7 @@
         'i18n.h',
         'icu_util.cc',
         'icu_util.h',
+        'ic/access-compiler-data.h',
         'ic/access-compiler.cc',
         'ic/access-compiler.h',
         'ic/call-optimization.cc',

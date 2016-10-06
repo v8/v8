@@ -1378,6 +1378,7 @@ v8_source_set("v8_base") {
     "src/heap/store-buffer.h",
     "src/i18n.cc",
     "src/i18n.h",
+    "src/ic/access-compiler-data.h",
     "src/ic/access-compiler.cc",
     "src/ic/access-compiler.h",
     "src/ic/call-optimization.cc",
