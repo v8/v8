@@ -140,6 +140,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
       break;
+    case JS_MODULE_NAMESPACE_TYPE:
+      JSModuleNamespace::cast(this)->JSModuleNamespaceVerify();
+      break;
     case JS_SET_TYPE:
       JSSet::cast(this)->JSSetVerify();
       break;
@@ -919,7 +922,13 @@ void PromiseContainer::PromiseContainerVerify() {
   after_debug_event()->ObjectVerify();
 }
 
+void JSModuleNamespace::JSModuleNamespaceVerify() {
+  CHECK(IsJSModuleNamespace());
+  module()->ObjectVerify();
+}
+
 void Module::ModuleVerify() {
+  Isolate* isolate = GetIsolate();
   CHECK(IsModule());
   CHECK(code()->IsSharedFunctionInfo() || code()->IsJSFunction());
   code()->ObjectVerify();
@@ -928,6 +937,8 @@ void Module::ModuleVerify() {
   VerifySmiField(kFlagsOffset);
   embedder_data()->ObjectVerify();
   CHECK(shared()->name()->IsSymbol());
+  CHECK(module_namespace()->IsUndefined(isolate) ||
+        module_namespace()->IsJSModuleNamespace());
   // TODO(neis): Check more.
 }
 

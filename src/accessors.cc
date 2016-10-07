@@ -202,6 +202,68 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
                       attributes);
 }
 
+//
+// Accessors::ModuleNamespaceToStringTag
+//
+
+void Accessors::ModuleNamespaceToStringTagGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  info.GetReturnValue().Set(
+      Utils::ToLocal(isolate->factory()->NewStringFromAsciiChecked("Module")));
+}
+
+Handle<AccessorInfo> Accessors::ModuleNamespaceToStringTagInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  Handle<Name> name = isolate->factory()->to_string_tag_symbol();
+  return MakeAccessor(isolate, name, &ModuleNamespaceToStringTagGetter, nullptr,
+                      attributes);
+}
+
+//
+// Accessors::ModuleNamespaceEntry
+//
+
+void Accessors::ModuleNamespaceEntryGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  JSModuleNamespace* holder =
+      JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  if (!holder->GetExport(Handle<String>::cast(Utils::OpenHandle(*name)))
+           .ToHandle(&result)) {
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(result));
+  }
+}
+
+void Accessors::ModuleNamespaceEntrySetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
+  Handle<JSModuleNamespace> holder =
+      Handle<JSModuleNamespace>::cast(Utils::OpenHandle(*info.Holder()));
+
+  if (info.ShouldThrowOnError()) {
+    isolate->Throw(*factory->NewTypeError(
+        MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
+        i::Object::TypeOf(isolate, holder), holder));
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(factory->ToBoolean(false)));
+  }
+}
+
+Handle<AccessorInfo> Accessors::ModuleNamespaceEntryInfo(
+    Isolate* isolate, Handle<String> name, PropertyAttributes attributes) {
+  return MakeAccessor(isolate, name, &ModuleNamespaceEntryGetter,
+                      &ModuleNamespaceEntrySetter, attributes);
+}
+
 
 //
 // Accessors::StringLength

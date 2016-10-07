@@ -71,6 +71,7 @@
 //         - JSValue
 //           - JSDate
 //         - JSMessageObject
+//         - JSModuleNamespace
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -416,6 +417,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_ARGUMENTS_TYPE)                                          \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
+  V(JS_MODULE_NAMESPACE_TYPE)                                   \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
   V(JS_GLOBAL_PROXY_TYPE)                                       \
   V(JS_API_OBJECT_TYPE)                                         \
@@ -717,6 +719,7 @@ enum InstanceType {
   JS_ARGUMENTS_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,
+  JS_MODULE_NAMESPACE_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_TYPED_ARRAY_TYPE,
@@ -886,6 +889,7 @@ class LayoutDescriptor;
 class LiteralsArray;
 class LookupIterator;
 class FieldType;
+class Module;
 class ModuleDescriptor;
 class ModuleInfoEntry;
 class ModuleInfo;
@@ -970,6 +974,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSObject)                    \
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
+  V(JSModuleNamespace)           \
   V(Map)                         \
   V(DescriptorArray)             \
   V(FrameArray)                  \
@@ -3950,6 +3955,9 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   Object* Lookup(Handle<Object> key);
   Object* Lookup(Handle<Object> key, int32_t hash);
   Object* Lookup(Isolate* isolate, Handle<Object> key, int32_t hash);
+
+  // Returns the value at entry.
+  Object* ValueAt(int entry);
 
   // Adds (or overwrites) the value associated with the given key.
   static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
@@ -7863,6 +7871,29 @@ class JSGeneratorObject: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
+// When importing a module namespace (import * as foo from "bar"), a
+// JSModuleNamespace object (representing module "bar") is created and bound to
+// the declared variable (foo).  A module can have at most one namespace object.
+class JSModuleNamespace : public JSObject {
+ public:
+  DECLARE_CAST(JSModuleNamespace)
+  DECLARE_VERIFIER(JSModuleNamespace)
+
+  // The actual module whose namespace is being represented.
+  DECL_ACCESSORS(module, Module)
+
+  // Retrieve the value exported by [module] under the given [name]. If there is
+  // no such export, return Just(undefined). If the export is uninitialized,
+  // schedule an exception and return Nothing.
+  MUST_USE_RESULT MaybeHandle<Object> GetExport(Handle<String> name);
+
+  static const int kModuleOffset = JSObject::kHeaderSize;
+  static const int kSize = kModuleOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSModuleNamespace);
+};
+
 // A Module object is a mapping from export names to cells
 // This is still very much in flux.
 class Module : public Struct {
@@ -7871,12 +7902,14 @@ class Module : public Struct {
   DECLARE_VERIFIER(Module)
   DECLARE_PRINTER(Module)
 
-  // The code representing this Module, either a
-  // SharedFunctionInfo or a JSFunction depending
-  // on whether it's been instantiated.
+  // The code representing this Module, either a SharedFunctionInfo or a
+  // JSFunction depending on whether it's been instantiated.
   DECL_ACCESSORS(code, Object)
 
   DECL_ACCESSORS(exports, ObjectHashTable)
+
+  // The namespace object (or undefined).
+  DECL_ACCESSORS(module_namespace, HeapObject)
 
   // [[RequestedModules]]: Modules imported or re-exported by this module.
   // Corresponds 1-to-1 to the module specifier strings in
@@ -7887,7 +7920,7 @@ class Module : public Struct {
   // are only evaluated a single time.
   DECL_BOOLEAN_ACCESSORS(evaluated)
 
-  // Storage for [[Evaluated]]
+  // Storage for [[Evaluated]].
   DECL_INT_ACCESSORS(flags)
 
   // Embedder-specified data
@@ -7920,12 +7953,18 @@ class Module : public Struct {
   static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
                                    int module_request);
 
+  // Get the namespace object for [module_request] of [module].  If it doesn't
+  // exist yet, it is created.
+  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module,
+                                                      int module_request);
+
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
   static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
   static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
   static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
-  static const int kSize = kEmbedderDataOffset + kPointerSize;
+  static const int kModuleNamespaceOffset = kEmbedderDataOffset + kPointerSize;
+  static const int kSize = kModuleNamespaceOffset + kPointerSize;
 
  private:
   enum { kEvaluatedBit };
@@ -7933,6 +7972,10 @@ class Module : public Struct {
   static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
   static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
+
+  // Get the namespace object for [module].  If it doesn't exist yet, it is
+  // created.
+  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module);
 
   // The [must_resolve] argument indicates whether or not an exception should be
   // thrown in case the module does not provide an export named [name]

@@ -960,6 +960,14 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   return *value;
 }
 
+RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_SMI_ARG_CHECKED(module_request, 0);
+  Handle<Module> module(isolate->context()->module());
+  return *Module::GetModuleNamespace(module, module_request);
+}
+
 RUNTIME_FUNCTION(Runtime_LoadModuleExport) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -972,9 +980,9 @@ RUNTIME_FUNCTION(Runtime_LoadModuleImport) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, module_request, 1);
+  CONVERT_SMI_ARG_CHECKED(module_request, 1);
   Handle<Module> module(isolate->context()->module());
-  return *Module::LoadImport(module, name, module_request->value());
+  return *Module::LoadImport(module, name, module_request);
 }
 
 RUNTIME_FUNCTION(Runtime_StoreModuleExport) {

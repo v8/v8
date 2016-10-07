@@ -2102,6 +2102,25 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::JS_SET_FUN_INDEX);
   }
 
+  {  // -- J S M o d u l e N a m e s p a c e
+    Handle<Map> map =
+        factory->NewMap(JS_MODULE_NAMESPACE_TYPE, JSModuleNamespace::kSize);
+    Map::SetPrototype(map, isolate->factory()->null_value());
+    native_context()->set_js_module_namespace_map(*map);
+
+    // Install @@toStringTag.
+    PropertyAttributes attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+    Handle<AccessorInfo> toStringTag =
+        Accessors::ModuleNamespaceToStringTagInfo(isolate, attribs);
+    AccessorConstantDescriptor d(factory->to_string_tag_symbol(), toStringTag,
+                                 attribs);
+    Map::EnsureDescriptorSlack(map, 1);
+    map->AppendDescriptor(&d);
+
+    // TODO(neis): Implement and install @@iterator.
+  }
+
   {  // -- I t e r a t o r R e s u l t
     Handle<Map> map =
         factory->NewMap(JS_OBJECT_TYPE, JSIteratorResult::kSize);

@@ -486,6 +486,8 @@ class Factory final {
 
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
+  Handle<JSModuleNamespace> NewJSModuleNamespace();
+
   Handle<Module> NewModule(Handle<SharedFunctionInfo> code);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(

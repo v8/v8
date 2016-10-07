@@ -6556,7 +6556,7 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
     return JSProxy::DefineOwnProperty(isolate, Handle<JSProxy>::cast(object),
                                       key, desc, should_throw);
   }
-  // TODO(jkummerow): Support Modules (ES6 9.4.6.6)
+  // TODO(neis): Special case for JSModuleNamespace?
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments (ES6 9.4.4.2)
@@ -18218,6 +18218,9 @@ Object* ObjectHashTable::Lookup(Handle<Object> key) {
   return Lookup(isolate, key, Smi::cast(hash)->value());
 }
 
+Object* ObjectHashTable::ValueAt(int entry) {
+  return get(EntryToValueIndex(entry));
+}
 
 Object* ObjectHashTable::Lookup(Handle<Object> key, int32_t hash) {
   return Lookup(GetIsolate(), key, hash);
@@ -19565,6 +19568,23 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
   return false;
 }
 
+MaybeHandle<Object> JSModuleNamespace::GetExport(Handle<String> name) {
+  Isolate* isolate = name->GetIsolate();
+
+  Handle<Object> object(module()->exports()->Lookup(name), isolate);
+  if (object->IsTheHole(isolate)) {
+    return isolate->factory()->undefined_value();
+  }
+
+  Handle<Object> value(Handle<Cell>::cast(object)->value(), isolate);
+  if (value->IsTheHole(isolate)) {
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+  }
+
+  return value;
+}
+
 namespace {
 
 template <typename T>
@@ -19594,6 +19614,35 @@ class UnorderedStringSet
                            StringHandleEqual, zone_allocator<Handle<String>>>(
             2 /* bucket count */, HandleValueHash<String>(),
             StringHandleEqual(), zone_allocator<Handle<String>>(zone)) {}
+};
+
+class UnorderedModuleSet
+    : public std::unordered_set<Handle<Module>, HandleValueHash<Module>,
+                                ModuleHandleEqual,
+                                zone_allocator<Handle<Module>>> {
+ public:
+  explicit UnorderedModuleSet(Zone* zone)
+      : std::unordered_set<Handle<Module>, HandleValueHash<Module>,
+                           ModuleHandleEqual, zone_allocator<Handle<Module>>>(
+            2 /* bucket count */, HandleValueHash<Module>(),
+            ModuleHandleEqual(), zone_allocator<Handle<Module>>(zone)) {}
+};
+
+class UnorderedStringMap
+    : public std::unordered_map<
+          Handle<String>, Handle<Object>, HandleValueHash<String>,
+          StringHandleEqual,
+          zone_allocator<std::pair<const Handle<String>, Handle<Object>>>> {
+ public:
+  explicit UnorderedStringMap(Zone* zone)
+      : std::unordered_map<
+            Handle<String>, Handle<Object>, HandleValueHash<String>,
+            StringHandleEqual,
+            zone_allocator<std::pair<const Handle<String>, Handle<Object>>>>(
+            2 /* bucket count */, HandleValueHash<String>(),
+            StringHandleEqual(),
+            zone_allocator<std::pair<const Handle<String>, Handle<Object>>>(
+                zone)) {}
 };
 
 }  // anonymous namespace
@@ -19917,6 +19966,139 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   Handle<JSFunction> resume(
       isolate->native_context()->generator_next_internal(), isolate);
   return Execution::Call(isolate, resume, generator, 0, nullptr);
+}
+
+namespace {
+
+void FetchStarExports(Handle<Module> module, Zone* zone,
+                      UnorderedModuleSet* visited) {
+  DCHECK(module->code()->IsJSFunction());  // Instantiated.
+
+  bool cycle = !visited->insert(module).second;
+  if (cycle) return;
+
+  Isolate* isolate = module->GetIsolate();
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  UnorderedStringMap more_exports(zone);
+
+  // TODO(neis): Only allocate more_exports if there are star exports.
+  // Maybe split special_exports into indirect_exports and star_exports.
+
+  Handle<FixedArray> special_exports(module->info()->special_exports(),
+                                     isolate);
+  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> entry(
+        ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+    if (!entry->export_name()->IsUndefined(isolate)) {
+      continue;  // Indirect export.
+    }
+
+    int module_request = Smi::cast(entry->module_request())->value();
+    Handle<Module> requested_module(
+        Module::cast(module->requested_modules()->get(module_request)),
+        isolate);
+
+    // Recurse.
+    FetchStarExports(requested_module, zone, visited);
+
+    // Collect all of [requested_module]'s exports that must be added to
+    // [module]'s exports (i.e. to [exports]).  We record these in
+    // [more_exports].  Ambiguities (conflicting exports) are marked by mapping
+    // the name to undefined instead of a Cell.
+    Handle<ObjectHashTable> requested_exports(requested_module->exports(),
+                                              isolate);
+    for (int i = 0, n = requested_exports->Capacity(); i < n; ++i) {
+      Handle<Object> key(requested_exports->KeyAt(i), isolate);
+      if (!requested_exports->IsKey(isolate, *key)) continue;
+      Handle<String> name = Handle<String>::cast(key);
+
+      if (name->Equals(isolate->heap()->default_string())) continue;
+      if (!exports->Lookup(name)->IsTheHole(isolate)) continue;
+
+      Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(i)), isolate);
+      auto insert_result = more_exports.insert(std::make_pair(name, cell));
+      if (!insert_result.second) {
+        auto it = insert_result.first;
+        if (*it->second == *cell || it->second->IsUndefined(isolate)) {
+          // We already recorded this mapping before, or the name is already
+          // known to be ambiguous.  In either case, there's nothing to do.
+        } else {
+          DCHECK(it->second->IsCell());
+          // Different star exports provide different cells for this name, hence
+          // mark the name as ambiguous.
+          it->second = isolate->factory()->undefined_value();
+        }
+      }
+    }
+  }
+
+  // Copy [more_exports] into [exports].
+  for (const auto& elem : more_exports) {
+    if (elem.second->IsUndefined(isolate)) continue;  // Ambiguous export.
+    DCHECK(!elem.first->Equals(isolate->heap()->default_string()));
+    DCHECK(elem.second->IsCell());
+    exports = ObjectHashTable::Put(exports, elem.first, elem.second);
+  }
+  module->set_exports(*exports);
+}
+
+}  // anonymous namespace
+
+Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module,
+                                                     int module_request) {
+  Isolate* isolate = module->GetIsolate();
+  Handle<Module> requested_module(
+      Module::cast(module->requested_modules()->get(module_request)), isolate);
+  return Module::GetModuleNamespace(requested_module);
+}
+
+Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
+  Isolate* isolate = module->GetIsolate();
+
+  Handle<HeapObject> object(module->module_namespace(), isolate);
+  if (!object->IsUndefined(isolate)) {
+    // Namespace object already exists.
+    return Handle<JSModuleNamespace>::cast(object);
+  }
+
+  // Create the namespace object (initially empty).
+  Handle<JSModuleNamespace> ns = isolate->factory()->NewJSModuleNamespace();
+  ns->set_module(*module);
+  module->set_module_namespace(*ns);
+
+  // Collect the export names.
+  Zone zone(isolate->allocator());
+  UnorderedModuleSet visited(&zone);
+  FetchStarExports(module, &zone, &visited);
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  ZoneVector<Handle<String>> names(&zone);
+  names.reserve(exports->NumberOfElements());
+  for (int i = 0, n = exports->Capacity(); i < n; ++i) {
+    Handle<Object> key(exports->KeyAt(i), isolate);
+    if (!exports->IsKey(isolate, *key)) continue;
+    DCHECK(exports->ValueAt(i)->IsCell());
+    names.push_back(Handle<String>::cast(key));
+  }
+  DCHECK_EQ(names.size(), exports->NumberOfElements());
+
+  // Sort them alphabetically.
+  struct {
+    bool operator()(Handle<String> a, Handle<String> b) {
+      return String::Compare(a, b) == ComparisonResult::kLessThan;
+    }
+  } StringLess;
+  std::sort(names.begin(), names.end(), StringLess);
+
+  // Create the corresponding properties in the namespace object.
+  PropertyAttributes attr = DONT_DELETE;
+  for (const auto& name : names) {
+    JSObject::SetAccessor(
+        ns, Accessors::ModuleNamespaceEntryInfo(isolate, name, attr))
+        .Check();
+  }
+  JSObject::PreventExtensions(ns, THROW_ON_ERROR).ToChecked();
+
+  return ns;
 }
 
 }  // namespace internal

@@ -30,6 +30,7 @@ class AccessorInfo;
   V(FunctionName)                 \
   V(FunctionLength)               \
   V(FunctionPrototype)            \
+  V(ModuleNamespaceToStringTag)   \
   V(ScriptColumnOffset)           \
   V(ScriptCompilationType)        \
   V(ScriptContextData)            \
@@ -48,10 +49,11 @@ class AccessorInfo;
   V(StringLength)
 
 #define ACCESSOR_SETTER_LIST(V) \
-  V(ReconfigureToDataProperty)  \
   V(ArrayLengthSetter)          \
   V(ErrorStackSetter)           \
-  V(FunctionPrototypeSetter)
+  V(FunctionPrototypeSetter)    \
+  V(ModuleNamespaceEntrySetter) \
+  V(ReconfigureToDataProperty)
 
 // Accessors contains all predefined proxy accessors.
 
@@ -73,6 +75,12 @@ class Accessors : public AllStatic {
                    const v8::PropertyCallbackInfo<void>& info);
   ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_SETTER_DECLARATION
+
+  static void ModuleNamespaceEntryGetter(
+      v8::Local<v8::Name> name,
+      const v8::PropertyCallbackInfo<v8::Value>& info);
+  static Handle<AccessorInfo> ModuleNamespaceEntryInfo(
+      Isolate* isolate, Handle<String> name, PropertyAttributes attributes);
 
   enum DescriptorId {
 #define ACCESSOR_INFO_DECLARATION(name) \

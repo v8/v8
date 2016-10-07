@@ -1735,6 +1735,10 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
   array->set_length(Smi::FromInt(length));
 }
 
+Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
+  Handle<Map> map = isolate()->js_module_namespace_map();
+  return Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map));
+}
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
@@ -1765,10 +1769,11 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
 
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
-  module->set_exports(*exports);
-  module->set_requested_modules(*requested_modules);
-  module->set_flags(0);
   module->set_embedder_data(isolate()->heap()->undefined_value());
+  module->set_exports(*exports);
+  module->set_flags(0);
+  module->set_module_namespace(isolate()->heap()->undefined_value());
+  module->set_requested_modules(*requested_modules);
   return module;
 }
 

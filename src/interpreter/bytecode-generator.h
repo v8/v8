@@ -143,6 +143,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                   ObjectLiteralProperty* property,
                                   Register value_out);
   void VisitForInAssignment(Expression* expr, FeedbackVectorSlot slot);
+  void VisitModuleNamespaceImports();
 
   // Visit the header/body of a loop iteration.
   void VisitIterationHeader(IterationStatement* stmt,

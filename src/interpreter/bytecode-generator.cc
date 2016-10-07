@@ -678,6 +678,9 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Visit declarations within the function scope.
   VisitDeclarations(scope()->declarations());
 
+  // Emit initializing assignments for module namespace imports (if any).
+  VisitModuleNamespaceImports();
+
   // Perform a stack-check before the body.
   builder()->StackCheck(info()->literal()->start_position());
 
@@ -874,6 +877,24 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       VisitVariableAssignment(variable, Token::INIT,
                               FeedbackVectorSlot::Invalid());
       break;
+  }
+}
+
+void BytecodeGenerator::VisitModuleNamespaceImports() {
+  if (!scope()->is_module_scope()) return;
+
+  RegisterAllocationScope register_scope(this);
+  Register module_request = register_allocator()->NewRegister();
+
+  ModuleDescriptor* descriptor = scope()->AsModuleScope()->module();
+  for (auto entry : descriptor->namespace_imports()) {
+    builder()
+        ->LoadLiteral(Smi::FromInt(entry->module_request))
+        .StoreAccumulatorInRegister(module_request)
+        .CallRuntime(Runtime::kGetModuleNamespace, module_request);
+    Variable* var = scope()->LookupLocal(entry->local_name);
+    DCHECK_NOT_NULL(var);
+    VisitVariableAssignment(var, Token::INIT, FeedbackVectorSlot::Invalid());
   }
 }
 

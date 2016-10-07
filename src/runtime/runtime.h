@@ -420,6 +420,7 @@ namespace internal {
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
   F(CreateDataProperty, 3, 1)                        \
+  F(GetModuleNamespace, 1, 1)                        \
   F(LoadModuleExport, 1, 1)                          \
   F(LoadModuleImport, 2, 1)                          \
   F(StoreModuleExport, 2, 1)
