@@ -1206,7 +1206,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up loop counter
   Register index = register_allocator()->NewRegister();
-  builder()->LoadLiteral(Smi::FromInt(0));
+  builder()->LoadLiteral(Smi::kZero);
   builder()->StoreAccumulatorInRegister(index);
 
   // The loop

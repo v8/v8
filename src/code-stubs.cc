@@ -22,7 +22,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(UnexpectedStubMiss) {
   FATAL("Unexpected deopt of a stub");
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
@@ -2528,7 +2528,7 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
   allocation_site =
       allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
 
-  Node* zero = assembler->SmiConstant(Smi::FromInt(0));
+  Node* zero = assembler->SmiConstant(Smi::kZero);
   assembler->GotoIf(assembler->SmiEqual(capacity, zero), &zero_capacity);
 
   Node* elements_map = assembler->LoadMap(boilerplate_elements);
@@ -2835,7 +2835,7 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->SmiConstant(Smi::FromInt(0)), allocation_site);
+      assembler->SmiConstant(Smi::kZero), allocation_site);
   assembler->Return(array);
 }
 
@@ -2848,7 +2848,7 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->SmiConstant(Smi::FromInt(0)), nullptr);
+      assembler->SmiConstant(Smi::kZero), nullptr);
   assembler->Return(array);
 }
 
@@ -2876,7 +2876,7 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
   if (IsFastPackedElementsKind(elements_kind)) {
     Label abort(assembler, Label::kDeferred);
     assembler->Branch(
-        assembler->SmiEqual(size, assembler->SmiConstant(Smi::FromInt(0))),
+        assembler->SmiEqual(size, assembler->SmiConstant(Smi::kZero)),
         &small_smi_size, &abort);
 
     assembler->Bind(&abort);

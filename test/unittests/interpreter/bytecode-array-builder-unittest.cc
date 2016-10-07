@@ -42,7 +42,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArguments(CreateArgumentsType::kRestParameter);
 
   // Emit constant loads.
-  builder.LoadLiteral(Smi::FromInt(0))
+  builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
       .CompareOperation(Token::Value::NE, reg,
@@ -219,9 +219,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfTrue(&end[1])
         .LoadTrue()
         .JumpIfFalse(&end[2])
-        .LoadLiteral(Smi::FromInt(0))
+        .LoadLiteral(Smi::kZero)
         .JumpIfTrue(&end[3])
-        .LoadLiteral(Smi::FromInt(0))
+        .LoadLiteral(Smi::kZero)
         .JumpIfFalse(&end[4])
         .JumpIfNull(&end[5])
         .JumpIfUndefined(&end[6])
@@ -421,12 +421,12 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         BytecodeArrayBuilder builder(isolate(), zone(), 0, contexts, locals);
         BytecodeRegisterAllocator* allocator(builder.register_allocator());
         for (int i = 0; i < locals + contexts; i++) {
-          builder.LoadLiteral(Smi::FromInt(0));
+          builder.LoadLiteral(Smi::kZero);
           builder.StoreAccumulatorInRegister(Register(i));
         }
         for (int i = 0; i < temps; i++) {
           Register temp = allocator->NewRegister();
-          builder.LoadLiteral(Smi::FromInt(0));
+          builder.LoadLiteral(Smi::kZero);
           builder.StoreAccumulatorInRegister(temp);
           // Ensure temporaries are used so not optimized away by the
           // register optimizer.

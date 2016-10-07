@@ -738,7 +738,7 @@ void Accessors::FunctionLengthGetter(
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSFunction::GetLength(isolate, function).ToHandle(&result)) {
-    result = handle(Smi::FromInt(0), isolate);
+    result = handle(Smi::kZero, isolate);
     isolate->OptionalRescheduleException(false);
   }
 
@@ -1072,7 +1072,7 @@ void Accessors::BoundFunctionLengthGetter(
   Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
                             isolate);
   if (!JSFunction::GetLength(isolate, target).ToHandle(&target_length)) {
-    target_length = handle(Smi::FromInt(0), isolate);
+    target_length = handle(Smi::kZero, isolate);
     isolate->OptionalRescheduleException(false);
     return;
   }

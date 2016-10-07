@@ -805,13 +805,13 @@ BUILTIN(StringPrototypeLocaleCompare) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, str2, Object::ToString(isolate, args.at<Object>(1)));
 
-  if (str1.is_identical_to(str2)) return Smi::FromInt(0);  // Equal.
+  if (str1.is_identical_to(str2)) return Smi::kZero;  // Equal.
   int str1_length = str1->length();
   int str2_length = str2->length();
 
   // Decide trivial cases without flattening.
   if (str1_length == 0) {
-    if (str2_length == 0) return Smi::FromInt(0);  // Equal.
+    if (str2_length == 0) return Smi::kZero;  // Equal.
     return Smi::FromInt(-str2_length);
   } else {
     if (str2_length == 0) return Smi::FromInt(str1_length);
@@ -891,7 +891,7 @@ void Builtins::Generate_StringPrototypeSubstr(CodeStubAssembler* a) {
   Node* const length = a->Parameter(2);
   Node* const context = a->Parameter(5);
 
-  Node* const zero = a->SmiConstant(Smi::FromInt(0));
+  Node* const zero = a->SmiConstant(Smi::kZero);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   Node* const string =
@@ -1030,7 +1030,7 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
 
     a->Bind(&if_isoutofbounds);
     {
-      Node* const zero = a->SmiConstant(Smi::FromInt(0));
+      Node* const zero = a->SmiConstant(Smi::kZero);
       var_result.Bind(a->Select(a->SmiLessThan(value_int, zero), zero, limit));
       a->Goto(&out);
     }
@@ -1042,7 +1042,7 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
     a->Assert(a->WordEqual(a->LoadMap(value_int), a->HeapNumberMapConstant()));
 
     Node* const float_zero = a->Float64Constant(0.);
-    Node* const smi_zero = a->SmiConstant(Smi::FromInt(0));
+    Node* const smi_zero = a->SmiConstant(Smi::kZero);
     Node* const value_float = a->LoadHeapNumberValue(value_int);
     var_result.Bind(a->Select(a->Float64LessThan(value_float, float_zero),
                               smi_zero, limit));
@@ -1175,7 +1175,7 @@ void Builtins::Generate_StringPrototypeIterator(CodeStubAssembler* assembler) {
                                   Heap::kEmptyFixedArrayRootIndex);
   assembler->StoreObjectFieldNoWriteBarrier(
       iterator, JSStringIterator::kStringOffset, string);
-  Node* index = assembler->SmiConstant(Smi::FromInt(0));
+  Node* index = assembler->SmiConstant(Smi::kZero);
   assembler->StoreObjectFieldNoWriteBarrier(
       iterator, JSStringIterator::kNextIndexOffset, index);
   assembler->Return(iterator);

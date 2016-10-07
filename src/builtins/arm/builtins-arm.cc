@@ -260,7 +260,7 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
-  __ Move(r0, Smi::FromInt(0));
+  __ Move(r0, Smi::kZero);
   __ Ret(1);
 }
 
@@ -288,7 +288,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ ldr(r2, MemOperand(sp, r0, LSL, kPointerSizeLog2));
     __ b(&done);
     __ bind(&no_arguments);
-    __ Move(r2, Smi::FromInt(0));
+    __ Move(r2, Smi::kZero);
     __ bind(&done);
   }
 
@@ -1326,7 +1326,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
   __ Move(r2, masm->isolate()->builtins()->InterpreterEntryTrampoline());
   __ add(lr, r2, Operand(interpreter_entry_return_pc_offset->value() +
                          Code::kHeaderSize - kHeapObjectTag));
@@ -1843,7 +1843,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // If the code object is null, just return to the caller.
   Label skip;
-  __ cmp(r0, Operand(Smi::FromInt(0)));
+  __ cmp(r0, Operand(Smi::kZero));
   __ b(ne, &skip);
   __ Ret();
 
@@ -2757,7 +2757,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   // -----------------------------------
   __ SmiTag(r1);
   __ Push(r1);
-  __ Move(cp, Smi::FromInt(0));
+  __ Move(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2770,7 +2770,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ SmiTag(r1);
   __ Move(r2, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ Push(r1, r2);
-  __ Move(cp, Smi::FromInt(0));
+  __ Move(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2781,7 +2781,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   //  -- lr : return address
   // -----------------------------------
   __ Push(r1);
-  __ Move(cp, Smi::FromInt(0));
+  __ Move(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAbort);
 }
 

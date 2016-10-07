@@ -355,11 +355,7 @@ void FullCodeGenerator::Generate() {
   masm()->CheckConstPool(true, false);
 }
 
-
-void FullCodeGenerator::ClearAccumulator() {
-  __ mov(r0, Operand(Smi::FromInt(0)));
-}
-
+void FullCodeGenerator::ClearAccumulator() { __ mov(r0, Operand(Smi::kZero)); }
 
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
   __ mov(r2, Operand(profiling_counter_));
@@ -1055,7 +1051,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&use_cache);
 
   __ EnumLength(r1, r0);
-  __ cmp(r1, Operand(Smi::FromInt(0)));
+  __ cmp(r1, Operand(Smi::kZero));
   __ b(eq, &no_descriptors);
 
   __ LoadInstanceDescriptors(r0, r2);
@@ -1064,7 +1060,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up the four remaining stack slots.
   __ push(r0);  // Map.
-  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::kZero));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r2, r1, r0);
   __ jmp(&loop);
@@ -1081,7 +1077,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kLengthOffset));
   __ Push(r1);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::kZero));
   __ Push(r0);  // Initial index.
 
   // Generate code for doing the condition check.
@@ -1927,7 +1923,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ mov(right, Operand(scratch1), LeaveCC, ne);
       __ b(ne, &done);
       __ add(scratch2, right, Operand(left), SetCC);
-      __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      __ mov(right, Operand(Smi::kZero), LeaveCC, pl);
       __ b(mi, &stub_call);
       break;
     }
@@ -3075,7 +3071,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      __ mov(ip, Operand(Smi::FromInt(0)));
+      __ mov(ip, Operand(Smi::kZero));
       PushOperand(ip);
     }
     switch (assign_type) {

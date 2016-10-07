@@ -357,11 +357,7 @@ void FullCodeGenerator::Generate() {
   masm()->CheckConstPool(true, false);
 }
 
-
-void FullCodeGenerator::ClearAccumulator() {
-  __ Mov(x0, Smi::FromInt(0));
-}
-
+void FullCodeGenerator::ClearAccumulator() { __ Mov(x0, Smi::kZero); }
 
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
   __ Mov(x2, Operand(profiling_counter_));

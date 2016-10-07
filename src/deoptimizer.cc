@@ -1024,7 +1024,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -1292,7 +1292,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -1659,7 +1659,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -1843,7 +1843,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }

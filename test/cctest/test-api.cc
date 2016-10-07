@@ -151,6 +151,8 @@ UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
 }
 
+// Tests that Smi::kZero is set up properly.
+UNINITIALIZED_TEST(SmiZero) { CHECK_EQ(i::Smi::kZero, i::Smi::kZero); }
 
 THREADED_TEST(Handles) {
   v8::HandleScope scope(CcTest::isolate());

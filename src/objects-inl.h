@@ -305,7 +305,7 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate,
                                      Handle<Object> object,
                                      Representation representation) {
   if (representation.IsSmi() && object->IsUninitialized(isolate)) {
-    return handle(Smi::FromInt(0), isolate);
+    return handle(Smi::kZero, isolate);
   }
   if (!representation.IsDouble()) return object;
   double value;
@@ -1589,9 +1589,9 @@ FixedArrayBase* JSObject::elements() const {
 
 
 void AllocationSite::Initialize() {
-  set_transition_info(Smi::FromInt(0));
+  set_transition_info(Smi::kZero);
   SetElementsKind(GetInitialFastElementsKind());
-  set_nested_site(Smi::FromInt(0));
+  set_nested_site(Smi::kZero);
   set_pretenure_data(0);
   set_pretenure_create_count(0);
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
@@ -2019,7 +2019,7 @@ void WeakCell::clear() {
   // initializing the root empty weak cell.
   DCHECK(GetHeap()->gc_state() == Heap::MARK_COMPACT ||
          this == GetHeap()->empty_weak_cell());
-  WRITE_FIELD(this, kValueOffset, Smi::FromInt(0));
+  WRITE_FIELD(this, kValueOffset, Smi::kZero);
 }
 
 
@@ -2034,9 +2034,7 @@ void WeakCell::initialize(HeapObject* val) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kValueOffset, val, mode);
 }
 
-
-bool WeakCell::cleared() const { return value() == Smi::FromInt(0); }
-
+bool WeakCell::cleared() const { return value() == Smi::kZero; }
 
 Object* WeakCell::next() const { return READ_FIELD(this, kNextOffset); }
 
@@ -2469,7 +2467,7 @@ bool WeakFixedArray::IsEmptySlot(int index) const {
 
 
 void WeakFixedArray::Clear(int index) {
-  FixedArray::cast(this)->set(index + kFirstIndex, Smi::FromInt(0));
+  FixedArray::cast(this)->set(index + kFirstIndex, Smi::kZero);
 }
 
 
@@ -4227,7 +4225,7 @@ int FixedTypedArrayBase::ElementSize(InstanceType type) {
 
 
 int FixedTypedArrayBase::DataSize(InstanceType type) {
-  if (base_pointer() == Smi::FromInt(0)) return 0;
+  if (base_pointer() == Smi::kZero) return 0;
   return length() * ElementSize(type);
 }
 
@@ -6917,7 +6915,7 @@ void JSArrayBuffer::set_is_shared(bool value) {
 
 
 Object* JSArrayBufferView::byte_offset() const {
-  if (WasNeutered()) return Smi::FromInt(0);
+  if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));
 }
 
@@ -6929,7 +6927,7 @@ void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
 
 
 Object* JSArrayBufferView::byte_length() const {
-  if (WasNeutered()) return Smi::FromInt(0);
+  if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kByteLengthOffset));
 }
 
@@ -6953,7 +6951,7 @@ bool JSArrayBufferView::WasNeutered() const {
 
 
 Object* JSTypedArray::length() const {
-  if (WasNeutered()) return Smi::FromInt(0);
+  if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kLengthOffset));
 }
 
@@ -7705,7 +7703,7 @@ template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
                                                Handle<Object> key,
                                                Handle<Object> value) {
-  this->SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
+  this->SetEntry(entry, key, value, PropertyDetails(Smi::kZero));
 }
 
 
@@ -8097,9 +8095,9 @@ void TypeFeedbackInfo::change_ic_generic_count(int delta) {
 
 
 void TypeFeedbackInfo::initialize_storage() {
-  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(0));
-  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(0));
-  WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(0));
+  WRITE_FIELD(this, kStorage1Offset, Smi::kZero);
+  WRITE_FIELD(this, kStorage2Offset, Smi::kZero);
+  WRITE_FIELD(this, kStorage3Offset, Smi::kZero);
 }
 
 

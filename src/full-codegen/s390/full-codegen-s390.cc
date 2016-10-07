@@ -363,7 +363,7 @@ void FullCodeGenerator::Generate() {
 }
 
 void FullCodeGenerator::ClearAccumulator() {
-  __ LoadSmiLiteral(r2, Smi::FromInt(0));
+  __ LoadSmiLiteral(r2, Smi::kZero);
 }
 
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
@@ -984,7 +984,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&use_cache);
 
   __ EnumLength(r3, r2);
-  __ CmpSmiLiteral(r3, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r3, Smi::kZero, r0);
   __ beq(&no_descriptors, Label::kNear);
 
   __ LoadInstanceDescriptors(r2, r4);
@@ -994,7 +994,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up the four remaining stack slots.
   __ push(r2);  // Map.
-  __ LoadSmiLiteral(r2, Smi::FromInt(0));
+  __ LoadSmiLiteral(r2, Smi::kZero);
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r4, r3, r2);
   __ b(&loop);
@@ -1011,7 +1011,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ LoadP(r3, FieldMemOperand(r2, FixedArray::kLengthOffset));
   __ Push(r3);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ LoadSmiLiteral(r2, Smi::FromInt(0));
+  __ LoadSmiLiteral(r2, Smi::kZero);
   __ Push(r2);  // Initial index.
 
   // Generate code for doing the condition check.
@@ -1896,7 +1896,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ AddP(scratch2, right, left);
       __ CmpP(scratch2, Operand::Zero());
       __ blt(&stub_call);
-      __ LoadSmiLiteral(right, Smi::FromInt(0));
+      __ LoadSmiLiteral(right, Smi::kZero);
       break;
     }
     case Token::BIT_OR:
@@ -2995,7 +2995,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      __ LoadSmiLiteral(ip, Smi::FromInt(0));
+      __ LoadSmiLiteral(ip, Smi::kZero);
       PushOperand(ip);
     }
     switch (assign_type) {

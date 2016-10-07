@@ -628,9 +628,9 @@ void IncrementalMarking::ProcessWeakCells() {
 
   Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
-  Object* weak_cell_head = Smi::FromInt(0);
+  Object* weak_cell_head = Smi::kZero;
   WeakCell* prev_weak_cell_obj = NULL;
-  while (weak_cell_obj != Smi::FromInt(0)) {
+  while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
@@ -648,7 +648,7 @@ void IncrementalMarking::ProcessWeakCells() {
       weak_cell_obj = weak_cell->next();
       weak_cell->clear_next(the_hole_value);
     } else {
-      if (weak_cell_head == Smi::FromInt(0)) {
+      if (weak_cell_head == Smi::kZero) {
         weak_cell_head = weak_cell;
       }
       prev_weak_cell_obj = weak_cell;

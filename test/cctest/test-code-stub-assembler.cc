@@ -173,7 +173,7 @@ TEST(TryToName) {
 
   {
     // TryToName(<zero smi>) => if_keyisindex: smi value.
-    Handle<Object> key(Smi::FromInt(0), isolate);
+    Handle<Object> key(Smi::kZero, isolate);
     ft.CheckTrue(key, expect_index, key);
   }
 
@@ -944,7 +944,7 @@ TEST(TryLookupElement) {
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
-  Handle<Object> smi0(Smi::FromInt(0), isolate);
+  Handle<Object> smi0(Smi::kZero, isolate);
   Handle<Object> smi1(Smi::FromInt(1), isolate);
   Handle<Object> smi7(Smi::FromInt(7), isolate);
   Handle<Object> smi13(Smi::FromInt(13), isolate);

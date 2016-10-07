@@ -1062,7 +1062,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // If either is a Smi (we know that not both are), then they can only
     // be equal if the other is a HeapNumber. If so, use the slow case.
     STATIC_ASSERT(kSmiTag == 0);
-    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
+    DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
     __ mov(ecx, Immediate(kSmiTagMask));
     __ and_(ecx, eax);
     __ test(ecx, edx);
@@ -3487,7 +3487,7 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   // - esp[12]   -- value
   // - receiver, key, handler in registers.
   Register counter = key;
-  __ mov(counter, Immediate(Smi::FromInt(0)));
+  __ mov(counter, Immediate(Smi::kZero));
   __ bind(&next_loop);
   __ mov(cached_map, FieldOperand(feedback, counter, times_half_pointer_size,
                                   FixedArray::kHeaderSize));
@@ -4210,8 +4210,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ mov(ecx, isolate()->factory()->empty_fixed_array());
     __ mov(FieldOperand(eax, JSArray::kPropertiesOffset), ecx);
     __ mov(FieldOperand(eax, JSArray::kElementsOffset), ecx);
-    __ mov(FieldOperand(eax, JSArray::kLengthOffset),
-           Immediate(Smi::FromInt(0)));
+    __ mov(FieldOperand(eax, JSArray::kLengthOffset), Immediate(Smi::kZero));
     STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
     __ Ret();
 
@@ -4252,7 +4251,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ mov(FieldOperand(edx, FixedArray::kLengthOffset), eax);
     {
       Label loop, done_loop;
-      __ Move(ecx, Smi::FromInt(0));
+      __ Move(ecx, Smi::kZero);
       __ bind(&loop);
       __ cmp(ecx, eax);
       __ j(equal, &done_loop, Label::kNear);
@@ -4641,7 +4640,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(edx, FixedArray::kLengthOffset), eax);
   {
     Label loop, done_loop;
-    __ Move(ecx, Smi::FromInt(0));
+    __ Move(ecx, Smi::kZero);
     __ bind(&loop);
     __ cmp(ecx, eax);
     __ j(equal, &done_loop, Label::kNear);
@@ -5160,7 +5159,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ PushRoot(Heap::kUndefinedValueRootIndex);
   __ push(Immediate(ExternalReference::isolate_address(isolate())));
   __ push(holder);
-  __ push(Immediate(Smi::FromInt(0)));  // should_throw_on_error -> false
+  __ push(Immediate(Smi::kZero));  // should_throw_on_error -> false
   __ push(FieldOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);  // Restore return address.
 

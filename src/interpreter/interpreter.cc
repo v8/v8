@@ -2400,7 +2400,7 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   Node* object_reg = __ BytecodeOperandReg(0);
   Node* receiver = __ LoadRegister(object_reg);
   Node* context = __ GetContext();
-  Node* const zero_smi = __ SmiConstant(Smi::FromInt(0));
+  Node* const zero_smi = __ SmiConstant(Smi::kZero);
 
   Label nothing_to_iterate(assembler, Label::kDeferred),
       use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);

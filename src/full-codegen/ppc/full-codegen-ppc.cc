@@ -362,7 +362,7 @@ void FullCodeGenerator::Generate() {
 
 
 void FullCodeGenerator::ClearAccumulator() {
-  __ LoadSmiLiteral(r3, Smi::FromInt(0));
+  __ LoadSmiLiteral(r3, Smi::kZero);
 }
 
 
@@ -1015,7 +1015,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&use_cache);
 
   __ EnumLength(r4, r3);
-  __ CmpSmiLiteral(r4, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r4, Smi::kZero, r0);
   __ beq(&no_descriptors);
 
   __ LoadInstanceDescriptors(r3, r5);
@@ -1025,7 +1025,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up the four remaining stack slots.
   __ push(r3);  // Map.
-  __ LoadSmiLiteral(r3, Smi::FromInt(0));
+  __ LoadSmiLiteral(r3, Smi::kZero);
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r5, r4, r3);
   __ b(&loop);
@@ -1042,7 +1042,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ LoadP(r4, FieldMemOperand(r3, FixedArray::kLengthOffset));
   __ Push(r4);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ LoadSmiLiteral(r3, Smi::FromInt(0));
+  __ LoadSmiLiteral(r3, Smi::kZero);
   __ Push(r3);  // Initial index.
 
   // Generate code for doing the condition check.
@@ -1936,7 +1936,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ add(scratch2, right, left);
       __ cmpi(scratch2, Operand::Zero());
       __ blt(&stub_call);
-      __ LoadSmiLiteral(right, Smi::FromInt(0));
+      __ LoadSmiLiteral(right, Smi::kZero);
       break;
     }
     case Token::BIT_OR:
@@ -3074,7 +3074,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      __ LoadSmiLiteral(ip, Smi::FromInt(0));
+      __ LoadSmiLiteral(ip, Smi::kZero);
       PushOperand(ip);
     }
     switch (assign_type) {

@@ -1084,7 +1084,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage = SeededNumberDictionary::New(isolate, at_least_space_for);
   } else {
     DCHECK(species->IsConstructor());
-    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> length(Smi::kZero, isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,

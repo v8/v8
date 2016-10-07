@@ -1038,7 +1038,7 @@ TEST(JSArray) {
 
   // Set array length to 0.
   JSArray::SetLength(array, 0);
-  CHECK_EQ(Smi::FromInt(0), array->length());
+  CHECK_EQ(Smi::kZero, array->length());
   // Must be in fast mode.
   CHECK(array->HasFastSmiOrObjectElements());
 
@@ -1544,7 +1544,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // is running so that incremental marking aborts and code flushing is
   // disabled.
   int position = function->shared()->start_position();
-  Handle<Object> breakpoint_object(Smi::FromInt(0), isolate);
+  Handle<Object> breakpoint_object(Smi::kZero, isolate);
   EnableDebugger(CcTest::isolate());
   isolate->debug()->SetBreakPoint(function, breakpoint_object, &position);
   isolate->debug()->ClearBreakPoint(breakpoint_object);

@@ -1433,7 +1433,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Mov(ToRegister(instr->result()), Smi::FromInt(0));
+  __ Mov(ToRegister(instr->result()), Smi::kZero);
 
   PushSafepointRegistersScope scope(this);
   LoadContextFromDeferred(instr->context());
@@ -1743,7 +1743,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, eq);
     } else if (type.IsSmi()) {
       DCHECK(!info()->IsStub());
-      EmitCompareAndBranch(instr, ne, value, Smi::FromInt(0));
+      EmitCompareAndBranch(instr, ne, value, Smi::kZero);
     } else if (type.IsJSArray()) {
       DCHECK(!info()->IsStub());
       EmitGoto(instr->TrueDestination(chunk()));
@@ -1786,7 +1786,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanICStub::SMI)) {
         // Smis: 0 -> false, all other -> true.
-        DCHECK(Smi::FromInt(0) == 0);
+        DCHECK(Smi::kZero == 0);
         __ Cbz(value, false_label);
         __ JumpIfSmi(value, true_label);
       } else if (expected.NeedsMap()) {
@@ -5620,7 +5620,7 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
       index, reinterpret_cast<uint64_t>(Smi::FromInt(1)), deferred->entry());
   __ Mov(index, Operand(index, ASR, 1));
 
-  __ Cmp(index, Smi::FromInt(0));
+  __ Cmp(index, Smi::kZero);
   __ B(lt, &out_of_object);
 
   STATIC_ASSERT(kPointerSizeLog2 > kSmiTagSize);
