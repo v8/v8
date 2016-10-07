@@ -18,6 +18,5 @@ void Segment::ZapHeader() {
   memset(this, kZapDeadByte, sizeof(Segment));
 #endif
 }
-
 }  // namespace internal
 }  // namespace v8

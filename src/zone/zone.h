@@ -25,7 +25,7 @@ namespace internal {
 //
 // Note: There is no need to initialize the Zone; the first time an
 // allocation is attempted, a segment of memory will be requested
-// through the allocator.
+// through a call to malloc().
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
@@ -44,8 +44,13 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
-  // Deletes all objects and free all memory allocated in the Zone.
+  // Deletes all objects and free all memory allocated in the Zone. Keeps one
+  // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
   void DeleteAll();
+
+  // Deletes the last small segment kept around by DeleteAll(). You
+  // may no longer allocate in the Zone after a call to this method.
+  void DeleteKeptSegment();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
@@ -75,6 +80,9 @@ class V8_EXPORT_PRIVATE Zone final {
   // Never allocate segments larger than this size in bytes.
   static const size_t kMaximumSegmentSize = 1 * MB;
 
+  // Never keep segments larger than this size in bytes around.
+  static const size_t kMaximumKeptSegmentSize = 64 * KB;
+
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
 
@@ -94,7 +102,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Creates a new segment, sets it size, and pushes it to the front
   // of the segment chain. Returns the new segment.
-  inline Segment* NewSegment(size_t requested_size);
+  inline Segment* NewSegment(size_t size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable

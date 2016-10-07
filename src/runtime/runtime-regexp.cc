@@ -381,7 +381,7 @@ void FindStringIndicesDispatch(Isolate* isolate, String* subject,
 }
 
 namespace {
-List<int>* GetRewoundRegexpIndicesList(Isolate* isolate) {
+List<int>* GetRewindedRegexpIndicesList(Isolate* isolate) {
   List<int>* list = isolate->regexp_indices();
   list->Rewind(0);
   return list;
@@ -404,7 +404,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
-  List<int>* indices = GetRewoundRegexpIndicesList(isolate);
+  List<int>* indices = GetRewindedRegexpIndicesList(isolate);
 
   DCHECK_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
@@ -721,7 +721,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   subject = String::Flatten(subject);
   pattern = String::Flatten(pattern);
 
-  List<int>* indices = GetRewoundRegexpIndicesList(isolate);
+  List<int>* indices = GetRewindedRegexpIndicesList(isolate);
 
   FindStringIndicesDispatch(isolate, *subject, *pattern, indices, limit);
 
