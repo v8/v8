@@ -27,6 +27,8 @@ using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
 
+static const int kWasmMemoryBufferFieldIndex = 0;
+
 namespace {
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
@@ -509,7 +511,8 @@ void WebAssemblyMemoryGetBuffer(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::JSObject> receiver =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(receiver->GetInternalField(0), i_isolate);
+  i::Handle<i::Object> buffer(
+      receiver->GetInternalField(kWasmMemoryBufferFieldIndex), i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
@@ -523,7 +526,7 @@ i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
       i_isolate->native_context()->wasm_memory_constructor());
   i::Handle<i::JSObject> memory_obj =
       i_isolate->factory()->NewJSObject(memory_ctor);
-  memory_obj->SetInternalField(0, *buffer);
+  memory_obj->SetInternalField(kWasmMemoryBufferFieldIndex, *buffer);
   memory_obj->SetInternalField(
       1, has_maximum
              ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
@@ -737,5 +740,24 @@ void WasmJs::InstallWasmMapsIfNeeded(Isolate* isolate,
   }
 }
 
+bool WasmJs::IsWasmMemoryObject(Isolate* isolate, Handle<Object> value) {
+  if (value->IsJSObject()) {
+    i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
+    i::Handle<i::Symbol> sym(isolate->context()->wasm_memory_sym(), isolate);
+    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, sym);
+    if (has_brand.IsNothing()) return false;
+    if (has_brand.ToChecked()) return true;
+  }
+  return false;
+}
+
+Handle<JSArrayBuffer> WasmJs::GetWasmMemoryArrayBuffer(Isolate* isolate,
+                                                       Handle<Object> value) {
+  DCHECK(IsWasmMemoryObject(isolate, value));
+  Handle<Object> buf(
+      JSObject::cast(*value)->GetInternalField(kWasmMemoryBufferFieldIndex),
+      isolate);
+  return Handle<JSArrayBuffer>::cast(buf);
+}
 }  // namespace internal
 }  // namespace v8

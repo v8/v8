@@ -53,6 +53,7 @@ enum WasmInstanceObjectFields {
   kWasmCompiledModule = 0,
   kWasmModuleFunctionTable,
   kWasmModuleCodeTable,
+  kWasmMemObject,
   kWasmMemArrayBuffer,
   kWasmGlobalsArrayBuffer,
   kWasmDebugInfo,
@@ -1243,6 +1244,36 @@ class WasmInstanceBuilder {
         JSObject::kHeaderSize + kWasmModuleInternalFieldCount * kPointerSize);
     Handle<JSObject> instance = factory->NewJSObjectFromMap(map, TENURED);
     instance->SetInternalField(kWasmModuleCodeTable, *code_table);
+    instance->SetInternalField(kWasmMemObject, *factory->undefined_value());
+
+    //--------------------------------------------------------------------------
+    // Set up the globals for the new instance.
+    //--------------------------------------------------------------------------
+    MaybeHandle<JSArrayBuffer> old_globals;
+    MaybeHandle<JSArrayBuffer> globals;
+    uint32_t globals_size = compiled_module_->globals_size();
+    if (globals_size > 0) {
+      Handle<JSArrayBuffer> global_buffer =
+          NewArrayBuffer(isolate_, globals_size);
+      globals = global_buffer;
+      if (globals.is_null()) {
+        thrower_->Error("Out of memory: wasm globals");
+        return nothing;
+      }
+      Address old_address =
+          owner.is_null() ? nullptr : GetGlobalStartAddressFromCodeTemplate(
+                                          *factory->undefined_value(),
+                                          JSObject::cast(*owner));
+      RelocateGlobals(instance, old_address,
+                      static_cast<Address>(global_buffer->backing_store()));
+      instance->SetInternalField(kWasmGlobalsArrayBuffer, *global_buffer);
+    }
+
+    //--------------------------------------------------------------------------
+    // Process the imports for the module.
+    //--------------------------------------------------------------------------
+    int num_imported_functions = ProcessImports(globals, code_table, instance);
+    if (num_imported_functions < 0) return nothing;
 
     //--------------------------------------------------------------------------
     // Set up the memory for the new instance.
@@ -1277,35 +1308,6 @@ class WasmInstanceBuilder {
                            mem_size);
       compiled_module_->set_heap(memory_);
     }
-
-    //--------------------------------------------------------------------------
-    // Set up the globals for the new instance.
-    //--------------------------------------------------------------------------
-    MaybeHandle<JSArrayBuffer> old_globals;
-    MaybeHandle<JSArrayBuffer> globals;
-    uint32_t globals_size = compiled_module_->globals_size();
-    if (globals_size > 0) {
-      Handle<JSArrayBuffer> global_buffer =
-          NewArrayBuffer(isolate_, globals_size);
-      globals = global_buffer;
-      if (globals.is_null()) {
-        thrower_->Error("Out of memory: wasm globals");
-        return nothing;
-      }
-      Address old_address =
-          owner.is_null() ? nullptr : GetGlobalStartAddressFromCodeTemplate(
-                                          *factory->undefined_value(),
-                                          JSObject::cast(*owner));
-      RelocateGlobals(instance, old_address,
-                      static_cast<Address>(global_buffer->backing_store()));
-      instance->SetInternalField(kWasmGlobalsArrayBuffer, *global_buffer);
-    }
-
-    //--------------------------------------------------------------------------
-    // Process the imports for the module.
-    //--------------------------------------------------------------------------
-    int num_imported_functions = ProcessImports(globals, code_table);
-    if (num_imported_functions < 0) return nothing;
 
     //--------------------------------------------------------------------------
     // Process the initialization for the module's globals.
@@ -1626,7 +1628,7 @@ class WasmInstanceBuilder {
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions.
   int ProcessImports(MaybeHandle<JSArrayBuffer> globals,
-                     Handle<FixedArray> code_table) {
+                     Handle<FixedArray> code_table, Handle<JSObject> instance) {
     int num_imported_functions = 0;
     if (!compiled_module_->has_imports()) return num_imported_functions;
 
@@ -1668,9 +1670,17 @@ class WasmInstanceBuilder {
         case kExternalTable:
           // TODO(titzer): Table imports must be a WebAssembly.Table.
           break;
-        case kExternalMemory:
-          // TODO(titzer): Memory imports must be a WebAssembly.Memory.
+        case kExternalMemory: {
+          Handle<Object> object = result.ToHandleChecked();
+          if (!WasmJs::IsWasmMemoryObject(isolate_, object)) {
+            ReportFFIError("memory import must be a WebAssembly.Memory object",
+                           index, module_name, function_name);
+            return -1;
+          }
+          instance->SetInternalField(kWasmMemObject, *object);
+          memory_ = WasmJs::GetWasmMemoryArrayBuffer(isolate_, object);
           break;
+        }
         case kExternalGlobal: {
           // Global imports are converted to numbers and written into the
           // {globals} array buffer.
@@ -1787,13 +1797,21 @@ class WasmInstanceBuilder {
           // TODO(titzer): should it have the same identity as an import?
           break;
         case kExternalMemory: {
-          // TODO(titzer): should memory have the same identity as an
-          // import?
-          Handle<JSArrayBuffer> buffer =
-              Handle<JSArrayBuffer>(JSArrayBuffer::cast(
-                  instance->GetInternalField(kWasmMemArrayBuffer)));
-          desc.set_value(
-              WasmJs::CreateWasmMemoryObject(isolate_, buffer, false, 0));
+          // Export the memory as a WebAssembly.Memory object.
+          Handle<Object> memory_object(
+              instance->GetInternalField(kWasmMemObject), isolate_);
+          if (memory_object->IsUndefined(isolate_)) {
+            // If there was no imported WebAssembly.Memory object, create one.
+            Handle<JSArrayBuffer> buffer(
+                JSArrayBuffer::cast(
+                    instance->GetInternalField(kWasmMemArrayBuffer)),
+                isolate_);
+            memory_object =
+                WasmJs::CreateWasmMemoryObject(isolate_, buffer, false, 0);
+            instance->SetInternalField(kWasmMemObject, *memory_object);
+          }
+
+          desc.set_value(memory_object);
           break;
         }
         case kExternalGlobal: {

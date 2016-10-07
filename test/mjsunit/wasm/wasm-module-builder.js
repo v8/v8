@@ -194,9 +194,18 @@ class WasmModuleBuilder {
     return this.num_imported_globals++;
   }
 
+  addImportedMemory(module, name, initial = 0, maximum) {
+    let o = {module: module, name: name, kind: kExternalMemory, initial: initial, maximum: maximum};
+    this.imports.push(o);
+  }
+
   addDataSegment(addr, data, init) {
     this.segments.push({addr: addr, data: data, init: init});
     return this.segments.length - 1;
+  }
+
+  exportMemoryAs(name) {
+    this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
   appendToTable(array) {
@@ -244,6 +253,11 @@ class WasmModuleBuilder {
           } else if (imp.kind == kExternalGlobal) {
             section.emit_u32v(imp.type);
             section.emit_u8(imp.mutable);
+          } else if (imp.kind == kExternalMemory) {
+            var has_max = (typeof imp.maximum) != "undefined";
+            section.emit_u8(has_max ? 1 : 0); // flags
+            section.emit_u32v(imp.initial); // initial
+            if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }

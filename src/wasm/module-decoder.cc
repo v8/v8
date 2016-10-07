@@ -310,9 +310,9 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalMemory: {
             // ===== Imported memory =========================================
-            //            import->index =
-            //            static_cast<uint32_t>(module->memories.size());
-            // TODO(titzer): imported memories
+            consume_resizable_limits(
+                "memory", "pages", WasmModule::kMaxLegalPages,
+                &module->min_mem_pages, &module->max_mem_pages);
             break;
           }
           case kExternalGlobal: {
@@ -774,7 +774,7 @@ class ModuleDecoder : public Decoder {
     uint32_t offset = pc_offset();
     const byte* string_start = pc_;
     // Consume bytes before validation to guarantee that the string is not oob.
-    consume_bytes(*length, "string");
+    if (*length > 0) consume_bytes(*length, "string");
     if (ok() && validate_utf8 &&
         !unibrow::Utf8::Validate(string_start, *length)) {
       error(string_start, "no valid UTF-8 string");

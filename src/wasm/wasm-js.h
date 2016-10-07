@@ -27,6 +27,11 @@ class WasmJs {
   static Handle<JSObject> CreateWasmMemoryObject(Isolate* isolate,
                                                  Handle<JSArrayBuffer> buffer,
                                                  bool has_maximum, int maximum);
+
+  static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
+
+  static Handle<JSArrayBuffer> GetWasmMemoryArrayBuffer(Isolate* isolate,
+                                                        Handle<Object> value);
 };
 
 }  // namespace internal
