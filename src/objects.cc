@@ -6169,27 +6169,13 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
 }
 
 
-static Smi* GenerateIdentityHash(Isolate* isolate) {
-  int hash_value;
-  int attempts = 0;
-  do {
-    // Generate a random 32-bit hash value but limit range to fit
-    // within a smi.
-    hash_value = isolate->random_number_generator()->NextInt() & Smi::kMaxValue;
-    attempts++;
-  } while (hash_value == 0 && attempts < 30);
-  hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
-
-  return Smi::FromInt(hash_value);
-}
-
 template <typename ProxyType>
 static Smi* GetOrCreateIdentityHashHelper(Isolate* isolate,
                                           Handle<ProxyType> proxy) {
   Object* maybe_hash = proxy->hash();
   if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
 
-  Smi* hash = GenerateIdentityHash(isolate);
+  Smi* hash = Smi::FromInt(isolate->GenerateIdentityHash(Smi::kMaxValue));
   proxy->set_hash(hash);
   return hash;
 }
@@ -6219,7 +6205,7 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate,
     if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
   }
 
-  Smi* hash = GenerateIdentityHash(isolate);
+  Smi* hash = Smi::FromInt(isolate->GenerateIdentityHash(Smi::kMaxValue));
   CHECK(AddDataProperty(&it, handle(hash, isolate), NONE, THROW_ON_ERROR,
                         CERTAINLY_NOT_STORE_FROM_KEYED)
             .IsJust());
@@ -19587,14 +19573,21 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Handle<String> name) {
 
 namespace {
 
-template <typename T>
-struct HandleValueHash {
-  V8_INLINE size_t operator()(Handle<T> handle) const { return handle->Hash(); }
+struct ModuleHandleHash {
+  V8_INLINE size_t operator()(Handle<Module> module) const {
+    return module->hash();
+  }
 };
 
 struct ModuleHandleEqual {
   V8_INLINE bool operator()(Handle<Module> lhs, Handle<Module> rhs) const {
     return *lhs == *rhs;
+  }
+};
+
+struct StringHandleHash {
+  V8_INLINE size_t operator()(Handle<String> string) const {
+    return string->Hash();
   }
 };
 
@@ -19605,42 +19598,39 @@ struct StringHandleEqual {
 };
 
 class UnorderedStringSet
-    : public std::unordered_set<Handle<String>, HandleValueHash<String>,
+    : public std::unordered_set<Handle<String>, StringHandleHash,
                                 StringHandleEqual,
                                 zone_allocator<Handle<String>>> {
  public:
   explicit UnorderedStringSet(Zone* zone)
-      : std::unordered_set<Handle<String>, HandleValueHash<String>,
-                           StringHandleEqual, zone_allocator<Handle<String>>>(
-            2 /* bucket count */, HandleValueHash<String>(),
-            StringHandleEqual(), zone_allocator<Handle<String>>(zone)) {}
+      : std::unordered_set<Handle<String>, StringHandleHash, StringHandleEqual,
+                           zone_allocator<Handle<String>>>(
+            2 /* bucket count */, StringHandleHash(), StringHandleEqual(),
+            zone_allocator<Handle<String>>(zone)) {}
 };
 
 class UnorderedModuleSet
-    : public std::unordered_set<Handle<Module>, HandleValueHash<Module>,
+    : public std::unordered_set<Handle<Module>, ModuleHandleHash,
                                 ModuleHandleEqual,
                                 zone_allocator<Handle<Module>>> {
  public:
   explicit UnorderedModuleSet(Zone* zone)
-      : std::unordered_set<Handle<Module>, HandleValueHash<Module>,
-                           ModuleHandleEqual, zone_allocator<Handle<Module>>>(
-            2 /* bucket count */, HandleValueHash<Module>(),
-            ModuleHandleEqual(), zone_allocator<Handle<Module>>(zone)) {}
+      : std::unordered_set<Handle<Module>, ModuleHandleHash, ModuleHandleEqual,
+                           zone_allocator<Handle<Module>>>(
+            2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
+            zone_allocator<Handle<Module>>(zone)) {}
 };
 
 class UnorderedStringMap
     : public std::unordered_map<
-          Handle<String>, Handle<Object>, HandleValueHash<String>,
-          StringHandleEqual,
+          Handle<String>, Handle<Object>, StringHandleHash, StringHandleEqual,
           zone_allocator<std::pair<const Handle<String>, Handle<Object>>>> {
  public:
   explicit UnorderedStringMap(Zone* zone)
       : std::unordered_map<
-            Handle<String>, Handle<Object>, HandleValueHash<String>,
-            StringHandleEqual,
+            Handle<String>, Handle<Object>, StringHandleHash, StringHandleEqual,
             zone_allocator<std::pair<const Handle<String>, Handle<Object>>>>(
-            2 /* bucket count */, HandleValueHash<String>(),
-            StringHandleEqual(),
+            2 /* bucket count */, StringHandleHash(), StringHandleEqual(),
             zone_allocator<std::pair<const Handle<String>, Handle<Object>>>(
                 zone)) {}
 };
@@ -19649,17 +19639,16 @@ class UnorderedStringMap
 
 class Module::ResolveSet
     : public std::unordered_map<
-          Handle<Module>, UnorderedStringSet*, HandleValueHash<Module>,
+          Handle<Module>, UnorderedStringSet*, ModuleHandleHash,
           ModuleHandleEqual, zone_allocator<std::pair<const Handle<Module>,
                                                       UnorderedStringSet*>>> {
  public:
   explicit ResolveSet(Zone* zone)
       : std::unordered_map<Handle<Module>, UnorderedStringSet*,
-                           HandleValueHash<Module>, ModuleHandleEqual,
+                           ModuleHandleHash, ModuleHandleEqual,
                            zone_allocator<std::pair<const Handle<Module>,
                                                     UnorderedStringSet*>>>(
-            2 /* bucket count */, HandleValueHash<Module>(),
-            ModuleHandleEqual(),
+            2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
             zone_allocator<
                 std::pair<const Handle<Module>, UnorderedStringSet*>>(zone)),
         zone_(zone) {}

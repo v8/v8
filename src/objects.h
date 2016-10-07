@@ -7926,14 +7926,14 @@ class Module : public Struct {
   // Embedder-specified data
   DECL_ACCESSORS(embedder_data, Object)
 
+  // Hash for this object (a random non-zero Smi).
+  DECL_INT_ACCESSORS(hash)
+
   // Get the SharedFunctionInfo associated with the code.
   inline SharedFunctionInfo* shared() const;
 
   // Get the ModuleInfo associated with the code.
   inline ModuleInfo* info() const;
-
-  // Compute a hash for this object.
-  inline uint32_t Hash() const;
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
@@ -7964,7 +7964,8 @@ class Module : public Struct {
   static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
   static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
   static const int kModuleNamespaceOffset = kEmbedderDataOffset + kPointerSize;
-  static const int kSize = kModuleNamespaceOffset + kPointerSize;
+  static const int kHashOffset = kModuleNamespaceOffset + kPointerSize;
+  static const int kSize = kHashOffset + kPointerSize;
 
  private:
   enum { kEvaluatedBit };

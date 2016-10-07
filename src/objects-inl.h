@@ -5716,6 +5716,7 @@ ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 SMI_ACCESSORS(Module, flags, kFlagsOffset)
 BOOL_ACCESSORS(Module, flags, evaluated, kEvaluatedBit)
 ACCESSORS(Module, embedder_data, Object, kEmbedderDataOffset)
+SMI_ACCESSORS(Module, hash, kHashOffset)
 
 SharedFunctionInfo* Module::shared() const {
   return code()->IsSharedFunctionInfo() ? SharedFunctionInfo::cast(code())
@@ -5725,8 +5726,6 @@ SharedFunctionInfo* Module::shared() const {
 ModuleInfo* Module::info() const {
   return shared()->scope_info()->ModuleDescriptorInfo();
 }
-
-uint32_t Module::Hash() const { return Symbol::cast(shared()->name())->Hash(); }
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

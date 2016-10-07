@@ -2883,6 +2883,14 @@ base::RandomNumberGenerator* Isolate::random_number_generator() {
   return random_number_generator_;
 }
 
+int Isolate::GenerateIdentityHash(uint32_t mask) {
+  int hash;
+  int attempts = 0;
+  do {
+    hash = random_number_generator()->NextInt() & mask;
+  } while (hash == 0 && attempts++ < 30);
+  return hash != 0 ? hash : 1;
+}
 
 Object* Isolate::FindCodeObject(Address a) {
   return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);

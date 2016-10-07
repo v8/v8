@@ -936,7 +936,7 @@ void Module::ModuleVerify() {
   requested_modules()->ObjectVerify();
   VerifySmiField(kFlagsOffset);
   embedder_data()->ObjectVerify();
-  CHECK(shared()->name()->IsSymbol());
+  VerifySmiField(kHashOffset);
   CHECK(module_namespace()->IsUndefined(isolate) ||
         module_namespace()->IsJSModuleNamespace());
   // TODO(neis): Check more.

@@ -1069,6 +1069,10 @@ class Isolate {
 
   base::RandomNumberGenerator* random_number_generator();
 
+  // Generates a random number that is non-zero when masked
+  // with the provided mask.
+  int GenerateIdentityHash(uint32_t mask);
+
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 

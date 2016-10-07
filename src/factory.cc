@@ -1762,11 +1762,6 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
-  // To make it easy to hash Modules, we set a new symbol as the name of
-  // SharedFunctionInfo representing this Module.
-  Handle<Symbol> name_symbol = NewSymbol();
-  code->set_name(*name_symbol);
-
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
   module->set_embedder_data(isolate()->heap()->undefined_value());
@@ -1774,6 +1769,8 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_flags(0);
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
+  module->set_embedder_data(isolate()->heap()->undefined_value());
+  module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   return module;
 }
 

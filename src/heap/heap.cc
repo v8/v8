@@ -4014,13 +4014,7 @@ AllocationResult Heap::AllocateSymbol() {
   result->set_map_no_write_barrier(symbol_map());
 
   // Generate a random hash value.
-  int hash;
-  int attempts = 0;
-  do {
-    hash = isolate()->random_number_generator()->NextInt() & Name::kHashBitMask;
-    attempts++;
-  } while (hash == 0 && attempts < 30);
-  if (hash == 0) hash = 1;  // never return 0
+  int hash = isolate()->GenerateIdentityHash(Name::kHashBitMask);
 
   Symbol::cast(result)
       ->set_hash_field(Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
