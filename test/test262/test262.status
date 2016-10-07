@@ -383,12 +383,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5136
-  'annexB/language/comments/multi-line-html-close': [FAIL],
-  'annexB/language/comments/single-line-html-close': [FAIL],
-  'annexB/language/comments/single-line-html-close-asi': [FAIL],
-  'annexB/language/comments/single-line-html-open': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5137
   'annexB/built-ins/RegExp/prototype/compile/flags-undefined': [FAIL],
   'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-distinct': [FAIL],

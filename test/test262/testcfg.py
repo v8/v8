@@ -28,6 +28,7 @@
 
 import imp
 import os
+import re
 import sys
 import tarfile
 
@@ -184,10 +185,9 @@ class Test262TestSuite(testsuite.TestSuite):
       return f.read()
 
   def _ParseException(self, str):
-    for line in str.split("\n")[::-1]:
-      if line and not line[0].isspace() and ":" in line:
-        return line.split(":")[0]
-
+    # somefile:somelinenumber: someerror[: sometext]
+    match = re.search('^[^: ]*:[0-9]+: ([^ ]+?)($|: )', str, re.MULTILINE)
+    return match.group(1)
 
   def IsFailureOutput(self, testcase):
     output = testcase.output
