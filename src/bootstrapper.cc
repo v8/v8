@@ -1349,6 +1349,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(number_fun, "isNaN", Builtins::kNumberIsNaN, 1, true);
     SimpleInstallFunction(number_fun, "isSafeInteger",
                           Builtins::kNumberIsSafeInteger, 1, true);
+
+    // Install Number.parseFloat and Global.parseFloat.
+    Handle<JSFunction> parse_float_fun = SimpleInstallFunction(
+        number_fun, "parseFloat", Builtins::kNumberParseFloat, 1, true);
+    JSObject::AddProperty(global_object,
+                          factory->NewStringFromAsciiChecked("parseFloat"),
+                          parse_float_fun, DONT_ENUM);
   }
 
   {  // --- B o o l e a n ---

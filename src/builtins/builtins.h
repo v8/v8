@@ -480,6 +480,8 @@ namespace internal {
   TFJ(NumberIsNaN, 2)                                                         \
   /* ES6 section 20.1.2.5 Number.isSafeInteger ( number ) */                  \
   TFJ(NumberIsSafeInteger, 2)                                                 \
+  /* ES6 section 20.1.2.12 Number.parseFloat ( string ) */                    \
+  TFJ(NumberParseFloat, 2)                                                    \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \

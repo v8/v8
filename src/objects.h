@@ -7071,6 +7071,7 @@ class Script: public Struct {
   V(Number, isInteger, NumberIsInteger)                     \
   V(Number, isNaN, NumberIsNaN)                             \
   V(Number, isSafeInteger, NumberIsSafeInteger)             \
+  V(Number, parseFloat, NumberParseFloat)                   \
   V(Number, parseInt, NumberParseInt)                       \
   V(Number.prototype, toString, NumberToString)
 

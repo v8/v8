@@ -1362,6 +1362,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kNumberIsNaN:
         case kNumberIsSafeInteger:
           return Type::Boolean();
+        case kNumberParseFloat:
+          return Type::Number();
         case kNumberParseInt:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         case kNumberToString:

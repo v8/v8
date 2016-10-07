@@ -52,15 +52,6 @@ function GlobalParseInt(string, radix) {
 }
 
 
-// ES6 18.2.4 parseFloat(string)
-function GlobalParseFloat(string) {
-  // 1. Let inputString be ? ToString(string).
-  string = TO_STRING(string);
-  if (%_HasCachedArrayIndex(string)) return %_GetCachedArrayIndex(string);
-  return %StringParseFloat(string);
-}
-
-
 // ----------------------------------------------------------------------------
 
 // Set up global object.
@@ -78,7 +69,6 @@ utils.InstallConstants(global, [
 // Set up non-enumerable function on the global object.
 utils.InstallFunctions(global, DONT_ENUM, [
   "parseInt", GlobalParseInt,
-  "parseFloat", GlobalParseFloat,
 ]);
 
 
@@ -213,7 +203,6 @@ utils.InstallConstants(GlobalNumber, [
 // Harmony Number constructor additions
 utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
   "parseInt", GlobalParseInt,
-  "parseFloat", GlobalParseFloat
 ]);
 
 

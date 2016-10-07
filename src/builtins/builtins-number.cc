@@ -150,6 +150,112 @@ void Builtins::Generate_NumberIsSafeInteger(CodeStubAssembler* assembler) {
   assembler->Return(assembler->BooleanConstant(false));
 }
 
+// ES6 section 20.1.2.12 Number.parseFloat ( string )
+void Builtins::Generate_NumberParseFloat(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  // We might need to loop once for ToString conversion.
+  Variable var_input(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_input);
+  var_input.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {input} value.
+    Node* input = var_input.value();
+
+    // Check if the {input} is a HeapObject or a Smi.
+    Label if_inputissmi(assembler), if_inputisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(input), &if_inputissmi,
+                      &if_inputisnotsmi);
+
+    assembler->Bind(&if_inputissmi);
+    {
+      // The {input} is already a Number, no need to do anything.
+      assembler->Return(input);
+    }
+
+    assembler->Bind(&if_inputisnotsmi);
+    {
+      // The {input} is a HeapObject, check if it's already a String.
+      Label if_inputisstring(assembler), if_inputisnotstring(assembler);
+      Node* input_map = assembler->LoadMap(input);
+      Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
+      assembler->Branch(assembler->IsStringInstanceType(input_instance_type),
+                        &if_inputisstring, &if_inputisnotstring);
+
+      assembler->Bind(&if_inputisstring);
+      {
+        // The {input} is already a String, check if {input} contains
+        // a cached array index.
+        Label if_inputcached(assembler), if_inputnotcached(assembler);
+        Node* input_hash = assembler->LoadNameHashField(input);
+        Node* input_bit = assembler->Word32And(
+            input_hash,
+            assembler->Int32Constant(String::kContainsCachedArrayIndexMask));
+        assembler->Branch(
+            assembler->Word32Equal(input_bit, assembler->Int32Constant(0)),
+            &if_inputcached, &if_inputnotcached);
+
+        assembler->Bind(&if_inputcached);
+        {
+          // Just return the {input}s cached array index.
+          Node* input_array_index =
+              assembler->BitFieldDecodeWord<String::ArrayIndexValueBits>(
+                  input_hash);
+          assembler->Return(assembler->SmiTag(input_array_index));
+        }
+
+        assembler->Bind(&if_inputnotcached);
+        {
+          // Need to fall back to the runtime to convert {input} to double.
+          assembler->Return(assembler->CallRuntime(Runtime::kStringParseFloat,
+                                                   context, input));
+        }
+      }
+
+      assembler->Bind(&if_inputisnotstring);
+      {
+        // The {input} is neither a String nor a Smi, check for HeapNumber.
+        Label if_inputisnumber(assembler),
+            if_inputisnotnumber(assembler, Label::kDeferred);
+        assembler->Branch(
+            assembler->WordEqual(input_map, assembler->HeapNumberMapConstant()),
+            &if_inputisnumber, &if_inputisnotnumber);
+
+        assembler->Bind(&if_inputisnumber);
+        {
+          // The {input} is already a Number, take care of -0.
+          Label if_inputiszero(assembler), if_inputisnotzero(assembler);
+          Node* input_value = assembler->LoadHeapNumberValue(input);
+          assembler->Branch(assembler->Float64Equal(
+                                input_value, assembler->Float64Constant(0.0)),
+                            &if_inputiszero, &if_inputisnotzero);
+
+          assembler->Bind(&if_inputiszero);
+          assembler->Return(assembler->SmiConstant(0));
+
+          assembler->Bind(&if_inputisnotzero);
+          assembler->Return(input);
+        }
+
+        assembler->Bind(&if_inputisnotnumber);
+        {
+          // Need to convert the {input} to String first.
+          // TODO(bmeurer): This could be more efficient if necessary.
+          Callable callable = CodeFactory::ToString(assembler->isolate());
+          var_input.Bind(assembler->CallStub(callable, context, input));
+          assembler->Goto(&loop);
+        }
+      }
+    }
+  }
+}
+
 // ES6 section 20.1.3.2 Number.prototype.toExponential ( fractionDigits )
 BUILTIN(NumberPrototypeToExponential) {
   HandleScope scope(isolate);
