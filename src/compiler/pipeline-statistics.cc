@@ -6,7 +6,7 @@
 
 #include "src/compilation-info.h"
 #include "src/compiler/pipeline-statistics.h"
-#include "src/compiler/zone-stats.h"
+#include "src/compiler/zone-pool.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -16,13 +16,13 @@ namespace compiler {
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {
   DCHECK(!scope_);
-  scope_.reset(new ZoneStats::StatsScope(pipeline_stats->zone_stats_));
+  scope_.reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
   timer_.Start();
   outer_zone_initial_size_ = pipeline_stats->OuterZoneSize();
   allocated_bytes_at_start_ =
       outer_zone_initial_size_ -
       pipeline_stats->total_stats_.outer_zone_initial_size_ +
-      pipeline_stats->zone_stats_->GetCurrentAllocatedBytes();
+      pipeline_stats->zone_pool_->GetCurrentAllocatedBytes();
 }
 
 
@@ -43,11 +43,12 @@ void PipelineStatistics::CommonStats::End(
   timer_.Stop();
 }
 
+
 PipelineStatistics::PipelineStatistics(CompilationInfo* info,
-                                       ZoneStats* zone_stats)
+                                       ZonePool* zone_pool)
     : isolate_(info->isolate()),
       outer_zone_(info->zone()),
-      zone_stats_(zone_stats),
+      zone_pool_(zone_pool),
       compilation_stats_(isolate_->GetTurboStatistics()),
       source_size_(0),
       phase_kind_name_(nullptr),
