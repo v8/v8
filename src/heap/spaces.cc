@@ -2905,8 +2905,10 @@ Address LargePage::GetAddressToShrink() {
 }
 
 void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
-  RememberedSet<OLD_TO_NEW>::RemoveRange(this, free_start, area_end());
-  RememberedSet<OLD_TO_OLD>::RemoveRange(this, free_start, area_end());
+  RememberedSet<OLD_TO_NEW>::RemoveRange(this, free_start, area_end(),
+                                         SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_OLD>::RemoveRange(this, free_start, area_end(),
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(this, free_start, area_end());
   RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(this, free_start, area_end());
 }

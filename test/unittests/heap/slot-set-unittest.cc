@@ -104,7 +104,7 @@ void CheckRemoveRangeOn(uint32_t start, uint32_t end) {
   for (uint32_t i = first; i <= last; i += kPointerSize) {
     set.Insert(i);
   }
-  set.RemoveRange(start, end);
+  set.RemoveRange(start, end, SlotSet::FREE_EMPTY_BUCKETS);
   if (first != start) {
     EXPECT_TRUE(set.Lookup(first));
   }
@@ -135,7 +135,7 @@ TEST(SlotSet, RemoveRange) {
   SlotSet set;
   set.SetPageStart(0);
   set.Insert(Page::kPageSize / 2);
-  set.RemoveRange(0, Page::kPageSize);
+  set.RemoveRange(0, Page::kPageSize, SlotSet::FREE_EMPTY_BUCKETS);
   for (uint32_t i = 0; i < Page::kPageSize; i += kPointerSize) {
     EXPECT_FALSE(set.Lookup(i));
   }

@@ -3480,7 +3480,8 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
             page->AddressToMarkbitIndex(object->address()));
         if (page->old_to_new_slots() != nullptr) {
           page->old_to_new_slots()->RemoveRange(
-              0, static_cast<int>(object->address() - page->address()));
+              0, static_cast<int>(object->address() - page->address()),
+              SlotSet::PREFREE_EMPTY_BUCKETS);
         }
         if (page->typed_old_to_new_slots() != nullptr) {
           RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),

@@ -7037,7 +7037,8 @@ TEST(RememberedSetRemoveRange) {
     return KEEP_SLOT;
   });
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kPointerSize);
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kPointerSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   slots[start] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
     CHECK(slots[addr]);
@@ -7045,7 +7046,8 @@ TEST(RememberedSetRemoveRange) {
   });
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kPointerSize,
-                                         start + Page::kPageSize);
+                                         start + Page::kPageSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + kPointerSize] = false;
   slots[start + Page::kPageSize - kPointerSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
@@ -7053,8 +7055,9 @@ TEST(RememberedSetRemoveRange) {
     return KEEP_SLOT;
   });
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(
-      chunk, start, start + Page::kPageSize + kPointerSize);
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start,
+                                         start + Page::kPageSize + kPointerSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + Page::kPageSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
     CHECK(slots[addr]);
@@ -7062,7 +7065,8 @@ TEST(RememberedSetRemoveRange) {
   });
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(
-      chunk, chunk->area_end() - kPointerSize, chunk->area_end());
+      chunk, chunk->area_end() - kPointerSize, chunk->area_end(),
+      SlotSet::FREE_EMPTY_BUCKETS);
   slots[chunk->area_end() - kPointerSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
     CHECK(slots[addr]);

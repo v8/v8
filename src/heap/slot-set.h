@@ -25,7 +25,13 @@ enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 // Each bucket is a bitmap with a bit corresponding to a single slot offset.
 class SlotSet : public Malloced {
  public:
-  enum IterationMode { PREFREE_EMPTY_BUCKETS, KEEP_EMPTY_BUCKETS };
+  enum EmptyBucketMode {
+    FREE_EMPTY_BUCKETS,     // An empty bucket will be deallocated immediately.
+    PREFREE_EMPTY_BUCKETS,  // An empty bucket will be unlinked from the slot
+                            // set, but deallocated on demand by a sweeper
+                            // thread.
+    KEEP_EMPTY_BUCKETS      // An empty bucket will be kept.
+  };
 
   SlotSet() {
     for (int i = 0; i < kBuckets; i++) {
@@ -74,9 +80,16 @@ class SlotSet : public Malloced {
     }
   }
 
+  void PreFreeEmptyBucket(int bucket_index) {
+    base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+    base::AtomicValue<uint32_t>* bucket_ptr = bucket[bucket_index].Value();
+    to_be_freed_buckets_.push(bucket_ptr);
+    bucket[bucket_index].SetValue(nullptr);
+  }
+
   // The slot offsets specify a range of slots at addresses:
   // [page_start_ + start_offset ... page_start_ + end_offset).
-  void RemoveRange(int start_offset, int end_offset) {
+  void RemoveRange(int start_offset, int end_offset, EmptyBucketMode mode) {
     CHECK_LE(end_offset, 1 << kPageSizeBits);
     DCHECK_LE(start_offset, end_offset);
     int start_bucket, start_cell, start_bit;
@@ -108,7 +121,11 @@ class SlotSet : public Malloced {
     DCHECK(current_bucket == end_bucket ||
            (current_bucket < end_bucket && current_cell == 0));
     while (current_bucket < end_bucket) {
-      ReleaseBucket(current_bucket);
+      if (mode == PREFREE_EMPTY_BUCKETS) {
+        PreFreeEmptyBucket(current_bucket);
+      } else if (mode == FREE_EMPTY_BUCKETS) {
+        ReleaseBucket(current_bucket);
+      }
       current_bucket++;
     }
     // All buckets between start_bucket and end_bucket are cleared.
@@ -148,7 +165,7 @@ class SlotSet : public Malloced {
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
-  int Iterate(Callback callback, IterationMode mode) {
+  int Iterate(Callback callback, EmptyBucketMode mode) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
       if (bucket[bucket_index].Value() != nullptr) {
@@ -186,11 +203,7 @@ class SlotSet : public Malloced {
           }
         }
         if (mode == PREFREE_EMPTY_BUCKETS && in_bucket_count == 0) {
-          base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
-          base::AtomicValue<uint32_t>* bucket_ptr =
-              bucket[bucket_index].Value();
-          to_be_freed_buckets_.push(bucket_ptr);
-          bucket[bucket_index].SetValue(nullptr);
+          PreFreeEmptyBucket(bucket_index);
         }
         new_count += in_bucket_count;
       }

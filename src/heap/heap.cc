@@ -5951,8 +5951,10 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   if (!page->InNewSpace()) {
     store_buffer()->MoveEntriesToRememberedSet();
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end);
-    RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end);
+    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
+                                           SlotSet::PREFREE_EMPTY_BUCKETS);
+    RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end,
+                                           SlotSet::FREE_EMPTY_BUCKETS);
   }
 }
 
