@@ -7246,10 +7246,15 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Deserialize()");
   i::SeqOneByteString* data = i::SeqOneByteString::cast(*module_bytes);
+  // Copy bytes such that GC can not move it during construction of the module.
+  // TODO(wasm): Avoid this additional copy.
+  i::ScopedVector<unsigned char> bytes_copy(data->length());
+  memcpy(bytes_copy.start(), data->GetChars(), data->length());
   i::MaybeHandle<i::JSObject> maybe_compiled =
       i::wasm::CreateModuleObjectFromBytes(
-          i_isolate, data->GetChars(), data->GetChars() + data->length(),
-          &thrower, i::wasm::ModuleOrigin::kWasmOrigin);
+          i_isolate, bytes_copy.start(),
+          bytes_copy.start() + bytes_copy.length(), &thrower,
+          i::wasm::ModuleOrigin::kWasmOrigin);
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
