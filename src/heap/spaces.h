@@ -465,7 +465,7 @@ class MemoryChunk {
 
   V8_EXPORT_PRIVATE void AllocateOldToNewSlots();
   void ReleaseOldToNewSlots();
-  void AllocateOldToOldSlots();
+  V8_EXPORT_PRIVATE void AllocateOldToOldSlots();
   void ReleaseOldToOldSlots();
   void AllocateTypedOldToNewSlots();
   void ReleaseTypedOldToNewSlots();

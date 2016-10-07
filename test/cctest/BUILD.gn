@@ -324,6 +324,7 @@ v8_executable("cctest") {
 
   deps = [
     ":resources",
+    "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
     "../..:wasm_test_signatures",

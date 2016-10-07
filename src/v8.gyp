@@ -68,16 +68,6 @@
               'USING_V8_SHARED',
             ],
           },
-          'target_conditions': [
-            ['OS=="android" and _toolset=="target"', {
-              'libraries': [
-                '-llog',
-              ],
-              'include_dirs': [
-                'src/common/android/include',
-              ],
-            }],
-          ],
           'conditions': [
             ['OS=="mac"', {
               'xcode_settings': {
@@ -1768,7 +1758,7 @@
     },
     {
       'target_name': 'v8_libbase',
-      'type': 'static_library',
+      'type': '<(component)',
       'variables': {
         'optimize': 'max',
       },
@@ -1791,6 +1781,7 @@
         'base/atomicops_internals_x86_gcc.cc',
         'base/atomicops_internals_x86_gcc.h',
         'base/atomicops_internals_x86_msvc.h',
+        'base/base-export.h',
         'base/bits.cc',
         'base/bits.h',
         'base/build_config.h',
@@ -1838,12 +1829,32 @@
         'base/utils/random-number-generator.cc',
         'base/utils/random-number-generator.h',
       ],
+      'target_conditions': [
+        ['OS=="android" and _toolset=="target"', {
+          'libraries': [
+            '-llog',
+          ],
+          'include_dirs': [
+            'src/common/android/include',
+          ],
+        }],
+      ],
       'conditions': [
         ['want_separate_host_toolset==1 or \
           want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
+        }],
+        ['component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_BASE_SHARED',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'USING_V8_BASE_SHARED',
+            ],
+          },
         }],
         ['OS=="linux"', {
             'link_settings': {
@@ -2405,7 +2416,12 @@
     {
       'target_name': 'mksnapshot',
       'type': 'executable',
-      'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
+      'dependencies': [
+        'v8_base',
+        'v8_libbase',
+        'v8_nosnapshot',
+        'v8_libplatform'
+      ],
       'include_dirs+': [
         '..',
         '<(DEPTH)',
