@@ -52,7 +52,6 @@ class AsmTyperHarnessBuilder {
             factory_->NewStringFromUtf8(CStrVector(source)).ToHandleChecked()),
         script_(factory_->NewScript(source_code_)) {
     ParseInfo info(zone_, script_);
-    info.set_global();
     info.set_lazy(false);
     info.set_allow_lazy_parsing(false);
     info.set_toplevel(true);

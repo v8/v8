@@ -858,7 +858,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::Zone zone(CcTest::i_isolate()->allocator());
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
-      info.set_global();
       CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
       i::DeclarationScope::Analyze(&info, i::AnalyzeMode::kRegular);
@@ -914,7 +913,6 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
 
   i::ParseInfo info(handles.main_zone(), script);
   i::Parser parser(&info);
-  info.set_global();
   info.set_lazy(false);
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
@@ -1179,7 +1177,6 @@ TEST(ScopePositions) {
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     parser.set_allow_lazy(true);
-    info.set_global();
     info.set_language_mode(source_data[i].language_mode);
     parser.Parse(&info);
     CHECK(info.literal() != NULL);
@@ -1374,11 +1371,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     SetParserFlags(&parser, flags);
-    if (is_module) {
-      info.set_module();
-    } else {
-      info.set_global();
-    }
+    if (is_module) info.set_module();
     parser.Parse(&info);
     function = info.literal();
     if (function) {
@@ -5690,7 +5683,6 @@ TEST(BasicImportExportParsing) {
       i::Zone zone(CcTest::i_isolate()->allocator());
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
-      info.set_global();
       CHECK(!parser.Parse(&info));
       isolate->clear_pending_exception();
     }
@@ -6269,7 +6261,6 @@ void TestLanguageMode(const char* source,
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::ParseInfo info(&zone, script);
   i::Parser parser(&info);
-  info.set_global();
   parser.Parse(&info);
   CHECK(info.literal() != NULL);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());

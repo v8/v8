@@ -47,7 +47,6 @@ class ParseInfo {
   FLAG_ACCESSOR(kToplevel, is_toplevel, set_toplevel)
   FLAG_ACCESSOR(kLazy, is_lazy, set_lazy)
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
-  FLAG_ACCESSOR(kGlobal, is_global, set_global)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
   FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
@@ -198,16 +197,15 @@ class ParseInfo {
     kToplevel = 1 << 0,
     kLazy = 1 << 1,
     kEval = 1 << 2,
-    kGlobal = 1 << 3,
-    kStrictMode = 1 << 4,
-    kNative = 1 << 5,
-    kParseRestriction = 1 << 6,
-    kModule = 1 << 7,
-    kAllowLazyParsing = 1 << 8,
-    kIsNamedExpression = 1 << 9,
-    kCallsEval = 1 << 10,
+    kStrictMode = 1 << 3,
+    kNative = 1 << 4,
+    kParseRestriction = 1 << 5,
+    kModule = 1 << 6,
+    kAllowLazyParsing = 1 << 7,
+    kIsNamedExpression = 1 << 8,
+    kCallsEval = 1 << 9,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 11
+    kAstValueFactoryOwned = 1 << 10
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

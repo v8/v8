@@ -719,7 +719,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (IsEvalToplevel(shared)) {
     parse_info->set_eval();
-    if (function->context()->IsNativeContext()) parse_info->set_global();
     parse_info->set_toplevel();
     parse_info->set_allow_lazy_parsing(false);
     parse_info->set_lazy(false);
@@ -1059,9 +1058,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   isolate->debug()->OnBeforeCompile(script);
 
-  DCHECK(parse_info->is_eval() || parse_info->is_global() ||
-         parse_info->is_module());
-
   parse_info->set_toplevel();
 
   Handle<SharedFunctionInfo> result;
@@ -1276,7 +1272,6 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (IsEvalToplevel(handle(function->shared()))) {
     parse_info.set_eval();
-    if (function->context()->IsNativeContext()) parse_info.set_global();
     parse_info.set_toplevel();
     parse_info.set_allow_lazy_parsing(false);
     parse_info.set_lazy(false);
@@ -1331,7 +1326,6 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  parse_info.set_global();
   info.MarkAsDebug();
 
   // TODO(635): support extensions.
@@ -1481,7 +1475,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info, Handle<JSFunction>::null());
     parse_info.set_eval();
-    if (context->IsNativeContext()) parse_info.set_global();
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
     if (!context->IsNativeContext()) {
@@ -1649,11 +1642,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-    if (is_module) {
-      parse_info.set_module();
-    } else {
-      parse_info.set_global();
-    }
+    if (is_module) parse_info.set_module();
     if (compile_options != ScriptCompiler::kNoCompileOptions) {
       parse_info.set_cached_data(cached_data);
     }
