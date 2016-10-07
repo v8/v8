@@ -6,6 +6,7 @@
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/flags.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 #include "src/v8.h"
@@ -932,7 +933,12 @@ class ModuleDecoder : public Decoder {
       case kLocalF64:
         return kAstF64;
       case kLocalS128:
-        return kAstS128;
+        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
+          return kAstS128;
+        } else {
+          error(pc_ - 1, "invalid local type");
+          return kAstStmt;
+        }
       default:
         error(pc_ - 1, "invalid local type");
         return kAstStmt;

@@ -82,6 +82,7 @@ var kAstI32 = 1;
 var kAstI64 = 2;
 var kAstF32 = 3;
 var kAstF64 = 4;
+var kAstS128 = 5;
 
 var kExternalFunction = 0;
 var kExternalTable = 1;
@@ -106,6 +107,7 @@ var kSig_v_iii = makeSig([kAstI32, kAstI32, kAstI32], []);
 var kSig_v_d = makeSig([kAstF64], []);
 var kSig_v_dd = makeSig([kAstF64, kAstF64], []);
 var kSig_v_ddi = makeSig([kAstF64, kAstF64, kAstI32], []);
+var kSig_s_v = makeSig([], [kAstS128]);
 
 function makeSig(params, results) {
   return {params: params, results: results};

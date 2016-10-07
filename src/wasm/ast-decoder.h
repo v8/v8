@@ -156,6 +156,9 @@ struct BlockTypeOperand {
       case kLocalF64:
         *result = kAstF64;
         return true;
+      case kLocalS128:
+        *result = kAstS128;
+        return true;
       default:
         *result = kAstStmt;
         return false;

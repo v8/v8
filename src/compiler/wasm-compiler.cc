@@ -206,6 +206,9 @@ class WasmTrapHelper : public ZoneObject {
       case wasm::kAstF64:
         return jsgraph()->Float64Constant(bit_cast<double>(0xdeadbeefdeadbeef));
         break;
+      case wasm::kAstS128:
+        return builder_->CreateS128Value(0xdeadbeef);
+        break;
       default:
         UNREACHABLE();
         return nullptr;
@@ -2295,6 +2298,7 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::LocalType type) {
   switch (type) {
     case wasm::kAstI32:
       return BuildChangeInt32ToTagged(node);
+    case wasm::kAstS128:
     case wasm::kAstI64:
       // Throw a TypeError. The native context is good enough here because we
       // only throw a TypeError.
@@ -2457,6 +2461,7 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
                              num);
       break;
     }
+    case wasm::kAstS128:
     case wasm::kAstI64:
       // Throw a TypeError. The native context is good enough here because we
       // only throw a TypeError.
@@ -3024,12 +3029,12 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
     source_position_table_->SetSourcePosition(node, pos);
 }
 
-Node* WasmGraphBuilder::DefaultS128Value() {
+Node* WasmGraphBuilder::CreateS128Value(int32_t value) {
   // TODO(gdeepti): Introduce Simd128Constant to common-operator.h and use
   // instead of creating a SIMD Value.
   return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(),
-                          Int32Constant(0), Int32Constant(0), Int32Constant(0),
-                          Int32Constant(0));
+                          Int32Constant(value), Int32Constant(value),
+                          Int32Constant(value), Int32Constant(value));
 }
 
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,

@@ -198,7 +198,7 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
-  Node* DefaultS128Value();
+  Node* CreateS128Value(int32_t value);
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
   Node* SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input);

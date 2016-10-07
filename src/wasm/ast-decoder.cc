@@ -32,6 +32,9 @@ namespace wasm {
 #endif
 
 #define CHECK_PROTOTYPE_OPCODE(flag)                   \
+  if (module_ && module_->origin == kAsmJsOrigin) {    \
+    error("Opcode not supported for asmjs modules");   \
+  }                                                    \
   if (!FLAG_##flag) {                                  \
     error("Invalid opcode (enable with --" #flag ")"); \
     break;                                             \
@@ -500,7 +503,7 @@ class WasmFullDecoder : public WasmDecoder {
       case kAstF64:
         return builder_->Float64Constant(0);
       case kAstS128:
-        return builder_->DefaultS128Value();
+        return builder_->CreateS128Value(0);
       default:
         UNREACHABLE();
         return nullptr;
