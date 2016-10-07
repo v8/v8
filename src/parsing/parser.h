@@ -358,11 +358,13 @@ class Parser : public ParserBase<Parser> {
     void VisitObjectLiteral(ObjectLiteral* node, Variable** temp_var);
     void VisitArrayLiteral(ArrayLiteral* node, Variable** temp_var);
 
-    bool IsBindingContext() const { return IsBindingContext(context_); }
+    bool IsBindingContext() const {
+      return context_ == BINDING || context_ == INITIALIZER;
+    }
     bool IsInitializerContext() const { return context_ != ASSIGNMENT; }
-    bool IsAssignmentContext() const { return IsAssignmentContext(context_); }
-    bool IsAssignmentContext(PatternContext c) const;
-    bool IsBindingContext(PatternContext c) const;
+    bool IsAssignmentContext() const {
+      return context_ == ASSIGNMENT || context_ == ASSIGNMENT_INITIALIZER;
+    }
     bool IsSubPattern() const { return recursion_level_ > 1; }
     PatternContext SetAssignmentContextIfNeeded(Expression* node);
     PatternContext SetInitializerContextIfNeeded(Expression* node);

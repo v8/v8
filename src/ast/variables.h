@@ -64,7 +64,6 @@ class Variable final : public ZoneObject {
   bool IsContextSlot() const { return location() == VariableLocation::CONTEXT; }
   bool IsLookupSlot() const { return location() == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
-  bool IsStaticGlobalObjectProperty() const;
 
   bool is_dynamic() const { return IsDynamicVariableMode(mode()); }
   bool binding_needs_init() const {
