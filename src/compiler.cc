@@ -495,18 +495,6 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Context> native_context(function->context()->native_context());
   SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
                                             literals, info->osr_ast_id());
-
-  // Do not cache (native) context-independent code compiled for OSR.
-  if (code->is_turbofanned() && info->is_osr()) return;
-
-  // Cache optimized (native) context-independent code.
-  if (FLAG_turbo_cache_shared_code && code->is_turbofanned() &&
-      !info->is_native_context_specializing()) {
-    DCHECK(!info->is_function_context_specializing());
-    DCHECK(info->osr_ast_id().IsNone());
-    Handle<SharedFunctionInfo> shared(function->shared());
-    SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(shared, code);
-  }
 }
 
 bool Renumber(ParseInfo* parse_info) {
