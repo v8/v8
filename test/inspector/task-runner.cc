@@ -117,8 +117,13 @@ TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
 }
 
-ExecuteStringTask::ExecuteStringTask(const v8_inspector::String16& expression)
+ExecuteStringTask::ExecuteStringTask(
+    const v8::internal::Vector<uint16_t>& expression)
     : expression_(expression) {}
+
+ExecuteStringTask::ExecuteStringTask(
+    const v8::internal::Vector<const char>& expression)
+    : expression_utf8_(expression) {}
 
 void ExecuteStringTask::Run(v8::Isolate* isolate,
                             const v8::Global<v8::Context>& context) {
@@ -129,11 +134,18 @@ void ExecuteStringTask::Run(v8::Isolate* isolate,
   v8::Context::Scope context_scope(local_context);
 
   v8::ScriptOrigin origin(v8::String::Empty(isolate));
-  v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, expression_.characters16(),
-                                 v8::NewStringType::kNormal,
-                                 static_cast<int>(expression_.length()))
-          .ToLocalChecked();
+  v8::Local<v8::String> source;
+  if (expression_.length()) {
+    source = v8::String::NewFromTwoByte(isolate, expression_.start(),
+                                        v8::NewStringType::kNormal,
+                                        expression_.length())
+                 .ToLocalChecked();
+  } else {
+    source = v8::String::NewFromUtf8(isolate, expression_utf8_.start(),
+                                     v8::NewStringType::kNormal,
+                                     expression_utf8_.length())
+                 .ToLocalChecked();
+  }
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
   v8::Local<v8::Script> script;

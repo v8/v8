@@ -114,6 +114,13 @@ class SetTimeoutTask : public TaskRunner::Task {
   v8::Global<v8::Function> function_;
 };
 
+v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+  v8::internal::Vector<uint16_t> buffer =
+      v8::internal::Vector<uint16_t>::New(str->Length());
+  str->Write(buffer.start(), 0, str->Length());
+  return buffer;
+}
+
 class SetTimeoutExtension : public v8::Extension {
  public:
   SetTimeoutExtension()
@@ -139,23 +146,24 @@ class SetTimeoutExtension : public v8::Extension {
       TaskRunner::FromContext(context)->Append(new SetTimeoutTask(
           args.GetIsolate(), v8::Local<v8::Function>::Cast(args[0])));
     } else {
-      v8::Local<v8::String> data = args[0].As<v8::String>();
-      std::unique_ptr<uint16_t[]> buffer(new uint16_t[data->Length()]);
-      data->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0, data->Length());
-      v8_inspector::String16 source =
-          v8_inspector::String16(buffer.get(), data->Length());
-      TaskRunner::FromContext(context)->Append(new ExecuteStringTask(source));
+      TaskRunner::FromContext(context)->Append(
+          new ExecuteStringTask(ToVector(args[0].As<v8::String>())));
     }
   }
 };
 
-v8_inspector::String16 ToString16(const v8_inspector::StringView& string) {
+v8::Local<v8::String> ToString(v8::Isolate* isolate,
+                               const v8_inspector::StringView& string) {
   if (string.is8Bit())
-    return v8_inspector::String16(
-        reinterpret_cast<const char*>(string.characters8()), string.length());
-  return v8_inspector::String16(
-      reinterpret_cast<const uint16_t*>(string.characters16()),
-      string.length());
+    return v8::String::NewFromOneByte(isolate, string.characters8(),
+                                      v8::NewStringType::kNormal,
+                                      string.length())
+        .ToLocalChecked();
+  else
+    return v8::String::NewFromTwoByte(isolate, string.characters16(),
+                                      v8::NewStringType::kNormal,
+                                      string.length())
+        .ToLocalChecked();
 }
 
 class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
@@ -165,11 +173,22 @@ class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
   virtual ~FrontendChannelImpl() {}
 
   void SendMessageToFrontend(const v8_inspector::StringView& message) final {
-    v8_inspector::String16Builder script;
-    script.append("InspectorTest._dispatchMessage(");
-    script.append(ToString16(message));
-    script.append(")");
-    frontend_task_runner_->Append(new ExecuteStringTask(script.toString()));
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
+
+    v8::Local<v8::String> prefix =
+        v8::String::NewFromUtf8(isolate, "InspectorTest._dispatchMessage(",
+                                v8::NewStringType::kInternalized)
+            .ToLocalChecked();
+    v8::Local<v8::String> message_string = ToString(isolate, message);
+    v8::Local<v8::String> suffix =
+        v8::String::NewFromUtf8(isolate, ")", v8::NewStringType::kInternalized)
+            .ToLocalChecked();
+
+    v8::Local<v8::String> result = v8::String::Concat(prefix, message_string);
+    result = v8::String::Concat(result, suffix);
+
+    frontend_task_runner_->Append(new ExecuteStringTask(ToVector(result)));
   }
 
  private:
@@ -225,9 +244,7 @@ int main(int argc, char* argv[]) {
               argv[i]);
       Exit();
     }
-    v8_inspector::String16 source =
-        v8_inspector::String16::fromUTF8(chars.start(), chars.length());
-    frontend_runner.Append(new ExecuteStringTask(source));
+    frontend_runner.Append(new ExecuteStringTask(chars));
   }
 
   frontend_runner.Join();
