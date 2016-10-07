@@ -328,18 +328,6 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
 }
 
 
-template <>
-HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
-  info()->MarkAsSavesCallerDoubles();
-  HValue* number = GetParameter(Descriptor::kArgument);
-  return BuildNumberToString(number, AstType::Number());
-}
-
-
-Handle<Code> NumberToStringStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
                                                    HValue* argument_elements,
                                                    ElementsKind kind) {

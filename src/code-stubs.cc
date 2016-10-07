@@ -1466,6 +1466,13 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
   return result_var.value();
 }
 
+void NumberToStringStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* argument = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+  assembler->Return(assembler->NumberToString(context, argument));
+}
+
 // static
 compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
                                   compiler::Node* value,
@@ -2045,12 +2052,6 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
   }
 }
 
-
-void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kNumberToString)->entry);
-  descriptor->SetMissHandler(Runtime::kNumberToString);
-}
 
 void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {

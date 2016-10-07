@@ -66,7 +66,6 @@ class ObjectLiteral;
   V(KeyedStoreICTrampoline)                   \
   V(StoreICTrampoline)                        \
   /* --- HydrogenCodeStubs --- */             \
-  V(NumberToString)                           \
   V(StringAdd)                                \
   /* These builtins w/ JS linkage are */      \
   /* just fast-cases of C++ builtins. They */ \
@@ -127,6 +126,7 @@ class ObjectLiteral;
   V(KeyedStoreSloppyArguments)                \
   V(LoadScriptContextField)                   \
   V(StoreScriptContextField)                  \
+  V(NumberToString)                           \
   V(GetProperty)                              \
   V(LoadICTF)                                 \
   V(KeyedLoadICTF)                            \
@@ -847,13 +847,12 @@ enum StringAddFlags {
 
 std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags);
 
-
-class NumberToStringStub final : public HydrogenCodeStub {
+class NumberToStringStub final : public TurboFanCodeStub {
  public:
-  explicit NumberToStringStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+  explicit NumberToStringStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_HYDROGEN_CODE_STUB(NumberToString, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(NumberToString, TurboFanCodeStub);
 };
 
 class FastNewClosureStub : public TurboFanCodeStub {

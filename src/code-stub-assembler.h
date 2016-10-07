@@ -521,6 +521,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Convert a String to a Number.
   compiler::Node* StringToNumber(compiler::Node* context,
                                  compiler::Node* input);
+  compiler::Node* NumberToString(compiler::Node* context,
+                                 compiler::Node* input);
   // Convert an object to a name.
   compiler::Node* ToName(compiler::Node* context, compiler::Node* input);
   // Convert a Non-Number object to a Number.

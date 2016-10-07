@@ -2834,6 +2834,85 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::NumberToString(compiler::Node* context,
+                                        compiler::Node* argument) {
+  Variable result(this, MachineRepresentation::kTagged);
+  Label runtime(this, Label::kDeferred);
+  Label smi(this);
+  Label done(this, &result);
+
+  // Load the number string cache.
+  Node* number_string_cache = LoadRoot(Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  Node* mask = LoadFixedArrayBaseLength(number_string_cache);
+  Node* one = IntPtrConstant(1);
+  mask = IntPtrSub(mask, one);
+
+  GotoIf(WordIsSmi(argument), &smi);
+
+  // Argument isn't smi, check to see if it's a heap-number.
+  Node* map = LoadMap(argument);
+  GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
+
+  // Make a hash from the two 32-bit values of the double.
+  Node* low =
+      LoadObjectField(argument, HeapNumber::kValueOffset, MachineType::Int32());
+  Node* high = LoadObjectField(argument, HeapNumber::kValueOffset + kIntSize,
+                               MachineType::Int32());
+  Node* hash = Word32Xor(low, high);
+  if (Is64()) hash = ChangeInt32ToInt64(hash);
+  hash = WordShl(hash, one);
+  Node* index = WordAnd(hash, SmiToWord(mask));
+
+  // Cache entry's key must be a heap number
+  Node* number_key =
+      LoadFixedArrayElement(number_string_cache, index, 0, INTPTR_PARAMETERS);
+  GotoIf(WordIsSmi(number_key), &runtime);
+  map = LoadMap(number_key);
+  GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
+
+  // Cache entry's key must match the heap number value we're looking for.
+  Node* low_compare = LoadObjectField(number_key, HeapNumber::kValueOffset,
+                                      MachineType::Int32());
+  Node* high_compare = LoadObjectField(
+      number_key, HeapNumber::kValueOffset + kIntSize, MachineType::Int32());
+  GotoUnless(WordEqual(low, low_compare), &runtime);
+  GotoUnless(WordEqual(high, high_compare), &runtime);
+
+  // Heap number match, return value fro cache entry.
+  IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
+  result.Bind(LoadFixedArrayElement(number_string_cache, index, kPointerSize,
+                                    INTPTR_PARAMETERS));
+  Goto(&done);
+
+  Bind(&runtime);
+  {
+    // No cache entry, go to the runtime.
+    result.Bind(CallRuntime(Runtime::kNumberToString, context, argument));
+  }
+  Goto(&done);
+
+  Bind(&smi);
+  {
+    // Load the smi key, make sure it matches the smi we're looking for.
+    Node* smi_index = WordAnd(WordShl(argument, one), mask);
+    Node* smi_key = LoadFixedArrayElement(number_string_cache, smi_index, 0,
+                                          SMI_PARAMETERS);
+    GotoIf(WordNotEqual(smi_key, argument), &runtime);
+
+    // Smi match, return value from cache entry.
+    IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
+    result.Bind(LoadFixedArrayElement(number_string_cache, smi_index,
+                                      kPointerSize, SMI_PARAMETERS));
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return result.value();
+}
+
 Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
