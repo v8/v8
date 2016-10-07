@@ -99,7 +99,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
       isolate_->heap()->undefined_value());
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
-  if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
+  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
     isolate_->heap()->set_allocation_sites_list(
         isolate_->heap()->undefined_value());
   }
@@ -277,7 +277,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
-    if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
+    if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
       site->set_weak_next(isolate_->heap()->undefined_value());
     } else {
       site->set_weak_next(isolate_->heap()->allocation_sites_list());

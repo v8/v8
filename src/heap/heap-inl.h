@@ -742,7 +742,9 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
-void Heap::ClearInstanceofCache() { set_instanceof_cache_function(Smi::kZero); }
+void Heap::ClearInstanceofCache() {
+  set_instanceof_cache_function(Smi::FromInt(0));
+}
 
 Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
@@ -750,8 +752,8 @@ Oddball* Heap::ToBoolean(bool condition) {
 
 
 void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(Smi::kZero);
-  set_instanceof_cache_function(Smi::kZero);
+  set_instanceof_cache_map(Smi::FromInt(0));
+  set_instanceof_cache_function(Smi::FromInt(0));
 }
 
 
@@ -774,27 +776,27 @@ int Heap::NextScriptId() {
 }
 
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::kZero);
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
   set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(getter_stub_deopt_pc_offset() == Smi::kZero);
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
   set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(setter_stub_deopt_pc_offset() == Smi::kZero);
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
   set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
-  DCHECK(interpreter_entry_return_pc_offset() == Smi::kZero);
+  DCHECK(interpreter_entry_return_pc_offset() == Smi::FromInt(0));
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 

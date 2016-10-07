@@ -10229,9 +10229,9 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   HValue* byte_offset;
   bool is_zero_byte_offset;
 
-  if (arguments->at(kByteOffsetArg)->IsLiteral() &&
-      Smi::kZero ==
-          *static_cast<Literal*>(arguments->at(kByteOffsetArg))->value()) {
+  if (arguments->at(kByteOffsetArg)->IsLiteral()
+      && Smi::FromInt(0) ==
+      *static_cast<Literal*>(arguments->at(kByteOffsetArg))->value()) {
     byte_offset = Add<HConstant>(static_cast<int32_t>(0));
     is_zero_byte_offset = true;
   } else {

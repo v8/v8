@@ -1283,7 +1283,7 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
   if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
     Handle<FixedArray> date_cache_version =
         isolate->factory()->NewFixedArray(1, TENURED);
-    date_cache_version->set(0, Smi::kZero);
+    date_cache_version->set(0, Smi::FromInt(0));
     isolate->eternal_handles()->CreateSingleton(
         isolate, *date_cache_version, EternalHandles::DATE_CACHE_VERSION);
   }

@@ -535,7 +535,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());
   } else {
-    data->SetSharedFunctionInfo(Smi::kZero);
+    data->SetSharedFunctionInfo(Smi::FromInt(0));
   }
 
   Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
@@ -565,7 +565,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     CHECK(deoptimization_states_[i]);
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_states_[i]->translation_id()));
-    data->SetArgumentsStackHeight(i, Smi::kZero);
+    data->SetArgumentsStackHeight(i, Smi::FromInt(0));
     data->SetPc(i, Smi::FromInt(deoptimization_state->pc_offset()));
   }
 

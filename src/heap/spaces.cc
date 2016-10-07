@@ -1277,7 +1277,7 @@ Object* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called on iterable spaces.
   DCHECK(!heap()->mark_compact_collector()->in_use());
 
-  if (!Contains(addr)) return Smi::kZero;  // Signaling not found.
+  if (!Contains(addr)) return Smi::FromInt(0);  // Signaling not found.
 
   Page* p = Page::FromAddress(addr);
   HeapObjectIterator it(p);
@@ -1288,7 +1288,7 @@ Object* PagedSpace::FindObject(Address addr) {
   }
 
   UNREACHABLE();
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 void PagedSpace::ShrinkImmortalImmovablePages() {
@@ -2995,7 +2995,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     // We only need to do this in debug builds or if verify_heap is on.
     reinterpret_cast<Object**>(object->address())[0] =
         heap()->fixed_array_map();
-    reinterpret_cast<Object**>(object->address())[1] = Smi::kZero;
+    reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
   }
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
@@ -3024,7 +3024,7 @@ Object* LargeObjectSpace::FindObject(Address a) {
   if (page != NULL) {
     return page->GetObject();
   }
-  return Smi::kZero;  // Signaling not found.
+  return Smi::FromInt(0);  // Signaling not found.
 }
 
 

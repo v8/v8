@@ -2371,7 +2371,7 @@ void MacroAssembler::SelectNonSmi(Register dst,
   Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
 #endif
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   movl(kScratchRegister, Immediate(kSmiTagMask));
   andp(kScratchRegister, src1);
   testl(kScratchRegister, src2);
@@ -5503,7 +5503,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   SmiCompare(index, FieldOperand(string, String::kLengthOffset));
   Check(less, kIndexIsTooLarge);
 
-  SmiCompare(index, Smi::kZero);
+  SmiCompare(index, Smi::FromInt(0));
   Check(greater_equal, kIndexIsNegative);
 
   // Restore the index
@@ -5708,7 +5708,7 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
   // For all objects but the receiver, check that the cache is empty.
   EnumLength(rdx, rbx);
-  Cmp(rdx, Smi::kZero);
+  Cmp(rdx, Smi::FromInt(0));
   j(not_equal, call_runtime);
 
   bind(&start);

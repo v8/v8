@@ -473,7 +473,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ mov(eax, FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset));
     {
       Label done_loop, loop;
-      __ Move(ecx, Smi::kZero);
+      __ Move(ecx, Smi::FromInt(0));
       __ bind(&loop);
       __ cmp(ecx, FieldOperand(eax, FixedArray::kLengthOffset));
       __ j(equal, &done_loop, Label::kNear);
@@ -1010,7 +1010,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
   __ LoadHeapObject(ebx,
                     masm->isolate()->builtins()->InterpreterEntryTrampoline());
   __ add(ebx, Immediate(interpreter_entry_return_pc_offset->value() +
@@ -1939,7 +1939,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
     __ jmp(&done, Label::kNear);
     __ bind(&no_arguments);
-    __ Move(ebx, Smi::kZero);
+    __ Move(ebx, Smi::FromInt(0));
     __ bind(&done);
   }
 
@@ -2837,7 +2837,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   __ PopReturnAddressTo(ecx);
   __ Push(edx);
   __ PushReturnAddressFrom(ecx);
-  __ Move(esi, Smi::kZero);
+  __ Move(esi, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2852,7 +2852,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ Push(edx);
   __ Push(Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ PushReturnAddressFrom(ecx);
-  __ Move(esi, Smi::kZero);
+  __ Move(esi, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2865,7 +2865,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   __ PopReturnAddressTo(ecx);
   __ Push(edx);
   __ PushReturnAddressFrom(ecx);
-  __ Move(esi, Smi::kZero);
+  __ Move(esi, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAbort);
 }
 

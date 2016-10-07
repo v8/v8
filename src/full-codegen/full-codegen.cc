@@ -746,7 +746,7 @@ void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
 
 
 void FullCodeGenerator::EmitDebugBreakInOptimizedCode(CallRuntime* expr) {
-  context()->Plug(handle(Smi::kZero, isolate()));
+  context()->Plug(handle(Smi::FromInt(0), isolate()));
 }
 
 

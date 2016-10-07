@@ -3830,7 +3830,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(
   Cmp(index, index_type == kIndexIsSmi ? scratch : Operand::UntagSmi(scratch));
   Check(lt, kIndexIsTooLarge);
 
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   Cmp(index, 0);
   Check(ge, kIndexIsNegative);
 }

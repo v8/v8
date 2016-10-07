@@ -553,7 +553,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   __ AndP(r4, lhs, rhs);
   __ JumpIfNotSmi(r4, &not_smis);
   // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
@@ -4315,7 +4315,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   const int kParameterMapHeaderSize =
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
-  __ CmpSmiLiteral(r8, Smi::kZero, r0);
+  __ CmpSmiLiteral(r8, Smi::FromInt(0), r0);
   Label skip2, skip3;
   __ bne(&skip2);
   __ LoadImmP(r1, Operand::Zero());
@@ -4385,7 +4385,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // r8 = mapped parameter count (tagged)
   // Initialize parameter map. If there are no mapped arguments, we're done.
   Label skip_parameter_map;
-  __ CmpSmiLiteral(r8, Smi::kZero, r0);
+  __ CmpSmiLiteral(r8, Smi::FromInt(0), r0);
   Label skip6;
   __ bne(&skip6);
   // Move backing store address to r3, because it is
@@ -5022,7 +5022,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Push(scratch, scratch);
   __ mov(scratch, Operand(ExternalReference::isolate_address(isolate())));
   __ Push(scratch, holder);
-  __ Push(Smi::kZero);  // should_throw_on_error -> false
+  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
 

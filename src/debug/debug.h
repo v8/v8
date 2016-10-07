@@ -569,11 +569,11 @@ class Debug {
   }
 
   void clear_suspended_generator() {
-    thread_local_.suspended_generator_ = Smi::kZero;
+    thread_local_.suspended_generator_ = Smi::FromInt(0);
   }
 
   bool has_suspended_generator() const {
-    return thread_local_.suspended_generator_ != Smi::kZero;
+    return thread_local_.suspended_generator_ != Smi::FromInt(0);
   }
 
   void OnException(Handle<Object> exception, Handle<Object> promise);

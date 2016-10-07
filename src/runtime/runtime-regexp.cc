@@ -706,7 +706,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
                                    &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
         isolate);
-    if (*cached_answer != Smi::kZero) {
+    if (*cached_answer != Smi::FromInt(0)) {
       // The cache FixedArray is a COW-array and can therefore be reused.
       Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
           Handle<FixedArray>::cast(cached_answer));

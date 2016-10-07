@@ -612,7 +612,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     }
 
     if (boilerplate_value->IsUninitialized(isolate)) {
-      boilerplate_value = handle(Smi::kZero, isolate);
+      boilerplate_value = handle(Smi::FromInt(0), isolate);
       is_simple = false;
     }
 

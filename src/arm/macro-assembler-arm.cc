@@ -3653,7 +3653,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   cmp(index, ip);
   Check(lt, kIndexIsTooLarge);
 
-  cmp(index, Operand(Smi::kZero));
+  cmp(index, Operand(Smi::FromInt(0)));
   Check(ge, kIndexIsNegative);
 
   SmiUntag(index, index);
@@ -3943,7 +3943,7 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
   // For all objects but the receiver, check that the cache is empty.
   EnumLength(r3, r1);
-  cmp(r3, Operand(Smi::kZero));
+  cmp(r3, Operand(Smi::FromInt(0)));
   b(ne, call_runtime);
 
   bind(&start);

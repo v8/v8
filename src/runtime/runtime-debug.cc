@@ -47,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   isolate->debug()->Break(it.frame());
 
   // If live-edit has dropped frames, we are not going back to dispatch.
-  if (LiveEdit::SetAfterBreakTarget(isolate->debug())) return Smi::kZero;
+  if (LiveEdit::SetAfterBreakTarget(isolate->debug())) return Smi::FromInt(0);
 
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
@@ -457,7 +457,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
   StackFrame::Id id = isolate->debug()->break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack frame count is 0.
-    return Smi::kZero;
+    return Smi::FromInt(0);
   }
 
   for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
@@ -563,10 +563,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsScriptIndex, *script_wrapper);
 
     // Add the arguments count.
-    details->set(kFrameDetailsArgumentCountIndex, Smi::kZero);
+    details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(0));
 
     // Add the locals count
-    details->set(kFrameDetailsLocalCountIndex, Smi::kZero);
+    details->set(kFrameDetailsLocalCountIndex, Smi::FromInt(0));
 
     // Add the source position.
     if (position != kNoSourcePosition) {
@@ -929,7 +929,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  if (!args[0]->IsJSGeneratorObject()) return Smi::kZero;
+  if (!args[0]->IsJSGeneratorObject()) return Smi::FromInt(0);
 
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
@@ -1601,7 +1601,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
   if (line < 0 || line > line_count) {
     return Smi::FromInt(-1);
   } else if (line == 0) {
-    return Smi::kZero;
+    return Smi::FromInt(0);
   } else {
     DCHECK(0 < line && line <= line_count);
     const int pos = Smi::cast(line_ends_array->get(line - 1))->value() + 1;

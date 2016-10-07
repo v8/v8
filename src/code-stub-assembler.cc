@@ -38,7 +38,9 @@ void CodeStubAssembler::Assert(Node* condition) {
 #endif
 }
 
-Node* CodeStubAssembler::NoContextConstant() { return SmiConstant(Smi::kZero); }
+Node* CodeStubAssembler::NoContextConstant() {
+  return SmiConstant(Smi::FromInt(0));
+}
 
 #define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
   Node* CodeStubAssembler::name##Constant() {      \
@@ -612,7 +614,7 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
 
   Bind(&runtime_call);
   // AllocateInTargetSpace does not use the context.
-  Node* context = SmiConstant(Smi::kZero);
+  Node* context = SmiConstant(Smi::FromInt(0));
 
   Node* runtime_result;
   if (flags & kPretenured) {
@@ -1675,7 +1677,8 @@ void CodeStubAssembler::CopyStringCharacters(compiler::Node* from_string,
 
   // Nothing to do for zero characters.
 
-  GotoIf(SmiLessThanOrEqual(character_count, SmiConstant(Smi::kZero)), &out);
+  GotoIf(SmiLessThanOrEqual(character_count, SmiConstant(Smi::FromInt(0))),
+         &out);
 
   // Calculate offsets into the strings.
 
@@ -2731,7 +2734,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     GotoIf(SmiAbove(substr_length, string_length), &runtime);
 
     // Equal length - check if {from, to} == {0, str.length}.
-    GotoIf(SmiAbove(from, SmiConstant(Smi::kZero)), &runtime);
+    GotoIf(SmiAbove(from, SmiConstant(Smi::FromInt(0))), &runtime);
 
     // Return the original string (substr_length == string_length).
 
@@ -3052,7 +3055,7 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     }
 
     Bind(&return_zero);
-    var_arg.Bind(SmiConstant(Smi::kZero));
+    var_arg.Bind(SmiConstant(Smi::FromInt(0)));
     Goto(&out);
   }
 
@@ -5644,7 +5647,7 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
     // For all objects but the receiver, check that the cache is empty.
     current_map.Bind(LoadMap(current_js_object.value()));
     Node* enum_length = EnumLength(current_map.value());
-    Node* zero_constant = SmiConstant(Smi::kZero);
+    Node* zero_constant = SmiConstant(Smi::FromInt(0));
     BranchIf(WordEqual(enum_length, zero_constant), &loop, use_runtime);
   }
 }

@@ -1010,7 +1010,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label no_descriptors;
 
   __ EnumLength(rdx, rax);
-  __ Cmp(rdx, Smi::kZero);
+  __ Cmp(rdx, Smi::FromInt(0));
   __ j(equal, &no_descriptors);
 
   __ LoadInstanceDescriptors(rax, rcx);
@@ -1021,7 +1021,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Push(rax);  // Map.
   __ Push(rcx);  // Enumeration cache.
   __ Push(rdx);  // Number of valid entries for the map in the enum cache.
-  __ Push(Smi::kZero);  // Initial index.
+  __ Push(Smi::FromInt(0));  // Initial index.
   __ jmp(&loop);
 
   __ bind(&no_descriptors);
@@ -1037,7 +1037,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ movp(rax, FieldOperand(rax, FixedArray::kLengthOffset));
   __ Push(rax);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ Push(Smi::kZero);  // Initial index.
+  __ Push(Smi::FromInt(0));  // Initial index.
 
   // Generate code for doing the condition check.
   __ bind(&loop);
@@ -2962,7 +2962,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      PushOperand(Smi::kZero);
+      PushOperand(Smi::FromInt(0));
     }
     switch (assign_type) {
       case NAMED_PROPERTY: {

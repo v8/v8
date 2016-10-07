@@ -530,7 +530,7 @@ RUNTIME_FUNCTION(Runtime_GetInterceptorInfo) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   if (!args[0]->IsJSObject()) {
-    return Smi::kZero;
+    return Smi::FromInt(0);
   }
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
 
@@ -604,14 +604,14 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  if (!object->IsJSObject()) return Smi::kZero;
+  if (!object->IsJSObject()) return Smi::FromInt(0);
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-  if (!js_object->map()->is_deprecated()) return Smi::kZero;
+  if (!js_object->map()->is_deprecated()) return Smi::FromInt(0);
   // This call must not cause lazy deopts, because it's called from deferred
   // code where we can't handle lazy deopts for lack of a suitable bailout
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
-  if (!JSObject::TryMigrateInstance(js_object)) return Smi::kZero;
+  if (!JSObject::TryMigrateInstance(js_object)) return Smi::FromInt(0);
   return *object;
 }
 

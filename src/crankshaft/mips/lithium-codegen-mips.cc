@@ -5370,7 +5370,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register result = ToRegister(instr->result());
   Label load_cache, done;
   __ EnumLength(result, map);
-  __ Branch(&load_cache, ne, result, Operand(Smi::kZero));
+  __ Branch(&load_cache, ne, result, Operand(Smi::FromInt(0)));
   __ li(result, Operand(isolate()->factory()->empty_fixed_array()));
   __ jmp(&done);
 

@@ -198,7 +198,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
 
   // Out-of-bounds. Check the prototype chain to see if we can just return
   // 'undefined'.
-  __ SmiCompare(key, Smi::kZero);
+  __ SmiCompare(key, Smi::FromInt(0));
   __ j(less, slow);  // Negative keys can't take the fast OOB path.
   __ bind(&check_prototypes);
   __ movp(scratch, FieldOperand(receiver, HeapObject::kMapOffset));

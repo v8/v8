@@ -1510,7 +1510,6 @@ class Smi: public Object {
   void SmiPrint(std::ostream& os) const;  // NOLINT
   DECLARE_VERIFIER(Smi)
 
-  static Smi* const kZero;
   static const int kMinValue =
       (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
   static const int kMaxValue = -(kMinValue + 1);
@@ -2873,7 +2872,7 @@ class WeakFixedArray : public FixedArray {
   inline int Length() const;
 
   inline bool IsEmptySlot(int index) const;
-  static Object* Empty() { return Smi::kZero; }
+  static Object* Empty() { return Smi::FromInt(0); }
 
   class Iterator {
    public:
@@ -11217,7 +11216,7 @@ class DebugInfo: public Struct {
   // Get the number of break points for this function.
   int GetBreakPointCount();
 
-  static Smi* uninitialized() { return Smi::kZero; }
+  static Smi* uninitialized() { return Smi::FromInt(0); }
 
   inline bool HasDebugBytecodeArray();
   inline bool HasDebugCode();

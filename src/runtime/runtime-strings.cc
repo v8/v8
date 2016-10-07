@@ -256,7 +256,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 
@@ -573,13 +573,13 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    DCHECK(Smi::kZero == 0);
+    DCHECK(Smi::FromInt(0) == 0);
     memset(elements->data_start() + i, 0, kPointerSize * (length - i));
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {
     Object* element = elements->get(j);
-    DCHECK(element == Smi::kZero ||
+    DCHECK(element == Smi::FromInt(0) ||
            (element->IsString() && String::cast(element)->LooksValid()));
   }
 #endif
@@ -942,7 +942,7 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -960,7 +960,7 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -978,7 +978,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -996,7 +996,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {

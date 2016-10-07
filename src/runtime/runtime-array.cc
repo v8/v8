@@ -28,7 +28,7 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
   // This is necessary to enable fast checks for absence of elements
   // on Array.prototype and below.
   prototype->set_elements(isolate->heap()->empty_fixed_array());
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 static void InstallCode(Isolate* isolate, Handle<JSObject> holder,
@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
   to->set_length(from->length());
 
   JSObject::ResetElements(from);
-  from->set_length(Smi::kZero);
+  from->set_length(Smi::FromInt(0));
 
   JSObject::ValidateElements(to);
   return *to;
@@ -376,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
 
   if (index >= capacity) {
     if (!object->GetElementsAccessor()->GrowCapacity(object, index)) {
-      return Smi::kZero;
+      return Smi::FromInt(0);
     }
   }
 

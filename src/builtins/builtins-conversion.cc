@@ -390,7 +390,7 @@ void Builtins::Generate_ToLength(CodeStubAssembler* assembler) {
     assembler->Return(assembler->NumberConstant(kMaxSafeInteger));
 
     assembler->Bind(&return_zero);
-    assembler->Return(assembler->SmiConstant(Smi::kZero));
+    assembler->Return(assembler->SmiConstant(Smi::FromInt(0)));
   }
 }
 

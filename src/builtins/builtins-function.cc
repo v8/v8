@@ -198,7 +198,7 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   if (!target->IsJSFunction() ||
       length_lookup.state() != LookupIterator::ACCESSOR ||
       !length_lookup.GetAccessors()->IsAccessorInfo()) {
-    Handle<Object> length(Smi::kZero, isolate);
+    Handle<Object> length(Smi::FromInt(0), isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
     if (!attributes.IsJust()) return isolate->heap()->exception();

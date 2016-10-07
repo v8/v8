@@ -5299,7 +5299,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Move(result, Immediate(Smi::kZero));
+  __ Move(result, Immediate(Smi::FromInt(0)));
 
   PushSafepointRegistersScope scope(this);
   if (instr->size()->IsRegister()) {
@@ -5605,7 +5605,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register result = ToRegister(instr->result());
   Label load_cache, done;
   __ EnumLength(result, map);
-  __ cmp(result, Immediate(Smi::kZero));
+  __ cmp(result, Immediate(Smi::FromInt(0)));
   __ j(not_equal, &load_cache, Label::kNear);
   __ mov(result, isolate()->factory()->empty_fixed_array());
   __ jmp(&done, Label::kNear);

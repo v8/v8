@@ -64,7 +64,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
   List<Object*>* cache = isolate->partial_snapshot_cache();
   for (int i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
-    if (cache->length() <= i) cache->Add(Smi::kZero);
+    if (cache->length() <= i) cache->Add(Smi::FromInt(0));
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitPointer(&cache->at(i));

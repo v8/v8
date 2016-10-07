@@ -677,7 +677,7 @@ void Code::CodeVerify() {
       last_gc_pc = it.rinfo()->pc();
     }
   }
-  CHECK(raw_type_feedback_info() == Smi::kZero ||
+  CHECK(raw_type_feedback_info() == Smi::FromInt(0) ||
         raw_type_feedback_info()->IsSmi() == IsCodeStubOrIC());
 }
 
@@ -872,7 +872,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify() {
   VerifyPointer(buffer());
   Isolate* isolate = GetIsolate();
   CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined(isolate) ||
-        buffer() == Smi::kZero);
+        buffer() == Smi::FromInt(0));
 
   VerifyPointer(raw_byte_offset());
   CHECK(raw_byte_offset()->IsSmi() || raw_byte_offset()->IsHeapNumber() ||

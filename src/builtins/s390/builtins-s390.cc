@@ -267,7 +267,7 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
-  __ LoadSmiLiteral(r2, Smi::kZero);
+  __ LoadSmiLiteral(r2, Smi::FromInt(0));
   __ Ret(1);
 }
 
@@ -296,7 +296,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ LoadP(r4, MemOperand(sp, r4));
     __ b(&done);
     __ bind(&no_arguments);
-    __ LoadSmiLiteral(r4, Smi::kZero);
+    __ LoadSmiLiteral(r4, Smi::FromInt(0));
     __ bind(&done);
   }
 
@@ -1357,7 +1357,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
   __ Move(r4, masm->isolate()->builtins()->InterpreterEntryTrampoline());
   __ AddP(r14, r4, Operand(interpreter_entry_return_pc_offset->value() +
                            Code::kHeaderSize - kHeapObjectTag));
@@ -1895,7 +1895,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // If the code object is null, just return to the caller.
   Label skip;
-  __ CmpSmiLiteral(r2, Smi::kZero, r0);
+  __ CmpSmiLiteral(r2, Smi::FromInt(0), r0);
   __ bne(&skip);
   __ Ret();
 
@@ -2865,7 +2865,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   // -----------------------------------
   __ SmiTag(r3);
   __ Push(r3);
-  __ LoadSmiLiteral(cp, Smi::kZero);
+  __ LoadSmiLiteral(cp, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2878,7 +2878,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ SmiTag(r3);
   __ LoadSmiLiteral(r4, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ Push(r3, r4);
-  __ LoadSmiLiteral(cp, Smi::kZero);
+  __ LoadSmiLiteral(cp, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2889,7 +2889,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   //  -- lr : return address
   // -----------------------------------
   __ push(r3);
-  __ LoadSmiLiteral(cp, Smi::kZero);
+  __ LoadSmiLiteral(cp, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAbort);
 }
 

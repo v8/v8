@@ -340,7 +340,7 @@ void FullCodeGenerator::Generate() {
 
 
 void FullCodeGenerator::ClearAccumulator() {
-  __ Move(eax, Immediate(Smi::kZero));
+  __ Move(eax, Immediate(Smi::FromInt(0)));
 }
 
 
@@ -978,7 +978,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&use_cache);
 
   __ EnumLength(edx, eax);
-  __ cmp(edx, Immediate(Smi::kZero));
+  __ cmp(edx, Immediate(Smi::FromInt(0)));
   __ j(equal, &no_descriptors);
 
   __ LoadInstanceDescriptors(eax, ecx);
@@ -989,7 +989,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Map.
   __ push(ecx);  // Enumeration cache.
   __ push(edx);  // Number of valid entries for the map in the enum cache.
-  __ push(Immediate(Smi::kZero));  // Initial index.
+  __ push(Immediate(Smi::FromInt(0)));  // Initial index.
   __ jmp(&loop);
 
   __ bind(&no_descriptors);
@@ -1004,7 +1004,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
   __ push(eax);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ push(Immediate(Smi::kZero));  // Initial index.
+  __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
   // Generate code for doing the condition check.
   __ bind(&loop);
@@ -2963,7 +2963,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      PushOperand(Smi::kZero);
+      PushOperand(Smi::FromInt(0));
     }
     switch (assign_type) {
       case NAMED_PROPERTY: {

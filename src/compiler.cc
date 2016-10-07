@@ -1320,7 +1320,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   // generated shared function infos, clear the script's list temporarily
   // and restore it at the end of this method.
   Handle<Object> old_function_infos(script->shared_function_infos(), isolate);
-  script->set_shared_function_infos(Smi::kZero);
+  script->set_shared_function_infos(Smi::FromInt(0));
 
   // Start a compilation.
   Zone zone(isolate->allocator());

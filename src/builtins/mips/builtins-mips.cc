@@ -266,7 +266,7 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
-  __ Move(v0, Smi::kZero);
+  __ Move(v0, Smi::FromInt(0));
   __ DropAndRet(1);
 }
 
@@ -295,7 +295,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ lw(a0, MemOperand(at));
     __ jmp(&done);
     __ bind(&no_arguments);
-    __ Move(a0, Smi::kZero);
+    __ Move(a0, Smi::FromInt(0));
     __ bind(&done);
   }
 
@@ -1325,7 +1325,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
   __ li(t0, Operand(masm->isolate()->builtins()->InterpreterEntryTrampoline()));
   __ Addu(ra, t0, Operand(interpreter_entry_return_pc_offset->value() +
                           Code::kHeaderSize - kHeapObjectTag));
@@ -1858,7 +1858,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
   }
 
   // If the code object is null, just return to the caller.
-  __ Ret(eq, v0, Operand(Smi::kZero));
+  __ Ret(eq, v0, Operand(Smi::FromInt(0)));
 
   // Drop any potential handler frame that is be sitting on top of the actual
   // JavaScript frame. This is the case then OSR is triggered from bytecode.
@@ -2840,7 +2840,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   // -----------------------------------
   __ SmiTag(a0);
   __ Push(a0);
-  __ Move(cp, Smi::kZero);
+  __ Move(cp, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2853,7 +2853,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ SmiTag(a0);
   __ Move(a1, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ Push(a0, a1);
-  __ Move(cp, Smi::kZero);
+  __ Move(cp, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2864,7 +2864,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   //  -- ra : return address
   // -----------------------------------
   __ Push(a0);
-  __ Move(cp, Smi::kZero);
+  __ Move(cp, Smi::FromInt(0));
   __ TailCallRuntime(Runtime::kAbort);
 }
 

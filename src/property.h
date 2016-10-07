@@ -32,7 +32,7 @@ class Descriptor BASE_EMBEDDED {
   PropertyDetails details_;
 
  protected:
-  Descriptor() : details_(Smi::kZero) {}
+  Descriptor() : details_(Smi::FromInt(0)) {}
 
   void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
     DCHECK(key->IsUniqueName());

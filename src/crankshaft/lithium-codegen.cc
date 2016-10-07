@@ -328,9 +328,9 @@ void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
     AllowDeferredHandleDereference allow_handle_dereference;
     data->SetSharedFunctionInfo(*info_->shared_info());
   } else {
-    data->SetSharedFunctionInfo(Smi::kZero);
+    data->SetSharedFunctionInfo(Smi::FromInt(0));
   }
-  data->SetWeakCellCache(Smi::kZero);
+  data->SetWeakCellCache(Smi::FromInt(0));
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);

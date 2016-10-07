@@ -473,7 +473,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
       map, 0, kData, NONE, Representation::None(), none_type, FORCE_FIELD);
   CHECK_EQ(*new_map, *new_map2);
 
-  Handle<Object> value(Smi::kZero, isolate);
+  Handle<Object> value(Smi::FromInt(0), isolate);
   Handle<Map> prepared_map = Map::PrepareForDataProperty(new_map, 0, value);
   // None to Smi generalization is trivial, map does not change.
   CHECK_EQ(*new_map, *prepared_map);
@@ -2332,7 +2332,7 @@ TEST(TransitionDataFieldToDataField) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<Object> value1 = handle(Smi::kZero, isolate);
+  Handle<Object> value1 = handle(Smi::FromInt(0), isolate);
   TransitionToDataFieldOperator transition_op1(Representation::Smi(), any_type,
                                                value1);
 

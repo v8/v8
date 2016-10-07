@@ -1970,7 +1970,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     if (new_length == 0) {
       receiver->set_elements(heap->empty_fixed_array());
-      receiver->set_length(Smi::kZero);
+      receiver->set_length(Smi::FromInt(0));
       return isolate->factory()->NewJSArrayWithElements(
           backing_store, KindTraits::Kind, delete_count);
     }

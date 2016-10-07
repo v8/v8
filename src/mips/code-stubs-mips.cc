@@ -566,7 +566,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   __ And(t2, lhs, Operand(rhs));
   __ JumpIfNotSmi(t2, &not_smis, t0);
   // One operand is a smi. EmitSmiNonsmiComparison generates code that can:
@@ -4260,7 +4260,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(a1, Heap::kEmptyFixedArrayRootIndex);
     __ sw(a1, FieldMemOperand(v0, JSArray::kPropertiesOffset));
     __ sw(a1, FieldMemOperand(v0, JSArray::kElementsOffset));
-    __ Move(a1, Smi::kZero);
+    __ Move(a1, Smi::FromInt(0));
     __ Ret(USE_DELAY_SLOT);
     __ sw(a1, FieldMemOperand(v0, JSArray::kLengthOffset));  // In delay slot
     STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
@@ -4421,7 +4421,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
   Label param_map_size;
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   __ Branch(USE_DELAY_SLOT, &param_map_size, eq, t2, Operand(zero_reg));
   __ mov(t5, zero_reg);  // In delay slot: param map size = 0 when t2 == 0.
   __ sll(t5, t2, 1);
@@ -4486,13 +4486,13 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // Initialize parameter map. If there are no mapped arguments, we're done.
   Label skip_parameter_map;
   Label skip3;
-  __ Branch(&skip3, ne, t2, Operand(Smi::kZero));
+  __ Branch(&skip3, ne, t2, Operand(Smi::FromInt(0)));
   // Move backing store address to a1, because it is
   // expected there when filling in the unmapped arguments.
   __ mov(a1, t0);
   __ bind(&skip3);
 
-  __ Branch(&skip_parameter_map, eq, t2, Operand(Smi::kZero));
+  __ Branch(&skip_parameter_map, eq, t2, Operand(Smi::FromInt(0)));
 
   __ LoadRoot(t1, Heap::kSloppyArgumentsElementsMapRootIndex);
   __ sw(t1, FieldMemOperand(t0, FixedArray::kMapOffset));
@@ -4537,7 +4537,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ sw(t3, MemOperand(t6));
   __ Addu(t5, t5, Operand(Smi::FromInt(1)));
   __ bind(&parameters_test);
-  __ Branch(&parameters_loop, ne, t1, Operand(Smi::kZero));
+  __ Branch(&parameters_loop, ne, t1, Operand(Smi::FromInt(0)));
 
   // t1 = argument count (tagged).
   __ lw(t1, FieldMemOperand(v0, JSSloppyArgumentsObject::kLengthOffset));
@@ -5074,7 +5074,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ sw(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
   __ sw(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
   // should_throw_on_error -> false
-  DCHECK(Smi::kZero == nullptr);
+  DCHECK(Smi::FromInt(0) == nullptr);
   __ sw(zero_reg,
         MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
   __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));

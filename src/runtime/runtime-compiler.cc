@@ -123,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     function->shared()->ReplaceCode(
         isolate->builtins()->builtin(Builtins::kCompileLazy));
   }
-  return Smi::kZero;
+  return Smi::FromInt(0);
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {

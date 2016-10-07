@@ -91,7 +91,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   array->set(kSlotsCountIndex, Smi::FromInt(slot_count));
   // Fill the bit-vector part with zeros.
   for (int i = 0; i < slot_kinds_length; i++) {
-    array->set(kReservedIndexCount + i, Smi::kZero);
+    array->set(kReservedIndexCount + i, Smi::FromInt(0));
   }
 
   Handle<TypeFeedbackMetadata> metadata =
@@ -121,7 +121,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   }
   DCHECK_EQ(name_count, name_index);
   metadata->set(kNamesTableIndex,
-                name_count ? static_cast<Object*>(*names) : Smi::kZero);
+                name_count ? static_cast<Object*>(*names) : Smi::FromInt(0));
 
   // It's important that the TypeFeedbackMetadata have a COW map, since it's
   // pointed to by both a SharedFunctionInfo and indirectly by closures through
@@ -241,7 +241,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set(kMetadataIndex, *metadata);
-  array->set(kInvocationCountIndex, Smi::kZero);
+  array->set(kInvocationCountIndex, Smi::FromInt(0));
 
   DisallowHeapAllocation no_gc;
 
@@ -259,13 +259,13 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
       value = *factory->empty_weak_cell();
     } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
                kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
-      value = Smi::kZero;
+      value = Smi::FromInt(0);
     } else {
       value = *uninitialized_sentinel;
     }
     array->set(index, value, SKIP_WRITE_BARRIER);
 
-    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::kZero
+    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::FromInt(0)
                                                     : *uninitialized_sentinel;
     for (int j = 1; j < entry_size; j++) {
       array->set(index + j, value, SKIP_WRITE_BARRIER);
@@ -351,7 +351,7 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
         case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
           DCHECK(Get(slot)->IsSmi());
           // don't clear these smi slots.
-          // Set(slot, Smi::kZero);
+          // Set(slot, Smi::FromInt(0));
           break;
         }
         case FeedbackVectorSlotKind::GENERAL: {
@@ -657,7 +657,7 @@ void CallICNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
   SetFeedback(*TypeFeedbackVector::UninitializedSentinel(isolate),
               SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(0), SKIP_WRITE_BARRIER);
 }
 
 void CallICNexus::ConfigureMonomorphicArray() {
