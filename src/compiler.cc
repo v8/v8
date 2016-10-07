@@ -1394,6 +1394,10 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
       }
     }
 
+    // When we call PrepareForSerializing below, we will change the shared
+    // ParseInfo. Make sure to reset it.
+    bool old_will_serialize_value = info->parse_info()->will_serialize();
+
     // If the current code has reloc info for serialization, also include
     // reloc info for serialization for the new code, so that deopt support
     // can be added without losing IC state.
@@ -1403,6 +1407,8 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     }
     EnsureFeedbackMetadata(&unoptimized);
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
+
+    info->parse_info()->set_will_serialize(old_will_serialize_value);
 
     // TODO(4280): For now we play it safe and remove the bytecode array when we
     // switch to baseline code. We might consider keeping around the bytecode so
@@ -1764,31 +1770,12 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_debug()) info.MarkAsDebug();
 
-  // Determine if the function can be lazily compiled. This is necessary to
-  // allow some of our builtin JS files to be lazily compiled. These
-  // builtins cannot be handled lazily by the parser, since we have to know
-  // if a function uses the special natives syntax, which is something the
-  // parser records.
-  // If the debugger requests compilation for break points, we cannot be
-  // aggressive about lazy compilation, because it might trigger compilation
-  // of functions without an outer context when setting a breakpoint through
-  // Debug::FindSharedFunctionInfoInScript.
-  bool allow_lazy = literal->AllowsLazyCompilation() && !info.is_debug();
-  bool lazy = FLAG_lazy && allow_lazy && !literal->should_eager_compile();
-
-  // Consider compiling eagerly when targeting the code cache.
-  lazy &= !(FLAG_serialize_eager && info.will_serialize());
-
-  // Consider compiling eagerly when compiling bytecode for Ignition.
-  lazy &=
-      !(FLAG_ignition && FLAG_ignition_eager && !isolate->serializer_enabled());
-
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
 
-  if (lazy) {
+  if (!literal->ShouldEagerCompile()) {
     info.SetCode(isolate->builtins()->CompileLazy());
     Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
     if (outer_scope) {
@@ -1798,8 +1785,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
-    if (literal->should_eager_compile() &&
-        literal->should_be_used_once_hint()) {
+    if (literal->should_be_used_once_hint()) {
       info.code()->MarkToBeExecutedOnce(isolate);
     }
     // Update the shared function info with the scope info.

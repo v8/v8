@@ -284,8 +284,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       name, function_scope, body, materialized_literal_count,
       expected_property_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, pos);
+      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos);
 
   function_literal->set_requires_class_field_init(requires_class_field_init);
 
@@ -646,6 +645,27 @@ Parser::Parser(ParseInfo* info)
   // ParseInfo during background parsing.
   DCHECK(!info->script().is_null() || info->source_stream() != nullptr ||
          info->character_stream() != nullptr);
+  // Determine if functions can be lazily compiled. This is necessary to
+  // allow some of our builtin JS files to be lazily compiled. These
+  // builtins cannot be handled lazily by the parser, since we have to know
+  // if a function uses the special natives syntax, which is something the
+  // parser records.
+  // If the debugger requests compilation for break points, we cannot be
+  // aggressive about lazy compilation, because it might trigger compilation
+  // of functions without an outer context when setting a breakpoint through
+  // Debug::FindSharedFunctionInfoInScript
+  bool can_compile_lazily = FLAG_lazy && !info->is_debug();
+
+  // Consider compiling eagerly when targeting the code cache.
+  can_compile_lazily &= !(FLAG_serialize_eager && info->will_serialize());
+
+  // Consider compiling eagerly when compiling bytecode for Ignition.
+  can_compile_lazily &= !(FLAG_ignition && FLAG_ignition_eager &&
+                          info->isolate()->serializer_enabled());
+
+  set_default_eager_compile_hint(can_compile_lazily
+                                     ? FunctionLiteral::kShouldLazyCompile
+                                     : FunctionLiteral::kShouldEagerCompile);
   set_allow_lazy(FLAG_lazy && info->allow_lazy_parsing() &&
                  !info->is_native() && info->extension() == nullptr);
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
@@ -2566,7 +2586,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_parenthesized()
           ? FunctionLiteral::kShouldEagerCompile
-          : FunctionLiteral::kShouldLazyCompile;
+          : default_eager_compile_hint();
 
   // Determine if the function can be parsed lazily. Lazy parsing is
   // different from lazy compilation; we need to parse more eagerly than we

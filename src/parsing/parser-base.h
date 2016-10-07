@@ -190,6 +190,7 @@ class ParserBase {
         classifier_(nullptr),
         scanner_(scanner),
         stack_overflow_(false),
+        default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
@@ -224,26 +225,28 @@ class ParserBase {
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
 
+  void set_default_eager_compile_hint(
+      FunctionLiteral::EagerCompileHint eager_compile_hint) {
+    default_eager_compile_hint_ = eager_compile_hint;
+  }
+
+  FunctionLiteral::EagerCompileHint default_eager_compile_hint() const {
+    return default_eager_compile_hint_;
+  }
+
   Zone* zone() const { return zone_; }
 
  protected:
   friend class v8::internal::ExpressionClassifier<ParserTypes<Impl>>;
 
-  // clang-format off
   enum AllowRestrictedIdentifiers {
     kAllowRestrictedIdentifiers,
     kDontAllowRestrictedIdentifiers
   };
 
-  enum Mode {
-    PARSE_LAZILY,
-    PARSE_EAGERLY
-  };
+  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
 
-  enum LazyParsingResult {
-    kLazyParsingComplete,
-    kLazyParsingAborted
-  };
+  enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
 
   enum VariableDeclarationContext {
     kStatementListItem,
@@ -251,11 +254,7 @@ class ParserBase {
     kForStatement
   };
 
-  enum class FunctionBodyType {
-    kNormal,
-    kSingleExpression
-  };
-  // clang-format on
+  enum class FunctionBodyType { kNormal, kSingleExpression };
 
   class Checkpoint;
   class ClassLiteralChecker;
@@ -1444,6 +1443,8 @@ class ParserBase {
   Scanner* scanner_;
   bool stack_overflow_;
 
+  FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
+
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
@@ -2288,8 +2289,8 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
       initializer_state.materialized_literal_count(),
       initializer_state.expected_property_count(), 0,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
+      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
+      initializer_scope->start_position());
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
@@ -3083,7 +3084,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           // be called immediately. If we happen to have parsed a preceding
           // function literal eagerly, we can also compile it eagerly.
           if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
-            result->AsFunctionLiteral()->set_should_eager_compile();
+            result->AsFunctionLiteral()->SetShouldEagerCompile();
           }
         }
         Scanner::Location spread_pos;
@@ -3415,7 +3416,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
           if (expression->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
             // If the tag function looks like an IIFE, set_parenthesized() to
             // force eager compilation.
-            expression->AsFunctionLiteral()->set_should_eager_compile();
+            expression->AsFunctionLiteral()->SetShouldEagerCompile();
           }
         }
         expression = ParseTemplateLiteral(expression, pos, CHECK_OK);
@@ -3920,7 +3921,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
-      FunctionLiteral::kShouldLazyCompile;
+      default_eager_compile_hint_;
   bool should_be_used_once_hint = false;
   {
     FunctionState function_state(&function_state_, &scope_state_,
@@ -4692,7 +4693,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   //   Identifier ':' Statement
   //
   // ExpressionStatement[Yield] :
-  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
+  //   [lookahead notin {{, function, class, let [}] Expression[In, ?Yield] ;
 
   int pos = peek_position();
 

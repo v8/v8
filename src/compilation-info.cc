@@ -32,6 +32,20 @@ PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 #undef PARSE_INFO_GETTER
 #undef PARSE_INFO_GETTER_WITH_DEFAULT
 
+bool CompilationInfo::is_debug() const {
+  return parse_info() ? parse_info()->is_debug() : false;
+}
+
+void CompilationInfo::set_is_debug() {
+  CHECK(parse_info());
+  parse_info()->set_is_debug();
+}
+
+void CompilationInfo::PrepareForSerializing() {
+  if (parse_info()) parse_info()->set_will_serialize();
+  SetFlag(kSerializing);
+}
+
 bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
 }

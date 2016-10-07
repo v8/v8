@@ -39,7 +39,7 @@ class CompilationInfo final {
     kRequiresFrame = 1 << 3,
     kMustNotHaveEagerFrame = 1 << 4,
     kDeoptimizationSupport = 1 << 5,
-    kDebug = 1 << 6,
+    kAccessorInliningEnabled = 1 << 6,
     kSerializing = 1 << 7,
     kFunctionContextSpecializing = 1 << 8,
     kFrameSpecializing = 1 << 9,
@@ -52,7 +52,6 @@ class CompilationInfo final {
     kBailoutOnUninitialized = 1 << 16,
     kOptimizeFromBytecode = 1 << 17,
     kTypeFeedbackEnabled = 1 << 18,
-    kAccessorInliningEnabled = 1 << 19,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -122,13 +121,13 @@ class CompilationInfo final {
   // Inner functions that cannot be compiled w/o context are compiled eagerly.
   // Always include deoptimization support to avoid having to recompile again.
   void MarkAsDebug() {
-    SetFlag(kDebug);
+    set_is_debug();
     SetFlag(kDeoptimizationSupport);
   }
 
-  bool is_debug() const { return GetFlag(kDebug); }
+  bool is_debug() const;
 
-  void PrepareForSerializing() { SetFlag(kSerializing); }
+  void PrepareForSerializing();
 
   bool will_serialize() const { return GetFlag(kSerializing); }
 
@@ -345,6 +344,8 @@ class CompilationInfo final {
   }
 
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
+
+  void set_is_debug();
 
   unsigned flags_;
 

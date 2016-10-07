@@ -419,6 +419,12 @@ class Scope: public ZoneObject {
 
   bool is_lazily_parsed() const { return is_lazily_parsed_; }
 
+  bool ShouldEagerCompile() const;
+
+  // Marks this scope and all inner scopes (except for inner function scopes)
+  // such that they get eagerly compiled.
+  void SetShouldEagerCompile();
+
  protected:
   explicit Scope(Zone* zone);
 
@@ -447,7 +453,7 @@ class Scope: public ZoneObject {
     DCHECK(!already_resolved_);
     // A lazily parsed scope doesn't contain enough information to create a
     // ScopeInfo from it.
-    if (is_lazily_parsed_) return false;
+    if (!ShouldEagerCompile()) return false;
     // The debugger expects all functions to have scope infos.
     // TODO(jochen|yangguo): Remove this requirement.
     if (is_function_scope()) return true;
@@ -523,6 +529,7 @@ class Scope: public ZoneObject {
   bool is_declaration_scope_ : 1;
 
   bool is_lazily_parsed_ : 1;
+  bool should_eager_compile_ : 1;
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.

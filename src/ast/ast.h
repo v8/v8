@@ -2648,12 +2648,8 @@ class FunctionLiteral final : public Expression {
   // function will be called immediately:
   // - (function() { ... })();
   // - var x = function() { ... }();
-  bool should_eager_compile() const {
-    return ShouldEagerCompile::decode(bit_field_);
-  }
-  void set_should_eager_compile() {
-    bit_field_ = ShouldEagerCompile::update(bit_field_, true);
-  }
+  bool ShouldEagerCompile() const;
+  void SetShouldEagerCompile();
 
   // A hint that we expect this function to be called (exactly) once,
   // i.e. we suspect it's an initialization function.
@@ -2734,11 +2730,11 @@ class FunctionLiteral final : public Expression {
         HasDuplicateParameters::encode(has_duplicate_parameters ==
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
-        ShouldEagerCompile::encode(eager_compile_hint == kShouldEagerCompile) |
         RequiresClassFieldInit::encode(false) |
         ShouldNotBeUsedOnceHintField::encode(false) |
         DontOptimizeReasonField::encode(kNoReason) |
         IsClassFieldInitializer::encode(false);
+    if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
   class FunctionTypeBits
@@ -2746,9 +2742,8 @@ class FunctionLiteral final : public Expression {
   class Pretenure : public BitField<bool, FunctionTypeBits::kNext, 1> {};
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class IsFunction : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
-  class ShouldEagerCompile : public BitField<bool, IsFunction::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
-      : public BitField<bool, ShouldEagerCompile::kNext, 1> {};
+      : public BitField<bool, IsFunction::kNext, 1> {};
   class RequiresClassFieldInit
       : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
   class IsClassFieldInitializer

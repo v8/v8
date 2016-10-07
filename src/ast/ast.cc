@@ -288,6 +288,13 @@ Token::Value Assignment::binary_op() const {
   return Token::ILLEGAL;
 }
 
+bool FunctionLiteral::ShouldEagerCompile() const {
+  return scope()->ShouldEagerCompile();
+}
+
+void FunctionLiteral::SetShouldEagerCompile() {
+  scope()->SetShouldEagerCompile();
+}
 
 bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();

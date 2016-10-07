@@ -56,6 +56,8 @@ class ParseInfo {
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
   FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
+  FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
+  FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
 
 #undef FLAG_ACCESSOR
 
@@ -204,8 +206,10 @@ class ParseInfo {
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
     kCallsEval = 1 << 9,
+    kDebug = 1 << 10,
+    kSerializing = 1 << 11,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 10
+    kAstValueFactoryOwned = 1 << 12
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
