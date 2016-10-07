@@ -9394,10 +9394,14 @@ class String: public Name {
   MUST_USE_RESULT static ComparisonResult Compare(Handle<String> x,
                                                   Handle<String> y);
 
+  // Perform ES6 21.1.3.8, including checking arguments.
+  static Object* IndexOf(Isolate* isolate, Handle<Object> receiver,
+                         Handle<Object> search, Handle<Object> position);
   // Perform string match of pattern on subject, starting at start index.
-  // Caller must ensure that 0 <= start_index <= sub->length().
-  static int IndexOf(Isolate* isolate, Handle<String> sub, Handle<String> pat,
-                     int start_index);
+  // Caller must ensure that 0 <= start_index <= sub->length(), as this does not
+  // check any arguments.
+  static int IndexOf(Isolate* isolate, Handle<String> receiver,
+                     Handle<String> search, int start_index);
 
   static Object* LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                              Handle<Object> search, Handle<Object> position);

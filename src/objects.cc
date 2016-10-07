@@ -11595,41 +11595,75 @@ ComparisonResult String::Compare(Handle<String> x, Handle<String> y) {
   return result;
 }
 
-int String::IndexOf(Isolate* isolate, Handle<String> sub, Handle<String> pat,
-                    int start_index) {
+Object* String::IndexOf(Isolate* isolate, Handle<Object> receiver,
+                        Handle<Object> search, Handle<Object> position) {
+  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "String.prototype.indexOf")));
+  }
+  Handle<String> receiver_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver_string,
+                                     Object::ToString(isolate, receiver));
+
+  Handle<String> search_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
+                                     Object::ToString(isolate, search));
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
+                                     Object::ToInteger(isolate, position));
+
+  double index = std::max(position->Number(), 0.0);
+  index = std::min(index, static_cast<double>(receiver_string->length()));
+
+  return Smi::FromInt(String::IndexOf(isolate, receiver_string, search_string,
+                                      static_cast<uint32_t>(index)));
+}
+
+namespace {
+
+template <typename T>
+int SearchString(Isolate* isolate, String::FlatContent receiver_content,
+                 Vector<T> pat_vector, int start_index) {
+  if (receiver_content.IsOneByte()) {
+    return SearchString(isolate, receiver_content.ToOneByteVector(), pat_vector,
+                        start_index);
+  }
+  return SearchString(isolate, receiver_content.ToUC16Vector(), pat_vector,
+                      start_index);
+}
+
+}  // namespace
+
+int String::IndexOf(Isolate* isolate, Handle<String> receiver,
+                    Handle<String> search, int start_index) {
   DCHECK(0 <= start_index);
-  DCHECK(start_index <= sub->length());
+  DCHECK(start_index <= receiver->length());
 
-  int pattern_length = pat->length();
-  if (pattern_length == 0) return start_index;
+  uint32_t search_length = search->length();
+  if (search_length == 0) return start_index;
 
-  int subject_length = sub->length();
-  if (start_index + pattern_length > subject_length) return -1;
+  uint32_t receiver_length = receiver->length();
+  if (start_index + search_length > receiver_length) return -1;
 
-  sub = String::Flatten(sub);
-  pat = String::Flatten(pat);
+  receiver = String::Flatten(receiver);
+  search = String::Flatten(search);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before getting encoding.
-  String::FlatContent seq_sub = sub->GetFlatContent();
-  String::FlatContent seq_pat = pat->GetFlatContent();
+  String::FlatContent receiver_content = receiver->GetFlatContent();
+  String::FlatContent search_content = search->GetFlatContent();
 
   // dispatch on type of strings
-  if (seq_pat.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = seq_pat.ToOneByteVector();
-    if (seq_sub.IsOneByte()) {
-      return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                          start_index);
-    }
-    return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector,
-                        start_index);
+  if (search_content.IsOneByte()) {
+    Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
+    return SearchString<const uint8_t>(isolate, receiver_content, pat_vector,
+                                       start_index);
   }
-  Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
-  if (seq_sub.IsOneByte()) {
-    return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                        start_index);
-  }
-  return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector, start_index);
+  Vector<const uc16> pat_vector = search_content.ToUC16Vector();
+  return SearchString<const uc16>(isolate, receiver_content, pat_vector,
+                                  start_index);
 }
 
 namespace {  // for String.Prototype.lastIndexOf

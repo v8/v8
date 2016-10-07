@@ -33,7 +33,6 @@ var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var SetFunctionName = utils.SetFunctionName;
-var StringIndexOf;
 var StringSubstr = GlobalString.prototype.substr;
 var StringSubstring = GlobalString.prototype.substring;
 
@@ -42,7 +41,6 @@ utils.Import(function(from) {
   ArrayPush = from.ArrayPush;
   InternalRegExpMatch = from.InternalRegExpMatch;
   InternalRegExpReplace = from.InternalRegExpReplace;
-  StringIndexOf = from.StringIndexOf;
 });
 
 // Utilities for definitions
@@ -827,7 +825,7 @@ function isStructuallyValidLanguageTag(locale) {
   }
 
   // Just return if it's a x- form. It's all private.
-  if (%_Call(StringIndexOf, locale, 'x-') === 0) {
+  if (%StringIndexOf(locale, 'x-', 0) === 0) {
     return true;
   }
 
@@ -2058,7 +2056,7 @@ function LocaleConvertCase(s, locales, isToUpper) {
   }
 
   // StringSplit is slower than this.
-  var pos = %_Call(StringIndexOf, language, '-');
+  var pos = %StringIndexOf(language, '-', 0);
   if (pos != -1) {
     language = %_Call(StringSubstring, language, 0, pos);
   }

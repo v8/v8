@@ -46,21 +46,6 @@ function StringConcat(other /* and more */) {  // length == 1
 }
 
 
-// ECMA-262 section 15.5.4.7
-function StringIndexOf(pattern, position) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.indexOf");
-
-  var subject = TO_STRING(this);
-  pattern = TO_STRING(pattern);
-  var index = TO_INTEGER(position);
-  if (index < 0) index = 0;
-  if (index > subject.length) index = subject.length;
-  return %StringIndexOf(subject, pattern, index);
-}
-
-%FunctionSetLength(StringIndexOf, 1);
-
-
 // ES6 21.1.3.11.
 function StringMatchJS(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
@@ -535,7 +520,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "concat", StringConcat,
   "endsWith", StringEndsWith,
   "includes", StringIncludes,
-  "indexOf", StringIndexOf,
   "match", StringMatchJS,
   "repeat", StringRepeat,
   "replace", StringReplace,
@@ -567,7 +551,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 // Exports
 
 utils.Export(function(to) {
-  to.StringIndexOf = StringIndexOf;
   to.StringMatch = StringMatchJS;
   to.StringReplace = StringReplace;
   to.StringSlice = StringSlice;

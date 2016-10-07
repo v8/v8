@@ -90,17 +90,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
 RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, sub, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
-
-  uint32_t start_index = 0;
-  if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
-
-  CHECK(start_index <= static_cast<uint32_t>(sub->length()));
-  int position = String::IndexOf(isolate, sub, pat, start_index);
-  return Smi::FromInt(position);
+  return String::IndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
+                         args.at<Object>(2));
 }
 
 RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {

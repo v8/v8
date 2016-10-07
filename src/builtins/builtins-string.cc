@@ -781,6 +781,15 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   assembler->Return(result);
 }
 
+// ES6 section 21.1.3.8 String.prototype.indexOf ( searchString [ , position ] )
+BUILTIN(StringPrototypeIndexOf) {
+  HandleScope handle_scope(isolate);
+
+  return String::IndexOf(isolate, args.receiver(),
+                         args.atOrUndefined(isolate, 1),
+                         args.atOrUndefined(isolate, 2));
+}
+
 // ES6 section 21.1.3.9
 // String.prototype.lastIndexOf ( searchString [ , position ] )
 BUILTIN(StringPrototypeLastIndexOf) {
