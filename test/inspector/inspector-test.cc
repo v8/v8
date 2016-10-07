@@ -157,12 +157,12 @@ v8::Local<v8::String> ToString(v8::Isolate* isolate,
   if (string.is8Bit())
     return v8::String::NewFromOneByte(isolate, string.characters8(),
                                       v8::NewStringType::kNormal,
-                                      string.length())
+                                      static_cast<int>(string.length()))
         .ToLocalChecked();
   else
     return v8::String::NewFromTwoByte(isolate, string.characters16(),
                                       v8::NewStringType::kNormal,
-                                      string.length())
+                                      static_cast<int>(string.length()))
         .ToLocalChecked();
 }
 
