@@ -159,7 +159,7 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Zone zone(function->GetIsolate()->allocator());
-  ParseInfo parse_info(&zone, handle(function->shared()));
+  ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, function);
 
   info.SetOptimizing();
@@ -190,7 +190,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Zone zone(function->GetIsolate()->allocator());
-  ParseInfo parse_info(&zone, handle(function->shared()));
+  ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, function);
 
   CHECK(Parser::ParseStatic(info.parse_info()));

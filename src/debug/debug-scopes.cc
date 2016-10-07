@@ -107,7 +107,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     }
   } else {
     // Inner function.
-    info.reset(new ParseInfo(&zone, shared_info));
+    info.reset(new ParseInfo(&zone, function));
   }
   if (Parser::ParseStatic(info.get()) && Rewriter::Rewrite(info.get())) {
     DeclarationScope* scope = info->literal()->scope();

@@ -29,7 +29,9 @@ class Zone;
 class ParseInfo {
  public:
   explicit ParseInfo(Zone* zone);
+  ParseInfo(Zone* zone, Handle<JSFunction> function);
   ParseInfo(Zone* zone, Handle<Script> script);
+  // TODO(all) Only used via Debug::FindSharedFunctionInfoInScript, remove?
   ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
 
   ~ParseInfo();

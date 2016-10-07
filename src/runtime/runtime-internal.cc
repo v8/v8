@@ -450,7 +450,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
     Zone zone(isolate->allocator());
     std::unique_ptr<ParseInfo> info(
         location.function()->shared()->is_function()
-            ? new ParseInfo(&zone, handle(location.function()->shared()))
+            ? new ParseInfo(&zone, location.function())
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
       CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
