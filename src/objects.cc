@@ -12133,6 +12133,22 @@ Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
   return literals;
 }
 
+void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
+    Handle<SharedFunctionInfo> shared, Handle<Code> code) {
+  Isolate* isolate = shared->GetIsolate();
+  if (isolate->serializer_enabled()) return;
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+  // Empty code maps are unsupported.
+  if (!shared->OptimizedCodeMapIsCleared()) {
+    Handle<WeakCell> cell = isolate->factory()->NewWeakCell(code);
+    // A collection may have occured and cleared the optimized code map in the
+    // allocation above.
+    if (!shared->OptimizedCodeMapIsCleared()) {
+      shared->optimized_code_map()->set(kSharedCodeIndex, *cell);
+    }
+  }
+}
+
 // static
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
@@ -12149,11 +12165,13 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 
   if (shared->OptimizedCodeMapIsCleared()) {
     new_code_map = isolate->factory()->NewFixedArray(kInitialLength, TENURED);
+    new_code_map->set(kSharedCodeIndex, *isolate->factory()->empty_weak_cell(),
+                      SKIP_WRITE_BARRIER);
     entry = kEntriesStart;
   } else {
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context, osr_ast_id);
-    if (entry >= kEntriesStart) {
+    if (entry > kSharedCodeIndex) {
       // Just set the code and literals of the entry.
       if (!code.is_null()) {
         Handle<WeakCell> code_cell =
@@ -12223,8 +12241,8 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 
 
 void SharedFunctionInfo::ClearOptimizedCodeMap() {
-  FixedArray* empty_fixed_array = GetHeap()->empty_fixed_array();
-  set_optimized_code_map(empty_fixed_array, SKIP_WRITE_BARRIER);
+  FixedArray* cleared_map = GetHeap()->cleared_optimized_code_map();
+  set_optimized_code_map(cleared_map, SKIP_WRITE_BARRIER);
 }
 
 
@@ -12274,11 +12292,23 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     }
     dst += kEntryLength;
   }
+  if (WeakCell::cast(code_map->get(kSharedCodeIndex))->value() ==
+      optimized_code) {
+    // Evict context-independent code as well.
+    code_map->set(kSharedCodeIndex, heap->empty_weak_cell(),
+                  SKIP_WRITE_BARRIER);
+    if (FLAG_trace_opt) {
+      PrintF("[evicting entry from optimizing code map (%s) for ", reason);
+      ShortPrint();
+      PrintF(" (context-independent code)]\n");
+    }
+  }
   if (dst != length) {
     // Always trim even when array is cleared because of heap verifier.
     heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(code_map,
                                                            length - dst);
-    if (code_map->length() == kEntriesStart) {
+    if (code_map->length() == kEntriesStart &&
+        WeakCell::cast(code_map->get(kSharedCodeIndex))->cleared()) {
       ClearOptimizedCodeMap();
     }
   }
@@ -12292,7 +12322,8 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   // Always trim even when array is cleared because of heap verifier.
   GetHeap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(code_map,
                                                               shrink_by);
-  if (code_map->length() == kEntriesStart) {
+  if (code_map->length() == kEntriesStart &&
+      WeakCell::cast(code_map->get(kSharedCodeIndex))->cleared()) {
     ClearOptimizedCodeMap();
   }
 }
@@ -13805,6 +13836,11 @@ int SharedFunctionInfo::SearchOptimizedCodeMapEntry(Context* native_context,
         return i;
       }
     }
+    Object* shared_code =
+        WeakCell::cast(optimized_code_map->get(kSharedCodeIndex))->value();
+    if (shared_code->IsCode() && osr_ast_id.IsNone()) {
+      return kSharedCodeIndex;
+    }
   }
   return -1;
 }
@@ -13818,6 +13854,8 @@ void SharedFunctionInfo::ClearCodeFromOptimizedCodeMap() {
       optimized_code_map->set(i + kCachedCodeOffset, empty_weak_cell,
                               SKIP_WRITE_BARRIER);
     }
+    optimized_code_map->set(kSharedCodeIndex, empty_weak_cell,
+                            SKIP_WRITE_BARRIER);
   }
 }
 
@@ -13827,14 +13865,24 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
   int entry = SearchOptimizedCodeMapEntry(native_context, osr_ast_id);
   if (entry != kNotFound) {
     FixedArray* code_map = optimized_code_map();
-    DCHECK_LE(entry + kEntryLength, code_map->length());
-    WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
-    WeakCell* literals_cell =
-        WeakCell::cast(code_map->get(entry + kLiteralsOffset));
+    if (entry == kSharedCodeIndex) {
+      // We know the weak cell isn't cleared because we made sure of it in
+      // SearchOptimizedCodeMapEntry and performed no allocations since that
+      // call.
+      result = {
+          Code::cast(WeakCell::cast(code_map->get(kSharedCodeIndex))->value()),
+          nullptr};
+    } else {
+      DCHECK_LE(entry + kEntryLength, code_map->length());
+      WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
+      WeakCell* literals_cell =
+          WeakCell::cast(code_map->get(entry + kLiteralsOffset));
 
-    result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
-              literals_cell->cleared() ? nullptr : LiteralsArray::cast(
-                                                       literals_cell->value())};
+      result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
+                literals_cell->cleared()
+                    ? nullptr
+                    : LiteralsArray::cast(literals_cell->value())};
+    }
   }
   return result;
 }

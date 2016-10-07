@@ -2825,6 +2825,14 @@ void Heap::CreateInitialObjects() {
     Handle<WeakCell> cell = factory->NewWeakCell(factory->undefined_value());
     set_empty_weak_cell(*cell);
     cell->clear();
+
+    Handle<FixedArray> cleared_optimized_code_map =
+        factory->NewFixedArray(SharedFunctionInfo::kEntriesStart, TENURED);
+    cleared_optimized_code_map->set(SharedFunctionInfo::kSharedCodeIndex,
+                                    *cell);
+    STATIC_ASSERT(SharedFunctionInfo::kEntriesStart == 1 &&
+                  SharedFunctionInfo::kSharedCodeIndex == 0);
+    set_cleared_optimized_code_map(*cleared_optimized_code_map);
   }
 
   set_detached_contexts(empty_fixed_array());

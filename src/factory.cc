@@ -2215,7 +2215,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     code = isolate()->builtins()->Illegal();
   }
   share->set_code(*code);
-  share->set_optimized_code_map(*empty_fixed_array());
+  share->set_optimized_code_map(*cleared_optimized_code_map());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =

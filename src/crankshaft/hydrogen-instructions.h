@@ -5363,6 +5363,11 @@ class HObjectAccess final {
                          SharedFunctionInfo::kOptimizedCodeMapOffset);
   }
 
+  static HObjectAccess ForOptimizedCodeMapSharedCode() {
+    return HObjectAccess(kInobject, FixedArray::OffsetOfElementAt(
+                                        SharedFunctionInfo::kSharedCodeIndex));
+  }
+
   static HObjectAccess ForFunctionContextPointer() {
     return HObjectAccess(kInobject, JSFunction::kContextOffset);
   }

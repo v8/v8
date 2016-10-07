@@ -1381,6 +1381,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // -----------------------------------
   // First lookup code, maybe we don't need to compile!
   Label gotta_call_runtime;
+  Label maybe_call_runtime;
   Label try_shared;
   Label loop_top, loop_bottom;
 
@@ -1438,10 +1439,13 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
          FieldMemOperand(array_pointer,
                          SharedFunctionInfo::kOffsetToPreviousCachedCode));
   __ Ldr(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
-  __ JumpIfSmi(entry, &try_shared);
+  __ JumpIfSmi(entry, &maybe_call_runtime);
 
   // Found literals and code. Get them into the closure and return.
   __ Add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  Label install_optimized_code_and_tailcall;
+  __ Bind(&install_optimized_code_and_tailcall);
   __ Str(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset));
   __ RecordWriteCodeEntryField(closure, entry, x5);
 
@@ -1471,6 +1475,18 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
 
   // We found neither literals nor code.
   __ B(&gotta_call_runtime);
+
+  __ Bind(&maybe_call_runtime);
+
+  // Last possibility. Check the context free optimized code map entry.
+  __ Ldr(entry, FieldMemOperand(map, FixedArray::kHeaderSize +
+                                         SharedFunctionInfo::kSharedCodeIndex));
+  __ Ldr(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
+  __ JumpIfSmi(entry, &try_shared);
+
+  // Store code entry in the closure.
+  __ Add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ B(&install_optimized_code_and_tailcall);
 
   __ Bind(&try_shared);
   // Is the full code valid?

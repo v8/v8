@@ -6416,7 +6416,7 @@ bool SharedFunctionInfo::IsSubjectToDebugging() { return !IsBuiltin(); }
 
 
 bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
-  return optimized_code_map() == GetHeap()->empty_fixed_array();
+  return optimized_code_map() == GetHeap()->cleared_optimized_code_map();
 }
 
 
