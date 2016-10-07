@@ -31,9 +31,6 @@ ParseInfo::ParseInfo(Zone* zone)
       function_name_(nullptr),
       literal_(nullptr) {}
 
-ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
-    : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {}
-
 ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
     : ParseInfo(zone) {
   isolate_ = shared->GetIsolate();

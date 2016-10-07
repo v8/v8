@@ -892,7 +892,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
   Zone zone(isolate->allocator());
-  ParseInfo parse_info(&zone, function);
+  ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 
   // Reset profiler ticks, function is no longer considered hot.
@@ -1013,7 +1013,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   }
 
   Zone zone(isolate->allocator());
-  ParseInfo parse_info(&zone, function);
+  ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
   Handle<Code> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCode(&info), Code);
@@ -1243,7 +1243,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
       function->shared()->ReplaceCode(*code);
     } else {
       Zone zone(isolate->allocator());
-      ParseInfo parse_info(&zone, function);
+      ParseInfo parse_info(&zone, handle(function->shared()));
       CompilationInfo info(&parse_info, function);
       if (!GetUnoptimizedCode(&info).ToHandle(&code)) {
         return false;
@@ -1268,7 +1268,7 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
 
   // Start a compilation.
   Zone zone(isolate->allocator());
-  ParseInfo parse_info(&zone, function);
+  ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (IsEvalToplevel(handle(function->shared()))) {
     parse_info.set_eval();

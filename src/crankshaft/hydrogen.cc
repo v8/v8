@@ -8238,13 +8238,13 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   // Parse and allocate variables.
   // Use the same AstValueFactory for creating strings in the sub-compilation
   // step, but don't transfer ownership to target_info.
-  ParseInfo parse_info(zone(), target);
+  Handle<SharedFunctionInfo> target_shared(target->shared());
+  ParseInfo parse_info(zone(), target_shared);
   parse_info.set_ast_value_factory(
       top_info()->parse_info()->ast_value_factory());
   parse_info.set_ast_value_factory_owned(false);
 
   CompilationInfo target_info(&parse_info, target);
-  Handle<SharedFunctionInfo> target_shared(target->shared());
 
   if (inlining_kind != CONSTRUCT_CALL_RETURN &&
       IsClassConstructor(target_shared->kind())) {
