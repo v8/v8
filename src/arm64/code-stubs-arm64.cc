@@ -4271,7 +4271,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(x1, Heap::kEmptyFixedArrayRootIndex);
     __ Str(x1, FieldMemOperand(x0, JSArray::kPropertiesOffset));
     __ Str(x1, FieldMemOperand(x0, JSArray::kElementsOffset));
-    __ Mov(x1, Smi::FromInt(0));
+    __ Mov(x1, Smi::kZero);
     __ Str(x1, FieldMemOperand(x0, JSArray::kLengthOffset));
     STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
     __ Ret();
@@ -5202,7 +5202,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Mov(scratch2, Operand(ExternalReference::isolate_address(isolate())));
   __ Ldr(scratch3, FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ Push(scratch3, scratch, scratch, scratch2, holder);
-  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ Push(Smi::kZero);  // should_throw_on_error -> false
   __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ Push(scratch);
 

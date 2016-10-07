@@ -2480,7 +2480,7 @@ void MarkCompactCollector::ClearSimpleMapTransitions(
     Object* non_live_map_list) {
   Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = non_live_map_list;
-  while (weak_cell_obj != Smi::FromInt(0)) {
+  while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = WeakCell::cast(weak_cell_obj);
     Map* map = Map::cast(weak_cell->value());
     DCHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(map)));
@@ -2504,7 +2504,7 @@ void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
   // A previously existing simple transition (stored in a WeakCell) is going
   // to be cleared. Clear the useless cell pointer, and take ownership
   // of the descriptor array.
-  map->set_raw_transitions(Smi::FromInt(0));
+  map->set_raw_transitions(Smi::kZero);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   DescriptorArray* descriptors = map->instance_descriptors();
   if (descriptors == dead_transition->instance_descriptors() &&
@@ -2519,7 +2519,7 @@ void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
 void MarkCompactCollector::ClearFullMapTransitions() {
   HeapObject* undefined = heap()->undefined_value();
   Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::FromInt(0)) {
+  while (obj != Smi::kZero) {
     TransitionArray* array = TransitionArray::cast(obj);
     int num_transitions = array->number_of_entries();
     DCHECK_EQ(TransitionArray::NumberOfTransitions(array), num_transitions);
@@ -2539,7 +2539,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
     obj = array->next_link();
     array->set_next_link(undefined, SKIP_WRITE_BARRIER);
   }
-  heap()->set_encountered_transition_arrays(Smi::FromInt(0));
+  heap()->set_encountered_transition_arrays(Smi::kZero);
 }
 
 
@@ -2643,7 +2643,7 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 
 void MarkCompactCollector::ProcessWeakCollections() {
   Object* weak_collection_obj = heap()->encountered_weak_collections();
-  while (weak_collection_obj != Smi::FromInt(0)) {
+  while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
     DCHECK(MarkCompactCollector::IsMarked(weak_collection));
@@ -2669,7 +2669,7 @@ void MarkCompactCollector::ProcessWeakCollections() {
 void MarkCompactCollector::ClearWeakCollections() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
   Object* weak_collection_obj = heap()->encountered_weak_collections();
-  while (weak_collection_obj != Smi::FromInt(0)) {
+  while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
     DCHECK(MarkCompactCollector::IsMarked(weak_collection));
@@ -2685,19 +2685,19 @@ void MarkCompactCollector::ClearWeakCollections() {
     weak_collection_obj = weak_collection->next();
     weak_collection->set_next(heap()->undefined_value());
   }
-  heap()->set_encountered_weak_collections(Smi::FromInt(0));
+  heap()->set_encountered_weak_collections(Smi::kZero);
 }
 
 
 void MarkCompactCollector::AbortWeakCollections() {
   Object* weak_collection_obj = heap()->encountered_weak_collections();
-  while (weak_collection_obj != Smi::FromInt(0)) {
+  while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
     weak_collection_obj = weak_collection->next();
     weak_collection->set_next(heap()->undefined_value());
   }
-  heap()->set_encountered_weak_collections(Smi::FromInt(0));
+  heap()->set_encountered_weak_collections(Smi::kZero);
 }
 
 
@@ -2709,8 +2709,8 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
   Object* the_hole_value = heap->the_hole_value();
   DependentCode* dependent_code_head =
       DependentCode::cast(heap->empty_fixed_array());
-  Object* non_live_map_head = Smi::FromInt(0);
-  while (weak_cell_obj != Smi::FromInt(0)) {
+  Object* non_live_map_head = Smi::kZero;
+  while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     Object* next_weak_cell = weak_cell->next();
     bool clear_value = true;
@@ -2770,7 +2770,7 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
     }
     weak_cell_obj = next_weak_cell;
   }
-  heap->set_encountered_weak_cells(Smi::FromInt(0));
+  heap->set_encountered_weak_cells(Smi::kZero);
   *non_live_map_list = non_live_map_head;
   *dependent_code_list = dependent_code_head;
 }
@@ -2779,24 +2779,24 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
 void MarkCompactCollector::AbortWeakCells() {
   Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
-  while (weak_cell_obj != Smi::FromInt(0)) {
+  while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     weak_cell_obj = weak_cell->next();
     weak_cell->clear_next(the_hole_value);
   }
-  heap()->set_encountered_weak_cells(Smi::FromInt(0));
+  heap()->set_encountered_weak_cells(Smi::kZero);
 }
 
 
 void MarkCompactCollector::AbortTransitionArrays() {
   HeapObject* undefined = heap()->undefined_value();
   Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::FromInt(0)) {
+  while (obj != Smi::kZero) {
     TransitionArray* array = TransitionArray::cast(obj);
     obj = array->next_link();
     array->set_next_link(undefined, SKIP_WRITE_BARRIER);
   }
-  heap()->set_encountered_transition_arrays(Smi::FromInt(0));
+  heap()->set_encountered_transition_arrays(Smi::kZero);
 }
 
 void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,

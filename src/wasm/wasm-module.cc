@@ -882,7 +882,7 @@ WasmModule::WasmModule(byte* module_start)
 void EncodeInit(const WasmModule* module, Factory* factory,
                 Handle<FixedArray> entry, int kind_index, int value_index,
                 const WasmInitExpr& expr) {
-  entry->set(kind_index, Smi::FromInt(0));
+  entry->set(kind_index, Smi::kZero);
 
   Handle<Object> value;
   switch (expr.kind) {
@@ -1119,7 +1119,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     HandleScope scope(isolate);
     Handle<FixedArray> startup_data =
         factory->NewFixedArray(kWasmExportDataSize, TENURED);
-    startup_data->set(kExportArity, Smi::FromInt(0));
+    startup_data->set(kExportArity, Smi::kZero);
     startup_data->set(kExportIndex, Smi::FromInt(start_function_index));
     ret->set_startup_function(startup_data);
   }

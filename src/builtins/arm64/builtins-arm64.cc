@@ -278,7 +278,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ Ldr(x2, MemOperand(jssp, x0, LSL, kPointerSizeLog2));
     __ B(&done);
     __ Bind(&no_arguments);
-    __ Mov(x2, Smi::FromInt(0));
+    __ Mov(x2, Smi::kZero);
     __ Bind(&done);
   }
 
@@ -1337,7 +1337,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
   __ LoadObject(x1, masm->isolate()->builtins()->InterpreterEntryTrampoline());
   __ Add(lr, x1, Operand(interpreter_entry_return_pc_offset->value() +
                          Code::kHeaderSize - kHeapObjectTag));
@@ -1847,7 +1847,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // If the code object is null, just return to the caller.
   Label skip;
-  __ CompareAndBranch(x0, Smi::FromInt(0), ne, &skip);
+  __ CompareAndBranch(x0, Smi::kZero, ne, &skip);
   __ Ret();
 
   __ Bind(&skip);
@@ -2831,7 +2831,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   // -----------------------------------
   __ SmiTag(x1);
   __ Push(x1);
-  __ Move(cp, Smi::FromInt(0));
+  __ Move(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2845,7 +2845,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ SmiTag(x1);
   __ Move(x2, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ Push(x1, x2);
-  __ Move(cp, Smi::FromInt(0));
+  __ Move(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2858,7 +2858,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   // -----------------------------------
   MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
   __ Push(x1);
-  __ Move(cp, Smi::FromInt(0));
+  __ Move(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAbort);
 }
 

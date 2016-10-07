@@ -561,7 +561,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
   __ and_(r5, lhs, rhs);
   __ JumpIfNotSmi(r5, &not_smis);
   // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
@@ -4385,7 +4385,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   const int kParameterMapHeaderSize =
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
-  __ CmpSmiLiteral(r9, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r9, Smi::kZero, r0);
   if (CpuFeatures::IsSupported(ISELECT)) {
     __ SmiToPtrArrayOffset(r11, r9);
     __ addi(r11, r11, Operand(kParameterMapHeaderSize));
@@ -4467,7 +4467,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // r9 = mapped parameter count (tagged)
   // Initialize parameter map. If there are no mapped arguments, we're done.
   Label skip_parameter_map;
-  __ CmpSmiLiteral(r9, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r9, Smi::kZero, r0);
   if (CpuFeatures::IsSupported(ISELECT)) {
     __ isel(eq, r4, r7, r4);
     __ beq(&skip_parameter_map);
@@ -5113,7 +5113,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Push(scratch, scratch);
   __ mov(scratch, Operand(ExternalReference::isolate_address(isolate())));
   __ Push(scratch, holder);
-  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ Push(Smi::kZero);  // should_throw_on_error -> false
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
 

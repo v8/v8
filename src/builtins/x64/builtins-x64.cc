@@ -658,7 +658,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
   __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   Label load_debug_bytecode_array, bytecode_array_loaded;
-  DCHECK_EQ(Smi::FromInt(0), DebugInfo::uninitialized());
+  DCHECK_EQ(Smi::kZero, DebugInfo::uninitialized());
   __ cmpp(FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset),
           Immediate(0));
   __ j(not_equal, &load_debug_bytecode_array);
@@ -986,7 +986,7 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
   __ Move(rbx, masm->isolate()->builtins()->InterpreterEntryTrampoline());
   __ addp(rbx, Immediate(interpreter_entry_return_pc_offset->value() +
                          Code::kHeaderSize - kHeapObjectTag));
@@ -1888,7 +1888,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ movp(rbx, args.GetArgumentOperand(1));
     __ jmp(&done, Label::kNear);
     __ bind(&no_arguments);
-    __ Move(rbx, Smi::FromInt(0));
+    __ Move(rbx, Smi::kZero);
     __ bind(&done);
   }
 
@@ -2141,7 +2141,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);
   __ PushReturnAddressFrom(rcx);
-  __ Move(rsi, Smi::FromInt(0));
+  __ Move(rsi, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2156,7 +2156,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ Push(rdx);
   __ Push(Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ PushReturnAddressFrom(rcx);
-  __ Move(rsi, Smi::FromInt(0));
+  __ Move(rsi, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2169,7 +2169,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);
   __ PushReturnAddressFrom(rcx);
-  __ Move(rsi, Smi::FromInt(0));
+  __ Move(rsi, Smi::kZero);
   __ TailCallRuntime(Runtime::kAbort);
 }
 

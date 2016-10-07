@@ -544,7 +544,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
   __ and_(r2, lhs, Operand(rhs));
   __ JumpIfNotSmi(r2, &not_smis);
   // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
@@ -4216,7 +4216,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   const int kParameterMapHeaderSize =
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
-  __ cmp(r6, Operand(Smi::FromInt(0)));
+  __ cmp(r6, Operand(Smi::kZero));
   __ mov(r9, Operand::Zero(), LeaveCC, eq);
   __ mov(r9, Operand(r6, LSL, 1), LeaveCC, ne);
   __ add(r9, r9, Operand(kParameterMapHeaderSize), LeaveCC, ne);
@@ -4273,7 +4273,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // r6 = mapped parameter count (tagged)
   // Initialize parameter map. If there are no mapped arguments, we're done.
   Label skip_parameter_map;
-  __ cmp(r6, Operand(Smi::FromInt(0)));
+  __ cmp(r6, Operand(Smi::kZero));
   // Move backing store address to r1, because it is
   // expected there when filling in the unmapped arguments.
   __ mov(r1, r4, LeaveCC, eq);
@@ -4321,7 +4321,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ str(ip, MemOperand(r1, r0));
   __ add(r9, r9, Operand(Smi::FromInt(1)));
   __ bind(&parameters_test);
-  __ cmp(r5, Operand(Smi::FromInt(0)));
+  __ cmp(r5, Operand(Smi::kZero));
   __ b(ne, &parameters_loop);
 
   // Restore r0 = new object (tagged) and r5 = argument count (tagged).
@@ -4881,7 +4881,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Push(scratch, scratch);
   __ mov(scratch, Operand(ExternalReference::isolate_address(isolate())));
   __ Push(scratch, holder);
-  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ Push(Smi::kZero);  // should_throw_on_error -> false
   __ ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
   // v8::PropertyCallbackInfo::args_ array and name handle.

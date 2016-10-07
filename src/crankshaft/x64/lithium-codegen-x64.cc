@@ -1972,7 +1972,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, equal);
     } else if (type.IsSmi()) {
       DCHECK(!info()->IsStub());
-      __ SmiCompare(reg, Smi::FromInt(0));
+      __ SmiCompare(reg, Smi::kZero);
       EmitBranch(instr, not_equal);
     } else if (type.IsJSArray()) {
       DCHECK(!info()->IsStub());
@@ -2014,7 +2014,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanICStub::SMI)) {
         // Smis: 0 -> false, all other -> true.
-        __ Cmp(reg, Smi::FromInt(0));
+        __ Cmp(reg, Smi::kZero);
         __ j(equal, instr->FalseLabel(chunk_));
         __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
       } else if (expected.NeedsMap()) {
@@ -4161,7 +4161,7 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
   Register result = rax;
-  __ Move(result, Smi::FromInt(0));
+  __ Move(result, Smi::kZero);
 
   // We have to call a stub.
   {
@@ -4530,7 +4530,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
   Register reg = ToRegister(instr->result());
-  __ Move(reg, Smi::FromInt(0));
+  __ Move(reg, Smi::kZero);
 
   {
     PushSafepointRegistersScope scope(this);
@@ -5094,7 +5094,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Move(result, Smi::FromInt(0));
+  __ Move(result, Smi::kZero);
 
   PushSafepointRegistersScope scope(this);
   if (instr->size()->IsRegister()) {
@@ -5402,7 +5402,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register result = ToRegister(instr->result());
   Label load_cache, done;
   __ EnumLength(result, map);
-  __ Cmp(result, Smi::FromInt(0));
+  __ Cmp(result, Smi::kZero);
   __ j(not_equal, &load_cache, Label::kNear);
   __ LoadRoot(result, Heap::kEmptyFixedArrayRootIndex);
   __ jmp(&done, Label::kNear);

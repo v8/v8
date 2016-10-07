@@ -315,7 +315,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   int index = kVariablePartIndex;
   DCHECK_EQ(index, scope_info->ParameterNamesIndex());
   DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
-  scope_info->set(index++, Smi::FromInt(0));
+  scope_info->set(index++, Smi::kZero);
   DCHECK_EQ(index, scope_info->StackLocalNamesIndex());
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());

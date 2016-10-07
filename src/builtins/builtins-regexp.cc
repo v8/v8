@@ -322,7 +322,7 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
 
   Node* const null = a->NullConstant();
   Node* const int_zero = a->IntPtrConstant(0);
-  Node* const smi_zero = a->SmiConstant(Smi::FromInt(0));
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
   // Ensure {receiver} is a JSRegExp.
   Node* const regexp_map = a->ThrowIfNotInstanceType(

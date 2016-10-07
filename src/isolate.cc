@@ -3208,7 +3208,7 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
   Handle<FixedArray> detached_contexts = factory()->detached_contexts();
   int length = detached_contexts->length();
   detached_contexts = factory()->CopyFixedArrayAndGrow(detached_contexts, 2);
-  detached_contexts->set(length, Smi::FromInt(0));
+  detached_contexts->set(length, Smi::kZero);
   detached_contexts->set(length + 1, *cell);
   heap()->set_detached_contexts(*detached_contexts);
 }

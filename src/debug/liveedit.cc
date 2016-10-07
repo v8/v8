@@ -1426,7 +1426,7 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   for (Address a = unused_stack_top;
       a < unused_stack_bottom;
       a += kPointerSize) {
-    Memory::Object_at(a) = Smi::FromInt(0);
+    Memory::Object_at(a) = Smi::kZero;
   }
 
   return NULL;

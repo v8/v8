@@ -316,7 +316,7 @@ void Builtins::Generate_MathFround(CodeStubAssembler* assembler) {
 BUILTIN(MathHypot) {
   HandleScope scope(isolate);
   int const length = args.length() - 1;
-  if (length == 0) return Smi::FromInt(0);
+  if (length == 0) return Smi::kZero;
   DCHECK_LT(0, length);
   double max = 0;
   bool one_arg_is_nan = false;
@@ -345,7 +345,7 @@ BUILTIN(MathHypot) {
   }
 
   if (max == 0) {
-    return Smi::FromInt(0);
+    return Smi::kZero;
   }
   DCHECK_GT(max, 0);
 

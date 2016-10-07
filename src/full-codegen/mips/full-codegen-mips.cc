@@ -362,7 +362,7 @@ void FullCodeGenerator::Generate() {
 
 
 void FullCodeGenerator::ClearAccumulator() {
-  DCHECK(Smi::FromInt(0) == 0);
+  DCHECK(Smi::kZero == 0);
   __ mov(v0, zero_reg);
 }
 
@@ -1051,14 +1051,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&use_cache);
 
   __ EnumLength(a1, v0);
-  __ Branch(&no_descriptors, eq, a1, Operand(Smi::FromInt(0)));
+  __ Branch(&no_descriptors, eq, a1, Operand(Smi::kZero));
 
   __ LoadInstanceDescriptors(v0, a2);
   __ lw(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheOffset));
   __ lw(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
-  __ li(a0, Operand(Smi::FromInt(0)));
+  __ li(a0, Operand(Smi::kZero));
   // Push map, enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(v0, a2, a1, a0);
   __ jmp(&loop);
@@ -1075,7 +1075,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ lw(a1, FieldMemOperand(v0, FixedArray::kLengthOffset));
   __ Push(a1);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ li(a0, Operand(Smi::FromInt(0)));
+  __ li(a0, Operand(Smi::kZero));
   __ Push(a0);  // Initial index.
 
   // Generate code for doing the condition check.
@@ -1930,7 +1930,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ Branch(&done, ne, v0, Operand(zero_reg));
       __ Addu(scratch2, right, left);
       __ Branch(&stub_call, lt, scratch2, Operand(zero_reg));
-      DCHECK(Smi::FromInt(0) == 0);
+      DCHECK(Smi::kZero == 0);
       __ mov(v0, zero_reg);
       break;
     }
@@ -3082,7 +3082,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      __ li(at, Operand(Smi::FromInt(0)));
+      __ li(at, Operand(Smi::kZero));
       PushOperand(at);
     }
     switch (assign_type) {

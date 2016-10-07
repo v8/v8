@@ -1199,7 +1199,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
 Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
   Handle<FixedArray> list =
       isolate->factory()->NewFixedArray(kLengthIndex + size);
-  list->set(kLengthIndex, Smi::FromInt(0));
+  list->set(kLengthIndex, Smi::kZero);
   return Handle<TemplateList>::cast(list);
 }
 
@@ -2152,6 +2152,8 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
   return os;
 }
 
+// Declaration of the static Smi::kZero constant.
+Smi* const Smi::kZero(nullptr);
 
 void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
   os << value();
@@ -3175,7 +3177,7 @@ void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
   DCHECK(new_map->is_prototype_map());
   bool was_registered = JSObject::UnregisterPrototypeUser(old_map, isolate);
   new_map->set_prototype_info(old_map->prototype_info());
-  old_map->set_prototype_info(Smi::FromInt(0));
+  old_map->set_prototype_info(Smi::kZero);
   if (FLAG_trace_prototype_users) {
     PrintF("Moving prototype_info %p from map %p to map %p.\n",
            reinterpret_cast<void*>(new_map->prototype_info()),
@@ -3331,7 +3333,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         value = handle(object->RawFastPropertyAt(index), isolate);
         if (!old_representation.IsDouble() && representation.IsDouble()) {
           if (old_representation.IsNone()) {
-            value = handle(Smi::FromInt(0), isolate);
+            value = handle(Smi::kZero, isolate);
           }
           value = Object::NewStorageFor(isolate, value, representation);
         } else if (old_representation.IsDouble() &&
@@ -3514,7 +3516,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   int inobject_properties = new_map->GetInObjectProperties();
   for (int i = 0; i < inobject_properties; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
-    object->RawFastPropertyAtPut(index, Smi::FromInt(0));
+    object->RawFastPropertyAtPut(index, Smi::kZero);
   }
 
   isolate->counters()->props_to_dictionary()->Increment();
@@ -8900,7 +8902,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
         // For prototype maps, the PrototypeInfo is not copied.
         DCHECK(memcmp(fresh->address(), new_map->address(),
                       kTransitionsOrPrototypeInfoOffset) == 0);
-        DCHECK(fresh->raw_transitions() == Smi::FromInt(0));
+        DCHECK(fresh->raw_transitions() == Smi::kZero);
         STATIC_ASSERT(kDescriptorsOffset ==
                       kTransitionsOrPrototypeInfoOffset + kPointerSize);
         DCHECK(memcmp(HeapObject::RawField(*fresh, kDescriptorsOffset),
@@ -10257,7 +10259,7 @@ Handle<WeakFixedArray> WeakFixedArray::Allocate(
     }
   }
   while (index < result->length()) {
-    result->set(index, Smi::FromInt(0));
+    result->set(index, Smi::kZero);
     index++;
   }
   return Handle<WeakFixedArray>::cast(result);
@@ -10380,15 +10382,11 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
       factory->NewFixedArray(LengthFor(size), pretenure);
 
   result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
-  result->set(kEnumCacheIndex, Smi::FromInt(0));
+  result->set(kEnumCacheIndex, Smi::kZero);
   return Handle<DescriptorArray>::cast(result);
 }
 
-
-void DescriptorArray::ClearEnumCache() {
-  set(kEnumCacheIndex, Smi::FromInt(0));
-}
-
+void DescriptorArray::ClearEnumCache() { set(kEnumCacheIndex, Smi::kZero); }
 
 void DescriptorArray::Replace(int index, Descriptor* descriptor) {
   descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index));
@@ -10411,9 +10409,9 @@ void DescriptorArray::SetEnumCache(Handle<DescriptorArray> descriptors,
     bridge_storage = FixedArray::cast(descriptors->get(kEnumCacheIndex));
   }
   bridge_storage->set(kEnumCacheBridgeCacheIndex, *new_cache);
-  bridge_storage->set(kEnumCacheBridgeIndicesCacheIndex,
-                      new_index_cache.is_null() ? Object::cast(Smi::FromInt(0))
-                                                : *new_index_cache);
+  bridge_storage->set(
+      kEnumCacheBridgeIndicesCacheIndex,
+      new_index_cache.is_null() ? Object::cast(Smi::kZero) : *new_index_cache);
   if (needs_new_enum_cache) {
     descriptors->set(kEnumCacheIndex, bridge_storage);
   }
@@ -10715,7 +10713,7 @@ Handle<Object> String::ToNumber(Handle<String> subject) {
   // Fast case: short integer or some sorts of junk values.
   if (subject->IsSeqOneByteString()) {
     int len = subject->length();
-    if (len == 0) return handle(Smi::FromInt(0), isolate);
+    if (len == 0) return handle(Smi::kZero, isolate);
 
     DisallowHeapAllocation no_gc;
     uint8_t const* data = Handle<SeqOneByteString>::cast(subject)->GetChars();
@@ -16485,15 +16483,14 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                                  Smi::FromInt(0), SKIP_WRITE_BARRIER);
+    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex, Smi::kZero,
+                                  SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
-    RETURN_ON_EXCEPTION(
-        isolate,
-        JSReceiver::SetProperty(regexp, factory->last_index_string(),
-                                Handle<Smi>(Smi::FromInt(0), isolate), STRICT),
-        JSRegExp);
+    RETURN_ON_EXCEPTION(isolate, JSReceiver::SetProperty(
+                                     regexp, factory->last_index_string(),
+                                     Handle<Smi>(Smi::kZero, isolate), STRICT),
+                        JSRegExp);
   }
 
   return regexp;
@@ -17209,7 +17206,7 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     limit = elements_length;
   }
   if (limit == 0) {
-    return handle(Smi::FromInt(0), isolate);
+    return handle(Smi::kZero, isolate);
   }
 
   uint32_t result = 0;
@@ -18632,7 +18629,7 @@ Smi* OrderedHashTableIterator<Derived, TableType>::Next(JSArray* value_array) {
     MoveNext();
     return Smi::cast(kind());
   }
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 
@@ -19238,7 +19235,7 @@ void JSArrayBuffer::Neuter() {
   CHECK(is_neuterable());
   CHECK(is_external());
   set_backing_store(NULL);
-  set_byte_length(Smi::FromInt(0));
+  set_byte_length(Smi::kZero);
   set_was_neutered(true);
 }
 
@@ -19249,7 +19246,7 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   DCHECK(array_buffer->GetInternalFieldCount() ==
          v8::ArrayBuffer::kInternalFieldCount);
   for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
-    array_buffer->SetInternalField(i, Smi::FromInt(0));
+    array_buffer->SetInternalField(i, Smi::kZero);
   }
   array_buffer->set_bit_field(0);
   array_buffer->set_is_external(is_external);

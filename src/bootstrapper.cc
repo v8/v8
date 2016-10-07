@@ -1318,7 +1318,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Create the %NumberPrototype%
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(number_fun, TENURED));
-    prototype->set_value(Smi::FromInt(0));
+    prototype->set_value(Smi::kZero);
     Accessors::FunctionSetPrototype(number_fun, prototype).Assert();
 
     // Install the "constructor" property on the {prototype}.
@@ -4215,7 +4215,7 @@ Genesis::Genesis(Isolate* isolate,
     isolate->counters()->contexts_created_from_scratch()->Increment();
     // Re-initialize the counter because it got incremented during snapshot
     // creation.
-    isolate->native_context()->set_errors_thrown(Smi::FromInt(0));
+    isolate->native_context()->set_errors_thrown(Smi::kZero);
   }
 
   // Install experimental natives. Do not include them into the
