@@ -7296,7 +7296,7 @@ class SharedFunctionInfo: public HeapObject {
   inline String* inferred_name();
   inline void set_inferred_name(String* inferred_name);
 
-  // [script info]: Script from which the function originates.
+  // [script]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
 
   // [num_literals]: Number of literals used by this function.
