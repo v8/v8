@@ -1451,8 +1451,7 @@ void Scope::Print(int n) {
 }
 
 void Scope::CheckScopePositions() {
-  // A scope is allowed to have invalid positions if it is hidden and has no
-  // inner scopes
+  // Visible leaf scopes must have real positions.
   if (!is_hidden() && inner_scope_ == nullptr) {
     CHECK_NE(kNoSourcePosition, start_position());
     CHECK_NE(kNoSourcePosition, end_position());

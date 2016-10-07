@@ -724,7 +724,7 @@ class Isolate {
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result
-  // of Throw() as its return vaue.
+  // of Throw() as its return value.
   Object* Throw(Object* exception, MessageLocation* location = NULL);
   Object* ThrowIllegalOperation();
 
