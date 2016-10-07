@@ -7363,12 +7363,6 @@ class SharedFunctionInfo: public HeapObject {
   // when doing GC if we expect that the function will no longer be used.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
-  // Indicates if this function can be lazy compiled without a context.
-  // This is used to determine if we can force compilation without reaching
-  // the function through program execution but through other means (e.g. heap
-  // iteration by the debugger).
-  DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation_without_context)
-
   // Indicates whether optimizations have been disabled for this
   // shared function info. If a function is repeatedly optimized or if
   // we cannot optimize the function we disable optimization to avoid
@@ -7686,7 +7680,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     // byte 0
     kAllowLazyCompilation,
-    kAllowLazyCompilationWithoutContext,
+    kIsDeclaration,
     kOptimizationDisabled,
     kNeverCompiled,
     kNative,
@@ -7707,7 +7701,6 @@ class SharedFunctionInfo: public HeapObject {
     // rest of byte 2 and first two bits of byte 3 are used by FunctionKind
     // byte 3
     kDeserialized = kFunctionKind + 10,
-    kIsDeclaration,
     kIsAsmWasmBroken,
     kRequiresClassFieldInit,
     kIsClassFieldInitializer,

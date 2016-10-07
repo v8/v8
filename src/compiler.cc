@@ -1106,10 +1106,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
     result = NewSharedFunctionInfoForLiteral(isolate, lit, script);
     result->set_is_toplevel(true);
-    if (parse_info->is_eval()) {
-      // Eval scripts cannot be (re-)compiled without context.
-      result->set_allows_lazy_compilation_without_context(false);
-    }
     parse_info->set_shared_info(result);
 
     // Compile the code.
@@ -1285,8 +1281,12 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, shared);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  DCHECK(shared->allows_lazy_compilation_without_context());
-  DCHECK(!IsEvalToplevel(shared));
+  if (IsEvalToplevel(shared)) {
+    parse_info.set_eval();
+    parse_info.set_toplevel();
+    parse_info.set_allow_lazy_parsing(false);
+    parse_info.set_lazy(false);
+  }
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info).is_null()) {
     isolate->clear_pending_exception();

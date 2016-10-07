@@ -13718,8 +13718,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_is_anonymous_expression(lit->is_anonymous_expression());
   shared_info->set_inferred_name(*lit->inferred_name());
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
-  shared_info->set_allows_lazy_compilation_without_context(
-      lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
   shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
