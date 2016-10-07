@@ -2,28 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/zone-stats.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/compiler/zone-pool.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZoneStatsTest : public TestWithIsolate {
+class ZonePoolTest : public TestWithIsolate {
  public:
-  ZoneStatsTest() : zone_stats_(&allocator_) {}
+  ZonePoolTest() : zone_pool_(&allocator_) {}
 
  protected:
-  ZoneStats* zone_stats() { return &zone_stats_; }
+  ZonePool* zone_pool() { return &zone_pool_; }
 
   void ExpectForPool(size_t current, size_t max, size_t total) {
-    ASSERT_EQ(current, zone_stats()->GetCurrentAllocatedBytes());
-    ASSERT_EQ(max, zone_stats()->GetMaxAllocatedBytes());
-    ASSERT_EQ(total, zone_stats()->GetTotalAllocatedBytes());
+    ASSERT_EQ(current, zone_pool()->GetCurrentAllocatedBytes());
+    ASSERT_EQ(max, zone_pool()->GetMaxAllocatedBytes());
+    ASSERT_EQ(total, zone_pool()->GetTotalAllocatedBytes());
   }
 
-  void Expect(ZoneStats::StatsScope* stats, size_t current, size_t max,
+  void Expect(ZonePool::StatsScope* stats, size_t current, size_t max,
               size_t total) {
     ASSERT_EQ(current, stats->GetCurrentAllocatedBytes());
     ASSERT_EQ(max, stats->GetMaxAllocatedBytes());
@@ -39,39 +39,41 @@ class ZoneStatsTest : public TestWithIsolate {
 
  private:
   v8::internal::AccountingAllocator allocator_;
-  ZoneStats zone_stats_;
+  ZonePool zone_pool_;
   base::RandomNumberGenerator rng;
 };
 
-TEST_F(ZoneStatsTest, Empty) {
+
+TEST_F(ZonePoolTest, Empty) {
   ExpectForPool(0, 0, 0);
   {
-    ZoneStats::StatsScope stats(zone_stats());
+    ZonePool::StatsScope stats(zone_pool());
     Expect(&stats, 0, 0, 0);
   }
   ExpectForPool(0, 0, 0);
   {
-    ZoneStats::Scope scope(zone_stats());
+    ZonePool::Scope scope(zone_pool());
     scope.zone();
   }
   ExpectForPool(0, 0, 0);
 }
 
-TEST_F(ZoneStatsTest, MultipleZonesWithDeletion) {
+
+TEST_F(ZonePoolTest, MultipleZonesWithDeletion) {
   static const size_t kArraySize = 10;
 
-  ZoneStats::Scope* scopes[kArraySize];
+  ZonePool::Scope* scopes[kArraySize];
 
   // Initialize.
   size_t before_stats = 0;
   for (size_t i = 0; i < kArraySize; ++i) {
-    scopes[i] = new ZoneStats::Scope(zone_stats());
+    scopes[i] = new ZonePool::Scope(zone_pool());
     before_stats += Allocate(scopes[i]->zone());  // Add some stuff.
   }
 
   ExpectForPool(before_stats, before_stats, before_stats);
 
-  ZoneStats::StatsScope stats(zone_stats());
+  ZonePool::StatsScope stats(zone_pool());
 
   size_t before_deletion = 0;
   for (size_t i = 0; i < kArraySize; ++i) {
@@ -85,7 +87,7 @@ TEST_F(ZoneStatsTest, MultipleZonesWithDeletion) {
   // Delete the scopes and create new ones.
   for (size_t i = 0; i < kArraySize; ++i) {
     delete scopes[i];
-    scopes[i] = new ZoneStats::Scope(zone_stats());
+    scopes[i] = new ZonePool::Scope(zone_pool());
   }
 
   Expect(&stats, 0, before_deletion, before_deletion);
@@ -114,13 +116,14 @@ TEST_F(ZoneStatsTest, MultipleZonesWithDeletion) {
                 before_stats + before_deletion + after_deletion);
 }
 
-TEST_F(ZoneStatsTest, SimpleAllocationLoop) {
+
+TEST_F(ZonePoolTest, SimpleAllocationLoop) {
   int runs = 20;
   size_t total_allocated = 0;
   size_t max_loop_allocation = 0;
-  ZoneStats::StatsScope outer_stats(zone_stats());
+  ZonePool::StatsScope outer_stats(zone_pool());
   {
-    ZoneStats::Scope outer_scope(zone_stats());
+    ZonePool::Scope outer_scope(zone_pool());
     size_t outer_allocated = 0;
     for (int i = 0; i < runs; ++i) {
       {
@@ -128,10 +131,10 @@ TEST_F(ZoneStatsTest, SimpleAllocationLoop) {
         outer_allocated += bytes;
         total_allocated += bytes;
       }
-      ZoneStats::StatsScope inner_stats(zone_stats());
+      ZonePool::StatsScope inner_stats(zone_pool());
       size_t allocated = 0;
       {
-        ZoneStats::Scope inner_scope(zone_stats());
+        ZonePool::Scope inner_scope(zone_pool());
         for (int j = 0; j < 20; ++j) {
           size_t bytes = Allocate(inner_scope.zone());
           allocated += bytes;

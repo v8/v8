@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
@@ -19,7 +20,8 @@
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/compiler/zone-stats.h"
+#include "src/compiler/zone-pool.h"
+
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"

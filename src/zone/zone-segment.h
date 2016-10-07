@@ -20,7 +20,11 @@ class Zone;
 
 class Segment {
  public:
-  void Initialize(size_t size) { size_ = size; }
+  void Initialize(Segment* next, size_t size, Zone* zone) {
+    next_ = next;
+    size_ = size;
+    zone_ = zone;
+  }
 
   Zone* zone() const { return zone_; }
   void set_zone(Zone* const zone) { zone_ = zone; }
@@ -44,7 +48,6 @@ class Segment {
   // Constant byte value used for zapping dead memory in debug mode.
   static const unsigned char kZapDeadByte = 0xcd;
 #endif
-
   // Computes the address of the nth byte in this segment.
   Address address(size_t n) const { return Address(this) + n; }
 
