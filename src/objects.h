@@ -7168,10 +7168,6 @@ class SharedFunctionInfo: public HeapObject {
   static Handle<LiteralsArray> FindOrCreateLiterals(
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
-  // Add or update entry in the optimized code map for context-independent code.
-  static void AddSharedCodeToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
-                                              Handle<Code> code);
-
   // Add or update entry in the optimized code map for context-dependent code.
   // If {code} is not given, then an existing entry's code won't be overwritten.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
@@ -7186,8 +7182,7 @@ class SharedFunctionInfo: public HeapObject {
                         Handle<Object> script_object);
 
   // Layout description of the optimized code map.
-  static const int kSharedCodeIndex = 0;
-  static const int kEntriesStart = 1;
+  static const int kEntriesStart = 0;
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
   static const int kLiteralsOffset = 2;
@@ -7789,8 +7784,8 @@ class SharedFunctionInfo: public HeapObject {
 
  private:
   // Returns entry from optimized code map for specified context and OSR entry.
-  // The result is either kNotFound, kSharedCodeIndex for context-independent
-  // entry or a start index of the context-dependent entry.
+  // The result is either kNotFound, or a start index of the context-dependent
+  // entry.
   int SearchOptimizedCodeMapEntry(Context* native_context,
                                   BailoutId osr_ast_id);
 
