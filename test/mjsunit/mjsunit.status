@@ -643,6 +643,8 @@
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 
+  # BUG(v8:5496): Flaky crashes.
+  'wasm/gc-stress': [PASS, ['gc_stress', SKIP]],
 }],  # variant == turbofan_opt
 
 ##############################################################################
@@ -744,6 +746,9 @@
 
   # TODO(rmcilroy): Flaky OOM.
   'unicodelctest-no-optimization': [SKIP],
+
+  # BUG(v8:5496): Flaky crashes.
+  'wasm/gc-stress': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition_turbofan
 
 ['variant == ignition_turbofan and arch == arm64', {
@@ -820,5 +825,10 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 }],  # variant == asm_wasm
+
+['variant == stress', {
+  # BUG(v8:5451): Flaky crashes.
+  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
+}],  # variant == stress
 
 ]
