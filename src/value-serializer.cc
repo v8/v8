@@ -470,6 +470,8 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
       array->HasFastElements() && !array->HasFastHoleyElements();
 
   if (should_serialize_densely) {
+    DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));
+
     // TODO(jbroman): Distinguish between undefined and a hole (this can happen
     // if serializing one of the elements deletes another). This requires wire
     // format changes.
@@ -1165,8 +1167,15 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeHandle<JSArray>());
 
+  // We shouldn't permit an array larger than the biggest we can request from
+  // V8. As an additional sanity check, since each entry will take at least one
+  // byte to encode, if there are fewer bytes than that we can also fail fast.
   uint32_t length;
-  if (!ReadVarint<uint32_t>().To(&length)) return MaybeHandle<JSArray>();
+  if (!ReadVarint<uint32_t>().To(&length) ||
+      length > static_cast<uint32_t>(FixedArray::kMaxLength) ||
+      length > static_cast<size_t>(end_ - position_)) {
+    return MaybeHandle<JSArray>();
+  }
 
   uint32_t id = next_id_++;
   HandleScope scope(isolate_);

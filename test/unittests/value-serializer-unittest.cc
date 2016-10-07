@@ -977,6 +977,14 @@ TEST_F(ValueSerializerTest, DecodeArray) {
       });
 }
 
+TEST_F(ValueSerializerTest, DecodeInvalidOverLargeArray) {
+  // So large it couldn't exist in the V8 heap, and its size couldn't fit in a
+  // SMI on 32-bit systems (2^30).
+  InvalidDecodeTest({0xff, 0x09, 0x41, 0x80, 0x80, 0x80, 0x80, 0x04});
+  // Not so large, but there isn't enough data left in the buffer.
+  InvalidDecodeTest({0xff, 0x09, 0x41, 0x01});
+}
+
 TEST_F(ValueSerializerTest, RoundTripArrayWithNonEnumerableElement) {
   // Even though this array looks like [1,5,3], the 5 should be missing from the
   // perspective of structured clone, which only clones properties that were
