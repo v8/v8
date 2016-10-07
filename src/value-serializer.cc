@@ -1410,7 +1410,8 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   }
-  if (byte_offset % element_size != 0 || byte_length % element_size != 0) {
+  if (element_size == 0 || byte_offset % element_size != 0 ||
+      byte_length % element_size != 0) {
     return MaybeHandle<JSArrayBufferView>();
   }
   Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
