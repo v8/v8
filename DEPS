@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "792a87c1217536862f8fb3c845602b5d2362f539",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "472d19ef7daee936e502ea5c5eb192765bbaa26a",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -18,7 +18,7 @@ deps = {
   "v8/buildtools":
     Var("chromium_url") + "/chromium/buildtools.git" + "@" + "39b1db2ab4aa4b2ccaa263c29bdf63e7c1ee28aa",
   "v8/base/trace_event/common":
-    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "e0fa02a02f61430dae2bddfd89a334ea4389f495",
+    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "b403fa6d086b4a89e991f726cc691b61353f8841",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
     Var("chromium_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "3280c57c4c575ce82ccd13e4a403492fb4ca624b",
   "v8/third_party/jinja2":
@@ -41,7 +41,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "30c5a8b3305ff4e597be9ec5b880d98e6fdaba65",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "36879c7de633ede9ff2e0e95bbfcadcdee031ee1",
 }
 
 deps_os = {
