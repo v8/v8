@@ -147,7 +147,7 @@ class Types {
     return Type::NewConstant(value, zone_);
   }
 
-  Type* HeapConstant(Handle<i::Object> value) {
+  Type* HeapConstant(Handle<i::HeapObject> value) {
     return Type::HeapConstant(value, zone_);
   }
 

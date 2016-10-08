@@ -98,11 +98,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
 namespace {
 
 MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
-  if (object_type->IsHeapConstant() &&
-      object_type->AsHeapConstant()->Value()->IsHeapObject()) {
-    Handle<Map> object_map(
-        Handle<HeapObject>::cast(object_type->AsHeapConstant()->Value())
-            ->map());
+  if (object_type->IsHeapConstant()) {
+    Handle<Map> object_map(object_type->AsHeapConstant()->Value()->map());
     if (object_map->is_stable()) return object_map;
   }
   return MaybeHandle<Map>();

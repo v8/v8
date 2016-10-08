@@ -403,11 +403,9 @@ bool OtherNumberConstantType::IsOtherNumberConstant(Object* value) {
 }
 
 HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
-                                   i::Handle<i::Object> object)
+                                   i::Handle<i::HeapObject> object)
     : TypeBase(kHeapConstant), bitset_(bitset), object_(object) {
-  // All number types should be expressed as Ranges, OtherNumberConstants,
-  // or bitsets (nan, negative-zero).
-  DCHECK(!object->IsSmi() && !object->IsHeapNumber());
+  DCHECK(!object->IsHeapNumber());
 }
 
 // -----------------------------------------------------------------------------
@@ -417,7 +415,8 @@ bool Type::SimplyEquals(Type* that) {
   DisallowHeapAllocation no_allocation;
   if (this->IsHeapConstant()) {
     return that->IsHeapConstant() &&
-           *this->AsHeapConstant()->Value() == *that->AsHeapConstant()->Value();
+           this->AsHeapConstant()->Value().address() ==
+               that->AsHeapConstant()->Value().address();
   }
   if (this->IsOtherNumberConstant()) {
     return that->IsOtherNumberConstant() &&
@@ -783,7 +782,7 @@ Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
   } else if (value->IsHeapNumber()) {
     return NewConstant(value->Number(), zone);
   }
-  return HeapConstant(value, zone);
+  return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
 }
 
 Type* Type::Union(Type* type1, Type* type2, Zone* zone) {

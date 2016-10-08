@@ -320,13 +320,13 @@ class OtherNumberConstantType : public TypeBase {
 
 class HeapConstantType : public TypeBase {
  public:
-  i::Handle<i::Object> Value() { return object_; }
+  i::Handle<i::HeapObject> Value() { return object_; }
 
  private:
   friend class Type;
   friend class BitsetType;
 
-  static Type* New(i::Handle<i::Object> value, Zone* zone) {
+  static Type* New(i::Handle<i::HeapObject> value, Zone* zone) {
     BitsetType::bitset bitset = BitsetType::Lub(*value);
     return AsType(new (zone->New(sizeof(HeapConstantType)))
                       HeapConstantType(bitset, value));
@@ -337,12 +337,12 @@ class HeapConstantType : public TypeBase {
     return static_cast<HeapConstantType*>(FromType(type));
   }
 
-  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::Object> object);
+  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::HeapObject> object);
 
   BitsetType::bitset Lub() { return bitset_; }
 
   BitsetType::bitset bitset_;
-  Handle<i::Object> object_;
+  Handle<i::HeapObject> object_;
 };
 
 // -----------------------------------------------------------------------------
@@ -506,7 +506,7 @@ class Type {
   static Type* OtherNumberConstant(double value, Zone* zone) {
     return OtherNumberConstantType::New(value, zone);
   }
-  static Type* HeapConstant(i::Handle<i::Object> value, Zone* zone) {
+  static Type* HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
     return HeapConstantType::New(value, zone);
   }
   static Type* Range(double min, double max, Zone* zone) {

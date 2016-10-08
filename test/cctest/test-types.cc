@@ -195,7 +195,7 @@ struct Tests {
       Handle<i::Object> value = *vt;
       Type* type = T.NewConstant(value);
       if (type->IsHeapConstant()) {
-        CHECK(*value == *type->AsHeapConstant()->Value());
+        CHECK(value.address() == type->AsHeapConstant()->Value().address());
       } else if (type->IsOtherNumberConstant()) {
         CHECK(value->IsHeapNumber());
         CHECK(value->Number() == type->AsOtherNumberConstant()->Value());
