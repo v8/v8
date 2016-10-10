@@ -17,27 +17,6 @@ namespace internal {
 
 namespace {
 
-// ES#sec-isregexp IsRegExp ( argument )
-Maybe<bool> IsRegExp(Isolate* isolate, Handle<Object> object) {
-  if (!object->IsJSReceiver()) return Just(false);
-
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-
-  if (isolate->regexp_function()->initial_map() == receiver->map()) {
-    // Fast-path for unmodified JSRegExp instances.
-    return Just(true);
-  }
-
-  Handle<Object> match;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, match,
-      JSObject::GetProperty(receiver, isolate->factory()->match_symbol()),
-      Nothing<bool>());
-
-  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue());
-  return Just(object->IsJSRegExp());
-}
-
 Handle<String> PatternFlags(Isolate* isolate, Handle<JSRegExp> regexp) {
   static const int kMaxFlagsLength = 5 + 1;  // 5 flags and '\0';
   char flags_string[kMaxFlagsLength];
@@ -100,7 +79,7 @@ BUILTIN(RegExpConstructor) {
 
   bool pattern_is_regexp;
   {
-    Maybe<bool> maybe_pattern_is_regexp = IsRegExp(isolate, pattern);
+    Maybe<bool> maybe_pattern_is_regexp = Object::IsRegExp(isolate, pattern);
     if (maybe_pattern_is_regexp.IsNothing()) {
       DCHECK(isolate->has_pending_exception());
       return isolate->heap()->exception();

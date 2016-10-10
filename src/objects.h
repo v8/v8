@@ -1376,6 +1376,10 @@ class Object {
       Isolate* isolate, Handle<Object> object, uint32_t index,
       Handle<Object> value, LanguageMode language_mode);
 
+  // ES#sec-isregexp IsRegExp ( argument )
+  // Includes checking of the mach property as per section 7.2.8 IsRegExp.
+  static Maybe<bool> IsRegExp(Isolate* isolate, Handle<Object> object);
+
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
   Object* GetHash();

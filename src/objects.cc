@@ -1977,6 +1977,26 @@ Object* GetSimpleHash(Object* object) {
 
 }  // namespace
 
+Maybe<bool> Object::IsRegExp(Isolate* isolate, Handle<Object> object) {
+  if (!object->IsJSReceiver()) return Just(false);
+
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+
+  if (isolate->regexp_function()->initial_map() == receiver->map()) {
+    // Fast-path for unmodified JSRegExp instances.
+    return Just(true);
+  }
+
+  Handle<Object> match;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, match,
+      JSObject::GetProperty(receiver, isolate->factory()->match_symbol()),
+      Nothing<bool>());
+
+  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue());
+  return Just(object->IsJSRegExp());
+}
+
 Object* Object::GetHash() {
   Object* hash = GetSimpleHash(this);
   if (hash->IsSmi()) return hash;
