@@ -513,7 +513,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->typed_old_to_new_slots_.SetValue(nullptr);
   chunk->typed_old_to_old_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
-  chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);

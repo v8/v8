@@ -310,11 +310,6 @@ class MemoryChunk {
     kSweepingInProgress,
   };
 
-  // Every n write barrier invocations we go to runtime even though
-  // we could have handled it in generated code.  This lets us check
-  // whether we have hit the limit and should do some more marking.
-  static const int kWriteBarrierCounterGranularity = 500;
-
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
 
@@ -324,7 +319,7 @@ class MemoryChunk {
 
   static const intptr_t kFlagsOffset = kSizeOffset + kPointerSize;
 
-  static const size_t kWriteBarrierCounterOffset =
+  static const size_t kMinHeaderSize =
       kSizeOffset + kPointerSize  // size_t size
       + kIntptrSize               // Flags flags_
       + kPointerSize              // Address area_start_
@@ -334,21 +329,17 @@ class MemoryChunk {
       + kPointerSize              // Heap* heap_
       + kIntSize                  // int progress_bar_
       + kIntSize                  // int live_bytes_count_
-      + kPointerSize              // SlotSet* old_to_new_slots_;
-      + kPointerSize              // SlotSet* old_to_old_slots_;
-      + kPointerSize              // TypedSlotSet* typed_old_to_new_slots_;
-      + kPointerSize              // TypedSlotSet* typed_old_to_old_slots_;
-      + kPointerSize;             // SkipList* skip_list_;
-
-  static const size_t kMinHeaderSize =
-      kWriteBarrierCounterOffset +
-      kIntptrSize         // intptr_t write_barrier_counter_
-      + kPointerSize      // AtomicValue high_water_mark_
-      + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord concurrent_sweeping_
-      + 2 * kPointerSize  // AtomicNumber free-list statistics
-      + kPointerSize      // AtomicValue next_chunk_
-      + kPointerSize      // AtomicValue prev_chunk_
+      + kPointerSize              // SlotSet* old_to_new_slots_
+      + kPointerSize              // SlotSet* old_to_old_slots_
+      + kPointerSize              // TypedSlotSet* typed_old_to_new_slots_
+      + kPointerSize              // TypedSlotSet* typed_old_to_old_slots_
+      + kPointerSize              // SkipList* skip_list_
+      + kPointerSize              // AtomicValue high_water_mark_
+      + kPointerSize              // base::Mutex* mutex_
+      + kPointerSize              // base::AtomicWord concurrent_sweeping_
+      + 2 * kPointerSize          // AtomicNumber free-list statistics
+      + kPointerSize              // AtomicValue next_chunk_
+      + kPointerSize              // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
       + FreeListCategory::kSize * kNumberOfCategories +
       kPointerSize  // LocalArrayBufferTracker* local_tracker_
@@ -434,14 +425,6 @@ class MemoryChunk {
     DCHECK_GE(live_bytes, 0);
     DCHECK_LE(static_cast<size_t>(live_bytes), size_);
     live_byte_count_ = live_bytes;
-  }
-
-  int write_barrier_counter() {
-    return static_cast<int>(write_barrier_counter_);
-  }
-
-  void set_write_barrier_counter(int counter) {
-    write_barrier_counter_ = counter;
   }
 
   size_t size() const { return size_; }
@@ -659,8 +642,6 @@ class MemoryChunk {
   TypedSlotSet* typed_old_to_old_slots_;
 
   SkipList* skip_list_;
-
-  intptr_t write_barrier_counter_;
 
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
@@ -973,8 +954,6 @@ class Space : public Malloced {
 class MemoryChunkValidator {
   // Computed offsets should match the compiler generated ones.
   STATIC_ASSERT(MemoryChunk::kSizeOffset == offsetof(MemoryChunk, size_));
-  STATIC_ASSERT(MemoryChunk::kWriteBarrierCounterOffset ==
-                offsetof(MemoryChunk, write_barrier_counter_));
 
   // Validate our estimates on the header size.
   STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
