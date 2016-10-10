@@ -5,13 +5,6 @@
 {
   'variables': {
     'v8_code': 1,
-    'inspector_protocol_sources': [
-      'inspector-impl.cc',
-      'inspector-impl.h',
-      'inspector-test.cc',
-      'task-runner.cc',
-      'task-runner.h',
-    ],
   },
   'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
   'targets': [
@@ -20,13 +13,17 @@
       'type': 'executable',
       'dependencies': [
         '../../src/v8.gyp:v8_libplatform',
-        '../../src/v8.gyp:v8',
+        '../../src/v8.gyp:v8_libbase',
       ],
       'include_dirs': [
         '../..',
       ],
       'sources': [
-        '<@(inspector_protocol_sources)',
+        'inspector-impl.cc',
+        'inspector-impl.h',
+        'inspector-test.cc',
+        'task-runner.cc',
+        'task-runner.h',
       ],
       'conditions': [
         ['component=="shared_library"', {
