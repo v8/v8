@@ -103,7 +103,6 @@ macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
 endmacro
 
 
-
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
 // Also takes an optional exec method in case our caller
 // has already fetched exec.
@@ -121,19 +120,6 @@ function RegExpSubclassExec(regexp, string, exec) {
   return %_Call(RegExpExecJS, regexp, string);
 }
 %SetForceInlineFlag(RegExpSubclassExec);
-
-
-// ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
-function RegExpSubclassTest(string) {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.test', this);
-  }
-  string = TO_STRING(string);
-  var match = RegExpSubclassExec(this, string);
-  return !IS_NULL(match);
-}
-%FunctionRemovePrototype(RegExpSubclassTest);
 
 
 function AtSurrogatePair(subject, index) {
@@ -287,39 +273,6 @@ function RegExpSubclassSplit(string, limit) {
   return array;
 }
 %FunctionRemovePrototype(RegExpSubclassSplit);
-
-
-// ES#sec-regexp.prototype-@@match
-// RegExp.prototype [ @@match ] ( string )
-function RegExpSubclassMatch(string) {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.@@match", this);
-  }
-  string = TO_STRING(string);
-  var global = this.global;
-  if (!global) return RegExpSubclassExec(this, string);
-  var unicode = this.unicode;
-  this.lastIndex = 0;
-  var array = new InternalArray();
-  var n = 0;
-  var result;
-  while (true) {
-    result = RegExpSubclassExec(this, string);
-    if (IS_NULL(result)) {
-      if (n === 0) return null;
-      break;
-    }
-    var matchStr = TO_STRING(result[0]);
-    array[n] = matchStr;
-    if (matchStr === "") SetAdvancedStringIndex(this, string, unicode);
-    n++;
-  }
-  var resultArray = [];
-  %MoveArrayContents(array, resultArray);
-  return resultArray;
-}
-%FunctionRemovePrototype(RegExpSubclassMatch);
 
 
 // Legacy implementation of RegExp.prototype[Symbol.replace] which
@@ -716,32 +669,11 @@ function RegExpSubclassReplace(string, replace) {
 %FunctionRemovePrototype(RegExpSubclassReplace);
 
 
-// ES#sec-regexp.prototype-@@search
-// RegExp.prototype [ @@search ] ( string )
-function RegExpSubclassSearch(string) {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.@@search", this);
-  }
-  string = TO_STRING(string);
-  var previousLastIndex = this.lastIndex;
-  if (previousLastIndex != 0) this.lastIndex = 0;
-  var result = RegExpSubclassExec(this, string);
-  var currentLastIndex = this.lastIndex;
-  if (currentLastIndex != previousLastIndex) this.lastIndex = previousLastIndex;
-  if (IS_NULL(result)) return -1;
-  return result.index;
-}
-%FunctionRemovePrototype(RegExpSubclassSearch);
-
 
 // -------------------------------------------------------------------
 
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "test", RegExpSubclassTest,
-  matchSymbol, RegExpSubclassMatch,
   replaceSymbol, RegExpSubclassReplace,
-  searchSymbol, RegExpSubclassSearch,
   splitSymbol, RegExpSubclassSplit,
 ]);
 

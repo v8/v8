@@ -583,10 +583,13 @@ namespace internal {
   TFJ(RegExpPrototypeFlagsGetter, 1)                                          \
   TFJ(RegExpPrototypeGlobalGetter, 1)                                         \
   TFJ(RegExpPrototypeIgnoreCaseGetter, 1)                                     \
+  CPP(RegExpPrototypeMatch)                                                   \
   TFJ(RegExpPrototypeMultilineGetter, 1)                                      \
+  CPP(RegExpPrototypeSearch)                                                  \
   CPP(RegExpPrototypeSourceGetter)                                            \
   CPP(RegExpPrototypeSpeciesGetter)                                           \
   TFJ(RegExpPrototypeStickyGetter, 1)                                         \
+  CPP(RegExpPrototypeTest)                                                    \
   CPP(RegExpPrototypeToString)                                                \
   TFJ(RegExpPrototypeUnicodeGetter, 1)                                        \
   CPP(RegExpRightContextGetter)                                               \

@@ -216,7 +216,7 @@ compiler::Node* LoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
   {
     // Load through the GetProperty stub.
     Node* const name =
-        a->HeapConstant(a->isolate()->factory()->last_index_string());
+        a->HeapConstant(a->isolate()->factory()->lastIndex_string());
     Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
     var_value.Bind(a->CallStub(getproperty_callable, context, regexp, name));
     a->Goto(&out);
@@ -249,7 +249,7 @@ void StoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
     // Store through runtime.
     // TODO(ishell): Use SetPropertyStub here once available.
     Node* const name =
-        a->HeapConstant(a->isolate()->factory()->last_index_string());
+        a->HeapConstant(a->isolate()->factory()->lastIndex_string());
     Node* const language_mode = a->SmiConstant(Smi::FromInt(STRICT));
     a->CallRuntime(Runtime::kSetProperty, context, regexp, name, value,
                    language_mode);
@@ -974,6 +974,265 @@ BUILTIN(RegExpRightContextGetter) {
   Handle<String> last_subject = GetLastMatchSubject(isolate);
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
+}
+
+namespace {
+
+V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Handle<JSReceiver> recv) {
+  return recv->map() == isolate->regexp_function()->initial_map();
+}
+
+}  // namespace
+
+// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
+// Also takes an optional exec method in case our caller
+// has already fetched exec.
+MaybeHandle<Object> RegExpExec(Isolate* isolate, Handle<JSReceiver> regexp,
+                               Handle<String> string, Handle<Object> exec) {
+  if (exec->IsUndefined(isolate)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, exec,
+        Object::GetProperty(
+            regexp, isolate->factory()->NewStringFromAsciiChecked("exec")),
+        Object);
+  }
+
+  if (exec->IsCallable()) {
+    const int argc = 1;
+    ScopedVector<Handle<Object>> argv(argc);
+    argv[0] = string;
+
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::Call(isolate, exec, regexp, argc, argv.start()), Object);
+
+    if (!result->IsJSReceiver() && !result->IsNull(isolate)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalidRegExpExecResult),
+                      Object);
+    }
+    return result;
+  }
+
+  if (!regexp->IsJSRegExp()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "RegExp.prototype.exec"),
+                                 regexp),
+                    Object);
+  }
+
+  {
+    Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
+
+    const int argc = 1;
+    ScopedVector<Handle<Object>> argv(argc);
+    argv[0] = string;
+
+    return Execution::Call(isolate, exec, regexp_exec, argc, argv.start());
+  }
+}
+
+// ES#sec-regexp.prototype.test
+// RegExp.prototype.test ( S )
+BUILTIN(RegExpPrototypeTest) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, recv, "RegExp.prototype.test");
+
+  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
+
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, string_obj));
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      RegExpExec(isolate, recv, string, isolate->factory()->undefined_value()));
+
+  return isolate->heap()->ToBoolean(!result->IsNull(isolate));
+}
+
+namespace {
+
+// ES#sec-advancestringindex
+// AdvanceStringIndex ( S, index, unicode )
+int AdvanceStringIndex(Isolate* isolate, Handle<String> string, int index,
+                       bool unicode) {
+  int increment = 1;
+
+  if (unicode && index < string->length()) {
+    const uint16_t first = string->Get(index);
+    if (first >= 0xD800 && first <= 0xDBFF && string->length() > index + 1) {
+      const uint16_t second = string->Get(index + 1);
+      if (second >= 0xDC00 && second <= 0xDFFF) {
+        increment = 2;
+      }
+    }
+  }
+
+  return increment;
+}
+
+MaybeHandle<Object> SetLastIndex(Isolate* isolate, Handle<JSReceiver> recv,
+                                 int value) {
+  if (HasInitialRegExpMap(isolate, recv)) {
+    JSRegExp::cast(*recv)->SetLastIndex(value);
+    return recv;
+  } else {
+    return Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
+                               handle(Smi::FromInt(value), isolate), STRICT);
+  }
+}
+
+MaybeHandle<Object> GetLastIndex(Isolate* isolate, Handle<JSReceiver> recv) {
+  if (HasInitialRegExpMap(isolate, recv)) {
+    return handle(JSRegExp::cast(*recv)->LastIndex(), isolate);
+  } else {
+    return Object::GetProperty(recv, isolate->factory()->lastIndex_string());
+  }
+}
+
+MaybeHandle<Object> SetAdvancedStringIndex(Isolate* isolate,
+                                           Handle<JSReceiver> regexp,
+                                           Handle<String> string,
+                                           bool unicode) {
+  Handle<Object> last_index_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
+                             GetLastIndex(isolate, regexp), Object);
+
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
+                             Object::ToLength(isolate, last_index_obj), Object);
+
+  const int last_index = Handle<Smi>::cast(last_index_obj)->value();
+  const int new_last_index =
+      last_index + AdvanceStringIndex(isolate, string, last_index, unicode);
+
+  return SetLastIndex(isolate, regexp, new_last_index);
+}
+
+}  // namespace
+
+// ES#sec-regexp.prototype-@@match
+// RegExp.prototype [ @@match ] ( string )
+BUILTIN(RegExpPrototypeMatch) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, recv, "RegExp.prototype.@@match");
+
+  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
+
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, string_obj));
+
+  Handle<Object> global_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, global_obj,
+      JSReceiver::GetProperty(recv, isolate->factory()->global_string()));
+  const bool global = global_obj->BooleanValue();
+
+  if (!global) {
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             RegExpExec(isolate, recv, string,
+                                        isolate->factory()->undefined_value()));
+  }
+
+  Handle<Object> unicode_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, unicode_obj,
+      JSReceiver::GetProperty(recv, isolate->factory()->unicode_string()));
+  const bool unicode = unicode_obj->BooleanValue();
+
+  RETURN_FAILURE_ON_EXCEPTION(isolate, SetLastIndex(isolate, recv, 0));
+
+  static const int kInitialArraySize = 8;
+  Handle<FixedArray> elems =
+      isolate->factory()->NewFixedArrayWithHoles(kInitialArraySize);
+
+  int n = 0;
+  for (;; n++) {
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, RegExpExec(isolate, recv, string,
+                                    isolate->factory()->undefined_value()));
+
+    if (result->IsNull(isolate)) {
+      if (n == 0) return isolate->heap()->null_value();
+      break;
+    }
+
+    Handle<Object> match_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_obj,
+                                       Object::GetElement(isolate, result, 0));
+
+    Handle<String> match;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match,
+                                       Object::ToString(isolate, match_obj));
+
+    elems = FixedArray::SetAndGrow(elems, n, match);
+
+    if (match->length() == 0) {
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, SetAdvancedStringIndex(isolate, recv, string, unicode));
+    }
+  }
+
+  elems->Shrink(n);
+  return *isolate->factory()->NewJSArrayWithElements(elems);
+}
+
+// ES#sec-regexp.prototype-@@search
+// RegExp.prototype [ @@search ] ( string )
+BUILTIN(RegExpPrototypeSearch) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, recv, "RegExp.prototype.@@search");
+
+  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
+
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, string_obj));
+
+  Handle<Object> previous_last_index_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, previous_last_index_obj,
+                                     GetLastIndex(isolate, recv));
+
+  if (!previous_last_index_obj->IsSmi() ||
+      Smi::cast(*previous_last_index_obj)->value() != 0) {
+    RETURN_FAILURE_ON_EXCEPTION(isolate, SetLastIndex(isolate, recv, 0));
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      RegExpExec(isolate, recv, string, isolate->factory()->undefined_value()));
+
+  Handle<Object> current_last_index_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, current_last_index_obj,
+                                     GetLastIndex(isolate, recv));
+
+  Maybe<bool> is_last_index_unchanged =
+      Object::Equals(current_last_index_obj, previous_last_index_obj);
+  if (is_last_index_unchanged.IsNothing()) return isolate->pending_exception();
+  if (!is_last_index_unchanged.FromJust()) {
+    if (previous_last_index_obj->IsSmi()) {
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, SetLastIndex(isolate, recv,
+                                Smi::cast(*previous_last_index_obj)->value()));
+    } else {
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate,
+          Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
+                              previous_last_index_obj, STRICT));
+    }
+  }
+
+  if (result->IsNull(isolate)) return Smi::FromInt(-1);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::GetProperty(result, isolate->factory()->index_string()));
 }
 
 }  // namespace internal

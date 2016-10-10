@@ -95,7 +95,7 @@
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
-  V(last_index_string, "lastIndex")                                \
+  V(lastIndex_string, "lastIndex")                                 \
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \
   V(literal_string, "literal")                                     \

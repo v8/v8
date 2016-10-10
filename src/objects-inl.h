@@ -7030,6 +7030,18 @@ void JSRegExp::SetDataAt(int index, Object* value) {
   FixedArray::cast(data())->set(index, value);
 }
 
+void JSRegExp::SetLastIndex(int index) {
+  static const int offset =
+      kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+  Smi* value = Smi::FromInt(index);
+  WRITE_FIELD(this, offset, value);
+}
+
+Object* JSRegExp::LastIndex() {
+  static const int offset =
+      kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+  return READ_FIELD(this, offset);
+}
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();

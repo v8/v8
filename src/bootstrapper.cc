@@ -1702,8 +1702,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       JSObject::AddProperty(prototype, factory->constructor_string(),
                             regexp_fun, DONT_ENUM);
 
-      SimpleInstallFunction(prototype, "exec", Builtins::kRegExpPrototypeExec,
-                            1, true, DONT_ENUM);
+      {
+        Handle<JSFunction> fun = SimpleInstallFunction(
+            prototype, "exec", Builtins::kRegExpPrototypeExec, 1, true,
+            DONT_ENUM);
+        native_context()->set_regexp_exec_function(*fun);
+      }
 
       SimpleInstallGetter(prototype, factory->flags_string(),
                           Builtins::kRegExpPrototypeFlagsGetter, true);
@@ -1726,6 +1730,22 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(prototype, factory->toString_string(),
                             Builtins::kRegExpPrototypeToString, 0, false,
                             DONT_ENUM);
+      SimpleInstallFunction(prototype, "test", Builtins::kRegExpPrototypeTest,
+                            1, false, DONT_ENUM);
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.match]"),
+            Builtins::kRegExpPrototypeMatch, 1, false);
+        InstallFunction(prototype, fun, factory->match_symbol(), DONT_ENUM);
+      }
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.search]"),
+            Builtins::kRegExpPrototypeSearch, 1, false);
+        InstallFunction(prototype, fun, factory->search_symbol(), DONT_ENUM);
+      }
     }
 
     {
@@ -1812,7 +1832,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // ECMA-262, section 15.10.7.5.
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    DataDescriptor field(factory->last_index_string(),
+    DataDescriptor field(factory->lastIndex_string(),
                          JSRegExp::kLastIndexFieldIndex, writable,
                          Representation::Tagged());
     initial_map->AppendDescriptor(&field);

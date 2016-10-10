@@ -8551,6 +8551,9 @@ class JSRegExp: public JSObject {
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
 
+  inline void SetLastIndex(int index);
+  inline Object* LastIndex();
+
   static int code_index(bool is_latin1) {
     if (is_latin1) {
       return kIrregexpLatin1CodeIndex;

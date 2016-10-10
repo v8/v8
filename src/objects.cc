@@ -16506,7 +16506,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   } else {
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(isolate, JSReceiver::SetProperty(
-                                     regexp, factory->last_index_string(),
+                                     regexp, factory->lastIndex_string(),
                                      Handle<Smi>(Smi::kZero, isolate), STRICT),
                         JSRegExp);
   }
