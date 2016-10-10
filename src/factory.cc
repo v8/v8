@@ -1767,10 +1767,9 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_embedder_data(isolate()->heap()->undefined_value());
   module->set_exports(*exports);
   module->set_flags(0);
+  module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
-  module->set_embedder_data(isolate()->heap()->undefined_value());
-  module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   return module;
 }
 
