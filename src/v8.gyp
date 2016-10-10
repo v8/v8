@@ -2061,7 +2061,7 @@
     },
     {
       'target_name': 'v8_libplatform',
-      'type': 'static_library',
+      'type': '<(component)',
       'variables': {
         'optimize': 'max',
       },
@@ -2075,6 +2075,7 @@
       ],
       'sources': [
         '../include/libplatform/libplatform.h',
+        '../include/libplatform/libplatform-export.h',
         '../include/libplatform/v8-tracing.h',
         'libplatform/default-platform.cc',
         'libplatform/default-platform.h',
@@ -2096,6 +2097,12 @@
         }, {
           'toolsets': ['target'],
         }],
+        ['component=="shared_library"', {
+          'direct_dependent_settings': {
+            'defines': [ 'USING_V8_PLATFORM_SHARED' ],
+          },
+          'defines': [ 'BUILDING_V8_PLATFORM_SHARED' ],
+        }]
       ],
       'direct_dependent_settings': {
         'include_dirs': [

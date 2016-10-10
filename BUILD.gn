@@ -128,6 +128,9 @@ config("internal_config_base") {
 # This config should be applied to code using the libplatform.
 config("libplatform_config") {
   include_dirs = [ "include" ]
+  if (is_component_build) {
+    defines = [ "USING_V8_PLATFORM_SHARED" ]
+  }
 }
 
 # This config should be applied to code using the libbase.
@@ -2300,9 +2303,10 @@ v8_component("v8_libbase") {
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
-v8_source_set("v8_libplatform") {
+v8_component("v8_libplatform") {
   sources = [
     "//base/trace_event/common/trace_event_common.h",
+    "include/libplatform/libplatform-export.h",
     "include/libplatform/libplatform.h",
     "include/libplatform/v8-tracing.h",
     "src/libplatform/default-platform.cc",
@@ -2321,6 +2325,10 @@ v8_source_set("v8_libplatform") {
   ]
 
   configs = [ ":internal_config_base" ]
+
+  if (is_component_build) {
+    defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
+  }
 
   public_configs = [ ":libplatform_config" ]
 
@@ -2359,6 +2367,7 @@ v8_source_set("fuzzer_support") {
   ]
 
   public_deps = [
+    ":v8_libbase",
     ":v8_libplatform",
   ]
 }

@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "libplatform/libplatform-export.h"
 #include "v8-platform.h"  // NOLINT(build/include)
 
 namespace v8 {
@@ -23,7 +24,7 @@ namespace tracing {
 
 const int kTraceMaxNumArgs = 2;
 
-class TraceObject {
+class V8_PLATFORM_EXPORT TraceObject {
  public:
   union ArgValue {
     bool as_bool;
@@ -103,7 +104,7 @@ class TraceObject {
   void operator=(const TraceObject&) = delete;
 };
 
-class TraceWriter {
+class V8_PLATFORM_EXPORT TraceWriter {
  public:
   TraceWriter() {}
   virtual ~TraceWriter() {}
@@ -118,7 +119,7 @@ class TraceWriter {
   void operator=(const TraceWriter&) = delete;
 };
 
-class TraceBufferChunk {
+class V8_PLATFORM_EXPORT TraceBufferChunk {
  public:
   explicit TraceBufferChunk(uint32_t seq);
 
@@ -142,7 +143,7 @@ class TraceBufferChunk {
   void operator=(const TraceBufferChunk&) = delete;
 };
 
-class TraceBuffer {
+class V8_PLATFORM_EXPORT TraceBuffer {
  public:
   TraceBuffer() {}
   virtual ~TraceBuffer() {}
@@ -178,7 +179,7 @@ enum TraceRecordMode {
   ECHO_TO_CONSOLE,
 };
 
-class TraceConfig {
+class V8_PLATFORM_EXPORT TraceConfig {
  public:
   typedef std::vector<std::string> StringList;
 
@@ -216,7 +217,7 @@ class TraceConfig {
   void operator=(const TraceConfig&) = delete;
 };
 
-class TracingController {
+class V8_PLATFORM_EXPORT TracingController {
  public:
   enum Mode { DISABLED = 0, RECORDING_MODE };
 
