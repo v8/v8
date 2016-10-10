@@ -828,8 +828,9 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry for floating point subtraction.
-  Label do_fsub(assembler), end(assembler),
-      call_subtract_stub(assembler, Label::kDeferred);
+  Label do_fsub(assembler), end(assembler), call_subtract_stub(assembler),
+      if_lhsisnotnumber(assembler), check_rhsisoddball(assembler),
+      call_with_any_feedback(assembler);
   Variable var_fsub_lhs(assembler, MachineRepresentation::kFloat64),
       var_fsub_rhs(assembler, MachineRepresentation::kFloat64),
       var_type_feedback(assembler, MachineRepresentation::kWord32),
@@ -879,7 +880,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 
       // Check if {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_subtract_stub);
+                            &check_rhsisoddball);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(assembler->SmiToFloat64(lhs));
@@ -895,7 +896,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 
     // Check if the {lhs} is a HeapNumber.
     assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
-                          &call_subtract_stub);
+                          &if_lhsisnotnumber);
 
     // Check if the {rhs} is a Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -916,7 +917,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 
       // Check if the {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_subtract_stub);
+                            &check_rhsisoddball);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
@@ -936,10 +937,63 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_subtract_stub);
+  assembler->Bind(&if_lhsisnotnumber);
+  {
+    // No checks on rhs are done yet. We just know lhs is not a number or Smi.
+    // Check if lhs is an oddball.
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* lhs_is_oddball = assembler->Word32Equal(
+        lhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(lhs_is_oddball, &call_with_any_feedback);
+
+    Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+    assembler->Bind(&if_rhsissmi);
+    {
+      var_type_feedback.Bind(
+          assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+      assembler->Goto(&call_subtract_stub);
+    }
+
+    assembler->Bind(&if_rhsisnotsmi);
+    {
+      // Load the map of the {rhs}.
+      Node* rhs_map = assembler->LoadMap(rhs);
+
+      // Check if {rhs} is a HeapNumber.
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &check_rhsisoddball);
+
+      var_type_feedback.Bind(
+          assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+      assembler->Goto(&call_subtract_stub);
+    }
+  }
+
+  assembler->Bind(&check_rhsisoddball);
+  {
+    // Check if rhs is an oddball. At this point we know lhs is either a
+    // Smi or number or oddball and rhs is not a number or Smi.
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+    Node* rhs_is_oddball = assembler->Word32Equal(
+        rhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(rhs_is_oddball, &call_with_any_feedback);
+
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_subtract_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_subtract_stub);
+  }
+
+  assembler->Bind(&call_subtract_stub);
+  {
     Callable callable = CodeFactory::Subtract(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
