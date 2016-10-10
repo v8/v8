@@ -474,9 +474,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5336
   'language/expressions/super/call-proto-not-ctor': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5337
-  'language/expressions/arrow-function/dstr-dflt-ary-ptrn-rest-ary-rest': [SKIP],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
