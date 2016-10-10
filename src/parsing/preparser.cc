@@ -228,7 +228,7 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
     scope()->NewUnresolved(&factory, name.string_, start_position, end_position,
                            NORMAL_VARIABLE);
   }
-  return PreParserExpression::FromIdentifier(name);
+  return PreParserExpression::FromIdentifier(name, zone());
 }
 
 void PreParser::DeclareAndInitializeVariables(
@@ -236,20 +236,23 @@ void PreParser::DeclareAndInitializeVariables(
     const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
-  if (declaration->pattern.string_) {
+  if (declaration->pattern.identifiers_ != nullptr) {
+    DCHECK(FLAG_lazy_inner_functions);
     /* Mimic what Parser does when declaring variables (see
        Parser::PatternRewriter::VisitVariableProxy).
 
        var + no initializer -> RemoveUnresolved
-       let + no initializer -> RemoveUnresolved
+       let / const + no initializer -> RemoveUnresolved
        var + initializer -> RemoveUnresolved followed by NewUnresolved
-       let + initializer -> RemoveUnresolved
+       let / const + initializer -> RemoveUnresolved
     */
 
     if (declaration->initializer.IsEmpty() ||
-        declaration_descriptor->mode == VariableMode::LET) {
-      declaration_descriptor->scope->RemoveUnresolved(
-          declaration->pattern.string_);
+        (declaration_descriptor->mode == VariableMode::LET ||
+         declaration_descriptor->mode == VariableMode::CONST)) {
+      for (auto identifier : *(declaration->pattern.identifiers_)) {
+        declaration_descriptor->scope->RemoveUnresolved(identifier);
+      }
     }
   }
 }

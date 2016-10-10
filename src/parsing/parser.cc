@@ -124,6 +124,7 @@ class DiscardableZoneScope {
       parser_->zone_ = temp_zone;
       if (parser_->reusable_preparser_ != nullptr) {
         parser_->reusable_preparser_->zone_ = temp_zone;
+        parser_->reusable_preparser_->factory()->set_zone(temp_zone);
       }
     }
   }
@@ -132,6 +133,7 @@ class DiscardableZoneScope {
     parser_->zone_ = prev_zone_;
     if (parser_->reusable_preparser_ != nullptr) {
       parser_->reusable_preparser_->zone_ = prev_zone_;
+      parser_->reusable_preparser_->factory()->set_zone(prev_zone_);
     }
     ast_node_factory_scope_.Reset();
   }

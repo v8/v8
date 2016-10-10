@@ -1018,7 +1018,7 @@ bool Scope::RemoveUnresolved(VariableProxy* var) {
 }
 
 bool Scope::RemoveUnresolved(const AstRawString* name) {
-  if (unresolved_->raw_name() == name) {
+  if (unresolved_ != nullptr && unresolved_->raw_name() == name) {
     VariableProxy* removed = unresolved_;
     unresolved_ = unresolved_->next_unresolved();
     removed->set_next_unresolved(nullptr);
@@ -1027,7 +1027,7 @@ bool Scope::RemoveUnresolved(const AstRawString* name) {
   VariableProxy* current = unresolved_;
   while (current != nullptr) {
     VariableProxy* next = current->next_unresolved();
-    if (next->raw_name() == name) {
+    if (next != nullptr && next->raw_name() == name) {
       current->set_next_unresolved(next->next_unresolved());
       next->set_next_unresolved(nullptr);
       return true;
