@@ -622,8 +622,10 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
+
 # Module-related tests
 # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+
 ['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   'language/eval-code/direct/export': [SKIP],
   'language/eval-code/direct/import': [SKIP],
@@ -631,11 +633,29 @@
   'language/eval-code/indirect/import': [SKIP],
   'language/module-code/*': [SKIP],
 }],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+
 ['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
-  'language/module-code/comment-*': [SKIP],
-  'language/module-code/eval-*': [SKIP],
-  'language/module-code/instn-*': [SKIP],
-  'language/module-code/namespace/*': [SKIP],
+  # v8:5485
+  'language/module-code/comment-multi-line-html*': [FAIL],
+  'language/module-code/comment-single-line-html*': [FAIL],
+
+  # v8:5486
+  'language/module-code/instn-iee-star-cycle': [FAIL],
+  'language/module-code/instn-named-star-cycle': [FAIL],
+  'language/module-code/instn-star-star-cycle': [FAIL],
+
+  # v8:5487
+  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
+
+  # @@iterator on namespace objects, to be implemented
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
+  'language/module-code/namespace/internals/get-own-property-sym': [FAIL],
+  'language/module-code/namespace/internals/get-sym-found': [FAIL],
+  'language/module-code/namespace/internals/has-property-sym-found': [FAIL],
+  'language/module-code/namespace/internals/own-property-keys-binding-types': [FAIL],
+  'language/module-code/namespace/internals/own-property-keys-sort': [FAIL],
+  'language/module-code/namespace/internals/set': [FAIL],
+  'language/module-code/namespace/Symbol.iterator/*': [FAIL],
 }],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]

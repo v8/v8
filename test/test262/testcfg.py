@@ -121,7 +121,7 @@ class Test262TestSuite(testsuite.TestSuite):
       dirs.sort()
       files.sort()
       for filename in files:
-        if filename.endswith(".js"):
+        if filename.endswith(".js") and not filename.endswith("_FIXTURE.js"):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.testroot) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
