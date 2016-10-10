@@ -24,8 +24,8 @@ var promiseRejectReactionsSymbol =
     utils.ImportNow("promise_reject_reactions_symbol");
 var promiseFulfillReactionsSymbol =
     utils.ImportNow("promise_fulfill_reactions_symbol");
-var promiseDeferredReactionsSymbol =
-    utils.ImportNow("promise_deferred_reactions_symbol");
+var promiseDeferredReactionSymbol =
+    utils.ImportNow("promise_deferred_reaction_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
 var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
@@ -128,16 +128,11 @@ function PromiseSet(promise, status, value) {
   SET_PRIVATE(promise, promiseFulfillReactionsSymbol, UNDEFINED);
   SET_PRIVATE(promise, promiseRejectReactionsSymbol, UNDEFINED);
 
-  // There are 2 possible states for this symbol --
-  // 1) UNDEFINED -- This is the zero state, no deferred object is
-  // attached to this symbol. When we want to add a new deferred we
-  // directly attach it to this symbol.
-  // 2) symbol with attached deferred object -- New deferred objects
-  // are not attached to this symbol, but instead they are directly
-  // attached to the resolve, reject callback arrays. At this point,
-  // the deferred symbol's state is stale, and the deferreds should be
-  // read from the reject, resolve callbacks.
-  SET_PRIVATE(promise, promiseDeferredReactionsSymbol, UNDEFINED);
+  // This symbol is used only when one deferred needs to be attached. When more
+  // than one deferred need to be attached the promise, we attach them directly
+  // to the promiseFulfillReactionsSymbol and promiseRejectReactionsSymbol and
+  // reset this back to UNDEFINED.
+  SET_PRIVATE(promise, promiseDeferredReactionSymbol, UNDEFINED);
 
   return promise;
 }
@@ -157,8 +152,8 @@ function FulfillPromise(promise, status, value, promiseQueue) {
   if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
     var tasks = GET_PRIVATE(promise, promiseQueue);
     if (!IS_UNDEFINED(tasks)) {
-      var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
-      PromiseEnqueue(value, tasks, deferreds, status);
+      var deferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
+      PromiseEnqueue(value, tasks, deferred, status);
     }
     PromiseSet(promise, status, value);
   }
@@ -234,11 +229,11 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
   if (IS_UNDEFINED(maybeResolveCallbacks)) {
     SET_PRIVATE(promise, promiseFulfillReactionsSymbol, onResolve);
     SET_PRIVATE(promise, promiseRejectReactionsSymbol, onReject);
-    SET_PRIVATE(promise, promiseDeferredReactionsSymbol, deferred);
+    SET_PRIVATE(promise, promiseDeferredReactionSymbol, deferred);
   } else if (!IS_ARRAY(maybeResolveCallbacks)) {
     var resolveCallbacks = new InternalArray();
     var rejectCallbacks = new InternalArray();
-    var existingDeferred = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
+    var existingDeferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
 
     resolveCallbacks.push(
         maybeResolveCallbacks, existingDeferred, onResolve, deferred);
@@ -249,7 +244,7 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
 
     SET_PRIVATE(promise, promiseFulfillReactionsSymbol, resolveCallbacks);
     SET_PRIVATE(promise, promiseRejectReactionsSymbol, rejectCallbacks);
-    SET_PRIVATE(promise, promiseDeferredReactionsSymbol, UNDEFINED);
+    SET_PRIVATE(promise, promiseDeferredReactionSymbol, UNDEFINED);
   } else {
     maybeResolveCallbacks.push(onResolve, deferred);
     GET_PRIVATE(promise, promiseRejectReactionsSymbol).push(onReject, deferred);
@@ -646,12 +641,12 @@ function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
   }
 
   var queue = GET_PRIVATE(promise, promiseRejectReactionsSymbol);
-  var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
+  var deferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
 
   if (IS_UNDEFINED(queue)) return false;
 
   if (!IS_ARRAY(queue)) {
-    return PromiseHasUserDefinedRejectHandlerCheck(queue, deferreds);
+    return PromiseHasUserDefinedRejectHandlerCheck(queue, deferred);
   }
 
   for (var i = 0; i < queue.length; i += 2) {
