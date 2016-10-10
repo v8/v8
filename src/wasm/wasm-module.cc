@@ -1181,41 +1181,40 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     Handle<FixedArray> code_table;
     Handle<FixedArray> old_code_table;
-    Handle<JSObject> owner;
-    // If we don't clone, this will be null(). Otherwise, this will
-    // be a weak link to the original. If we lose the original to GC,
-    // this will be a cleared. We'll link the instances chain last.
-    MaybeHandle<WeakCell> link_to_original;
+    MaybeHandle<JSObject> owner;
 
     TRACE("Starting new module instantiation\n");
     {
-      Handle<WasmCompiledModule> original(
-          WasmCompiledModule::cast(module_object_->GetInternalField(0)),
-          isolate_);
+      // Root the owner, if any, before doing any allocations, which
+      // may trigger GC.
+      // Both owner and original template need to be in sync. Even
+      // after we lose the original template handle, the code
+      // objects we copied from it have data relative to the
+      // instance - such as globals addresses.
+      Handle<WasmCompiledModule> original;
+      {
+        DisallowHeapAllocation no_gc;
+        original = handle(
+            WasmCompiledModule::cast(module_object_->GetInternalField(0)));
+        if (original->has_weak_owning_instance()) {
+          owner =
+              handle(JSObject::cast(original->weak_owning_instance()->value()));
+        }
+      }
+      DCHECK(!original.is_null());
       // Always make a new copy of the code_table, since the old_code_table
       // may still have placeholders for imports.
       old_code_table = original->code_table();
       code_table = factory->CopyFixedArray(old_code_table);
 
       if (original->has_weak_owning_instance()) {
-        WeakCell* tmp = original->ptr_to_weak_owning_instance();
-        DCHECK(!tmp->cleared());
-        // There is already an owner, clone everything.
-        owner = Handle<JSObject>(JSObject::cast(tmp->value()), isolate_);
-        // Insert the latest clone in front.
+        // Clone, but don't insert yet the clone in the instances chain.
+        // We do that last. Since we are holding on to the owner instance,
+        // the owner + original state used for cloning and patching
+        // won't be mutated by possible finalizer runs.
+        DCHECK(!owner.is_null());
         TRACE("Cloning from %d\n", original->instance_id());
         compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
-        // Replace the strong reference to point to the new instance here.
-        // This allows any of the other instances, including the original,
-        // to be collected.
-        module_object_->SetInternalField(0, *compiled_module_);
-        compiled_module_->set_weak_module_object(
-            original->weak_module_object());
-        link_to_original = factory->NewWeakCell(original);
-        // Don't link to original here. We remember the original
-        // as a weak link. If that link isn't clear by the time we finish
-        // instantiating this instance, then we link it at that time.
-        compiled_module_->reset_weak_next_instance();
 
         // Clone the code for WASM functions and exports.
         for (int i = 0; i < code_table->length(); ++i) {
@@ -1269,10 +1268,11 @@ class WasmInstanceBuilder {
         thrower_->Error("Out of memory: wasm globals");
         return nothing;
       }
-      Address old_address =
-          owner.is_null() ? nullptr : GetGlobalStartAddressFromCodeTemplate(
-                                          *factory->undefined_value(),
-                                          JSObject::cast(*owner));
+      Address old_address = owner.is_null()
+                                ? nullptr
+                                : GetGlobalStartAddressFromCodeTemplate(
+                                      *factory->undefined_value(),
+                                      JSObject::cast(*owner.ToHandleChecked()));
       RelocateGlobals(instance, old_address,
                       static_cast<Address>(global_buffer->backing_store()));
       instance->SetInternalField(kWasmGlobalsArrayBuffer, *global_buffer);
@@ -1355,8 +1355,9 @@ class WasmInstanceBuilder {
             compiled_module_->indirect_function_tables();
         Handle<FixedArray> to_replace =
             owner.is_null() ? indirect_tables_template
-                            : handle(FixedArray::cast(owner->GetInternalField(
-                                  kWasmModuleFunctionTable)));
+                            : handle(FixedArray::cast(
+                                  owner.ToHandleChecked()->GetInternalField(
+                                      kWasmModuleFunctionTable)));
         Handle<FixedArray> indirect_tables = SetupIndirectFunctionTable(
             isolate_, code_table, indirect_tables_template, to_replace);
         for (int i = 0; i < indirect_tables->length(); ++i) {
@@ -1412,26 +1413,35 @@ class WasmInstanceBuilder {
     }
 
     {
-      Handle<WeakCell> link_to_owner = factory->NewWeakCell(instance);
-
       Handle<Object> global_handle =
           isolate_->global_handles()->Create(*instance);
       Handle<WeakCell> link_to_clone = factory->NewWeakCell(compiled_module_);
+      Handle<WeakCell> link_to_owning_instance = factory->NewWeakCell(instance);
+      MaybeHandle<WeakCell> link_to_original;
+      MaybeHandle<WasmCompiledModule> original;
+      if (!owner.is_null()) {
+        // prepare the data needed for publishing in a chain, but don't link
+        // just yet, because
+        // we want all the publishing to happen free from GC interruptions, and
+        // so we do it in
+        // one GC-free scope afterwards.
+        original = handle(WasmCompiledModule::cast(
+            owner.ToHandleChecked()->GetInternalField(kWasmCompiledModule)));
+        link_to_original = factory->NewWeakCell(original.ToHandleChecked());
+      }
+      // Publish the new instance to the instances chain.
       {
         DisallowHeapAllocation no_gc;
-        compiled_module_->set_weak_owning_instance(link_to_owner);
-        Handle<WeakCell> next;
-        if (link_to_original.ToHandle(&next) && !next->cleared()) {
-          WasmCompiledModule* original =
-              WasmCompiledModule::cast(next->value());
-          DCHECK(original->has_weak_owning_instance());
-          DCHECK(!original->weak_owning_instance()->cleared());
-          compiled_module_->set_weak_next_instance(next);
-          original->set_weak_prev_instance(link_to_clone);
+        if (!link_to_original.is_null()) {
+          compiled_module_->set_weak_next_instance(
+              link_to_original.ToHandleChecked());
+          original.ToHandleChecked()->set_weak_prev_instance(link_to_clone);
+          compiled_module_->set_weak_module_object(
+              original.ToHandleChecked()->weak_module_object());
         }
-
-        compiled_module_->set_weak_owning_instance(link_to_owner);
+        module_object_->SetInternalField(0, *compiled_module_);
         instance->SetInternalField(kWasmCompiledModule, *compiled_module_);
+        compiled_module_->set_weak_owning_instance(link_to_owning_instance);
         GlobalHandles::MakeWeak(global_handle.location(),
                                 global_handle.location(), &InstanceFinalizer,
                                 v8::WeakCallbackType::kFinalizer);
