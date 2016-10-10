@@ -105,7 +105,7 @@ var debug = true;
     module.addFunction("load", kSig_i_i)
         .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
         .exportAs("load");
-    module.addDataSegment(0, [9, 9, 9, 9]);
+    module.addDataSegment(0, [9, 9, 9, 9], true);
 
     var buffer = module.toBuffer(debug);
     var instance = Wasm.instantiateModule(buffer);

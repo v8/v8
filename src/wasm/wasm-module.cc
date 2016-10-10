@@ -90,7 +90,7 @@ enum WasmGlobalInitData {
 };
 
 enum WasmSegmentInfo {
-  kDestAddrKind,        // 0 = constant, 1 = global index
+  kDestInitKind,        // 0 = constant, 1 = global index
   kDestAddrValue,       // Smi. an uint32_t
   kSourceSize,          // Smi. an uint32_t
   kWasmSegmentInfoSize  // Sentinel value.
@@ -127,18 +127,9 @@ void SaveDataSegmentInfo(Factory* factory, const WasmModule* module,
     if (segment.source_size == 0) continue;
     Handle<ByteArray> js_segment =
         factory->NewByteArray(kWasmSegmentInfoSize * sizeof(uint32_t), TENURED);
-    if (segment.dest_addr.kind == WasmInitExpr::kGlobalIndex) {
-      // The destination address is the value of a global variable.
-      js_segment->set_int(kDestAddrKind, 1);
-      uint32_t offset =
-          module->globals[segment.dest_addr.val.global_index].offset;
-      js_segment->set_int(kDestAddrValue, static_cast<int>(offset));
-    } else {
-      // The destination address is a constant.
-      CHECK_EQ(WasmInitExpr::kI32Const, segment.dest_addr.kind);
-      js_segment->set_int(kDestAddrKind, 0);
-      js_segment->set_int(kDestAddrValue, segment.dest_addr.val.i32_const);
-    }
+    // TODO(titzer): add support for global offsets for dest_addr
+    CHECK_EQ(WasmInitExpr::kI32Const, segment.dest_addr.kind);
+    js_segment->set_int(kDestAddrValue, segment.dest_addr.val.i32_const);
     js_segment->set_int(kSourceSize, segment.source_size);
     segments->set(i, *js_segment);
     data->copy_in(last_insertion_pos,
@@ -1285,11 +1276,6 @@ class WasmInstanceBuilder {
     if (num_imported_functions < 0) return nothing;
 
     //--------------------------------------------------------------------------
-    // Process the initialization for the module's globals.
-    //--------------------------------------------------------------------------
-    ProcessInits(globals);
-
-    //--------------------------------------------------------------------------
     // Set up the memory for the new instance.
     //--------------------------------------------------------------------------
     MaybeHandle<JSArrayBuffer> old_memory;
@@ -1309,7 +1295,7 @@ class WasmInstanceBuilder {
       Address mem_start = static_cast<Address>(memory_->backing_store());
       uint32_t mem_size =
           static_cast<uint32_t>(memory_->byte_length()->Number());
-      LoadDataSegments(globals, mem_start, mem_size);
+      LoadDataSegments(mem_start, mem_size);
 
       uint32_t old_mem_size = compiled_module_->has_heap()
                                   ? compiled_module_->mem_size()
@@ -1322,6 +1308,11 @@ class WasmInstanceBuilder {
                            mem_size);
       compiled_module_->set_heap(memory_);
     }
+
+    //--------------------------------------------------------------------------
+    // Process the initialization for the module's globals.
+    //--------------------------------------------------------------------------
+    ProcessInits(globals);
 
     //--------------------------------------------------------------------------
     // Set up the runtime support for the new instance.
@@ -1511,8 +1502,7 @@ class WasmInstanceBuilder {
   }
 
   // Load data segments into the memory.
-  void LoadDataSegments(MaybeHandle<JSArrayBuffer> globals, Address mem_addr,
-                        size_t mem_size) {
+  void LoadDataSegments(Address mem_addr, size_t mem_size) {
     CHECK(compiled_module_->has_data_segments() ==
           compiled_module_->has_data_segments_info());
 
@@ -1528,12 +1518,6 @@ class WasmInstanceBuilder {
           Handle<ByteArray>(ByteArray::cast(segments->get(i)));
       uint32_t dest_addr =
           static_cast<uint32_t>(segment->get_int(kDestAddrValue));
-      if (segment->get_int(kDestAddrKind) == 1) {
-        // The destination address is the value of a global variable.
-        dest_addr =
-            *reinterpret_cast<uint32_t*>(raw_buffer_ptr(globals, dest_addr));
-      }
-
       uint32_t source_size =
           static_cast<uint32_t>(segment->get_int(kSourceSize));
       CHECK_LT(dest_addr, mem_size);
