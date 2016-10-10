@@ -781,6 +781,42 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   assembler->Return(result);
 }
 
+// ES6 section 21.1.3.7
+// String.prototype.includes ( searchString [ , position ] )
+BUILTIN(StringPrototypeIncludes) {
+  HandleScope handle_scope(isolate);
+  TO_THIS_STRING(str, "String.prototype.includes");
+
+  Handle<Object> search = args.atOrUndefined(isolate, 1);
+  if (search->IsObject()) {
+    Handle<Symbol> match_name = isolate->factory()->match_symbol();
+    Handle<Object> match_property;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_property,
+                                       Object::GetProperty(search, match_name));
+    if (!match_property->IsUndefined(isolate) &&
+        match_property->BooleanValue()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
+                                isolate->factory()->NewStringFromStaticChars(
+                                    "String.prototype.includes")));
+    }
+  }
+  Handle<String> search_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
+                                     Object::ToString(isolate, search));
+  Handle<Object> position;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, position,
+      Object::ToInteger(isolate, args.atOrUndefined(isolate, 2)));
+
+  double index = std::max(position->Number(), 0.0);
+  index = std::min(index, static_cast<double>(str->length()));
+
+  int index_in_str = String::IndexOf(isolate, str, search_string,
+                                     static_cast<uint32_t>(index));
+  return *isolate->factory()->ToBoolean(index_in_str != -1);
+}
+
 // ES6 section 21.1.3.8 String.prototype.indexOf ( searchString [ , position ] )
 BUILTIN(StringPrototypeIndexOf) {
   HandleScope handle_scope(isolate);
