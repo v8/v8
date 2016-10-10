@@ -474,10 +474,11 @@ struct SimplifiedOperatorGlobalCache final {
 #undef CHECKED
 
   template <UnicodeEncoding kEncoding>
-  struct StringFromCodePointOperator final : public Operator {
+  struct StringFromCodePointOperator final : public Operator1<UnicodeEncoding> {
     StringFromCodePointOperator()
-        : Operator(IrOpcode::kStringFromCodePoint, Operator::kPure,
-                   "StringFromCodePoint", 1, 0, 0, 1, 0, 0) {}
+        : Operator1<UnicodeEncoding>(IrOpcode::kStringFromCodePoint,
+                                     Operator::kPure, "StringFromCodePoint", 1,
+                                     0, 0, 1, 0, 0, kEncoding) {}
   };
   StringFromCodePointOperator<UnicodeEncoding::UTF16>
       kStringFromCodePointOperatorUTF16;
