@@ -46,7 +46,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
-                                MaybeHandle<Context> native_context,
+                                Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone);
 
@@ -103,15 +103,16 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                          Node* context, Node* frame_state,
                                          Node* effect, Node* control,
                                          Handle<Name> name,
-                                         Handle<Context> native_context,
                                          PropertyAccessInfo const& access_info,
                                          AccessMode access_mode);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(
-      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
-      Handle<Context> native_context, ElementAccessInfo const& access_info,
-      AccessMode access_mode, KeyedAccessStoreMode store_mode);
+  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
+                                        Node* value, Node* effect,
+                                        Node* control,
+                                        ElementAccessInfo const& access_info,
+                                        AccessMode access_mode,
+                                        KeyedAccessStoreMode store_mode);
 
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
@@ -123,14 +124,12 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
   void AssumePrototypesStable(std::vector<Handle<Map>> const& receiver_maps,
-                              Handle<Context> native_context,
                               Handle<JSObject> holder);
 
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(std::vector<Handle<Map>> const& receiver_maps,
-                               Handle<Context> native_context);
+  bool CanTreatHoleAsUndefined(std::vector<Handle<Map>> const& receiver_maps);
 
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
@@ -146,9 +145,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // program location.
   MaybeHandle<Map> InferReceiverRootMap(Node* receiver);
 
-  // Retrieve the native context from the given {node} if known.
-  MaybeHandle<Context> GetNativeContext(Node* node);
-
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
@@ -158,13 +154,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
-  MaybeHandle<Context> native_context() const { return native_context_; }
+  Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
-  MaybeHandle<Context> native_context_;
+  Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   TypeCache const& type_cache_;

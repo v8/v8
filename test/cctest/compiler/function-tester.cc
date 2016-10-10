@@ -26,8 +26,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
       function((FLAG_allow_natives_syntax = true, NewFunction(source))),
       flags_(flags) {
   Compile(function);
-  const uint32_t supported_flags = CompilationInfo::kNativeContextSpecializing |
-                                   CompilationInfo::kInliningEnabled;
+  const uint32_t supported_flags = CompilationInfo::kInliningEnabled;
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
@@ -164,9 +163,6 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 
   info.SetOptimizing();
   info.MarkAsDeoptimizationEnabled();
-  if (flags_ & CompilationInfo::kNativeContextSpecializing) {
-    info.MarkAsNativeContextSpecializing();
-  }
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }

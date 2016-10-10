@@ -186,11 +186,11 @@ class PipelineData {
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   JSGraph* jsgraph() const { return jsgraph_; }
-  MaybeHandle<Context> native_context() const {
-    if (info()->is_native_context_specializing()) {
-      return handle(info()->native_context(), isolate());
-    }
-    return MaybeHandle<Context>();
+  Handle<Context> native_context() const {
+    return handle(info()->native_context(), isolate());
+  }
+  Handle<JSGlobalObject> global_object() const {
+    return handle(info()->global_object(), isolate());
   }
 
   LoopAssignmentAnalysis* loop_assignment() const { return loop_assignment_; }
@@ -603,9 +603,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (!FLAG_always_opt) {
       info()->MarkAsBailoutOnUninitialized();
     }
-    if (FLAG_native_context_specialization) {
-      info()->MarkAsNativeContextSpecializing();
-    }
     if (FLAG_turbo_inlining) {
       info()->MarkAsInliningEnabled();
     }
@@ -803,7 +800,7 @@ struct InliningPhase {
     JSFrameSpecialization frame_specialization(
         &graph_reducer, data->info()->osr_frame(), data->jsgraph());
     JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, data->jsgraph(), data->native_context(),
+        &graph_reducer, data->jsgraph(), data->global_object(),
         data->info()->dependencies());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
@@ -931,10 +928,7 @@ struct TypedLoweringPhase {
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies());
-    MaybeHandle<LiteralsArray> literals_array =
-        data->info()->is_native_context_specializing()
-            ? handle(data->info()->closure()->literals(), data->isolate())
-            : MaybeHandle<LiteralsArray>();
+    Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
         literals_array, data->native_context(), temp_zone);

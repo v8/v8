@@ -194,7 +194,6 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
 
@@ -298,19 +297,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // Retrieve the Array function from the {node}.
-    Node* array_function;
-    Handle<Context> native_context;
-    if (GetNativeContext(node).ToHandle(&native_context)) {
-      array_function = jsgraph()->HeapConstant(
-          handle(native_context->array_function(), isolate()));
-    } else {
-      Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, context, effect);
-      array_function = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
-          native_context, native_context, effect);
-    }
+    Node* array_function = jsgraph()->HeapConstant(
+        handle(native_context()->array_function(), isolate()));
 
     // Check that the {target} is still the {array_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -353,7 +341,6 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   int const arity = static_cast<int>(p.arity() - 2);
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -413,19 +400,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
 
     // Retrieve the Array function from the {node}.
-    Node* array_function;
-    Handle<Context> native_context;
-    if (GetNativeContext(node).ToHandle(&native_context)) {
-      array_function = jsgraph()->HeapConstant(
-          handle(native_context->array_function(), isolate()));
-    } else {
-      Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, context, effect);
-      array_function = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
-          native_context, native_context, effect);
-    }
+    Node* array_function = jsgraph()->HeapConstant(
+        handle(native_context()->array_function(), isolate()));
 
     // Check that the {target} is still the {array_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -469,24 +445,13 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   return NoChange();
 }
 
-
-MaybeHandle<Context> JSCallReducer::GetNativeContext(Node* node) {
-  Node* const context = NodeProperties::GetContextInput(node);
-  return NodeProperties::GetSpecializationNativeContext(context,
-                                                        native_context());
-}
-
-
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
 
-
 Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
-
 
 CommonOperatorBuilder* JSCallReducer::common() const {
   return jsgraph()->common();
 }
-
 
 JSOperatorBuilder* JSCallReducer::javascript() const {
   return jsgraph()->javascript();

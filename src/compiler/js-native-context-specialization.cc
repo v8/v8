@@ -57,7 +57,7 @@ bool HasOnlyStringMaps(T const& maps) {
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
-    MaybeHandle<Context> native_context, CompilationDependencies* dependencies,
+    Handle<Context> native_context, CompilationDependencies* dependencies,
     Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
@@ -66,7 +66,6 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       dependencies_(dependencies),
       zone_(zone),
       type_cache_(TypeCache::Get()) {}
-
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -89,13 +88,11 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
-  Handle<Context> native_context;
   // Specialize JSLoadContext(NATIVE_CONTEXT_INDEX) to the known native
   // context (if any), so we can constant-fold those fields, which is
   // safe, since the NATIVE_CONTEXT_INDEX slot is always immutable.
-  if (access.index() == Context::NATIVE_CONTEXT_INDEX &&
-      GetNativeContext(node).ToHandle(&native_context)) {
-    Node* value = jsgraph()->HeapConstant(native_context);
+  if (access.index() == Context::NATIVE_CONTEXT_INDEX) {
+    Node* value = jsgraph()->HeapConstant(native_context());
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -120,12 +117,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Not much we can do if deoptimization support is disabled.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
-  // Retrieve the native context from the given {node}.
-  Handle<Context> native_context;
-  if (!GetNativeContext(node).ToHandle(&native_context)) return NoChange();
-
   // Compute property access infos for the receiver maps.
-  AccessInfoFactory access_info_factory(dependencies(), native_context,
+  AccessInfoFactory access_info_factory(dependencies(), native_context(),
                                         graph()->zone());
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   if (!access_info_factory.ComputePropertyAccessInfos(
@@ -174,9 +167,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     }
 
     // Generate the actual property access.
-    ValueEffectControl continuation = BuildPropertyAccess(
-        receiver, value, context, frame_state_lazy, effect, control, name,
-        native_context, access_info, access_mode);
+    ValueEffectControl continuation =
+        BuildPropertyAccess(receiver, value, context, frame_state_lazy, effect,
+                            control, name, access_info, access_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -287,7 +280,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Generate the actual property access.
       ValueEffectControl continuation = BuildPropertyAccess(
           this_receiver, this_value, context, frame_state_lazy, this_effect,
-          this_control, name, native_context, access_info, access_mode);
+          this_control, name, access_info, access_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -453,11 +446,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     value = graph()->NewNode(simplified()->StringFromCharCode(), value);
   } else {
     // Retrieve the native context from the given {node}.
-    Handle<Context> native_context;
-    if (!GetNativeContext(node).ToHandle(&native_context)) return NoChange();
-
     // Compute element access infos for the receiver maps.
-    AccessInfoFactory access_info_factory(dependencies(), native_context,
+    AccessInfoFactory access_info_factory(dependencies(), native_context(),
                                           graph()->zone());
     ZoneVector<ElementAccessInfo> access_infos(zone());
     if (!access_info_factory.ComputeElementAccessInfos(
@@ -543,9 +533,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                               access_info.receiver_maps());
 
       // Access the actual element.
-      ValueEffectControl continuation = BuildElementAccess(
-          receiver, index, value, effect, control, native_context, access_info,
-          access_mode, store_mode);
+      ValueEffectControl continuation =
+          BuildElementAccess(receiver, index, value, effect, control,
+                             access_info, access_mode, store_mode);
       value = continuation.value();
       effect = continuation.effect();
       control = continuation.control();
@@ -644,7 +634,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // Access the actual element.
         ValueEffectControl continuation = BuildElementAccess(
             this_receiver, this_index, this_value, this_effect, this_control,
-            native_context, access_info, access_mode, store_mode);
+            access_info, access_mode, store_mode);
         values.push_back(continuation.value());
         effects.push_back(continuation.effect());
         controls.push_back(continuation.control());
@@ -805,12 +795,12 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
-    Node* control, Handle<Name> name, Handle<Context> native_context,
-    PropertyAccessInfo const& access_info, AccessMode access_mode) {
+    Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
+    AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
-    AssumePrototypesStable(access_info.receiver_maps(), native_context, holder);
+    AssumePrototypesStable(access_info.receiver_maps(), holder);
   }
 
   // Generate the actual property access.
@@ -1058,8 +1048,8 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
-    Handle<Context> native_context, ElementAccessInfo const& access_info,
-    AccessMode access_mode, KeyedAccessStoreMode store_mode) {
+    ElementAccessInfo const& access_info, AccessMode access_mode,
+    KeyedAccessStoreMode store_mode) {
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
@@ -1234,7 +1224,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       if (elements_kind == FAST_HOLEY_ELEMENTS ||
           elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
         // Check if we are allowed to turn the hole into undefined.
-        if (CanTreatHoleAsUndefined(receiver_maps, native_context)) {
+        if (CanTreatHoleAsUndefined(receiver_maps)) {
           // Turn the hole into undefined.
           value = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
                                    value);
@@ -1247,7 +1237,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         // Perform the hole check on the result.
         CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
         // Check if we are allowed to return the hole directly.
-        if (CanTreatHoleAsUndefined(receiver_maps, native_context)) {
+        if (CanTreatHoleAsUndefined(receiver_maps)) {
           // Return the signaling NaN hole directly if all uses are truncating.
           mode = CheckFloat64HoleMode::kAllowReturnHole;
         }
@@ -1357,14 +1347,13 @@ Node* JSNativeContextSpecialization::BuildCheckHeapObject(Node* receiver,
 }
 
 void JSNativeContextSpecialization::AssumePrototypesStable(
-    std::vector<Handle<Map>> const& receiver_maps,
-    Handle<Context> native_context, Handle<JSObject> holder) {
+    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
     // Perform the implicit ToObject for primitives here.
     // Implemented according to ES6 section 7.3.2 GetV (V, P).
     Handle<JSFunction> constructor;
-    if (Map::GetConstructorFunction(map, native_context)
+    if (Map::GetConstructorFunction(map, native_context())
             .ToHandle(&constructor)) {
       map = handle(constructor->initial_map(), isolate());
     }
@@ -1373,16 +1362,15 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
-    std::vector<Handle<Map>> const& receiver_maps,
-    Handle<Context> native_context) {
+    std::vector<Handle<Map>> const& receiver_maps) {
   // Check if the array prototype chain is intact.
   if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
 
   // Make sure both the initial Array and Object prototypes are stable.
   Handle<JSObject> initial_array_prototype(
-      native_context->initial_array_prototype(), isolate());
+      native_context()->initial_array_prototype(), isolate());
   Handle<JSObject> initial_object_prototype(
-      native_context->initial_object_prototype(), isolate());
+      native_context()->initial_object_prototype(), isolate());
   if (!initial_array_prototype->map()->is_stable() ||
       !initial_object_prototype->map()->is_stable()) {
     return false;
@@ -1491,43 +1479,29 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
   return MaybeHandle<Map>();
 }
 
-MaybeHandle<Context> JSNativeContextSpecialization::GetNativeContext(
-    Node* node) {
-  Node* const context = NodeProperties::GetContextInput(node);
-  return NodeProperties::GetSpecializationNativeContext(context,
-                                                        native_context());
-}
-
-
 Graph* JSNativeContextSpecialization::graph() const {
   return jsgraph()->graph();
 }
-
 
 Isolate* JSNativeContextSpecialization::isolate() const {
   return jsgraph()->isolate();
 }
 
-
 Factory* JSNativeContextSpecialization::factory() const {
   return isolate()->factory();
 }
-
 
 MachineOperatorBuilder* JSNativeContextSpecialization::machine() const {
   return jsgraph()->machine();
 }
 
-
 CommonOperatorBuilder* JSNativeContextSpecialization::common() const {
   return jsgraph()->common();
 }
 
-
 JSOperatorBuilder* JSNativeContextSpecialization::javascript() const {
   return jsgraph()->javascript();
 }
-
 
 SimplifiedOperatorBuilder* JSNativeContextSpecialization::simplified() const {
   return jsgraph()->simplified();

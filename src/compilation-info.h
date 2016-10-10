@@ -43,15 +43,14 @@ class CompilationInfo final {
     kSerializing = 1 << 7,
     kFunctionContextSpecializing = 1 << 8,
     kFrameSpecializing = 1 << 9,
-    kNativeContextSpecializing = 1 << 10,
-    kInliningEnabled = 1 << 11,
-    kDisableFutureOptimization = 1 << 12,
-    kSplittingEnabled = 1 << 13,
-    kDeoptimizationEnabled = 1 << 14,
-    kSourcePositionsEnabled = 1 << 15,
-    kBailoutOnUninitialized = 1 << 16,
-    kOptimizeFromBytecode = 1 << 17,
-    kTypeFeedbackEnabled = 1 << 18,
+    kInliningEnabled = 1 << 10,
+    kDisableFutureOptimization = 1 << 11,
+    kSplittingEnabled = 1 << 12,
+    kDeoptimizationEnabled = 1 << 13,
+    kSourcePositionsEnabled = 1 << 14,
+    kBailoutOnUninitialized = 1 << 15,
+    kOptimizeFromBytecode = 1 << 16,
+    kTypeFeedbackEnabled = 1 << 17,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -142,14 +141,6 @@ class CompilationInfo final {
   void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
 
   bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
-
-  void MarkAsNativeContextSpecializing() {
-    SetFlag(kNativeContextSpecializing);
-  }
-
-  bool is_native_context_specializing() const {
-    return GetFlag(kNativeContextSpecializing);
-  }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
 

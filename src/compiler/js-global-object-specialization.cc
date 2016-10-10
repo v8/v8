@@ -25,16 +25,14 @@ struct JSGlobalObjectSpecialization::ScriptContextTableLookupResult {
   int index;
 };
 
-
 JSGlobalObjectSpecialization::JSGlobalObjectSpecialization(
-    Editor* editor, JSGraph* jsgraph,
-    MaybeHandle<Context> native_context, CompilationDependencies* dependencies)
+    Editor* editor, JSGraph* jsgraph, Handle<JSGlobalObject> global_object,
+    CompilationDependencies* dependencies)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      native_context_(native_context),
+      global_object_(global_object),
       dependencies_(dependencies),
       type_cache_(TypeCache::Get()) {}
-
 
 Reduction JSGlobalObjectSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -71,13 +69,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Retrieve the global object from the given {node}.
-  Handle<JSGlobalObject> global_object;
-  if (!GetGlobalObject(node).ToHandle(&global_object)) return NoChange();
-
   // Try to lookup the name on the script context table first (lexical scoping).
   ScriptContextTableLookupResult result;
-  if (LookupInScriptContextTable(global_object, name, &result)) {
+  if (LookupInScriptContextTable(name, &result)) {
     if (result.context->is_the_hole(result.index)) return NoChange();
     Node* context = jsgraph()->HeapConstant(result.context);
     Node* value = effect = graph()->NewNode(
@@ -89,7 +83,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
 
   // Lookup on the global object instead.  We only deal with own data
   // properties of the global object here (represented as PropertyCell).
-  LookupIterator it(global_object, name, LookupIterator::OWN);
+  LookupIterator it(global_object(), name, LookupIterator::OWN);
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
@@ -158,13 +152,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Retrieve the global object from the given {node}.
-  Handle<JSGlobalObject> global_object;
-  if (!GetGlobalObject(node).ToHandle(&global_object)) return NoChange();
-
   // Try to lookup the name on the script context table first (lexical scoping).
   ScriptContextTableLookupResult result;
-  if (LookupInScriptContextTable(global_object, name, &result)) {
+  if (LookupInScriptContextTable(name, &result)) {
     if (result.context->is_the_hole(result.index)) return NoChange();
     if (result.immutable) return NoChange();
     Node* context = jsgraph()->HeapConstant(result.context);
@@ -176,7 +166,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
 
   // Lookup on the global object instead.  We only deal with own data
   // properties of the global object here (represented as PropertyCell).
-  LookupIterator it(global_object, name, LookupIterator::OWN);
+  LookupIterator it(global_object(), name, LookupIterator::OWN);
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
@@ -251,21 +241,11 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
   return Replace(value);
 }
 
-
-MaybeHandle<JSGlobalObject> JSGlobalObjectSpecialization::GetGlobalObject(
-    Node* node) {
-  Node* const context = NodeProperties::GetContextInput(node);
-  return NodeProperties::GetSpecializationGlobalObject(context,
-                                                       native_context());
-}
-
-
 bool JSGlobalObjectSpecialization::LookupInScriptContextTable(
-    Handle<JSGlobalObject> global_object, Handle<Name> name,
-    ScriptContextTableLookupResult* result) {
+    Handle<Name> name, ScriptContextTableLookupResult* result) {
   if (!name->IsString()) return false;
   Handle<ScriptContextTable> script_context_table(
-      global_object->native_context()->script_context_table(), isolate());
+      global_object()->native_context()->script_context_table(), isolate());
   ScriptContextTable::LookupResult lookup_result;
   if (!ScriptContextTable::Lookup(script_context_table,
                                   Handle<String>::cast(name), &lookup_result)) {
@@ -279,26 +259,21 @@ bool JSGlobalObjectSpecialization::LookupInScriptContextTable(
   return true;
 }
 
-
 Graph* JSGlobalObjectSpecialization::graph() const {
   return jsgraph()->graph();
 }
-
 
 Isolate* JSGlobalObjectSpecialization::isolate() const {
   return jsgraph()->isolate();
 }
 
-
 CommonOperatorBuilder* JSGlobalObjectSpecialization::common() const {
   return jsgraph()->common();
 }
 
-
 JSOperatorBuilder* JSGlobalObjectSpecialization::javascript() const {
   return jsgraph()->javascript();
 }
-
 
 SimplifiedOperatorBuilder* JSGlobalObjectSpecialization::simplified() const {
   return jsgraph()->simplified();
