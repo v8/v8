@@ -198,7 +198,7 @@ TEST(Run_WasmModule_Serialization) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   ErrorThrower thrower(isolate, "");
   uint8_t* bytes = nullptr;
-  int buffer_size = -1;
+  size_t bytes_size = 0;
   v8::WasmCompiledModule::SerializedModule data;
   {
     HandleScope scope(isolate);
@@ -221,11 +221,15 @@ TEST(Run_WasmModule_Serialization) {
         v8_module_obj.As<v8::WasmCompiledModule>();
     v8::Local<v8::String> uncompiled_bytes =
         v8_compiled_module->GetUncompiledBytes();
-    buffer_size = uncompiled_bytes->Length();
-    bytes = zone.NewArray<uint8_t>(buffer_size);
+    bytes_size = static_cast<size_t>(uncompiled_bytes->Length());
+    bytes = zone.NewArray<uint8_t>(uncompiled_bytes->Length());
     uncompiled_bytes->WriteOneByte(bytes);
     data = v8_compiled_module->Serialize();
   }
+
+  v8::WasmCompiledModule::UncompiledBytes uncompressed_bytes = {
+      std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(bytes)),
+      bytes_size};
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
@@ -245,13 +249,9 @@ TEST(Run_WasmModule_Serialization) {
       new_ctx->Enter();
       isolate = reinterpret_cast<Isolate*>(v8_isolate);
       testing::SetupIsolateForWasmModule(isolate);
-      Vector<const uint8_t> raw(bytes, buffer_size);
       v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
-          v8::WasmCompiledModule::DeserializeOrCompile(
-              v8_isolate, data,
-              v8::Utils::ToLocal(isolate->factory()
-                                     ->NewStringFromOneByte(raw)
-                                     .ToHandleChecked()));
+          v8::WasmCompiledModule::DeserializeOrCompile(v8_isolate, data,
+                                                       uncompressed_bytes);
       v8::Local<v8::WasmCompiledModule> compiled_module;
       CHECK(deserialized.ToLocal(&compiled_module));
       Handle<JSObject> module_object =
@@ -270,6 +270,9 @@ TEST(Run_WasmModule_Serialization) {
     }
     v8_isolate->Dispose();
   }
+  // Release, because we allocated the bytes with the zone allocator, and
+  // that doesn't have a delete.
+  uncompressed_bytes.first.release();
 }
 
 TEST(MemorySize) {

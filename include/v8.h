@@ -3902,6 +3902,7 @@ class V8_EXPORT Proxy : public Object {
 class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
+  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> UncompiledBytes;
   // Get the uncompiled bytes that were used to compile this module.
   Local<String> GetUncompiledBytes();
 
@@ -3917,12 +3918,13 @@ class V8_EXPORT WasmCompiledModule : public Object {
   // uncompiled bytes.
   static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
       Isolate* isolate, const SerializedModule& serialized_data,
-      Local<String> uncompiled_bytes);
+      const UncompiledBytes& uncompiled_bytes);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
   static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
-                                                Local<String> bytes);
+                                                const uint8_t* start,
+                                                size_t length);
   WasmCompiledModule();
   static void CheckCast(Value* obj);
 };

@@ -7234,27 +7234,22 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
     Isolate* isolate,
     const WasmCompiledModule::SerializedModule& serialized_data,
-    Local<String> uncompiled_bytes) {
+    const WasmCompiledModule::UncompiledBytes& uncompiled_bytes) {
   MaybeLocal<WasmCompiledModule> ret = Deserialize(isolate, serialized_data);
   if (!ret.IsEmpty()) return ret;
-  return Compile(isolate, uncompiled_bytes);
+  return Compile(isolate, uncompiled_bytes.first.get(),
+                 uncompiled_bytes.second);
 }
 
-MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(
-    Isolate* isolate, Local<String> bytes) {
-  i::Handle<i::String> module_bytes = Utils::OpenHandle(*bytes);
+MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
+                                                           const uint8_t* start,
+                                                           size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Deserialize()");
-  i::SeqOneByteString* data = i::SeqOneByteString::cast(*module_bytes);
-  // Copy bytes such that GC can not move it during construction of the module.
-  // TODO(wasm): Avoid this additional copy.
-  i::ScopedVector<unsigned char> bytes_copy(data->length());
-  memcpy(bytes_copy.start(), data->GetChars(), data->length());
   i::MaybeHandle<i::JSObject> maybe_compiled =
-      i::wasm::CreateModuleObjectFromBytes(
-          i_isolate, bytes_copy.start(),
-          bytes_copy.start() + bytes_copy.length(), &thrower,
-          i::wasm::ModuleOrigin::kWasmOrigin);
+      i::wasm::CreateModuleObjectFromBytes(i_isolate, start, start + length,
+                                           &thrower,
+                                           i::wasm::ModuleOrigin::kWasmOrigin);
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
