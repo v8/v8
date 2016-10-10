@@ -19851,8 +19851,7 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
 }
 
 bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
-                         v8::Module::ResolveCallback callback,
-                         v8::Local<v8::Value> callback_data) {
+                         v8::Module::ResolveCallback callback) {
   // Already instantiated.
   if (module->code()->IsJSFunction()) return true;
 
@@ -19898,7 +19897,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
     // persist a module_map across multiple top-level module loads, as
     // the current module is left in a "half-instantiated" state.
     if (!callback(context, v8::Utils::ToLocal(specifier),
-                  v8::Utils::ToLocal(module), callback_data)
+                  v8::Utils::ToLocal(module))
              .ToLocal(&api_requested_module)) {
       // TODO(adamk): Give this a better error message. But this is a
       // misuse of the API anyway.
@@ -19907,7 +19906,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
     }
     Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);
     module->requested_modules()->set(i, *requested_module);
-    if (!Instantiate(requested_module, context, callback, callback_data)) {
+    if (!Instantiate(requested_module, context, callback)) {
       return false;
     }
   }

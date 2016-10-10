@@ -5715,7 +5715,6 @@ ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 SMI_ACCESSORS(Module, flags, kFlagsOffset)
 BOOL_ACCESSORS(Module, flags, evaluated, kEvaluatedBit)
-ACCESSORS(Module, embedder_data, Object, kEmbedderDataOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
 SharedFunctionInfo* Module::shared() const {
