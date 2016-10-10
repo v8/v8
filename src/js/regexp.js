@@ -16,7 +16,6 @@ var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var GlobalRegExpPrototype = GlobalRegExp.prototype;
 var InternalArray = utils.InternalArray;
-var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
 var MinSimple;
 var RegExpExecJS = GlobalRegExp.prototype.exec;
