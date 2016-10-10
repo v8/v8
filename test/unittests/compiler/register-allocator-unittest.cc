@@ -101,6 +101,17 @@ TEST_F(RegisterAllocatorTest, CanAllocateThreeRegisters) {
   Allocate();
 }
 
+TEST_F(RegisterAllocatorTest, CanAllocateThreeFPRegisters) {
+  // return p0 + p1;
+  StartBlock();
+  VReg a_reg = FPParameter();
+  VReg b_reg = FPParameter();
+  VReg c_reg = EmitOI(FPReg(1), Reg(a_reg, 1), Reg(b_reg, 0));
+  Return(c_reg);
+  EndBlock(Last());
+
+  Allocate();
+}
 
 TEST_F(RegisterAllocatorTest, SimpleLoop) {
   // i = K;
