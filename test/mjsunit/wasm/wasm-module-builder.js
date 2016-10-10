@@ -199,8 +199,8 @@ class WasmModuleBuilder {
     this.imports.push(o);
   }
 
-  addDataSegment(addr, data, init) {
-    this.segments.push({addr: addr, data: data, init: init});
+  addDataSegment(addr, data, is_global = false) {
+    this.segments.push({addr: addr, data: data, is_global: is_global});
     return this.segments.length - 1;
   }
 
@@ -444,8 +444,15 @@ class WasmModuleBuilder {
         section.emit_u32v(wasm.segments.length);
         for (let seg of wasm.segments) {
           section.emit_u8(0);  // linear memory index 0
-          section.emit_u8(kExprI32Const);
-          section.emit_u32v(seg.addr);
+          if (seg.is_global) {
+            // initializer is a global variable
+            section.emit_u8(kExprGetGlobal);
+            section.emit_u32v(seg.addr);
+          } else {
+            // initializer is a constant
+            section.emit_u8(kExprI32Const);
+            section.emit_u32v(seg.addr);
+          }
           section.emit_u8(kExprEnd);
           section.emit_u32v(seg.data.length);
           section.emit_bytes(seg.data);
