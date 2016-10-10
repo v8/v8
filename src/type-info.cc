@@ -210,21 +210,19 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
   return AstType::None();
 }
 
-AstType* BinaryOpFeedbackToType(int hint) {
+AstType* BinaryOpHintToType(BinaryOperationHint hint) {
   switch (hint) {
-    case BinaryOperationFeedback::kNone:
+    case BinaryOperationHint::kNone:
       return AstType::None();
-    case BinaryOperationFeedback::kSignedSmall:
+    case BinaryOperationHint::kSignedSmall:
       return AstType::SignedSmall();
-    case BinaryOperationFeedback::kNumber:
+    case BinaryOperationHint::kSigned32:
+      return AstType::Signed32();
+    case BinaryOperationHint::kNumberOrOddball:
       return AstType::Number();
-    case BinaryOperationFeedback::kString:
+    case BinaryOperationHint::kString:
       return AstType::String();
-    // TODO(mythria): Merge Number and NumberOrOddball feedback, after
-    // fixing crankshaft to handle Oddballs along with Numbers.
-    case BinaryOperationFeedback::kNumberOrOddball:
-    case BinaryOperationFeedback::kAny:
-    default:
+    case BinaryOperationHint::kAny:
       return AstType::Any();
   }
   UNREACHABLE();
@@ -301,7 +299,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot,
   DCHECK(!slot.IsInvalid());
   BinaryOpICNexus nexus(feedback_vector_, slot);
   *left = *right = *result =
-      BinaryOpFeedbackToType(Smi::cast(nexus.GetFeedback())->value());
+      BinaryOpHintToType(nexus.GetBinaryOperationFeedback());
   *fixed_right_arg = Nothing<int>();
   *allocation_site = Handle<AllocationSite>::null();
 
@@ -336,8 +334,7 @@ AstType* TypeFeedbackOracle::CountType(TypeFeedbackId id,
 
   DCHECK(!slot.IsInvalid());
   BinaryOpICNexus nexus(feedback_vector_, slot);
-  AstType* type =
-      BinaryOpFeedbackToType(Smi::cast(nexus.GetFeedback())->value());
+  AstType* type = BinaryOpHintToType(nexus.GetBinaryOperationFeedback());
 
   if (!object->IsCode()) return type;
 
