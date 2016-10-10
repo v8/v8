@@ -360,38 +360,6 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   }
 }
 
-bool GenerateUnoptimizedCode(CompilationInfo* info) {
-  if (FLAG_validate_asm && info->scope()->asm_module() &&
-      !info->shared_info()->is_asm_wasm_broken()) {
-    EnsureFeedbackMetadata(info);
-    MaybeHandle<FixedArray> wasm_data;
-    wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
-    if (!wasm_data.is_null()) {
-      info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
-      info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
-      return true;
-    }
-  }
-
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
-  if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
-  if (job->ExecuteJob() != CompilationJob::SUCCEEDED) return false;
-  if (job->FinalizeJob() != CompilationJob::SUCCEEDED) return false;
-  job->RecordUnoptimizedCompilationStats();
-  return true;
-}
-
-bool CompileUnoptimizedCode(CompilationInfo* info) {
-  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
-  if (!Compiler::Analyze(info->parse_info()) ||
-      !GenerateUnoptimizedCode(info)) {
-    Isolate* isolate = info->isolate();
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return false;
-  }
-  return true;
-}
-
 void InstallSharedScopeInfo(CompilationInfo* info,
                             Handle<SharedFunctionInfo> shared) {
   Handle<ScopeInfo> scope_info = info->scope()->scope_info();
@@ -426,9 +394,50 @@ void InstallUnoptimizedCode(CompilationInfo* info) {
 
   // Install compilation result on the shared function info
   InstallSharedCompilationResult(info, shared);
+}
 
-  // Record the function compilation event.
-  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
+CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
+  CompilationJob::Status status = job->FinalizeJob();
+  if (status == CompilationJob::SUCCEEDED) {
+    InstallUnoptimizedCode(job->info());
+    job->RecordUnoptimizedCompilationStats();
+  }
+  return status;
+}
+
+bool GenerateUnoptimizedCode(CompilationInfo* info) {
+  if (FLAG_validate_asm && info->scope()->asm_module() &&
+      !info->shared_info()->is_asm_wasm_broken()) {
+    EnsureFeedbackMetadata(info);
+    MaybeHandle<FixedArray> wasm_data;
+    wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
+    if (!wasm_data.is_null()) {
+      info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
+      info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
+      InstallUnoptimizedCode(info);
+      return true;
+    }
+  }
+
+  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+  if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
+  if (job->ExecuteJob() != CompilationJob::SUCCEEDED) return false;
+  if (FinalizeUnoptimizedCompilationJob(job.get()) !=
+      CompilationJob::SUCCEEDED) {
+    return false;
+  }
+  return true;
+}
+
+bool CompileUnoptimizedCode(CompilationInfo* info) {
+  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
+  if (!Compiler::Analyze(info->parse_info()) ||
+      !GenerateUnoptimizedCode(info)) {
+    Isolate* isolate = info->isolate();
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return false;
+  }
+  return true;
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
@@ -443,19 +452,10 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   // Compile either unoptimized code or bytecode for the interpreter.
   if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
 
-  InstallUnoptimizedCode(info);
+  // Record the function compilation event.
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
 
   return info->code();
-}
-
-CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
-  CompilationJob::Status status = job->FinalizeJob();
-  if (status == CompilationJob::SUCCEEDED) {
-    DCHECK(!job->info()->shared_info()->is_compiled());
-    InstallUnoptimizedCode(job->info());
-    job->RecordUnoptimizedCompilationStats();
-  }
-  return status;
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
@@ -1112,12 +1112,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     if (!CompileUnoptimizedCode(info)) {
       return Handle<SharedFunctionInfo>::null();
     }
-
-    // Update the shared function info with the scope info.
-    InstallSharedScopeInfo(info, result);
-
-    // Install compilation result on the shared function info
-    InstallSharedCompilationResult(info, result);
 
     Handle<String> script_name =
         script->name()->IsString()
@@ -1776,10 +1770,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     if (literal->should_be_used_once_hint()) {
       info.code()->MarkToBeExecutedOnce(isolate);
     }
-    // Update the shared function info with the scope info.
-    InstallSharedScopeInfo(&info, result);
-    // Install compilation result on the shared function info.
-    InstallSharedCompilationResult(&info, result);
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
@@ -1850,8 +1840,13 @@ bool Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
     return FinalizeOptimizedCompilationJob(job.get()) ==
            CompilationJob::SUCCEEDED;
   } else {
-    return FinalizeUnoptimizedCompilationJob(job.get()) ==
-           CompilationJob::SUCCEEDED;
+    if (FinalizeUnoptimizedCompilationJob(job.get()) ==
+        CompilationJob::SUCCEEDED) {
+      RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
+                                job->info());
+      return true;
+    }
+    return false;
   }
 }
 
