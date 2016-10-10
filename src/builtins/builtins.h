@@ -604,9 +604,6 @@ namespace internal {
   TFJ(StringPrototypeCharAt, 2)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \
   TFJ(StringPrototypeCharCodeAt, 2)                                           \
-  /* ES6 section 21.1.3.7 */                                                  \
-  /* String.prototype.includes ( searchString [ , position ] ) */             \
-  CPP(StringPrototypeIncludes)                                                \
   /* ES6 section 21.1.3.8 */                                                  \
   /* String.prototype.indexOf ( searchString [ , position ] ) */              \
   CPP(StringPrototypeIndexOf)                                                 \

@@ -433,6 +433,34 @@ function StringEndsWith(searchString, position) {  // length == 1
 %FunctionSetLength(StringEndsWith, 1);
 
 
+// ES6 draft 04-05-14, section 21.1.3.6
+function StringIncludes(searchString, position) {  // length == 1
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.includes");
+
+  var string = TO_STRING(this);
+
+  if (IsRegExp(searchString)) {
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.includes");
+  }
+
+  searchString = TO_STRING(searchString);
+  var pos = TO_INTEGER(position);
+
+  var stringLength = string.length;
+  if (pos < 0) pos = 0;
+  if (pos > stringLength) pos = stringLength;
+  var searchStringLength = searchString.length;
+
+  if (searchStringLength + pos > stringLength) {
+    return false;
+  }
+
+  return %StringIndexOf(string, searchString, pos) !== -1;
+}
+
+%FunctionSetLength(StringIncludes, 1);
+
+
 // ES6 Draft 05-22-2014, section 21.1.3.3
 function StringCodePointAt(pos) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.codePointAt");
@@ -491,6 +519,7 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "codePointAt", StringCodePointAt,
   "concat", StringConcat,
   "endsWith", StringEndsWith,
+  "includes", StringIncludes,
   "match", StringMatchJS,
   "repeat", StringRepeat,
   "replace", StringReplace,
