@@ -578,6 +578,7 @@ namespace internal {
   CPP(RegExpLastMatchGetter)                                                  \
   CPP(RegExpLastParenGetter)                                                  \
   CPP(RegExpLeftContextGetter)                                                \
+  CPP(RegExpPrototypeCompile)                                                 \
   TFJ(RegExpPrototypeExec, 2)                                                 \
   TFJ(RegExpPrototypeFlagsGetter, 1)                                          \
   TFJ(RegExpPrototypeGlobalGetter, 1)                                         \
@@ -586,6 +587,7 @@ namespace internal {
   CPP(RegExpPrototypeSourceGetter)                                            \
   CPP(RegExpPrototypeSpeciesGetter)                                           \
   TFJ(RegExpPrototypeStickyGetter, 1)                                         \
+  CPP(RegExpPrototypeToString)                                                \
   TFJ(RegExpPrototypeUnicodeGetter, 1)                                        \
   CPP(RegExpRightContextGetter)                                               \
                                                                               \
