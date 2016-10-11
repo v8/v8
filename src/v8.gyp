@@ -1149,6 +1149,7 @@
         'runtime/runtime-literals.cc',
         'runtime/runtime-liveedit.cc',
         'runtime/runtime-maths.cc',
+        'runtime/runtime-module.cc',
         'runtime/runtime-numbers.cc',
         'runtime/runtime-object.cc',
         'runtime/runtime-operators.cc',
