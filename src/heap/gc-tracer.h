@@ -215,10 +215,10 @@ class GCTracer {
     bool reduce_memory;
 
     // Size of objects in heap set in constructor.
-    intptr_t start_object_size;
+    size_t start_object_size;
 
     // Size of objects in heap set in destructor.
-    intptr_t end_object_size;
+    size_t end_object_size;
 
     // Size of memory allocated from OS set in constructor.
     size_t start_memory_size;
@@ -228,23 +228,20 @@ class GCTracer {
 
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
-    intptr_t start_holes_size;
+    size_t start_holes_size;
 
     // Total amount of space either wasted or contained in one of free lists
     // after the current GC.
-    intptr_t end_holes_size;
+    size_t end_holes_size;
 
     // Size of new space objects in constructor.
-    intptr_t new_space_object_size;
+    size_t new_space_object_size;
 
     // Size of survived new space objects in destructor.
-    intptr_t survived_new_space_object_size;
-
-    // Bytes marked since creation of tracer (value at start of event).
-    intptr_t cumulative_incremental_marking_bytes;
+    size_t survived_new_space_object_size;
 
     // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
-    intptr_t incremental_marking_bytes;
+    size_t incremental_marking_bytes;
 
     // Duration of incremental marking steps for INCREMENTAL_MARK_COMPACTOR.
     double incremental_marking_duration;
@@ -277,12 +274,12 @@ class GCTracer {
 
   void AddContextDisposalTime(double time);
 
-  void AddCompactionEvent(double duration, intptr_t live_bytes_compacted);
+  void AddCompactionEvent(double duration, size_t live_bytes_compacted);
 
   void AddSurvivalRatio(double survival_ratio);
 
   // Log an incremental marking step.
-  void AddIncrementalMarkingStep(double duration, intptr_t bytes);
+  void AddIncrementalMarkingStep(double duration, size_t bytes);
 
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
@@ -386,7 +383,7 @@ class GCTracer {
 
   void ResetForTesting();
   void ResetIncrementalMarkingCounters();
-  void RecordIncrementalMarkingSpeed(intptr_t bytes, double duration);
+  void RecordIncrementalMarkingSpeed(size_t bytes, double duration);
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -422,7 +419,7 @@ class GCTracer {
 
   // Size of incremental marking steps (in bytes) accumulated since the end of
   // the last mark compact GC.
-  intptr_t incremental_marking_bytes_;
+  size_t incremental_marking_bytes_;
 
   // Duration of incremental marking steps since the end of the last mark-
   // compact event.

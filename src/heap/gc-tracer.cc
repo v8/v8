@@ -11,11 +11,14 @@
 namespace v8 {
 namespace internal {
 
-static intptr_t CountTotalHolesSize(Heap* heap) {
-  intptr_t holes_size = 0;
+static size_t CountTotalHolesSize(Heap* heap) {
+  size_t holes_size = 0;
   OldSpaces spaces(heap);
   for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
-    holes_size += space->Waste() + space->Available();
+    DCHECK_GE(space->Waste(), 0);
+    DCHECK_GE(space->Available(), 0);
+    DCHECK_GE(holes_size + space->Waste() + space->Available(), holes_size);
+    holes_size += static_cast<size_t>(space->Waste() + space->Available());
   }
   return holes_size;
 }
@@ -188,8 +191,8 @@ void GCTracer::Start(GarbageCollector collector,
     current_.scopes[i] = 0;
   }
 
-  int committed_memory = static_cast<int>(heap_->CommittedMemory() / KB);
-  int used_memory = static_cast<int>(current_.start_object_size / KB);
+  size_t committed_memory = heap_->CommittedMemory() / KB;
+  size_t used_memory = current_.start_object_size / KB;
 
   Counters* counters = heap_->isolate()->counters();
 
@@ -241,8 +244,8 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   AddAllocation(current_.end_time);
 
-  int committed_memory = static_cast<int>(heap_->CommittedMemory() / KB);
-  int used_memory = static_cast<int>(current_.end_object_size / KB);
+  size_t committed_memory = heap_->CommittedMemory() / KB;
+  size_t used_memory = current_.end_object_size / KB;
   heap_->isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
       current_.end_time, committed_memory);
   heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
@@ -348,9 +351,8 @@ void GCTracer::AddContextDisposalTime(double time) {
   recorded_context_disposal_times_.Push(time);
 }
 
-
 void GCTracer::AddCompactionEvent(double duration,
-                                  intptr_t live_bytes_compacted) {
+                                  size_t live_bytes_compacted) {
   recorded_compactions_.Push(
       MakeBytesAndDuration(live_bytes_compacted, duration));
 }
@@ -360,8 +362,7 @@ void GCTracer::AddSurvivalRatio(double promotion_ratio) {
   recorded_survival_ratios_.Push(promotion_ratio);
 }
 
-
-void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
+void GCTracer::AddIncrementalMarkingStep(double duration, size_t bytes) {
   if (bytes > 0) {
     incremental_marking_bytes_ += bytes;
     incremental_marking_duration_ += duration;
@@ -426,7 +427,7 @@ void GCTracer::Print() const {
 void GCTracer::PrintNVP() const {
   double duration = current_.end_time - current_.start_time;
   double spent_in_mutator = current_.start_time - previous_.end_time;
-  intptr_t allocated_since_last_gc =
+  size_t allocated_since_last_gc =
       current_.start_object_size - previous_.end_object_size;
 
   double incremental_walltime_duration = 0;
@@ -697,7 +698,7 @@ double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer) {
   return AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 0);
 }
 
-void GCTracer::RecordIncrementalMarkingSpeed(intptr_t bytes, double duration) {
+void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
   if (duration == 0 || bytes == 0) return;
   double current_speed = bytes / duration;
   if (recorded_incremental_marking_speed_ == 0) {
