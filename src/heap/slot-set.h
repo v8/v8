@@ -168,10 +168,10 @@ class SlotSet : public Malloced {
   int Iterate(Callback callback, EmptyBucketMode mode) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
-      if (bucket[bucket_index].Value() != nullptr) {
+      base::AtomicValue<uint32_t>* current_bucket =
+          bucket[bucket_index].Value();
+      if (current_bucket != nullptr) {
         int in_bucket_count = 0;
-        base::AtomicValue<uint32_t>* current_bucket =
-            bucket[bucket_index].Value();
         int cell_offset = bucket_index * kBitsPerBucket;
         for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
           if (current_bucket[i].Value()) {
