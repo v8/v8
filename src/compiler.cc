@@ -1055,17 +1055,9 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       // non-NULL). If compiling for debugging, we may eagerly compile inner
       // functions, so do not parse lazily in that case.
       ScriptCompiler::CompileOptions options = parse_info->compile_options();
-      bool parse_allow_lazy = (options == ScriptCompiler::kConsumeParserCache ||
-                               String::cast(script->source())->length() >
-                                   FLAG_min_preparse_length) &&
-                              !info->is_debug();
-
-      // Consider parsing eagerly when targeting the code cache.
-      parse_allow_lazy &= !(FLAG_serialize_eager && info->will_serialize());
-
-      // Consider parsing eagerly when targeting Ignition.
-      parse_allow_lazy &= !(FLAG_ignition && FLAG_ignition_eager &&
-                            !isolate->serializer_enabled());
+      bool parse_allow_lazy =
+          options == ScriptCompiler::kConsumeParserCache ||
+          String::cast(script->source())->length() > FLAG_min_preparse_length;
 
       parse_info->set_allow_lazy_parsing(parse_allow_lazy);
       if (!parse_allow_lazy &&
@@ -1083,8 +1075,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         return Handle<SharedFunctionInfo>::null();
       }
     }
-
-    DCHECK(!info->is_debug() || !parse_info->allow_lazy_parsing());
 
     FunctionLiteral* lit = parse_info->literal();
 

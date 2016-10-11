@@ -2626,10 +2626,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(mode() == PARSE_LAZILY, allow_lazy());
   DCHECK_IMPLIES(mode() == PARSE_LAZILY, extension_ == nullptr);
 
+  bool can_preparse = mode() == PARSE_LAZILY &&
+                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+
   bool is_lazy_top_level_function =
-      mode() == PARSE_LAZILY &&
-      eager_compile_hint == FunctionLiteral::kShouldLazyCompile &&
-      scope()->AllowsLazyParsingWithoutUnresolvedVariables();
+      can_preparse && scope()->AllowsLazyParsingWithoutUnresolvedVariables();
 
   // Determine whether we can still lazy parse the inner function.
   // The preconditions are:
@@ -2651,8 +2652,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // will migrate unresolved variable into a Scope in the main Zone.
   // TODO(marja): Refactor parsing modes: simplify this.
   bool use_temp_zone =
-      allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
-      eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
+      (FLAG_lazy_inner_functions
+           ? can_preparse
+           : (allow_lazy() &&
+              eager_compile_hint == FunctionLiteral::kShouldLazyCompile)) &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
   bool is_lazy_inner_function =
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
@@ -3152,11 +3155,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  // Everything inside an eagerly parsed function will be parsed eagerly (see
-  // comment above). Lazy inner functions are handled separately and they won't
-  // require the mode to be PARSE_LAZILY (see ParseFunctionLiteral).
-  // TODO(marja): Refactor parsing modes: remove this.
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ParsingModeScope mode(this, allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY);
   ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
 
   static const int kFunctionNameAssignmentIndex = 0;

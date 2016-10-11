@@ -3922,6 +3922,12 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       default_eager_compile_hint_;
+  bool can_preparse = mode() == PARSE_LAZILY &&
+                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+  // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
+  // handling in Scope::ResolveVariable needs to change.
+  bool is_lazy_top_level_function =
+      can_preparse && scope()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool should_be_used_once_hint = false;
   {
     FunctionState function_state(&function_state_, &scope_state_,
@@ -3938,14 +3944,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       // Multiple statement body
       Consume(Token::LBRACE);
       DCHECK_EQ(scope(), formal_parameters.scope);
-      bool is_lazily_parsed =
-          (mode() == PARSE_LAZILY &&
-           formal_parameters.scope
-               ->AllowsLazyParsingWithoutUnresolvedVariables() &&
-           eager_compile_hint == FunctionLiteral::kShouldLazyCompile);
-      // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
-      // handling in Scope::ResolveVariable needs to change.
-      if (is_lazily_parsed) {
+      if (is_lazy_top_level_function) {
         Scanner::BookmarkScope bookmark(scanner());
         bookmark.Set();
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
@@ -3962,7 +3961,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         if (result == kLazyParsingAborted) {
           bookmark.Apply();
           // Trigger eager (re-)parsing, just below this block.
-          is_lazily_parsed = false;
+          is_lazy_top_level_function = false;
 
           // This is probably an initialization function. Inform the compiler it
           // should also eager-compile this function, and that we expect it to
@@ -3971,7 +3970,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           should_be_used_once_hint = true;
         }
       }
-      if (!is_lazily_parsed) {
+      if (!is_lazy_top_level_function) {
         body = impl()->ParseEagerFunctionBody(
             impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
             kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);

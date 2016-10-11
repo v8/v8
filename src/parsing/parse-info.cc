@@ -38,6 +38,7 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
     : ParseInfo(zone) {
   isolate_ = shared->GetIsolate();
 
+  set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_hash_seed(isolate_->heap()->HashSeed());
   set_is_named_expression(shared->is_named_expression());
   set_calls_eval(shared->scope_info()->CallsEval());
