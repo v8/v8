@@ -1092,6 +1092,13 @@ Node* CodeStubAssembler::LoadContextElement(Node* context, int slot_index) {
   return Load(MachineType::AnyTagged(), context, IntPtrConstant(offset));
 }
 
+Node* CodeStubAssembler::StoreContextElement(Node* context, int slot_index,
+                                             Node* value) {
+  int offset = Context::SlotOffset(slot_index);
+  return Store(MachineRepresentation::kTagged, context, IntPtrConstant(offset),
+               value);
+}
+
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
   return LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX);
 }

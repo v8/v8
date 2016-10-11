@@ -1951,6 +1951,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> math_pow =
         SimpleInstallFunction(math, "pow", Builtins::kMathPow, 2, true);
     native_context()->set_math_pow(*math_pow);
+    SimpleInstallFunction(math, "random", Builtins::kMathRandom, 0, true);
     SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
     SimpleInstallFunction(math, "sign", Builtins::kMathSign, 1, true);
     SimpleInstallFunction(math, "sin", Builtins::kMathSin, 1, true);
@@ -1993,6 +1994,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         math, factory->NewStringFromAsciiChecked("SQRT2"),
         factory->NewNumber(std::sqrt(2.0)),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("Math"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // -- A r r a y B u f f e r

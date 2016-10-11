@@ -351,7 +351,7 @@ namespace internal {
   F(LiveEditCompareStrings, 2, 1)                   \
   F(LiveEditRestartFrame, 2, 1)
 
-#define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 1, 1)
+#define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
   F(IsValidSmi, 1, 1)                  \

@@ -298,6 +298,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Context manipulation
   compiler::Node* LoadContextElement(compiler::Node* context, int slot_index);
+  compiler::Node* StoreContextElement(compiler::Node* context, int slot_index,
+                                      compiler::Node* value);
   compiler::Node* LoadNativeContext(compiler::Node* context);
 
   compiler::Node* LoadJSArrayElementsMap(ElementsKind kind,

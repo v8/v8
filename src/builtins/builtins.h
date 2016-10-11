@@ -450,6 +450,8 @@ namespace internal {
   ASM(MathMin)                                                                \
   /* ES6 section 20.2.2.26 Math.pow ( x, y ) */                               \
   TFJ(MathPow, 3)                                                             \
+  /* ES6 section 20.2.2.27 Math.random */                                     \
+  TFJ(MathRandom, 1)                                                          \
   /* ES6 section 20.2.2.28 Math.round ( x ) */                                \
   TFJ(MathRound, 2)                                                           \
   /* ES6 section 20.2.2.29 Math.sign ( x ) */                                 \

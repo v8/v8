@@ -33,6 +33,9 @@ void PartialSerializer::Serialize(Object** o) {
       context->set(Context::NEXT_CONTEXT_LINK,
                    isolate_->heap()->undefined_value());
       DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
+      // Reset math random cache to get fresh random numbers.
+      context->set_math_random_index(Smi::kZero);
+      context->set_math_random_cache(isolate_->heap()->undefined_value());
     }
   }
   VisitPointer(o);

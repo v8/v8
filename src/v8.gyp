@@ -2220,7 +2220,6 @@
           'js/symbol.js',
           'js/array.js',
           'js/string.js',
-          'js/math.js',
           'js/regexp.js',
           'js/arraybuffer.js',
           'js/typedarray.js',

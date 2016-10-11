@@ -398,7 +398,6 @@ action("js2c") {
     "src/js/symbol.js",
     "src/js/array.js",
     "src/js/string.js",
-    "src/js/math.js",
     "src/js/regexp.js",
     "src/js/arraybuffer.js",
     "src/js/typedarray.js",
