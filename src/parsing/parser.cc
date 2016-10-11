@@ -674,7 +674,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
                       info->isolate()->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
-  set_allow_harmony_for_in(FLAG_harmony_for_in);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
       FLAG_harmony_restrictive_declarations);
@@ -1969,7 +1968,6 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
       for_info.parsing_result.declarations[0];
   if (!IsLexicalVariableMode(for_info.parsing_result.descriptor.mode) &&
       decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
-    DCHECK(!allow_harmony_for_in());
     ++use_counts_[v8::Isolate::kForInInitializer];
     const AstRawString* name = decl.pattern->AsVariableProxy()->raw_name();
     VariableProxy* single_var = NewUnresolved(name);
@@ -3325,7 +3323,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
-    SET_ALLOW(harmony_for_in);
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_restrictive_declarations);
     SET_ALLOW(harmony_async_await);

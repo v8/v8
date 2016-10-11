@@ -1297,7 +1297,6 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
-  kAllowHarmonyForIn,
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyTrailingCommas,
@@ -1319,7 +1318,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_declarations(
       flags.Contains(kAllowHarmonyRestrictiveDeclarations));
-  parser->set_allow_harmony_for_in(flags.Contains(kAllowHarmonyForIn));
   parser->set_allow_harmony_async_await(
       flags.Contains(kAllowHarmonyAsyncAwait));
   parser->set_allow_harmony_restrictive_generators(
@@ -8115,22 +8113,29 @@ TEST(AsyncAwaitModuleErrors) {
 
 TEST(RestrictiveForInErrors) {
   // clang-format off
-  const char* context_data[][2] = {
+  const char* strict_context_data[][2] = {
     { "'use strict'", "" },
+    { NULL, NULL }
+  };
+  const char* sloppy_context_data[][2] = {
     { "", "" },
     { NULL, NULL }
   };
   const char* error_data[] = {
-    "for (var x = 0 in {});",
     "for (const x = 0 in {});",
     "for (let x = 0 in {});",
     NULL
   };
+  const char* sloppy_data[] = {
+    "for (var x = 0 in {});",
+    NULL
+  };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyForIn};
-  RunParserSyncTest(context_data, error_data, kError, nullptr, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, error_data, kError);
+  RunParserSyncTest(strict_context_data, sloppy_data, kError);
+  RunParserSyncTest(sloppy_context_data, error_data, kError);
+  RunParserSyncTest(sloppy_context_data, sloppy_data, kSuccess);
 }
 
 TEST(NoDuplicateGeneratorsInBlock) {

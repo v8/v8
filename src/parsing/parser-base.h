@@ -196,7 +196,6 @@ class ParserBase {
         allow_tailcalls_(false),
         allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
-        allow_harmony_for_in_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false),
@@ -212,7 +211,6 @@ class ParserBase {
   ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
-  ALLOW_ACCESSORS(harmony_for_in);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
@@ -1450,7 +1448,6 @@ class ParserBase {
   bool allow_tailcalls_;
   bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
-  bool allow_harmony_for_in_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
@@ -5181,13 +5178,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
              for_info.mode == ForEachStatement::ITERATE ||
              bound_names_are_lexical ||
              !impl()->IsIdentifier(
-                 for_info.parsing_result.declarations[0].pattern) ||
-             allow_harmony_for_in())) {
-          // Only increment the use count if we would have let this through
-          // without the flag.
-          if (allow_harmony_for_in()) {
-            impl()->CountUsage(v8::Isolate::kForInInitializer);
-          }
+                 for_info.parsing_result.declarations[0].pattern))) {
           impl()->ReportMessageAt(
               for_info.parsing_result.first_initializer_loc,
               MessageTemplate::kForInOfLoopInitializer,
