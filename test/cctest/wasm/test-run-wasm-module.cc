@@ -48,15 +48,7 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
   isolate->clear_pending_exception();
 }
 
-void ExportAs(WasmFunctionBuilder* f, const char* name) {
-  f->SetExported();
-  f->SetName(name, static_cast<int>(strlen(name)));
-}
-
-void ExportAsMain(WasmFunctionBuilder* f) {
-  static const char kMainName[] = "main";
-  ExportAs(f, kMainName);
-}
+void ExportAsMain(WasmFunctionBuilder* f) { f->ExportAs(CStrVector("main")); }
 
 }  // namespace
 
@@ -190,7 +182,7 @@ TEST(Run_WasmModule_Serialization) {
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
   byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
   f->EmitCode(code, sizeof(code));
-  ExportAs(f, kFunctionName);
+  f->ExportAs(CStrVector(kFunctionName));
 
   ZoneBuffer buffer(&zone);
   builder->WriteTo(buffer);

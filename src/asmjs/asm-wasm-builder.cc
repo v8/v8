@@ -82,14 +82,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
          ++i) {
       b.AddParam(i->type);
     }
-    foreign_init_function_->SetExported();
-    std::string raw_name = "__foreign_init__";
-    foreign_init_function_->SetName(
-        AsmWasmBuilder::foreign_init_name,
-        static_cast<int>(strlen(AsmWasmBuilder::foreign_init_name)));
-
-    foreign_init_function_->SetName(raw_name.data(),
-                                    static_cast<int>(raw_name.size()));
+    foreign_init_function_->ExportAs(
+        CStrVector(AsmWasmBuilder::foreign_init_name));
     foreign_init_function_->SetSignature(b.Build());
     for (size_t pos = 0; pos < foreign_variables_.size(); ++pos) {
       foreign_init_function_->EmitGetLocal(static_cast<uint32_t>(pos));
@@ -564,10 +558,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       Variable* var = expr->var();
       DCHECK(var->is_function());
       WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-      function->SetExported();
-      function->SetName(
-          AsmWasmBuilder::single_function_name,
-          static_cast<int>(strlen(AsmWasmBuilder::single_function_name)));
+      function->ExportAs(CStrVector(AsmWasmBuilder::single_function_name));
     }
   }
 
@@ -651,9 +642,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       const AstRawString* raw_name = name->AsRawPropertyName();
       if (var->is_function()) {
         WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-        function->SetExported();
-        function->SetName(reinterpret_cast<const char*>(raw_name->raw_data()),
-                          raw_name->length());
+        function->Export();
+        function->SetName({reinterpret_cast<const char*>(raw_name->raw_data()),
+                           raw_name->length()});
       }
     }
   }
@@ -1822,8 +1813,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       entry = functions_.LookupOrInsert(v, ComputePointerHash(v),
                                         ZoneAllocationPolicy(zone()));
       function->SetName(
-          reinterpret_cast<const char*>(v->raw_name()->raw_data()),
-          v->raw_name()->length());
+          {reinterpret_cast<const char*>(v->raw_name()->raw_data()),
+           v->raw_name()->length()});
       entry->value = function;
     }
     return (reinterpret_cast<WasmFunctionBuilder*>(entry->value));

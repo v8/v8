@@ -54,6 +54,7 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       func_index_(static_cast<uint32_t>(builder->functions_.size())),
       body_(builder->zone()),
       name_(builder->zone()),
+      exported_name_(builder->zone()),
       i32_temps_(builder->zone()),
       i64_temps_(builder->zone()),
       f32_temps_(builder->zone()),
@@ -139,15 +140,17 @@ void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
   EmitCode(code, sizeof(code));
 }
 
-void WasmFunctionBuilder::SetExported() { exported_ = true; }
+void WasmFunctionBuilder::Export() { exported_ = true; }
 
-void WasmFunctionBuilder::SetName(const char* name, int name_length) {
-  name_.clear();
-  if (name_length > 0) {
-    for (int i = 0; i < name_length; ++i) {
-      name_.push_back(*(name + i));
-    }
-  }
+void WasmFunctionBuilder::ExportAs(Vector<const char> name) {
+  exported_ = true;
+  exported_name_.resize(name.length());
+  memcpy(exported_name_.data(), name.start(), name.length());
+}
+
+void WasmFunctionBuilder::SetName(Vector<const char> name) {
+  name_.resize(name.length());
+  memcpy(name_.data(), name.start(), name.length());
 }
 
 void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
@@ -156,10 +159,11 @@ void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
 
 void WasmFunctionBuilder::WriteExport(ZoneBuffer& buffer) const {
   if (exported_) {
-    buffer.write_size(name_.size());
-    if (name_.size() > 0) {
-      buffer.write(reinterpret_cast<const byte*>(&name_[0]), name_.size());
-    }
+    const ZoneVector<char>* exported_name =
+        exported_name_.size() == 0 ? &name_ : &exported_name_;
+    buffer.write_size(exported_name->size());
+    buffer.write(reinterpret_cast<const byte*>(exported_name->data()),
+                 exported_name->size());
     buffer.write_u8(kExternalFunction);
     buffer.write_u32v(func_index_ +
                       static_cast<uint32_t>(builder_->imports_.size()));

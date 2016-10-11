@@ -45,8 +45,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::wasm::WasmFunctionBuilder* f =
       builder.AddFunction(sigs.i_iii());
   f->EmitCode(data, static_cast<uint32_t>(size));
-  f->SetExported();
-  f->SetName("main", 4);
+  f->ExportAs(v8::internal::CStrVector("main"));
 
   ZoneBuffer buffer(&zone);
   builder.WriteTo(buffer);
