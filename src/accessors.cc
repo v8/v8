@@ -203,24 +203,6 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
 }
 
 //
-// Accessors::ModuleNamespaceToStringTag
-//
-
-void Accessors::ModuleNamespaceToStringTagGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  info.GetReturnValue().Set(
-      Utils::ToLocal(isolate->factory()->NewStringFromAsciiChecked("Module")));
-}
-
-Handle<AccessorInfo> Accessors::ModuleNamespaceToStringTagInfo(
-    Isolate* isolate, PropertyAttributes attributes) {
-  Handle<Name> name = isolate->factory()->to_string_tag_symbol();
-  return MakeAccessor(isolate, name, &ModuleNamespaceToStringTagGetter, nullptr,
-                      attributes);
-}
-
-//
 // Accessors::ModuleNamespaceEntry
 //
 

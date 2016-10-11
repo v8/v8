@@ -30,7 +30,6 @@ class AccessorInfo;
   V(FunctionName)                 \
   V(FunctionLength)               \
   V(FunctionPrototype)            \
-  V(ModuleNamespaceToStringTag)   \
   V(ScriptColumnOffset)           \
   V(ScriptCompilationType)        \
   V(ScriptContextData)            \
