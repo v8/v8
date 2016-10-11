@@ -7928,9 +7928,6 @@ class Module : public Struct {
   // Storage for [[Evaluated]].
   DECL_INT_ACCESSORS(flags)
 
-  // Embedder-specified data
-  DECL_ACCESSORS(embedder_data, Object)
-
   // Hash for this object (a random non-zero Smi).
   DECL_INT_ACCESSORS(hash)
 
@@ -7945,8 +7942,7 @@ class Module : public Struct {
   // otherwise.
   static MUST_USE_RESULT bool Instantiate(Handle<Module> module,
                                           v8::Local<v8::Context> context,
-                                          v8::Module::ResolveCallback callback,
-                                          v8::Local<v8::Value> callback_data);
+                                          v8::Module::ResolveCallback callback);
 
   // Implementation of spec operation ModuleEvaluation.
   static MUST_USE_RESULT MaybeHandle<Object> Evaluate(Handle<Module> module);

@@ -9,7 +9,7 @@
 
 #include <algorithm>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -572,29 +572,74 @@ std::string NormalizePath(const std::string& path,
   return result;
 }
 
+// Per-context Module data, allowing sharing of module maps
+// across top-level module loads.
+class ModuleEmbedderData {
+ private:
+  class ModuleGlobalHash {
+   public:
+    explicit ModuleGlobalHash(Isolate* isolate) : isolate_(isolate) {}
+    size_t operator()(const Global<Module>& module) const {
+      return module.Get(isolate_)->GetIdentityHash();
+    }
+
+   private:
+    Isolate* isolate_;
+  };
+
+ public:
+  explicit ModuleEmbedderData(Isolate* isolate)
+      : module_to_directory_map(10, ModuleGlobalHash(isolate)) {}
+
+  // Map from normalized module specifier to Module.
+  std::unordered_map<std::string, Global<Module>> specifier_to_module_map;
+  // Map from Module to the directory that Module was loaded from.
+  std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
+      module_to_directory_map;
+};
+
+enum {
+  // The debugger reserves the first slot in the Context embedder data.
+  kDebugIdIndex = Context::kDebugIdIndex,
+  kModuleEmbedderDataIndex
+};
+
+void InitializeModuleEmbedderData(Local<Context> context) {
+  context->SetAlignedPointerInEmbedderData(
+      kModuleEmbedderDataIndex, new ModuleEmbedderData(context->GetIsolate()));
+}
+
+ModuleEmbedderData* GetModuleDataFromContext(Local<Context> context) {
+  return static_cast<ModuleEmbedderData*>(
+      context->GetAlignedPointerFromEmbedderData(kModuleEmbedderDataIndex));
+}
+
+void DisposeModuleEmbedderData(Local<Context> context) {
+  delete GetModuleDataFromContext(context);
+  context->SetAlignedPointerInEmbedderData(kModuleEmbedderDataIndex, nullptr);
+}
+
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
-                                         Local<Module> referrer,
-                                         Local<Value> data) {
+                                         Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
-  auto module_map = static_cast<std::map<std::string, Global<Module>>*>(
-      External::Cast(*data)->Value());
-  Local<String> dir_name = Local<String>::Cast(referrer->GetEmbedderData());
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
+  auto dir_name_it =
+      d->module_to_directory_map.find(Global<Module>(isolate, referrer));
+  CHECK(dir_name_it != d->module_to_directory_map.end());
   std::string absolute_path =
-      NormalizePath(ToSTLString(specifier), ToSTLString(dir_name));
-  auto it = module_map->find(absolute_path);
-  if (it != module_map->end()) {
-    return it->second.Get(isolate);
-  }
-  return MaybeLocal<Module>();
+      NormalizePath(ToSTLString(specifier), dir_name_it->second);
+  auto module_it = d->specifier_to_module_map.find(absolute_path);
+  CHECK(module_it != d->specifier_to_module_map.end());
+  return module_it->second.Get(isolate);
 }
 
 }  // anonymous namespace
 
-MaybeLocal<Module> Shell::FetchModuleTree(
-    Isolate* isolate, const std::string& file_name,
-    std::map<std::string, Global<Module>>* module_map) {
+MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
+                                          const std::string& file_name) {
   DCHECK(IsAbsolutePath(file_name));
+  Isolate* isolate = context->GetIsolate();
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
   Local<String> source_text = ReadFile(isolate, file_name.c_str());
@@ -611,19 +656,22 @@ MaybeLocal<Module> Shell::FetchModuleTree(
     ReportException(isolate, &try_catch);
     return MaybeLocal<Module>();
   }
-  module_map->insert(
-      std::make_pair(file_name, Global<Module>(isolate, module)));
+
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
+  CHECK(d->specifier_to_module_map
+            .insert(std::make_pair(file_name, Global<Module>(isolate, module)))
+            .second);
 
   std::string dir_name = DirName(file_name);
-  module->SetEmbedderData(
-      String::NewFromUtf8(isolate, dir_name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked());
+  CHECK(d->module_to_directory_map
+            .insert(std::make_pair(Global<Module>(isolate, module), dir_name))
+            .second);
 
   for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
     Local<String> name = module->GetModuleRequest(i);
     std::string absolute_path = NormalizePath(ToSTLString(name), dir_name);
-    if (!module_map->count(absolute_path)) {
-      if (FetchModuleTree(isolate, absolute_path, module_map).IsEmpty()) {
+    if (!d->specifier_to_module_map.count(absolute_path)) {
+      if (FetchModuleTree(context, absolute_path).IsEmpty()) {
         return MaybeLocal<Module>();
       }
     }
@@ -635,12 +683,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
 
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
   Local<Module> root_module;
-  std::map<std::string, Global<Module>> module_map;
-  if (!FetchModuleTree(isolate, absolute_path, &module_map)
-           .ToLocal(&root_module)) {
+  if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
     return false;
   }
 
@@ -648,16 +698,9 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   try_catch.SetVerbose(true);
 
   MaybeLocal<Value> maybe_result;
-  {
-    PerIsolateData* data = PerIsolateData::Get(isolate);
-    Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
-    Context::Scope context_scope(realm);
-
-    if (root_module->Instantiate(realm, ResolveModuleCallback,
-                                 External::New(isolate, &module_map))) {
-      maybe_result = root_module->Evaluate(realm);
-      EmptyMessageQueues(isolate);
-    }
+  if (root_module->Instantiate(realm, ResolveModuleCallback)) {
+    maybe_result = root_module->Evaluate(realm);
+    EmptyMessageQueues(isolate);
   }
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
@@ -682,9 +725,15 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
-  for (int i = 0; i < data_->realm_count_; ++i)
-    data_->realms_[i].Reset();
+  for (int i = 0; i < data_->realm_count_; ++i) {
+    Global<Context>& realm = data_->realms_[i];
+    if (realm.IsEmpty()) continue;
+    DisposeModuleEmbedderData(realm.Get(data_->isolate_));
+    // TODO(adamk): No need to reset manually, Globals reset when destructed.
+    realm.Reset();
+  }
   delete[] data_->realms_;
+  // TODO(adamk): No need to reset manually, Globals reset when destructed.
   if (!data_->realm_shared_.IsEmpty())
     data_->realm_shared_.Reset();
 }
@@ -787,6 +836,7 @@ MaybeLocal<Context> Shell::CreateRealm(
     try_catch.ReThrow();
     return MaybeLocal<Context>();
   }
+  InitializeModuleEmbedderData(context);
   data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
   return context;
@@ -820,6 +870,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
+  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
   data->realms_[index].Reset();
   isolate->ContextDisposedNotification();
   isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
@@ -1488,6 +1539,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, NULL, global_template);
   DCHECK(!context.IsEmpty());
+  InitializeModuleEmbedderData(context);
   Context::Scope scope(context);
 
   i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
@@ -1813,6 +1865,7 @@ void SourceGroup::ExecuteInThread() {
           PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
           Execute(isolate);
         }
+        DisposeModuleEmbedderData(context);
       }
       Shell::CollectGarbage(isolate);
     }
@@ -2072,6 +2125,7 @@ void Worker::ExecuteInThread() {
           }
         }
       }
+      DisposeModuleEmbedderData(context);
     }
     Shell::CollectGarbage(isolate);
   }
@@ -2255,6 +2309,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       options.isolate_sources[0].Execute(isolate);
     }
+    DisposeModuleEmbedderData(context);
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {

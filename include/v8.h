@@ -1106,22 +1106,22 @@ class V8_EXPORT Module {
    */
   Local<String> GetModuleRequest(int i) const;
 
-  void SetEmbedderData(Local<Value> data);
-  Local<Value> GetEmbedderData() const;
+  /**
+   * Returns the identity hash for this object.
+   */
+  int GetIdentityHash() const;
 
   typedef MaybeLocal<Module> (*ResolveCallback)(Local<Context> context,
                                                 Local<String> specifier,
-                                                Local<Module> referrer,
-                                                Local<Value> data);
+                                                Local<Module> referrer);
 
   /**
    * ModuleDeclarationInstantiation
    *
    * Returns false if an exception occurred during instantiation.
    */
-  V8_WARN_UNUSED_RESULT bool Instantiate(
-      Local<Context> context, ResolveCallback callback,
-      Local<Value> callback_data = Local<Value>());
+  V8_WARN_UNUSED_RESULT bool Instantiate(Local<Context> context,
+                                         ResolveCallback callback);
 
   /**
    * ModuleEvaluation
