@@ -38,7 +38,7 @@ void CodeStubAssembler::Assert(Node* condition) {
 #endif
 }
 
-Node* CodeStubAssembler::NoContextConstant() { return SmiConstant(Smi::kZero); }
+Node* CodeStubAssembler::NoContextConstant() { return NumberConstant(0); }
 
 #define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
   Node* CodeStubAssembler::name##Constant() {      \
@@ -611,19 +611,17 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
          &no_runtime_call);
 
   Bind(&runtime_call);
-  // AllocateInTargetSpace does not use the context.
-  Node* context = SmiConstant(Smi::kZero);
-
   Node* runtime_result;
   if (flags & kPretenured) {
     Node* runtime_flags = SmiConstant(
         Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
                      AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
-    runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
-                                 SmiTag(size_in_bytes), runtime_flags);
+    runtime_result =
+        CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                    SmiTag(size_in_bytes), runtime_flags);
   } else {
-    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace, context,
-                                 SmiTag(size_in_bytes));
+    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace,
+                                 NoContextConstant(), SmiTag(size_in_bytes));
   }
   result.Bind(runtime_result);
   Goto(&merge_runtime);

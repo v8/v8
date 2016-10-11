@@ -107,7 +107,7 @@ Node* CodeAssembler::NumberConstant(double value) {
 }
 
 Node* CodeAssembler::SmiConstant(Smi* value) {
-  return IntPtrConstant(bit_cast<intptr_t>(value));
+  return BitcastWordToTaggedSigned(IntPtrConstant(bit_cast<intptr_t>(value)));
 }
 
 Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
