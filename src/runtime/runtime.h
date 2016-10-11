@@ -353,6 +353,12 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
 
+#define FOR_EACH_INTRINSIC_MODULE(F) \
+  F(GetModuleNamespace, 1, 1)        \
+  F(LoadModuleExport, 1, 1)          \
+  F(LoadModuleImport, 2, 1)          \
+  F(StoreModuleExport, 2, 1)
+
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
   F(IsValidSmi, 1, 1)                  \
   F(StringToNumber, 1, 1)              \
@@ -419,11 +425,7 @@ namespace internal {
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
-  F(CreateDataProperty, 3, 1)                        \
-  F(GetModuleNamespace, 1, 1)                        \
-  F(LoadModuleExport, 1, 1)                          \
-  F(LoadModuleImport, 2, 1)                          \
-  F(StoreModuleExport, 2, 1)
+  F(CreateDataProperty, 3, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \
@@ -973,6 +975,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \
   FOR_EACH_INTRINSIC_MATHS(F)               \
+  FOR_EACH_INTRINSIC_MODULE(F)              \
   FOR_EACH_INTRINSIC_NUMBERS(F)             \
   FOR_EACH_INTRINSIC_OBJECT(F)              \
   FOR_EACH_INTRINSIC_OPERATORS(F)           \
