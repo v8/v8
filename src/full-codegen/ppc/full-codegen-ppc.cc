@@ -2386,14 +2386,12 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     // not return to this function.
     EmitProfilingCounterHandlingForReturnSequence(true);
   }
-  Handle<Code> ic =
+  Handle<Code> code =
       CodeFactory::CallIC(isolate(), arg_count, mode, expr->tail_call_mode())
           .code();
   __ LoadSmiLiteral(r6, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
-  // Don't assign a type feedback id to the IC, since type feedback is provided
-  // by the vector above.
-  CallIC(ic);
+  __ Call(code, RelocInfo::CODE_TARGET);
   OperandStackDepthDecrement(arg_count + 1);
 
   RecordJSReturnSite(expr);
