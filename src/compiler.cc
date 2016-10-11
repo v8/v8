@@ -709,7 +709,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     parse_info->set_eval();
     parse_info->set_toplevel();
     parse_info->set_allow_lazy_parsing(false);
-    parse_info->set_lazy(false);
   }
 
   // Verify that OSR compilations are delegated to the correct graph builder.
@@ -1252,7 +1251,6 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
     parse_info.set_eval();
     parse_info.set_toplevel();
     parse_info.set_allow_lazy_parsing(false);
-    parse_info.set_lazy(false);
   }
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info).is_null()) {
@@ -1279,7 +1277,6 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
     parse_info.set_eval();
     parse_info.set_toplevel();
     parse_info.set_allow_lazy_parsing(false);
-    parse_info.set_lazy(false);
   }
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info).is_null()) {

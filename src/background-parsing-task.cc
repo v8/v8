@@ -31,6 +31,7 @@ BackgroundParsingTask::BackgroundParsingTask(
   // will happen in the main thread after parsing.
   Zone* zone = new Zone(isolate->allocator());
   ParseInfo* info = new ParseInfo(zone);
+  info->set_toplevel();
   source->zone.reset(zone);
   source->info.reset(info);
   info->set_isolate(isolate);

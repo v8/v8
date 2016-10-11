@@ -3828,13 +3828,9 @@ bool Parser::Parse(ParseInfo* info) {
   Isolate* isolate = info->isolate();
   pre_parse_timer_ = isolate->counters()->pre_parse();
 
-  if (info->is_lazy()) {
+  if (!info->shared_info().is_null() && info->shared_info()->is_function()) {
     DCHECK(!info->is_eval());
-    if (info->shared_info()->is_function()) {
-      result = ParseLazy(isolate, info);
-    } else {
-      result = ParseProgram(isolate, info);
-    }
+    result = ParseLazy(isolate, info);
   } else {
     SetCachedData(info);
     result = ParseProgram(isolate, info);
@@ -3876,12 +3872,12 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // don't). We work around this by storing all the scopes which need their end
   // position set at the end of the script (the top scope and possible eval
   // scopes) and set their end position after we know the script length.
-  if (info->is_lazy()) {
-    result = DoParseLazy(info, info->function_name(), stream_ptr);
-  } else {
+  if (info->is_toplevel()) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
     scanner_.Initialize(stream_ptr);
     result = DoParseProgram(info);
+  } else {
+    result = DoParseLazy(info, info->function_name(), stream_ptr);
   }
 
   info->set_literal(result);

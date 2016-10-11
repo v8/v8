@@ -66,7 +66,6 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_.reset(new ParseInfo(zone_.get()));
   parse_info_->set_isolate(isolate_);
   parse_info_->set_character_stream(character_stream_.get());
-  parse_info_->set_lazy();
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
   parse_info_->set_is_named_expression(shared_->is_named_expression());
   parse_info_->set_compiler_hints(shared_->compiler_hints());
