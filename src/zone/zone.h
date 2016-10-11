@@ -31,7 +31,7 @@ namespace internal {
 // from multi-threaded code.
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  explicit Zone(AccountingAllocator* allocator);
+  explicit Zone(AccountingAllocator* allocator, const char* name = "unnamed");
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -49,6 +49,8 @@ class V8_EXPORT_PRIVATE Zone final {
   bool excess_allocation() const {
     return segment_bytes_allocated_ > kExcessLimit;
   }
+
+  const char* name() const { return name_; }
 
   size_t allocation_size() const { return allocation_size_; }
 
@@ -105,6 +107,7 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator_;
 
   Segment* segment_head_;
+  const char* name_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

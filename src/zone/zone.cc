@@ -41,15 +41,20 @@ const size_t kASanRedzoneBytes = 0;
 
 }  // namespace
 
-Zone::Zone(AccountingAllocator* allocator)
+Zone::Zone(AccountingAllocator* allocator, const char* name)
     : allocation_size_(0),
       segment_bytes_allocated_(0),
       position_(0),
       limit_(0),
       allocator_(allocator),
-      segment_head_(nullptr) {}
+      segment_head_(nullptr),
+      name_(name) {
+  allocator_->ZoneCreation(this);
+}
 
 Zone::~Zone() {
+  allocator_->ZoneDestruction(this);
+
   DeleteAll();
 
   DCHECK(segment_bytes_allocated_ == 0);

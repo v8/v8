@@ -1936,6 +1936,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
       : heap_(heap),
         last_memory_usage_(0),
         last_pool_size_(0),
+        nesting_deepth_(0),
         allocation_sample_bytes_(allocation_sample_bytes),
         pool_sample_bytes_(pool_sample_bytes) {}
 
@@ -1948,7 +1949,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
       if (last_memory_usage_.Value() + allocation_sample_bytes_ <
               malloced_current ||
           last_pool_size_.Value() + pool_sample_bytes_ < pooled_current) {
-        PrintJSON(malloced_current, pooled_current);
+        PrintMemoryJSON(malloced_current, pooled_current);
         last_memory_usage_.SetValue(malloced_current);
         last_pool_size_.SetValue(pooled_current);
       }
@@ -1964,14 +1965,49 @@ class VerboseAccountingAllocator : public AccountingAllocator {
     if (malloced_current + allocation_sample_bytes_ <
             last_memory_usage_.Value() ||
         pooled_current + pool_sample_bytes_ < last_pool_size_.Value()) {
-      PrintJSON(malloced_current, pooled_current);
+      PrintMemoryJSON(malloced_current, pooled_current);
       last_memory_usage_.SetValue(malloced_current);
       last_pool_size_.SetValue(pooled_current);
     }
   }
 
+  void ZoneCreation(const Zone* zone) override {
+    double time = heap_->isolate()->time_millis_since_init();
+    PrintF(
+        "{"
+        "\"type\": \"zonecreation\", "
+        "\"isolate\": \"%p\", "
+        "\"time\": %f, "
+        "\"ptr\": \"%p\", "
+        "\"name\": \"%s\","
+        "\"nesting\": %zu"
+        "}\n",
+        reinterpret_cast<void*>(heap_->isolate()), time,
+        reinterpret_cast<const void*>(zone), zone->name(),
+        nesting_deepth_.Value());
+    nesting_deepth_.Increment(1);
+  }
+
+  void ZoneDestruction(const Zone* zone) override {
+    nesting_deepth_.Decrement(1);
+    double time = heap_->isolate()->time_millis_since_init();
+    PrintF(
+        "{"
+        "\"type\": \"zonedestruction\", "
+        "\"isolate\": \"%p\", "
+        "\"time\": %f, "
+        "\"ptr\": \"%p\", "
+        "\"name\": \"%s\", "
+        "\"size\": %zu,"
+        "\"nesting\": %zu"
+        "}\n",
+        reinterpret_cast<void*>(heap_->isolate()), time,
+        reinterpret_cast<const void*>(zone), zone->name(),
+        zone->allocation_size(), nesting_deepth_.Value());
+  }
+
  private:
-  void PrintJSON(size_t malloced, size_t pooled) {
+  void PrintMemoryJSON(size_t malloced, size_t pooled) {
     // Note: Neither isolate, nor heap is locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
     double time = heap_->isolate()->time_millis_since_init();
@@ -1989,6 +2025,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
   Heap* heap_;
   base::AtomicNumber<size_t> last_memory_usage_;
   base::AtomicNumber<size_t> last_pool_size_;
+  base::AtomicNumber<size_t> nesting_deepth_;
   size_t allocation_sample_bytes_, pool_sample_bytes_;
 };
 

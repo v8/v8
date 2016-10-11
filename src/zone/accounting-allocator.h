@@ -35,6 +35,9 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
 
   void MemoryPressureNotification(MemoryPressureLevel level);
 
+  virtual void ZoneCreation(const Zone* zone) {}
+  virtual void ZoneDestruction(const Zone* zone) {}
+
  private:
   static const uint8_t kMinSegmentSizePower = 13;
   static const uint8_t kMaxSegmentSizePower = 18;
