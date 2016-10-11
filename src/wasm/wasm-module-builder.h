@@ -49,6 +49,11 @@ class ZoneBuffer : public ZoneObject {
     LEBHelper::write_u32v(&pos_, val);
   }
 
+  void write_i32v(int32_t val) {
+    EnsureSpace(kMaxVarInt32Size);
+    LEBHelper::write_i32v(&pos_, val);
+  }
+
   void write_size(size_t val) {
     EnsureSpace(kMaxVarInt32Size);
     DCHECK_EQ(val, static_cast<uint32_t>(val));
