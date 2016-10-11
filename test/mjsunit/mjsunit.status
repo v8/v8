@@ -235,6 +235,9 @@
   'harmony/async-debug-caught-exception-cases2': [SKIP],
   'harmony/async-debug-caught-exception-cases3': [SKIP],
 
+  # TODO(jgruber): Too slow with new C++ port. Reenable once fixed.
+  'harmony/regexp-property-lu-ui': [SKIP],
+
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
