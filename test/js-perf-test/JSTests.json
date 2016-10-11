@@ -119,6 +119,7 @@
       "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
       "run_count": 1,
       "timeout": 240,
+      "timeout_android_arm": 360,
       "tests": [
         {"name": "StringFunctions"}
       ]
