@@ -2093,9 +2093,9 @@ int GetNumberOfFunctions(Handle<JSObject> wasm) {
   return func_names_arr->get_int(0);
 }
 
-Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
-                                            Handle<FixedArray> compiled_module,
-                                            ModuleOrigin origin) {
+Handle<JSObject> CreateCompiledModuleObject(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    ModuleOrigin origin) {
   Handle<JSObject> module_obj;
   if (origin == ModuleOrigin::kWasmOrigin) {
     Handle<JSFunction> module_cons(
@@ -2113,8 +2113,7 @@ Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
     Object::SetProperty(module_obj, module_sym, module_obj, STRICT).Check();
   }
   Handle<WeakCell> link_to_module = isolate->factory()->NewWeakCell(module_obj);
-  WasmCompiledModule::cast(*compiled_module)
-      ->set_weak_module_object(link_to_module);
+  compiled_module->set_weak_module_object(link_to_module);
   return module_obj;
 }
 
@@ -2132,7 +2131,7 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
     thrower->Failed("Wasm decoding failed", result);
     return nothing;
   }
-  MaybeHandle<FixedArray> compiled_module =
+  MaybeHandle<WasmCompiledModule> compiled_module =
       decoded_module->CompileFunctions(isolate, thrower);
   if (compiled_module.is_null()) return nothing;
 

@@ -209,7 +209,7 @@ TEST(Run_WasmModule_Serialization) {
     std::unique_ptr<const WasmModule> module(decoding_result.val);
     CHECK(!decoding_result.failed());
 
-    MaybeHandle<FixedArray> compiled_module =
+    MaybeHandle<WasmCompiledModule> compiled_module =
         module->CompileFunctions(isolate, &thrower);
     CHECK(!compiled_module.is_null());
     Handle<JSObject> module_obj = CreateCompiledModuleObject(

@@ -516,9 +516,9 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
 void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
                            const std::vector<Handle<Code>>* code_table);
 
-Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
-                                            Handle<FixedArray> compiled_module,
-                                            ModuleOrigin origin);
+Handle<JSObject> CreateCompiledModuleObject(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    ModuleOrigin origin);
 
 V8_EXPORT_PRIVATE MaybeHandle<JSObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
