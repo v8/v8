@@ -1931,16 +1931,26 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 class VerboseAccountingAllocator : public AccountingAllocator {
  public:
-  VerboseAccountingAllocator(Heap* heap, size_t sample_bytes)
-      : heap_(heap), last_memory_usage_(0), sample_bytes_(sample_bytes) {}
+  VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes,
+                             size_t pool_sample_bytes)
+      : heap_(heap),
+        last_memory_usage_(0),
+        last_pool_size_(0),
+        allocation_sample_bytes_(allocation_sample_bytes),
+        pool_sample_bytes_(pool_sample_bytes) {}
 
   v8::internal::Segment* GetSegment(size_t size) override {
     v8::internal::Segment* memory = AccountingAllocator::GetSegment(size);
     if (memory) {
-      size_t current = GetCurrentMemoryUsage();
-      if (last_memory_usage_.Value() + sample_bytes_ < current) {
-        PrintJSON(current);
-        last_memory_usage_.SetValue(current);
+      size_t malloced_current = GetCurrentMemoryUsage();
+      size_t pooled_current = GetCurrentPoolSize();
+
+      if (last_memory_usage_.Value() + allocation_sample_bytes_ <
+              malloced_current ||
+          last_pool_size_.Value() + pool_sample_bytes_ < pooled_current) {
+        PrintJSON(malloced_current, pooled_current);
+        last_memory_usage_.SetValue(malloced_current);
+        last_pool_size_.SetValue(pooled_current);
       }
     }
     return memory;
@@ -1948,31 +1958,38 @@ class VerboseAccountingAllocator : public AccountingAllocator {
 
   void ReturnSegment(v8::internal::Segment* memory) override {
     AccountingAllocator::ReturnSegment(memory);
-    size_t current = GetCurrentMemoryUsage();
-    if (current + sample_bytes_ < last_memory_usage_.Value()) {
-      PrintJSON(current);
-      last_memory_usage_.SetValue(current);
+    size_t malloced_current = GetCurrentMemoryUsage();
+    size_t pooled_current = GetCurrentPoolSize();
+
+    if (malloced_current + allocation_sample_bytes_ <
+            last_memory_usage_.Value() ||
+        pooled_current + pool_sample_bytes_ < last_pool_size_.Value()) {
+      PrintJSON(malloced_current, pooled_current);
+      last_memory_usage_.SetValue(malloced_current);
+      last_pool_size_.SetValue(pooled_current);
     }
   }
 
  private:
-  void PrintJSON(size_t sample) {
+  void PrintJSON(size_t malloced, size_t pooled) {
     // Note: Neither isolate, nor heap is locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
     double time = heap_->isolate()->time_millis_since_init();
     PrintF(
         "{"
-        "\"type\": \"malloced\", "
+        "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"value\": %zu"
+        "\"allocated\": %zu,"
+        "\"pooled\": %zu"
         "}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time, sample);
+        reinterpret_cast<void*>(heap_->isolate()), time, malloced, pooled);
   }
 
   Heap* heap_;
   base::AtomicNumber<size_t> last_memory_usage_;
-  size_t sample_bytes_;
+  base::AtomicNumber<size_t> last_pool_size_;
+  size_t allocation_sample_bytes_, pool_sample_bytes_;
 };
 
 Isolate::Isolate(bool enable_serializer)
@@ -2000,9 +2017,9 @@ Isolate::Isolate(bool enable_serializer)
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
-      allocator_(FLAG_trace_gc_object_stats
-                     ? new VerboseAccountingAllocator(&heap_, 256 * KB)
-                     : new AccountingAllocator()),
+      allocator_(FLAG_trace_gc_object_stats ? new VerboseAccountingAllocator(
+                                                  &heap_, 256 * KB, 128 * KB)
+                                            : new AccountingAllocator()),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),

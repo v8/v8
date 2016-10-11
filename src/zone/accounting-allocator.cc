@@ -84,6 +84,10 @@ size_t AccountingAllocator::GetMaxMemoryUsage() const {
   return base::NoBarrier_Load(&max_memory_usage_);
 }
 
+size_t AccountingAllocator::GetCurrentPoolSize() const {
+  return base::NoBarrier_Load(&current_pool_size_);
+}
+
 Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
   if (requested_size > (1 << kMaxSegmentSizePower)) {
     return nullptr;
@@ -106,7 +110,8 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
       segment->set_next(nullptr);
 
       unused_segments_sizes[power]--;
-      unused_segments_size_ -= segment->size();
+      base::NoBarrier_AtomicIncrement(
+          &current_pool_size_, -static_cast<base::AtomicWord>(segment->size()));
     }
   }
 
@@ -139,7 +144,7 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
 
     segment->set_next(unused_segments_heads_[power]);
     unused_segments_heads_[power] = segment;
-    unused_segments_size_ += size;
+    base::NoBarrier_AtomicIncrement(&current_pool_size_, size);
     unused_segments_sizes[power]++;
   }
 

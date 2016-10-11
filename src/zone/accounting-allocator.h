@@ -59,12 +59,11 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
 
   size_t unused_segments_sizes[1 + kMaxSegmentSizePower - kMinSegmentSizePower];
 
-  size_t unused_segments_size_ = 0;
-
   base::Mutex unused_segments_mutex_;
 
   base::AtomicWord current_memory_usage_ = 0;
   base::AtomicWord max_memory_usage_ = 0;
+  base::AtomicWord current_pool_size_ = 0;
 
   base::AtomicValue<MemoryPressureLevel> memory_pressure_level_;
 
