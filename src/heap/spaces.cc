@@ -631,18 +631,18 @@ void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
   }
 }
 
-MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
-                                            intptr_t commit_area_size,
+MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
+                                            size_t commit_area_size,
                                             Executability executable,
                                             Space* owner) {
-  DCHECK(commit_area_size <= reserve_area_size);
+  DCHECK_LE(commit_area_size, reserve_area_size);
 
   size_t chunk_size;
   Heap* heap = isolate_->heap();
-  Address base = NULL;
+  Address base = nullptr;
   base::VirtualMemory reservation;
-  Address area_start = NULL;
-  Address area_end = NULL;
+  Address area_start = nullptr;
+  Address area_end = nullptr;
 
   //
   // MemoryChunk layout:
@@ -913,11 +913,11 @@ template void MemoryAllocator::Free<MemoryAllocator::kPooledAndQueue>(
     MemoryChunk* chunk);
 
 template <MemoryAllocator::AllocationMode alloc_mode, typename SpaceType>
-Page* MemoryAllocator::AllocatePage(intptr_t size, SpaceType* owner,
+Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
                                     Executability executable) {
   MemoryChunk* chunk = nullptr;
   if (alloc_mode == kPooled) {
-    DCHECK_EQ(size, static_cast<intptr_t>(MemoryChunk::kAllocatableMemory));
+    DCHECK_EQ(size, static_cast<size_t>(MemoryChunk::kAllocatableMemory));
     DCHECK_EQ(executable, NOT_EXECUTABLE);
     chunk = AllocatePagePooled(owner);
   }
@@ -930,15 +930,15 @@ Page* MemoryAllocator::AllocatePage(intptr_t size, SpaceType* owner,
 
 template Page*
 MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
-    intptr_t size, PagedSpace* owner, Executability executable);
+    size_t size, PagedSpace* owner, Executability executable);
 template Page*
 MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
-    intptr_t size, SemiSpace* owner, Executability executable);
+    size_t size, SemiSpace* owner, Executability executable);
 template Page*
 MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
-    intptr_t size, SemiSpace* owner, Executability executable);
+    size_t size, SemiSpace* owner, Executability executable);
 
-LargePage* MemoryAllocator::AllocateLargePage(intptr_t size,
+LargePage* MemoryAllocator::AllocateLargePage(size_t size,
                                               LargeObjectSpace* owner,
                                               Executability executable) {
   MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
@@ -999,27 +999,23 @@ void MemoryAllocator::ReportStatistics() {
 }
 #endif
 
-
-int MemoryAllocator::CodePageGuardStartOffset() {
+size_t MemoryAllocator::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
   return RoundUp(Page::kObjectStartOffset, base::OS::CommitPageSize());
 }
 
-
-int MemoryAllocator::CodePageGuardSize() {
+size_t MemoryAllocator::CodePageGuardSize() {
   return static_cast<int>(base::OS::CommitPageSize());
 }
 
-
-int MemoryAllocator::CodePageAreaStartOffset() {
+size_t MemoryAllocator::CodePageAreaStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
   return CodePageGuardStartOffset() + CodePageGuardSize();
 }
 
-
-int MemoryAllocator::CodePageAreaEndOffset() {
+size_t MemoryAllocator::CodePageAreaEndOffset() {
   // We are guarding code pages: the last OS page will be protected as
   // non-writable.
   return Page::kPageSize - static_cast<int>(base::OS::CommitPageSize());

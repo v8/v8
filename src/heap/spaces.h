@@ -1216,19 +1216,19 @@ class MemoryAllocator {
     kPooledAndQueue,
   };
 
-  static int CodePageGuardStartOffset();
+  static size_t CodePageGuardStartOffset();
 
-  static int CodePageGuardSize();
+  static size_t CodePageGuardSize();
 
-  static int CodePageAreaStartOffset();
+  static size_t CodePageAreaStartOffset();
 
-  static int CodePageAreaEndOffset();
+  static size_t CodePageAreaEndOffset();
 
-  static int CodePageAreaSize() {
+  static size_t CodePageAreaSize() {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
-  static int PageAreaSize(AllocationSpace space) {
+  static size_t PageAreaSize(AllocationSpace space) {
     DCHECK_NE(LO_SPACE, space);
     return (space == CODE_SPACE) ? CodePageAreaSize()
                                  : Page::kAllocatableMemory;
@@ -1248,9 +1248,9 @@ class MemoryAllocator {
   // should be tried first.
   template <MemoryAllocator::AllocationMode alloc_mode = kRegular,
             typename SpaceType>
-  Page* AllocatePage(intptr_t size, SpaceType* owner, Executability executable);
+  Page* AllocatePage(size_t size, SpaceType* owner, Executability executable);
 
-  LargePage* AllocateLargePage(intptr_t size, LargeObjectSpace* owner,
+  LargePage* AllocateLargePage(size_t size, LargeObjectSpace* owner,
                                Executability executable);
 
   template <MemoryAllocator::FreeMode mode = kFull>
@@ -1292,8 +1292,7 @@ class MemoryAllocator {
   // Returns a MemoryChunk in which the memory region from commit_area_size to
   // reserve_area_size of the chunk area is reserved but not committed, it
   // could be committed later by calling MemoryChunk::CommitArea.
-  MemoryChunk* AllocateChunk(intptr_t reserve_area_size,
-                             intptr_t commit_area_size,
+  MemoryChunk* AllocateChunk(size_t reserve_area_size, size_t commit_area_size,
                              Executability executable, Space* space);
 
   void ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink);
@@ -2099,7 +2098,7 @@ class PagedSpace : public Space {
   int CountTotalPages();
 
   // Return size of allocatable area on a page in this space.
-  inline int AreaSize() { return area_size_; }
+  inline int AreaSize() { return static_cast<int>(area_size_); }
 
   virtual bool is_local() { return false; }
 
@@ -2162,7 +2161,7 @@ class PagedSpace : public Space {
   // Slow path of AllocateRaw.  This function is space-dependent.
   MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
-  int area_size_;
+  size_t area_size_;
 
   // Accounting information for this space.
   AllocationStats accounting_stats_;

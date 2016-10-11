@@ -1171,8 +1171,9 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
         for (auto& chunk : *reservation) {
           AllocationResult allocation;
           int size = chunk.size;
-          DCHECK_LE(size, MemoryAllocator::PageAreaSize(
-                              static_cast<AllocationSpace>(space)));
+          DCHECK_LE(static_cast<size_t>(size),
+                    MemoryAllocator::PageAreaSize(
+                        static_cast<AllocationSpace>(space)));
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRawUnaligned(size);
           } else {
