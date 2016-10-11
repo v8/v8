@@ -11109,9 +11109,7 @@ class TemplateInfo: public Struct {
   static const int kPropertyListOffset = kNumberOfProperties + kPointerSize;
   static const int kPropertyAccessorsOffset =
       kPropertyListOffset + kPointerSize;
-  static const int kPropertyIntrinsicsOffset =
-      kPropertyAccessorsOffset + kPointerSize;
-  static const int kHeaderSize = kPropertyIntrinsicsOffset + kPointerSize;
+  static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
