@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "17093d45bf738e9ae4b6294492860ee65218a657",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "83eadacc04822458a4474c50a26f2bdbee60aeff",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -18,7 +18,7 @@ deps = {
   "v8/buildtools":
     Var("chromium_url") + "/chromium/buildtools.git" + "@" + "39b1db2ab4aa4b2ccaa263c29bdf63e7c1ee28aa",
   "v8/base/trace_event/common":
-    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "b403fa6d086b4a89e991f726cc691b61353f8841",
+    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "98499f31650fa32813b7ddcc74f9fe23a2857d9c",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
     Var("chromium_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "3280c57c4c575ce82ccd13e4a403492fb4ca624b",
   "v8/third_party/jinja2":
@@ -49,7 +49,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "25d57ead05d3dfef26e9c19b13ed10b0a69829cf",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "c47d2e1b09e8edc8e1705073b337770f75d1d247",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "f1eba766fa78ee6cd535f4b8f01f5dcfe4b43e73",
   },
   "win": {
     "v8/third_party/cygwin":
