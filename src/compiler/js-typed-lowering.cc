@@ -756,6 +756,35 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   }
 }
 
+Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
+  Node* const input = node->InputAt(0);
+  Type* type = NodeProperties::GetType(input);
+  Factory* const f = factory();
+  if (type->Is(Type::Boolean())) {
+    return Replace(jsgraph()->Constant(f->boolean_string()));
+  } else if (type->Is(Type::Number())) {
+    return Replace(jsgraph()->Constant(f->number_string()));
+  } else if (type->Is(Type::String())) {
+    return Replace(jsgraph()->Constant(f->string_string()));
+  } else if (type->Is(Type::Symbol())) {
+    return Replace(jsgraph()->Constant(f->symbol_string()));
+  } else if (type->Is(Type::Union(Type::Undefined(), Type::OtherUndetectable(),
+                                  graph()->zone()))) {
+    return Replace(jsgraph()->Constant(f->undefined_string()));
+  } else if (type->Is(Type::Null())) {
+    return Replace(jsgraph()->Constant(f->object_string()));
+  } else if (type->Is(Type::Function())) {
+    return Replace(jsgraph()->Constant(f->function_string()));
+  } else if (type->IsHeapConstant()) {
+    return Replace(jsgraph()->Constant(
+        Object::TypeOf(isolate(), type->AsHeapConstant()->Value())));
+  } else if (type->IsOtherNumberConstant()) {
+    return Replace(jsgraph()->Constant(f->number_string()));
+  }
+
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
   HeapObjectBinopMatcher m(node);
   if (m.left().IsJSTypeOf() && m.right().HasValue() &&
@@ -2085,6 +2114,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToString(node);
     case IrOpcode::kJSToObject:
       return ReduceJSToObject(node);
+    case IrOpcode::kJSTypeOf:
+      return ReduceJSTypeOf(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadProperty:
