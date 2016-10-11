@@ -2747,17 +2747,6 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     Mode mode) {
   Label object_is_black, need_incremental, need_incremental_pop_object;
 
-  __ mov(regs_.scratch0(), Immediate(~Page::kPageAlignmentMask));
-  __ and_(regs_.scratch0(), regs_.object());
-  __ mov(regs_.scratch1(),
-         Operand(regs_.scratch0(),
-                 MemoryChunk::kWriteBarrierCounterOffset));
-  __ sub(regs_.scratch1(), Immediate(1));
-  __ mov(Operand(regs_.scratch0(),
-                 MemoryChunk::kWriteBarrierCounterOffset),
-         regs_.scratch1());
-  __ j(negative, &need_incremental);
-
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
   __ JumpIfBlack(regs_.object(),

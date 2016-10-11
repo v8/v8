@@ -291,6 +291,8 @@
   'test-run-machops/RunFloat64Tan': [SKIP],
   'test-cpu-profiler/Inlining': [SKIP],
   'test-gap-resolver/FuzzResolver': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f32': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f64': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################

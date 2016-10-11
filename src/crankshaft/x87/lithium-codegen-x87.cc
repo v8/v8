@@ -3684,7 +3684,9 @@ void LCodeGen::DoMathCos(LMathCos* instr) {
   __ PrepareCallCFunction(2, eax);
   __ fstp_d(MemOperand(esp, 0));
   X87PrepareToWrite(result);
+  __ X87SetFPUCW(0x027F);
   __ CallCFunction(ExternalReference::ieee754_cos_function(isolate()), 2);
+  __ X87SetFPUCW(0x037F);
   // Return value is in st(0) on ia32.
   X87CommitWrite(result);
 }
@@ -3698,7 +3700,9 @@ void LCodeGen::DoMathSin(LMathSin* instr) {
   __ PrepareCallCFunction(2, eax);
   __ fstp_d(MemOperand(esp, 0));
   X87PrepareToWrite(result);
+  __ X87SetFPUCW(0x027F);
   __ CallCFunction(ExternalReference::ieee754_sin_function(isolate()), 2);
+  __ X87SetFPUCW(0x037F);
   // Return value is in st(0) on ia32.
   X87CommitWrite(result);
 }
