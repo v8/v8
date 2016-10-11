@@ -590,6 +590,7 @@ namespace internal {
   CPP(RegExpPrototypeSearch)                                                  \
   CPP(RegExpPrototypeSourceGetter)                                            \
   CPP(RegExpPrototypeSpeciesGetter)                                           \
+  CPP(RegExpPrototypeSplit)                                                   \
   TFJ(RegExpPrototypeStickyGetter, 1)                                         \
   CPP(RegExpPrototypeTest)                                                    \
   CPP(RegExpPrototypeToString)                                                \

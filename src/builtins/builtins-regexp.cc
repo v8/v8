@@ -1214,5 +1214,385 @@ BUILTIN(RegExpPrototypeSearch) {
       isolate, Object::GetProperty(result, isolate->factory()->index_string()));
 }
 
+namespace {
+
+MUST_USE_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
+                                             Handle<Object> object,
+                                             uint32_t* out) {
+  if (object->IsUndefined(isolate)) {
+    *out = kMaxUInt32;
+    return object;
+  }
+
+  Handle<Object> number;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number, Object::ToNumber(object), Object);
+  *out = NumberToUint32(*number);
+  return object;
+}
+
+bool AtSurrogatePair(Isolate* isolate, Handle<String> string, int index) {
+  if (index + 1 >= string->length()) return false;
+  const uint16_t first = string->Get(index);
+  if (first < 0xD800 || first > 0xDBFF) return false;
+  const uint16_t second = string->Get(index + 1);
+  return (second >= 0xDC00 && second <= 0xDFFF);
+}
+
+Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
+                                       Handle<FixedArray> elems,
+                                       int num_elems) {
+  elems->Shrink(num_elems);
+  return isolate->factory()->NewJSArrayWithElements(elems);
+}
+
+MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
+                                 Handle<String> string,
+                                 Handle<Object> limit_obj) {
+  Factory* factory = isolate->factory();
+
+  uint32_t limit;
+  RETURN_ON_EXCEPTION(isolate, ToUint32(isolate, limit_obj, &limit), JSArray);
+
+  const int length = string->length();
+
+  if (limit == 0) return factory->NewJSArray(0);
+
+  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+
+  if (length == 0) {
+    Handle<Object> match_indices;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, match_indices,
+        RegExpImpl::Exec(regexp, string, 0, last_match_info), JSArray);
+
+    if (!match_indices->IsNull(isolate)) return factory->NewJSArray(0);
+
+    Handle<FixedArray> elems = factory->NewUninitializedFixedArray(1);
+    elems->set(0, *string);
+    return factory->NewJSArrayWithElements(elems);
+  }
+
+  int current_index = 0;
+  int start_index = 0;
+  int start_match = 0;
+
+  static const int kInitialArraySize = 8;
+  Handle<FixedArray> elems = factory->NewFixedArrayWithHoles(kInitialArraySize);
+  int num_elems = 0;
+
+  while (true) {
+    if (start_index == length) {
+      Handle<String> substr =
+          factory->NewSubString(string, current_index, length);
+      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      break;
+    }
+
+    Handle<Object> match_indices_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, match_indices_obj,
+        RegExpImpl::Exec(regexp, string, start_index, last_match_info),
+        JSArray);
+
+    if (match_indices_obj->IsNull(isolate)) {
+      Handle<String> substr =
+          factory->NewSubString(string, current_index, length);
+      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      break;
+    }
+
+    auto match_indices = Handle<JSReceiver>::cast(match_indices_obj);
+
+    Handle<Object> start_match_obj =
+        JSReceiver::GetElement(isolate, match_indices,
+                               RegExpImpl::kFirstCapture)
+            .ToHandleChecked();
+    start_match = Handle<Smi>::cast(start_match_obj)->value();
+
+    if (start_match == length) {
+      Handle<String> substr =
+          factory->NewSubString(string, current_index, length);
+      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      break;
+    }
+
+    Handle<Object> end_index_obj =
+        JSReceiver::GetElement(isolate, match_indices,
+                               RegExpImpl::kFirstCapture + 1)
+            .ToHandleChecked();
+    const int end_index = Handle<Smi>::cast(end_index_obj)->value();
+
+    if (start_index == end_index && end_index == current_index) {
+      const bool unicode = (regexp->GetFlags() & JSRegExp::kUnicode) != 0;
+      if (unicode && AtSurrogatePair(isolate, string, start_index)) {
+        start_index += 2;
+      } else {
+        start_index += 1;
+      }
+      continue;
+    }
+
+    {
+      Handle<String> substr =
+          factory->NewSubString(string, current_index, start_match);
+      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+    }
+
+    if (num_elems == limit) break;
+
+    // TODO(jgruber): Refactor GetLastMatchInfo methods to take an input
+    // argument.
+    Handle<Object> num_captures_obj =
+        JSReceiver::GetElement(isolate, match_indices,
+                               RegExpImpl::kLastCaptureCount)
+            .ToHandleChecked();
+    const int match_indices_len = Handle<Smi>::cast(num_captures_obj)->value() +
+                                  RegExpImpl::kFirstCapture;
+
+    for (int i = RegExpImpl::kFirstCapture + 2; i < match_indices_len;) {
+      Handle<Object> start_obj =
+          JSReceiver::GetElement(isolate, match_indices, i++).ToHandleChecked();
+      const int start = Handle<Smi>::cast(start_obj)->value();
+
+      Handle<Object> end_obj =
+          JSReceiver::GetElement(isolate, match_indices, i++).ToHandleChecked();
+      const int end = Handle<Smi>::cast(end_obj)->value();
+
+      if (end != -1) {
+        Handle<String> substr = factory->NewSubString(string, start, end);
+        elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      } else {
+        elems = FixedArray::SetAndGrow(elems, num_elems++,
+                                       factory->undefined_value());
+      }
+
+      if (num_elems == limit) {
+        return NewJSArrayWithElements(isolate, elems, num_elems);
+      }
+    }
+
+    start_index = current_index = end_index;
+  }
+
+  return NewJSArrayWithElements(isolate, elems, num_elems);
+}
+
+// ES##sec-speciesconstructor
+// SpeciesConstructor ( O, defaultConstructor )
+MaybeHandle<Object> SpeciesConstructor(Isolate* isolate,
+                                       Handle<JSReceiver> recv,
+                                       Handle<JSFunction> default_ctor) {
+  Handle<Object> ctor_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, ctor_obj,
+      JSObject::GetProperty(recv, isolate->factory()->constructor_string()),
+      Object);
+
+  if (ctor_obj->IsUndefined(isolate)) return default_ctor;
+
+  if (!ctor_obj->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kConstructorNotReceiver),
+                    Object);
+  }
+
+  Handle<JSReceiver> ctor = Handle<JSReceiver>::cast(ctor_obj);
+
+  Handle<Object> species;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, species,
+      JSObject::GetProperty(ctor, isolate->factory()->species_symbol()),
+      Object);
+
+  if (species->IsNull(isolate) || species->IsUndefined(isolate)) {
+    return default_ctor;
+  }
+
+  if (species->IsConstructor()) return species;
+
+  THROW_NEW_ERROR(
+      isolate, NewTypeError(MessageTemplate::kSpeciesNotConstructor), Object);
+}
+
+bool IsBuiltinExec(Handle<Object> exec) {
+  if (!exec->IsJSFunction()) return false;
+
+  Code* code = Handle<JSFunction>::cast(exec)->code();
+  if (code == nullptr) return false;
+
+  return (code->builtin_index() == Builtins::kRegExpPrototypeExec);
+}
+
+}  // namespace
+
+// ES#sec-regexp.prototype-@@split
+// RegExp.prototype [ @@split ] ( string, limit )
+BUILTIN(RegExpPrototypeSplit) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, recv, "RegExp.prototype.@@split");
+
+  Factory* factory = isolate->factory();
+
+  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
+  Handle<Object> limit_obj = args.atOrUndefined(isolate, 2);
+
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, string_obj));
+
+  Handle<JSFunction> regexp_fun = isolate->regexp_function();
+  Handle<Object> ctor;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, ctor, SpeciesConstructor(isolate, recv, regexp_fun));
+
+  if (recv->IsJSRegExp() && *ctor == *regexp_fun) {
+    Handle<Object> exec;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, exec, JSObject::GetProperty(
+                           recv, factory->NewStringFromAsciiChecked("exec")));
+    if (IsBuiltinExec(exec)) {
+      RETURN_RESULT_OR_FAILURE(
+          isolate, RegExpSplit(isolate, Handle<JSRegExp>::cast(recv), string,
+                               limit_obj));
+    }
+  }
+
+  Handle<Object> flags_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, flags_obj, JSObject::GetProperty(recv, factory->flags_string()));
+
+  Handle<String> flags;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags,
+                                     Object::ToString(isolate, flags_obj));
+
+  Handle<String> u_str = factory->LookupSingleCharacterStringFromCode('u');
+  const bool unicode = (String::IndexOf(isolate, flags, u_str, 0) >= 0);
+
+  Handle<String> y_str = factory->LookupSingleCharacterStringFromCode('y');
+  const bool sticky = (String::IndexOf(isolate, flags, y_str, 0) >= 0);
+
+  Handle<String> new_flags = flags;
+  if (!sticky) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_flags,
+                                       factory->NewConsString(flags, y_str));
+  }
+
+  Handle<JSReceiver> splitter;
+  {
+    const int argc = 2;
+
+    ScopedVector<Handle<Object>> argv(argc);
+    argv[0] = recv;
+    argv[1] = new_flags;
+
+    Handle<JSFunction> ctor_fun = Handle<JSFunction>::cast(ctor);
+    Handle<Object> splitter_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, splitter_obj, Execution::New(ctor_fun, argc, argv.start()));
+
+    splitter = Handle<JSReceiver>::cast(splitter_obj);
+  }
+
+  uint32_t limit;
+  RETURN_FAILURE_ON_EXCEPTION(isolate, ToUint32(isolate, limit_obj, &limit));
+
+  const int length = string->length();
+
+  if (limit == 0) return *factory->NewJSArray(0);
+
+  if (length == 0) {
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        RegExpExec(isolate, splitter, string, factory->undefined_value()));
+
+    if (!result->IsNull(isolate)) return *factory->NewJSArray(0);
+
+    Handle<FixedArray> elems = factory->NewUninitializedFixedArray(1);
+    elems->set(0, *string);
+    return *factory->NewJSArrayWithElements(elems);
+  }
+
+  // TODO(jgruber): Wrap this in a helper class.
+  static const int kInitialArraySize = 8;
+  Handle<FixedArray> elems = factory->NewFixedArrayWithHoles(kInitialArraySize);
+  int num_elems = 0;
+
+  int string_index = 0;
+  int prev_string_index = 0;
+  while (string_index < length) {
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
+                                SetLastIndex(isolate, splitter, string_index));
+
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        RegExpExec(isolate, splitter, string, factory->undefined_value()));
+
+    if (result->IsNull(isolate)) {
+      string_index +=
+          AdvanceStringIndex(isolate, string, string_index, unicode);
+      continue;
+    }
+
+    // TODO(jgruber): Extract toLength of some property into function.
+    Handle<Object> last_index_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, last_index_obj,
+                                       GetLastIndex(isolate, splitter));
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
+    const int last_index = Handle<Smi>::cast(last_index_obj)->value();
+
+    const int end = std::min(last_index, length);
+    if (end == prev_string_index) {
+      string_index +=
+          AdvanceStringIndex(isolate, string, string_index, unicode);
+      continue;
+    }
+
+    {
+      Handle<String> substr =
+          factory->NewSubString(string, prev_string_index, string_index);
+      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      if (num_elems == limit) {
+        return *NewJSArrayWithElements(isolate, elems, num_elems);
+      }
+    }
+
+    prev_string_index = end;
+
+    Handle<Object> num_captures_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num_captures_obj,
+        Object::GetProperty(result, isolate->factory()->length_string()));
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num_captures_obj, Object::ToLength(isolate, num_captures_obj));
+    const int num_captures =
+        std::max(Handle<Smi>::cast(num_captures_obj)->value(), 0);
+
+    for (int i = 1; i < num_captures; i++) {
+      Handle<Object> capture;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, capture, Object::GetElement(isolate, result, i));
+      elems = FixedArray::SetAndGrow(elems, num_elems++, capture);
+      if (num_elems == limit) {
+        return *NewJSArrayWithElements(isolate, elems, num_elems);
+      }
+    }
+
+    string_index = prev_string_index;
+  }
+
+  {
+    Handle<String> substr =
+        factory->NewSubString(string, prev_string_index, length);
+    elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+  }
+
+  return *NewJSArrayWithElements(isolate, elems, num_elems);
+}
+
 }  // namespace internal
 }  // namespace v8

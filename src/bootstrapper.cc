@@ -1748,6 +1748,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             Builtins::kRegExpPrototypeSearch, 1, false);
         InstallFunction(prototype, fun, factory->search_symbol(), DONT_ENUM);
       }
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.split]"),
+            Builtins::kRegExpPrototypeSplit, 2, false);
+        InstallFunction(prototype, fun, factory->split_symbol(), DONT_ENUM);
+      }
     }
 
     {
