@@ -7881,6 +7881,7 @@ class JSGeneratorObject: public JSObject {
 class JSModuleNamespace : public JSObject {
  public:
   DECLARE_CAST(JSModuleNamespace)
+  DECLARE_PRINTER(JSModuleNamespace)
   DECLARE_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.

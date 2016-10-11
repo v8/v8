@@ -166,6 +166,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_WEAK_SET_TYPE:
       JSWeakSet::cast(this)->JSWeakSetPrint(os);
       break;
+    case JS_MODULE_NAMESPACE_TYPE:
+      JSModuleNamespace::cast(this)->JSModuleNamespacePrint(os);
+      break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignPrint(os);
       break;
@@ -1165,6 +1168,12 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
   os << "\n - requested_modules: " << Brief(requested_modules());
   os << "\n - evaluated: " << evaluated();
   os << "\n - embedder_data: " << Brief(embedder_data());
+  os << "\n";
+}
+
+void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "JSModuleNamespace");
+  os << "\n - module: " << Brief(module());
   os << "\n";
 }
 
