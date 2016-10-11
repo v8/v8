@@ -227,10 +227,13 @@ class TestingModule : public ModuleEnv {
   }
 
   void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
-    module_.function_tables.push_back(
-        {table_size, table_size, std::vector<int32_t>(), false, false});
+    module_.function_tables.push_back({table_size, table_size,
+                                       std::vector<int32_t>(), false, false,
+                                       SignatureMap()});
+    WasmIndirectFunctionTable& table = module_.function_tables.back();
     for (uint32_t i = 0; i < table_size; ++i) {
-      module_.function_tables.back().values.push_back(functions[i]);
+      table.values.push_back(functions[i]);
+      table.map.FindOrInsert(module_.functions[functions[i]].sig);
     }
 
     Handle<FixedArray> values = BuildFunctionTable(

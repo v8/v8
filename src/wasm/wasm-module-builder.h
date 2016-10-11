@@ -229,6 +229,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // Writing methods.
   void WriteTo(ZoneBuffer& buffer) const;
 
+  // TODO(titzer): use SignatureMap from signature-map.h here.
+  // This signature map is zone-allocated, but the other is heap allocated.
   struct CompareFunctionSigs {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };

@@ -1247,6 +1247,8 @@
         'wasm/leb-helper.h',
         'wasm/module-decoder.cc',
         'wasm/module-decoder.h',
+        'wasm/signature-map.cc',
+        'wasm/signature-map.h',
         'wasm/wasm-debug.cc',
         'wasm/wasm-debug.h',
         'wasm/wasm-external-refs.cc',

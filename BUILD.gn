@@ -1696,6 +1696,8 @@ v8_source_set("v8_base") {
     "src/wasm/leb-helper.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
+    "src/wasm/signature-map.cc",
+    "src/wasm/signature-map.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-debug.h",
     "src/wasm/wasm-external-refs.cc",

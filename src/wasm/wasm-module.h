@@ -11,8 +11,8 @@
 #include "src/handles.h"
 #include "src/parsing/preparse-data.h"
 
+#include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-opcodes.h"
-#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
@@ -23,6 +23,8 @@ class WasmCompilationUnit;
 }
 
 namespace wasm {
+class ErrorThrower;
+
 const size_t kMaxModuleSize = 1024 * 1024 * 1024;
 const size_t kMaxFunctionSize = 128 * 1024;
 const size_t kMaxStringSize = 256;
@@ -134,6 +136,7 @@ struct WasmIndirectFunctionTable {
   std::vector<int32_t> values;  // function table, -1 indicating invalid.
   bool imported;                // true if imported.
   bool exported;                // true if exported.
+  SignatureMap map;             // canonicalizing map for sig indexes.
 };
 
 // Static representation of how to initialize a table.
@@ -338,11 +341,6 @@ struct WasmFunctionName {
 std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
-
-typedef Result<const WasmModule*> ModuleResult;
-typedef Result<WasmFunction*> FunctionResult;
-typedef std::vector<std::pair<int, int>> FunctionOffsets;
-typedef Result<FunctionOffsets> FunctionOffsetsResult;
 
 class WasmCompiledModule : public FixedArray {
  public:

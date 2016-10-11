@@ -2059,7 +2059,9 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
       isolate->factory()->NewFixedArray(2 * table->max_size, TENURED);
   for (uint32_t i = 0; i < table->size; ++i) {
     const WasmFunction* function = &module->functions[table->values[i]];
-    values->set(i, Smi::FromInt(function->sig_index));
+    int32_t index = table->map.Find(function->sig);
+    DCHECK_GE(index, 0);
+    values->set(i, Smi::FromInt(index));
     values->set(i + table->max_size, Smi::FromInt(table->values[i]));
   }
   // Set the remaining elements to -1 (instead of "undefined"). These

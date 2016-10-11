@@ -7,10 +7,17 @@
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+typedef Result<const WasmModule*> ModuleResult;
+typedef Result<WasmFunction*> FunctionResult;
+typedef std::vector<std::pair<int, int>> FunctionOffsets;
+typedef Result<FunctionOffsets> FunctionOffsetsResult;
+
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
                                                 const byte* module_start,

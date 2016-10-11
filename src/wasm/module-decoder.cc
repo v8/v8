@@ -301,7 +301,7 @@ class ModuleDecoder : public Decoder {
             import->index =
                 static_cast<uint32_t>(module->function_tables.size());
             module->function_tables.push_back(
-                {0, 0, std::vector<int32_t>(), true, false});
+                {0, 0, std::vector<int32_t>(), true, false, SignatureMap()});
             expect_u8("element type", 0x20);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
             consume_resizable_limits("element count", "elements", kMaxUInt32,
@@ -363,10 +363,12 @@ class ModuleDecoder : public Decoder {
       if (table_count > 1) {
         error(pos, pos, "invalid table count %d, maximum 1", table_count);
       }
+      if (module->function_tables.size() < 1) {
+        module->function_tables.push_back(
+            {0, 0, std::vector<int32_t>(), false, false, SignatureMap()});
+      }
 
       for (uint32_t i = 0; ok() && i < table_count; i++) {
-        module->function_tables.push_back(
-            {0, 0, std::vector<int32_t>(), false, false});
         WasmIndirectFunctionTable* table = &module->function_tables.back();
         expect_u8("table type", kWasmAnyFunctionTypeForm);
         consume_resizable_limits("table elements", "elements", kMaxUInt32,
@@ -503,8 +505,17 @@ class ModuleDecoder : public Decoder {
     if (section_iter.section_code() == kElementSectionCode) {
       uint32_t element_count = consume_u32v("element count");
       for (uint32_t i = 0; ok() && i < element_count; ++i) {
+        const byte* pos = pc();
         uint32_t table_index = consume_u32v("table index");
-        if (table_index != 0) error("illegal table index != 0");
+        if (table_index != 0) {
+          error(pos, pos, "illegal table index %u != 0", table_index);
+        }
+        WasmIndirectFunctionTable* table = nullptr;
+        if (table_index >= module->function_tables.size()) {
+          error(pos, pos, "out of bounds table index %u", table_index);
+        } else {
+          table = &module->function_tables[table_index];
+        }
         WasmInitExpr offset = consume_init_expr(module, kAstI32);
         uint32_t num_elem = consume_u32v("number of elements");
         std::vector<uint32_t> vector;
@@ -513,7 +524,13 @@ class ModuleDecoder : public Decoder {
         init->entries.reserve(SafeReserve(num_elem));
         for (uint32_t j = 0; ok() && j < num_elem; j++) {
           WasmFunction* func = nullptr;
-          init->entries.push_back(consume_func_index(module, &func));
+          uint32_t index = consume_func_index(module, &func);
+          init->entries.push_back(index);
+          if (table && index < module->functions.size()) {
+            // Canonicalize signature indices during decoding.
+            // TODO(titzer): suboptimal, redundant when verifying only.
+            table->map.FindOrInsert(module->functions[index].sig);
+          }
         }
       }
 

@@ -1419,7 +1419,16 @@ class ThreadImpl : public WasmInterpreter::Thread {
           if (target == nullptr) {
             return DoTrap(kTrapFuncInvalid, pc);
           } else if (target->function->sig_index != operand.index) {
-            return DoTrap(kTrapFuncSigMismatch, pc);
+            // If not an exact match, we have to do a canonical check.
+            // TODO(titzer): make this faster with some kind of caching?
+            const WasmIndirectFunctionTable* table =
+                &module()->function_tables[0];
+            int function_key = table->map.Find(target->function->sig);
+            if (function_key < 0 ||
+                (function_key !=
+                 table->map.Find(module()->signatures[operand.index]))) {
+              return DoTrap(kTrapFuncSigMismatch, pc);
+            }
           }
 
           DoCall(target, &pc, pc + 1 + operand.length, &limit);

@@ -73,6 +73,7 @@
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 
