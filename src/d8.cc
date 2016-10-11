@@ -725,12 +725,8 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
-  for (int i = 0; i < data_->realm_count_; ++i) {
-    Global<Context>& realm = data_->realms_[i];
-    if (realm.IsEmpty()) continue;
-    DisposeModuleEmbedderData(realm.Get(data_->isolate_));
-    realm.Reset();
-  }
+  for (int i = 0; i < data_->realm_count_; ++i)
+    data_->realms_[i].Reset();
   delete[] data_->realms_;
   if (!data_->realm_shared_.IsEmpty())
     data_->realm_shared_.Reset();
