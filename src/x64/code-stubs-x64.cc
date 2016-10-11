@@ -1324,14 +1324,13 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ cmpp(rdi, r8);
   __ j(not_equal, miss);
 
-  __ movp(rax, Immediate(arg_count()));
-
   // Increment the call count for monomorphic function calls.
   IncrementCallCount(masm, rbx, rdx);
 
   __ movp(rbx, rcx);
   __ movp(rdx, rdi);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ Set(rax, arg_count());
+  ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
 
@@ -3539,36 +3538,22 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   }
 }
 
-
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
-    MacroAssembler* masm,
-    AllocationSiteOverrideMode mode) {
-  if (argument_count() == ANY) {
-    Label not_zero_case, not_one_case;
-    __ testp(rax, rax);
-    __ j(not_zero, &not_zero_case);
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+    MacroAssembler* masm, AllocationSiteOverrideMode mode) {
+  Label not_zero_case, not_one_case;
+  __ testp(rax, rax);
+  __ j(not_zero, &not_zero_case);
+  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
 
-    __ bind(&not_zero_case);
-    __ cmpl(rax, Immediate(1));
-    __ j(greater, &not_one_case);
-    CreateArrayDispatchOneArgument(masm, mode);
+  __ bind(&not_zero_case);
+  __ cmpl(rax, Immediate(1));
+  __ j(greater, &not_one_case);
+  CreateArrayDispatchOneArgument(masm, mode);
 
-    __ bind(&not_one_case);
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else if (argument_count() == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-  } else if (argument_count() == ONE) {
-    CreateArrayDispatchOneArgument(masm, mode);
-  } else if (argument_count() == MORE_THAN_ONE) {
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else {
-    UNREACHABLE();
-  }
+  __ bind(&not_one_case);
+  ArrayNArgumentsConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
-
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -3621,27 +3606,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing
   __ bind(&subclassing);
-  switch (argument_count()) {
-    case ANY:
-    case MORE_THAN_ONE: {
-      StackArgumentsAccessor args(rsp, rax);
-      __ movp(args.GetReceiverOperand(), rdi);
-      __ addp(rax, Immediate(3));
-      break;
-    }
-    case NONE: {
-      StackArgumentsAccessor args(rsp, 0);
-      __ movp(args.GetReceiverOperand(), rdi);
-      __ Set(rax, 3);
-      break;
-    }
-    case ONE: {
-      StackArgumentsAccessor args(rsp, 1);
-      __ movp(args.GetReceiverOperand(), rdi);
-      __ Set(rax, 4);
-      break;
-    }
-  }
+  StackArgumentsAccessor args(rsp, rax);
+  __ movp(args.GetReceiverOperand(), rdi);
+  __ addp(rax, Immediate(3));
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);
   __ Push(rbx);

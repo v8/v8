@@ -2011,8 +2011,6 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ Cmp(function, scratch);
   __ B(ne, miss);
 
-  __ Mov(x0, Operand(arg_count()));
-
   // Increment the call count for monomorphic function calls.
   IncrementCallCount(masm, feedback_vector, index);
 
@@ -2021,7 +2019,8 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   Register new_target_arg = index;
   __ Mov(allocation_site_arg, allocation_site);
   __ Mov(new_target_arg, function);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ Mov(x0, Operand(arg_count()));
+  ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
 
@@ -3895,33 +3894,22 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm,
     AllocationSiteOverrideMode mode) {
   Register argc = x0;
-  if (argument_count() == ANY) {
-    Label zero_case, n_case;
-    __ Cbz(argc, &zero_case);
-    __ Cmp(argc, 1);
-    __ B(ne, &n_case);
+  Label zero_case, n_case;
+  __ Cbz(argc, &zero_case);
+  __ Cmp(argc, 1);
+  __ B(ne, &n_case);
 
-    // One argument.
-    CreateArrayDispatchOneArgument(masm, mode);
+  // One argument.
+  CreateArrayDispatchOneArgument(masm, mode);
 
-    __ Bind(&zero_case);
-    // No arguments.
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  __ Bind(&zero_case);
+  // No arguments.
+  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
 
-    __ Bind(&n_case);
-    // N arguments.
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else if (argument_count() == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-  } else if (argument_count() == ONE) {
-    CreateArrayDispatchOneArgument(masm, mode);
-  } else if (argument_count() == MORE_THAN_ONE) {
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else {
-    UNREACHABLE();
-  }
+  __ Bind(&n_case);
+  // N arguments.
+  ArrayNArgumentsConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 
@@ -3981,21 +3969,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing support.
   __ Bind(&subclassing);
-  switch (argument_count()) {
-    case ANY:
-    case MORE_THAN_ONE:
-      __ Poke(constructor, Operand(x0, LSL, kPointerSizeLog2));
-      __ Add(x0, x0, Operand(3));
-      break;
-    case NONE:
-      __ Poke(constructor, 0 * kPointerSize);
-      __ Mov(x0, Operand(3));
-      break;
-    case ONE:
-      __ Poke(constructor, 1 * kPointerSize);
-      __ Mov(x0, Operand(4));
-      break;
-  }
+  __ Poke(constructor, Operand(x0, LSL, kPointerSizeLog2));
+  __ Add(x0, x0, Operand(3));
   __ Push(new_target, allocation_site);
   __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
 }

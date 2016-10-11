@@ -2692,26 +2692,6 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
   }
 }
 
-void ArrayConstructorStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "ArrayConstructorStub";
-  switch (argument_count()) {
-    case ANY:
-      os << "_Any";
-      break;
-    case NONE:
-      os << "_None";
-      break;
-    case ONE:
-      os << "_One";
-      break;
-    case MORE_THAN_ONE:
-      os << "_More_Than_One";
-      break;
-  }
-  return;
-}
-
-
 bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
   Types new_types = types();
   Types old_types = new_types;
@@ -2976,23 +2956,7 @@ void GrowArrayElementsStub::GenerateAssembly(
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate) {
-  minor_key_ = ArgumentCountBits::encode(ANY);
-}
-
-ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
-                                           int argument_count)
-    : PlatformCodeStub(isolate) {
-  if (argument_count == 0) {
-    minor_key_ = ArgumentCountBits::encode(NONE);
-  } else if (argument_count == 1) {
-    minor_key_ = ArgumentCountBits::encode(ONE);
-  } else if (argument_count >= 2) {
-    minor_key_ = ArgumentCountBits::encode(MORE_THAN_ONE);
-  } else {
-    UNREACHABLE();
-  }
-}
+    : PlatformCodeStub(isolate) {}
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}

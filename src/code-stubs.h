@@ -1091,23 +1091,11 @@ enum AllocationSiteOverrideMode {
 
 class ArrayConstructorStub: public PlatformCodeStub {
  public:
-  enum ArgumentCountKey { ANY, NONE, ONE, MORE_THAN_ONE };
-
-  ArrayConstructorStub(Isolate* isolate, int argument_count);
-
   explicit ArrayConstructorStub(Isolate* isolate);
 
  private:
-  ArgumentCountKey argument_count() const {
-    return ArgumentCountBits::decode(minor_key_);
-  }
-
   void GenerateDispatchToArrayStub(MacroAssembler* masm,
                                    AllocationSiteOverrideMode mode);
-
-  void PrintName(std::ostream& os) const override;  // NOLINT
-
-  class ArgumentCountBits : public BitField<ArgumentCountKey, 0, 2> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNArgumentsConstructor);
   DEFINE_PLATFORM_CODE_STUB(ArrayConstructor, PlatformCodeStub);
