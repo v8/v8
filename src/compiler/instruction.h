@@ -1300,9 +1300,6 @@ class InstructionBlock final : public ZoneObject {
   bool must_deconstruct_frame() const { return must_deconstruct_frame_; }
   void mark_must_deconstruct_frame() { must_deconstruct_frame_ = true; }
 
-  void set_last_deferred(RpoNumber last) { last_deferred_ = last; }
-  RpoNumber last_deferred() const { return last_deferred_; }
-
  private:
   Successors successors_;
   Predecessors predecessors_;
@@ -1318,7 +1315,6 @@ class InstructionBlock final : public ZoneObject {
   bool needs_frame_;
   bool must_construct_frame_;
   bool must_deconstruct_frame_;
-  RpoNumber last_deferred_;
 };
 
 class InstructionSequence;
