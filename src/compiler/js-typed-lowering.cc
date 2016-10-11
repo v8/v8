@@ -82,16 +82,13 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
-      if (left_type()->IsHeapConstant() &&
-          left_type()->AsHeapConstant()->Value()->IsString()) {
-        Handle<String> left_string =
-            Handle<String>::cast(left_type()->AsHeapConstant()->Value());
+      HeapObjectBinopMatcher m(node_);
+      if (m.left().HasValue() && m.left().Value()->IsString()) {
+        Handle<String> left_string = Handle<String>::cast(m.left().Value());
         if (left_string->length() >= ConsString::kMinLength) return true;
       }
-      if (right_type()->IsHeapConstant() &&
-          right_type()->AsHeapConstant()->Value()->IsString()) {
-        Handle<String> right_string =
-            Handle<String>::cast(right_type()->AsHeapConstant()->Value());
+      if (m.right().HasValue() && m.right().Value()->IsString()) {
+        Handle<String> right_string = Handle<String>::cast(m.right().Value());
         if (right_string->length() >= ConsString::kMinLength) return true;
       }
     }
@@ -596,21 +593,20 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   }
 
   // Determine the {first} length.
+  HeapObjectBinopMatcher m(node);
   Node* first_length =
-      first_type->IsHeapConstant()
+      (m.left().HasValue() && m.left().Value()->IsString())
           ? jsgraph()->Constant(
-                Handle<String>::cast(first_type->AsHeapConstant()->Value())
-                    ->length())
+                Handle<String>::cast(m.left().Value())->length())
           : effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForStringLength()),
                 first, effect, control);
 
   // Determine the {second} length.
   Node* second_length =
-      second_type->IsHeapConstant()
+      (m.right().HasValue() && m.right().Value()->IsString())
           ? jsgraph()->Constant(
-                Handle<String>::cast(second_type->AsHeapConstant()->Value())
-                    ->length())
+                Handle<String>::cast(m.right().Value())->length())
           : effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForStringLength()),
                 second, effect, control);
@@ -979,12 +975,17 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
 Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   // Try constant-folding of JSToNumber with constant inputs.
   Type* input_type = NodeProperties::GetType(input);
-  if (input_type->IsHeapConstant()) {
-    Handle<Object> input_value = input_type->AsHeapConstant()->Value();
-    if (input_value->IsString()) {
+  if (input_type->Is(Type::String())) {
+    HeapObjectMatcher m(input);
+    if (m.HasValue() && m.Value()->IsString()) {
+      Handle<Object> input_value = m.Value();
       return Replace(jsgraph()->Constant(
           String::ToNumber(Handle<String>::cast(input_value))));
-    } else if (input_value->IsOddball()) {
+    }
+  }
+  if (input_type->IsHeapConstant()) {
+    Handle<Object> input_value = input_type->AsHeapConstant()->Value();
+    if (input_value->IsOddball()) {
       return Replace(jsgraph()->Constant(
           Oddball::ToNumber(Handle<Oddball>::cast(input_value))));
     }
