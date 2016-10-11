@@ -935,6 +935,7 @@ void Module::ModuleVerify() {
   exports()->ObjectVerify();
   requested_modules()->ObjectVerify();
   VerifySmiField(kFlagsOffset);
+  embedder_data()->ObjectVerify();
   VerifySmiField(kHashOffset);
   CHECK(module_namespace()->IsUndefined(isolate) ||
         module_namespace()->IsJSModuleNamespace());

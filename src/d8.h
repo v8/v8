@@ -5,6 +5,7 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include <map>
 #include <string>
 
 #include "src/allocation.h"
@@ -454,8 +455,9 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
-                                            const std::string& file_name);
+  static MaybeLocal<Module> FetchModuleTree(
+      Isolate* isolate, const std::string& file_name,
+      std::map<std::string, Global<Module>>* module_map);
 };
 
 
