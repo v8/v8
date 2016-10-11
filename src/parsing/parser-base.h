@@ -3941,7 +3941,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       bool is_lazily_parsed =
           (mode() == PARSE_LAZILY &&
            formal_parameters.scope
-               ->AllowsLazyParsingWithoutUnresolvedVariables());
+               ->AllowsLazyParsingWithoutUnresolvedVariables() &&
+           eager_compile_hint == FunctionLiteral::kShouldLazyCompile);
       // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
       // handling in Scope::ResolveVariable needs to change.
       if (is_lazily_parsed) {
