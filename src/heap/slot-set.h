@@ -81,10 +81,12 @@ class SlotSet : public Malloced {
   }
 
   void PreFreeEmptyBucket(int bucket_index) {
-    base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
     base::AtomicValue<uint32_t>* bucket_ptr = bucket[bucket_index].Value();
-    to_be_freed_buckets_.push(bucket_ptr);
-    bucket[bucket_index].SetValue(nullptr);
+    if (bucket_ptr != nullptr) {
+      base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+      to_be_freed_buckets_.push(bucket_ptr);
+      bucket[bucket_index].SetValue(nullptr);
+    }
   }
 
   // The slot offsets specify a range of slots at addresses:
