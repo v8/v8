@@ -1882,14 +1882,13 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ CmpP(r3, r7);
   __ bne(miss);
 
-  __ mov(r2, Operand(arg_count()));
-
   // Increment the call count for monomorphic function calls.
   IncrementCallCount(masm, r4, r5, r1);
 
   __ LoadRR(r4, r6);
   __ LoadRR(r5, r3);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ mov(r2, Operand(arg_count()));
+  ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
 
@@ -3795,30 +3794,19 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm, AllocationSiteOverrideMode mode) {
-  if (argument_count() == ANY) {
-    Label not_zero_case, not_one_case;
-    __ CmpP(r2, Operand::Zero());
-    __ bne(&not_zero_case);
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  Label not_zero_case, not_one_case;
+  __ CmpP(r2, Operand::Zero());
+  __ bne(&not_zero_case);
+  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
 
-    __ bind(&not_zero_case);
-    __ CmpP(r2, Operand(1));
-    __ bgt(&not_one_case);
-    CreateArrayDispatchOneArgument(masm, mode);
+  __ bind(&not_zero_case);
+  __ CmpP(r2, Operand(1));
+  __ bgt(&not_one_case);
+  CreateArrayDispatchOneArgument(masm, mode);
 
-    __ bind(&not_one_case);
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else if (argument_count() == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-  } else if (argument_count() == ONE) {
-    CreateArrayDispatchOneArgument(masm, mode);
-  } else if (argument_count() == MORE_THAN_ONE) {
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else {
-    UNREACHABLE();
-  }
+  __ bind(&not_one_case);
+  ArrayNArgumentsConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
@@ -3869,23 +3857,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 
   __ bind(&subclassing);
-  switch (argument_count()) {
-    case ANY:
-    case MORE_THAN_ONE:
-      __ ShiftLeftP(r1, r2, Operand(kPointerSizeLog2));
-      __ StoreP(r3, MemOperand(sp, r1));
-      __ AddP(r2, r2, Operand(3));
-      break;
-    case NONE:
-      __ StoreP(r3, MemOperand(sp, 0 * kPointerSize));
-      __ LoadImmP(r2, Operand(3));
-      break;
-    case ONE:
-      __ StoreP(r3, MemOperand(sp, 1 * kPointerSize));
-      __ LoadImmP(r2, Operand(4));
-      break;
-  }
-
+  __ ShiftLeftP(r1, r2, Operand(kPointerSizeLog2));
+  __ StoreP(r3, MemOperand(sp, r1));
+  __ AddP(r2, r2, Operand(3));
   __ Push(r5, r4);
   __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
 }
