@@ -1453,6 +1453,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           2, true);
     SimpleInstallFunction(prototype, "substring",
                           Builtins::kStringPrototypeSubstring, 2, true);
+    SimpleInstallFunction(prototype, "startsWith",
+                          Builtins::kStringPrototypeStartsWith, 1, false);
     SimpleInstallFunction(prototype, "toString",
                           Builtins::kStringPrototypeToString, 0, true);
     SimpleInstallFunction(prototype, "trim", Builtins::kStringPrototypeTrim, 0,

@@ -380,32 +380,6 @@ function StringRepeat(count) {
 }
 
 
-// ES6 draft 04-05-14, section 21.1.3.18
-function StringStartsWith(searchString, position) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.startsWith");
-
-  var s = TO_STRING(this);
-
-  if (IsRegExp(searchString)) {
-    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.startsWith");
-  }
-
-  var ss = TO_STRING(searchString);
-  var pos = TO_INTEGER(position);
-
-  var s_len = s.length;
-  var start = MinSimple(MaxSimple(pos, 0), s_len);
-  var ss_len = ss.length;
-  if (ss_len + start > s_len) {
-    return false;
-  }
-
-  return %_SubString(s, start, start + ss_len) === ss;
-}
-
-%FunctionSetLength(StringStartsWith, 1);
-
-
 // ES6 Draft 05-22-2014, section 21.1.3.3
 function StringCodePointAt(pos) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.codePointAt");
@@ -469,7 +443,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "search", StringSearch,
   "slice", StringSlice,
   "split", StringSplitJS,
-  "startsWith", StringStartsWith,
   "toLowerCase", StringToLowerCaseJS,
   "toLocaleLowerCase", StringToLocaleLowerCase,
   "toUpperCase", StringToUpperCaseJS,

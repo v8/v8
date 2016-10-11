@@ -632,6 +632,9 @@ namespace internal {
   TFJ(StringPrototypeSubstr, 3)                                               \
   /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */       \
   TFJ(StringPrototypeSubstring, 3)                                            \
+  /* ES6 section 21.1.3.20 */                                                 \
+  /* String.prototype.startsWith ( searchString [ , position ] ) */           \
+  CPP(StringPrototypeStartsWith)                                              \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                    \
   TFJ(StringPrototypeToString, 1)                                             \
   CPP(StringPrototypeTrim)                                                    \
