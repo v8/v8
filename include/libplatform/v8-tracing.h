@@ -185,17 +185,12 @@ class V8_PLATFORM_EXPORT TraceConfig {
 
   static TraceConfig* CreateDefaultTraceConfig();
 
-  TraceConfig()
-      : enable_sampling_(false),
-        enable_systrace_(false),
-        enable_argument_filter_(false) {}
+  TraceConfig() : enable_systrace_(false), enable_argument_filter_(false) {}
   TraceRecordMode GetTraceRecordMode() const { return record_mode_; }
-  bool IsSamplingEnabled() const { return enable_sampling_; }
   bool IsSystraceEnabled() const { return enable_systrace_; }
   bool IsArgumentFilterEnabled() const { return enable_argument_filter_; }
 
   void SetTraceRecordMode(TraceRecordMode mode) { record_mode_ = mode; }
-  void EnableSampling() { enable_sampling_ = true; }
   void EnableSystrace() { enable_systrace_ = true; }
   void EnableArgumentFilter() { enable_argument_filter_ = true; }
 
@@ -206,7 +201,6 @@ class V8_PLATFORM_EXPORT TraceConfig {
 
  private:
   TraceRecordMode record_mode_;
-  bool enable_sampling_ : 1;
   bool enable_systrace_ : 1;
   bool enable_argument_filter_ : 1;
   StringList included_categories_;

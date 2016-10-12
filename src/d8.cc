@@ -196,7 +196,6 @@ const char kRecordContinuously[] = "record-continuously";
 const char kRecordAsMuchAsPossible[] = "record-as-much-as-possible";
 
 const char kRecordModeParam[] = "record_mode";
-const char kEnableSamplingParam[] = "enable_sampling";
 const char kEnableSystraceParam[] = "enable_systrace";
 const char kEnableArgumentFilterParam[] = "enable_argument_filter";
 const char kIncludedCategoriesParam[] = "included_categories";
@@ -220,10 +219,6 @@ class TraceConfigParser {
 
     trace_config->SetTraceRecordMode(
         GetTraceRecordMode(isolate, context, trace_config_object));
-    if (GetBoolean(isolate, context, trace_config_object,
-                   kEnableSamplingParam)) {
-      trace_config->EnableSampling();
-    }
     if (GetBoolean(isolate, context, trace_config_object,
                    kEnableSystraceParam)) {
       trace_config->EnableSystrace();
