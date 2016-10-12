@@ -251,12 +251,6 @@ void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 
 namespace {
 
-bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
-  return shared->is_toplevel() && shared->script()->IsScript() &&
-         Script::cast(shared->script())->compilation_type() ==
-             Script::COMPILATION_TYPE_EVAL;
-}
-
 bool Parse(ParseInfo* info) {
   // Create a canonical handle scope if compiling ignition bytecode. This is
   // required by the constant array builder to de-duplicate objects without
@@ -703,11 +697,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       return MaybeHandle<Code>();
     }
     info->MarkAsOptimizeFromBytecode();
-  }
-
-  if (IsEvalToplevel(shared)) {
-    parse_info->set_eval();
-    parse_info->set_allow_lazy_parsing(false);
   }
 
   // Verify that OSR compilations are delegated to the correct graph builder.
@@ -1234,10 +1223,6 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  if (IsEvalToplevel(handle(function->shared()))) {
-    parse_info.set_eval();
-    parse_info.set_allow_lazy_parsing(false);
-  }
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info).is_null()) {
     isolate->clear_pending_exception();
@@ -1259,10 +1244,6 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, shared);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  if (IsEvalToplevel(shared)) {
-    parse_info.set_eval();
-    parse_info.set_allow_lazy_parsing(false);
-  }
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info).is_null()) {
     isolate->clear_pending_exception();

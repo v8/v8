@@ -3825,7 +3825,6 @@ bool Parser::Parse(ParseInfo* info) {
   pre_parse_timer_ = isolate->counters()->pre_parse();
 
   if (!info->shared_info().is_null() && info->shared_info()->is_function()) {
-    DCHECK(!info->is_eval());
     result = ParseLazy(isolate, info);
   } else {
     SetCachedData(info);

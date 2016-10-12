@@ -53,9 +53,8 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
-  if (!script.is_null() && script->type() == Script::TYPE_NATIVE) {
-    set_native();
-  }
+  set_native(script->type() == Script::TYPE_NATIVE);
+  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
 
   Handle<HeapObject> scope_info(shared->outer_scope_info());
   if (!scope_info->IsTheHole(isolate()) &&
@@ -73,9 +72,8 @@ ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   set_unicode_cache(isolate_->unicode_cache());
   set_script(script);
 
-  if (script->type() == Script::TYPE_NATIVE) {
-    set_native();
-  }
+  set_native(script->type() == Script::TYPE_NATIVE);
+  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
 }
 
 ParseInfo::~ParseInfo() {
