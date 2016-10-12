@@ -5598,7 +5598,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         HValue* stub = Add<HConstant>(callable.code());
         HValue* values[] = {slot_value, vector_value};
         HCallWithDescriptor* instr = New<HCallWithDescriptor>(
-            stub, 0, callable.descriptor(), ArrayVector(values));
+            Code::LOAD_GLOBAL_IC, stub, 0, callable.descriptor(),
+            ArrayVector(values));
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
     }
@@ -6796,7 +6797,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {global_object, name, value, slot_value, vector_value};
     HCallWithDescriptor* instr = Add<HCallWithDescriptor>(
-        stub, 0, callable.descriptor(), ArrayVector(values));
+        Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -7108,15 +7109,17 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // to a named load. Here, at the last minute, we need to make sure to
       // use a generic Keyed Load if we are using the type vector, because
       // it has to share information with full code.
-      HLoadKeyedGeneric* result =
-          New<HLoadKeyedGeneric>(object, key, vector, slot);
+      Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+      HValue* stub = Add<HConstant>(callable.code());
+      HCallWithDescriptor* result =
+          New<HCallWithDescriptor>(Code::KEYED_LOAD_IC, stub, 0,
+                                   callable.descriptor(), ArrayVector(values));
       return result;
     }
-
     Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
     HValue* stub = Add<HConstant>(callable.code());
     HCallWithDescriptor* result = New<HCallWithDescriptor>(
-        stub, 0, callable.descriptor(), ArrayVector(values));
+        Code::LOAD_IC, stub, 0, callable.descriptor(), ArrayVector(values));
     return result;
 
   } else {
@@ -7129,15 +7132,16 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
           isolate(), function_language_mode());
       HValue* stub = Add<HConstant>(callable.code());
-      HCallWithDescriptor* result = New<HCallWithDescriptor>(
-          stub, 0, callable.descriptor(), ArrayVector(values));
+      HCallWithDescriptor* result =
+          New<HCallWithDescriptor>(Code::KEYED_STORE_IC, stub, 0,
+                                   callable.descriptor(), ArrayVector(values));
       return result;
     }
     Callable callable = CodeFactory::StoreICInOptimizedCode(
         isolate(), function_language_mode());
     HValue* stub = Add<HConstant>(callable.code());
     HCallWithDescriptor* result = New<HCallWithDescriptor>(
-        stub, 0, callable.descriptor(), ArrayVector(values));
+        Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
     return result;
   }
 }
@@ -7146,22 +7150,28 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
 HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
     HValue* object, HValue* key, HValue* value) {
-  Handle<TypeFeedbackVector> vector =
-      handle(current_feedback_vector(), isolate());
+  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+  HValue* vector_value = Add<HConstant>(vector);
+  HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+
   if (access_type == LOAD) {
-    HLoadKeyedGeneric* result =
-        New<HLoadKeyedGeneric>(object, key, vector, slot);
+    HValue* values[] = {object, key, slot_value, vector_value};
+
+    Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+    HValue* stub = Add<HConstant>(callable.code());
+    HCallWithDescriptor* result =
+        New<HCallWithDescriptor>(Code::KEYED_LOAD_IC, stub, 0,
+                                 callable.descriptor(), ArrayVector(values));
     return result;
   } else {
-    HValue* vector_value = Add<HConstant>(vector);
-    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
     HValue* values[] = {object, key, value, slot_value, vector_value};
 
     Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
         isolate(), function_language_mode());
     HValue* stub = Add<HConstant>(callable.code());
-    HCallWithDescriptor* result = New<HCallWithDescriptor>(
-        stub, 0, callable.descriptor(), ArrayVector(values));
+    HCallWithDescriptor* result =
+        New<HCallWithDescriptor>(Code::KEYED_STORE_IC, stub, 0,
+                                 callable.descriptor(), ArrayVector(values));
     return result;
   }
 }

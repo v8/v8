@@ -106,7 +106,6 @@ class SmallMapList;
   V(LoadFieldByIndex)                         \
   V(LoadFunctionPrototype)                    \
   V(LoadKeyed)                                \
-  V(LoadKeyedGeneric)                         \
   V(LoadNamedField)                           \
   V(LoadRoot)                                 \
   V(MathFloorOfDiv)                           \
@@ -2159,7 +2158,19 @@ class HCallWithDescriptor final : public HInstruction {
       TailCallMode syntactic_tail_call_mode = TailCallMode::kDisallow,
       TailCallMode tail_call_mode = TailCallMode::kDisallow) {
     HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
-        context, target, argument_count, descriptor, operands,
+        Code::STUB, context, target, argument_count, descriptor, operands,
+        syntactic_tail_call_mode, tail_call_mode, zone);
+    return res;
+  }
+
+  static HCallWithDescriptor* New(
+      Isolate* isolate, Zone* zone, HValue* context, Code::Kind kind,
+      HValue* target, int argument_count, CallInterfaceDescriptor descriptor,
+      const Vector<HValue*>& operands,
+      TailCallMode syntactic_tail_call_mode = TailCallMode::kDisallow,
+      TailCallMode tail_call_mode = TailCallMode::kDisallow) {
+    HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
+        kind, context, target, argument_count, descriptor, operands,
         syntactic_tail_call_mode, tail_call_mode, zone);
     return res;
   }
@@ -2192,6 +2203,8 @@ class HCallWithDescriptor final : public HInstruction {
   }
   bool IsTailCall() const { return tail_call_mode() == TailCallMode::kAllow; }
 
+  Code::Kind kind() const { return KindField::decode(bit_field_); }
+
   virtual int argument_count() const {
     return argument_count_;
   }
@@ -2207,12 +2220,14 @@ class HCallWithDescriptor final : public HInstruction {
     return OperandAt(index + 2);
   }
 
+  HValue* Canonicalize() override;
+
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
  private:
   // The argument count includes the receiver.
-  HCallWithDescriptor(HValue* context, HValue* target, int argument_count,
-                      CallInterfaceDescriptor descriptor,
+  HCallWithDescriptor(Code::Kind kind, HValue* context, HValue* target,
+                      int argument_count, CallInterfaceDescriptor descriptor,
                       const Vector<HValue*>& operands,
                       TailCallMode syntactic_tail_call_mode,
                       TailCallMode tail_call_mode, Zone* zone)
@@ -2221,7 +2236,8 @@ class HCallWithDescriptor final : public HInstruction {
         argument_count_(argument_count),
         bit_field_(
             TailCallModeField::encode(tail_call_mode) |
-            SyntacticTailCallModeField::encode(syntactic_tail_call_mode)) {
+            SyntacticTailCallModeField::encode(syntactic_tail_call_mode) |
+            KindField::encode(kind)) {
     DCHECK_EQ(operands.length(), GetParameterCount());
     // We can only tail call without any stack arguments.
     DCHECK(tail_call_mode != TailCallMode::kAllow || argument_count == 0);
@@ -2251,6 +2267,8 @@ class HCallWithDescriptor final : public HInstruction {
   class TailCallModeField : public BitField<TailCallMode, 0, 1> {};
   class SyntacticTailCallModeField
       : public BitField<TailCallMode, TailCallModeField::kNext, 1> {};
+  class KindField
+      : public BitField<Code::Kind, SyntacticTailCallModeField::kNext, 5> {};
   uint32_t bit_field_;
 };
 
@@ -6038,47 +6056,6 @@ class HLoadKeyed final : public HTemplateInstruction<4>,
     public BitField<bool, kStartIsDehoisted, kBitsForIsDehoisted>
     {};  // NOLINT
   uint32_t bit_field_;
-};
-
-
-class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HLoadKeyedGeneric, HValue*,
-                                              HValue*,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-  HValue* object() const { return OperandAt(0); }
-  HValue* key() const { return OperandAt(1); }
-  HValue* context() const { return OperandAt(2); }
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Representation RequiredInputRepresentation(int index) override {
-    // tagged[tagged]
-    return Representation::Tagged();
-  }
-
-  HValue* Canonicalize() override;
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric)
-
- private:
-  HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key,
-                    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : feedback_vector_(vector), slot_(slot) {
-    set_representation(Representation::Tagged());
-    SetOperandAt(0, obj);
-    SetOperandAt(1, key);
-    SetOperandAt(2, context);
-    SetAllSideEffects();
-  }
-
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
 };
 
 

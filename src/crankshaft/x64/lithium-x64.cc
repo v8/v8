@@ -2118,19 +2118,6 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* object =
-      UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), LoadDescriptor::NameRegister());
-  LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
-
-  LLoadKeyedGeneric* result =
-      new(zone()) LLoadKeyedGeneric(context, object, key, vector);
-  return MarkAsCall(DefineFixed(result, rax), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
 

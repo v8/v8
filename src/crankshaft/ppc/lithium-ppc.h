@@ -90,7 +90,6 @@ class LCodeGen;
   V(LoadFieldByIndex)                        \
   V(LoadFunctionPrototype)                   \
   V(LoadKeyed)                               \
-  V(LoadKeyedGeneric)                        \
   V(LoadNamedField)                          \
   V(MathAbs)                                 \
   V(MathClz32)                               \
@@ -1501,25 +1500,6 @@ class LLoadKeyed final : public LTemplateInstruction<1, 3, 0> {
   uint32_t base_offset() const { return hydrogen()->base_offset(); }
 };
 
-
-class LLoadKeyedGeneric final : public LTemplateInstruction<1, 3, 1> {
- public:
-  LLoadKeyedGeneric(LOperand* context, LOperand* object, LOperand* key,
-                    LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-    inputs_[2] = key;
-    temps_[0] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* key() { return inputs_[2]; }
-  LOperand* temp_vector() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load-keyed-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedGeneric)
-};
 
 class LLoadContextSlot final : public LTemplateInstruction<1, 1, 0> {
  public:

@@ -1890,18 +1890,6 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   return result;
 }
 
-LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object =
-      UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), LoadDescriptor::NameRegister());
-  LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
-
-  LInstruction* result = DefineFixed(
-      new (zone()) LLoadKeyedGeneric(context, object, key, vector), r2);
-  return MarkAsCall(result, instr);
-}
-
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   if (!instr->is_fixed_typed_array()) {
     DCHECK(instr->elements()->representation().IsTagged());
