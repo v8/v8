@@ -1153,6 +1153,7 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
 int Scope::MaxNestedContextChainLength() {
   int max_context_chain_length = 0;
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (scope->is_function_scope()) continue;
     max_context_chain_length = std::max(scope->MaxNestedContextChainLength(),
                                         max_context_chain_length);
   }
