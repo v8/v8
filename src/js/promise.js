@@ -489,13 +489,13 @@ function PromiseResolve(x) {
   // Avoid creating resolving functions.
   if (this === GlobalPromise) {
     var promise = PromiseCreate();
-    var resolveResult = ResolvePromise(promise, x);
+    ResolvePromise(promise, x);
     return promise;
   }
 
   // debugEvent is not so meaningful here as it will be resolved
   var promiseCapability = NewPromiseCapability(this, true);
-  var resolveResult = %_Call(promiseCapability.resolve, UNDEFINED, x);
+  %_Call(promiseCapability.resolve, UNDEFINED, x);
   return promiseCapability.promise;
 }
 
