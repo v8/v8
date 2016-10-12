@@ -607,7 +607,7 @@ static void TestGeneralizeRepresentation(
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
 
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   Handle<Map> new_map =
       Map::ReconfigureProperty(map, property_index, kData, NONE,
@@ -985,7 +985,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1070,7 +1070,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1601,7 +1601,7 @@ static void TestReconfigureElementsKind_GeneralizeRepresentation(
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1694,7 +1694,7 @@ static void TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.

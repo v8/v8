@@ -3909,7 +3909,7 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
   field_owner->UpdateFieldType(modify_index, name, new_representation,
                                wrapped_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kFieldTypeGroup);
+      isolate, DependentCode::kFieldOwnerGroup);
 
   if (FLAG_trace_generalization) {
     map->PrintGeneralization(
@@ -15247,8 +15247,8 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "prototype-check";
     case kPropertyCellChangedGroup:
       return "property-cell-changed";
-    case kFieldTypeGroup:
-      return "field-type";
+    case kFieldOwnerGroup:
+      return "field-owner";
     case kInitialMapChangedGroup:
       return "initial-map-changed";
     case kAllocationSiteTenuringChangedGroup:

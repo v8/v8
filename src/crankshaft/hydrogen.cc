@@ -6222,7 +6222,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   DCHECK(field_type_.IsHeapObject());
 
   // Add dependency on the map that introduced the field.
-  top_info()->dependencies()->AssumeFieldType(GetFieldOwnerFromMap(map));
+  top_info()->dependencies()->AssumeFieldOwner(GetFieldOwnerFromMap(map));
   return true;
 }
 
