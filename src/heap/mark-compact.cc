@@ -3642,6 +3642,11 @@ class PointerUpdateJobTraits {
       // There could still be stale pointers in large object space, map space,
       // and old space for pages that have been promoted.
       if (map_word.IsForwardingAddress()) {
+        // A sweeper thread may concurrently write a size value which looks like
+        // a forwarding pointer. We have to ignore these values.
+        if (map_word.ToRawValue() < Page::kPageSize) {
+          return REMOVE_SLOT;
+        }
         // Update the corresponding slot.
         slot->SetValue(map_word.ToForwardingAddress());
       }
