@@ -317,7 +317,8 @@
     'gn_debug_x86_minimal_symbols': [
       'gn', 'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_debug_x86_no_i18n': [
-      'gn', 'debug_bot', 'x86', 'v8_no_i18n'],
+      'gn', 'debug_bot', 'x86', 'swarming', 'v8_disable_inspector',
+      'v8_no_i18n'],
     'gn_debug_x86_no_snap': [
       'gn', 'debug_bot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_debug_x86_no_snap_trybot': [
@@ -339,7 +340,8 @@
     'gn_release_x86_minimal_symbols': [
       'gn', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_release_x86_no_i18n_trybot': [
-      'gn', 'release_trybot', 'x86', 'swarming', 'v8_no_i18n'],
+      'gn', 'release_trybot', 'x86', 'swarming', 'v8_disable_inspector',
+      'v8_no_i18n'],
     'gn_release_x86_no_snap': [
       'gn', 'release_bot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_release_x86_no_snap_shared_minimal_symbols': [
@@ -618,6 +620,11 @@
     'v8_no_i18n': {
       'gn_args': 'v8_enable_i18n_support=false icu_use_data_file=false',
       'gyp_defines': 'v8_enable_i18n_support=0 icu_use_data_file_flag=0',
+    },
+
+    'v8_disable_inspector': {
+      'gn_args': 'v8_enable_inspector=false',
+      'gyp_defines': 'v8_enable_inspector=0 ',
     },
 
     'v8_enable_disassembler': {

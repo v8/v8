@@ -724,6 +724,7 @@ action("v8_dump_build_config") {
     "is_tsan=$is_tsan",
     "target_cpu=\"$target_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
+    "v8_enable_inspector=$v8_enable_inspector_override",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
   ]

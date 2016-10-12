@@ -9,6 +9,7 @@
   },
   'includes': [
     'cctest/cctest.isolate',
+    'inspector/inspector.isolate',
     'intl/intl.isolate',
     'mjsunit/mjsunit.isolate',
     'webkit/webkit.isolate',
