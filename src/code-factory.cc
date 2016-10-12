@@ -99,14 +99,14 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
-  StoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
+  StoreICTrampolineStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
 
 // static
 Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                                              LanguageMode language_mode) {
-  StoreICTFStub stub(isolate, StoreICState(language_mode));
+  StoreICStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
 

@@ -129,7 +129,7 @@ class ObjectLiteral;
   V(StoreFastElement)                         \
   V(StoreField)                               \
   V(StoreGlobal)                              \
-  V(StoreICTF)                                \
+  V(StoreIC)                                  \
   V(StoreInterceptor)                         \
   V(StoreMap)                                 \
   V(StoreTransition)                          \
@@ -142,7 +142,7 @@ class ObjectLiteral;
   V(LoadICTrampoline)                         \
   V(LoadGlobalICTrampoline)                   \
   V(KeyedLoadICTrampolineTF)                  \
-  V(StoreICTrampolineTF)
+  V(StoreICTrampoline)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -2088,9 +2088,9 @@ class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
   DEFINE_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineStub);
 };
 
-class StoreICTrampolineTFStub : public TurboFanCodeStub {
+class StoreICTrampolineStub : public TurboFanCodeStub {
  public:
-  StoreICTrampolineTFStub(Isolate* isolate, const StoreICState& state)
+  StoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
       : TurboFanCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2107,7 +2107,7 @@ class StoreICTrampolineTFStub : public TurboFanCodeStub {
   StoreICState state() const { return StoreICState(GetExtraICState()); }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
-  DEFINE_CODE_STUB(StoreICTrampolineTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(StoreICTrampoline, TurboFanCodeStub);
 };
 
 class KeyedStoreICTrampolineStub : public PlatformCodeStub {
@@ -2211,9 +2211,9 @@ class KeyedLoadICTFStub : public LoadICStub {
   DEFINE_CODE_STUB(KeyedLoadICTF, LoadICStub);
 };
 
-class StoreICTFStub : public TurboFanCodeStub {
+class StoreICStub : public TurboFanCodeStub {
  public:
-  StoreICTFStub(Isolate* isolate, const StoreICState& state)
+  StoreICStub(Isolate* isolate, const StoreICState& state)
       : TurboFanCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2226,7 +2226,7 @@ class StoreICTFStub : public TurboFanCodeStub {
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_CODE_STUB(StoreICTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(StoreIC, TurboFanCodeStub);
 };
 
 class KeyedStoreICStub : public PlatformCodeStub {

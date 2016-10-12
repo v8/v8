@@ -498,7 +498,7 @@ void KeyedLoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->KeyedLoadIC(&p);
 }
 
-void StoreICTrampolineTFStub::GenerateAssembly(
+void StoreICTrampolineStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
@@ -514,7 +514,7 @@ void StoreICTrampolineTFStub::GenerateAssembly(
   assembler->StoreIC(&p);
 }
 
-void StoreICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StoreICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
   Node* receiver = assembler->Parameter(Descriptor::kReceiver);
