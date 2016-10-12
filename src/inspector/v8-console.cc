@@ -431,7 +431,7 @@ static void timeEndFunction(const v8::FunctionCallbackInfo<v8::Value>& info,
     double elapsed = client->currentTimeMS() -
                      helper.getDoubleFromMap(timeMap, protocolTitle, 0.0);
     String16 message =
-        protocolTitle + ": " + String16::fromDouble(elapsed, 3) + "ms";
+        protocolTitle + ": " + String16::fromDoublePrecision3(elapsed) + "ms";
     helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
   }
 }

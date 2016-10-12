@@ -35,7 +35,8 @@ class String16 {
   static String16 fromInteger(int);
   static String16 fromInteger(size_t);
   static String16 fromDouble(double);
-  static String16 fromDouble(double, int precision);
+  static String16 fromDoublePrecision3(double);
+  static String16 fromDoublePrecision6(double);
 
   int toInteger(bool* ok = nullptr) const;
   String16 stripWhiteSpace() const;
