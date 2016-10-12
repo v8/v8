@@ -317,6 +317,11 @@ v8_executable("cctest") {
     "../..:internal_config_base",
   ]
 
+  if (is_win) {
+    remove_configs = [ "//build/config/win:default_incremental_linking" ]
+    configs += [ "//build/config/win:no_incremental_linking" ]
+  }
+
   # TODO(machenbach): Translate from gyp.
   #["OS=="aix"", {
   #  "ldflags": [ "-Wl,-bbigtoc" ],
