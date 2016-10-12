@@ -3824,11 +3824,11 @@ bool Parser::Parse(ParseInfo* info) {
   Isolate* isolate = info->isolate();
   pre_parse_timer_ = isolate->counters()->pre_parse();
 
-  if (!info->shared_info().is_null() && info->shared_info()->is_function()) {
-    result = ParseLazy(isolate, info);
-  } else {
+  if (info->is_toplevel()) {
     SetCachedData(info);
     result = ParseProgram(isolate, info);
+  } else {
+    result = ParseLazy(isolate, info);
   }
   info->set_literal(result);
 
