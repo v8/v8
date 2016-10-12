@@ -671,6 +671,13 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
   EXPECT_FALSE(decoder.ok());
 }
 
+TEST_F(DecoderTest, FailOnNullData) {
+  decoder.Reset(nullptr, 0);
+  decoder.checkAvailable(1);
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_FALSE(decoder.toResult(nullptr).ok());
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

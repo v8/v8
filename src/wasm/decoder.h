@@ -253,7 +253,7 @@ class Decoder {
   template <typename T>
   Result<T> toResult(T val) {
     Result<T> result;
-    if (error_pc_) {
+    if (failed()) {
       TRACE("Result error: %s\n", error_msg_.get());
       result.error_code = kError;
       result.start = start_;
@@ -279,8 +279,8 @@ class Decoder {
     error_msg_.reset();
   }
 
-  bool ok() const { return error_pc_ == nullptr; }
-  bool failed() const { return !!error_msg_; }
+  bool ok() const { return error_msg_ == nullptr; }
+  bool failed() const { return !ok(); }
   bool more() const { return pc_ < limit_; }
 
   const byte* start() { return start_; }
