@@ -37,7 +37,7 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
       not_float_or_clamped(a), invalid(a);
 
   // Fail if it is not a heap object.
-  a->Branch(a->WordIsSmi(tagged), &is_smi, &not_smi);
+  a->Branch(a->TaggedIsSmi(tagged), &is_smi, &not_smi);
   a->Bind(&is_smi);
   a->Goto(&invalid);
 
@@ -102,7 +102,7 @@ compiler::Node* ConvertTaggedAtomicIndexToWord32(CodeStubAssembler* a,
   CodeStubAssembler::Label done(a, &var_result);
 
   CodeStubAssembler::Label if_numberissmi(a), if_numberisnotsmi(a);
-  a->Branch(a->WordIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
+  a->Branch(a->TaggedIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
 
   a->Bind(&if_numberissmi);
   {

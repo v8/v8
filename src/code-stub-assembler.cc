@@ -291,38 +291,47 @@ Node* CodeStubAssembler::SmiToFloat64(Node* value) {
   return ChangeInt32ToFloat64(SmiToWord32(value));
 }
 
-Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
+Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) {
+  return BitcastWordToTaggedSigned(
+      IntPtrAdd(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
+}
 
 Node* CodeStubAssembler::SmiAddWithOverflow(Node* a, Node* b) {
-  return IntPtrAddWithOverflow(a, b);
+  return IntPtrAddWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
-Node* CodeStubAssembler::SmiSub(Node* a, Node* b) { return IntPtrSub(a, b); }
+Node* CodeStubAssembler::SmiSub(Node* a, Node* b) {
+  return BitcastWordToTaggedSigned(
+      IntPtrSub(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
+}
 
 Node* CodeStubAssembler::SmiSubWithOverflow(Node* a, Node* b) {
-  return IntPtrSubWithOverflow(a, b);
+  return IntPtrSubWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
-Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
+Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) {
+  return WordEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
+}
 
 Node* CodeStubAssembler::SmiAbove(Node* a, Node* b) {
-  return UintPtrGreaterThan(a, b);
+  return UintPtrGreaterThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiAboveOrEqual(Node* a, Node* b) {
-  return UintPtrGreaterThanOrEqual(a, b);
+  return UintPtrGreaterThanOrEqual(BitcastTaggedToWord(a),
+                                   BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiBelow(Node* a, Node* b) {
-  return UintPtrLessThan(a, b);
+  return UintPtrLessThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiLessThan(Node* a, Node* b) {
-  return IntPtrLessThan(a, b);
+  return IntPtrLessThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
-  return IntPtrLessThanOrEqual(a, b);
+  return IntPtrLessThanOrEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiMax(Node* a, Node* b) {
@@ -457,8 +466,9 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::WordIsSmi(Node* a) {
-  return WordEqual(WordAnd(a, IntPtrConstant(kSmiTagMask)), IntPtrConstant(0));
+Node* CodeStubAssembler::TaggedIsSmi(Node* a) {
+  return WordEqual(WordAnd(BitcastTaggedToWord(a), IntPtrConstant(kSmiTagMask)),
+                   IntPtrConstant(0));
 }
 
 Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
@@ -569,7 +579,7 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
                                             Label* if_true, Label* if_false) {
   // Bailout if receiver is a Smi.
-  GotoIf(WordIsSmi(object), if_false);
+  GotoIf(TaggedIsSmi(object), if_false);
 
   Node* map = LoadMap(object);
 
@@ -736,7 +746,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   GotoIf(WordEqual(value, BooleanConstant(false)), if_false);
 
   // Check if {value} is a Smi or a HeapObject.
-  Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
   Bind(&if_valueissmi);
   {
@@ -978,7 +988,7 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
   Goto(&loop);
   Bind(&loop);
   {
-    GotoIf(WordIsSmi(result.value()), &done);
+    GotoIf(TaggedIsSmi(result.value()), &done);
     Node* is_map_type =
         Word32Equal(LoadInstanceType(result.value()), Int32Constant(MAP_TYPE));
     GotoUnless(is_map_type, &done);
@@ -1418,7 +1428,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   Node* array = AllocateUninitializedJSArray(kind, array_map, length,
                                              allocation_site, size);
 
-  Node* elements = InnerAllocate(array, elements_offset);
+  // The bitcast here is safe because InnerAllocate doesn't actually allocate.
+  Node* elements = InnerAllocate(BitcastTaggedToWord(array), elements_offset);
   StoreObjectField(array, JSObject::kElementsOffset, elements);
 
   return {array, elements};
@@ -1464,8 +1475,10 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                  TagParameter(capacity, capacity_mode));
 
   // Fill in the elements with holes.
-  FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity,
-                          Heap::kTheHoleValueRootIndex, capacity_mode);
+  FillFixedArrayWithValue(
+      kind, elements, capacity_mode == SMI_PARAMETERS ? SmiConstant(Smi::kZero)
+                                                      : IntPtrConstant(0),
+      capacity, Heap::kTheHoleValueRootIndex, capacity_mode);
 
   return array;
 }
@@ -1633,8 +1646,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array, to_offset,
                           value);
     } else {
-      StoreNoWriteBarrier(MachineType::PointerRepresentation(), to_array,
-                          to_offset, value);
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array, to_offset,
+                          value);
     }
     Goto(&next_iter);
 
@@ -1753,7 +1766,7 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
     return value;
 
   } else {
-    Node* value = Load(MachineType::Pointer(), array, offset);
+    Node* value = Load(MachineType::AnyTagged(), array, offset);
     if (if_hole) {
       GotoIf(WordEqual(value, TheHoleConstant()), if_hole);
     }
@@ -1857,7 +1870,7 @@ void CodeStubAssembler::InitializeAllocationMemento(
   if (FLAG_allocation_site_pretenuring) {
     Node* count = LoadObjectField(allocation_site,
                                   AllocationSite::kPretenureCreateCountOffset);
-    Node* incremented_count = IntPtrAdd(count, SmiConstant(Smi::FromInt(1)));
+    Node* incremented_count = SmiAdd(count, SmiConstant(Smi::FromInt(1)));
     StoreObjectFieldNoWriteBarrier(allocation_site,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    incremented_count);
@@ -1878,7 +1891,7 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
 
     // Check if the {value} is a Smi or a HeapObject.
     Label if_valueissmi(this), if_valueisnotsmi(this);
-    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+    Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
     Bind(&if_valueissmi);
     {
@@ -1929,7 +1942,7 @@ Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
 
     // Check if the {value} is a Smi or a HeapObject.
     Label if_valueissmi(this), if_valueisnotsmi(this);
-    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+    Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
     Bind(&if_valueissmi);
     {
@@ -2091,7 +2104,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
   // Check if the {value} is a Smi or a HeapObject.
   Label if_valueissmi(this, Label::kDeferred), if_valueisnotsmi(this),
       if_valueisstring(this);
-  Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
   Bind(&if_valueisnotsmi);
   {
     // Load the instance type of the {value}.
@@ -2159,9 +2172,9 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
     value = var_value.value();
 
     // Check if the {value} is a Smi or a HeapObject.
-    GotoIf(WordIsSmi(value), (primitive_type == PrimitiveType::kNumber)
-                                 ? &done_loop
-                                 : &done_throw);
+    GotoIf(TaggedIsSmi(value), (primitive_type == PrimitiveType::kNumber)
+                                   ? &done_loop
+                                   : &done_throw);
 
     // Load the mape of the {value}.
     Node* value_map = LoadMap(value);
@@ -2223,7 +2236,7 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
   Label out(this), throw_exception(this, Label::kDeferred);
   Variable var_value_map(this, MachineRepresentation::kTagged);
 
-  GotoIf(WordIsSmi(value), &throw_exception);
+  GotoIf(TaggedIsSmi(value), &throw_exception);
 
   // Load the instance type of the {value}.
   var_value_map.Bind(LoadMap(value));
@@ -2554,7 +2567,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // Make sure first argument is a string.
 
   // Bailout if receiver is a Smi.
-  GotoIf(WordIsSmi(string), &runtime);
+  GotoIf(TaggedIsSmi(string), &runtime);
 
   // Load the instance type of the {string}.
   Node* const instance_type = LoadInstanceType(string);
@@ -2852,7 +2865,7 @@ Node* CodeStubAssembler::NumberToString(compiler::Node* context,
   Node* one = IntPtrConstant(1);
   mask = IntPtrSub(mask, one);
 
-  GotoIf(WordIsSmi(argument), &smi);
+  GotoIf(TaggedIsSmi(argument), &smi);
 
   // Argument isn't smi, check to see if it's a heap-number.
   Node* map = LoadMap(argument);
@@ -2871,7 +2884,7 @@ Node* CodeStubAssembler::NumberToString(compiler::Node* context,
   // Cache entry's key must be a heap number
   Node* number_key =
       LoadFixedArrayElement(number_string_cache, index, 0, INTPTR_PARAMETERS);
-  GotoIf(WordIsSmi(number_key), &runtime);
+  GotoIf(TaggedIsSmi(number_key), &runtime);
   map = LoadMap(number_key);
   GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
 
@@ -2923,7 +2936,7 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   Variable var_result(this, MachineRepresentation::kTagged);
 
   Label is_number(this);
-  GotoIf(WordIsSmi(value), &is_number);
+  GotoIf(TaggedIsSmi(value), &is_number);
 
   Label not_name(this);
   Node* value_instance_type = LoadInstanceType(value);
@@ -2966,7 +2979,7 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
 
 Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
   // Assert input is a HeapObject (not smi or heap number)
-  Assert(Word32BinaryNot(WordIsSmi(input)));
+  Assert(Word32BinaryNot(TaggedIsSmi(input)));
   Assert(Word32NotEqual(LoadMap(input), HeapNumberMapConstant()));
 
   // We might need to loop once here due to ToPrimitive conversions.
@@ -3016,7 +3029,7 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
 
       // Check if the {result} is already a Number.
       Label if_resultisnumber(this), if_resultisnotnumber(this);
-      GotoIf(WordIsSmi(result), &if_resultisnumber);
+      GotoIf(TaggedIsSmi(result), &if_resultisnumber);
       Node* result_map = LoadMap(result);
       Branch(WordEqual(result_map, HeapNumberMapConstant()), &if_resultisnumber,
              &if_resultisnotnumber);
@@ -3058,7 +3071,7 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   Label end(this);
 
   Label not_smi(this, Label::kDeferred);
-  GotoUnless(WordIsSmi(input), &not_smi);
+  GotoUnless(TaggedIsSmi(input), &not_smi);
   var_result.Bind(input);
   Goto(&end);
 
@@ -3099,7 +3112,7 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     Node* arg = var_arg.value();
 
     // Check if {arg} is a Smi.
-    GotoIf(WordIsSmi(arg), &out);
+    GotoIf(TaggedIsSmi(arg), &out);
 
     // Check if {arg} is a HeapNumber.
     Label if_argisheapnumber(this),
@@ -3362,7 +3375,7 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
     Label next_probe(this);
     {
       Label if_currentissmi(this), if_currentisnotsmi(this);
-      Branch(WordIsSmi(current), &if_currentissmi, &if_currentisnotsmi);
+      Branch(TaggedIsSmi(current), &if_currentissmi, &if_currentisnotsmi);
       Bind(&if_currentissmi);
       {
         Node* current_value = SmiUntag(current);
@@ -3879,7 +3892,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     Label* if_bailout) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   Label if_objectisnotsmi(this);
-  Branch(WordIsSmi(receiver), if_bailout, &if_objectisnotsmi);
+  Branch(TaggedIsSmi(receiver), if_bailout, &if_objectisnotsmi);
   Bind(&if_objectisnotsmi);
 
   Node* map = LoadMap(receiver);
@@ -3989,7 +4002,7 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
       return_runtime(this, Label::kDeferred), return_result(this);
 
   // Goto runtime if {object} is a Smi.
-  GotoIf(WordIsSmi(object), &return_runtime);
+  GotoIf(TaggedIsSmi(object), &return_runtime);
 
   // Load map of {object}.
   Node* object_map = LoadMap(object);
@@ -4012,7 +4025,7 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   }
 
   // Goto runtime if {callable} is a Smi.
-  GotoIf(WordIsSmi(callable), &return_runtime);
+  GotoIf(TaggedIsSmi(callable), &return_runtime);
 
   // Load map of {callable}.
   Node* callable_map = LoadMap(callable);
@@ -4131,6 +4144,7 @@ compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
     element_size_shift -= kSmiShiftBits;
     constant_index = ToIntPtrConstant(index_node, index);
     index = index >> kSmiShiftBits;
+    index_node = BitcastTaggedToWord(index_node);
   } else if (mode == INTEGER_PARAMETERS) {
     int32_t temp = 0;
     constant_index = ToInt32Constant(index_node, temp);
@@ -4185,7 +4199,7 @@ compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
   Label load_smi_map(this /*, Label::kDeferred*/), load_receiver_map(this),
       if_result(this);
 
-  Branch(WordIsSmi(receiver), &load_smi_map, &load_receiver_map);
+  Branch(TaggedIsSmi(receiver), &load_smi_map, &load_receiver_map);
   Bind(&load_smi_map);
   {
     var_receiver_map.Bind(LoadRoot(Heap::kHeapNumberMapRootIndex));
@@ -4367,7 +4381,7 @@ void CodeStubAssembler::TryProbeStubCache(
   IncrementCounter(counters->megamorphic_stub_cache_probes(), 1);
 
   // Check that the {receiver} isn't a smi.
-  GotoIf(WordIsSmi(receiver), &miss);
+  GotoIf(TaggedIsSmi(receiver), &miss);
 
   Node* receiver_map = LoadMap(receiver);
 
@@ -4394,7 +4408,7 @@ void CodeStubAssembler::TryProbeStubCache(
 Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
   Variable var_intptr_key(this, MachineType::PointerRepresentation());
   Label done(this, &var_intptr_key), key_is_smi(this);
-  GotoIf(WordIsSmi(key), &key_is_smi);
+  GotoIf(TaggedIsSmi(key), &key_is_smi);
   // Try to convert a heap number to a Smi.
   GotoUnless(WordEqual(LoadMap(key), HeapNumberMapConstant()), miss);
   {
@@ -4641,7 +4655,7 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     ElementSupport support_elements) {
   Comment("have_handler");
   Label call_handler(this);
-  GotoUnless(WordIsSmi(handler), &call_handler);
+  GotoUnless(TaggedIsSmi(handler), &call_handler);
 
   // |handler| is a Smi, encoding what to do. See handler-configuration.h
   // for the encoding format.
@@ -4866,7 +4880,7 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
       if_property_dictionary(this), if_found_on_receiver(this);
 
   Node* receiver = p->receiver;
-  GotoIf(WordIsSmi(receiver), &slow);
+  GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
@@ -5137,7 +5151,7 @@ Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
   if (representation.IsDouble()) {
     Variable var_value(this, MachineRepresentation::kFloat64);
     Label if_smi(this), if_heap_object(this), done(this);
-    Branch(WordIsSmi(value), &if_smi, &if_heap_object);
+    Branch(TaggedIsSmi(value), &if_smi, &if_heap_object);
     Bind(&if_smi);
     {
       var_value.Bind(SmiToFloat64(value));
@@ -5156,9 +5170,9 @@ Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
   } else if (representation.IsHeapObject()) {
     // Field type is checked by the handler, here we only check if the value
     // is a heap object.
-    GotoIf(WordIsSmi(value), bailout);
+    GotoIf(TaggedIsSmi(value), bailout);
   } else if (representation.IsSmi()) {
-    GotoUnless(WordIsSmi(value), bailout);
+    GotoUnless(TaggedIsSmi(value), bailout);
   } else {
     DCHECK(representation.IsTagged());
   }
@@ -5240,7 +5254,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   bool is_load = value == nullptr;
 
-  GotoUnless(WordIsSmi(key), bailout);
+  GotoUnless(TaggedIsSmi(key), bailout);
   key = SmiUntag(key);
   GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
 
@@ -5263,7 +5277,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   Bind(&if_mapped);
   {
-    Assert(WordIsSmi(mapped_index));
+    Assert(TaggedIsSmi(mapped_index));
     mapped_index = SmiUntag(mapped_index);
     Node* the_context = LoadFixedArrayElement(elements, IntPtrConstant(0), 0,
                                               INTPTR_PARAMETERS);
@@ -5472,7 +5486,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   // a smi before manipulating the backing store. Otherwise the backing store
   // may be left in an invalid state.
   if (IsFastSmiElementsKind(elements_kind)) {
-    GotoUnless(WordIsSmi(value), bailout);
+    GotoUnless(TaggedIsSmi(value), bailout);
   } else if (IsFastDoubleElementsKind(elements_kind)) {
     value = PrepareValueForWrite(value, Representation::Double(), bailout);
   }
@@ -5914,13 +5928,13 @@ compiler::Node* CodeStubAssembler::RelationalComparison(
 
     // Check if the {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
-    Branch(WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+    Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
     Bind(&if_lhsissmi);
     {
       // Check if {rhs} is a Smi or a HeapObject.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
-      Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
       Bind(&if_rhsissmi);
       {
@@ -5982,7 +5996,7 @@ compiler::Node* CodeStubAssembler::RelationalComparison(
 
       // Check if {rhs} is a Smi or a HeapObject.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
-      Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
       Bind(&if_rhsissmi);
       {
@@ -6223,7 +6237,7 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
 
   // Check if {value} is a Smi or a HeapObject.
   Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(value), &if_valueissmi,
+  assembler->Branch(assembler->TaggedIsSmi(value), &if_valueissmi,
                     &if_valueisnotsmi);
 
   assembler->Bind(&if_valueisnotsmi);
@@ -6312,13 +6326,13 @@ compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
     {
       // Check if {lhs} is a Smi or a HeapObject.
       Label if_lhsissmi(this), if_lhsisnotsmi(this);
-      Branch(WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+      Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
       Bind(&if_lhsissmi);
       {
         // Check if {rhs} is a Smi or a HeapObject.
         Label if_rhsissmi(this), if_rhsisnotsmi(this);
-        Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
         Bind(&if_rhsissmi);
         // We have already checked for {lhs} and {rhs} being the same value, so
@@ -6408,7 +6422,7 @@ compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
       {
         // Check if {rhs} is a Smi or a HeapObject.
         Label if_rhsissmi(this), if_rhsisnotsmi(this);
-        Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
         Bind(&if_rhsissmi);
         {
@@ -6839,7 +6853,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
 
     // Check if {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
-    Branch(WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+    Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
     Bind(&if_lhsisnotsmi);
     {
@@ -6855,7 +6869,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
       {
         // Check if {rhs} is a Smi or a HeapObject.
         Label if_rhsissmi(this), if_rhsisnotsmi(this);
-        Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
         Bind(&if_rhsissmi);
         {
@@ -6896,7 +6910,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
       {
         // Check if {rhs} is a Smi or a HeapObject.
         Label if_rhsissmi(this), if_rhsisnotsmi(this);
-        Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
         Bind(&if_rhsissmi);
         Goto(&if_notequal);
@@ -6968,7 +6982,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
 
       // Check if {rhs} is a Smi or a HeapObject.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
-      Branch(WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
       Bind(&if_rhsissmi);
       Goto(&if_notequal);
@@ -7107,7 +7121,7 @@ compiler::Node* CodeStubAssembler::Typeof(compiler::Node* value,
       return_function(this), return_undefined(this), return_object(this),
       return_string(this), return_result(this);
 
-  GotoIf(WordIsSmi(value), &return_number);
+  GotoIf(TaggedIsSmi(value), &return_number);
 
   Node* map = LoadMap(value);
 
@@ -7207,7 +7221,7 @@ compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
       &return_runtime);
 
   // Check if {callable} is a valid receiver.
-  GotoIf(WordIsSmi(callable), &return_runtime);
+  GotoIf(TaggedIsSmi(callable), &return_runtime);
   GotoIf(Word32Equal(Word32And(LoadMapBitField(LoadMap(callable)),
                                Int32Constant(1 << Map::kIsCallable)),
                      Int32Constant(0)),

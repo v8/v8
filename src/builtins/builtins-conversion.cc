@@ -60,7 +60,7 @@ void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
     // Verify that the {result} is actually a primitive.
     Label if_resultisprimitive(assembler),
         if_resultisnotprimitive(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->WordIsSmi(result), &if_resultisprimitive);
+    assembler->GotoIf(assembler->TaggedIsSmi(result), &if_resultisprimitive);
     Node* result_instance_type = assembler->LoadInstanceType(result);
     STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
     assembler->Branch(assembler->Int32LessThanOrEqual(
@@ -162,7 +162,7 @@ void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
   Label is_number(assembler);
   Label runtime(assembler);
 
-  assembler->GotoIf(assembler->WordIsSmi(input), &is_number);
+  assembler->GotoIf(assembler->TaggedIsSmi(input), &is_number);
 
   Node* input_map = assembler->LoadMap(input);
   Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
@@ -252,7 +252,7 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
     // Check if the {method} is callable.
     Label if_methodiscallable(assembler),
         if_methodisnotcallable(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->WordIsSmi(method), &if_methodisnotcallable);
+    assembler->GotoIf(assembler->TaggedIsSmi(method), &if_methodisnotcallable);
     Node* method_map = assembler->LoadMap(method);
     Node* method_bit_field = assembler->LoadMapBitField(method_map);
     assembler->Branch(
@@ -270,7 +270,7 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
       var_result.Bind(result);
 
       // Return the {result} if it is a primitive.
-      assembler->GotoIf(assembler->WordIsSmi(result), &return_result);
+      assembler->GotoIf(assembler->TaggedIsSmi(result), &return_result);
       Node* result_instance_type = assembler->LoadInstanceType(result);
       STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
       assembler->GotoIf(assembler->Int32LessThanOrEqual(
@@ -345,7 +345,7 @@ void Builtins::Generate_ToLength(CodeStubAssembler* assembler) {
     assembler->GotoIf(assembler->WordIsPositiveSmi(len), &return_len);
 
     // Check if {len} is a (negative) Smi.
-    assembler->GotoIf(assembler->WordIsSmi(len), &return_zero);
+    assembler->GotoIf(assembler->TaggedIsSmi(len), &return_zero);
 
     // Check if {len} is a HeapNumber.
     Label if_lenisheapnumber(assembler),
@@ -420,7 +420,7 @@ void Builtins::Generate_ToObject(CodeStubAssembler* assembler) {
   Variable constructor_function_index_var(assembler,
                                           MachineType::PointerRepresentation());
 
-  assembler->Branch(assembler->WordIsSmi(object), &if_number, &if_notsmi);
+  assembler->Branch(assembler->TaggedIsSmi(object), &if_number, &if_notsmi);
 
   assembler->Bind(&if_notsmi);
   Node* map = assembler->LoadMap(object);

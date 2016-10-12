@@ -960,7 +960,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
   Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
   Label lhs_is_smi(assembler), lhs_is_not_smi(assembler),
       gather_rhs_type(assembler), do_compare(assembler);
-  __ Branch(__ WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+  __ Branch(__ TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
   __ Bind(&lhs_is_smi);
   var_type_feedback.Bind(
@@ -986,7 +986,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
   __ Bind(&gather_rhs_type);
   {
     Label rhs_is_smi(assembler);
-    __ GotoIf(__ WordIsSmi(rhs), &rhs_is_smi);
+    __ GotoIf(__ TaggedIsSmi(rhs), &rhs_is_smi);
 
     Node* rhs_map = __ LoadMap(rhs);
     Node* rhs_type =
@@ -1131,13 +1131,13 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
   }
 
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
 
   if (FLAG_debug_code) {
     Label ok(assembler);
-    __ GotoIf(__ WordIsSmi(result), &ok);
+    __ GotoIf(__ TaggedIsSmi(result), &ok);
     Node* result_map = __ LoadMap(result);
     __ AbortIfWordNotEqual(result_map, __ HeapNumberMapConstant(),
                            kExpectedHeapNumber);
@@ -1222,7 +1222,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
-  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ BranchIf(__ TaggedIsSmi(left), &fastpath, &slowpath);
   __ Bind(&fastpath);
   {
     // Try fast Smi addition first.
@@ -1275,7 +1275,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
-  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ BranchIf(__ TaggedIsSmi(left), &fastpath, &slowpath);
   __ Bind(&fastpath);
   {
     // Try fast Smi subtraction first.
@@ -1329,7 +1329,7 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32Or(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1357,7 +1357,7 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32And(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1387,7 +1387,7 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32Shl(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1417,7 +1417,7 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32Sar(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),

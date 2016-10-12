@@ -379,7 +379,7 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
       var_lastindex.Bind(lastindex);
 
       Label if_isoob(a, Label::kDeferred);
-      a->GotoUnless(a->WordIsSmi(lastindex), &if_isoob);
+      a->GotoUnless(a->TaggedIsSmi(lastindex), &if_isoob);
       a->GotoUnless(a->SmiLessThanOrEqual(lastindex, string_length), &if_isoob);
       a->Goto(&run_exec);
 
@@ -460,7 +460,7 @@ compiler::Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
   Label out(a), throw_exception(a, Label::kDeferred);
   Variable var_value_map(a, MachineRepresentation::kTagged);
 
-  a->GotoIf(a->WordIsSmi(value), &throw_exception);
+  a->GotoIf(a->TaggedIsSmi(value), &throw_exception);
 
   // Load the instance type of the {value}.
   var_value_map.Bind(a->LoadMap(value));
@@ -727,7 +727,7 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
   Label if_isunmodifiedjsregexp(a),
       if_isnotunmodifiedjsregexp(a, Label::kDeferred);
 
-  a->GotoIf(a->WordIsSmi(receiver), &if_isnotunmodifiedjsregexp);
+  a->GotoIf(a->TaggedIsSmi(receiver), &if_isnotunmodifiedjsregexp);
 
   Node* const receiver_map = a->LoadMap(receiver);
   Node* const instance_type = a->LoadMapInstanceType(receiver_map);

@@ -919,7 +919,7 @@ void Builtins::Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
 
   Label receiver_not_date(assembler, Label::kDeferred);
 
-  assembler->GotoIf(assembler->WordIsSmi(receiver), &receiver_not_date);
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &receiver_not_date);
   Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
   assembler->GotoIf(
       assembler->Word32NotEqual(receiver_instance_type,

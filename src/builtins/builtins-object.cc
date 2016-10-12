@@ -28,7 +28,7 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
 
   // Smi receivers do not have own properties.
   Label if_objectisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), &return_false,
+  assembler->Branch(assembler->TaggedIsSmi(object), &return_false,
                     &if_objectisnotsmi);
   assembler->Bind(&if_objectisnotsmi);
 
@@ -224,7 +224,7 @@ void IsString(CodeStubAssembler* assembler, compiler::Node* object,
   typedef CodeStubAssembler::Label Label;
 
   Label if_notsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), if_notstring, &if_notsmi);
+  assembler->Branch(assembler->TaggedIsSmi(object), if_notstring, &if_notsmi);
 
   assembler->Bind(&if_notsmi);
   {
@@ -302,7 +302,7 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
   assembler->GotoIf(assembler->Word32Equal(receiver, assembler->NullConstant()),
                     &return_null);
 
-  assembler->GotoIf(assembler->WordIsSmi(receiver), &return_number);
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &return_number);
 
   Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
   ReturnIfPrimitive(assembler, receiver_instance_type, &return_string,
@@ -427,7 +427,7 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
     assembler->Bind(&return_jsvalue);
     {
       Node* value = assembler->LoadJSValueValue(receiver);
-      assembler->GotoIf(assembler->WordIsSmi(value), &return_number);
+      assembler->GotoIf(assembler->TaggedIsSmi(value), &return_number);
 
       ReturnIfPrimitive(assembler, assembler->LoadInstanceType(value),
                         &return_string, &return_boolean, &return_number);

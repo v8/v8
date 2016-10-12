@@ -150,7 +150,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void Assert(compiler::Node* condition);
 
   // Check a value for smi-ness
-  compiler::Node* WordIsSmi(compiler::Node* a);
+  compiler::Node* TaggedIsSmi(compiler::Node* a);
   // Check that the value is a non-negative smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
 

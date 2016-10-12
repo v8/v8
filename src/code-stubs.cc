@@ -680,13 +680,14 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   // Check if the {lhs} is a Smi or a HeapObject.
   Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+  assembler->Branch(assembler->TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
   assembler->Bind(&if_lhsissmi);
   {
     // Check if the {rhs} is also a Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
+                      &if_rhsisnotsmi);
 
     assembler->Bind(&if_rhsissmi);
     {
@@ -742,7 +743,8 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
+                      &if_rhsisnotsmi);
 
     assembler->Bind(&if_rhsissmi);
     {
@@ -768,7 +770,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Bind(&check_string);
     {
       // Check if the {rhs} is a smi, and exit the string check early if it is.
-      assembler->GotoIf(assembler->WordIsSmi(rhs), &call_add_stub);
+      assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_add_stub);
 
       Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
 
@@ -838,13 +840,14 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 
   // Check if the {lhs} is a Smi or a HeapObject.
   Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+  assembler->Branch(assembler->TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
   assembler->Bind(&if_lhsissmi);
   {
     // Check if the {rhs} is also a Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
+                      &if_rhsisnotsmi);
 
     assembler->Bind(&if_rhsissmi);
     {
@@ -900,7 +903,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 
     // Check if the {rhs} is a Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
+                      &if_rhsisnotsmi);
 
     assembler->Bind(&if_rhsissmi);
     {
@@ -947,7 +951,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     assembler->GotoUnless(lhs_is_oddball, &call_with_any_feedback);
 
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
+                      &if_rhsisnotsmi);
 
     assembler->Bind(&if_rhsissmi);
     {
@@ -1026,12 +1031,13 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   Node* number_map = assembler->HeapNumberMapConstant();
 
   Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
-  assembler->Branch(assembler->WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+  assembler->Branch(assembler->TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
   assembler->Bind(&lhs_is_smi);
   {
     Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi, &rhs_is_not_smi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &rhs_is_smi,
+                      &rhs_is_not_smi);
 
     assembler->Bind(&rhs_is_smi);
     {
@@ -1039,7 +1045,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       // in case of overflow.
       var_result.Bind(assembler->SmiMul(lhs, rhs));
       var_type_feedback.Bind(assembler->Select(
-          assembler->WordIsSmi(var_result.value()),
+          assembler->TaggedIsSmi(var_result.value()),
           assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall),
           assembler->Int32Constant(BinaryOperationFeedback::kNumber),
           MachineRepresentation::kWord32));
@@ -1071,7 +1077,8 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
     // Check if {rhs} is a Smi.
     Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi, &rhs_is_not_smi);
+    assembler->Branch(assembler->TaggedIsSmi(rhs), &rhs_is_smi,
+                      &rhs_is_not_smi);
 
     assembler->Bind(&rhs_is_smi);
     {
@@ -1143,13 +1150,13 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   Node* number_map = assembler->HeapNumberMapConstant();
 
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
-  assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+  assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                     &dividend_is_not_smi);
 
   assembler->Bind(&dividend_is_smi);
   {
     Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+    assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                       &divisor_is_not_smi);
 
     assembler->Bind(&divisor_is_smi);
@@ -1246,7 +1253,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       // Check if {divisor} is a Smi.
       Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-      assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+      assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                         &divisor_is_not_smi);
 
       assembler->Bind(&divisor_is_smi);
@@ -1319,20 +1326,20 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   Node* number_map = assembler->HeapNumberMapConstant();
 
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
-  assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+  assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                     &dividend_is_not_smi);
 
   assembler->Bind(&dividend_is_smi);
   {
     Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+    assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                       &divisor_is_not_smi);
 
     assembler->Bind(&divisor_is_smi);
     {
       var_result.Bind(assembler->SmiMod(dividend, divisor));
       var_type_feedback.Bind(assembler->Select(
-          assembler->WordIsSmi(var_result.value()),
+          assembler->TaggedIsSmi(var_result.value()),
           assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall),
           assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
       assembler->Goto(&end);
@@ -1364,7 +1371,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
     // Check if {divisor} is a Smi.
     Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+    assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                       &divisor_is_not_smi);
 
     assembler->Bind(&divisor_is_smi);
@@ -1446,7 +1453,7 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
     value = value_var.value();
 
     Label if_issmi(assembler), if_isnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(value), &if_issmi, &if_isnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
 
     assembler->Bind(&if_issmi);
     {
@@ -1556,7 +1563,7 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
     value = value_var.value();
 
     Label if_issmi(assembler), if_isnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(value), &if_issmi, &if_isnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
 
     assembler->Bind(&if_issmi);
     {
@@ -1728,7 +1735,7 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* weak_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
       StoreGlobalStub::property_cell_placeholder(isolate())));
   Node* cell = assembler->LoadWeakCellValue(weak_cell);
-  assembler->GotoIf(assembler->WordIsSmi(cell), &miss);
+  assembler->GotoIf(assembler->TaggedIsSmi(cell), &miss);
 
   // Load the payload of the global parameter cell. A hole indicates that the
   // cell has been invalidated and that the store must be handled by the
@@ -1750,7 +1757,7 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     if (cell_type == PropertyCellType::kConstantType) {
       switch (constant_type()) {
         case PropertyCellConstantType::kSmi:
-          assembler->GotoUnless(assembler->WordIsSmi(value), &miss);
+          assembler->GotoUnless(assembler->TaggedIsSmi(value), &miss);
           value_is_smi = true;
           break;
         case PropertyCellConstantType::kStableMap: {
@@ -1759,8 +1766,8 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           // are the maps that were originally in the cell or not. If optimized
           // code will deopt when a cell has a unstable map and if it has a
           // dependency on a stable map, it will deopt if the map destabilizes.
-          assembler->GotoIf(assembler->WordIsSmi(value), &miss);
-          assembler->GotoIf(assembler->WordIsSmi(cell_contents), &miss);
+          assembler->GotoIf(assembler->TaggedIsSmi(value), &miss);
+          assembler->GotoIf(assembler->TaggedIsSmi(cell_contents), &miss);
           Node* expected_map = assembler->LoadMap(cell_contents);
           Node* map = assembler->LoadMap(value);
           assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
@@ -2903,7 +2910,7 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
   Label call_runtime(assembler, Label::kDeferred);
 
   Node* size = assembler->Parameter(Descriptor::kArraySizeSmiParameter);
-  assembler->Branch(assembler->WordIsSmi(size), &smi_size, &call_runtime);
+  assembler->Branch(assembler->TaggedIsSmi(size), &smi_size, &call_runtime);
 
   assembler->Bind(&smi_size);
 

@@ -133,7 +133,7 @@ void Generate_MathRoundingOperation(
 
     // Check if {x} is a Smi or a HeapObject.
     Label if_xissmi(assembler), if_xisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
     assembler->Bind(&if_xissmi);
     {
@@ -214,7 +214,7 @@ void Builtins::Generate_MathClz32(CodeStubAssembler* assembler) {
 
     // Check if {x} is a Smi or a HeapObject.
     Label if_xissmi(assembler), if_xisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
     assembler->Bind(&if_xissmi);
     {

@@ -585,7 +585,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
   {
     // The compare above could have been a SMI/SMI comparison. Guard against
     // this convincing us that we have a monomorphic JSFunction.
-    Node* is_smi = WordIsSmi(function);
+    Node* is_smi = TaggedIsSmi(function);
     GotoIf(is_smi, &extra_checks);
 
     // Increment the call count.
@@ -649,7 +649,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
           HeapConstant(TypeFeedbackVector::UninitializedSentinel(isolate())));
       GotoUnless(is_uninitialized, &mark_megamorphic);
 
-      Node* is_smi = WordIsSmi(function);
+      Node* is_smi = TaggedIsSmi(function);
       GotoIf(is_smi, &mark_megamorphic);
 
       // Check if function is an object of JSFunction type
@@ -774,7 +774,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   GotoIf(is_feedback_unavailable, &call_construct);
 
   // Check that the constructor is not a smi.
-  Node* is_smi = WordIsSmi(constructor);
+  Node* is_smi = TaggedIsSmi(constructor);
   GotoIf(is_smi, &call_construct);
 
   // Check that constructor is a JSFunction.
@@ -818,7 +818,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
         // If the weak cell is cleared, we have a new chance to become
         // monomorphic.
         Comment("check if weak cell is cleared");
-        Node* is_smi = WordIsSmi(feedback_value);
+        Node* is_smi = TaggedIsSmi(feedback_value);
         BranchIf(is_smi, &initialize, &mark_megamorphic);
       }
 
@@ -1161,7 +1161,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
 
     // Check if the {value} is a Smi or a HeapObject.
     Label if_valueissmi(this), if_valueisnotsmi(this);
-    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+    Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
     Bind(&if_valueissmi);
     {

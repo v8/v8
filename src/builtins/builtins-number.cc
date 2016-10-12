@@ -22,7 +22,7 @@ void Builtins::Generate_NumberIsFinite(CodeStubAssembler* assembler) {
   Label return_true(assembler), return_false(assembler);
 
   // Check if {number} is a Smi.
-  assembler->GotoIf(assembler->WordIsSmi(number), &return_true);
+  assembler->GotoIf(assembler->TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
   assembler->GotoUnless(
@@ -53,7 +53,7 @@ void Builtins::Generate_NumberIsInteger(CodeStubAssembler* assembler) {
   Label return_true(assembler), return_false(assembler);
 
   // Check if {number} is a Smi.
-  assembler->GotoIf(assembler->WordIsSmi(number), &return_true);
+  assembler->GotoIf(assembler->TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
   assembler->GotoUnless(
@@ -89,7 +89,7 @@ void Builtins::Generate_NumberIsNaN(CodeStubAssembler* assembler) {
   Label return_true(assembler), return_false(assembler);
 
   // Check if {number} is a Smi.
-  assembler->GotoIf(assembler->WordIsSmi(number), &return_false);
+  assembler->GotoIf(assembler->TaggedIsSmi(number), &return_false);
 
   // Check if {number} is a HeapNumber.
   assembler->GotoUnless(
@@ -118,7 +118,7 @@ void Builtins::Generate_NumberIsSafeInteger(CodeStubAssembler* assembler) {
   Label return_true(assembler), return_false(assembler);
 
   // Check if {number} is a Smi.
-  assembler->GotoIf(assembler->WordIsSmi(number), &return_true);
+  assembler->GotoIf(assembler->TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
   assembler->GotoUnless(
@@ -170,7 +170,7 @@ void Builtins::Generate_NumberParseFloat(CodeStubAssembler* assembler) {
 
     // Check if the {input} is a HeapObject or a Smi.
     Label if_inputissmi(assembler), if_inputisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(input), &if_inputissmi,
+    assembler->Branch(assembler->TaggedIsSmi(input), &if_inputissmi,
                       &if_inputisnotsmi);
 
     assembler->Bind(&if_inputissmi);
@@ -511,13 +511,14 @@ void Builtins::Generate_Add(CodeStubAssembler* assembler) {
 
     // Check if the {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(lhs), &if_lhsissmi,
+                      &if_lhsisnotsmi);
 
     assembler->Bind(&if_lhsissmi);
     {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-      assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+      assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
                         &if_rhsisnotsmi);
 
       assembler->Bind(&if_rhsissmi);
@@ -630,7 +631,7 @@ void Builtins::Generate_Add(CodeStubAssembler* assembler) {
       {
         // Check if {rhs} is a Smi.
         Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+        assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
                           &if_rhsisnotsmi);
 
         assembler->Bind(&if_rhsissmi);
@@ -872,13 +873,14 @@ void Builtins::Generate_Subtract(CodeStubAssembler* assembler) {
 
     // Check if the {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(lhs), &if_lhsissmi,
+                      &if_lhsisnotsmi);
 
     assembler->Bind(&if_lhsissmi);
     {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-      assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+      assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
                         &if_rhsisnotsmi);
 
       assembler->Bind(&if_rhsissmi);
@@ -950,7 +952,7 @@ void Builtins::Generate_Subtract(CodeStubAssembler* assembler) {
       {
         // Check if the {rhs} is a Smi.
         Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
-        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+        assembler->Branch(assembler->TaggedIsSmi(rhs), &if_rhsissmi,
                           &if_rhsisnotsmi);
 
         assembler->Bind(&if_rhsissmi);
@@ -1045,12 +1047,13 @@ void Builtins::Generate_Multiply(CodeStubAssembler* assembler) {
     Node* rhs = var_rhs.value();
 
     Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+    assembler->Branch(assembler->TaggedIsSmi(lhs), &lhs_is_smi,
+                      &lhs_is_not_smi);
 
     assembler->Bind(&lhs_is_smi);
     {
       Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
-      assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi,
+      assembler->Branch(assembler->TaggedIsSmi(rhs), &rhs_is_smi,
                         &rhs_is_not_smi);
 
       assembler->Bind(&rhs_is_smi);
@@ -1103,7 +1106,7 @@ void Builtins::Generate_Multiply(CodeStubAssembler* assembler) {
       {
         // Check if {rhs} is a Smi.
         Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
-        assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi,
+        assembler->Branch(assembler->TaggedIsSmi(rhs), &rhs_is_smi,
                           &rhs_is_not_smi);
 
         assembler->Bind(&rhs_is_smi);
@@ -1198,13 +1201,13 @@ void Builtins::Generate_Divide(CodeStubAssembler* assembler) {
     Node* divisor = var_divisor.value();
 
     Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+    assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                       &dividend_is_not_smi);
 
     assembler->Bind(&dividend_is_smi);
     {
       Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-      assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+      assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                         &divisor_is_not_smi);
 
       assembler->Bind(&divisor_is_smi);
@@ -1321,7 +1324,7 @@ void Builtins::Generate_Divide(CodeStubAssembler* assembler) {
       {
         // Check if {divisor} is a Smi.
         Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-        assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+        assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                           &divisor_is_not_smi);
 
         assembler->Bind(&divisor_is_smi);
@@ -1418,14 +1421,14 @@ void Builtins::Generate_Modulus(CodeStubAssembler* assembler) {
     Node* divisor = var_divisor.value();
 
     Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
-    assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+    assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                       &dividend_is_not_smi);
 
     assembler->Bind(&dividend_is_smi);
     {
       Label dividend_is_not_zero(assembler);
       Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-      assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+      assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                         &divisor_is_not_smi);
 
       assembler->Bind(&divisor_is_smi);
@@ -1479,7 +1482,7 @@ void Builtins::Generate_Modulus(CodeStubAssembler* assembler) {
       {
         // Check if {divisor} is a Smi.
         Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
-        assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+        assembler->Branch(assembler->TaggedIsSmi(divisor), &divisor_is_smi,
                           &divisor_is_not_smi);
 
         assembler->Bind(&divisor_is_smi);

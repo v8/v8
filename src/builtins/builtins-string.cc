@@ -713,7 +713,8 @@ void Builtins::Generate_StringPrototypeCharAt(CodeStubAssembler* assembler) {
     Label return_emptystring(assembler, Label::kDeferred);
     position = assembler->ToInteger(context, position,
                                     CodeStubAssembler::kTruncateMinusZero);
-    assembler->GotoUnless(assembler->WordIsSmi(position), &return_emptystring);
+    assembler->GotoUnless(assembler->TaggedIsSmi(position),
+                          &return_emptystring);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length =
@@ -758,7 +759,7 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
     Label return_nan(assembler, Label::kDeferred);
     position = assembler->ToInteger(context, position,
                                     CodeStubAssembler::kTruncateMinusZero);
-    assembler->GotoUnless(assembler->WordIsSmi(position), &return_nan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(position), &return_nan);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length =
@@ -999,7 +1000,7 @@ void Builtins::Generate_StringPrototypeSubstr(CodeStubAssembler* a) {
         a->ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
 
     Label if_issmi(a), if_isheapnumber(a, Label::kDeferred);
-    a->Branch(a->WordIsSmi(start_int), &if_issmi, &if_isheapnumber);
+    a->Branch(a->TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
 
     a->Bind(&if_issmi);
     {
@@ -1043,7 +1044,7 @@ void Builtins::Generate_StringPrototypeSubstr(CodeStubAssembler* a) {
           a->ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero));
     }
 
-    a->Branch(a->WordIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
+    a->Branch(a->TaggedIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
 
     // Set {length} to min(max({length}, 0), {string_length} - {start}
     a->Bind(&if_issmi);
@@ -1109,7 +1110,7 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
       a->ToInteger(context, value, CodeStubAssembler::kTruncateMinusZero);
 
   Label if_issmi(a), if_isnotsmi(a, Label::kDeferred);
-  a->Branch(a->WordIsSmi(value_int), &if_issmi, &if_isnotsmi);
+  a->Branch(a->TaggedIsSmi(value_int), &if_issmi, &if_isnotsmi);
 
   a->Bind(&if_issmi);
   {
@@ -1429,7 +1430,7 @@ void Builtins::Generate_StringIteratorPrototypeNext(
   Node* iterator = assembler->Parameter(0);
   Node* context = assembler->Parameter(3);
 
-  assembler->GotoIf(assembler->WordIsSmi(iterator), &throw_bad_receiver);
+  assembler->GotoIf(assembler->TaggedIsSmi(iterator), &throw_bad_receiver);
   assembler->GotoUnless(
       assembler->WordEqual(assembler->LoadInstanceType(iterator),
                            assembler->Int32Constant(JS_STRING_ITERATOR_TYPE)),
