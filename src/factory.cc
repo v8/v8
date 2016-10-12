@@ -923,12 +923,13 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
       Struct);
 }
 
-Handle<PromiseContainer> Factory::NewPromiseContainer(
+Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
     Handle<JSReceiver> thenable, Handle<JSReceiver> then,
     Handle<JSFunction> resolve, Handle<JSFunction> reject,
     Handle<Object> before_debug_event, Handle<Object> after_debug_event) {
-  Handle<PromiseContainer> result =
-      Handle<PromiseContainer>::cast(NewStruct(PROMISE_CONTAINER_TYPE));
+  Handle<PromiseResolveThenableJobInfo> result =
+      Handle<PromiseResolveThenableJobInfo>::cast(
+          NewStruct(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE));
   result->set_thenable(*thenable);
   result->set_then(*then);
   result->set_resolve(*resolve);

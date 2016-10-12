@@ -1150,8 +1150,9 @@ void Box::BoxPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void PromiseContainer::PromiseContainerPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PromiseContainer");
+void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PromiseResolveThenableJobInfo");
   os << "\n - thenable: " << Brief(thenable());
   os << "\n - then: " << Brief(then());
   os << "\n - resolve: " << Brief(resolve());

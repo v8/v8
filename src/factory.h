@@ -66,8 +66,8 @@ class Factory final {
       Handle<Object> before_debug, Handle<Object> after_debug_event,
       Handle<Context> context);
 
-  // Create a new PromiseContainer struct.
-  Handle<PromiseContainer> NewPromiseContainer(
+  // Create a new PromiseResolveThenableJobInfo struct.
+  Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(
       Handle<JSReceiver> thenable, Handle<JSReceiver> then,
       Handle<JSFunction> resolve, Handle<JSFunction> reject,
       Handle<Object> before_debug_event, Handle<Object> after_debug_event);

@@ -5654,12 +5654,14 @@ ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
 
-ACCESSORS(PromiseContainer, thenable, JSReceiver, kThenableOffset)
-ACCESSORS(PromiseContainer, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseContainer, resolve, JSFunction, kResolveOffset)
-ACCESSORS(PromiseContainer, reject, JSFunction, kRejectOffset)
-ACCESSORS(PromiseContainer, before_debug_event, Object, kBeforeDebugEventOffset)
-ACCESSORS(PromiseContainer, after_debug_event, Object, kAfterDebugEventOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, before_debug_event, Object,
+          kBeforeDebugEventOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, after_debug_event, Object,
+          kAfterDebugEventOffset)
 
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);

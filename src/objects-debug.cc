@@ -912,14 +912,17 @@ void Box::BoxVerify() {
   value()->ObjectVerify();
 }
 
-void PromiseContainer::PromiseContainerVerify() {
-  CHECK(IsPromiseContainer());
-  thenable()->ObjectVerify();
-  then()->ObjectVerify();
-  resolve()->ObjectVerify();
-  reject()->ObjectVerify();
-  before_debug_event()->ObjectVerify();
-  after_debug_event()->ObjectVerify();
+void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
+  Isolate* isolate = GetIsolate();
+  CHECK(IsPromiseResolveThenableJobInfo());
+  CHECK(thenable()->IsJSReceiver());
+  CHECK(then()->IsJSReceiver());
+  CHECK(resolve()->IsJSFunction());
+  CHECK(reject()->IsJSFunction());
+  CHECK(before_debug_event()->IsJSObject() ||
+        before_debug_event()->IsUndefined(isolate));
+  CHECK(after_debug_event()->IsJSObject() ||
+        after_debug_event()->IsUndefined(isolate));
 }
 
 void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {

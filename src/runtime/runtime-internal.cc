@@ -596,9 +596,11 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 4);
   CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 5);
-  Handle<PromiseContainer> container = isolate->factory()->NewPromiseContainer(
-      resolution, then, resolve, reject, before_debug_event, after_debug_event);
-  isolate->EnqueueMicrotask(container);
+  Handle<PromiseResolveThenableJobInfo> info =
+      isolate->factory()->NewPromiseResolveThenableJobInfo(
+          resolution, then, resolve, reject, before_debug_event,
+          after_debug_event);
+  isolate->EnqueueMicrotask(info);
   return isolate->heap()->undefined_value();
 }
 

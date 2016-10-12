@@ -143,7 +143,7 @@
 //     - Struct
 //       - Box
 //       - AccessorInfo
-//       - PromiseContainer
+//       - PromiseResolveThenableJobInfo
 //       - PromiseReactionJobInfo
 //       - AccessorPair
 //       - AccessCheckInfo
@@ -400,7 +400,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
-  V(PROMISE_CONTAINER_TYPE)                                     \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(CONTEXT_EXTENSION_TYPE)                                     \
@@ -508,7 +508,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // manually.
 #define STRUCT_LIST(V)                                                       \
   V(BOX, Box, box)                                                           \
-  V(PROMISE_CONTAINER, PromiseContainer, promise_container)                  \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
+    promise_resolve_thenable_job_info)                                       \
   V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
     promise_reaction_job_info)                                               \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
@@ -692,7 +693,7 @@ enum InstanceType {
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
-  PROMISE_CONTAINER_TYPE,
+  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
   PROMISE_REACTION_JOB_INFO_TYPE,
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
@@ -6682,8 +6683,7 @@ class Struct: public HeapObject {
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
-// TODO(gsathya): Rename this to be less generic.
-class PromiseContainer : public Struct {
+class PromiseResolveThenableJobInfo : public Struct {
  public:
   DECL_ACCESSORS(thenable, JSReceiver)
   DECL_ACCESSORS(then, JSReceiver)
@@ -6701,12 +6701,12 @@ class PromiseContainer : public Struct {
       kBeforeDebugEventOffset + kPointerSize;
   static const int kSize = kAfterDebugEventOffset + kPointerSize;
 
-  DECLARE_CAST(PromiseContainer)
-  DECLARE_PRINTER(PromiseContainer)
-  DECLARE_VERIFIER(PromiseContainer)
+  DECLARE_CAST(PromiseResolveThenableJobInfo)
+  DECLARE_PRINTER(PromiseResolveThenableJobInfo)
+  DECLARE_VERIFIER(PromiseResolveThenableJobInfo)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseContainer);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobInfo);
 };
 
 // Struct to hold state required for PromiseReactionJob.

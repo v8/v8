@@ -3136,16 +3136,16 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
   }
 }
 
-void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
-                                        MaybeHandle<Object>* result,
-                                        MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, container->before_debug_event(),
-                                container->after_debug_event());
+void Isolate::PromiseResolveThenableJob(
+    Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
+    MaybeHandle<Object>* maybe_exception) {
+  PromiseDebugEventScope helper(this, info->before_debug_event(),
+                                info->after_debug_event());
 
-  Handle<JSReceiver> thenable(container->thenable(), this);
-  Handle<JSFunction> resolve(container->resolve(), this);
-  Handle<JSFunction> reject(container->reject(), this);
-  Handle<JSReceiver> then(container->then(), this);
+  Handle<JSReceiver> thenable(info->thenable(), this);
+  Handle<JSFunction> resolve(info->resolve(), this);
+  Handle<JSFunction> reject(info->reject(), this);
+  Handle<JSReceiver> then(info->then(), this);
   Handle<Object> argv[] = {resolve, reject};
   *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
                                maybe_exception);
@@ -3162,7 +3162,7 @@ void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
 
 void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
   DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
-         microtask->IsPromiseContainer() ||
+         microtask->IsPromiseResolveThenableJobInfo() ||
          microtask->IsPromiseReactionJobInfo());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
@@ -3218,9 +3218,10 @@ void Isolate::RunMicrotasksInternal() {
         Context* context;
         if (microtask->IsJSFunction()) {
           context = Handle<JSFunction>::cast(microtask)->context();
-        } else if (microtask->IsPromiseContainer()) {
-          context =
-              Handle<PromiseContainer>::cast(microtask)->resolve()->context();
+        } else if (microtask->IsPromiseResolveThenableJobInfo()) {
+          context = Handle<PromiseResolveThenableJobInfo>::cast(microtask)
+                        ->resolve()
+                        ->context();
         } else {
           context = Handle<PromiseReactionJobInfo>::cast(microtask)->context();
         }
@@ -3238,9 +3239,10 @@ void Isolate::RunMicrotasksInternal() {
           result = Execution::TryCall(this, microtask_function,
                                       factory()->undefined_value(), 0, NULL,
                                       &maybe_exception);
-        } else if (microtask->IsPromiseContainer()) {
-          PromiseResolveThenableJob(Handle<PromiseContainer>::cast(microtask),
-                                    &result, &maybe_exception);
+        } else if (microtask->IsPromiseResolveThenableJobInfo()) {
+          PromiseResolveThenableJob(
+              Handle<PromiseResolveThenableJobInfo>::cast(microtask), &result,
+              &maybe_exception);
         } else {
           PromiseReactionJob(Handle<PromiseReactionJobInfo>::cast(microtask),
                              &result, &maybe_exception);

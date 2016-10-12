@@ -1112,7 +1112,7 @@ class Isolate {
   void PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                           MaybeHandle<Object>* result,
                           MaybeHandle<Object>* maybe_exception);
-  void PromiseResolveThenableJob(Handle<PromiseContainer> container,
+  void PromiseResolveThenableJob(Handle<PromiseResolveThenableJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception);
   void EnqueueMicrotask(Handle<Object> microtask);
