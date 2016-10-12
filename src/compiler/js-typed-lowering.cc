@@ -83,13 +83,20 @@ class JSBinopReduction final {
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
       HeapObjectBinopMatcher m(node_);
-      if (m.left().HasValue() && m.left().Value()->IsString()) {
-        Handle<String> left_string = Handle<String>::cast(m.left().Value());
-        if (left_string->length() >= ConsString::kMinLength) return true;
-      }
       if (m.right().HasValue() && m.right().Value()->IsString()) {
         Handle<String> right_string = Handle<String>::cast(m.right().Value());
         if (right_string->length() >= ConsString::kMinLength) return true;
+      }
+      if (m.left().HasValue() && m.left().Value()->IsString()) {
+        Handle<String> left_string = Handle<String>::cast(m.left().Value());
+        if (left_string->length() >= ConsString::kMinLength) {
+          // The invariant for ConsString requires the left hand side to be
+          // a sequential or external string if the right hand side is the
+          // empty string. Since we don't know anything about the right hand
+          // side here, we must ensure that the left hand side satisfy the
+          // constraints independent of the right hand side.
+          return left_string->IsSeqString() || left_string->IsExternalString();
+        }
       }
     }
     return false;
