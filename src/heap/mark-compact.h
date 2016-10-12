@@ -502,7 +502,6 @@ class MarkCompactCollector {
   explicit MarkCompactCollector(Heap* heap);
 
   bool WillBeDeoptimized(Code* code);
-  void ClearInvalidRememberedSetSlots();
 
   void ComputeEvacuationHeuristics(int area_size,
                                    int* target_fragmentation_percent,
