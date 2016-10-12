@@ -2652,7 +2652,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool use_temp_zone =
       (FLAG_lazy_inner_functions
            ? can_preparse
-           : (allow_lazy() &&
+           : (allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
               eager_compile_hint == FunctionLiteral::kShouldLazyCompile)) &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
   bool is_lazy_inner_function =
