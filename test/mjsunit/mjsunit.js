@@ -117,6 +117,9 @@ var assertUnoptimized;
 // Assert that a string contains another expected substring.
 var assertContains;
 
+// Assert that a string matches a given regex.
+var assertMatches;
+
 
 (function () {  // Scope for utility functions.
 
@@ -422,6 +425,15 @@ var assertContains;
   assertContains = function(sub, value, name_opt) {
     if (value == null ? (sub != null) : value.indexOf(sub) == -1) {
       fail("contains '" + String(sub) + "'", value, name_opt);
+    }
+  };
+
+  assertMatches = function(regexp, str, name_opt) {
+    if (!(regexp instanceof RegExp)) {
+      regexp = new RegExp(regexp);
+    }
+    if (!str.match(regexp)) {
+      fail("should match '" + regexp + "'", str, name_opt);
     }
   };
 

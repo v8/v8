@@ -17,6 +17,8 @@ typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
+typedef std::vector<std::vector<std::pair<int, int>>> AsmJsOffsets;
+typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
@@ -44,6 +46,15 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
     uint32_t num_imported_functions);
 
 WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end);
+
+// Extracts the mapping from wasm byte offset to asm.js source position per
+// function.
+// Returns a vector of vectors with <byte_offset, source_position> entries, or
+// failure if the wasm bytes are detected as invalid. Note that this validation
+// is not complete.
+AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
+                                      const byte* module_end,
+                                      uint32_t num_imported_functions);
 
 }  // namespace wasm
 }  // namespace internal

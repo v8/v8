@@ -660,8 +660,7 @@ static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
 static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
   JSObject* owner = *p;
-  WasmCompiledModule* compiled_module =
-      WasmCompiledModule::cast(owner->GetInternalField(kWasmCompiledModule));
+  WasmCompiledModule* compiled_module = GetCompiledModule(owner);
   TRACE("Finalizing %d {\n", compiled_module->instance_id());
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   DCHECK(compiled_module->has_weak_module_object());
@@ -861,7 +860,7 @@ Object* GetOwningWasmInstance(Code* code) {
 int GetNumImportedFunctions(Handle<JSObject> wasm_object) {
   // TODO(wasm): Cache this number if it ever becomes a performance problem.
   DCHECK(IsWasmObject(*wasm_object));
-  Object* compiled_module = wasm_object->GetInternalField(kWasmCompiledModule);
+  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm_object);
   Handle<FixedArray> imports =
       WasmCompiledModule::cast(compiled_module)->imports();
   int num_imports = imports->length();
@@ -1425,8 +1424,7 @@ class WasmInstanceBuilder {
         // we want all the publishing to happen free from GC interruptions, and
         // so we do it in
         // one GC-free scope afterwards.
-        original = handle(WasmCompiledModule::cast(
-            owner.ToHandleChecked()->GetInternalField(kWasmCompiledModule)));
+        original = handle(GetCompiledModule(*owner.ToHandleChecked()));
         link_to_original = factory->NewWeakCell(original.ToHandleChecked());
       }
       // Publish the new instance to the instances chain.
@@ -1958,8 +1956,8 @@ Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
                                          uint32_t func_index) {
   if (!wasm->IsUndefined(isolate)) {
     DCHECK(IsWasmObject(*wasm));
-    WasmCompiledModule* compiled_module = WasmCompiledModule::cast(
-        Handle<JSObject>::cast(wasm)->GetInternalField(kWasmCompiledModule));
+    WasmCompiledModule* compiled_module =
+        GetCompiledModule(JSObject::cast(*wasm));
     Handle<ByteArray> func_names = compiled_module->function_names();
     // TODO(clemens): Extract this from the module bytes; skip whole function
     // name table.
@@ -2002,10 +2000,33 @@ bool IsWasmObject(Object* object) {
   return true;
 }
 
+WasmCompiledModule* GetCompiledModule(JSObject* wasm) {
+  return WasmCompiledModule::cast(wasm->GetInternalField(kWasmCompiledModule));
+}
+
+bool WasmIsAsmJs(Object* wasm, Isolate* isolate) {
+  if (wasm->IsUndefined(isolate)) return false;
+  DCHECK(IsWasmObject(wasm));
+  WasmCompiledModule* compiled_module = GetCompiledModule(JSObject::cast(wasm));
+  return compiled_module->has_asm_js_script();
+}
+
+Handle<Script> GetAsmWasmScript(Handle<JSObject> wasm) {
+  DCHECK(IsWasmObject(*wasm));
+  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm);
+  return compiled_module->asm_js_script();
+}
+
+int GetAsmWasmSourcePosition(Handle<JSObject> wasm, int func_index,
+                             int byte_offset) {
+  return WasmDebugInfo::GetAsmJsSourcePosition(GetDebugInfo(wasm), func_index,
+                                               byte_offset);
+}
+
 Handle<SeqOneByteString> GetWasmBytes(Handle<JSObject> wasm) {
   DCHECK(IsWasmObject(*wasm));
-  Object* compiled_module = wasm->GetInternalField(kWasmCompiledModule);
-  return WasmCompiledModule::cast(compiled_module)->module_bytes();
+  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm);
+  return compiled_module->module_bytes();
 }
 
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm) {
@@ -2088,8 +2109,7 @@ void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
 
 int GetNumberOfFunctions(Handle<JSObject> wasm) {
   DCHECK(IsWasmObject(*wasm));
-  WasmCompiledModule* compiled_module =
-      WasmCompiledModule::cast(wasm->GetInternalField(kWasmCompiledModule));
+  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm);
   ByteArray* func_names_arr = compiled_module->ptr_to_function_names();
   // TODO(clemensh): this looks inside an array constructed elsewhere. Refactor.
   return func_names_arr->get_int(0);
@@ -2119,11 +2139,12 @@ Handle<JSObject> CreateCompiledModuleObject(
   return module_obj;
 }
 
-MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
-                                                  const byte* start,
-                                                  const byte* end,
-                                                  ErrorThrower* thrower,
-                                                  ModuleOrigin origin) {
+// TODO(clemensh): origin can be inferred from asm_js_script; remove it.
+MaybeHandle<JSObject> CreateModuleObjectFromBytes(
+    Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
+    ModuleOrigin origin, Handle<Script> asm_js_script,
+    const byte* asm_js_offset_tables_start,
+    const byte* asm_js_offset_tables_end) {
   MaybeHandle<JSObject> nothing;
   Zone zone(isolate->allocator());
   ModuleResult result =
@@ -2133,12 +2154,28 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
     thrower->Failed("Wasm decoding failed", result);
     return nothing;
   }
-  MaybeHandle<WasmCompiledModule> compiled_module =
+  MaybeHandle<WasmCompiledModule> maybe_compiled_module =
       decoded_module->CompileFunctions(isolate, thrower);
-  if (compiled_module.is_null()) return nothing;
+  if (maybe_compiled_module.is_null()) return nothing;
+  Handle<WasmCompiledModule> compiled_module =
+      maybe_compiled_module.ToHandleChecked();
 
-  return CreateCompiledModuleObject(isolate, compiled_module.ToHandleChecked(),
-                                    origin);
+  DCHECK_EQ(origin == kAsmJsOrigin, !asm_js_script.is_null());
+  DCHECK(!compiled_module->has_asm_js_script());
+  DCHECK(!compiled_module->has_asm_js_offset_tables());
+  if (origin == kAsmJsOrigin) {
+    compiled_module->set_asm_js_script(asm_js_script);
+    size_t offset_tables_len =
+        asm_js_offset_tables_end - asm_js_offset_tables_start;
+    DCHECK_GE(static_cast<size_t>(kMaxInt), offset_tables_len);
+    Handle<ByteArray> offset_tables =
+        isolate->factory()->NewByteArray(static_cast<int>(offset_tables_len));
+    memcpy(offset_tables->GetDataStartAddress(), asm_js_offset_tables_start,
+           offset_tables_len);
+    compiled_module->set_asm_js_offset_tables(offset_tables);
+  }
+
+  return CreateCompiledModuleObject(isolate, compiled_module, origin);
 }
 
 bool ValidateModuleBytes(Isolate* isolate, const byte* start, const byte* end,
@@ -2166,9 +2203,8 @@ void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
   DisallowHeapAllocation no_gc;
   DCHECK(IsWasmObject(*instance));
   instance->SetInternalField(kWasmMemArrayBuffer, buffer);
-  WasmCompiledModule* module =
-      WasmCompiledModule::cast(instance->GetInternalField(kWasmCompiledModule));
-  module->set_ptr_to_heap(buffer);
+  WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
+  compiled_module->set_ptr_to_heap(buffer);
 }
 
 int32_t GetInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance) {
@@ -2275,8 +2311,7 @@ void ValidateModuleState(Isolate* isolate, Handle<JSObject> module_obj) {
 void ValidateOrphanedInstance(Isolate* isolate, Handle<JSObject> instance) {
   DisallowHeapAllocation no_gc;
   CHECK(IsWasmObject(*instance));
-  WasmCompiledModule* compiled_module =
-      WasmCompiledModule::cast(instance->GetInternalField(kWasmCompiledModule));
+  WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   CHECK(compiled_module->has_weak_module_object());
   CHECK(compiled_module->ptr_to_weak_module_object()->cleared());
 }

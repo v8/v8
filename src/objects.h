@@ -2973,14 +2973,16 @@ class FrameArray : public FixedArray {
 #undef DECLARE_FRAME_ARRAY_ACCESSORS
 
   inline bool IsWasmFrame(int frame_ix) const;
+  inline bool IsAsmJsWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
   void ShrinkToFit();
 
   // Flags.
   static const int kIsWasmFrame = 1 << 0;
-  static const int kIsStrict = 1 << 1;
-  static const int kForceConstructor = 1 << 2;
+  static const int kIsAsmJsWasmFrame = 1 << 1;
+  static const int kIsStrict = 1 << 2;
+  static const int kForceConstructor = 1 << 3;
 
   static Handle<FrameArray> AppendJSFrame(Handle<FrameArray> in,
                                           Handle<Object> receiver,

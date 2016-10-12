@@ -394,6 +394,8 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, indirect_function_tables) \
   MACRO(OBJECT, SeqOneByteString, module_bytes)       \
   MACRO(OBJECT, ByteArray, function_names)            \
+  MACRO(OBJECT, Script, asm_js_script)                \
+  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
   MACRO(SMALL_NUMBER, uint32_t, min_memory_pages)     \
   MACRO(OBJECT, FixedArray, data_segments_info)       \
   MACRO(OBJECT, ByteArray, data_segments)             \
@@ -499,6 +501,20 @@ Handle<JSFunction> WrapExportCodeAsJSFunction(Isolate* isolate,
 // else.
 bool IsWasmObject(Object* object);
 
+// Return the compiled module object for this wasm object.
+WasmCompiledModule* GetCompiledModule(JSObject* wasm);
+
+// Check whether the wasm module was generated from asm.js code.
+bool WasmIsAsmJs(Object* wasm, Isolate* isolate);
+
+// Get the script for the asm.js origin of the wasm module.
+Handle<Script> GetAsmWasmScript(Handle<JSObject> wasm);
+
+// Get the asm.js source position for the given byte offset in the given
+// function.
+int GetAsmWasmSourcePosition(Handle<JSObject> wasm, int func_index,
+                             int byte_offset);
+
 // Update memory references of code objects associated with the module
 bool UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
                             Address new_start, uint32_t old_size,
@@ -520,7 +536,8 @@ Handle<JSObject> CreateCompiledModuleObject(
 
 V8_EXPORT_PRIVATE MaybeHandle<JSObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
-    ModuleOrigin origin);
+    ModuleOrigin origin, Handle<Script> asm_js_script,
+    const byte* asm_offset_tables_start, const byte* asm_offset_tables_end);
 
 V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            const byte* end,

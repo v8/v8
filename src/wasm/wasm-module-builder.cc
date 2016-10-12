@@ -59,7 +59,8 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       i64_temps_(builder->zone()),
       f32_temps_(builder->zone()),
       f64_temps_(builder->zone()),
-      direct_calls_(builder->zone()) {}
+      direct_calls_(builder->zone()),
+      asm_offsets_(builder->zone(), 8) {}
 
 void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   byte buffer[8];
@@ -153,6 +154,20 @@ void WasmFunctionBuilder::SetName(Vector<const char> name) {
   memcpy(name_.data(), name.start(), name.length());
 }
 
+void WasmFunctionBuilder::AddAsmWasmOffset(int asm_position) {
+  // We only want to emit one mapping per byte offset:
+  DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
+
+  DCHECK_LE(body_.size(), kMaxUInt32);
+  uint32_t byte_offset = static_cast<uint32_t>(body_.size());
+  asm_offsets_.write_u32v(byte_offset - last_asm_byte_offset_);
+  last_asm_byte_offset_ = byte_offset;
+
+  DCHECK_GE(asm_position, 0);
+  asm_offsets_.write_i32v(asm_position - last_asm_source_position_);
+  last_asm_source_position_ = asm_position;
+}
+
 void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
   buffer.write_u32v(signature_index_);
 }
@@ -186,6 +201,18 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
           call.direct_index + static_cast<uint32_t>(builder_->imports_.size()));
     }
   }
+}
+
+void WasmFunctionBuilder::WriteAsmWasmOffsetTable(ZoneBuffer& buffer) const {
+  if (asm_offsets_.size() == 0) {
+    buffer.write_size(0);
+    return;
+  }
+  buffer.write_size(asm_offsets_.size() + kInt32Size);
+  // Offset of the recorded byte offsets.
+  DCHECK_GE(kMaxUInt32, locals_.Size());
+  buffer.write_u32(static_cast<uint32_t>(locals_.Size()));
+  buffer.write(asm_offsets_.begin(), asm_offsets_.size());
 }
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
@@ -492,6 +519,15 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       buffer.write_u8(0);
     }
     FixupSection(buffer, start);
+  }
+}
+
+void WasmModuleBuilder::WriteAsmJsOffsetTable(ZoneBuffer& buffer) const {
+  // == Emit asm.js offset table ===============================================
+  buffer.write_size(functions_.size());
+  // Emit the offset table per function.
+  for (auto function : functions_) {
+    function->WriteAsmWasmOffsetTable(buffer);
   }
 }
 }  // namespace wasm

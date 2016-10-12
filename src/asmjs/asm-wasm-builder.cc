@@ -1359,11 +1359,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           uint32_t index = imported_function_table_.LookupOrInsertImport(
               vp->var(), sig.Build());
           VisitCallArgs(expr);
+          current_function_builder_->AddAsmWasmOffset(expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitVarInt(index);
         } else {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
+          current_function_builder_->AddAsmWasmOffset(expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitDirectCallIndex(
               function->func_index());
@@ -1389,6 +1391,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VisitCallArgs(expr);
 
         current_function_builder_->EmitGetLocal(tmp.index());
+        current_function_builder_->AddAsmWasmOffset(expr->position());
         current_function_builder_->Emit(kExprCallIndirect);
         current_function_builder_->EmitVarInt(indices->signature_index);
         returns_value =
@@ -1870,13 +1873,16 @@ AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
-ZoneBuffer* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
+AsmWasmBuilder::Result AsmWasmBuilder::Run(
+    i::Handle<i::FixedArray>* foreign_args) {
   AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
   impl.Build();
   *foreign_args = impl.GetForeignArgs();
-  ZoneBuffer* buffer = new (zone_) ZoneBuffer(zone_);
-  impl.builder_->WriteTo(*buffer);
-  return buffer;
+  ZoneBuffer* module_buffer = new (zone_) ZoneBuffer(zone_);
+  impl.builder_->WriteTo(*module_buffer);
+  ZoneBuffer* asm_offsets_buffer = new (zone_) ZoneBuffer(zone_);
+  impl.builder_->WriteAsmJsOffsetTable(*asm_offsets_buffer);
+  return {module_buffer, asm_offsets_buffer};
 }
 
 const char* AsmWasmBuilder::foreign_init_name = "__foreign_init__";

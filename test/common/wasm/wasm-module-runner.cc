@@ -62,7 +62,7 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
   // again through the normal pipeline.
   MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
       isolate, module->module_start, module->module_end, thrower,
-      ModuleOrigin::kWasmOrigin);
+      ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr, nullptr);
   if (module_object.is_null()) {
     thrower->Error("Module pre-validation failed.");
     return Handle<JSObject>::null();

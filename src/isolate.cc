@@ -520,9 +520,13 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         DCHECK(wasm::IsWasmObject(*wasm_object) ||
                wasm_object->IsUndefined(this));
 
-        elements = FrameArray::AppendWasmFrame(
-            elements, wasm_object, wasm_function_index, abstract_code, offset,
-            FrameArray::kIsWasmFrame);
+        int flags = wasm::WasmIsAsmJs(*wasm_object, this)
+                        ? FrameArray::kIsAsmJsWasmFrame
+                        : FrameArray::kIsWasmFrame;
+
+        elements = FrameArray::AppendWasmFrame(elements, wasm_object,
+                                               wasm_function_index,
+                                               abstract_code, offset, flags);
       } break;
 
       default:

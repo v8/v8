@@ -211,14 +211,6 @@ Handle<Object> JSStackFrame::GetFunctionName() {
   return isolate_->factory()->null_value();
 }
 
-Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
-  if (!HasScript()) return isolate_->factory()->null_value();
-  Handle<Script> script = GetScript();
-  Object* source_url = script->source_url();
-  return (source_url->IsString()) ? handle(source_url, isolate_)
-                                  : handle(script->name(), isolate_);
-}
-
 namespace {
 
 bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
@@ -238,7 +230,18 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
   return false;
 }
 
+Handle<Object> ScriptNameOrSourceUrl(Handle<Script> script, Isolate* isolate) {
+  Object* name_or_url = script->source_url();
+  if (!name_or_url->IsString()) name_or_url = script->name();
+  return handle(name_or_url, isolate);
+}
+
 }  // namespace
+
+Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
+  if (!HasScript()) return isolate_->factory()->null_value();
+  return ScriptNameOrSourceUrl(GetScript(), isolate_);
+}
 
 Handle<Object> JSStackFrame::GetMethodName() {
   if (receiver_->IsNull(isolate_) || receiver_->IsUndefined(isolate_)) {
@@ -455,7 +458,7 @@ bool IsNonEmptyString(Handle<Object> object) {
   return (object->IsString() && String::cast(*object)->length() > 0);
 }
 
-void AppendFileLocation(Isolate* isolate, JSStackFrame* call_site,
+void AppendFileLocation(Isolate* isolate, StackFrameBase* call_site,
                         IncrementalStringBuilder* builder) {
   if (call_site->IsNative()) {
     builder->AppendCString("native");
@@ -617,7 +620,8 @@ Handle<Script> JSStackFrame::GetScript() const {
 
 void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                     int frame_ix) {
-  DCHECK(array->IsWasmFrame(frame_ix));
+  // This function is called for both wasm and asm.js->wasm frames.
+  DCHECK(array->IsWasmFrame(frame_ix) || array->IsAsmJsWasmFrame(frame_ix));
   isolate_ = isolate;
   wasm_obj_ = handle(array->WasmObject(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
@@ -667,6 +671,72 @@ Handle<Object> WasmStackFrame::Null() const {
   return isolate_->factory()->null_value();
 }
 
+Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
+  return isolate_->global_proxy();
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
+  // TODO(clemensh): Return lazily created JSFunction.
+  return Null();
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetFileName() {
+  Handle<Script> script =
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+  return handle(script->name(), isolate_);
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetFunctionName() {
+  return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_obj_, wasm_func_index_);
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
+  Handle<Script> script =
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+  return ScriptNameOrSourceUrl(script, isolate_);
+}
+
+int AsmJsWasmStackFrame::GetPosition() const {
+  DCHECK_LE(0, offset_);
+  int byte_offset = code_->SourcePosition(offset_);
+  return wasm::GetAsmWasmSourcePosition(Handle<JSObject>::cast(wasm_obj_),
+                                        wasm_func_index_, byte_offset);
+}
+
+int AsmJsWasmStackFrame::GetLineNumber() {
+  DCHECK_LE(0, GetPosition());
+  Handle<Script> script =
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+  return Script::GetLineNumber(script, GetPosition()) + 1;
+}
+
+int AsmJsWasmStackFrame::GetColumnNumber() {
+  DCHECK_LE(0, GetPosition());
+  Handle<Script> script =
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+  return Script::GetColumnNumber(script, GetPosition()) + 1;
+}
+
+MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
+  // The string should look exactly as the respective javascript frame string.
+  // Keep this method in line to JSStackFrame::ToString().
+
+  IncrementalStringBuilder builder(isolate_);
+
+  Handle<Object> function_name = GetFunctionName();
+
+  if (IsNonEmptyString(function_name)) {
+    builder.AppendString(Handle<String>::cast(function_name));
+    builder.AppendCString(" (");
+  }
+
+  AppendFileLocation(isolate_, this, &builder);
+
+  if (IsNonEmptyString(function_name)) builder.AppendCString(")");
+
+  RETURN_RESULT(isolate_, builder.Finish(), String);
+}
+
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
                                        Handle<FrameArray> array, int frame_ix)
     : isolate_(isolate), array_(array), next_frame_ix_(frame_ix) {}
@@ -680,13 +750,22 @@ void FrameArrayIterator::Next() { next_frame_ix_++; }
 StackFrameBase* FrameArrayIterator::Frame() {
   DCHECK(HasNext());
   const int flags = array_->Flags(next_frame_ix_)->value();
-  const bool is_js_frame = (flags & FrameArray::kIsWasmFrame) == 0;
-  if (is_js_frame) {
-    js_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
-    return &js_frame_;
-  } else {
-    wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
-    return &wasm_frame_;
+  switch (flags & (FrameArray::kIsWasmFrame | FrameArray::kIsAsmJsWasmFrame)) {
+    case 0:
+      // JavaScript Frame.
+      js_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      return &js_frame_;
+    case FrameArray::kIsWasmFrame:
+      // Wasm Frame;
+      wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      return &wasm_frame_;
+    case FrameArray::kIsAsmJsWasmFrame:
+      // Asm.js Wasm Frame:
+      asm_wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      return &asm_wasm_frame_;
+    default:
+      UNREACHABLE();
+      return nullptr;
   }
 }
 

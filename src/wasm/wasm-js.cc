@@ -134,16 +134,16 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 i::MaybeHandle<i::JSObject> InstantiateModule(
     const v8::FunctionCallbackInfo<v8::Value>& args, const byte* start,
-    const byte* end, ErrorThrower* thrower,
-    internal::wasm::ModuleOrigin origin = i::wasm::kWasmOrigin) {
+    const byte* end, ErrorThrower* thrower) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
 
   // Decode but avoid a redundant pass over function bodies for verification.
   // Verification will happen during compilation.
   i::Zone zone(isolate->allocator());
   i::MaybeHandle<i::JSObject> module_object =
-      i::wasm::CreateModuleObjectFromBytes(isolate, start, end, thrower,
-                                           origin);
+      i::wasm::CreateModuleObjectFromBytes(
+          isolate, start, end, thrower, i::wasm::kWasmOrigin,
+          i::Handle<i::Script>::null(), nullptr, nullptr);
   i::MaybeHandle<i::JSObject> object;
   if (!module_object.is_null()) {
     // Success. Instantiate the module and return the object.
@@ -195,8 +195,8 @@ static i::MaybeHandle<i::JSObject> CreateModuleObject(
 
   DCHECK(source->IsArrayBuffer() || source->IsTypedArray());
   return i::wasm::CreateModuleObjectFromBytes(
-      i_isolate, buffer.start, buffer.end, thrower,
-      i::wasm::ModuleOrigin::kWasmOrigin);
+      i_isolate, buffer.start, buffer.end, thrower, i::wasm::kWasmOrigin,
+      i::Handle<i::Script>::null(), nullptr, nullptr);
 }
 
 static bool ValidateModule(v8::Isolate* isolate,

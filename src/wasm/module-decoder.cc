@@ -77,6 +77,12 @@ class WasmSectionIterator {
     return static_cast<uint32_t>(section_end_ - section_start_);
   }
 
+  inline const byte* payload_start() const { return payload_start_; }
+
+  inline uint32_t payload_length() const {
+    return static_cast<uint32_t>(section_end_ - payload_start_);
+  }
+
   inline const byte* section_end() const { return section_end_; }
 
   // Advances to the next section, checking that decoding the current section
@@ -97,6 +103,7 @@ class WasmSectionIterator {
   Decoder& decoder_;
   WasmSectionCode section_code_;
   const byte* section_start_;
+  const byte* payload_start_;
   const byte* section_end_;
 
   // Reads the section code/name at the current position and sets up
@@ -111,6 +118,7 @@ class WasmSectionIterator {
       // Read and check the section size.
       uint32_t section_length = decoder_.consume_u32v("section length");
       section_start_ = decoder_.pc();
+      payload_start_ = section_start_;
       if (decoder_.checkAvailable(section_length)) {
         // Get the limit of the section within the module.
         section_end_ = section_start_ + section_length;
@@ -120,7 +128,7 @@ class WasmSectionIterator {
       }
 
       if (section_code == kUnknownSectionCode) {
-        // Check for the known "names" section.
+        // Check for the known "name" section.
         uint32_t string_length = decoder_.consume_u32v("section name length");
         const byte* section_name_start = decoder_.pc();
         decoder_.consume_bytes(string_length, "section name");
@@ -129,6 +137,7 @@ class WasmSectionIterator {
           section_code_ = kUnknownSectionCode;
           return;
         }
+        payload_start_ = decoder_.pc();
 
         TRACE("  +%d  section name        : \"%.*s\"\n",
               static_cast<int>(section_name_start - decoder_.start()),
@@ -590,10 +599,7 @@ class ModuleDecoder : public Decoder {
 
         uint32_t local_names_count = consume_u32v("local names count");
         for (uint32_t j = 0; ok() && j < local_names_count; j++) {
-          uint32_t unused = 0;
-          uint32_t offset = consume_string(&unused, false);
-          USE(unused);
-          USE(offset);
+          skip_string();
         }
       }
       section_iter.advance();
@@ -797,6 +803,12 @@ class ModuleDecoder : public Decoder {
       error(string_start, "no valid UTF-8 string");
     }
     return offset;
+  }
+
+  // Skips over a length-prefixed string, but checks that it is within bounds.
+  void skip_string() {
+    uint32_t length = consume_u32v("string length");
+    consume_bytes(length, "string");
   }
 
   uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
@@ -1029,6 +1041,8 @@ class FunctionError : public FunctionResult {
   }
 };
 
+// Find section with given section code. Return Vector of the payload, or null
+// Vector if section is not found or module bytes are invalid.
 Vector<const byte> FindSection(const byte* module_start, const byte* module_end,
                                WasmSectionCode code) {
   Decoder decoder(module_start, module_end);
@@ -1042,10 +1056,10 @@ Vector<const byte> FindSection(const byte* module_start, const byte* module_end,
   WasmSectionIterator section_iter(decoder);
   while (section_iter.more()) {
     if (section_iter.section_code() == code) {
-      return Vector<const uint8_t>(section_iter.section_start(),
-                                   section_iter.section_length());
+      return Vector<const uint8_t>(section_iter.payload_start(),
+                                   section_iter.payload_length());
     }
-    decoder.consume_bytes(section_iter.section_length(), "section payload");
+    decoder.consume_bytes(section_iter.payload_length(), "section payload");
     section_iter.advance();
   }
 
@@ -1118,16 +1132,15 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
     return decoder.toResult(std::move(table));
   }
 
-  // Reserve entries for the imported functions.
-  table.reserve(num_imported_functions);
-  for (uint32_t i = 0; i < num_imported_functions; i++) {
-    table.push_back(std::make_pair(0, 0));
+  uint32_t functions_count = decoder.consume_u32v("functions count");
+  // Reserve space for the entries, taking care of invalid input.
+  if (functions_count < static_cast<unsigned>(code_section.length()) / 2) {
+    table.reserve(num_imported_functions + functions_count);
   }
 
-  uint32_t functions_count = decoder.consume_u32v("functions count");
-  // Take care of invalid input here.
-  if (functions_count < static_cast<unsigned>(code_section.length()) / 2)
-    table.reserve(num_imported_functions + functions_count);
+  // Add null entries for the imported functions.
+  table.resize(num_imported_functions);
+
   int section_offset = static_cast<int>(code_section.start() - module_start);
   DCHECK_LE(0, section_offset);
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
@@ -1136,6 +1149,51 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
     table.push_back(std::make_pair(offset, static_cast<int>(size)));
     DCHECK(table.back().first >= 0 && table.back().second >= 0);
     decoder.consume_bytes(size);
+  }
+  if (decoder.more()) decoder.error("unexpected additional bytes");
+
+  return decoder.toResult(std::move(table));
+}
+
+AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
+                                      const byte* tables_end,
+                                      uint32_t num_imported_functions) {
+  AsmJsOffsets table;
+
+  Decoder decoder(tables_start, tables_end);
+  uint32_t functions_count = decoder.consume_u32v("functions count");
+  // Reserve space for the entries, taking care of invalid input.
+  if (functions_count < static_cast<unsigned>(tables_end - tables_start)) {
+    table.reserve(num_imported_functions + functions_count);
+  }
+
+  // Add null entries for the imported functions.
+  table.resize(num_imported_functions);
+
+  for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
+    uint32_t size = decoder.consume_u32v("table size");
+    if (size == 0) {
+      table.push_back(std::vector<std::pair<int, int>>());
+      continue;
+    }
+    if (!decoder.checkAvailable(size)) {
+      decoder.error("illegal asm function offset table size");
+    }
+    const byte* table_end = decoder.pc() + size;
+    uint32_t locals_size = decoder.consume_u32("locals size");
+    int last_byte_offset = locals_size;
+    int last_asm_position = 0;
+    std::vector<std::pair<int, int>> func_asm_offsets;
+    func_asm_offsets.reserve(size / 4);  // conservative estimation
+    while (decoder.ok() && decoder.pc() < table_end) {
+      last_byte_offset += decoder.consume_u32v("byte offset delta");
+      last_asm_position += decoder.consume_i32v("asm position delta");
+      func_asm_offsets.push_back({last_byte_offset, last_asm_position});
+    }
+    if (decoder.pc() != table_end) {
+      decoder.error("broken asm offset table");
+    }
+    table.push_back(std::move(func_asm_offsets));
   }
   if (decoder.more()) decoder.error("unexpected additional bytes");
 
