@@ -7176,13 +7176,13 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   RETURN_ESCAPED(result);
 }
 
-Local<String> WasmCompiledModule::GetUncompiledBytes() {
+Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::wasm::WasmCompiledModule> compiled_part =
       i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
-  i::Handle<i::String> module_bytes = compiled_part->module_bytes();
-  return Local<String>::Cast(Utils::ToLocal(module_bytes));
+  i::Handle<i::String> wire_bytes = compiled_part->module_bytes();
+  return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
@@ -7191,13 +7191,12 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::wasm::WasmCompiledModule> compiled_part =
       i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
 
-  i::Handle<i::SeqOneByteString> uncompiled_bytes =
-      compiled_part->module_bytes();
+  i::Handle<i::SeqOneByteString> wire_bytes = compiled_part->module_bytes();
   compiled_part->reset_module_bytes();
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
                                                            compiled_part);
-  compiled_part->set_module_bytes(uncompiled_bytes);
+  compiled_part->set_module_bytes(wire_bytes);
   script_data->ReleaseDataOwnership();
 
   size_t size = static_cast<size_t>(script_data->length());
@@ -7206,9 +7205,16 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
     Isolate* isolate,
-    const WasmCompiledModule::SerializedModule& serialized_data) {
-  int size = static_cast<int>(serialized_data.second);
-  i::ScriptData sc(serialized_data.first.get(), size);
+    const WasmCompiledModule::SerializedModule& serialized_module) {
+  return Deserialize(isolate,
+                     {serialized_module.first.get(), serialized_module.second});
+}
+
+MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
+    Isolate* isolate,
+    const WasmCompiledModule::CallerOwnedBuffer& serialized_module) {
+  int size = static_cast<int>(serialized_module.second);
+  i::ScriptData sc(serialized_module.first, size);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::MaybeHandle<i::FixedArray> maybe_compiled_part =
       i::WasmCompiledModuleSerializer::DeserializeWasmModule(i_isolate, &sc);
@@ -7225,12 +7231,11 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
     Isolate* isolate,
-    const WasmCompiledModule::SerializedModule& serialized_data,
-    const WasmCompiledModule::UncompiledBytes& uncompiled_bytes) {
-  MaybeLocal<WasmCompiledModule> ret = Deserialize(isolate, serialized_data);
+    const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
+    const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
+  MaybeLocal<WasmCompiledModule> ret = Deserialize(isolate, serialized_module);
   if (!ret.IsEmpty()) return ret;
-  return Compile(isolate, uncompiled_bytes.first.get(),
-                 uncompiled_bytes.second);
+  return Compile(isolate, wire_bytes.first, wire_bytes.second);
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,

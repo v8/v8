@@ -3902,9 +3902,10 @@ class V8_EXPORT Proxy : public Object {
 class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> UncompiledBytes;
-  // Get the uncompiled bytes that were used to compile this module.
-  Local<String> GetUncompiledBytes();
+  // A buffer that is owned by the caller.
+  typedef std::pair<const uint8_t*, size_t> CallerOwnedBuffer;
+  // Get the wasm-encoded bytes that were used to compile this module.
+  Local<String> GetWasmWireBytes();
 
   // Serialize the compiled module. The serialized data does not include the
   // uncompiled bytes.
@@ -3913,15 +3914,17 @@ class V8_EXPORT WasmCompiledModule : public Object {
   // TODO(mtrofin): Back-compat. Move to private once change lands in Chrome.
   // The resulting wasm setup won't have its uncompiled bytes available.
   static MaybeLocal<WasmCompiledModule> Deserialize(
-      Isolate* isolate, const SerializedModule& serialized_data);
+      Isolate* isolate, const SerializedModule& serialized_module);
   // If possible, deserialize the module, otherwise compile it from the provided
   // uncompiled bytes.
   static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
-      Isolate* isolate, const SerializedModule& serialized_data,
-      const UncompiledBytes& uncompiled_bytes);
+      Isolate* isolate, const CallerOwnedBuffer& serialized_module,
+      const CallerOwnedBuffer& wire_bytes);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
+  static MaybeLocal<WasmCompiledModule> Deserialize(
+      Isolate* isolate, const CallerOwnedBuffer& serialized_module);
   static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
                                                 const uint8_t* start,
                                                 size_t length);

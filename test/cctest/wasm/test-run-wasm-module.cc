@@ -212,17 +212,18 @@ TEST(Run_WasmModule_Serialization) {
     v8::Local<v8::WasmCompiledModule> v8_compiled_module =
         v8_module_obj.As<v8::WasmCompiledModule>();
     v8::Local<v8::String> uncompiled_bytes =
-        v8_compiled_module->GetUncompiledBytes();
+        v8_compiled_module->GetWasmWireBytes();
     bytes_size = static_cast<size_t>(uncompiled_bytes->Length());
     bytes = zone.NewArray<uint8_t>(uncompiled_bytes->Length());
     uncompiled_bytes->WriteOneByte(bytes);
     data = v8_compiled_module->Serialize();
   }
 
-  v8::WasmCompiledModule::UncompiledBytes uncompressed_bytes = {
-      std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(bytes)),
-      bytes_size};
+  v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes = {
+      const_cast<const uint8_t*>(bytes), bytes_size};
 
+  v8::WasmCompiledModule::CallerOwnedBuffer serialized_bytes = {
+      data.first.get(), data.second};
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
       CcTest::InitIsolateOnce()->array_buffer_allocator();
@@ -230,9 +231,9 @@ TEST(Run_WasmModule_Serialization) {
   for (int i = 0; i < 2; ++i) {
     v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
     if (i == 1) {
-      // Mess with the serialized data to force recompilation.
-      data.first.reset();
-      data.second = 0;
+      // Provide no serialized data to force recompilation.
+      serialized_bytes.first = nullptr;
+      serialized_bytes.second = 0;
     }
     {
       v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -242,8 +243,8 @@ TEST(Run_WasmModule_Serialization) {
       isolate = reinterpret_cast<Isolate*>(v8_isolate);
       testing::SetupIsolateForWasmModule(isolate);
       v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
-          v8::WasmCompiledModule::DeserializeOrCompile(v8_isolate, data,
-                                                       uncompressed_bytes);
+          v8::WasmCompiledModule::DeserializeOrCompile(
+              v8_isolate, serialized_bytes, wire_bytes);
       v8::Local<v8::WasmCompiledModule> compiled_module;
       CHECK(deserialized.ToLocal(&compiled_module));
       Handle<JSObject> module_object =
@@ -262,9 +263,6 @@ TEST(Run_WasmModule_Serialization) {
     }
     v8_isolate->Dispose();
   }
-  // Release, because we allocated the bytes with the zone allocator, and
-  // that doesn't have a delete.
-  uncompressed_bytes.first.release();
 }
 
 TEST(MemorySize) {
