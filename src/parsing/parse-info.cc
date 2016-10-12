@@ -38,6 +38,7 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
     : ParseInfo(zone) {
   isolate_ = shared->GetIsolate();
 
+  set_toplevel(shared->is_toplevel());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_hash_seed(isolate_->heap()->HashSeed());
   set_is_named_expression(shared->is_named_expression());
@@ -66,6 +67,7 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
 ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   isolate_ = script->GetIsolate();
 
+  set_toplevel();
   set_hash_seed(isolate_->heap()->HashSeed());
   set_stack_limit(isolate_->stack_guard()->real_climit());
   set_unicode_cache(isolate_->unicode_cache());

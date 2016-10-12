@@ -707,7 +707,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (IsEvalToplevel(shared)) {
     parse_info->set_eval();
-    parse_info->set_toplevel();
     parse_info->set_allow_lazy_parsing(false);
   }
 
@@ -1045,8 +1044,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   isolate->debug()->OnBeforeCompile(script);
 
-  parse_info->set_toplevel();
-
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
@@ -1239,7 +1236,6 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (IsEvalToplevel(handle(function->shared()))) {
     parse_info.set_eval();
-    parse_info.set_toplevel();
     parse_info.set_allow_lazy_parsing(false);
   }
   info.MarkAsDebug();
@@ -1265,7 +1261,6 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (IsEvalToplevel(shared)) {
     parse_info.set_eval();
-    parse_info.set_toplevel();
     parse_info.set_allow_lazy_parsing(false);
   }
   info.MarkAsDebug();
