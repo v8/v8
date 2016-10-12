@@ -24,6 +24,7 @@
 #include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/elements.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/access-compiler-data.h"
@@ -3066,15 +3067,80 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
+namespace {
+class PromiseDebugEventScope {
+ public:
+  PromiseDebugEventScope(Isolate* isolate, Object* before, Object* after)
+      : isolate_(isolate),
+        after_(after, isolate_),
+        is_debug_active_(isolate_->debug()->is_active() &&
+                         before->IsJSObject() && after->IsJSObject()) {
+    if (is_debug_active_) {
+      isolate_->debug()->OnAsyncTaskEvent(
+          handle(JSObject::cast(before), isolate_));
+    }
+  }
+
+  ~PromiseDebugEventScope() {
+    if (is_debug_active_) {
+      isolate_->debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_));
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+  Handle<Object> after_;
+  bool is_debug_active_;
+};
+}  // namespace
+
+void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
+                                 MaybeHandle<Object>* result,
+                                 MaybeHandle<Object>* maybe_exception) {
+  PromiseDebugEventScope helper(this, info->before_debug_event(),
+                                info->after_debug_event());
+
+  Handle<Object> value(info->value(), this);
+  Handle<Object> tasks(info->tasks(), this);
+  Handle<JSFunction> promise_handle_fn = promise_handle();
+  Handle<Object> undefined = factory()->undefined_value();
+
+  // If tasks is an array we have multiple onFulfilled/onRejected callbacks
+  // associated with the promise. The deferred object for each callback
+  // is attached to this array as well.
+  // Otherwise, there is a single callback and the deferred object is attached
+  // directly to PromiseReactionJobInfo.
+  if (tasks->IsJSArray()) {
+    Handle<JSArray> array = Handle<JSArray>::cast(tasks);
+    DCHECK(array->length()->IsSmi());
+    int length = Smi::cast(array->length())->value();
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    DCHECK(length % 2 == 0);
+    for (int i = 0; i < length; i += 2) {
+      DCHECK(accessor->HasElement(array, i));
+      DCHECK(accessor->HasElement(array, i + 1));
+      Handle<Object> argv[] = {value, accessor->Get(array, i),
+                               accessor->Get(array, i + 1)};
+      *result = Execution::TryCall(this, promise_handle_fn, undefined,
+                                   arraysize(argv), argv, maybe_exception);
+      // If execution is terminating, just bail out.
+      if (result->is_null() && maybe_exception->is_null()) {
+        return;
+      }
+    }
+  } else {
+    Handle<Object> deferred(info->deferred(), this);
+    Handle<Object> argv[] = {value, tasks, deferred};
+    *result = Execution::TryCall(this, promise_handle_fn, undefined,
+                                 arraysize(argv), argv, maybe_exception);
+  }
+}
+
 void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
                                         MaybeHandle<Object>* result,
                                         MaybeHandle<Object>* maybe_exception) {
-  if (debug()->is_active()) {
-    Handle<Object> before_debug_event(container->before_debug_event(), this);
-    if (before_debug_event->IsJSObject()) {
-      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(before_debug_event));
-    }
-  }
+  PromiseDebugEventScope helper(this, container->before_debug_event(),
+                                container->after_debug_event());
 
   Handle<JSReceiver> thenable(container->thenable(), this);
   Handle<JSFunction> resolve(container->resolve(), this);
@@ -3092,18 +3158,12 @@ void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
         Execution::TryCall(this, reject, factory()->undefined_value(),
                            arraysize(reason_arg), reason_arg, maybe_exception);
   }
-
-  if (debug()->is_active()) {
-    Handle<Object> after_debug_event(container->after_debug_event(), this);
-    if (after_debug_event->IsJSObject()) {
-      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_debug_event));
-    }
-  }
 }
 
 void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
   DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
-         microtask->IsPromiseContainer());
+         microtask->IsPromiseContainer() ||
+         microtask->IsPromiseReactionJobInfo());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
   DCHECK(num_tasks <= queue->length());
@@ -3155,11 +3215,16 @@ void Isolate::RunMicrotasksInternal() {
         callback(data);
       } else {
         SaveContext save(this);
-        Context* context = microtask->IsJSFunction()
-                               ? Handle<JSFunction>::cast(microtask)->context()
-                               : Handle<PromiseContainer>::cast(microtask)
-                                     ->resolve()
-                                     ->context();
+        Context* context;
+        if (microtask->IsJSFunction()) {
+          context = Handle<JSFunction>::cast(microtask)->context();
+        } else if (microtask->IsPromiseContainer()) {
+          context =
+              Handle<PromiseContainer>::cast(microtask)->resolve()->context();
+        } else {
+          context = Handle<PromiseReactionJobInfo>::cast(microtask)->context();
+        }
+
         set_context(context->native_context());
         handle_scope_implementer_->EnterMicrotaskContext(
             Handle<Context>(context, this));
@@ -3173,9 +3238,12 @@ void Isolate::RunMicrotasksInternal() {
           result = Execution::TryCall(this, microtask_function,
                                       factory()->undefined_value(), 0, NULL,
                                       &maybe_exception);
-        } else {
+        } else if (microtask->IsPromiseContainer()) {
           PromiseResolveThenableJob(Handle<PromiseContainer>::cast(microtask),
                                     &result, &maybe_exception);
+        } else {
+          PromiseReactionJob(Handle<PromiseReactionJobInfo>::cast(microtask),
+                             &result, &maybe_exception);
         }
 
         handle_scope_implementer_->LeaveMicrotaskContext();

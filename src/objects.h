@@ -143,6 +143,8 @@
 //     - Struct
 //       - Box
 //       - AccessorInfo
+//       - PromiseContainer
+//       - PromiseReactionJobInfo
 //       - AccessorPair
 //       - AccessCheckInfo
 //       - InterceptorInfo
@@ -399,6 +401,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
   V(PROMISE_CONTAINER_TYPE)                                     \
+  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
@@ -506,6 +509,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 #define STRUCT_LIST(V)                                                       \
   V(BOX, Box, box)                                                           \
   V(PROMISE_CONTAINER, PromiseContainer, promise_container)                  \
+  V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
+    promise_reaction_job_info)                                               \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
@@ -688,6 +693,7 @@ enum InstanceType {
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
   PROMISE_CONTAINER_TYPE,
+  PROMISE_REACTION_JOB_INFO_TYPE,
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
   FIXED_ARRAY_TYPE,
@@ -6675,9 +6681,8 @@ class Struct: public HeapObject {
   DECLARE_CAST(Struct)
 };
 
-// A container struct to hold state required for
-// PromiseResolveThenableJob. {before, after}_debug_event could
-// potentially be undefined if the debugger is turned off.
+// A container struct to hold state required for PromiseResolveThenableJob.
+// TODO(gsathya): Rename this to be less generic.
 class PromiseContainer : public Struct {
  public:
   DECL_ACCESSORS(thenable, JSReceiver)
@@ -6702,6 +6707,33 @@ class PromiseContainer : public Struct {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseContainer);
+};
+
+// Struct to hold state required for PromiseReactionJob.
+class PromiseReactionJobInfo : public Struct {
+ public:
+  DECL_ACCESSORS(value, Object)
+  DECL_ACCESSORS(tasks, Object)
+  DECL_ACCESSORS(deferred, Object)
+  DECL_ACCESSORS(before_debug_event, Object)
+  DECL_ACCESSORS(after_debug_event, Object)
+  DECL_ACCESSORS(context, Context)
+
+  static const int kValueOffset = Struct::kHeaderSize;
+  static const int kTasksOffset = kValueOffset + kPointerSize;
+  static const int kDeferredOffset = kTasksOffset + kPointerSize;
+  static const int kBeforeDebugEventOffset = kDeferredOffset + kPointerSize;
+  static const int kAfterDebugEventOffset =
+      kBeforeDebugEventOffset + kPointerSize;
+  static const int kContextOffset = kAfterDebugEventOffset + kPointerSize;
+  static const int kSize = kContextOffset + kPointerSize;
+
+  DECLARE_CAST(PromiseReactionJobInfo)
+  DECLARE_PRINTER(PromiseReactionJobInfo)
+  DECLARE_VERIFIER(PromiseReactionJobInfo)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobInfo);
 };
 
 // A simple one-element struct, useful where smis need to be boxed.

@@ -938,6 +938,21 @@ Handle<PromiseContainer> Factory::NewPromiseContainer(
   return result;
 }
 
+Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
+    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
+    Handle<Object> before_debug_event, Handle<Object> after_debug_event,
+    Handle<Context> context) {
+  Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
+      NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
+  result->set_value(*value);
+  result->set_tasks(*tasks);
+  result->set_deferred(*deferred);
+  result->set_before_debug_event(*before_debug_event);
+  result->set_after_debug_event(*after_debug_event);
+  result->set_context(*context);
+  return result;
+}
+
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
   Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(

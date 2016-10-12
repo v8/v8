@@ -571,6 +571,22 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
 }
 
+RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, tasks, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, deferred, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 4);
+  Handle<PromiseReactionJobInfo> info =
+      isolate->factory()->NewPromiseReactionJobInfo(
+          value, tasks, deferred, before_debug_event, after_debug_event,
+          isolate->native_context());
+  isolate->EnqueueMicrotask(info);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 6);

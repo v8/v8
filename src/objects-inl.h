@@ -5661,6 +5661,15 @@ ACCESSORS(PromiseContainer, reject, JSFunction, kRejectOffset)
 ACCESSORS(PromiseContainer, before_debug_event, Object, kBeforeDebugEventOffset)
 ACCESSORS(PromiseContainer, after_debug_event, Object, kAfterDebugEventOffset)
 
+ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
+ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred, Object, kDeferredOffset);
+ACCESSORS(PromiseReactionJobInfo, before_debug_event, Object,
+          kBeforeDebugEventOffset);
+ACCESSORS(PromiseReactionJobInfo, after_debug_event, Object,
+          kAfterDebugEventOffset);
+ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
+
 Map* PrototypeInfo::ObjectCreateMap() {
   return Map::cast(WeakCell::cast(object_create_map())->value());
 }

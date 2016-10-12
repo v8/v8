@@ -265,6 +265,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case BOX_TYPE:
     case PROMISE_CONTAINER_TYPE:
+    case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
     case BREAK_POINT_INFO_TYPE:
     case CELL_TYPE:

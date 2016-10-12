@@ -1161,6 +1161,18 @@ void PromiseContainer::PromiseContainerPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PromiseReactionJobInfo");
+  os << "\n - value: " << Brief(value());
+  os << "\n - tasks: " << Brief(tasks());
+  os << "\n - deferred: " << Brief(deferred());
+  os << "\n - before debug event: " << Brief(before_debug_event());
+  os << "\n - after debug event: " << Brief(after_debug_event());
+  os << "\n - reaction context: " << Brief(context());
+  os << "\n";
+}
+
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Module");
   os << "\n - code: " << Brief(code());

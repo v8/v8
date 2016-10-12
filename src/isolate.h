@@ -1109,6 +1109,9 @@ class Isolate {
   void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
+  void PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
+                          MaybeHandle<Object>* result,
+                          MaybeHandle<Object>* maybe_exception);
   void PromiseResolveThenableJob(Handle<PromiseContainer> container,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception);

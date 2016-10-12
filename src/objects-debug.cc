@@ -922,6 +922,19 @@ void PromiseContainer::PromiseContainerVerify() {
   after_debug_event()->ObjectVerify();
 }
 
+void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
+  Isolate* isolate = GetIsolate();
+  CHECK(IsPromiseReactionJobInfo());
+  CHECK(value()->IsObject());
+  CHECK(tasks()->IsJSArray() || tasks()->IsCallable());
+  CHECK(deferred()->IsJSObject() || deferred()->IsUndefined(isolate));
+  CHECK(before_debug_event()->IsJSObject() ||
+        before_debug_event()->IsUndefined(isolate));
+  CHECK(after_debug_event()->IsJSObject() ||
+        after_debug_event()->IsUndefined(isolate));
+  CHECK(context()->IsContext());
+}
+
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
   module()->ObjectVerify();

@@ -60,6 +60,12 @@ class Factory final {
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
 
+  // Create a new PromiseReactionJobInfo struct.
+  Handle<PromiseReactionJobInfo> NewPromiseReactionJobInfo(
+      Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
+      Handle<Object> before_debug, Handle<Object> after_debug_event,
+      Handle<Context> context);
+
   // Create a new PromiseContainer struct.
   Handle<PromiseContainer> NewPromiseContainer(
       Handle<JSReceiver> thenable, Handle<JSReceiver> then,

@@ -185,22 +185,8 @@ function PromiseHandle(value, handler, deferred) {
 }
 
 function PromiseEnqueue(value, tasks, deferreds, status) {
-  var id, name, instrumenting = DEBUG_IS_ACTIVE;
-  %EnqueueMicrotask(function() {
-    if (instrumenting) {
-      %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
-    }
-    if (IS_ARRAY(tasks)) {
-      for (var i = 0; i < tasks.length; i += 2) {
-        PromiseHandle(value, tasks[i], tasks[i + 1]);
-      }
-    } else {
-      PromiseHandle(value, tasks, deferreds);
-    }
-    if (instrumenting) {
-      %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
-    }
-  });
+  var id, name, beforeDebug, afterDebug, instrumenting = DEBUG_IS_ACTIVE;
+
   if (instrumenting) {
     // In an async function, reuse the existing stack related to the outer
     // Promise. Otherwise, e.g. in a direct call to then, save a new stack.
@@ -220,7 +206,12 @@ function PromiseEnqueue(value, tasks, deferreds, status) {
       name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
       %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
     }
+
+    beforeDebug = { type: "willHandle", id: id, name: name };
+    afterDebug = { type: "didHandle", id: id, name: name };
   }
+
+  %EnqueuePromiseReactionJob(value, tasks, deferreds, beforeDebug, afterDebug);
 }
 
 function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
@@ -698,7 +689,8 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", DoRejectPromise,
   "promise_resolve", ResolvePromise,
-  "promise_then", PromiseThen
+  "promise_then", PromiseThen,
+  "promise_handle", PromiseHandle
 ]);
 
 // This allows extras to create promises quickly without building extra
