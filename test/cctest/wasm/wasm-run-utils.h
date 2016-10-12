@@ -66,7 +66,7 @@ const uint32_t kMaxGlobalsSize = 128;
 
 // A helper for module environments that adds the ability to allocate memory
 // and global variables. Contains a built-in {WasmModule} and
-// {WasmModuleInstance}.
+// {WasmInstance}.
 class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(WasmExecutionMode mode = kExecuteCompiled)
@@ -258,7 +258,7 @@ class TestingModule : public ModuleEnv {
  private:
   WasmExecutionMode execution_mode_;
   WasmModule module_;
-  WasmModuleInstance instance_;
+  WasmInstance instance_;
   Isolate* isolate_;
   v8::internal::AccountingAllocator allocator_;
   uint32_t global_offset;

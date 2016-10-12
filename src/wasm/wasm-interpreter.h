@@ -18,7 +18,7 @@ namespace wasm {
 
 // forward declarations.
 struct WasmFunction;
-struct WasmModuleInstance;
+struct WasmInstance;
 class WasmInterpreterInternals;
 
 typedef size_t pc_t;
@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     bool GetBreakpoint(const WasmFunction* function, int pc);
   };
 
-  WasmInterpreter(WasmModuleInstance* instance, AccountingAllocator* allocator);
+  WasmInterpreter(WasmInstance* instance, AccountingAllocator* allocator);
   ~WasmInterpreter();
 
   //==========================================================================

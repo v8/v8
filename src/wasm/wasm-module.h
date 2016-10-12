@@ -257,7 +257,7 @@ struct WasmModule {
 };
 
 // An instantiated WASM module, including memory, function table, etc.
-struct WasmModuleInstance {
+struct WasmInstance {
   const WasmModule* module;  // static representation of the module.
   // -- Heap allocated --------------------------------------------------------
   Handle<JSObject> js_object;            // JavaScript module object.
@@ -272,7 +272,7 @@ struct WasmModuleInstance {
   // -- raw globals -----------------------------------------------------------
   byte* globals_start;  // start of the globals area.
 
-  explicit WasmModuleInstance(const WasmModule* m)
+  explicit WasmInstance(const WasmModule* m)
       : module(m),
         function_tables(m->function_tables.size()),
         function_code(m->functions.size()),
@@ -285,7 +285,7 @@ struct WasmModuleInstance {
 // minimal information about the globals, functions, and function tables.
 struct ModuleEnv {
   const WasmModule* module;
-  WasmModuleInstance* instance;
+  WasmInstance* instance;
   ModuleOrigin origin;
 
   bool IsValidGlobal(uint32_t index) const {

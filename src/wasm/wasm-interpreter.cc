@@ -655,7 +655,7 @@ static inline int64_t ExecuteI64ReinterpretF64(double a, TrapReason* trap) {
 }
 
 static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
-                                        WasmModuleInstance* instance) {
+                                        WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
   if (delta_pages > wasm::WasmModule::kMaxMemPages) {
@@ -967,7 +967,7 @@ class CodeMap {
 // Responsible for executing code directly.
 class ThreadImpl : public WasmInterpreter::Thread {
  public:
-  ThreadImpl(Zone* zone, CodeMap* codemap, WasmModuleInstance* instance)
+  ThreadImpl(Zone* zone, CodeMap* codemap, WasmInstance* instance)
       : codemap_(codemap),
         instance_(instance),
         stack_(zone),
@@ -1080,7 +1080,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   };
 
   CodeMap* codemap_;
-  WasmModuleInstance* instance_;
+  WasmInstance* instance_;
   ZoneVector<WasmVal> stack_;
   ZoneVector<Frame> frames_;
   ZoneVector<Block> blocks_;
@@ -1089,7 +1089,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   TrapReason trap_reason_;
 
   CodeMap* codemap() { return codemap_; }
-  WasmModuleInstance* instance() { return instance_; }
+  WasmInstance* instance() { return instance_; }
   const WasmModule* module() { return instance_->module; }
 
   void DoTrap(TrapReason trap, pc_t pc) {
@@ -1718,11 +1718,11 @@ class ThreadImpl : public WasmInterpreter::Thread {
 //============================================================================
 class WasmInterpreterInternals : public ZoneObject {
  public:
-  WasmModuleInstance* instance_;
+  WasmInstance* instance_;
   CodeMap codemap_;
   ZoneVector<ThreadImpl*> threads_;
 
-  WasmInterpreterInternals(Zone* zone, WasmModuleInstance* instance)
+  WasmInterpreterInternals(Zone* zone, WasmInstance* instance)
       : instance_(instance),
         codemap_(instance_ ? instance_->module : nullptr, zone),
         threads_(zone) {
@@ -1739,7 +1739,7 @@ class WasmInterpreterInternals : public ZoneObject {
 //============================================================================
 // Implementation of the public interface of the interpreter.
 //============================================================================
-WasmInterpreter::WasmInterpreter(WasmModuleInstance* instance,
+WasmInterpreter::WasmInterpreter(WasmInstance* instance,
                                  AccountingAllocator* allocator)
     : zone_(allocator),
       internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}

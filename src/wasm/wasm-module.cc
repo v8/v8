@@ -929,7 +929,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
 
   MaybeHandle<WasmCompiledModule> nothing;
 
-  WasmModuleInstance temp_instance(this);
+  WasmInstance temp_instance(this);
   temp_instance.context = isolate->native_context();
   temp_instance.mem_size = GetMinModuleMemSize(this);
   temp_instance.mem_start = nullptr;

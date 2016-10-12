@@ -147,7 +147,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   }
 
   // The code verifies, we create an instance to run it in the interpreter.
-  WasmModuleInstance instance(module);
+  WasmInstance instance(module);
   instance.context = isolate->native_context();
   instance.mem_size = GetMinModuleMemSize(module);
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
