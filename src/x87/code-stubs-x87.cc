@@ -2831,13 +2831,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
-  LoadICStub stub(isolate());
-  stub.GenerateForTrampoline(masm);
-}
-
-
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
   KeyedLoadICStub stub(isolate());
@@ -2954,51 +2947,6 @@ static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
                                FixedArray::kHeaderSize + kPointerSize));
   __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
   __ jmp(handler);
-}
-
-
-void LoadICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
-
-
-void LoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
-  GenerateImpl(masm, true);
-}
-
-
-void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = LoadWithVectorDescriptor::ReceiverRegister();  // edx
-  Register name = LoadWithVectorDescriptor::NameRegister();          // ecx
-  Register vector = LoadWithVectorDescriptor::VectorRegister();      // ebx
-  Register slot = LoadWithVectorDescriptor::SlotRegister();          // eax
-  Register scratch = edi;
-  __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
-                               FixedArray::kHeaderSize));
-
-  // Is it a weak cell?
-  Label try_array;
-  Label not_array, smi_key, key_okay, miss;
-  __ CompareRoot(FieldOperand(scratch, 0), Heap::kWeakCellMapRootIndex);
-  __ j(not_equal, &try_array);
-  HandleMonomorphicCase(masm, receiver, name, vector, slot, scratch, &miss);
-
-  // Is it a fixed array?
-  __ bind(&try_array);
-  __ CompareRoot(FieldOperand(scratch, 0), Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &not_array);
-  HandleArrayCases(masm, receiver, name, vector, slot, scratch, true, &miss);
-
-  __ bind(&not_array);
-  __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
-  __ j(not_equal, &miss);
-  __ push(slot);
-  __ push(vector);
-  masm->isolate()->load_stub_cache()->GenerateProbe(masm, receiver, name,
-                                                    vector, scratch);
-  __ pop(vector);
-  __ pop(slot);
-
-  __ bind(&miss);
-  LoadIC::GenerateMiss(masm);
 }
 
 

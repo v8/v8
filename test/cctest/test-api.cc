@@ -21828,7 +21828,6 @@ void TestStubCache(bool primary) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
           i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
           i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
           i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
@@ -21872,22 +21871,10 @@ void TestStubCache(bool primary) {
 }  // namespace
 
 UNINITIALIZED_TEST(PrimaryStubCache) {
-  i::FLAG_tf_load_ic_stub = false;
   TestStubCache(true);
 }
 
 UNINITIALIZED_TEST(SecondaryStubCache) {
-  i::FLAG_tf_load_ic_stub = false;
-  TestStubCache(false);
-}
-
-UNINITIALIZED_TEST(PrimaryStubCacheTF) {
-  i::FLAG_tf_load_ic_stub = true;
-  TestStubCache(true);
-}
-
-UNINITIALIZED_TEST(SecondaryStubCacheTF) {
-  i::FLAG_tf_load_ic_stub = true;
   TestStubCache(false);
 }
 

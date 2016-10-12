@@ -23,11 +23,7 @@ Callable make_callable(Stub& stub) {
 
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    LoadICTrampolineTFStub stub(isolate);
-    return make_callable(stub);
-  }
-  LoadICTrampolineStub stub(isolate);
+  LoadICTrampolineTFStub stub(isolate);
   return make_callable(stub);
 }
 
@@ -39,11 +35,7 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    LoadICTFStub stub(isolate);
-    return make_callable(stub);
-  }
-  LoadICStub stub(isolate);
+  LoadICTFStub stub(isolate);
   return make_callable(stub);
 }
 

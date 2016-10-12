@@ -3273,13 +3273,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
-  LoadICStub stub(isolate());
-  stub.GenerateForTrampoline(masm);
-}
-
-
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
   KeyedLoadICStub stub(isolate());
@@ -3291,14 +3284,6 @@ void CallICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(a2);
   CallICStub stub(isolate(), state());
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void LoadICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
-
-
-void LoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
-  GenerateImpl(masm, true);
 }
 
 
@@ -3386,48 +3371,6 @@ static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
         FieldMemOperand(handler, FixedArray::kHeaderSize + kPointerSize));
   __ Addu(t9, handler, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(t9);
-}
-
-
-void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = LoadWithVectorDescriptor::ReceiverRegister();  // a1
-  Register name = LoadWithVectorDescriptor::NameRegister();          // a2
-  Register vector = LoadWithVectorDescriptor::VectorRegister();      // a3
-  Register slot = LoadWithVectorDescriptor::SlotRegister();          // a0
-  Register feedback = t0;
-  Register receiver_map = t1;
-  Register scratch1 = t4;
-
-  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ lw(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
-
-  // Try to quickly handle the monomorphic case without knowing for sure
-  // if we have a weak cell in feedback. We do know it's safe to look
-  // at WeakCell::kValueOffset.
-  Label try_array, load_smi_map, compare_map;
-  Label not_array, miss;
-  HandleMonomorphicCase(masm, receiver, receiver_map, feedback, vector, slot,
-                        scratch1, &compare_map, &load_smi_map, &try_array);
-
-  // Is it a fixed array?
-  __ bind(&try_array);
-  __ lw(scratch1, FieldMemOperand(feedback, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kFixedArrayMapRootIndex);
-  __ Branch(&not_array, ne, at, Operand(scratch1));
-  HandleArrayCases(masm, feedback, receiver_map, scratch1, t5, true, &miss);
-
-  __ bind(&not_array);
-  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
-  __ Branch(&miss, ne, at, Operand(feedback));
-  masm->isolate()->load_stub_cache()->GenerateProbe(
-      masm, receiver, name, feedback, receiver_map, scratch1, t5);
-
-  __ bind(&miss);
-  LoadIC::GenerateMiss(masm);
-
-  __ bind(&load_smi_map);
-  __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);
-  __ jmp(&compare_map);
 }
 
 
