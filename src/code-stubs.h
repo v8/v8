@@ -126,7 +126,7 @@ class ObjectLiteral;
   V(StoreScriptContextField)                  \
   V(NumberToString)                           \
   V(GetProperty)                              \
-  V(LoadICTF)                                 \
+  V(LoadIC)                                   \
   V(KeyedLoadICTF)                            \
   V(StoreFastElement)                         \
   V(StoreField)                               \
@@ -141,7 +141,7 @@ class ObjectLiteral;
   /* These are only called from FGC and */    \
   /* can be removed when we use ignition */   \
   /* only */                                  \
-  V(LoadICTrampolineTF)                       \
+  V(LoadICTrampoline)                         \
   V(LoadGlobalICTrampoline)                   \
   V(KeyedLoadICTrampolineTF)                  \
   V(StoreICTrampolineTF)
@@ -2035,18 +2035,16 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
 };
 
-
-class LoadICTrampolineTFStub : public TurboFanCodeStub {
+class LoadICTrampolineStub : public TurboFanCodeStub {
  public:
-  explicit LoadICTrampolineTFStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
+  explicit LoadICTrampolineStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_CODE_STUB(LoadICTrampolineTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(LoadICTrampoline, TurboFanCodeStub);
 };
 
 class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
@@ -2080,16 +2078,16 @@ class KeyedLoadICTrampolineStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, PlatformCodeStub);
 };
 
-class KeyedLoadICTrampolineTFStub : public LoadICTrampolineTFStub {
+class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
  public:
   explicit KeyedLoadICTrampolineTFStub(Isolate* isolate)
-      : LoadICTrampolineTFStub(isolate) {}
+      : LoadICTrampolineStub(isolate) {}
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
 
-  DEFINE_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineTFStub);
+  DEFINE_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineStub);
 };
 
 class StoreICTrampolineStub : public PlatformCodeStub {
@@ -2167,16 +2165,16 @@ class CallICTrampolineStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
 };
 
-class LoadICTFStub : public TurboFanCodeStub {
+class LoadICStub : public TurboFanCodeStub {
  public:
-  explicit LoadICTFStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+  explicit LoadICStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_CODE_STUB(LoadICTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(LoadIC, TurboFanCodeStub);
 };
 
 class LoadGlobalICStub : public TurboFanCodeStub {
@@ -2213,15 +2211,15 @@ class KeyedLoadICStub : public PlatformCodeStub {
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
-class KeyedLoadICTFStub : public LoadICTFStub {
+class KeyedLoadICTFStub : public LoadICStub {
  public:
-  explicit KeyedLoadICTFStub(Isolate* isolate) : LoadICTFStub(isolate) {}
+  explicit KeyedLoadICTFStub(Isolate* isolate) : LoadICStub(isolate) {}
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
 
-  DEFINE_CODE_STUB(KeyedLoadICTF, LoadICTFStub);
+  DEFINE_CODE_STUB(KeyedLoadICTF, LoadICStub);
 };
 
 class StoreICStub : public PlatformCodeStub {

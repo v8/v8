@@ -21828,7 +21828,7 @@ void TestStubCache(bool primary) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
+          i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
           i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
           i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
           i::CodeStub::StoreICTF,    i::CodeStub::StoreICTrampolineTF,

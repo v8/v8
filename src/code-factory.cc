@@ -23,7 +23,7 @@ Callable make_callable(Stub& stub) {
 
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate) {
-  LoadICTrampolineTFStub stub(isolate);
+  LoadICTrampolineStub stub(isolate);
   return make_callable(stub);
 }
 
@@ -35,7 +35,7 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
-  LoadICTFStub stub(isolate);
+  LoadICStub stub(isolate);
   return make_callable(stub);
 }
 

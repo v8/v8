@@ -419,7 +419,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   return assembler.GenerateCode();
 }
 
-void LoadICTrampolineTFStub::GenerateAssembly(
+void LoadICTrampolineStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
@@ -433,7 +433,7 @@ void LoadICTrampolineTFStub::GenerateAssembly(
   assembler->LoadIC(&p);
 }
 
-void LoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void LoadICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
   Node* receiver = assembler->Parameter(Descriptor::kReceiver);
