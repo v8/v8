@@ -125,6 +125,40 @@ TEST(AtomicValue, WithVoidStar) {
   EXPECT_EQ(&dummy, a.Value());
 }
 
+TEST(NoBarrierAtomicValue, Initial) {
+  NoBarrierAtomicValue<TestFlag> a(kA);
+  EXPECT_EQ(TestFlag::kA, a.Value());
+}
+
+TEST(NoBarrierAtomicValue, SetValue) {
+  NoBarrierAtomicValue<TestFlag> a(kB);
+  a.SetValue(kC);
+  EXPECT_EQ(TestFlag::kC, a.Value());
+}
+
+TEST(NoBarrierAtomicValue, WithVoidStar) {
+  NoBarrierAtomicValue<void*> a(nullptr);
+  NoBarrierAtomicValue<void*> dummy(nullptr);
+  EXPECT_EQ(nullptr, a.Value());
+  a.SetValue(&a);
+  EXPECT_EQ(&a, a.Value());
+}
+
+TEST(NoBarrierAtomicValue, Construction) {
+  NoBarrierAtomicValue<TestFlag> a(kA);
+  TestFlag b = kA;
+  NoBarrierAtomicValue<TestFlag>* ptr =
+      NoBarrierAtomicValue<TestFlag>::FromAddress(&b);
+  EXPECT_EQ(ptr->Value(), a.Value());
+}
+
+TEST(NoBarrierAtomicValue, ConstructionVoidStar) {
+  NoBarrierAtomicValue<void*> a(nullptr);
+  void* b = nullptr;
+  NoBarrierAtomicValue<void*>* ptr =
+      NoBarrierAtomicValue<void*>::FromAddress(&b);
+  EXPECT_EQ(ptr->Value(), a.Value());
+}
 
 namespace {
 

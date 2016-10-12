@@ -3632,34 +3632,36 @@ class PointerUpdateJobTraits {
 
   static SlotCallbackResult CheckAndUpdateOldToNewSlot(Heap* heap,
                                                        Address slot_address) {
-    Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (heap->InFromSpace(*slot)) {
-      HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
+    base::NoBarrierAtomicValue<Object*>* slot =
+        base::NoBarrierAtomicValue<Object*>::FromAddress(slot_address);
+    Object* slot_reference = slot->Value();
+    if (heap->InFromSpace(slot_reference)) {
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(slot_reference);
       DCHECK(heap_object->IsHeapObject());
       MapWord map_word = heap_object->map_word();
       // There could still be stale pointers in large object space, map space,
       // and old space for pages that have been promoted.
       if (map_word.IsForwardingAddress()) {
         // Update the corresponding slot.
-        *slot = map_word.ToForwardingAddress();
+        slot->SetValue(map_word.ToForwardingAddress());
       }
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
-      if (heap->InToSpace(*slot)) {
+      if (heap->InToSpace(slot->Value())) {
         return KEEP_SLOT;
       }
-    } else if (heap->InToSpace(*slot)) {
+    } else if (heap->InToSpace(slot_reference)) {
       // Slots can point to "to" space if the page has been moved, or if the
       // slot has been recorded multiple times in the remembered set. Since
       // there is no forwarding information present we need to check the
       // markbits to determine liveness.
-      if (Marking::IsBlack(
-              ObjectMarking::MarkBitFrom(reinterpret_cast<HeapObject*>(*slot))))
+      if (Marking::IsBlack(ObjectMarking::MarkBitFrom(
+              reinterpret_cast<HeapObject*>(slot_reference))))
         return KEEP_SLOT;
     } else {
-      DCHECK(!heap->InNewSpace(*slot));
+      DCHECK(!heap->InNewSpace(slot_reference));
     }
     return REMOVE_SLOT;
   }
