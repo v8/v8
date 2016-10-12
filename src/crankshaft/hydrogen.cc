@@ -7880,13 +7880,14 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
   }
   int arity = argument_count - 1;
   Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+  HValue* arity_val = Add<HConstant>(arity);
   HValue* index_val = Add<HConstant>(vector->GetIndex(slot));
   HValue* vector_val = Add<HConstant>(vector);
 
-  HValue* op_vals[] = {context(), function, index_val, vector_val};
+  HValue* op_vals[] = {context(), function, arity_val, index_val, vector_val};
 
   Callable callable = CodeFactory::CallICInOptimizedCode(
-      isolate(), arity, convert_mode, tail_call_mode);
+      isolate(), convert_mode, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),

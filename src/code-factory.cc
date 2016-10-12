@@ -91,18 +91,17 @@ Callable CodeFactory::KeyedLoadIC_Megamorphic(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::CallIC(Isolate* isolate, int argc,
-                             ConvertReceiverMode mode,
+Callable CodeFactory::CallIC(Isolate* isolate, ConvertReceiverMode mode,
                              TailCallMode tail_call_mode) {
-  CallICTrampolineStub stub(isolate, CallICState(argc, mode, tail_call_mode));
+  CallICTrampolineStub stub(isolate, CallICState(mode, tail_call_mode));
   return make_callable(stub);
 }
 
 // static
-Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
+Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate,
                                             ConvertReceiverMode mode,
                                             TailCallMode tail_call_mode) {
-  CallICStub stub(isolate, CallICState(argc, mode, tail_call_mode));
+  CallICStub stub(isolate, CallICState(mode, tail_call_mode));
   return make_callable(stub);
 }
 

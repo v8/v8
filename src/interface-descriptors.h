@@ -553,7 +553,7 @@ class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
 class CallFunctionWithFeedbackAndVectorDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kSlot, kVector)
+  DEFINE_PARAMETERS(kFunction, kActualArgumentsCount, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
       CallFunctionWithFeedbackAndVectorDescriptor, CallInterfaceDescriptor)
 };
