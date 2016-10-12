@@ -354,7 +354,8 @@
 
     # Gyp debug configs for simulators.
     'gyp_debug_simulate_x87_no_snap': [
-      'gyp', 'debug_bot', 'simulate_x87', 'swarming', 'v8_snapshot_none'],
+      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming',
+      'v8_snapshot_none'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
@@ -458,6 +459,12 @@
     'debug_bot': {
       'mixins': [
         'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
+        'v8_optimized_debug'],
+    },
+
+    'debug_bot_static': {
+      'mixins': [
+        'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
