@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils.h"
 
 #include "src/code-factory.h"
+#include "src/regexp/regexp-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -790,7 +791,7 @@ BUILTIN(StringPrototypeEndsWith) {
 
   // Check if the search string is a regExp and fail if it is.
   Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = Object::IsRegExp(isolate, search);
+  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
     return isolate->heap()->exception();
@@ -840,7 +841,7 @@ BUILTIN(StringPrototypeIncludes) {
 
   // Check if the search string is a regExp and fail if it is.
   Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = Object::IsRegExp(isolate, search);
+  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
     return isolate->heap()->exception();
@@ -1209,7 +1210,7 @@ BUILTIN(StringPrototypeStartsWith) {
 
   // Check if the search string is a regExp and fail if it is.
   Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = Object::IsRegExp(isolate, search);
+  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
     return isolate->heap()->exception();

@@ -7,6 +7,7 @@
 
 #include "src/code-factory.h"
 #include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp-utils.h"
 #include "src/string-builder.h"
 
 namespace v8 {
@@ -79,7 +80,8 @@ BUILTIN(RegExpConstructor) {
 
   bool pattern_is_regexp;
   {
-    Maybe<bool> maybe_pattern_is_regexp = Object::IsRegExp(isolate, pattern);
+    Maybe<bool> maybe_pattern_is_regexp =
+        RegExpUtils::IsRegExp(isolate, pattern);
     if (maybe_pattern_is_regexp.IsNothing()) {
       DCHECK(isolate->has_pending_exception());
       return isolate->heap()->exception();
@@ -817,73 +819,15 @@ void Builtins::Generate_RegExpPrototypeUnicodeGetter(CodeStubAssembler* a) {
                       "RegExp.prototype.unicode");
 }
 
-namespace {
-
-// Constants for accessing RegExpLastMatchInfo.
-// TODO(jgruber): Currently, RegExpLastMatchInfo is still a JSObject maintained
-// and accessed from JS. This is a crutch until all RegExp logic is ported, then
-// we can take care of RegExpLastMatchInfo.
-
-Handle<Object> GetLastMatchField(Isolate* isolate, int index) {
-  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
-  return JSReceiver::GetElement(isolate, last_match_info, index)
-      .ToHandleChecked();
-}
-
-void SetLastMatchField(Isolate* isolate, int index, Handle<Object> value) {
-  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
-  JSReceiver::SetElement(isolate, last_match_info, index, value, SLOPPY)
-      .ToHandleChecked();
-}
-
-int GetLastMatchNumberOfCaptures(Isolate* isolate) {
-  Handle<Object> obj =
-      GetLastMatchField(isolate, RegExpImpl::kLastCaptureCount);
-  return Handle<Smi>::cast(obj)->value();
-}
-
-Handle<String> GetLastMatchSubject(Isolate* isolate) {
-  return Handle<String>::cast(
-      GetLastMatchField(isolate, RegExpImpl::kLastSubject));
-}
-
-Handle<Object> GetLastMatchInput(Isolate* isolate) {
-  return GetLastMatchField(isolate, RegExpImpl::kLastInput);
-}
-
-int GetLastMatchCapture(Isolate* isolate, int i) {
-  Handle<Object> obj =
-      GetLastMatchField(isolate, RegExpImpl::kFirstCapture + i);
-  return Handle<Smi>::cast(obj)->value();
-}
-
-Object* GenericCaptureGetter(Isolate* isolate, int capture) {
-  HandleScope scope(isolate);
-  const int index = capture * 2;
-  if (index >= GetLastMatchNumberOfCaptures(isolate)) {
-    return isolate->heap()->empty_string();
-  }
-
-  const int match_start = GetLastMatchCapture(isolate, index);
-  const int match_end = GetLastMatchCapture(isolate, index + 1);
-  if (match_start == -1 || match_end == -1) {
-    return isolate->heap()->empty_string();
-  }
-
-  Handle<String> last_subject = GetLastMatchSubject(isolate);
-  return *isolate->factory()->NewSubString(last_subject, match_start,
-                                           match_end);
-}
-
-}  // namespace
 
 // The properties $1..$9 are the first nine capturing substrings of the last
 // successful match, or ''.  The function RegExpMakeCaptureGetter will be
 // called with indices from 1 to 9.
-#define DEFINE_CAPTURE_GETTER(i)             \
-  BUILTIN(RegExpCapture##i##Getter) {        \
-    HandleScope scope(isolate);              \
-    return GenericCaptureGetter(isolate, i); \
+#define DEFINE_CAPTURE_GETTER(i)                        \
+  BUILTIN(RegExpCapture##i##Getter) {                   \
+    HandleScope scope(isolate);                         \
+    return *RegExpUtils::GenericCaptureGetter(          \
+        isolate, isolate->regexp_last_match_info(), i); \
   }
 DEFINE_CAPTURE_GETTER(1)
 DEFINE_CAPTURE_GETTER(2)
@@ -902,7 +846,8 @@ DEFINE_CAPTURE_GETTER(9)
 
 BUILTIN(RegExpInputGetter) {
   HandleScope scope(isolate);
-  Handle<Object> obj = GetLastMatchInput(isolate);
+  Handle<Object> obj = RegExpUtils::GetLastMatchInput(
+      isolate, isolate->regexp_last_match_info());
   return obj->IsUndefined(isolate) ? isolate->heap()->empty_string()
                                    : String::cast(*obj);
 }
@@ -913,7 +858,8 @@ BUILTIN(RegExpInputSetter) {
   Handle<String> str;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
                                      Object::ToString(isolate, value));
-  SetLastMatchField(isolate, RegExpImpl::kLastInput, str);
+  RegExpUtils::SetLastMatchField(isolate, isolate->regexp_last_match_info(),
+                                 RegExpImpl::kLastInput, str);
   return isolate->heap()->undefined_value();
 }
 
@@ -923,12 +869,15 @@ BUILTIN(RegExpInputSetter) {
 // of the last successful match.
 BUILTIN(RegExpLastMatchGetter) {
   HandleScope scope(isolate);
-  return GenericCaptureGetter(isolate, 0);
+  return *RegExpUtils::GenericCaptureGetter(
+      isolate, isolate->regexp_last_match_info(), 0);
 }
 
 BUILTIN(RegExpLastParenGetter) {
   HandleScope scope(isolate);
-  const int length = GetLastMatchNumberOfCaptures(isolate);
+  Handle<JSObject> match_info = isolate->regexp_last_match_info();
+  const int length =
+      RegExpUtils::GetLastMatchNumberOfCaptures(isolate, match_info);
   if (length <= 2) return isolate->heap()->empty_string();  // No captures.
 
   DCHECK_EQ(0, length % 2);
@@ -937,81 +886,28 @@ BUILTIN(RegExpLastParenGetter) {
   // We match the SpiderMonkey behavior: return the substring defined by the
   // last pair (after the first pair) of elements of the capture array even if
   // it is empty.
-  return GenericCaptureGetter(isolate, last_capture);
+  return *RegExpUtils::GenericCaptureGetter(isolate, match_info, last_capture);
 }
 
 BUILTIN(RegExpLeftContextGetter) {
   HandleScope scope(isolate);
-  const int start_index = GetLastMatchCapture(isolate, 0);
-  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  Handle<JSObject> match_info = isolate->regexp_last_match_info();
+  const int start_index =
+      RegExpUtils::GetLastMatchCapture(isolate, match_info, 0);
+  Handle<String> last_subject =
+      RegExpUtils::GetLastMatchSubject(isolate, match_info);
   return *isolate->factory()->NewSubString(last_subject, 0, start_index);
 }
 
 BUILTIN(RegExpRightContextGetter) {
   HandleScope scope(isolate);
-  const int start_index = GetLastMatchCapture(isolate, 1);
-  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  Handle<JSObject> match_info = isolate->regexp_last_match_info();
+  const int start_index =
+      RegExpUtils::GetLastMatchCapture(isolate, match_info, 1);
+  Handle<String> last_subject =
+      RegExpUtils::GetLastMatchSubject(isolate, match_info);
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
-}
-
-namespace {
-
-V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Handle<JSReceiver> recv) {
-  return recv->map() == isolate->regexp_function()->initial_map();
-}
-
-}  // namespace
-
-// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-// Also takes an optional exec method in case our caller
-// has already fetched exec.
-MaybeHandle<Object> RegExpExec(Isolate* isolate, Handle<JSReceiver> regexp,
-                               Handle<String> string, Handle<Object> exec) {
-  if (exec->IsUndefined(isolate)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, exec,
-        Object::GetProperty(
-            regexp, isolate->factory()->NewStringFromAsciiChecked("exec")),
-        Object);
-  }
-
-  if (exec->IsCallable()) {
-    const int argc = 1;
-    ScopedVector<Handle<Object>> argv(argc);
-    argv[0] = string;
-
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        Execution::Call(isolate, exec, regexp, argc, argv.start()), Object);
-
-    if (!result->IsJSReceiver() && !result->IsNull(isolate)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalidRegExpExecResult),
-                      Object);
-    }
-    return result;
-  }
-
-  if (!regexp->IsJSRegExp()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                 isolate->factory()->NewStringFromAsciiChecked(
-                                     "RegExp.prototype.exec"),
-                                 regexp),
-                    Object);
-  }
-
-  {
-    Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
-
-    const int argc = 1;
-    ScopedVector<Handle<Object>> argv(argc);
-    argv[0] = string;
-
-    return Execution::Call(isolate, exec, regexp_exec, argc, argv.start());
-  }
 }
 
 // ES#sec-regexp.prototype.test
@@ -1029,70 +925,11 @@ BUILTIN(RegExpPrototypeTest) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      RegExpExec(isolate, recv, string, isolate->factory()->undefined_value()));
+      RegExpUtils::RegExpExec(isolate, recv, string,
+                              isolate->factory()->undefined_value()));
 
   return isolate->heap()->ToBoolean(!result->IsNull(isolate));
 }
-
-namespace {
-
-// ES#sec-advancestringindex
-// AdvanceStringIndex ( S, index, unicode )
-int AdvanceStringIndex(Isolate* isolate, Handle<String> string, int index,
-                       bool unicode) {
-  int increment = 1;
-
-  if (unicode && index < string->length()) {
-    const uint16_t first = string->Get(index);
-    if (first >= 0xD800 && first <= 0xDBFF && string->length() > index + 1) {
-      const uint16_t second = string->Get(index + 1);
-      if (second >= 0xDC00 && second <= 0xDFFF) {
-        increment = 2;
-      }
-    }
-  }
-
-  return increment;
-}
-
-MaybeHandle<Object> SetLastIndex(Isolate* isolate, Handle<JSReceiver> recv,
-                                 int value) {
-  if (HasInitialRegExpMap(isolate, recv)) {
-    JSRegExp::cast(*recv)->SetLastIndex(value);
-    return recv;
-  } else {
-    return Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
-                               handle(Smi::FromInt(value), isolate), STRICT);
-  }
-}
-
-MaybeHandle<Object> GetLastIndex(Isolate* isolate, Handle<JSReceiver> recv) {
-  if (HasInitialRegExpMap(isolate, recv)) {
-    return handle(JSRegExp::cast(*recv)->LastIndex(), isolate);
-  } else {
-    return Object::GetProperty(recv, isolate->factory()->lastIndex_string());
-  }
-}
-
-MaybeHandle<Object> SetAdvancedStringIndex(Isolate* isolate,
-                                           Handle<JSReceiver> regexp,
-                                           Handle<String> string,
-                                           bool unicode) {
-  Handle<Object> last_index_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
-                             GetLastIndex(isolate, regexp), Object);
-
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
-                             Object::ToLength(isolate, last_index_obj), Object);
-
-  const int last_index = Handle<Smi>::cast(last_index_obj)->value();
-  const int new_last_index =
-      last_index + AdvanceStringIndex(isolate, string, last_index, unicode);
-
-  return SetLastIndex(isolate, regexp, new_last_index);
-}
-
-}  // namespace
 
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
@@ -1113,9 +950,10 @@ BUILTIN(RegExpPrototypeMatch) {
   const bool global = global_obj->BooleanValue();
 
   if (!global) {
-    RETURN_RESULT_OR_FAILURE(isolate,
-                             RegExpExec(isolate, recv, string,
-                                        isolate->factory()->undefined_value()));
+    RETURN_RESULT_OR_FAILURE(
+        isolate,
+        RegExpUtils::RegExpExec(isolate, recv, string,
+                                isolate->factory()->undefined_value()));
   }
 
   Handle<Object> unicode_obj;
@@ -1124,7 +962,8 @@ BUILTIN(RegExpPrototypeMatch) {
       JSReceiver::GetProperty(recv, isolate->factory()->unicode_string()));
   const bool unicode = unicode_obj->BooleanValue();
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate, SetLastIndex(isolate, recv, 0));
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              RegExpUtils::SetLastIndex(isolate, recv, 0));
 
   static const int kInitialArraySize = 8;
   Handle<FixedArray> elems =
@@ -1134,8 +973,9 @@ BUILTIN(RegExpPrototypeMatch) {
   for (;; n++) {
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, RegExpExec(isolate, recv, string,
-                                    isolate->factory()->undefined_value()));
+        isolate, result,
+        RegExpUtils::RegExpExec(isolate, recv, string,
+                                isolate->factory()->undefined_value()));
 
     if (result->IsNull(isolate)) {
       if (n == 0) return isolate->heap()->null_value();
@@ -1153,8 +993,8 @@ BUILTIN(RegExpPrototypeMatch) {
     elems = FixedArray::SetAndGrow(elems, n, match);
 
     if (match->length() == 0) {
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, SetAdvancedStringIndex(isolate, recv, string, unicode));
+      RETURN_FAILURE_ON_EXCEPTION(isolate, RegExpUtils::SetAdvancedStringIndex(
+                                               isolate, recv, string, unicode));
     }
   }
 
@@ -1176,21 +1016,23 @@ BUILTIN(RegExpPrototypeSearch) {
 
   Handle<Object> previous_last_index_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, previous_last_index_obj,
-                                     GetLastIndex(isolate, recv));
+                                     RegExpUtils::GetLastIndex(isolate, recv));
 
   if (!previous_last_index_obj->IsSmi() ||
       Smi::cast(*previous_last_index_obj)->value() != 0) {
-    RETURN_FAILURE_ON_EXCEPTION(isolate, SetLastIndex(isolate, recv, 0));
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
+                                RegExpUtils::SetLastIndex(isolate, recv, 0));
   }
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      RegExpExec(isolate, recv, string, isolate->factory()->undefined_value()));
+      RegExpUtils::RegExpExec(isolate, recv, string,
+                              isolate->factory()->undefined_value()));
 
   Handle<Object> current_last_index_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, current_last_index_obj,
-                                     GetLastIndex(isolate, recv));
+                                     RegExpUtils::GetLastIndex(isolate, recv));
 
   Maybe<bool> is_last_index_unchanged =
       Object::Equals(current_last_index_obj, previous_last_index_obj);
@@ -1198,8 +1040,9 @@ BUILTIN(RegExpPrototypeSearch) {
   if (!is_last_index_unchanged.FromJust()) {
     if (previous_last_index_obj->IsSmi()) {
       RETURN_FAILURE_ON_EXCEPTION(
-          isolate, SetLastIndex(isolate, recv,
-                                Smi::cast(*previous_last_index_obj)->value()));
+          isolate,
+          RegExpUtils::SetLastIndex(
+              isolate, recv, Smi::cast(*previous_last_index_obj)->value()));
     } else {
       RETURN_FAILURE_ON_EXCEPTION(
           isolate,
@@ -1414,15 +1257,6 @@ MaybeHandle<Object> SpeciesConstructor(Isolate* isolate,
       isolate, NewTypeError(MessageTemplate::kSpeciesNotConstructor), Object);
 }
 
-bool IsBuiltinExec(Handle<Object> exec) {
-  if (!exec->IsJSFunction()) return false;
-
-  Code* code = Handle<JSFunction>::cast(exec)->code();
-  if (code == nullptr) return false;
-
-  return (code->builtin_index() == Builtins::kRegExpPrototypeExec);
-}
-
 }  // namespace
 
 // ES#sec-regexp.prototype-@@split
@@ -1450,7 +1284,7 @@ BUILTIN(RegExpPrototypeSplit) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, exec, JSObject::GetProperty(
                            recv, factory->NewStringFromAsciiChecked("exec")));
-    if (IsBuiltinExec(exec)) {
+    if (RegExpUtils::IsBuiltinExec(exec)) {
       RETURN_RESULT_OR_FAILURE(
           isolate, RegExpSplit(isolate, Handle<JSRegExp>::cast(recv), string,
                                limit_obj));
@@ -1503,8 +1337,8 @@ BUILTIN(RegExpPrototypeSplit) {
   if (length == 0) {
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        RegExpExec(isolate, splitter, string, factory->undefined_value()));
+        isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
+                                                 factory->undefined_value()));
 
     if (!result->IsNull(isolate)) return *factory->NewJSArray(0);
 
@@ -1521,24 +1355,24 @@ BUILTIN(RegExpPrototypeSplit) {
   int string_index = 0;
   int prev_string_index = 0;
   while (string_index < length) {
-    RETURN_FAILURE_ON_EXCEPTION(isolate,
-                                SetLastIndex(isolate, splitter, string_index));
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, RegExpUtils::SetLastIndex(isolate, splitter, string_index));
 
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        RegExpExec(isolate, splitter, string, factory->undefined_value()));
+        isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
+                                                 factory->undefined_value()));
 
     if (result->IsNull(isolate)) {
-      string_index +=
-          AdvanceStringIndex(isolate, string, string_index, unicode);
+      string_index += RegExpUtils::AdvanceStringIndex(isolate, string,
+                                                      string_index, unicode);
       continue;
     }
 
     // TODO(jgruber): Extract toLength of some property into function.
     Handle<Object> last_index_obj;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, last_index_obj,
-                                       GetLastIndex(isolate, splitter));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, last_index_obj, RegExpUtils::GetLastIndex(isolate, splitter));
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
@@ -1546,8 +1380,8 @@ BUILTIN(RegExpPrototypeSplit) {
 
     const int end = std::min(last_index, length);
     if (end == prev_string_index) {
-      string_index +=
-          AdvanceStringIndex(isolate, string, string_index, unicode);
+      string_index += RegExpUtils::AdvanceStringIndex(isolate, string,
+                                                      string_index, unicode);
       continue;
     }
 

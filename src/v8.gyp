@@ -1127,6 +1127,8 @@
         'regexp/regexp-parser.h',
         'regexp/regexp-stack.cc',
         'regexp/regexp-stack.h',
+        'regexp/regexp-utils.cc',
+        'regexp/regexp-utils.h',
         'register-configuration.cc',
         'register-configuration.h',
         'runtime-profiler.cc',
