@@ -1275,7 +1275,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
   __ mov(ebx, ecx);
   __ mov(edx, edi);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 
   // Unreachable.
@@ -3634,30 +3634,19 @@ void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm, AllocationSiteOverrideMode mode) {
-  if (argument_count() == ANY) {
-    Label not_zero_case, not_one_case;
-    __ test(eax, eax);
-    __ j(not_zero, &not_zero_case);
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  Label not_zero_case, not_one_case;
+  __ test(eax, eax);
+  __ j(not_zero, &not_zero_case);
+  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
 
-    __ bind(&not_zero_case);
-    __ cmp(eax, 1);
-    __ j(greater, &not_one_case);
-    CreateArrayDispatchOneArgument(masm, mode);
+  __ bind(&not_zero_case);
+  __ cmp(eax, 1);
+  __ j(greater, &not_one_case);
+  CreateArrayDispatchOneArgument(masm, mode);
 
-    __ bind(&not_one_case);
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else if (argument_count() == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-  } else if (argument_count() == ONE) {
-    CreateArrayDispatchOneArgument(masm, mode);
-  } else if (argument_count() == MORE_THAN_ONE) {
-    ArrayNArgumentsConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else {
-    UNREACHABLE();
-  }
+  __ bind(&not_one_case);
+  ArrayNArgumentsConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
@@ -3711,21 +3700,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing.
   __ bind(&subclassing);
-  switch (argument_count()) {
-    case ANY:
-    case MORE_THAN_ONE:
-      __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), edi);
-      __ add(eax, Immediate(3));
-      break;
-    case NONE:
-      __ mov(Operand(esp, 1 * kPointerSize), edi);
-      __ mov(eax, Immediate(3));
-      break;
-    case ONE:
-      __ mov(Operand(esp, 2 * kPointerSize), edi);
-      __ mov(eax, Immediate(4));
-      break;
-  }
+  __ mov(Operand(esp, eax, times_pointer_size, kPointerSize), edi);
+  __ add(eax, Immediate(3));
   __ PopReturnAddressTo(ecx);
   __ Push(edx);
   __ Push(ebx);
