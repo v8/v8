@@ -2158,9 +2158,9 @@ class HCallWithDescriptor final : public HInstruction {
       const Vector<HValue*>& operands,
       TailCallMode syntactic_tail_call_mode = TailCallMode::kDisallow,
       TailCallMode tail_call_mode = TailCallMode::kDisallow) {
-    HCallWithDescriptor* res = new (zone)
-        HCallWithDescriptor(target, argument_count, descriptor, operands,
-                            syntactic_tail_call_mode, tail_call_mode, zone);
+    HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
+        context, target, argument_count, descriptor, operands,
+        syntactic_tail_call_mode, tail_call_mode, zone);
     return res;
   }
 
@@ -2200,21 +2200,24 @@ class HCallWithDescriptor final : public HInstruction {
 
   CallInterfaceDescriptor descriptor() const { return descriptor_; }
 
-  HValue* target() {
-    return OperandAt(0);
+  HValue* target() { return OperandAt(0); }
+  HValue* context() { return OperandAt(1); }
+  HValue* parameter(int index) {
+    DCHECK_LT(index, GetParameterCount());
+    return OperandAt(index + 2);
   }
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
  private:
   // The argument count includes the receiver.
-  HCallWithDescriptor(HValue* target, int argument_count,
+  HCallWithDescriptor(HValue* context, HValue* target, int argument_count,
                       CallInterfaceDescriptor descriptor,
                       const Vector<HValue*>& operands,
                       TailCallMode syntactic_tail_call_mode,
                       TailCallMode tail_call_mode, Zone* zone)
       : descriptor_(descriptor),
-        values_(GetParameterCount() + 1, zone),  // +1 here is for target.
+        values_(GetParameterCount() + 2, zone),  // +2 for context and target.
         argument_count_(argument_count),
         bit_field_(
             TailCallModeField::encode(tail_call_mode) |
@@ -2223,6 +2226,7 @@ class HCallWithDescriptor final : public HInstruction {
     // We can only tail call without any stack arguments.
     DCHECK(tail_call_mode != TailCallMode::kAllow || argument_count == 0);
     AddOperand(target, zone);
+    AddOperand(context, zone);
     for (int i = 0; i < operands.length(); i++) {
       AddOperand(operands[i], zone);
     }
@@ -2235,9 +2239,7 @@ class HCallWithDescriptor final : public HInstruction {
     SetOperandAt(values_.length() - 1, v);
   }
 
-  int GetParameterCount() const {
-    return descriptor_.GetParameterCount() + 1;  // +1 here is for context.
-  }
+  int GetParameterCount() const { return descriptor_.GetParameterCount(); }
 
   void InternalSetOperandAt(int index, HValue* value) final {
     values_[index] = value;

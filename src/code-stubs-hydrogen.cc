@@ -1031,7 +1031,7 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
       }
       if_inputisprimitive.End();
       // Convert the primitive to a string value.
-      HValue* values[] = {context(), Pop()};
+      HValue* values[] = {Pop()};
       Callable toString = CodeFactory::ToString(isolate());
       Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(toString.code()), 0,
                                             toString.descriptor(),
