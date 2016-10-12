@@ -3007,24 +3007,11 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   KeyedLoadIC::GenerateMiss(masm);
 }
 
-void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
-  StoreICStub stub(isolate(), state());
-  stub.GenerateForTrampoline(masm);
-}
-
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
-
-void StoreICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
-
-void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
-  GenerateImpl(masm, true);
-}
-
 
 // value is on the stack already.
 static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
@@ -3140,63 +3127,6 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
   // jump to the handler.
   __ jmp(weak_cell);
-}
-
-void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // edx
-  Register key = StoreWithVectorDescriptor::NameRegister();           // ecx
-  Register value = StoreWithVectorDescriptor::ValueRegister();        // eax
-  Register vector = StoreWithVectorDescriptor::VectorRegister();      // ebx
-  Register slot = StoreWithVectorDescriptor::SlotRegister();          // edi
-  Label miss;
-
-  if (StoreWithVectorDescriptor::kPassLastArgsOnStack) {
-    // Current stack layout:
-    // - esp[8]    -- value
-    // - esp[4]    -- slot
-    // - esp[0]    -- return address
-    STATIC_ASSERT(StoreDescriptor::kStackArgumentsCount == 2);
-    STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
-    if (in_frame) {
-      __ RecordComment("[ StoreDescriptor -> StoreWithVectorDescriptor");
-      // If the vector is not on the stack, then insert the vector beneath
-      // return address in order to prepare for calling handler with
-      // StoreWithVector calling convention.
-      __ push(Operand(esp, 0));
-      __ mov(Operand(esp, 4), StoreWithVectorDescriptor::VectorRegister());
-      __ RecordComment("]");
-    } else {
-      __ mov(vector, Operand(esp, 1 * kPointerSize));
-    }
-    __ mov(slot, Operand(esp, 2 * kPointerSize));
-  }
-
-  Register scratch = value;
-  __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
-                               FixedArray::kHeaderSize));
-
-  // Is it a weak cell?
-  Label try_array;
-  Label not_array, smi_key, key_okay;
-  __ CompareRoot(FieldOperand(scratch, 0), Heap::kWeakCellMapRootIndex);
-  __ j(not_equal, &try_array);
-  HandleMonomorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
-
-  // Is it a fixed array?
-  __ bind(&try_array);
-  __ CompareRoot(FieldOperand(scratch, 0), Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &not_array);
-  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, true,
-                             &miss);
-
-  __ bind(&not_array);
-  __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
-  __ j(not_equal, &miss);
-
-  masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, slot,
-                                                     no_reg);
-  __ bind(&miss);
-  StoreIC::GenerateMiss(masm);
 }
 
 void KeyedStoreICStub::Generate(MacroAssembler* masm) {

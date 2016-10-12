@@ -21830,7 +21830,6 @@ void TestStubCache(bool primary) {
       i::CodeStub::Major code_stub_keys[] = {
           i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
           i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
-          i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
           i::CodeStub::StoreICTF,    i::CodeStub::StoreICTrampolineTF,
           i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
       };

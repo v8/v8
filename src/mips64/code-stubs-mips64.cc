@@ -3447,66 +3447,10 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ Branch(&compare_map);
 }
 
-void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
-  StoreICStub stub(isolate(), state());
-  stub.GenerateForTrampoline(masm);
-}
-
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
-}
-
-void StoreICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
-
-void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
-  GenerateImpl(masm, true);
-}
-
-void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // a1
-  Register key = StoreWithVectorDescriptor::NameRegister();           // a2
-  Register vector = StoreWithVectorDescriptor::VectorRegister();      // a3
-  Register slot = StoreWithVectorDescriptor::SlotRegister();          // a4
-  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(a0));          // a0
-  Register feedback = a5;
-  Register receiver_map = a6;
-  Register scratch1 = a7;
-
-  __ SmiScale(scratch1, slot, kPointerSizeLog2);
-  __ Daddu(feedback, vector, Operand(scratch1));
-  __ ld(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
-
-  // Try to quickly handle the monomorphic case without knowing for sure
-  // if we have a weak cell in feedback. We do know it's safe to look
-  // at WeakCell::kValueOffset.
-  Label try_array, load_smi_map, compare_map;
-  Label not_array, miss;
-  HandleMonomorphicCase(masm, receiver, receiver_map, feedback, vector, slot,
-                        scratch1, &compare_map, &load_smi_map, &try_array);
-
-  // Is it a fixed array?
-  __ bind(&try_array);
-  __ ld(scratch1, FieldMemOperand(feedback, HeapObject::kMapOffset));
-  __ Branch(&not_array, ne, scratch1, Heap::kFixedArrayMapRootIndex);
-
-  Register scratch2 = t0;
-  HandleArrayCases(masm, feedback, receiver_map, scratch1, scratch2, true,
-                   &miss);
-
-  __ bind(&not_array);
-  __ Branch(&miss, ne, feedback, Heap::kmegamorphic_symbolRootIndex);
-  masm->isolate()->store_stub_cache()->GenerateProbe(
-      masm, receiver, key, feedback, receiver_map, scratch1, scratch2);
-
-  __ bind(&miss);
-  StoreIC::GenerateMiss(masm);
-
-  __ bind(&load_smi_map);
-  __ Branch(USE_DELAY_SLOT, &compare_map);
-  __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);  // In delay slot.
 }
 
 void KeyedStoreICStub::Generate(MacroAssembler* masm) {

@@ -99,22 +99,14 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
-  if (FLAG_tf_store_ic_stub) {
-    StoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
-    return make_callable(stub);
-  }
-  StoreICTrampolineStub stub(isolate, StoreICState(language_mode));
+  StoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
 
 // static
 Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                                              LanguageMode language_mode) {
-  if (FLAG_tf_store_ic_stub) {
-    StoreICTFStub stub(isolate, StoreICState(language_mode));
-    return make_callable(stub);
-  }
-  StoreICStub stub(isolate, StoreICState(language_mode));
+  StoreICTFStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
 
