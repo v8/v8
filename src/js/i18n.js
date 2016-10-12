@@ -76,9 +76,10 @@ function AddBoundMethod(obj, methodName, implementation, length, type) {
     if (IS_UNDEFINED(this[internalName])) {
       var boundMethod;
       if (IS_UNDEFINED(length) || length === 2) {
-        boundMethod = ANONYMOUS_FUNCTION((x, y) => implementation(this, x, y));
+        boundMethod =
+          ANONYMOUS_FUNCTION((fst, snd) => implementation(this, fst, snd));
       } else if (length === 1) {
-        boundMethod = ANONYMOUS_FUNCTION(x => implementation(this, x));
+        boundMethod = ANONYMOUS_FUNCTION(fst => implementation(this, fst));
       } else {
         boundMethod = ANONYMOUS_FUNCTION((...args) => {
           // DateTimeFormat.format needs to be 0 arg method, but can still
