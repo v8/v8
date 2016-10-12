@@ -64,3 +64,25 @@ function TestImportedExported(type, val, expected) {
 TestImportedExported(kAstI32, 415.5, 415);
 TestImportedExported(kAstF32, -979.34343, Math.fround(-979.34343));
 TestImportedExported(kAstF64, 81347.66666, 81347.66666);
+
+function TestGlobalIndexSpace(type, val) {
+  print("TestGlobalIndexSpace(" + val + ") = " + val);
+  var builder = new WasmModuleBuilder();
+  var im = builder.addImportedGlobal("foo", undefined, type);
+  assertEquals(0, im);
+  var def = builder.addGlobal(type, false);
+  assertEquals(1, def.index);
+  def.init_index = im;
+
+  var sig = makeSig([], [type]);
+  builder.addFunction("main", sig)
+    .addBody([kExprGetGlobal, def.index])
+    .exportAs("main");
+
+  var instance = builder.instantiate({foo: val});
+  assertEquals(val, instance.exports.main());
+}
+
+TestGlobalIndexSpace(kAstI32, 123);
+TestGlobalIndexSpace(kAstF32, 54321.125);
+TestGlobalIndexSpace(kAstF64, 12345.678);

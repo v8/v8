@@ -406,7 +406,13 @@ class ModuleDecoder : public Decoder {
     // ===== Global section ==================================================
     if (section_iter.section_code() == kGlobalSectionCode) {
       uint32_t globals_count = consume_u32v("globals count");
-      module->globals.reserve(SafeReserve(globals_count));
+      uint32_t imported_globals = static_cast<uint32_t>(module->globals.size());
+      if (!IsWithinLimit(std::numeric_limits<int32_t>::max(), globals_count,
+                         imported_globals)) {
+        error(pos, pos, "too many imported+defined globals: %u + %u",
+              imported_globals, globals_count);
+      }
+      module->globals.reserve(SafeReserve(imported_globals + globals_count));
       for (uint32_t i = 0; ok() && i < globals_count; ++i) {
         TRACE("DecodeGlobal[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
@@ -414,7 +420,7 @@ class ModuleDecoder : public Decoder {
         module->globals.push_back(
             {kAstStmt, false, WasmInitExpr(), 0, false, false});
         WasmGlobal* global = &module->globals.back();
-        DecodeGlobalInModule(module, i, global);
+        DecodeGlobalInModule(module, i + imported_globals, global);
       }
       section_iter.advance();
     }
@@ -675,7 +681,10 @@ class ModuleDecoder : public Decoder {
       case WasmInitExpr::kGlobalIndex: {
         uint32_t other_index = global->init.val.global_index;
         if (other_index >= index) {
-          error("invalid global index in init expression");
+          error(pos, pos,
+                "invalid global index in init expression, "
+                "index %u, other_index %u",
+                index, other_index);
         } else if (module->globals[other_index].type != global->type) {
           error(pos, pos,
                 "type mismatch in global initialization "

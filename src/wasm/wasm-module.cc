@@ -1544,6 +1544,9 @@ class WasmInstanceBuilder {
 
       uint32_t source_size =
           static_cast<uint32_t>(segment->get_int(kSourceSize));
+      // TODO(titzer): These should be runtime errors and not CHECKs if
+      // dest_addr is global (and therefore initialized at linktime to an
+      // possibly-invalid value).
       CHECK_LT(dest_addr, mem_size);
       CHECK_LE(source_size, mem_size);
       CHECK_LE(dest_addr, mem_size - source_size);
