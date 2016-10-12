@@ -1873,6 +1873,7 @@ static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
 }
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
+  // r3 - number of arguments
   // r4 - function
   // r6 - slot id
   // r5 - vector
@@ -1886,19 +1887,17 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
   __ mr(r5, r7);
   __ mr(r6, r4);
-  __ mov(r3, Operand(arg_count()));
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
 
 
 void CallICStub::Generate(MacroAssembler* masm) {
+  // r3 - number of arguments
   // r4 - function
   // r6 - slot id (Smi)
   // r5 - vector
   Label extra_checks_or_miss, call, call_function, call_count_incremented;
-  int argc = arg_count();
-  ParameterCount actual(argc);
 
   // The checks. First, does r4 match the recorded monomorphic target?
   __ SmiToPtrArrayOffset(r9, r6);
@@ -1932,7 +1931,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Increment the call count for monomorphic function calls.
   IncrementCallCount(masm, r5, r6, r0);
 
-  __ mov(r3, Operand(argc));
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1976,7 +1974,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   IncrementCallCount(masm, r5, r6, r0);
 
   __ bind(&call_count_incremented);
-  __ mov(r3, Operand(argc));
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
@@ -2009,13 +2006,12 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
-    __ Push(r5);
-    __ Push(r6);
-    __ Push(cp, r4);
+    __ SmiTag(r3);
+    __ Push(r3, r5, r6, cp, r4);
     __ CallStub(&create_stub);
-    __ Pop(cp, r4);
-    __ Pop(r6);
-    __ Pop(r5);
+    __ Pop(r5, r6, cp, r4);
+    __ Pop(r3);
+    __ SmiUntag(r3);
   }
 
   __ b(&call_function);
@@ -2032,14 +2028,21 @@ void CallICStub::Generate(MacroAssembler* masm) {
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
-  // Push the function and feedback info.
-  __ Push(r4, r5, r6);
+  // Preserve the number of arguments as Smi.
+  __ SmiTag(r3);
+
+  // Push the receiver and the function and feedback info.
+  __ Push(r3, r4, r5, r6);
 
   // Call the entry.
   __ CallRuntime(Runtime::kCallIC_Miss);
 
   // Move result to r4 and exit the internal frame.
   __ mr(r4, r3);
+
+  // Restore number of arguments.
+  __ Pop(r3);
+  __ SmiUntag(r3);
 }
 
 
