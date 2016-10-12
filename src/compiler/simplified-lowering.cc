@@ -87,12 +87,14 @@ MachineRepresentation MachineRepresentationFromArrayType(
   return MachineRepresentation::kNone;
 }
 
-UseInfo CheckedUseInfoAsWord32FromHint(NumberOperationHint hint) {
+UseInfo CheckedUseInfoAsWord32FromHint(
+    NumberOperationHint hint, CheckForMinusZeroMode minus_zero_mode =
+                                  CheckForMinusZeroMode::kCheckForMinusZero) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
-      return UseInfo::CheckedSignedSmallAsWord32();
+      return UseInfo::CheckedSignedSmallAsWord32(minus_zero_mode);
     case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32();
+      return UseInfo::CheckedSigned32AsWord32(minus_zero_mode);
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32();
     case NumberOperationHint::kNumberOrOddball:
@@ -1146,8 +1148,15 @@ class RepresentationSelector {
 
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
-      VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                 MachineRepresentation::kWord32, Type::Signed32());
+      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
+      // For subtraction, the right hand side can be minus zero without
+      // resulting in minus zero, so we skip the check for it.
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(
+          hint, node->opcode() == IrOpcode::kSpeculativeNumberSubtract
+                    ? CheckForMinusZeroMode::kDontCheckForMinusZero
+                    : CheckForMinusZeroMode::kCheckForMinusZero);
+      VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
+                 Type::Signed32());
       if (lower()) ChangeToInt32OverflowOp(node);
       return;
     }

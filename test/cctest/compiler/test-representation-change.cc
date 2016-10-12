@@ -443,19 +443,31 @@ TEST(ToUint32_constant) {
 }
 
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
-                        Type* from_type, MachineRepresentation to) {
+                        Type* from_type, UseInfo use_info) {
   RepresentationChangerTester r;
 
   Node* n = r.Parameter();
   Node* use = r.Return(n);
-  Node* c = r.changer()->GetRepresentationFor(n, from, from_type, use,
-                                              UseInfo(to, Truncation::None()));
+  Node* c =
+      r.changer()->GetRepresentationFor(n, from, from_type, use, use_info);
 
   CHECK_NE(c, n);
   CHECK_EQ(expected, c->opcode());
   CHECK_EQ(n, c->InputAt(0));
+
+  if (expected == IrOpcode::kCheckedFloat64ToInt32) {
+    CheckForMinusZeroMode mode =
+        from_type->Maybe(Type::MinusZero())
+            ? use_info.minus_zero_check()
+            : CheckForMinusZeroMode::kDontCheckForMinusZero;
+    CHECK_EQ(mode, CheckMinusZeroModeOf(c->op()));
+  }
 }
 
+static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
+                        Type* from_type, MachineRepresentation to) {
+  CheckChange(expected, from, from_type, UseInfo(to, Truncation::None()));
+}
 
 static void CheckTwoChanges(IrOpcode::Value expected2,
                             IrOpcode::Value expected1,
@@ -604,6 +616,32 @@ TEST(SignednessInWord32) {
                   MachineRepresentation::kWord32);
 }
 
+static void TestMinusZeroCheck(IrOpcode::Value expected, Type* from_type) {
+  RepresentationChangerTester r;
+
+  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
+              UseInfo::CheckedSignedSmallAsWord32(
+                  CheckForMinusZeroMode::kCheckForMinusZero));
+
+  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
+              UseInfo::CheckedSignedSmallAsWord32(
+                  CheckForMinusZeroMode::kDontCheckForMinusZero));
+
+  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
+              UseInfo::CheckedSigned32AsWord32(
+                  CheckForMinusZeroMode::kCheckForMinusZero));
+
+  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
+              UseInfo::CheckedSigned32AsWord32(
+                  CheckForMinusZeroMode::kDontCheckForMinusZero));
+}
+
+TEST(MinusZeroCheck) {
+  TestMinusZeroCheck(IrOpcode::kCheckedFloat64ToInt32, Type::NumberOrOddball());
+  // PlainNumber cannot be minus zero so the minus zero check should be
+  // eliminated.
+  TestMinusZeroCheck(IrOpcode::kCheckedFloat64ToInt32, Type::PlainNumber());
+}
 
 TEST(Nops) {
   RepresentationChangerTester r;

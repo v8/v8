@@ -108,7 +108,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
 //
 // 1. During propagation, the use info is used to inform the input node
 //    about what part of the input is used (we call this truncation) and what
-//    is the preferred representation.
+//    is the preferred representation. For conversions that will require
+//    checks, we also keep track of whether a minus zero check is needed.
 //
 // 2. During lowering, the use info is used to properly convert the input
 //    to the preferred representation. The preferred representation might be
@@ -117,10 +118,13 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
 class UseInfo {
  public:
   UseInfo(MachineRepresentation representation, Truncation truncation,
-          TypeCheckKind type_check = TypeCheckKind::kNone)
+          TypeCheckKind type_check = TypeCheckKind::kNone,
+          CheckForMinusZeroMode minus_zero_check =
+              CheckForMinusZeroMode::kCheckForMinusZero)
       : representation_(representation),
         truncation_(truncation),
-        type_check_(type_check) {}
+        type_check_(type_check),
+        minus_zero_check_(minus_zero_check) {}
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
@@ -154,13 +158,17 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
                    TypeCheckKind::kSignedSmall);
   }
-  static UseInfo CheckedSignedSmallAsWord32() {
+  static UseInfo CheckedSignedSmallAsWord32(
+      CheckForMinusZeroMode minus_zero_mode =
+          CheckForMinusZeroMode::kCheckForMinusZero) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSignedSmall);
+                   TypeCheckKind::kSignedSmall, minus_zero_mode);
   }
-  static UseInfo CheckedSigned32AsWord32() {
+  static UseInfo CheckedSigned32AsWord32(
+      CheckForMinusZeroMode minus_zero_mode =
+          CheckForMinusZeroMode::kCheckForMinusZero) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSigned32);
+                   TypeCheckKind::kSigned32, minus_zero_mode);
   }
   static UseInfo CheckedNumberAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),
@@ -195,11 +203,14 @@ class UseInfo {
   MachineRepresentation representation() const { return representation_; }
   Truncation truncation() const { return truncation_; }
   TypeCheckKind type_check() const { return type_check_; }
+  CheckForMinusZeroMode minus_zero_check() const { return minus_zero_check_; }
 
  private:
   MachineRepresentation representation_;
   Truncation truncation_;
   TypeCheckKind type_check_;
+  // TODO(jarin) Integrate with truncations.
+  CheckForMinusZeroMode minus_zero_check_;
 };
 
 // Contains logic related to changing the representation of values for constants
