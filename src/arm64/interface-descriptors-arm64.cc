@@ -46,10 +46,6 @@ const Register StoreTransitionDescriptor::SlotRegister() { return x4; }
 const Register StoreTransitionDescriptor::VectorRegister() { return x3; }
 const Register StoreTransitionDescriptor::MapRegister() { return x5; }
 
-const Register StoreGlobalViaContextDescriptor::SlotRegister() { return x2; }
-const Register StoreGlobalViaContextDescriptor::ValueRegister() { return x0; }
-
-
 const Register StringCompareDescriptor::LeftRegister() { return x1; }
 const Register StringCompareDescriptor::RightRegister() { return x0; }
 

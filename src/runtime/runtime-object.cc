@@ -277,64 +277,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
 }
 
 
-namespace {
-
-Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
-                              LanguageMode language_mode) {
-  // Go up context chain to the script context.
-  Handle<Context> script_context(isolate->context()->script_context(), isolate);
-  DCHECK(script_context->IsScriptContext());
-  DCHECK(script_context->get(slot)->IsPropertyCell());
-
-  // Lookup the named property on the global object.
-  Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
-  Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
-  Handle<JSGlobalObject> global_object(script_context->global_object(),
-                                       isolate);
-  LookupIterator it(global_object, name, global_object, LookupIterator::OWN);
-
-  // Switch to fast mode only if there is a data property and it's not on
-  // a hidden prototype.
-  if (it.state() == LookupIterator::DATA &&
-      it.GetHolder<Object>().is_identical_to(global_object)) {
-    // Now update cell in the script context.
-    Handle<PropertyCell> cell = it.GetPropertyCell();
-    script_context->set(slot, *cell);
-  } else {
-    // This is not a fast case, so keep this access in a slow mode.
-    // Store empty_property_cell here to release the outdated property cell.
-    script_context->set(slot, isolate->heap()->empty_property_cell());
-  }
-
-  MAYBE_RETURN(Object::SetProperty(&it, value, language_mode,
-                                   Object::CERTAINLY_NOT_STORE_FROM_KEYED),
-               isolate->heap()->exception());
-  return *value;
-}
-
-}  // namespace
-
-
-RUNTIME_FUNCTION(Runtime_StoreGlobalViaContext_Sloppy) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  return StoreGlobalViaContext(isolate, slot, value, SLOPPY);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StoreGlobalViaContext_Strict) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  return StoreGlobalViaContext(isolate, slot, value, STRICT);
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

@@ -382,8 +382,6 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
   F(KeyedGetProperty, 2, 1)                          \
-  F(StoreGlobalViaContext_Sloppy, 2, 1)              \
-  F(StoreGlobalViaContext_Strict, 2, 1)              \
   F(AddNamedProperty, 4, 1)                          \
   F(SetProperty, 4, 1)                               \
   F(AddElement, 3, 1)                                \

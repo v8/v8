@@ -84,7 +84,6 @@ class ObjectLiteral;
   V(ToBooleanIC)                              \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
-  V(StoreGlobalViaContext)                    \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
   V(AllocateFloat32x4)                        \
@@ -1469,33 +1468,6 @@ class StoreGlobalStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreGlobal, TurboFanCodeStub);
-};
-
-// TODO(ishell): remove, once StoreGlobalIC is implemented.
-class StoreGlobalViaContextStub final : public PlatformCodeStub {
- public:
-  static const int kMaximumDepth = 15;
-
-  StoreGlobalViaContextStub(Isolate* isolate, int depth,
-                            LanguageMode language_mode)
-      : PlatformCodeStub(isolate) {
-    minor_key_ =
-        DepthBits::encode(depth) | LanguageModeBits::encode(language_mode);
-  }
-
-  int depth() const { return DepthBits::decode(minor_key_); }
-  LanguageMode language_mode() const {
-    return LanguageModeBits::decode(minor_key_);
-  }
-
- private:
-  class DepthBits : public BitField<int, 0, 4> {};
-  STATIC_ASSERT(DepthBits::kMax == kMaximumDepth);
-  class LanguageModeBits : public BitField<LanguageMode, 4, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 2);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreGlobalViaContext);
-  DEFINE_PLATFORM_CODE_STUB(StoreGlobalViaContext, PlatformCodeStub);
 };
 
 class CallApiCallbackStub : public PlatformCodeStub {
