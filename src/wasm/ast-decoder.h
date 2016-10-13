@@ -234,7 +234,7 @@ struct BranchTableOperand {
 class BranchTableIterator {
  public:
   unsigned cur_index() { return index_; }
-  bool has_next() { return index_ <= table_count_; }
+  bool has_next() { return decoder_->ok() && index_ <= table_count_; }
   uint32_t next() {
     DCHECK(has_next());
     index_++;
