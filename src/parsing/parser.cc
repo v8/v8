@@ -791,9 +791,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     DCHECK_NOT_NULL(outer);
     parsing_module_ = info->is_module();
     if (info->is_eval()) {
-      if (!outer->is_script_scope() || is_strict(info->language_mode())) {
-        parsing_mode = PARSE_EAGERLY;
-      }
       outer = NewEvalScope(outer);
     } else if (parsing_module_) {
       DCHECK_EQ(outer, info->script_scope());

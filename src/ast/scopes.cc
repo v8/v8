@@ -1119,7 +1119,9 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables() const {
   // inner scopes to find out how to allocate variables on the block scope. At
   // this point, declarations may not have yet been parsed.
   for (const Scope* s = this; s != nullptr; s = s->outer_scope_) {
-    if (s->is_block_scope() || s->is_function_scope()) return false;
+    if (s->is_block_scope()) return false;
+    if (s->is_function_scope()) return false;
+    if (s->is_eval_scope() && is_strict(s->language_mode())) return false;
   }
   return true;
 }
