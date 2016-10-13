@@ -40,8 +40,7 @@ class CancelableTaskManager {
   bool TryAbort(uint32_t id);
 
   // Cancels all remaining registered tasks and waits for tasks that are
-  // already running. After this function is called all subsequent new tasks
-  // will be cancelled on creation.
+  // already running.
   void CancelAndWait();
 
  private:
@@ -59,8 +58,6 @@ class CancelableTaskManager {
   // well as waiting for background tasks on {CancelAndWait}.
   base::ConditionVariable cancelable_tasks_barrier_;
   base::Mutex mutex_;
-
-  bool canceled_;
 
   friend class Cancelable;
 
