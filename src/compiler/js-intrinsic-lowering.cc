@@ -314,14 +314,27 @@ Reduction JSIntrinsicLowering::ReduceNewObject(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
-  Node* active_function = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* active_function_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       active_function, effect, control);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
-                active_function_map, effect, control);
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  // The prototype of subclass constructors is non-writable, non-configurable
+  // in ES6, so we don't need to do any checking, but we can just load (or even
+  // constant-fold) the prototype from the {target}.
+  HeapObjectMatcher m(target);
+  if (m.HasValue()) {
+    Handle<JSFunction> target_function = Handle<JSFunction>::cast(m.Value());
+    Node* value = jsgraph()->HeapConstant(handle(
+        JSFunction::cast(target_function->map()->prototype()), isolate()));
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  } else {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* target_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         target, effect, control);
+    return Change(node,
+                  simplified()->LoadField(AccessBuilder::ForMapPrototype()),
+                  target_map, effect, control);
+  }
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
