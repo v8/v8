@@ -40,8 +40,7 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->set_hash_seed(isolate->heap()->HashSeed());
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_compile_options(options);
-  // Parse eagerly with ignition since we will compile eagerly.
-  info->set_allow_lazy_parsing(!(i::FLAG_ignition && i::FLAG_ignition_eager));
+  info->set_allow_lazy_parsing();
 
   source_->info->set_cached_data(&script_data_);
   // Parser needs to stay alive for finalizing the parsing on the main
