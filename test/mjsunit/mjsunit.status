@@ -177,6 +177,9 @@
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
+  # Allocates a large array buffer, which TSAN sometimes cannot handle.
+  'regress/regress-599717': [PASS, ['tsan', SKIP]],
+
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
