@@ -2182,6 +2182,8 @@ void Isolate::ClearSerializerData() {
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
 
+  cancelable_task_manager()->CancelAndWait();
+
   debug()->Unload();
 
   FreeThreadResources();
@@ -2231,8 +2233,6 @@ void Isolate::Deinit() {
 
   delete interpreter_;
   interpreter_ = NULL;
-
-  cancelable_task_manager()->CancelAndWait();
 
   delete cpu_profiler_;
   cpu_profiler_ = NULL;

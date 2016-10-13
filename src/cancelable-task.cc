@@ -26,14 +26,20 @@ Cancelable::~Cancelable() {
   }
 }
 
-CancelableTaskManager::CancelableTaskManager() : task_id_counter_(0) {}
+CancelableTaskManager::CancelableTaskManager()
+    : task_id_counter_(0), canceled_(false) {}
 
 uint32_t CancelableTaskManager::Register(Cancelable* task) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   uint32_t id = ++task_id_counter_;
   // The loop below is just used when task_id_counter_ overflows.
   while (cancelable_tasks_.count(id) > 0) ++id;
-  cancelable_tasks_[id] = task;
+  if (canceled_) {
+    bool successfully_canceled_task = task->Cancel();
+    CHECK(successfully_canceled_task);
+  } else {
+    cancelable_tasks_[id] = task;
+  }
   return id;
 }
 
@@ -69,6 +75,7 @@ void CancelableTaskManager::CancelAndWait() {
   // of canceling we wait for the background tasks that have already been
   // started.
   base::LockGuard<base::Mutex> guard(&mutex_);
+  canceled_ = true;
 
   // Cancelable tasks could be running or could potentially register new
   // tasks, requiring a loop here.
