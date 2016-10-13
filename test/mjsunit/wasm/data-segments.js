@@ -19,7 +19,7 @@ function SimpleDataSegmentTest(offset) {
   builder.addDataSegment(offset, [9, 9, 9, 9]);
 
   var buffer = builder.toBuffer(debug);
-  var instance = Wasm.instantiateModule(buffer);
+  var instance = new WebAssembly.Instance(new WebAssembly.Module(buffer));
   for (var i = offset - 20; i < offset + 20; i += 4) {
     if (i < 0) continue;
     var expected = (i == offset) ? 151587081 : 0;
@@ -44,7 +44,7 @@ function GlobalInitTest(offset) {
   builder.addDataSegment(g.index, [7, 7, 7, 7], true);
 
   var buffer = builder.toBuffer(debug);
-  var instance = Wasm.instantiateModule(buffer);
+  var instance = new WebAssembly.Instance(new WebAssembly.Module(buffer));
   for (var i = offset - 20; i < offset + 20; i += 4) {
     if (i < 0) continue;
     var expected = i == offset ? 117901063 : 0;

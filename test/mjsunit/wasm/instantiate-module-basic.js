@@ -52,9 +52,6 @@ function CheckInstance(instance) {
   assertEquals(kReturnValue, main());
 }
 
-// Deprecated experimental API.
-CheckInstance(Wasm.instantiateModule(buffer));
-
 // Official API
 let module = new WebAssembly.Module(buffer);
 CheckInstance(new WebAssembly.Instance(module));
