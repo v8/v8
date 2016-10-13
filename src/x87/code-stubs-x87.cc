@@ -1258,6 +1258,7 @@ static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
 }
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
+  // eax - number of arguments
   // edi - function
   // edx - slot id
   // ebx - vector
@@ -1265,7 +1266,6 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ cmp(edi, ecx);
   __ j(not_equal, miss);
 
-  __ mov(eax, arg_count());
   // Reload ecx.
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
@@ -1283,13 +1283,12 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
 
 void CallICStub::Generate(MacroAssembler* masm) {
+  // edi - number of arguments
   // edi - function
   // edx - slot id
   // ebx - vector
   Isolate* isolate = masm->isolate();
   Label extra_checks_or_miss, call, call_function, call_count_incremented;
-  int argc = arg_count();
-  ParameterCount actual(argc);
 
   // The checks. First, does edi match the recorded monomorphic target?
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -1321,7 +1320,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Increment the call count for monomorphic function calls.
   IncrementCallCount(masm, ebx, edx);
 
-  __ Set(eax, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1367,7 +1365,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ bind(&call_count_incremented);
 
-  __ Set(eax, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
@@ -1393,12 +1390,15 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Store the function. Use a stub since we need a frame for allocation.
+  // eax - number of arguments
   // ebx - vector
   // edx - slot
   // edi - function
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(isolate);
+    __ SmiTag(eax);
+    __ push(eax);
     __ push(ebx);
     __ push(edx);
     __ push(edi);
@@ -1408,6 +1408,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ pop(edi);
     __ pop(edx);
     __ pop(ebx);
+    __ pop(eax);
+    __ SmiUntag(eax);
   }
 
   __ jmp(&call_function);
@@ -1427,6 +1429,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
+  // Preserve the number of arguments.
+  __ SmiTag(eax);
+  __ push(eax);
+
   // Push the function and feedback info.
   __ push(edi);
   __ push(ebx);
@@ -1437,6 +1443,10 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 
   // Move result to edi and exit the internal frame.
   __ mov(edi, eax);
+
+  // Restore number of arguments.
+  __ pop(eax);
+  __ SmiUntag(eax);
 }
 
 
