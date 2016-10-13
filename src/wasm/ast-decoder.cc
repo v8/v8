@@ -1440,9 +1440,13 @@ class WasmFullDecoder : public WasmDecoder {
               WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
         return;
       }
-      old.node =
-          first ? val.node : CreateOrMergeIntoPhi(old.type, target->control,
-                                                  old.node, val.node);
+      if (builder_) {
+        old.node =
+            first ? val.node : CreateOrMergeIntoPhi(old.type, target->control,
+                                                    old.node, val.node);
+      } else {
+        old.node = nullptr;
+      }
     }
   }
 
@@ -1599,6 +1603,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   TFNode* CreateOrMergeIntoPhi(LocalType type, TFNode* merge, TFNode* tnode,
                                TFNode* fnode) {
+    DCHECK_NOT_NULL(builder_);
     if (builder_->IsPhiWithMerge(tnode, merge)) {
       builder_->AppendToPhi(tnode, fnode);
     } else if (tnode != fnode) {
