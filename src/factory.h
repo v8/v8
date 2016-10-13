@@ -530,6 +530,9 @@ class Factory final {
   Handle<JSMapIterator> NewJSMapIterator();
   Handle<JSSetIterator> NewJSSetIterator();
 
+  Handle<JSFixedArrayIterator> NewJSFixedArrayIterator(
+      Handle<FixedArray> array);
+
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       Handle<JSReceiver> target_function, Handle<Object> bound_this,

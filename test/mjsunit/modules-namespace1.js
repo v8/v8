@@ -22,9 +22,8 @@ assertSame(null, Reflect.getPrototypeOf(foo));
 assertTrue(Reflect.setPrototypeOf(foo, null));
 assertFalse(Reflect.setPrototypeOf(foo, {}));
 assertSame(null, Reflect.getPrototypeOf(foo));
-// TODO(neis): The next one should include @@iterator at the end.
 assertEquals(
-    ["bla", "foo_again", "yo", Symbol.toStringTag],
+    ["bla", "foo_again", "yo", Symbol.toStringTag, Symbol.iterator],
     Reflect.ownKeys(foo));
 
 // Its "yo" property.
@@ -52,13 +51,39 @@ assertEquals(
     {value: "Module", configurable: true, writable: false, enumerable: false},
     Reflect.getOwnPropertyDescriptor(foo, Symbol.toStringTag));
 
-// TODO(neis): Its @@iterator property.
-// assertTrue(Reflect.has(foo, Symbol.iterator));
-// assertEquals("function", typeof Reflect.get(foo, Symbol.iterator));
-// assertEquals(["bla", "yo"], [...foo]);
-// assertThrows(() => (42, foo[Symbol.iterator])(), TypeError);
-// assertSame(foo[Symbol.iterator]().__proto__,
-//     ([][Symbol.iterator]()).__proto__.__proto__);
+// Its @@iterator property.
+assertTrue(Reflect.has(foo, Symbol.iterator));
+assertEquals("function", typeof Reflect.get(foo, Symbol.iterator));
+assertEquals("[Symbol.iterator]", foo[Symbol.iterator].name);
+assertEquals(0, foo[Symbol.iterator].length);
+assertSame(Function.prototype, foo[Symbol.iterator].__proto__);
+assertEquals(
+    {value: foo[Symbol.iterator],
+     configurable: true, writable: true, enumerable: false},
+    Reflect.getOwnPropertyDescriptor(foo, Symbol.iterator));
+assertEquals(["bla", "foo_again", "yo"], [...foo]);
+assertThrows(() => (42, foo[Symbol.iterator])(), TypeError);
+{
+  let it = foo[Symbol.iterator]();
+  assertSame(it.__proto__, ([][Symbol.iterator]()).__proto__.__proto__);
+  assertEquals(["next"], Reflect.ownKeys(it));
+  assertEquals(
+      {value: it.next, configurable: true, writable: true, enumerable: false},
+      Reflect.getOwnPropertyDescriptor(it, "next"));
+  assertEquals("function", typeof it.next);
+  assertEquals("next", it.next.name);
+  assertEquals(0, it.next.length);
+  assertSame(Function.prototype, it.next.__proto__);
+  assertFalse(it === foo[Symbol.iterator]());
+  assertFalse(it.next === foo[Symbol.iterator]().next);
+  assertThrows(() => (42, it.next)(), TypeError);
+  assertThrows(() => it.next.call(foo[Symbol.iterator]()), TypeError);
+  let next = it.next;
+  assertEquals(42, (it.next = 42, it.next));
+  assertEquals(43, (it.bla = 43, it.bla));
+  assertTrue(delete it.next);
+  assertThrows(() => next.call(foo[Symbol.iterator]()), TypeError);
+}
 
 // TODO(neis): Clarify spec w.r.t. other symbols.
 
@@ -74,7 +99,7 @@ for (let key of nonexistant) {
 }
 
 // The actual star import that we are testing. Namespace imports are
-// initialized before evaluation
+// initialized before evaluation.
 import * as foo from "modules-namespace1.js";
 
 // There can be only one namespace object.

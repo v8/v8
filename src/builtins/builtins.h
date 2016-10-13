@@ -666,7 +666,10 @@ namespace internal {
   /* ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset */            \
   TFJ(TypedArrayPrototypeByteOffset, 1)                                       \
   /* ES6 section 22.2.3.18 get %TypedArray%.prototype.length */               \
-  TFJ(TypedArrayPrototypeLength, 1)
+  TFJ(TypedArrayPrototypeLength, 1)                                           \
+                                                                              \
+  CPP(ModuleNamespaceIterator)                                                \
+  CPP(FixedArrayIteratorNext)
 
 #define IGNORE_BUILTIN(...)
 

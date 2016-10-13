@@ -193,6 +193,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayPrint(os);
       break;
+    case JS_FIXED_ARRAY_ITERATOR_TYPE:
+      JSFixedArrayIterator::cast(this)->JSFixedArrayIteratorPrint(os);
+      break;
     case JS_DATA_VIEW_TYPE:
       JSDataView::cast(this)->JSDataViewPrint(os);
       break;
@@ -949,6 +952,14 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this, !WasNeutered());
 }
 
+void JSFixedArrayIterator::JSFixedArrayIteratorPrint(
+    std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSFixedArrayIterator");
+  os << "\n - array = " << Brief(array());
+  os << "\n - index = " << index();
+  os << "\n - initial_next = " << Brief(initial_next());
+  JSObjectPrintBody(os, this);
+}
 
 void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDataView");

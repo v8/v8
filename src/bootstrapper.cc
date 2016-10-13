@@ -2161,18 +2161,27 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<Map> map =
         factory->NewMap(JS_MODULE_NAMESPACE_TYPE, JSModuleNamespace::kSize);
     Map::SetPrototype(map, isolate->factory()->null_value());
+    Map::EnsureDescriptorSlack(map, 2);
     native_context()->set_js_module_namespace_map(*map);
 
-    // Install @@toStringTag.
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    DataConstantDescriptor d(factory->to_string_tag_symbol(),
-                             factory->NewStringFromAsciiChecked("Module"),
-                             attribs);
-    Map::EnsureDescriptorSlack(map, 1);
-    map->AppendDescriptor(&d);
+    {  // Install @@toStringTag.
+      PropertyAttributes attribs =
+          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+      DataConstantDescriptor d(factory->to_string_tag_symbol(),
+                               factory->NewStringFromAsciiChecked("Module"),
+                               attribs);
+      map->AppendDescriptor(&d);
+    }
 
-    // TODO(neis): Implement and install @@iterator.
+    {  // Install @@iterator.
+      Handle<JSFunction> iterator = SimpleCreateFunction(
+          isolate, factory->NewStringFromAsciiChecked("[Symbol.iterator]"),
+          Builtins::kModuleNamespaceIterator, 0, true);
+      iterator->shared()->set_native(true);
+      // TODO(neis): Is this really supposed to be writable?
+      DataConstantDescriptor d(factory->iterator_symbol(), iterator, DONT_ENUM);
+      map->AppendDescriptor(&d);
+    }
   }
 
   {  // -- I t e r a t o r R e s u l t
@@ -2780,6 +2789,25 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         *generator_function_function);
     native_context->strict_generator_function_map()->SetConstructor(
         *generator_function_function);
+  }
+
+  {  // -- F i x e d A r r a y I t e r a t o r
+    int size = JSFixedArrayIterator::kHeaderSize +
+               JSFixedArrayIterator::kInObjectPropertyCount * kPointerSize;
+    Handle<Map> map = factory->NewMap(JS_FIXED_ARRAY_ITERATOR_TYPE, size);
+    Map::SetPrototype(map, iterator_prototype);
+    Map::EnsureDescriptorSlack(map,
+                               JSFixedArrayIterator::kInObjectPropertyCount);
+    map->SetInObjectProperties(JSFixedArrayIterator::kInObjectPropertyCount);
+    map->SetConstructor(native_context->object_function());
+
+    {  // next
+      DataDescriptor d(factory->next_string(), JSFixedArrayIterator::kNextIndex,
+                       DONT_ENUM, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+
+    native_context->set_fixed_array_iterator_map(*map);
   }
 
   {  // -- S e t I t e r a t o r

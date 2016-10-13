@@ -72,6 +72,7 @@
 //           - JSDate
 //         - JSMessageObject
 //         - JSModuleNamespace
+//         - JSFixedArrayIterator
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -421,6 +422,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
   V(JS_MODULE_NAMESPACE_TYPE)                                   \
+  V(JS_FIXED_ARRAY_ITERATOR_TYPE)                               \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
   V(JS_GLOBAL_PROXY_TYPE)                                       \
   V(JS_API_OBJECT_TYPE)                                         \
@@ -727,6 +729,7 @@ enum InstanceType {
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,
   JS_MODULE_NAMESPACE_TYPE,
+  JS_FIXED_ARRAY_ITERATOR_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_TYPED_ARRAY_TYPE,
@@ -982,6 +985,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
   V(JSModuleNamespace)           \
+  V(JSFixedArrayIterator)        \
   V(Map)                         \
   V(DescriptorArray)             \
   V(FrameArray)                  \
@@ -10453,6 +10457,37 @@ class JSStringIterator : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
+};
+
+// A JS iterator over the elements of a FixedArray.
+// This corresponds to ListIterator in ecma262/#sec-createlistiterator.
+class JSFixedArrayIterator : public JSObject {
+ public:
+  DECLARE_CAST(JSFixedArrayIterator)
+  DECLARE_PRINTER(JSFixedArrayIterator)
+  DECLARE_VERIFIER(JSFixedArrayIterator)
+
+  // The array over which the iterator iterates.
+  DECL_ACCESSORS(array, FixedArray)
+
+  // The index of the array element that will be returned next.
+  DECL_INT_ACCESSORS(index)
+
+  // The initial value of the object's "next" property.
+  DECL_ACCESSORS(initial_next, JSFunction)
+
+  static const int kArrayOffset = JSObject::kHeaderSize;
+  static const int kIndexOffset = kArrayOffset + kPointerSize;
+  static const int kNextOffset = kIndexOffset + kPointerSize;
+  static const int kHeaderSize = kNextOffset + kPointerSize;
+
+  enum InObjectPropertyIndex {
+    kNextIndex,
+    kInObjectPropertyCount  // Dummy.
+  };
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSFixedArrayIterator);
 };
 
 // OrderedHashTableIterator is an iterator that iterates over the keys and

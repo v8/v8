@@ -2625,5 +2625,26 @@ void Factory::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   }
 }
 
+Handle<JSFixedArrayIterator> Factory::NewJSFixedArrayIterator(
+    Handle<FixedArray> array) {
+  // Create the "next" function (must be unique per iterator object).
+  Handle<Code> code(
+      isolate()->builtins()->builtin(Builtins::kFixedArrayIteratorNext));
+  // TODO(neis): Don't create a new SharedFunctionInfo each time.
+  Handle<JSFunction> next = isolate()->factory()->NewFunctionWithoutPrototype(
+      isolate()->factory()->next_string(), code, false);
+  next->shared()->set_native(true);
+
+  // Create the iterator.
+  Handle<Map> map(isolate()->native_context()->fixed_array_iterator_map());
+  Handle<JSFixedArrayIterator> iterator =
+      Handle<JSFixedArrayIterator>::cast(NewJSObjectFromMap(map));
+  iterator->set_initial_next(*next);
+  iterator->set_array(*array);
+  iterator->set_index(0);
+  iterator->InObjectPropertyAtPut(JSFixedArrayIterator::kNextIndex, *next);
+  return iterator;
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -143,6 +143,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_MODULE_NAMESPACE_TYPE:
       JSModuleNamespace::cast(this)->JSModuleNamespaceVerify();
       break;
+    case JS_FIXED_ARRAY_ITERATOR_TYPE:
+      JSFixedArrayIterator::cast(this)->JSFixedArrayIteratorVerify();
+      break;
     case JS_SET_TYPE:
       JSSet::cast(this)->JSSetVerify();
       break;
@@ -941,6 +944,16 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
   module()->ObjectVerify();
+}
+
+void JSFixedArrayIterator::JSFixedArrayIteratorVerify() {
+  CHECK(IsJSFixedArrayIterator());
+
+  CHECK(array()->IsFixedArray());
+  VerifySmiField(kIndexOffset);
+  CHECK(initial_next()->IsJSFunction());
+
+  CHECK_LE(index(), array()->length());
 }
 
 void Module::ModuleVerify() {

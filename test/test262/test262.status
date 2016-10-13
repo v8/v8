@@ -644,15 +644,12 @@
   # v8:5487
   'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
 
-  # @@iterator on namespace objects, to be implemented
-  'language/module-code/namespace/internals/define-own-property': [FAIL],
-  'language/module-code/namespace/internals/get-own-property-sym': [FAIL],
-  'language/module-code/namespace/internals/get-sym-found': [FAIL],
-  'language/module-code/namespace/internals/has-property-sym-found': [FAIL],
-  'language/module-code/namespace/internals/own-property-keys-binding-types': [FAIL],
-  'language/module-code/namespace/internals/own-property-keys-sort': [FAIL],
+  # v8:5401
   'language/module-code/namespace/internals/set': [FAIL],
-  'language/module-code/namespace/Symbol.iterator/*': [FAIL],
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
+
+  # https://github.com/tc39/test262/issues/773
+  'language/module-code/namespace/Symbol.iterator/values-binding-types_': [SKIP],
 }],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]
