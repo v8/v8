@@ -15,23 +15,6 @@ namespace v8 {
 namespace internal {
 
 template <PointerDirection direction>
-void RememberedSet<direction>::ClearInvalidSlots(Heap* heap,
-                                                 MemoryChunk* chunk) {
-  STATIC_ASSERT(direction == OLD_TO_NEW);
-  DCHECK(chunk->owner()->identity() == OLD_SPACE ||
-         chunk->owner()->identity() == MAP_SPACE);
-  SlotSet* slots = GetSlotSet(chunk);
-  if (slots != nullptr) {
-    slots->Iterate(
-        [heap, chunk](Address addr) {
-          Object** slot = reinterpret_cast<Object**>(addr);
-          return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
-        },
-        SlotSet::KEEP_EMPTY_BUCKETS);
-  }
-}
-
-template <PointerDirection direction>
 void RememberedSet<direction>::ClearInvalidTypedSlots(Heap* heap,
                                                       MemoryChunk* chunk) {
   STATIC_ASSERT(direction == OLD_TO_NEW);
@@ -60,8 +43,6 @@ bool RememberedSet<direction>::IsValidSlot(Heap* heap, MemoryChunk* chunk,
       chunk, reinterpret_cast<Address>(slot));
 }
 
-template void RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(Heap* heap,
-                                                           MemoryChunk* chunk);
 template void RememberedSet<OLD_TO_NEW>::ClearInvalidTypedSlots(
     Heap* heap, MemoryChunk* chunk);
 

@@ -80,15 +80,6 @@ class SlotSet : public Malloced {
     }
   }
 
-  void PreFreeEmptyBucket(int bucket_index) {
-    base::AtomicValue<uint32_t>* bucket_ptr = bucket[bucket_index].Value();
-    if (bucket_ptr != nullptr) {
-      base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
-      to_be_freed_buckets_.push(bucket_ptr);
-      bucket[bucket_index].SetValue(nullptr);
-    }
-  }
-
   // The slot offsets specify a range of slots at addresses:
   // [page_start_ + start_offset ... page_start_ + end_offset).
   void RemoveRange(int start_offset, int end_offset, EmptyBucketMode mode) {
@@ -108,12 +99,10 @@ class SlotSet : public Malloced {
     int current_cell = start_cell;
     ClearCell(current_bucket, current_cell, ~start_mask);
     current_cell++;
+    base::AtomicValue<uint32_t>* bucket_ptr = bucket[current_bucket].Value();
     if (current_bucket < end_bucket) {
-      if (bucket[current_bucket].Value() != nullptr) {
-        while (current_cell < kCellsPerBucket) {
-          bucket[current_bucket].Value()[current_cell].SetValue(0);
-          current_cell++;
-        }
+      if (bucket_ptr != nullptr) {
+        ClearBucket(bucket_ptr, current_cell, kCellsPerBucket);
       }
       // The rest of the current bucket is cleared.
       // Move on to the next bucket.
@@ -127,17 +116,23 @@ class SlotSet : public Malloced {
         PreFreeEmptyBucket(current_bucket);
       } else if (mode == FREE_EMPTY_BUCKETS) {
         ReleaseBucket(current_bucket);
+      } else {
+        DCHECK(mode == KEEP_EMPTY_BUCKETS);
+        bucket_ptr = bucket[current_bucket].Value();
+        if (bucket_ptr) {
+          ClearBucket(bucket_ptr, 0, kCellsPerBucket);
+        }
       }
       current_bucket++;
     }
     // All buckets between start_bucket and end_bucket are cleared.
+    bucket_ptr = bucket[current_bucket].Value();
     DCHECK(current_bucket == end_bucket && current_cell <= end_cell);
-    if (current_bucket == kBuckets ||
-        bucket[current_bucket].Value() == nullptr) {
+    if (current_bucket == kBuckets || bucket_ptr == nullptr) {
       return;
     }
     while (current_cell < end_cell) {
-      bucket[current_bucket].Value()[current_cell].SetValue(0);
+      bucket_ptr[current_cell].SetValue(0);
       current_cell++;
     }
     // All cells between start_cell and end_cell are cleared.
@@ -240,6 +235,26 @@ class SlotSet : public Malloced {
       result[i].SetValue(0);
     }
     return result;
+  }
+
+  void ClearBucket(base::AtomicValue<uint32_t>* bucket, int start_cell,
+                   int end_cell) {
+    DCHECK_GE(start_cell, 0);
+    DCHECK_LE(end_cell, kCellsPerBucket);
+    int current_cell = start_cell;
+    while (current_cell < kCellsPerBucket) {
+      bucket[current_cell].SetValue(0);
+      current_cell++;
+    }
+  }
+
+  void PreFreeEmptyBucket(int bucket_index) {
+    base::AtomicValue<uint32_t>* bucket_ptr = bucket[bucket_index].Value();
+    if (bucket_ptr != nullptr) {
+      base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+      to_be_freed_buckets_.push(bucket_ptr);
+      bucket[bucket_index].SetValue(nullptr);
+    }
   }
 
   void ReleaseBucket(int bucket_index) {
