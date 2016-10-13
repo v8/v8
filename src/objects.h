@@ -9484,6 +9484,25 @@ class String: public Name {
   static Object* LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                              Handle<Object> search, Handle<Object> position);
 
+  // Encapsulates logic related to a match and its capture groups as required
+  // by GetSubstitution.
+  class Match {
+   public:
+    virtual Handle<String> GetMatch() = 0;
+    virtual MaybeHandle<String> GetCapture(int i, bool* capture_exists) = 0;
+    virtual Handle<String> GetPrefix() = 0;
+    virtual Handle<String> GetSuffix() = 0;
+    virtual int CaptureCount() = 0;
+    virtual ~Match() {}
+  };
+
+  // ES#sec-getsubstitution
+  // GetSubstitution(matched, str, position, captures, replacement)
+  // Expand the $-expressions in the string and return a new string with
+  // the result.
+  MUST_USE_RESULT static MaybeHandle<String> GetSubstitution(
+      Isolate* isolate, Match* match, Handle<String> replacement);
+
   // String equality operations.
   inline bool Equals(String* other);
   inline static bool Equals(Handle<String> one, Handle<String> two);

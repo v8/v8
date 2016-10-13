@@ -78,7 +78,7 @@ bytecodes: [
   /*   15 S> */ B(LdrUndefined), R(0),
                 B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(1),
-                B(CallJSRuntime), U8(145), R(0), U8(2),
+                B(CallJSRuntime), U8(146), R(0), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [

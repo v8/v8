@@ -1700,7 +1700,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->set_instance_class_name(isolate->heap()->RegExp_string());
     shared->DontAdaptArguments();
     shared->set_length(2);
-
     {
       // RegExp.prototype setup.
 
@@ -1748,6 +1747,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       {
         Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.replace]"),
+            Builtins::kRegExpPrototypeReplace, 2, true);
+        InstallFunction(prototype, fun, factory->replace_symbol(), DONT_ENUM);
+      }
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
             isolate, factory->InternalizeUtf8String("[Symbol.search]"),
             Builtins::kRegExpPrototypeSearch, 1, false);
         InstallFunction(prototype, fun, factory->search_symbol(), DONT_ENUM);
@@ -1759,6 +1765,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             Builtins::kRegExpPrototypeSplit, 2, false);
         InstallFunction(prototype, fun, factory->split_symbol(), DONT_ENUM);
       }
+
+      // Store the initial RegExp.prototype map. This is used in fast-path
+      // checks. Do not alter the prototype after this point.
+      isolate->native_context()->set_regexp_prototype_map(prototype->map());
     }
 
     {

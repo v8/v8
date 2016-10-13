@@ -731,3 +731,11 @@ assertEquals(["acbc", "c", "c"], /a(.\2)b(\1)/.exec("aabcacbc"));
 // \u{daff}\u{e000} is not a surrogate pair, while \u{daff}\u{dfff} is.
 assertEquals(["\u{daff}", "\u{e000}"], "\u{daff}\u{e000}".split(/[a-z]{0,1}/u));
 assertEquals(["\u{daff}\u{dfff}"], "\u{daff}\u{dfff}".split(/[a-z]{0,1}/u));
+
+// Test that changing a property on RegExp.prototype results in us taking the
+// slow path, which executes RegExp.prototype.exec instead of our
+// RegExpExecStub.
+const RegExpPrototypeExec = RegExp.prototype.exec;
+RegExp.prototype.exec = function() { throw new Error(); }
+assertThrows(() => "abc".replace(/./, ""));
+RegExp.prototype.exec = RegExpPrototypeExec;

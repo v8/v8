@@ -208,7 +208,6 @@ function PostNatives(utils) {
     "promise_state_symbol",
     "reflect_apply",
     "reflect_construct",
-    "regexp_flags_symbol",
     "to_string_tag_symbol",
     "object_to_string",
     "species_symbol",

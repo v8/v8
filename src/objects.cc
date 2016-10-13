@@ -11652,6 +11652,101 @@ int String::IndexOf(Isolate* isolate, Handle<String> receiver,
                                   start_index);
 }
 
+MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
+                                            Handle<String> replacement) {
+  Factory* factory = isolate->factory();
+
+  const int replacement_length = replacement->length();
+  const int captures_length = match->CaptureCount();
+
+  replacement = String::Flatten(replacement);
+
+  Handle<String> dollar_string =
+      factory->LookupSingleCharacterStringFromCode('$');
+  int next = String::IndexOf(isolate, replacement, dollar_string, 0);
+  if (next < 0) {
+    return replacement;
+  }
+
+  IncrementalStringBuilder builder(isolate);
+
+  if (next > 0) {
+    builder.AppendString(factory->NewSubString(replacement, 0, next));
+  }
+
+  while (true) {
+    int pos = next + 1;
+    if (pos < replacement_length) {
+      const uint16_t peek = replacement->Get(pos);
+      if (peek == '$') {  // $$
+        pos++;
+        builder.AppendCharacter('$');
+      } else if (peek == '&') {  // $& - match
+        pos++;
+        builder.AppendString(match->GetMatch());
+      } else if (peek == '`') {  // $` - prefix
+        pos++;
+        builder.AppendString(match->GetPrefix());
+      } else if (peek == '\'') {  // $' - suffix
+        pos++;
+        builder.AppendString(match->GetSuffix());
+      } else if (peek >= '0' && peek <= '9') {
+        // Valid indices are $1 .. $9, $01 .. $09 and $10 .. $99
+        int scaled_index = (peek - '0');
+        int advance = 1;
+
+        if (pos + 1 < replacement_length) {
+          const uint16_t next_peek = replacement->Get(pos + 1);
+          if (next_peek >= '0' && next_peek <= '9') {
+            const int new_scaled_index = scaled_index * 10 + (next_peek - '0');
+            if (new_scaled_index < captures_length) {
+              scaled_index = new_scaled_index;
+              advance = 2;
+            }
+          }
+        }
+
+        if (scaled_index != 0 && scaled_index < captures_length) {
+          bool capture_exists;
+          Handle<String> capture;
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, capture,
+              match->GetCapture(scaled_index, &capture_exists), String);
+          if (capture_exists) builder.AppendString(capture);
+          pos += advance;
+        } else {
+          builder.AppendCharacter('$');
+        }
+      } else {
+        builder.AppendCharacter('$');
+      }
+    } else {
+      builder.AppendCharacter('$');
+    }
+
+    // Go the the next $ in the replacement.
+    next = String::IndexOf(isolate, replacement, dollar_string, pos);
+
+    // Return if there are no more $ characters in the replacement. If we
+    // haven't reached the end, we need to append the suffix.
+    if (next < 0) {
+      if (pos < replacement_length) {
+        builder.AppendString(
+            factory->NewSubString(replacement, pos, replacement_length));
+      }
+      return builder.Finish();
+    }
+
+    // Append substring between the previous and the next $ character.
+    if (next > pos) {
+      builder.AppendString(factory->NewSubString(replacement, pos, next));
+    }
+  }
+
+  UNREACHABLE();
+  return MaybeHandle<String>();
+}
+
 namespace {  // for String.Prototype.lastIndexOf
 
 template <typename schar, typename pchar>

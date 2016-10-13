@@ -1350,6 +1350,40 @@ Node* CodeStubAssembler::AllocateSlicedTwoByteString(Node* length, Node* parent,
   return result;
 }
 
+Node* CodeStubAssembler::AllocateOneByteConsString(Node* length, Node* first,
+                                                   Node* second) {
+  Node* result = Allocate(ConsString::kSize);
+  Node* map = LoadRoot(Heap::kConsOneByteStringMapRootIndex);
+  StoreMapNoWriteBarrier(result, map);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+                                 Int32Constant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, first,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, second,
+                                 MachineRepresentation::kTagged);
+  return result;
+}
+
+Node* CodeStubAssembler::AllocateTwoByteConsString(Node* length, Node* first,
+                                                   Node* second) {
+  Node* result = Allocate(ConsString::kSize);
+  Node* map = LoadRoot(Heap::kConsStringMapRootIndex);
+  StoreMapNoWriteBarrier(result, map);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+                                 Int32Constant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, first,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, second,
+                                 MachineRepresentation::kTagged);
+  return result;
+}
+
 Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
                                               Node* index, Node* input) {
   Node* const max_length =
@@ -1687,6 +1721,7 @@ void CodeStubAssembler::CopyFixedArrayElements(
 void CodeStubAssembler::CopyStringCharacters(compiler::Node* from_string,
                                              compiler::Node* to_string,
                                              compiler::Node* from_index,
+                                             compiler::Node* to_index,
                                              compiler::Node* character_count,
                                              String::Encoding encoding) {
   Label out(this);
@@ -1704,20 +1739,22 @@ void CodeStubAssembler::CopyStringCharacters(compiler::Node* from_string,
   {
     Node* byte_count = SmiUntag(character_count);
     Node* from_byte_index = SmiUntag(from_index);
+    Node* to_byte_index = SmiUntag(to_index);
     if (encoding == String::ONE_BYTE_ENCODING) {
       const int offset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
       from_offset = IntPtrAdd(IntPtrConstant(offset), from_byte_index);
       limit_offset = IntPtrAdd(from_offset, byte_count);
-      to_offset = IntPtrConstant(offset);
+      to_offset = IntPtrAdd(IntPtrConstant(offset), to_byte_index);
     } else {
       STATIC_ASSERT(2 == sizeof(uc16));
       byte_count = WordShl(byte_count, 1);
       from_byte_index = WordShl(from_byte_index, 1);
+      to_byte_index = WordShl(to_byte_index, 1);
 
       const int offset = SeqTwoByteString::kHeaderSize - kHeapObjectTag;
       from_offset = IntPtrAdd(IntPtrConstant(offset), from_byte_index);
       limit_offset = IntPtrAdd(from_offset, byte_count);
-      to_offset = IntPtrConstant(offset);
+      to_offset = IntPtrAdd(IntPtrConstant(offset), to_byte_index);
     }
   }
 
@@ -2515,6 +2552,8 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   Label end(a), two_byte_sequential(a);
   Variable var_result(a, MachineRepresentation::kTagged);
 
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
+
   STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
   a->GotoIf(a->Word32Equal(a->Word32And(from_instance_type,
                                         a->Int32Constant(kStringEncodingMask)),
@@ -2525,7 +2564,7 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   {
     Node* result =
         a->AllocateSeqOneByteString(context, a->SmiToWord(character_count));
-    a->CopyStringCharacters(from, result, from_index, character_count,
+    a->CopyStringCharacters(from, result, from_index, smi_zero, character_count,
                             String::ONE_BYTE_ENCODING);
     var_result.Bind(result);
 
@@ -2537,7 +2576,7 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   {
     Node* result =
         a->AllocateSeqTwoByteString(context, a->SmiToWord(character_count));
-    a->CopyStringCharacters(from, result, from_index, character_count,
+    a->CopyStringCharacters(from, result, from_index, smi_zero, character_count,
                             String::TWO_BYTE_ENCODING);
     var_result.Bind(result);
 
@@ -2769,6 +2808,146 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   }
 
   Bind(&end);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::StringConcat(Node* context, Node* first,
+                                      Node* second) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  Label out(this), runtime(this, Label::kDeferred);
+
+  // TODO(jgruber): Handle indirect, external, and two-byte strings.
+
+  Node* const one_byte_seq_mask = Int32Constant(
+      kIsIndirectStringMask | kExternalStringTag | kStringEncodingMask);
+  Node* const expected_masked = Int32Constant(kOneByteStringTag);
+
+  Node* const first_instance_type = LoadInstanceType(first);
+  GotoUnless(Word32Equal(Word32And(first_instance_type, one_byte_seq_mask),
+                         expected_masked),
+             &runtime);
+
+  Node* const second_instance_type = LoadInstanceType(second);
+  GotoUnless(Word32Equal(Word32And(second_instance_type, one_byte_seq_mask),
+                         expected_masked),
+             &runtime);
+
+  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const first_length = LoadStringLength(first);
+  Node* const second_length = LoadStringLength(second);
+  Node* const length = SmiAdd(first_length, second_length);
+
+  Label if_makeseqstring(this), if_makeconsstring(this);
+  Node* const min_cons_length =
+      SmiConstant(Smi::FromInt(ConsString::kMinLength));
+  Branch(SmiLessThan(length, min_cons_length), &if_makeseqstring,
+         &if_makeconsstring);
+
+  Bind(&if_makeseqstring);
+  {
+    Node* result = AllocateSeqOneByteString(context, SmiToWord(length));
+
+    CopyStringCharacters(first, result, smi_zero, smi_zero, first_length,
+                         String::ONE_BYTE_ENCODING);
+    CopyStringCharacters(second, result, smi_zero, first_length, second_length,
+                         String::ONE_BYTE_ENCODING);
+
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&if_makeconsstring);
+  {
+    Node* result = AllocateOneByteConsString(length, first, second);
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&runtime);
+  {
+    Node* const result =
+        CallRuntime(Runtime::kStringAdd, context, first, second);
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&out);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
+                                           Node* needle_char, Node* from) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  Label out(this), runtime(this, Label::kDeferred);
+
+  // Let runtime handle non-one-byte {needle_char}.
+
+  Node* const one_byte_char_mask = IntPtrConstant(0xFF);
+  GotoUnless(WordEqual(WordAnd(needle_char, one_byte_char_mask), needle_char),
+             &runtime);
+
+  // TODO(jgruber): Handle external and two-byte strings.
+
+  Node* const one_byte_seq_mask = Int32Constant(
+      kIsIndirectStringMask | kExternalStringTag | kStringEncodingMask);
+  Node* const expected_masked = Int32Constant(kOneByteStringTag);
+
+  Node* const string_instance_type = LoadInstanceType(string);
+  GotoUnless(Word32Equal(Word32And(string_instance_type, one_byte_seq_mask),
+                         expected_masked),
+             &runtime);
+
+  // If we reach this, {string} is a non-indirect, non-external one-byte string.
+
+  Node* const length = LoadStringLength(string);
+  Node* const search_range_length = SmiUntag(SmiSub(length, from));
+
+  const int offset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+  Node* const begin = IntPtrConstant(offset);
+  Node* const cursor = IntPtrAdd(begin, SmiUntag(from));
+  Node* const end = IntPtrAdd(cursor, search_range_length);
+
+  Variable var_cursor(this, MachineType::PointerRepresentation());
+  Variable* vars[] = {&var_cursor};
+  Label loop(this, 1, vars), loop_tail(this);
+
+  var_cursor.Bind(cursor);
+  var_result.Bind(SmiConstant(Smi::FromInt(-1)));
+
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* const cursor = var_cursor.value();
+
+    Node* value = Load(MachineType::Uint8(), string, cursor);
+    GotoUnless(WordEqual(value, needle_char), &loop_tail);
+
+    // Found a match.
+    Node* index = SmiTag(IntPtrSub(cursor, begin));
+    var_result.Bind(index);
+    Goto(&out);
+
+    Bind(&loop_tail);
+    {
+      Node* const new_cursor = IntPtrAdd(cursor, IntPtrConstant(1));
+      var_cursor.Bind(new_cursor);
+      Branch(IntPtrLessThan(new_cursor, end), &loop, &out);
+    }
+  }
+
+  Bind(&runtime);
+  {
+    Node* const pattern = StringFromCharCode(needle_char);
+    Node* const result =
+        CallRuntime(Runtime::kStringIndexOf, context, string, pattern, from);
+    var_result.Bind(result);
+    var_cursor.Bind(IntPtrConstant(0));
+    Goto(&out);
+  }
+
+  Bind(&out);
   return var_result.value();
 }
 

@@ -360,6 +360,19 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                               compiler::Node* parent,
                                               compiler::Node* offset);
 
+  // Allocate a one-byte ConsString with the given length, first and second
+  // parts. |length| is expected to be tagged, and |first| and |second| are
+  // expected to be one-byte strings.
+  compiler::Node* AllocateOneByteConsString(compiler::Node* length,
+                                            compiler::Node* first,
+                                            compiler::Node* second);
+  // Allocate a two-byte ConsString with the given length, first and second
+  // parts. |length| is expected to be tagged, and |first| and |second| are
+  // expected to be two-byte strings.
+  compiler::Node* AllocateTwoByteConsString(compiler::Node* length,
+                                            compiler::Node* first,
+                                            compiler::Node* second);
+
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
   // and input string. |length| and |index| are expected to be tagged, and
@@ -420,12 +433,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode mode = INTEGER_PARAMETERS);
 
   // Copies |character_count| elements from |from_string| to |to_string|
-  // starting at the |from_index|'th character. |from_index| and
-  // |character_count| must be Smis s.t.
-  // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+  // starting at the |from_index|'th character. |from_string| and |to_string|
+  // must be either both one-byte strings or both two-byte strings.
+  // |from_index|, |to_index| and |character_count| must be Smis s.t.
+  // 0 <= |from_index| <= |from_index| + |character_count| <= from_string.length
+  // and
+  // 0 <= |to_index| <= |to_index| + |character_count| <= to_string.length.
   void CopyStringCharacters(compiler::Node* from_string,
                             compiler::Node* to_string,
                             compiler::Node* from_index,
+                            compiler::Node* to_index,
                             compiler::Node* character_count,
                             String::Encoding encoding);
 
@@ -515,6 +532,19 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // [from,to[ of string.  |from| and |to| are expected to be tagged.
   compiler::Node* SubString(compiler::Node* context, compiler::Node* string,
                             compiler::Node* from, compiler::Node* to);
+
+  // Return a new string object produced by concatenating |first| with |second|.
+  compiler::Node* StringConcat(compiler::Node* context, compiler::Node* first,
+                               compiler::Node* second);
+
+  // Return the first index >= {from} at which {needle_char} was found in
+  // {string}, or -1 if such an index does not exist. The returned value is
+  // a Smi, {string} is expected to be a String, {needle_char} is an intptr,
+  // and {from} is expected to be tagged.
+  compiler::Node* StringIndexOfChar(compiler::Node* context,
+                                    compiler::Node* string,
+                                    compiler::Node* needle_char,
+                                    compiler::Node* from);
 
   compiler::Node* StringFromCodePoint(compiler::Node* codepoint,
                                       UnicodeEncoding encoding);
