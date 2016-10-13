@@ -758,7 +758,8 @@ struct GraphBuilderPhase {
 
     if (data->info()->is_optimizing_from_bytecode()) {
       BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
-                                         data->jsgraph(), 1.0f);
+                                         data->jsgraph(), 1.0f,
+                                         data->source_positions());
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(

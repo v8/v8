@@ -72,6 +72,10 @@ class SourcePositionTable final : public ZoneObject {
   SourcePosition GetSourcePosition(Node* node) const;
   void SetSourcePosition(Node* node, SourcePosition position);
 
+  void set_current_position(int position) {
+    current_position_ = SourcePosition(position);
+  }
+
   void Print(std::ostream& os) const;
 
  private:
