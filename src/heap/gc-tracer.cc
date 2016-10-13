@@ -457,19 +457,19 @@ void GCTracer::PrintNVP() const {
           "steps_count=%d "
           "steps_took=%.1f "
           "scavenge_throughput=%.f "
-          "total_size_before=%" V8PRIdPTR
+          "total_size_before=%" PRIuS
           " "
-          "total_size_after=%" V8PRIdPTR
+          "total_size_after=%" PRIuS
           " "
-          "holes_size_before=%" V8PRIdPTR
+          "holes_size_before=%" PRIuS
           " "
-          "holes_size_after=%" V8PRIdPTR
+          "holes_size_after=%" PRIuS
           " "
-          "allocated=%" V8PRIdPTR
+          "allocated=%" PRIuS
           " "
-          "promoted=%" V8PRIdPTR
+          "promoted=%" PRIuS
           " "
-          "semi_space_copied=%" V8PRIdPTR
+          "semi_space_copied=%" PRIuS
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
@@ -569,19 +569,19 @@ void GCTracer::PrintNVP() const {
           "incremental_steps_count=%d "
           "incremental_marking_throughput=%.f "
           "incremental_walltime_duration=%.f "
-          "total_size_before=%" V8PRIdPTR
+          "total_size_before=%" PRIuS
           " "
-          "total_size_after=%" V8PRIdPTR
+          "total_size_after=%" PRIuS
           " "
-          "holes_size_before=%" V8PRIdPTR
+          "holes_size_before=%" PRIuS
           " "
-          "holes_size_after=%" V8PRIdPTR
+          "holes_size_after=%" PRIuS
           " "
-          "allocated=%" V8PRIdPTR
+          "allocated=%" PRIuS
           " "
-          "promoted=%" V8PRIdPTR
+          "promoted=%" PRIuS
           " "
-          "semi_space_copied=%" V8PRIdPTR
+          "semi_space_copied=%" PRIuS
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
