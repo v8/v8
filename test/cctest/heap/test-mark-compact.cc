@@ -415,7 +415,7 @@ static intptr_t MemoryInUse() {
   int fd = open("/proc/self/maps", O_RDONLY);
   if (fd < 0) return -1;
 
-  const int kBufSize = 10000;
+  const int kBufSize = 20000;
   char buffer[kBufSize];
   ssize_t length = read(fd, buffer, kBufSize);
   intptr_t line_start = 0;
