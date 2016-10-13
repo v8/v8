@@ -129,7 +129,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
-      return UseInfo::TruncatingFloat32();
+      return UseInfo::Float32();
     case MachineRepresentation::kWord64:
       return UseInfo::TruncatingWord64();
     case MachineRepresentation::kWord8:

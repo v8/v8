@@ -19,7 +19,6 @@ class Truncation final {
   static Truncation Bool() { return Truncation(TruncationKind::kBool); }
   static Truncation Word32() { return Truncation(TruncationKind::kWord32); }
   static Truncation Word64() { return Truncation(TruncationKind::kWord64); }
-  static Truncation Float32() { return Truncation(TruncationKind::kFloat32); }
   static Truncation Float64() { return Truncation(TruncationKind::kFloat64); }
   static Truncation Any() { return Truncation(TruncationKind::kAny); }
 
@@ -63,7 +62,6 @@ class Truncation final {
     kBool,
     kWord32,
     kWord64,
-    kFloat32,
     kFloat64,
     kAny
   };
@@ -134,8 +132,8 @@ class UseInfo {
   static UseInfo Bool() {
     return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
   }
-  static UseInfo TruncatingFloat32() {
-    return UseInfo(MachineRepresentation::kFloat32, Truncation::Float32());
+  static UseInfo Float32() {
+    return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
   }
   static UseInfo TruncatingFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());

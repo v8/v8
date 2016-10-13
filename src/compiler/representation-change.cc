@@ -24,8 +24,6 @@ const char* Truncation::description() const {
       return "truncate-to-word32";
     case TruncationKind::kWord64:
       return "truncate-to-word64";
-    case TruncationKind::kFloat32:
-      return "truncate-to-float32";
     case TruncationKind::kFloat64:
       return "truncate-to-float64";
     case TruncationKind::kAny:
@@ -42,15 +40,15 @@ const char* Truncation::description() const {
 //     ^            ^
 //     \            |
 //      \         kFloat64  <--+
-//       \        ^    ^       |
-//        \       /    |       |
-//         kWord32  kFloat32  kBool
-//               ^     ^      ^
-//               \     |      /
-//                \    |     /
-//                 \   |    /
-//                  \  |   /
-//                   \ |  /
+//       \        ^            |
+//        \       /            |
+//         kWord32           kBool
+//               ^            ^
+//               \            /
+//                \          /
+//                 \        /
+//                  \      /
+//                   \    /
 //                   kNone
 
 // static
@@ -87,9 +85,6 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
              rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
     case TruncationKind::kWord64:
       return rep2 == TruncationKind::kWord64;
-    case TruncationKind::kFloat32:
-      return rep2 == TruncationKind::kFloat32 ||
-             rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
     case TruncationKind::kFloat64:
       return rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
     case TruncationKind::kAny:
