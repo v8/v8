@@ -9,14 +9,6 @@
 %CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
-// Imports
-
-var GlobalRegExp = global.RegExp;
-var GlobalRegExpPrototype = GlobalRegExp.prototype;
-var RegExpExecJS = GlobalRegExp.prototype.exec;
-var matchSymbol = utils.ImportNow("match_symbol");
-
-// -------------------------------------------------------------------
 
 // Property of the builtins object for recording the result of the last
 // regexp match.  The property RegExpLastMatchInfo includes the matchIndices
@@ -33,52 +25,6 @@ var RegExpLastMatchInfo = {
   CAPTURE0:                  0,
   CAPTURE1:                  0
 };
-
-// -------------------------------------------------------------------
-
-// ES#sec-isregexp IsRegExp ( argument )
-function IsRegExp(o) {
-  if (!IS_RECEIVER(o)) return false;
-  var is_regexp = o[matchSymbol];
-  if (!IS_UNDEFINED(is_regexp)) return TO_BOOLEAN(is_regexp);
-  return IS_REGEXP(o);
-}
-
-
-// ES#sec-regexpinitialize
-// Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
-function RegExpInitialize(object, pattern, flags) {
-  pattern = IS_UNDEFINED(pattern) ? '' : TO_STRING(pattern);
-  flags = IS_UNDEFINED(flags) ? '' : TO_STRING(flags);
-  %RegExpInitializeAndCompile(object, pattern, flags);
-  return object;
-}
-
-
-// This is kind of performance sensitive, so we want to avoid unnecessary
-// type checks on inputs. But we also don't want to inline it several times
-// manually, so we use a macro :-)
-macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
-  var numResults = NUMBER_OF_CAPTURES(MATCHINFO) >> 1;
-  var start = MATCHINFO[CAPTURE0];
-  var end = MATCHINFO[CAPTURE1];
-  // Calculate the substring of the first match before creating the result array
-  // to avoid an unnecessary write barrier storing the first result.
-  var first = %_SubString(STRING, start, end);
-  var result = %_RegExpConstructResult(numResults, start, STRING);
-  result[0] = first;
-  if (numResults == 1) return result;
-  var j = REGEXP_FIRST_CAPTURE + 2;
-  for (var i = 1; i < numResults; i++) {
-    start = MATCHINFO[j++];
-    if (start != -1) {
-      end = MATCHINFO[j];
-      result[i] = %_SubString(STRING, start, end);
-    }
-    j++;
-  }
-  return result;
-endmacro
 
 // ES#sec-getsubstitution
 // GetSubstitution(matched, str, position, captures, replacement)
@@ -170,39 +116,10 @@ function GetSubstitution(matched, string, position, captures, replacement) {
 %InstallToContext(["regexp_last_match_info", RegExpLastMatchInfo]);
 
 // -------------------------------------------------------------------
-// Internal
-
-var InternalRegExpMatchInfo = {
-  REGEXP_NUMBER_OF_CAPTURES: 2,
-  REGEXP_LAST_SUBJECT:       "",
-  REGEXP_LAST_INPUT:         UNDEFINED,
-  CAPTURE0:                  0,
-  CAPTURE1:                  0
-};
-
-function InternalRegExpMatch(regexp, subject) {
-  var matchInfo = %_RegExpExec(regexp, subject, 0, InternalRegExpMatchInfo);
-  if (!IS_NULL(matchInfo)) {
-    RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, subject);
-  }
-  return null;
-}
-
-function InternalRegExpReplace(regexp, subject, replacement) {
-  return %StringReplaceGlobalRegExpWithString(
-      subject, regexp, replacement, InternalRegExpMatchInfo);
-}
-
-// -------------------------------------------------------------------
 // Exports
 
 utils.Export(function(to) {
   to.GetSubstitution = GetSubstitution;
-  to.InternalRegExpMatch = InternalRegExpMatch;
-  to.InternalRegExpReplace = InternalRegExpReplace;
-  to.IsRegExp = IsRegExp;
-  to.RegExpInitialize = RegExpInitialize;
-  to.RegExpLastMatchInfo = RegExpLastMatchInfo;
 });
 
 })

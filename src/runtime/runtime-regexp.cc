@@ -656,16 +656,11 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   return *answer;
 }
 
+namespace {
 
-RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 3);
-
+Object* StringReplaceGlobalRegExpWithStringHelper(
+    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+    Handle<String> replacement, Handle<JSObject> last_match_info) {
   CHECK(regexp->GetFlags() & JSRegExp::kGlobal);
   CHECK(last_match_info->HasFastObjectElements());
 
@@ -687,6 +682,20 @@ RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
                                              replacement, last_match_info);
 }
 
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 3);
+
+  return StringReplaceGlobalRegExpWithStringHelper(
+      isolate, regexp, subject, replacement, last_match_info);
+}
 
 RUNTIME_FUNCTION(Runtime_StringSplit) {
   HandleScope handle_scope(isolate);
@@ -769,6 +778,32 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   return *result;
 }
 
+// ES##sec-regexpcreate
+// RegExpCreate ( P, F )
+RUNTIME_FUNCTION(Runtime_RegExpCreate) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source_object, 0);
+
+  Handle<String> source;
+  if (source_object->IsUndefined(isolate)) {
+    source = isolate->factory()->empty_string();
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, source, Object::ToString(isolate, source_object));
+  }
+
+  Handle<Map> map(isolate->regexp_function()->initial_map());
+  Handle<JSRegExp> regexp =
+      Handle<JSRegExp>::cast(isolate->factory()->NewJSObjectFromMap(map));
+
+  JSRegExp::Flags flags = JSRegExp::kNone;
+
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              JSRegExp::Initialize(regexp, source, flags));
+
+  return *regexp;
+}
 
 RUNTIME_FUNCTION(Runtime_RegExpExec) {
   HandleScope scope(isolate);
@@ -833,6 +868,22 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
                               JSRegExp::Initialize(regexp, source, flags));
 
   return *regexp;
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpInternalReplace) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
+
+  static const int kInitialMatchSlots = 2;
+  Handle<JSArray> internal_match_info = isolate->factory()->NewJSArray(
+      FAST_ELEMENTS, 0, RegExpImpl::kLastMatchOverhead + kInitialMatchSlots,
+      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+
+  return StringReplaceGlobalRegExpWithStringHelper(
+      isolate, regexp, subject, replacement, internal_match_info);
 }
 
 namespace {

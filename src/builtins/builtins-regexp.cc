@@ -1655,5 +1655,63 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   }
 }
 
+namespace {
+
+// TODO(jgruber): Replace this with a FixedArray.
+compiler::Node* GetInternalMatchInfo(CodeStubAssembler* a,
+                                     compiler::Node* context) {
+  typedef compiler::Node Node;
+
+  const ElementsKind elements_kind = FAST_ELEMENTS;
+  Node* const native_context = a->LoadNativeContext(context);
+  Node* const array_map =
+      a->LoadJSArrayElementsMap(elements_kind, native_context);
+  Node* const capacity = a->IntPtrConstant(RegExpImpl::kLastMatchOverhead + 2);
+  Node* const allocation_site = nullptr;
+
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
+
+  return a->AllocateJSArray(elements_kind, array_map, capacity, smi_zero,
+                            allocation_site,
+                            CodeStubAssembler::INTPTR_PARAMETERS);
+}
+
+}  // namespace
+
+// Simple string matching functionality for internal use which does not modify
+// the last match info.
+void Builtins::Generate_RegExpInternalMatch(CodeStubAssembler* a) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Isolate* const isolate = a->isolate();
+
+  Node* const regexp = a->Parameter(1);
+  Node* const string = a->Parameter(2);
+  Node* const context = a->Parameter(5);
+
+  Node* const null = a->NullConstant();
+  Node* const smi_zero = a->SmiConstant(Smi::FromInt(0));
+  Node* const internal_match_info = GetInternalMatchInfo(a, context);
+
+  Callable exec_callable = CodeFactory::RegExpExec(isolate);
+  Node* const match_indices = a->CallStub(
+      exec_callable, context, regexp, string, smi_zero, internal_match_info);
+
+  Label if_matched(a), if_didnotmatch(a);
+  a->Branch(a->WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
+
+  a->Bind(&if_didnotmatch);
+  a->Return(null);
+
+  a->Bind(&if_matched);
+  {
+    Node* const match_elements = a->LoadElements(match_indices);
+    Node* result = ConstructNewResultFromMatchInfo(isolate, a, context,
+                                                   match_elements, string);
+    a->Return(result);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

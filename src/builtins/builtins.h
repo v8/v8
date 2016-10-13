@@ -575,6 +575,7 @@ namespace internal {
   CPP(RegExpCapture8Getter)                                                   \
   CPP(RegExpCapture9Getter)                                                   \
   CPP(RegExpConstructor)                                                      \
+  TFJ(RegExpInternalMatch, 3)                                                 \
   CPP(RegExpInputGetter)                                                      \
   CPP(RegExpInputSetter)                                                      \
   CPP(RegExpLastMatchGetter)                                                  \

@@ -13,10 +13,8 @@ var ArrayJoin;
 var GetSubstitution;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var IsRegExp;
 var MaxSimple;
 var MinSimple;
-var RegExpInitialize;
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
@@ -25,10 +23,8 @@ var splitSymbol = utils.ImportNow("split_symbol");
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   GetSubstitution = from.GetSubstitution;
-  IsRegExp = from.IsRegExp;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  RegExpInitialize = from.RegExpInitialize;
 });
 
 //-------------------------------------------------------------------
@@ -60,8 +56,7 @@ function StringMatchJS(pattern) {
   var subject = TO_STRING(this);
 
   // Equivalent to RegExpCreate (ES#sec-regexpcreate)
-  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
-  RegExpInitialize(regexp, pattern);
+  var regexp = %RegExpCreate(pattern);
   return regexp[matchSymbol](subject);
 }
 
@@ -143,8 +138,7 @@ function StringSearch(pattern) {
   var subject = TO_STRING(this);
 
   // Equivalent to RegExpCreate (ES#sec-regexpcreate)
-  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
-  RegExpInitialize(regexp, pattern);
+  var regexp = %RegExpCreate(pattern);
   return %_Call(regexp[searchSymbol], regexp, subject);
 }
 

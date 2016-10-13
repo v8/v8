@@ -1865,6 +1865,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
+
+    {  // Internal: RegExpInternalMatch
+      Handle<JSFunction> function =
+          factory->NewFunction(isolate->factory()->empty_string(),
+                               isolate->builtins()->RegExpInternalMatch(),
+                               JS_OBJECT_TYPE, JSObject::kHeaderSize);
+      function->shared()->set_internal_formal_parameter_count(2);
+      function->shared()->set_length(2);
+      function->shared()->set_native(true);
+      isolate->native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
+    }
   }
 
   {  // -- E r r o r

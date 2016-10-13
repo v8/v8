@@ -51,6 +51,7 @@ enum ContextLookupFlags {
   V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                     \
   V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                     \
   V(OBJECT_KEYS, JSFunction, object_keys)                               \
+  V(REGEXP_INTERNAL_MATCH, JSFunction, regexp_internal_match)           \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
   V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \

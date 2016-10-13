@@ -459,12 +459,14 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_REGEXP(F)           \
   F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringSplit, 3, 1)                         \
+  F(RegExpCreate, 1, 1)                        \
   F(RegExpExec, 4, 1)                          \
   F(RegExpFlags, 1, 1)                         \
   F(RegExpReplace, 3, 1)                       \
   F(RegExpSource, 1, 1)                        \
   F(RegExpConstructResult, 3, 1)               \
   F(RegExpInitializeAndCompile, 3, 1)          \
+  F(RegExpInternalReplace, 3, 1)               \
   F(RegExpExecReThrow, 4, 1)                   \
   F(IsRegExp, 1, 1)
 
