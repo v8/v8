@@ -404,6 +404,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(PROTOTYPE_INFO_TYPE)                                        \
+  V(TUPLE3_TYPE)                                                \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
                                                                 \
@@ -529,6 +530,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
+  V(TUPLE3, Tuple3, tuple3)                                                  \
   V(MODULE, Module, module)                                                  \
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)
 
@@ -706,6 +708,7 @@ enum InstanceType {
   TRANSITION_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
+  TUPLE3_TYPE,
   CONTEXT_EXTENSION_TYPE,
   MODULE_TYPE,
 
@@ -6817,6 +6820,26 @@ class PrototypeInfo : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
 };
 
+class Tuple3 : public Struct {
+ public:
+  DECL_ACCESSORS(value1, Object)
+  DECL_ACCESSORS(value2, Object)
+  DECL_ACCESSORS(value3, Object)
+
+  DECLARE_CAST(Tuple3)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(Tuple3)
+  DECLARE_VERIFIER(Tuple3)
+
+  static const int kValue1Offset = HeapObject::kHeaderSize;
+  static const int kValue2Offset = kValue1Offset + kPointerSize;
+  static const int kValue3Offset = kValue2Offset + kPointerSize;
+  static const int kSize = kValue3Offset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
+};
 
 // Pair used to store both a ScopeInfo and an extension object in the extension
 // slot of a block, catch, or with context. Needed in the rare case where a

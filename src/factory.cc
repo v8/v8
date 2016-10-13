@@ -102,6 +102,15 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   return result;
 }
 
+Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
+                                  Handle<Object> value3) {
+  Handle<Tuple3> result = Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE));
+  result->set_value1(*value1);
+  result->set_value2(*value2);
+  result->set_value3(*value3);
+  return result;
+}
+
 Handle<ContextExtension> Factory::NewContextExtension(
     Handle<ScopeInfo> scope_info, Handle<Object> extension) {
   Handle<ContextExtension> result =

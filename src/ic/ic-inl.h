@@ -93,7 +93,7 @@ Code* IC::target() const {
 }
 
 bool IC::IsHandler(Object* object) {
-  return (object->IsSmi() && (object != nullptr)) ||
+  return (object->IsSmi() && (object != nullptr)) || (object->IsTuple3()) ||
          (object->IsCode() && Code::cast(object)->is_handler());
 }
 

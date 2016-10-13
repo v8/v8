@@ -980,6 +980,13 @@ void PrototypeInfo::PrototypeInfoVerify() {
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
 }
 
+void Tuple3::Tuple3Verify() {
+  CHECK(IsTuple3());
+  VerifyObjectField(kValue1Offset);
+  VerifyObjectField(kValue2Offset);
+  VerifyObjectField(kValue3Offset);
+}
+
 void ContextExtension::ContextExtensionVerify() {
   CHECK(IsContextExtension());
   VerifyObjectField(kScopeInfoOffset);

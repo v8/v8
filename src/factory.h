@@ -75,6 +75,10 @@ class Factory final {
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
 
+  // Create a new Tuple3 struct.
+  Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
+                           Handle<Object> value3);
+
   // Create a new ContextExtension struct.
   Handle<ContextExtension> NewContextExtension(Handle<ScopeInfo> scope_info,
                                                Handle<Object> extension);

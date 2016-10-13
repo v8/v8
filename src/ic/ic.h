@@ -310,6 +310,9 @@ class LoadIC : public IC {
 
  private:
   Handle<Object> SimpleFieldLoad(FieldIndex index);
+  Handle<Object> SimpleFieldLoadFromPrototype(FieldIndex index,
+                                              Handle<Map> receiver_map,
+                                              Handle<JSObject> holder);
 
   friend class IC;
 };

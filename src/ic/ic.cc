@@ -848,6 +848,7 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
 
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   if (FLAG_tf_load_ic_stub) {
+    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
     return handle(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
   }
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
@@ -855,6 +856,46 @@ Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   return stub.GetCode();
 }
 
+Handle<Object> LoadIC::SimpleFieldLoadFromPrototype(FieldIndex index,
+                                                    Handle<Map> receiver_map,
+                                                    Handle<JSObject> holder) {
+  if (!FLAG_tf_load_ic_stub) return Handle<Object>::null();
+
+  DCHECK(holder->HasFastProperties());
+
+  // The following kinds of receiver maps require custom handler compilation.
+  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap() ||
+      receiver_map->IsJSGlobalObjectMap() ||
+      receiver_map->is_dictionary_map()) {
+    return Handle<Object>::null();
+  }
+
+  // Switch to custom compiled handler if the prototype chain contains global
+  // or dictionary objects.
+  for (PrototypeIterator iter(*receiver_map); !iter.IsAtEnd(); iter.Advance()) {
+    JSObject* current = iter.GetCurrent<JSObject>();
+    if (current == *holder) break;
+    Map* current_map = current->map();
+    if (current_map->IsJSGlobalObjectMap() ||
+        current_map->IsJSGlobalProxyMap() || current_map->is_dictionary_map()) {
+      return Handle<Object>::null();
+    }
+    // Only objects that do not require access checks are allowed in stubs.
+    DCHECK(!current_map->is_access_check_needed());
+  }
+  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
+  Handle<Cell> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+  DCHECK(!validity_cell.is_null());
+
+  Handle<Object> handler(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
+  DCHECK(handler->IsSmi());
+
+  Factory* factory = isolate()->factory();
+
+  Handle<WeakCell> holder_cell = factory->NewWeakCell(holder);
+  return factory->NewTuple3(validity_cell, holder_cell, handler);
+}
 
 bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
   DCHECK(lookup->state() == LookupIterator::ACCESSOR);
@@ -1158,6 +1199,11 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         FieldIndex field = lookup->GetFieldIndex();
         if (receiver_is_holder) {
           return SimpleFieldLoad(field);
+        }
+        Handle<Object> handler =
+            SimpleFieldLoadFromPrototype(field, map, holder);
+        if (!handler.is_null()) {
+          return handler;
         }
         break;  // Custom-compiled handler.
       }

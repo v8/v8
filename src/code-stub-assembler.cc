@@ -4543,11 +4543,11 @@ void CodeStubAssembler::TryProbeStubCacheTable(
 
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
-  Node* code = Load(MachineType::Pointer(), key_base,
-                    IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize)));
+  Node* handler = Load(MachineType::Pointer(), key_base,
+                       IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize)));
 
   // We found the handler.
-  var_handler->Bind(code);
+  var_handler->Bind(handler);
   Goto(if_handler);
 }
 
@@ -4833,16 +4833,26 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     const LoadICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
   Comment("have_handler");
-  Label call_handler(this);
-  GotoUnless(TaggedIsSmi(handler), &call_handler);
+  Variable var_holder(this, MachineRepresentation::kTagged);
+  var_holder.Bind(p->receiver);
+  Variable var_smi_handler(this, MachineRepresentation::kTagged);
+  var_smi_handler.Bind(handler);
+
+  Variable* vars[] = {&var_holder, &var_smi_handler};
+  Label if_smi_handler(this, 2, vars);
+  Label try_proto_cell_handler(this), call_handler(this);
+
+  Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_cell_handler);
 
   // |handler| is a Smi, encoding what to do. See handler-configuration.h
   // for the encoding format.
+  Bind(&if_smi_handler);
   {
     Variable var_double_value(this, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
 
-    Node* handler_word = SmiUntag(handler);
+    Node* holder = var_holder.value();
+    Node* handler_word = SmiUntag(var_smi_handler.value());
     if (support_elements == kSupportElements) {
       Label property(this);
       Node* handler_type =
@@ -4853,14 +4863,14 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
 
       Comment("element_load");
       Node* intptr_index = TryToIntptr(p->name, miss);
-      Node* elements = LoadElements(p->receiver);
+      Node* elements = LoadElements(holder);
       Node* is_jsarray =
           WordAnd(handler_word, IntPtrConstant(KeyedLoadIsJsArray::kMask));
       Node* is_jsarray_condition = WordNotEqual(is_jsarray, IntPtrConstant(0));
       Node* elements_kind = BitFieldDecode<KeyedLoadElementsKind>(handler_word);
       Label if_hole(this), unimplemented_elements_kind(this);
       Label* out_of_bounds = miss;
-      EmitElementLoad(p->receiver, elements, elements_kind, intptr_index,
+      EmitElementLoad(holder, elements, elements_kind, intptr_index,
                       is_jsarray_condition, &if_hole, &rebox_double,
                       &var_double_value, &unimplemented_elements_kind,
                       out_of_bounds, miss);
@@ -4907,20 +4917,20 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
 
     GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &inobject_double);
-    Return(LoadObjectField(p->receiver, offset));
+    Return(LoadObjectField(holder, offset));
 
     Bind(&inobject_double);
     if (FLAG_unbox_double_fields) {
       var_double_value.Bind(
-          LoadObjectField(p->receiver, offset, MachineType::Float64()));
+          LoadObjectField(holder, offset, MachineType::Float64()));
     } else {
-      Node* mutable_heap_number = LoadObjectField(p->receiver, offset);
+      Node* mutable_heap_number = LoadObjectField(holder, offset);
       var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
     }
     Goto(&rebox_double);
 
     Bind(&out_of_object);
-    Node* properties = LoadProperties(p->receiver);
+    Node* properties = LoadProperties(holder);
     Node* value = LoadObjectField(properties, offset);
     GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &out_of_object_double);
     Return(value);
@@ -4933,14 +4943,40 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     Return(AllocateHeapNumberWithValue(var_double_value.value()));
   }
 
+  Bind(&try_proto_cell_handler);
+  {
+    GotoIf(WordNotEqual(LoadMap(handler), LoadRoot(Heap::kTuple3MapRootIndex)),
+           &call_handler);
+    Node* validity_cell = LoadObjectField(handler, Tuple3::kValue1Offset);
+    Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
+    GotoIf(WordNotEqual(cell_value,
+                        SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+           miss);
+
+    Node* holder =
+        LoadWeakCellValue(LoadObjectField(handler, Tuple3::kValue2Offset));
+    // The |holder| is guaranteed to be alive at this point since we passed
+    // both the receiver map check and the validity cell check.
+    Assert(WordNotEqual(holder, IntPtrConstant(0)));
+
+    Node* smi_handler = LoadObjectField(handler, Tuple3::kValue3Offset);
+    Assert(TaggedIsSmi(smi_handler));
+
+    var_holder.Bind(holder);
+    var_smi_handler.Bind(smi_handler);
+    Goto(&if_smi_handler);
+  }
+
   // |handler| is a heap object. Must be code, call it.
   Bind(&call_handler);
-  typedef LoadWithVectorDescriptor Descriptor;
-  TailCallStub(Descriptor(isolate()), handler, p->context,
-               Arg(Descriptor::kReceiver, p->receiver),
-               Arg(Descriptor::kName, p->name),
-               Arg(Descriptor::kSlot, p->slot),
-               Arg(Descriptor::kVector, p->vector));
+  {
+    typedef LoadWithVectorDescriptor Descriptor;
+    TailCallStub(Descriptor(isolate()), handler, p->context,
+                 Arg(Descriptor::kReceiver, p->receiver),
+                 Arg(Descriptor::kName, p->name),
+                 Arg(Descriptor::kSlot, p->slot),
+                 Arg(Descriptor::kVector, p->vector));
+  }
 }
 
 void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
