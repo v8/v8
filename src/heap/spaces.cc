@@ -478,6 +478,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     // Failed to commit the body. Release the mapping and any partially
     // commited regions inside it.
     reservation.Release();
+    size_.Decrement(reserve_size);
     return NULL;
   }
 
