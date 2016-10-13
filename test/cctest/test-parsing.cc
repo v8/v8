@@ -3281,7 +3281,7 @@ TEST(InnerAssignment) {
 
   const char* prefix = "function f() {";
   const char* midfix = " function g() {";
-  const char* suffix = "}}";
+  const char* suffix = "}}; f";
   struct { const char* source; bool assigned; bool strict; } outers[] = {
     // Actual assignments.
     { "var x; var x = 5;", true, false },
@@ -3361,10 +3361,6 @@ TEST(InnerAssignment) {
     { "(function(x) { eval(''); })", true, false },
   };
 
-  // Used to trigger lazy parsing of the outer function.
-  int comment_len = 2048;
-  i::ScopedVector<char> comment(comment_len + 1);
-  i::SNPrintF(comment, "/*%0*d*/", comment_len - 4, 0);
   int prefix_len = Utf8LengthHelper(prefix);
   int midfix_len = Utf8LengthHelper(midfix);
   int suffix_len = Utf8LengthHelper(suffix);
@@ -3377,33 +3373,43 @@ TEST(InnerAssignment) {
         const char* inner = inners[j].source;
         int inner_len = Utf8LengthHelper(inner);
 
-        const char* comment_chars = lazy ? comment.start() : "";
-        int len = prefix_len + (lazy ? comment_len : 0) + outer_len +
-                  midfix_len + inner_len + suffix_len;
+        int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
         i::ScopedVector<char> program(len + 1);
 
-        i::SNPrintF(program, "%s%s%s%s%s%s", comment_chars, prefix, outer,
-                    midfix, inner, suffix);
-        i::Handle<i::String> source =
-            factory->InternalizeUtf8String(program.start());
-        source->PrintOn(stdout);
-        printf("\n");
+        i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
+                    suffix);
 
-        i::Handle<i::Script> script = factory->NewScript(source);
         i::Zone zone(CcTest::i_isolate()->allocator());
-        i::ParseInfo info(&zone, script);
-        i::Parser parser(&info);
-        CHECK(parser.Parse(&info));
-        CHECK(i::Compiler::Analyze(&info));
-        CHECK(info.literal() != NULL);
+        std::unique_ptr<i::ParseInfo> info;
+        if (lazy) {
+          printf("%s\n", program.start());
+          v8::Local<v8::Value> v = CompileRun(program.start());
+          i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+          i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, f));
+        } else {
+          i::Handle<i::String> source =
+              factory->InternalizeUtf8String(program.start());
+          source->PrintOn(stdout);
+          printf("\n");
+          i::Handle<i::Script> script = factory->NewScript(source);
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
+        }
+        i::Parser parser(info.get());
+        CHECK(parser.Parse(info.get()));
+        CHECK(i::Compiler::Analyze(info.get()));
+        CHECK(info->literal() != NULL);
 
-        i::Scope* scope = info.literal()->scope();
-        i::Scope* inner_scope = scope->inner_scope();
-        DCHECK_NOT_NULL(inner_scope);
-        DCHECK_NULL(inner_scope->sibling());
+        i::Scope* scope = info->literal()->scope();
+        if (!lazy) {
+          scope = scope->inner_scope();
+        }
+        DCHECK_NOT_NULL(scope);
+        DCHECK_NULL(scope->sibling());
+        DCHECK(scope->is_function_scope());
         const i::AstRawString* var_name =
-            info.ast_value_factory()->GetOneByteString("x");
-        i::Variable* var = inner_scope->Lookup(var_name);
+            info->ast_value_factory()->GetOneByteString("x");
+        i::Variable* var = scope->Lookup(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK(var != NULL);
         CHECK(var->is_used() || !expected);
