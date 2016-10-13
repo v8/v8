@@ -1627,6 +1627,7 @@ class WasmFullDecoder : public WasmDecoder {
     builder_->Terminate(env->effect, env->control);
     if (FLAG_wasm_loop_assignment_analysis) {
       BitVector* assigned = AnalyzeLoopAssignment(pc);
+      if (failed()) return env;
       if (assigned != nullptr) {
         // Only introduce phis for variables assigned in this loop.
         for (int i = EnvironmentCount() - 1; i >= 0; i--) {
