@@ -221,7 +221,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             LanguageMode language_mode) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
-  int parameter_count = 0;
+  const int parameter_count = 0;
   if (name == nullptr) name = ast_value_factory()->empty_string();
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
@@ -284,7 +284,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       name, function_scope, body, materialized_literal_count,
-      expected_property_count, parameter_count,
+      expected_property_count, parameter_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos);
 
@@ -2496,7 +2496,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
                                    CHECK_OK_VOID);
 
-  if (parameters->Arity() > Code::kMaxArguments) {
+  if (parameters->arity > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
     return;
@@ -2506,7 +2506,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
   if (!parameters->is_simple) {
     this->classifier()->RecordNonSimpleParameter();
   }
-  for (int i = 0; i < parameters->Arity(); ++i) {
+  for (int i = 0; i < parameters->arity; ++i) {
     auto parameter = parameters->at(i);
     DeclareFormalParameter(parameters->scope, parameter);
     if (!this->classifier()
@@ -2656,7 +2656,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   SetLanguageMode(scope, language_mode);
 
   ZoneList<Statement*>* body = nullptr;
-  int arity = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
@@ -2677,17 +2676,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   this->scope()->set_start_position(start_position);
   ParserFormalParameters formals(scope);
   ParseFormalParameterList(&formals, CHECK_OK);
-  arity = formals.Arity();
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
-  CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
+  CheckArityRestrictions(formals.arity, kind, formals.has_rest, start_position,
                          formals_end_position, CHECK_OK);
   Expect(Token::LBRACE, CHECK_OK);
-  // Don't include the rest parameter into the function's formal parameter
-  // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
-  // which says whether we need to create an arguments adaptor frame).
-  if (formals.has_rest) arity--;
 
   {
     // Temporary zones can nest. When we migrate free variables (see below), we
@@ -2788,7 +2782,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, materialized_literal_count,
-      expected_property_count, arity, duplicate_parameters, function_type,
+      expected_property_count, formals.num_parameters(),
+      formals.function_length, duplicate_parameters, function_type,
       eager_compile_hint, pos);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
@@ -3437,12 +3432,11 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       ast_value_factory()->empty_string(), initializer_scope, body,
       initializer_state.materialized_literal_count(),
-      initializer_state.expected_property_count(), 0,
+      initializer_state.expected_property_count(), 0, count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
   function_literal->set_is_class_field_initializer(true);
-  function_literal->scope()->set_arity(count);
   return function_literal;
 }
 

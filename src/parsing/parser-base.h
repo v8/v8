@@ -59,10 +59,27 @@ static inline bool operator&(ParseFunctionFlags bitfield,
 
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
+
+  int num_parameters() const {
+    // Don't include the rest parameter into the function's formal parameter
+    // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
+    // which says whether we need to create an arguments adaptor frame).
+    return arity - has_rest;
+  }
+
+  void UpdateArityAndFunctionLength(bool is_optional, bool is_rest) {
+    if (!is_optional && !is_rest && function_length == arity) {
+      ++function_length;
+    }
+    ++arity;
+  }
+
   DeclarationScope* scope;
   bool has_rest = false;
   bool is_simple = true;
   int materialized_literals_count = 0;
+  int function_length = 0;
+  int arity = 0;
 };
 
 
@@ -2284,7 +2301,7 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), initializer_scope, body,
       initializer_state.materialized_literal_count(),
-      initializer_state.expected_property_count(), 0,
+      initializer_state.expected_property_count(), 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
       initializer_scope->start_position());
@@ -3479,11 +3496,11 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
   //   FormalParameter[?Yield]
   //   FormalParameterList[?Yield] , FormalParameter[?Yield]
 
-  DCHECK_EQ(0, parameters->Arity());
+  DCHECK_EQ(0, parameters->arity);
 
   if (peek() != Token::RPAREN) {
     while (true) {
-      if (parameters->Arity() > Code::kMaxArguments) {
+      if (parameters->arity > Code::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         *ok = false;
         return;
@@ -3510,7 +3527,7 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
     }
   }
 
-  for (int i = 0; i < parameters->Arity(); ++i) {
+  for (int i = 0; i < parameters->arity; ++i) {
     auto parameter = parameters->at(i);
     impl()->DeclareFormalParameter(parameters->scope, parameter);
   }
@@ -3912,7 +3929,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   }
 
   StatementListT body = impl()->NullStatementList();
-  int num_parameters = formal_parameters.scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;
 
@@ -4027,7 +4043,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
-      materialized_literal_count, expected_property_count, num_parameters,
+      materialized_literal_count, expected_property_count,
+      formal_parameters.num_parameters(), formal_parameters.function_length,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position());

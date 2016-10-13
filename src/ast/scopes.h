@@ -706,16 +706,6 @@ class DeclarationScope : public Scope {
     return params_[index];
   }
 
-  // Returns the default function arity excluding default or rest parameters.
-  // This will be used to set the length of the function, by default.
-  // Class field initializers use this property to indicate the number of
-  // fields being initialized.
-  int arity() const { return arity_; }
-
-  // Normal code should not need to call this. Class field initializers use this
-  // property to indicate the number of fields being initialized.
-  void set_arity(int arity) { arity_ = arity; }
-
   // Returns the number of formal parameters, excluding a possible rest
   // parameter.  Examples:
   //   function foo(a, b) {}         ==> 2
@@ -848,8 +838,6 @@ class DeclarationScope : public Scope {
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
 
-  // Info about the parameter list of a function.
-  int arity_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
   // Map of function names to lists of functions defined in sloppy blocks

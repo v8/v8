@@ -134,7 +134,6 @@ struct ParserFormalParameters : FormalParametersBase {
       : FormalParametersBase(scope), params(4, scope->zone()) {}
   ZoneList<Parameter> params;
 
-  int Arity() const { return params.length(); }
   const Parameter& at(int i) const { return params[i]; }
 };
 
@@ -999,6 +998,7 @@ class Parser : public ParserBase<Parser> {
                                     Expression* initializer,
                                     int initializer_end_position,
                                     bool is_rest) {
+    parameters->UpdateArityAndFunctionLength(initializer != nullptr, is_rest);
     bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
     const AstRawString* name = is_simple
                                    ? pattern->AsVariableProxy()->raw_name()

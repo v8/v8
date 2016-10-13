@@ -2597,6 +2597,7 @@ class FunctionLiteral final : public Expression {
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
+  int function_length() { return function_length_; }
 
   bool AllowsLazyCompilation();
 
@@ -2710,7 +2711,7 @@ class FunctionLiteral final : public Expression {
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   ZoneList<Statement*>* body, int materialized_literal_count,
                   int expected_property_count, int parameter_count,
-                  FunctionType function_type,
+                  int function_length, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
                   bool is_function)
@@ -2718,6 +2719,7 @@ class FunctionLiteral final : public Expression {
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
+        function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         yield_count_(0),
         raw_name_(name),
@@ -2754,6 +2756,7 @@ class FunctionLiteral final : public Expression {
   int materialized_literal_count_;
   int expected_property_count_;
   int parameter_count_;
+  int function_length_;
   int function_token_position_;
   int yield_count_;
 
@@ -3453,15 +3456,15 @@ class AstNodeFactory final BASE_EMBEDDED {
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
       ZoneList<Statement*>* body, int materialized_literal_count,
-      int expected_property_count, int parameter_count,
+      int expected_property_count, int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
-    return new (zone_) FunctionLiteral(zone_, name, ast_value_factory_, scope,
-                                       body, materialized_literal_count,
-                                       expected_property_count, parameter_count,
-                                       function_type, has_duplicate_parameters,
-                                       eager_compile_hint, position, true);
+    return new (zone_) FunctionLiteral(
+        zone_, name, ast_value_factory_, scope, body,
+        materialized_literal_count, expected_property_count, parameter_count,
+        function_length, function_type, has_duplicate_parameters,
+        eager_compile_hint, position, true);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3474,7 +3477,7 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, materialized_literal_count, expected_property_count,
-        parameter_count, FunctionLiteral::kAnonymousExpression,
+        parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, false);
   }

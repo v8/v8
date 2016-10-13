@@ -271,7 +271,6 @@ void DeclarationScope::SetDefaults() {
   function_ = nullptr;
   arguments_ = nullptr;
   this_function_ = nullptr;
-  arity_ = 0;
 }
 
 void Scope::SetDefaults() {
@@ -839,9 +838,6 @@ Variable* DeclarationScope::DeclareParameter(
         Declare(zone(), this, name, mode, NORMAL_VARIABLE, kCreatedInitialized);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
-  }
-  if (!is_optional && !is_rest && arity_ == params_.length()) {
-    ++arity_;
   }
   has_rest_ = is_rest;
   params_.Add(var, zone());

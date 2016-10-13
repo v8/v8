@@ -658,7 +658,7 @@ class PreParserFactory {
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, Scope* scope, PreParserStatementList body,
       int materialized_literal_count, int expected_property_count,
-      int parameter_count,
+      int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
@@ -761,9 +761,6 @@ class PreParserFactory {
 struct PreParserFormalParameters : FormalParametersBase {
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
-  int arity = 0;
-
-  int Arity() const { return arity; }
   PreParserIdentifier at(int i) { return PreParserIdentifier(); }  // Dummy
 };
 
@@ -1436,7 +1433,7 @@ class PreParser : public ParserBase<PreParser> {
                                     PreParserExpression initializer,
                                     int initializer_end_position,
                                     bool is_rest) {
-    ++parameters->arity;
+    parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }
 
   V8_INLINE void DeclareFormalParameter(DeclarationScope* scope,
