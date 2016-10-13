@@ -720,6 +720,12 @@ Object* StandardFrame::context() const {
   return isolate()->heap()->undefined_value();
 }
 
+int StandardFrame::position() const {
+  AbstractCode* code = AbstractCode::cast(LookupCode());
+  int code_offset = static_cast<int>(pc() - code->instruction_start());
+  return code->SourcePosition(code_offset);
+}
+
 int StandardFrame::ComputeExpressionsCount() const {
   Address base = GetExpressionAddress(0);
   Address limit = sp() - kPointerSize;
@@ -1335,6 +1341,12 @@ Object* OptimizedFrame::StackSlotAt(int index) const {
   return Memory::Object_at(fp() + StackSlotOffsetRelativeToFp(index));
 }
 
+int InterpretedFrame::position() const {
+  AbstractCode* code = AbstractCode::cast(GetBytecodeArray());
+  int code_offset = GetBytecodeOffset();
+  return code->SourcePosition(code_offset);
+}
+
 int InterpretedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
   BytecodeArray* bytecode = function()->shared()->bytecode_array();
@@ -1474,8 +1486,20 @@ uint32_t WasmFrame::function_index() const {
 
 Script* WasmFrame::script() const {
   Handle<JSObject> wasm(JSObject::cast(wasm_obj()), isolate());
+  if (wasm::WasmIsAsmJs(*wasm, isolate())) {
+    return *wasm::GetAsmWasmScript(wasm);
+  }
   Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(wasm);
   return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
+}
+
+int WasmFrame::position() const {
+  int position = StandardFrame::position();
+  if (wasm::WasmIsAsmJs(wasm_obj(), isolate())) {
+    Handle<JSObject> wasm(JSObject::cast(wasm_obj()), isolate());
+    position = wasm::GetAsmWasmSourcePosition(wasm, function_index(), position);
+  }
+  return position;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {

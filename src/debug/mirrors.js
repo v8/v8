@@ -1878,6 +1878,15 @@ FrameMirror.prototype.func = function() {
 };
 
 
+FrameMirror.prototype.script = function() {
+  if (!this.script_) {
+    this.script_ = MakeMirror(this.details_.script());
+  }
+
+  return this.script_;
+}
+
+
 FrameMirror.prototype.receiver = function() {
   return MakeMirror(this.details_.receiver());
 };
@@ -1954,12 +1963,9 @@ FrameMirror.prototype.sourcePosition = function() {
 
 
 FrameMirror.prototype.sourceLocation = function() {
-  var func = this.func();
-  if (func.resolved()) {
-    var script = func.script();
-    if (script) {
-      return script.locationFromPosition(this.sourcePosition(), true);
-    }
+  var script = this.script();
+  if (script) {
+    return script.locationFromPosition(this.sourcePosition(), true);
   }
 };
 

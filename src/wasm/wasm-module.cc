@@ -1388,33 +1388,8 @@ class WasmInstanceBuilder {
     FlushICache(isolate_, code_table);
 
     //--------------------------------------------------------------------------
-    // Run the start function if one was specified.
+    // Set up and link the new instance.
     //--------------------------------------------------------------------------
-    if (compiled_module_->has_startup_function()) {
-      Handle<FixedArray> startup_data = compiled_module_->startup_function();
-      HandleScope scope(isolate_);
-      int32_t start_index =
-          startup_data->GetValueChecked<Smi>(isolate_, kExportIndex)->value();
-      Handle<Code> startup_code =
-          code_table->GetValueChecked<Code>(isolate_, start_index);
-      int arity = Smi::cast(startup_data->get(kExportArity))->value();
-      MaybeHandle<ByteArray> startup_signature =
-          startup_data->GetValue<ByteArray>(isolate_, kExportedSignature);
-      Handle<JSFunction> startup_fct = WrapExportCodeAsJSFunction(
-          isolate_, startup_code, factory->InternalizeUtf8String("start"),
-          arity, startup_signature, instance);
-      RecordStats(isolate_, *startup_code);
-      // Call the JS function.
-      Handle<Object> undefined = factory->undefined_value();
-      MaybeHandle<Object> retval =
-          Execution::Call(isolate_, startup_fct, undefined, 0, nullptr);
-
-      if (retval.is_null()) {
-        thrower_->Error("WASM.instantiateModule(): start function failed");
-        return nothing;
-      }
-    }
-
     {
       Handle<Object> global_handle =
           isolate_->global_handles()->Create(*instance);
@@ -1447,6 +1422,38 @@ class WasmInstanceBuilder {
         GlobalHandles::MakeWeak(global_handle.location(),
                                 global_handle.location(), &InstanceFinalizer,
                                 v8::WeakCallbackType::kFinalizer);
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Run the start function if one was specified.
+    //--------------------------------------------------------------------------
+    if (compiled_module_->has_startup_function()) {
+      Handle<FixedArray> startup_data = compiled_module_->startup_function();
+      HandleScope scope(isolate_);
+      int32_t start_index =
+          startup_data->GetValueChecked<Smi>(isolate_, kExportIndex)->value();
+      Handle<Code> startup_code =
+          code_table->GetValueChecked<Code>(isolate_, start_index);
+      int arity = Smi::cast(startup_data->get(kExportArity))->value();
+      MaybeHandle<ByteArray> startup_signature =
+          startup_data->GetValue<ByteArray>(isolate_, kExportedSignature);
+      Handle<JSFunction> startup_fct = WrapExportCodeAsJSFunction(
+          isolate_, startup_code, factory->InternalizeUtf8String("start"),
+          arity, startup_signature, instance);
+      RecordStats(isolate_, *startup_code);
+      // Call the JS function.
+      Handle<Object> undefined = factory->undefined_value();
+      MaybeHandle<Object> retval =
+          Execution::Call(isolate_, startup_fct, undefined, 0, nullptr);
+
+      if (retval.is_null()) {
+        thrower_->Error("WASM.instantiateModule(): start function failed");
+        // It's unfortunate that the new instance is already linked in the
+        // chain. However, we need to set up everything before executing the
+        // start function, such that stack trace information can be generated
+        // correctly already in the start function.
+        return nothing;
       }
     }
 
