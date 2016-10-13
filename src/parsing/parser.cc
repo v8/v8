@@ -783,7 +783,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
 
-  Mode parsing_mode = allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY;
+  ParsingModeScope mode(this, allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionLiteral* result = NULL;
   {
@@ -801,8 +801,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     scope->set_start_position(0);
 
-    // Enter 'scope' with the given parsing mode.
-    ParsingModeScope parsing_mode_scope(this, parsing_mode);
     FunctionState function_state(&function_state_, &scope_state_, scope);
 
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
