@@ -60,7 +60,7 @@ RawBuffer GetRawBufferSource(
     end = start + contents.ByteLength();
 
     if (start == nullptr || end == start) {
-      thrower->Error("ArrayBuffer argument is empty");
+      thrower->CompileError("ArrayBuffer argument is empty");
     }
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
@@ -74,10 +74,10 @@ RawBuffer GetRawBufferSource(
     end = start + array->ByteLength();
 
     if (start == nullptr || end == start) {
-      thrower->Error("ArrayBuffer argument is empty");
+      thrower->TypeError("ArrayBuffer argument is empty");
     }
   } else {
-    thrower->Error("Argument 0 must be an ArrayBuffer or Uint8Array");
+    thrower->TypeError("Argument 0 must be an ArrayBuffer or Uint8Array");
   }
 
   return {start, end};
@@ -101,7 +101,7 @@ void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                        true, internal::wasm::kWasmOrigin);
 
   if (result.failed()) {
-    thrower.Failed("", result);
+    thrower.CompileFailed("", result);
   }
 
   if (result.val) delete result.val;
@@ -129,7 +129,7 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   if (result.failed()) {
-    thrower.Failed("", result);
+    thrower.CompileFailed("", result);
   }
 
   if (result.val) delete result.val;
@@ -331,9 +331,10 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::MaybeHandle<i::JSObject> instance =
       i::wasm::WasmModule::Instantiate(i_isolate, &thrower, i_obj, ffi, memory);
   if (instance.is_null()) {
-    if (!thrower.error()) thrower.Error("Could not instantiate module");
+    if (!thrower.error()) thrower.RuntimeError("Could not instantiate module");
     return;
   }
+  DCHECK(!i_isolate->has_pending_exception());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(instance.ToHandleChecked()));
 }
@@ -748,6 +749,17 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
                         memory_constructor, DONT_ENUM);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
+
+  // Setup errors
+  attributes = static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  Handle<JSFunction> compile_error(
+      isolate->native_context()->wasm_compile_error_function());
+  JSObject::AddProperty(wasm_object, isolate->factory()->CompileError_string(),
+                        compile_error, attributes);
+  Handle<JSFunction> runtime_error(
+      isolate->native_context()->wasm_runtime_error_function());
+  JSObject::AddProperty(wasm_object, isolate->factory()->RuntimeError_string(),
+                        runtime_error, attributes);
 }
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {

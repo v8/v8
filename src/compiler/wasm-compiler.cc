@@ -3385,7 +3385,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
           function_->name_offset, function_->name_length);
       SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
                function_->func_index, name.length(), name.start());
-      thrower_->Failed(buffer.start(), graph_construction_result_);
+      thrower_->CompileFailed(buffer.start(), graph_construction_result_);
     }
 
     return Handle<Code>::null();

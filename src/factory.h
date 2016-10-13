@@ -634,6 +634,8 @@ class Factory final {
   DECLARE_ERROR(ReferenceError)
   DECLARE_ERROR(SyntaxError)
   DECLARE_ERROR(TypeError)
+  DECLARE_ERROR(WasmCompileError)
+  DECLARE_ERROR(WasmRuntimeError)
 #undef DEFINE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number,

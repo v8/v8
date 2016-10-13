@@ -565,8 +565,8 @@ void CompileSequentially(Isolate* isolate, const WasmModule* module,
     code = compiler::WasmCompilationUnit::CompileWasmFunction(
         thrower, isolate, module_env, &func);
     if (code.is_null()) {
-      thrower->Error("Compilation of #%d:%.*s failed.", i, str.length(),
-                     str.start());
+      thrower->CompileError("Compilation of #%d:%.*s failed.", i, str.length(),
+                            str.start());
       break;
     }
       // Install the code into the linker table.
@@ -1268,7 +1268,7 @@ class WasmInstanceBuilder {
           NewArrayBuffer(isolate_, globals_size);
       globals = global_buffer;
       if (globals.is_null()) {
-        thrower_->Error("Out of memory: wasm globals");
+        thrower_->RangeError("Out of memory: wasm globals");
         return nothing;
       }
       Address old_address = owner.is_null()
@@ -1425,6 +1425,8 @@ class WasmInstanceBuilder {
       }
     }
 
+    DCHECK(wasm::IsWasmObject(*instance));
+
     //--------------------------------------------------------------------------
     // Run the start function if one was specified.
     //--------------------------------------------------------------------------
@@ -1448,7 +1450,8 @@ class WasmInstanceBuilder {
           Execution::Call(isolate_, startup_fct, undefined, 0, nullptr);
 
       if (retval.is_null()) {
-        thrower_->Error("WASM.instantiateModule(): start function failed");
+        DCHECK(isolate_->has_pending_exception());
+        isolate_->OptionalRescheduleException(false);
         // It's unfortunate that the new instance is already linked in the
         // chain. However, we need to set up everything before executing the
         // start function, such that stack trace information can be generated
@@ -1457,8 +1460,7 @@ class WasmInstanceBuilder {
       }
     }
 
-    DCHECK(wasm::IsWasmObject(*instance));
-
+    DCHECK(!isolate_->has_pending_exception());
     TRACE("Finishing instance %d\n", compiled_module_->instance_id());
     TRACE_CHAIN(WasmCompiledModule::cast(module_object_->GetInternalField(0)));
     return instance;
@@ -1478,17 +1480,17 @@ class WasmInstanceBuilder {
                                          MaybeHandle<String> function_name) {
     Handle<String> function_name_handle;
     if (function_name.ToHandle(&function_name_handle)) {
-      thrower_->Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
-                      index, module_name->length(),
-                      module_name->ToCString().get(),
-                      function_name_handle->length(),
-                      function_name_handle->ToCString().get(), error);
+      thrower_->TypeError(
+          "Import #%d module=\"%.*s\" function=\"%.*s\" error: %s", index,
+          module_name->length(), module_name->ToCString().get(),
+          function_name_handle->length(),
+          function_name_handle->ToCString().get(), error);
     } else {
-      thrower_->Error("Import #%d module=\"%.*s\" error: %s", index,
-                      module_name->length(), module_name->ToCString().get(),
-                      error);
+      thrower_->TypeError("Import #%d module=\"%.*s\" error: %s", index,
+                          module_name->length(), module_name->ToCString().get(),
+                          error);
     }
-    thrower_->Error("Import ");
+    thrower_->TypeError("Import ");
     return MaybeHandle<JSFunction>();
   }
 
@@ -1773,14 +1775,14 @@ class WasmInstanceBuilder {
   // Allocate memory for a module instance as a new JSArrayBuffer.
   Handle<JSArrayBuffer> AllocateMemory(uint32_t min_mem_pages) {
     if (min_mem_pages > WasmModule::kMaxMemPages) {
-      thrower_->Error("Out of memory: wasm memory too large");
+      thrower_->RangeError("Out of memory: wasm memory too large");
       return Handle<JSArrayBuffer>::null();
     }
     Handle<JSArrayBuffer> mem_buffer =
         NewArrayBuffer(isolate_, min_mem_pages * WasmModule::kPageSize);
 
     if (mem_buffer.is_null()) {
-      thrower_->Error("Out of memory: wasm memory");
+      thrower_->RangeError("Out of memory: wasm memory");
     }
     return mem_buffer;
   }
@@ -1881,8 +1883,8 @@ class WasmInstanceBuilder {
       v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
           isolate_, exports_object, name, &desc, Object::THROW_ON_ERROR);
       if (!status.IsJust()) {
-        thrower_->Error("export of %.*s failed.", name->length(),
-                        name->ToCString().get());
+        thrower_->TypeError("export of %.*s failed.", name->length(),
+                            name->ToCString().get());
         return;
       }
     }
@@ -2166,7 +2168,7 @@ MaybeHandle<JSObject> wasm::CreateModuleObjectFromBytes(
       DecodeWasmModule(isolate, &zone, start, end, false, origin);
   std::unique_ptr<const WasmModule> decoded_module(result.val);
   if (result.failed()) {
-    thrower->Failed("Wasm decoding failed", result);
+    thrower->CompileFailed("Wasm decoding failed", result);
     return nothing;
   }
   MaybeHandle<WasmCompiledModule> maybe_compiled_module =

@@ -1056,7 +1056,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
                                 Builtins::kErrorPrototypeToString, 0, true);
       isolate->native_context()->set_error_to_string(*to_string_fun);
     } else {
-      DCHECK(context_index != Context::ERROR_FUNCTION_INDEX);
       DCHECK(isolate->native_context()->error_to_string()->IsJSFunction());
 
       InstallFunction(prototype, isolate->error_to_string(),
@@ -1921,6 +1920,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                  Context::URI_ERROR_FUNCTION_INDEX);
     InstallMakeError(isolate, isolate->builtins()->MakeURIError(),
                      Context::MAKE_URI_ERROR_INDEX);
+  }
+
+  {  // -- C o m p i l e E r r o r
+    Handle<JSObject> dummy = factory->NewJSObject(isolate->object_function());
+    InstallError(isolate, dummy, factory->CompileError_string(),
+                 Context::WASM_COMPILE_ERROR_FUNCTION_INDEX);
+
+    // -- R u n t i m e E r r o r
+    InstallError(isolate, dummy, factory->RuntimeError_string(),
+                 Context::WASM_RUNTIME_ERROR_FUNCTION_INDEX);
   }
 
   // Initialize the embedder data slot.

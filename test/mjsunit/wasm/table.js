@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+'use strict';
+
 // Basic tests.
 
 var outOfUint32RangeValue = 1e12;

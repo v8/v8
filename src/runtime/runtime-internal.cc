@@ -122,7 +122,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
-  Handle<Object> error_obj = isolate->factory()->NewError(
+  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
 
   // For wasm traps, the byte offset (a.k.a source position) can not be

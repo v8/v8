@@ -83,6 +83,7 @@ class WasmFunctionBuilder {
     this.module = module;
     this.name = name;
     this.type_index = type_index;
+    this.body = [];
   }
 
   exportAs(name) {
@@ -103,6 +104,10 @@ class WasmFunctionBuilder {
   addLocals(locals) {
     this.locals = locals;
     return this;
+  }
+
+  end() {
+    return this.module;
   }
 }
 
@@ -138,6 +143,7 @@ class WasmModuleBuilder {
 
   addStart(start_index) {
     this.start_index = start_index;
+    return this;
   }
 
   addMemory(min, max, exp) {
@@ -197,6 +203,7 @@ class WasmModuleBuilder {
   addImportedMemory(module, name, initial = 0, maximum) {
     let o = {module: module, name: name, kind: kExternalMemory, initial: initial, maximum: maximum};
     this.imports.push(o);
+    return this;
   }
 
   addDataSegment(addr, data, is_global = false) {
@@ -213,7 +220,7 @@ class WasmModuleBuilder {
     return this;
   }
 
-  toArray(debug) {
+  toArray(debug = false) {
     let binary = new Binary;
     let wasm = this;
 
@@ -483,7 +490,7 @@ class WasmModuleBuilder {
     return binary;
   }
 
-  toBuffer(debug) {
+  toBuffer(debug = false) {
     let bytes = this.toArray(debug);
     let buffer = new ArrayBuffer(bytes.length);
     let view = new Uint8Array(buffer);

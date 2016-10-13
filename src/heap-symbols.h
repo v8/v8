@@ -156,6 +156,8 @@
   V(true_string, "true")                                           \
   V(TypeError_string, "TypeError")                                 \
   V(type_string, "type")                                           \
+  V(CompileError_string, "CompileError")                           \
+  V(RuntimeError_string, "RuntimeError")                           \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \
   V(uint32x4_string, "uint32x4")                                   \
