@@ -3080,7 +3080,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           // Also the trailing parenthesis are a hint that the function will
           // be called immediately. If we happen to have parsed a preceding
           // function literal eagerly, we can also compile it eagerly.
-          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+          if (result->IsFunctionLiteral()) {
             result->AsFunctionLiteral()->SetShouldEagerCompile();
           }
         }
@@ -3410,7 +3410,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
           pos = position();
         } else {
           pos = peek_position();
-          if (expression->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+          if (expression->IsFunctionLiteral()) {
             // If the tag function looks like an IIFE, set_parenthesized() to
             // force eager compilation.
             expression->AsFunctionLiteral()->SetShouldEagerCompile();

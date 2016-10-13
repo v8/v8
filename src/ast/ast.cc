@@ -293,6 +293,7 @@ bool FunctionLiteral::ShouldEagerCompile() const {
 }
 
 void FunctionLiteral::SetShouldEagerCompile() {
+  if (body_ == nullptr) return;
   scope()->SetShouldEagerCompile();
 }
 
