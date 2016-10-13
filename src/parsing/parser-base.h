@@ -3924,7 +3924,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
   // handling in Scope::ResolveVariable needs to change.
   bool is_lazy_top_level_function =
-      can_preparse && scope()->AllowsLazyParsingWithoutUnresolvedVariables();
+      can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool should_be_used_once_hint = false;
   {
     FunctionState function_state(&function_state_, &scope_state_,

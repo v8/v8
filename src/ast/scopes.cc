@@ -1114,14 +1114,29 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   }
 }
 
-bool Scope::AllowsLazyParsingWithoutUnresolvedVariables() const {
-  // If we are inside a block scope, we must find unresolved variables in the
-  // inner scopes to find out how to allocate variables on the block scope. At
-  // this point, declarations may not have yet been parsed.
-  for (const Scope* s = this; s != nullptr; s = s->outer_scope_) {
-    if (s->is_block_scope()) return false;
-    if (s->is_function_scope()) return false;
-    if (s->is_eval_scope() && is_strict(s->language_mode())) return false;
+bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
+    const Scope* outer) const {
+  // If none of the outer scopes need to decide whether to context allocate
+  // specific variables, we can preparse inner functions without unresolved
+  // variables. Otherwise we need to find unresolved variables to force context
+  // allocation of the matching declarations. We can stop at the outer scope for
+  // the parse, since context allocation of those variables is already
+  // guaranteed to be correct.
+  for (const Scope* s = this; s != outer; s = s->outer_scope_) {
+    // Eval forces context allocation on all outer scopes, so we don't need to
+    // look at those scopes. Sloppy eval makes all top-level variables dynamic,
+    // whereas strict-mode requires context allocation.
+    if (s->is_eval_scope()) return !is_strict(s->language_mode());
+    // Catch scopes force context allocation of all variables.
+    if (s->is_catch_scope()) continue;
+    // With scopes do not introduce variables that need allocation.
+    if (s->is_with_scope()) continue;
+    // If everything is guaranteed to be context allocated we can ignore the
+    // scope.
+    if (s->has_forced_context_allocation()) continue;
+    // Only block scopes and function scopes should disallow preparsing.
+    DCHECK(s->is_block_scope() || s->is_function_scope());
+    return false;
   }
   return true;
 }

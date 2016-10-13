@@ -205,6 +205,11 @@ class Parser : public ParserBase<Parser> {
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
 
+  bool AllowsLazyParsingWithoutUnresolvedVariables() const {
+    return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
+        original_scope_);
+  }
+
   // Runtime encoding of different completion modes.
   enum CompletionKind {
     kNormalCompletion,

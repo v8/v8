@@ -795,10 +795,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     } else if (parsing_module_) {
       DCHECK_EQ(outer, info->script_scope());
       outer = NewModuleScope(info->script_scope());
-      // Never do lazy parsing in modules.  If we want to support this in the
-      // future, we must force context-allocation for all variables that are
-      // declared at the module level but not MODULE-allocated.
-      parsing_mode = PARSE_EAGERLY;
     }
 
     DeclarationScope* scope = outer->AsDeclarationScope();
@@ -2625,7 +2621,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
 
   bool is_lazy_top_level_function =
-      can_preparse && scope()->AllowsLazyParsingWithoutUnresolvedVariables();
+      can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
 
   // Determine whether we can still lazy parse the inner function.
   // The preconditions are:

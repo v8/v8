@@ -911,6 +911,8 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
+  bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
+
   V8_INLINE LazyParsingResult SkipLazyFunctionBody(
       int* materialized_literal_count, int* expected_property_count,
       bool track_unresolved_variables, bool may_abort, bool* ok) {

@@ -346,7 +346,7 @@ class Scope: public ZoneObject {
 
   // Determine if we can parse a function literal in this scope lazily without
   // caring about the unresolved variables within.
-  bool AllowsLazyParsingWithoutUnresolvedVariables() const;
+  bool AllowsLazyParsingWithoutUnresolvedVariables(const Scope* outer) const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope) const;
