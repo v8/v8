@@ -215,7 +215,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Node* this_value = value;
       Node* this_receiver = receiver;
       Node* this_effect = effect;
-      Node* this_control;
+      Node* this_control = fallthrough_control;
 
       // Perform map check on {receiver}.
       MapList const& receiver_maps = access_info.receiver_maps();
@@ -223,19 +223,19 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // Emit a (sequence of) map checks for other {receiver}s.
         ZoneVector<Node*> this_controls(zone());
         ZoneVector<Node*> this_effects(zone());
-        size_t num_classes = receiver_maps.size();
-        for (auto map : receiver_maps) {
-          DCHECK_LT(0u, num_classes);
-          Node* check =
-              graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                               jsgraph()->Constant(map));
-          if (--num_classes == 0 && j == access_infos.size() - 1) {
-            check = graph()->NewNode(simplified()->CheckIf(), check,
-                                     this_effect, fallthrough_control);
-            this_controls.push_back(fallthrough_control);
-            this_effects.push_back(check);
-            fallthrough_control = nullptr;
-          } else {
+        if (j == access_infos.size() - 1) {
+          // Last map check on the fallthrough control path, do a
+          // conditional eager deoptimization exit here.
+          this_effect = BuildCheckMaps(receiver, this_effect, this_control,
+                                       receiver_maps);
+          this_effects.push_back(this_effect);
+          this_controls.push_back(fallthrough_control);
+          fallthrough_control = nullptr;
+        } else {
+          for (auto map : receiver_maps) {
+            Node* check =
+                graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
+                                 jsgraph()->Constant(map));
             Node* branch = graph()->NewNode(common()->Branch(), check,
                                             fallthrough_control);
             fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
@@ -579,35 +579,25 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
         // Perform map check(s) on {receiver}.
         MapList const& receiver_maps = access_info.receiver_maps();
-        {
+        if (j == access_infos.size() - 1) {
+          // Last map check on the fallthrough control path, do a
+          // conditional eager deoptimization exit here.
+          this_effect = BuildCheckMaps(receiver, this_effect, this_control,
+                                       receiver_maps);
+          fallthrough_control = nullptr;
+        } else {
           ZoneVector<Node*> this_controls(zone());
           ZoneVector<Node*> this_effects(zone());
-          size_t num_classes = receiver_maps.size();
           for (Handle<Map> map : receiver_maps) {
-            DCHECK_LT(0u, num_classes);
             Node* check =
                 graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
                                  jsgraph()->Constant(map));
-            if (--num_classes == 0 && j == access_infos.size() - 1) {
-              // Last map check on the fallthrough control path, do a
-              // conditional eager deoptimization exit here.
-              // TODO(turbofan): This is ugly as hell! We should probably
-              // introduce macro-ish operators for property access that
-              // encapsulate this whole mess.
-              check = graph()->NewNode(simplified()->CheckIf(), check,
-                                       this_effect, this_control);
-              this_controls.push_back(this_control);
-              this_effects.push_back(check);
-              fallthrough_control = nullptr;
-            } else {
-              Node* branch = graph()->NewNode(common()->Branch(), check,
-                                              fallthrough_control);
-              this_controls.push_back(
-                  graph()->NewNode(common()->IfTrue(), branch));
-              this_effects.push_back(this_effect);
-              fallthrough_control =
-                  graph()->NewNode(common()->IfFalse(), branch);
-            }
+            Node* branch = graph()->NewNode(common()->Branch(), check,
+                                            fallthrough_control);
+            this_controls.push_back(
+                graph()->NewNode(common()->IfTrue(), branch));
+            this_effects.push_back(this_effect);
+            fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
           }
 
           // Create single chokepoint for the control.
