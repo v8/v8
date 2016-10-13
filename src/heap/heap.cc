@@ -4202,8 +4202,7 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
        (!incremental_marking()->finalize_marking_completed() &&
         MarkingDequesAreEmpty()))) {
     FinalizeIncrementalMarking(gc_reason);
-  } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty())) {
+  } else if (incremental_marking()->IsComplete() || MarkingDequesAreEmpty()) {
     CollectAllGarbage(current_gc_flags_, gc_reason);
   }
 }
