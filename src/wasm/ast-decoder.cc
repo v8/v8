@@ -865,7 +865,7 @@ class WasmFullDecoder : public WasmDecoder {
 
                 SsaEnv* copy = Steal(break_env);
                 ssa_env_ = copy;
-                while (iterator.has_next()) {
+                while (ok() && iterator.has_next()) {
                   uint32_t i = iterator.cur_index();
                   const byte* pos = iterator.pc();
                   uint32_t target = iterator.next();
@@ -879,6 +879,7 @@ class WasmFullDecoder : public WasmDecoder {
                                           : BUILD(IfValue, i, sw);
                   BreakTo(target);
                 }
+                if (failed()) break;
               } else {
                 // Only a default target. Do the equivalent of br.
                 const byte* pos = iterator.pc();
