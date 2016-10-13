@@ -154,7 +154,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
-    return Execution::Call(isolate, exec, regexp_exec, argc, argv.start());
+    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.start());
   }
 }
 
