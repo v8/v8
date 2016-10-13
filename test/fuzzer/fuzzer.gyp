@@ -59,6 +59,11 @@
       'sources': [  ### gcmole(all) ###
         'parser.cc',
       ],
+      'conditions': [
+        ['component=="shared_library"', {
+          'defines': [ 'BUILDING_V8_SHARED', ]
+        }],
+      ],
     },
     {
       'target_name': 'v8_simple_regexp_fuzzer',
@@ -416,6 +421,7 @@
           # fuzzers can't be built against a shared library, so we need to
           # depend on the underlying static target in that case.
           'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
+          'defines': [ 'BUILDING_V8_SHARED', ]
         }, {
           'dependencies': ['../../src/v8.gyp:v8'],
         }],

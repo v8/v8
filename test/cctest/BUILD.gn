@@ -317,11 +317,6 @@ v8_executable("cctest") {
     "../..:internal_config_base",
   ]
 
-  if (is_win) {
-    remove_configs = [ "//build/config/win:default_incremental_linking" ]
-    configs += [ "//build/config/win:no_incremental_linking" ]
-  }
-
   # TODO(machenbach): Translate from gyp.
   #["OS=="aix"", {
   #  "ldflags": [ "-Wl,-bbigtoc" ],
@@ -337,10 +332,13 @@ v8_executable("cctest") {
     "//build/win:default_exe_manifest",
   ]
 
+  defines = []
+
   if (is_component_build) {
     # cctest can't be built against a shared library, so we
     # need to depend on the underlying static target in that case.
     deps += [ "../..:v8_maybe_snapshot" ]
+    defines += [ "BUILDING_V8_SHARED" ]
   } else {
     deps += [ "../..:v8" ]
   }
@@ -364,14 +362,6 @@ v8_executable("cctest") {
 
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]
-
-    # Suppress warnings about importing locally defined symbols.
-    if (is_component_build) {
-      ldflags += [
-        "/ignore:4049",
-        "/ignore:4217",
-      ]
-    }
   }
 }
 
@@ -427,20 +417,13 @@ v8_executable("generate-bytecode-expectations") {
     "//build/win:default_exe_manifest",
   ]
 
+  defines = []
+
   if (is_component_build) {
     # Same as cctest, we need to depend on the underlying static target.
     deps += [ "../..:v8_maybe_snapshot" ]
+    defines += [ "BUILDING_V8_SHARED" ]
   } else {
     deps += [ "../..:v8" ]
-  }
-
-  if (is_win) {
-    # Suppress warnings about importing locally defined symbols.
-    if (is_component_build) {
-      ldflags = [
-        "/ignore:4049",
-        "/ignore:4217",
-      ]
-    }
   }
 }
