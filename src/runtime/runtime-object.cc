@@ -870,11 +870,7 @@ RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, done, 1);
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObjectFromMap(isolate->iterator_result_map());
-  result->InObjectPropertyAtPut(JSIteratorResult::kValueIndex, *value);
-  result->InObjectPropertyAtPut(JSIteratorResult::kDoneIndex, *done);
-  return *result;
+  return *isolate->factory()->NewJSIteratorResult(value, done->BooleanValue());
 }
 
 
