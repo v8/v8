@@ -14506,6 +14506,42 @@ WeakCell* Code::CachedWeakCell() {
   return NULL;
 }
 
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+
+const char* Code::ICState2String(InlineCacheState state) {
+  switch (state) {
+    case UNINITIALIZED:
+      return "UNINITIALIZED";
+    case PREMONOMORPHIC:
+      return "PREMONOMORPHIC";
+    case MONOMORPHIC:
+      return "MONOMORPHIC";
+    case RECOMPUTE_HANDLER:
+      return "RECOMPUTE_HANDLER";
+    case POLYMORPHIC:
+      return "POLYMORPHIC";
+    case MEGAMORPHIC:
+      return "MEGAMORPHIC";
+    case GENERIC:
+      return "GENERIC";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+void Code::PrintExtraICState(std::ostream& os,  // NOLINT
+                             Kind kind, ExtraICState extra) {
+  os << "extra_ic_state = ";
+  if ((kind == STORE_IC || kind == KEYED_STORE_IC) &&
+      is_strict(static_cast<LanguageMode>(extra))) {
+    os << "STRICT\n";
+  } else {
+    os << extra << "\n";
+  }
+}
+
+#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+
 #ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(
@@ -14758,34 +14794,6 @@ void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
     os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
        << handler_offset << " (prediction=" << prediction << ")\n";
-  }
-}
-
-
-const char* Code::ICState2String(InlineCacheState state) {
-  switch (state) {
-    case UNINITIALIZED: return "UNINITIALIZED";
-    case PREMONOMORPHIC: return "PREMONOMORPHIC";
-    case MONOMORPHIC: return "MONOMORPHIC";
-    case RECOMPUTE_HANDLER:
-      return "RECOMPUTE_HANDLER";
-    case POLYMORPHIC: return "POLYMORPHIC";
-    case MEGAMORPHIC: return "MEGAMORPHIC";
-    case GENERIC: return "GENERIC";
-  }
-  UNREACHABLE();
-  return NULL;
-}
-
-
-void Code::PrintExtraICState(std::ostream& os,  // NOLINT
-                             Kind kind, ExtraICState extra) {
-  os << "extra_ic_state = ";
-  if ((kind == STORE_IC || kind == KEYED_STORE_IC) &&
-      is_strict(static_cast<LanguageMode>(extra))) {
-    os << "STRICT\n";
-  } else {
-    os << extra << "\n";
   }
 }
 

@@ -5238,11 +5238,14 @@ class Code: public HeapObject {
 
   static const int kPrologueOffsetNotSet = -1;
 
-#ifdef ENABLE_DISASSEMBLER
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   // Printing
   static const char* ICState2String(InlineCacheState state);
   static void PrintExtraICState(std::ostream& os,  // NOLINT
                                 Kind kind, ExtraICState extra);
+#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+
+#ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, std::ostream& os);  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
