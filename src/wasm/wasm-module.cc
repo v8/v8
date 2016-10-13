@@ -2200,10 +2200,8 @@ bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
   return false;
 }
 
-namespace {
-
-MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
-                                             Handle<JSObject> instance) {
+MaybeHandle<JSArrayBuffer> wasm::GetInstanceMemory(Isolate* isolate,
+                                                   Handle<JSObject> instance) {
   Object* mem = instance->GetInternalField(kWasmMemArrayBuffer);
   DCHECK(IsWasmObject(*instance));
   if (mem->IsUndefined(isolate)) return MaybeHandle<JSArrayBuffer>();
@@ -2217,8 +2215,6 @@ void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
   WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   compiled_module->set_ptr_to_heap(buffer);
 }
-
-}  // namespace
 
 int32_t wasm::GetInstanceMemorySize(Isolate* isolate,
                                     Handle<JSObject> instance) {

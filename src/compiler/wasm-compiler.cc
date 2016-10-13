@@ -407,37 +407,44 @@ Node* WasmGraphBuilder::Int64Constant(int64_t value) {
   return jsgraph()->Int64Constant(value);
 }
 
-void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
+void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
+                                  Node** effect, Node** control) {
+  if (effect == nullptr) {
+    effect = effect_;
+  }
+  if (control == nullptr) {
+    control = control_;
+  }
   // We do not generate stack checks for cctests.
   if (module_ && !module_->instance->context.is_null()) {
     Node* limit = graph()->NewNode(
         jsgraph()->machine()->Load(MachineType::Pointer()),
         jsgraph()->ExternalConstant(
             ExternalReference::address_of_stack_limit(jsgraph()->isolate())),
-        jsgraph()->IntPtrConstant(0), *effect_, *control_);
+        jsgraph()->IntPtrConstant(0), *effect, *control);
     Node* pointer = graph()->NewNode(jsgraph()->machine()->LoadStackPointer());
 
     Node* check =
         graph()->NewNode(jsgraph()->machine()->UintLessThan(), limit, pointer);
 
     Diamond stack_check(graph(), jsgraph()->common(), check, BranchHint::kTrue);
-
-    Node* effect_true = *effect_;
+    stack_check.Chain(*control);
+    Node* effect_true = *effect;
 
     Node* effect_false;
     // Generate a call to the runtime if there is a stack check failure.
     {
       Node* node = BuildCallToRuntime(Runtime::kStackGuard, jsgraph(),
                                       module_->instance->context, nullptr, 0,
-                                      effect_, stack_check.if_false);
+                                      effect, stack_check.if_false);
       effect_false = node;
     }
 
     Node* ephi = graph()->NewNode(jsgraph()->common()->EffectPhi(2),
                                   effect_true, effect_false, stack_check.merge);
 
-    *control_ = stack_check.merge;
-    *effect_ = ephi;
+    *control = stack_check.merge;
+    *effect = ephi;
   }
 }
 

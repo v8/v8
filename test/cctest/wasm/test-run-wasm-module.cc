@@ -310,6 +310,87 @@ TEST(GrowMemoryZero) {
   TestModule(&zone, builder, kExpectedValue);
 }
 
+class InterruptThread : public v8::base::Thread {
+ public:
+  explicit InterruptThread(Isolate* isolate, int32_t* memory)
+      : Thread(Options("TestInterruptLoop")),
+        isolate_(isolate),
+        memory_(memory) {}
+
+  static void OnInterrupt(v8::Isolate* isolate, void* data) {
+    int32_t* m = reinterpret_cast<int32_t*>(data);
+    // Set the interrupt location to 0 to break the loop in {TestInterruptLoop}.
+    m[interrupt_location_] = interrupt_value_;
+  }
+
+  virtual void Run() {
+    // Wait for the main thread to write the signal value.
+    while (memory_[0] != signal_value_) {
+    }
+    isolate_->RequestInterrupt(&OnInterrupt, const_cast<int32_t*>(memory_));
+  }
+
+  Isolate* isolate_;
+  volatile int32_t* memory_;
+  static const int32_t interrupt_location_ = 10;
+  static const int32_t interrupt_value_ = 154;
+  static const int32_t signal_value_ = 1221;
+};
+
+TEST(TestInterruptLoop) {
+  // This test tests that WebAssembly loops can be interrupted, i.e. that if an
+  // InterruptCallback is registered by {Isolate::RequestInterrupt}, then the
+  // InterruptCallback is eventually called even if a loop in WebAssembly code
+  // is executed.
+  // Test setup:
+  // The main thread executes a WebAssembly function with a loop. In the loop
+  // {signal_value_} is written to memory to signal a helper thread that the
+  // main thread reached the loop in the WebAssembly program. When the helper
+  // thread reads {signal_value_} from memory, it registers the
+  // InterruptCallback. Upon exeution, the InterruptCallback write into the
+  // WebAssemblyMemory to end the loop in the WebAssembly program.
+  TestSignatures sigs;
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator);
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  ExportAsMain(f);
+  byte code[] = {WASM_LOOP(WASM_IFB(
+                     WASM_NOT(WASM_LOAD_MEM(
+                         MachineType::Int32(),
+                         WASM_I32V(InterruptThread::interrupt_location_ * 4))),
+                     WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
+                                    WASM_I32V(InterruptThread::signal_value_)),
+                     WASM_BR(1))),
+                 WASM_I32V(121)};
+  f->EmitCode(code, sizeof(code));
+  ZoneBuffer buffer(&zone);
+  builder->WriteTo(buffer);
+
+  HandleScope scope(isolate);
+  testing::SetupIsolateForWasmModule(isolate);
+  ErrorThrower thrower(isolate, "Test");
+  const Handle<JSObject> instance =
+      testing::CompileInstantiateWasmModuleForTesting(
+          isolate, &thrower, &zone, buffer.begin(), buffer.end(),
+          ModuleOrigin::kWasmOrigin);
+  CHECK(!instance.is_null());
+
+  MaybeHandle<JSArrayBuffer> maybe_memory =
+      GetInstanceMemory(isolate, instance);
+  Handle<JSArrayBuffer> memory = maybe_memory.ToHandleChecked();
+  int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
+
+  InterruptThread thread(isolate, memory_array);
+  thread.Start();
+  testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr,
+                                   ModuleOrigin::kWasmOrigin);
+  CHECK_EQ(InterruptThread::interrupt_value_,
+           memory_array[InterruptThread::interrupt_location_]);
+}
+
 TEST(Run_WasmModule_GrowMemoryInIf) {
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
@@ -365,8 +446,10 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
   builder->WriteTo(buffer);
   testing::SetupIsolateForWasmModule(isolate);
 
+  ErrorThrower thrower(isolate, "Test");
   Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
-      isolate, &zone, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
+      isolate, &thrower, &zone, buffer.begin(), buffer.end(),
+      ModuleOrigin::kWasmOrigin);
   CHECK(!instance.is_null());
 
   // Initial memory size is 16 pages, should trap till index > MemSize on
@@ -408,8 +491,10 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
   builder->WriteTo(buffer);
   testing::SetupIsolateForWasmModule(isolate);
 
+  ErrorThrower thrower(isolate, "Test");
   Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
-      isolate, &zone, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
+      isolate, &thrower, &zone, buffer.begin(), buffer.end(),
+      ModuleOrigin::kWasmOrigin);
 
   CHECK(!instance.is_null());
 

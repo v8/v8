@@ -78,17 +78,16 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 }
 
 const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
-    Isolate* isolate, Zone* zone, const byte* module_start,
-    const byte* module_end, ModuleOrigin origin) {
-  ErrorThrower thrower(isolate, "CompileInstantiateWasmModule");
+    Isolate* isolate, ErrorThrower* thrower, Zone* zone,
+    const byte* module_start, const byte* module_end, ModuleOrigin origin) {
   std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, zone, &thrower, module_start, module_end, origin));
+      isolate, zone, thrower, module_start, module_end, origin));
 
   if (module == nullptr) {
-    thrower.Error("Wasm module decode failed");
+    thrower->Error("Wasm module decode failed");
     return Handle<JSObject>::null();
   }
-  return InstantiateModuleForTesting(isolate, &thrower, module.get());
+  return InstantiateModuleForTesting(isolate, thrower, module.get());
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
@@ -104,9 +103,9 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, ModuleOrigin origin) {
   HandleScope scope(isolate);
   Zone zone(isolate->allocator());
-
+  ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   Handle<JSObject> instance = CompileInstantiateWasmModuleForTesting(
-      isolate, &zone, module_start, module_end, origin);
+      isolate, &thrower, &zone, module_start, module_end, origin);
   if (instance.is_null()) {
     return -1;
   }
@@ -224,7 +223,6 @@ void SetupIsolateForWasmModule(Isolate* isolate) {
   WasmJs::InstallWasmModuleSymbolIfNeeded(isolate, isolate->global_object(),
                                           isolate->native_context());
 }
-
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal

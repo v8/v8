@@ -684,8 +684,8 @@ class WasmFullDecoder : public WasmDecoder {
             BlockTypeOperand operand(this, pc_);
             SsaEnv* finish_try_env = Steal(ssa_env_);
             // The continue environment is the inner environment.
-            PrepareForLoop(pc_, finish_try_env);
-            SetEnv("loop:start", Split(finish_try_env));
+            SsaEnv* loop_body_env = PrepareForLoop(pc_, finish_try_env);
+            SetEnv("loop:start", loop_body_env);
             ssa_env_->SetNotMerged();
             PushLoop(finish_try_env);
             SetBlockType(&control_.back(), operand);
@@ -1616,10 +1616,10 @@ class WasmFullDecoder : public WasmDecoder {
     return tnode;
   }
 
-  void PrepareForLoop(const byte* pc, SsaEnv* env) {
-    if (!env->go()) return;
+  SsaEnv* PrepareForLoop(const byte* pc, SsaEnv* env) {
+    if (!builder_) return Split(env);
+    if (!env->go()) return Split(env);
     env->state = SsaEnv::kMerged;
-    if (!builder_) return;
 
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
@@ -1633,7 +1633,10 @@ class WasmFullDecoder : public WasmDecoder {
           env->locals[i] = builder_->Phi(local_type_vec_[i], 1, &env->locals[i],
                                          env->control);
         }
-        return;
+        SsaEnv* loop_body_env = Split(env);
+        builder_->StackCheck(position(), &(loop_body_env->effect),
+                             &(loop_body_env->control));
+        return loop_body_env;
       }
     }
 
@@ -1642,6 +1645,11 @@ class WasmFullDecoder : public WasmDecoder {
       env->locals[i] =
           builder_->Phi(local_type_vec_[i], 1, &env->locals[i], env->control);
     }
+
+    SsaEnv* loop_body_env = Split(env);
+    builder_->StackCheck(position(), &(loop_body_env->effect),
+                         &(loop_body_env->control));
+    return loop_body_env;
   }
 
   // Create a complete copy of the {from}.

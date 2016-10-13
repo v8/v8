@@ -142,7 +142,8 @@ class WasmGraphBuilder {
   void AppendToMerge(Node* merge, Node* from);
   void AppendToPhi(Node* phi, Node* from);
 
-  void StackCheck(wasm::WasmCodePosition position);
+  void StackCheck(wasm::WasmCodePosition position, Node** effect = nullptr,
+                  Node** control = nullptr);
 
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
