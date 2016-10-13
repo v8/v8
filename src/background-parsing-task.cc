@@ -43,10 +43,7 @@ BackgroundParsingTask::BackgroundParsingTask(
   // Parse eagerly with ignition since we will compile eagerly.
   info->set_allow_lazy_parsing(!(i::FLAG_ignition && i::FLAG_ignition_eager));
 
-  if (options == ScriptCompiler::kProduceParserCache ||
-      options == ScriptCompiler::kProduceCodeCache) {
-    source_->info->set_cached_data(&script_data_);
-  }
+  source_->info->set_cached_data(&script_data_);
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
   source_->parser.reset(new Parser(source_->info.get()));

@@ -99,6 +99,9 @@ class ParseInfo {
     return compile_options_;
   }
   void set_compile_options(ScriptCompiler::CompileOptions compile_options) {
+    if (compile_options == ScriptCompiler::kConsumeParserCache) {
+      set_allow_lazy_parsing();
+    }
     compile_options_ = compile_options;
   }
 

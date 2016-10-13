@@ -1036,30 +1036,8 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
-    if (parse_info->literal() == NULL) {
-      // Parse the script if needed (if it's already parsed, literal() is
-      // non-NULL). If compiling for debugging, we may eagerly compile inner
-      // functions, so do not parse lazily in that case.
-      ScriptCompiler::CompileOptions options = parse_info->compile_options();
-      bool parse_allow_lazy =
-          options == ScriptCompiler::kConsumeParserCache ||
-          String::cast(script->source())->length() > FLAG_min_preparse_length;
-
-      parse_info->set_allow_lazy_parsing(parse_allow_lazy);
-      if (!parse_allow_lazy &&
-          (options == ScriptCompiler::kProduceParserCache ||
-           options == ScriptCompiler::kConsumeParserCache)) {
-        // We are going to parse eagerly, but we either 1) have cached data
-        // produced by lazy parsing or 2) are asked to generate cached data.
-        // Eager parsing cannot benefit from cached data, and producing cached
-        // data while parsing eagerly is not implemented.
-        parse_info->set_cached_data(nullptr);
-        parse_info->set_compile_options(ScriptCompiler::kNoCompileOptions);
-      }
-
-      if (!Parse(parse_info)) {
-        return Handle<SharedFunctionInfo>::null();
-      }
+    if (parse_info->literal() == nullptr && !Parse(parse_info)) {
+      return Handle<SharedFunctionInfo>::null();
     }
 
     FunctionLiteral* lit = parse_info->literal();

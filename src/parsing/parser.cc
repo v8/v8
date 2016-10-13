@@ -150,12 +150,11 @@ class DiscardableZoneScope {
 };
 
 void Parser::SetCachedData(ParseInfo* info) {
-  if (compile_options_ == ScriptCompiler::kNoCompileOptions) {
-    cached_parse_data_ = NULL;
-  } else {
-    DCHECK(info->cached_data() != NULL);
-    if (compile_options_ == ScriptCompiler::kConsumeParserCache) {
-      cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
+  DCHECK_NULL(cached_parse_data_);
+  if (consume_cached_parse_data()) {
+    cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
+    if (cached_parse_data_ == nullptr) {
+      compile_options_ = ScriptCompiler::kNoCompileOptions;
     }
   }
 }
@@ -638,7 +637,7 @@ Parser::Parser(ParseInfo* info)
       original_scope_(NULL),
       target_stack_(NULL),
       compile_options_(info->compile_options()),
-      cached_parse_data_(NULL),
+      cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
@@ -669,7 +668,8 @@ Parser::Parser(ParseInfo* info)
                                      ? FunctionLiteral::kShouldLazyCompile
                                      : FunctionLiteral::kShouldEagerCompile);
   set_allow_lazy(FLAG_lazy && info->allow_lazy_parsing() &&
-                 !info->is_native() && info->extension() == nullptr);
+                 !info->is_native() && info->extension() == nullptr &&
+                 can_compile_lazily);
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
                       info->isolate()->is_tail_call_elimination_enabled());

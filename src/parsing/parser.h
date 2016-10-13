@@ -247,11 +247,12 @@ class Parser : public ParserBase<Parser> {
     return compile_options_;
   }
   bool consume_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kConsumeParserCache &&
-           cached_parse_data_ != NULL;
+    return allow_lazy() &&
+           compile_options_ == ScriptCompiler::kConsumeParserCache;
   }
   bool produce_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kProduceParserCache;
+    return allow_lazy() &&
+           compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
