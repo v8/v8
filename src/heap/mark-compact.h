@@ -503,9 +503,9 @@ class MarkCompactCollector {
 
   bool WillBeDeoptimized(Code* code);
 
-  void ComputeEvacuationHeuristics(int area_size,
+  void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
-                                   int* max_evacuated_bytes);
+                                   size_t* max_evacuated_bytes);
 
   void VisitAllObjects(HeapObjectVisitor* visitor);
 

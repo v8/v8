@@ -141,19 +141,20 @@ const int kMinUInt16 = 0;
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 const int kMinUInt32 = 0;
 
-const int kCharSize      = sizeof(char);      // NOLINT
-const int kShortSize     = sizeof(short);     // NOLINT
-const int kIntSize       = sizeof(int);       // NOLINT
-const int kInt32Size     = sizeof(int32_t);   // NOLINT
-const int kInt64Size     = sizeof(int64_t);   // NOLINT
-const int kFloatSize     = sizeof(float);     // NOLINT
-const int kDoubleSize    = sizeof(double);    // NOLINT
-const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
-const int kPointerSize   = sizeof(void*);     // NOLINT
+const int kCharSize = sizeof(char);
+const int kShortSize = sizeof(short);  // NOLINT
+const int kIntSize = sizeof(int);
+const int kInt32Size = sizeof(int32_t);
+const int kInt64Size = sizeof(int64_t);
+const int kSizetSize = sizeof(size_t);
+const int kFloatSize = sizeof(float);
+const int kDoubleSize = sizeof(double);
+const int kIntptrSize = sizeof(intptr_t);
+const int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-const int kRegisterSize  = kPointerSize + kPointerSize;
+const int kRegisterSize = kPointerSize + kPointerSize;
 #else
-const int kRegisterSize  = kPointerSize;
+const int kRegisterSize = kPointerSize;
 #endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;

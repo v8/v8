@@ -279,6 +279,7 @@ intptr_t PagedSpace::RelinkFreeListCategories(Page* page) {
     added += category->available();
     category->Relink();
   });
+  DCHECK_EQ(page->AvailableInFreeList(), page->available_in_free_list());
   return added;
 }
 

@@ -575,22 +575,21 @@ const char* AllocationSpaceName(AllocationSpace space) {
   return NULL;
 }
 
-
 void MarkCompactCollector::ComputeEvacuationHeuristics(
-    int area_size, int* target_fragmentation_percent,
-    int* max_evacuated_bytes) {
+    size_t area_size, int* target_fragmentation_percent,
+    size_t* max_evacuated_bytes) {
   // For memory reducing and optimize for memory mode we directly define both
   // constants.
   const int kTargetFragmentationPercentForReduceMemory = 20;
-  const int kMaxEvacuatedBytesForReduceMemory = 12 * MB;
+  const size_t kMaxEvacuatedBytesForReduceMemory = 12 * MB;
   const int kTargetFragmentationPercentForOptimizeMemory = 20;
-  const int kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
+  const size_t kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
 
   // For regular mode (which is latency critical) we define less aggressive
   // defaults to start and switch to a trace-based (using compaction speed)
   // approach as soon as we have enough samples.
   const int kTargetFragmentationPercent = 70;
-  const int kMaxEvacuatedBytes = 4 * MB;
+  const size_t kMaxEvacuatedBytes = 4 * MB;
   // Time to take for a single area (=payload of page). Used as soon as there
   // exist enough compaction speed samples.
   const float kTargetMsPerArea = .5;
@@ -629,10 +628,10 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE);
 
   int number_of_pages = space->CountTotalPages();
-  int area_size = space->AreaSize();
+  size_t area_size = space->AreaSize();
 
   // Pairs of (live_bytes_in_page, page).
-  typedef std::pair<int, Page*> LiveBytesPagePair;
+  typedef std::pair<size_t, Page*> LiveBytesPagePair;
   std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
 
@@ -651,7 +650,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   }
 
   int candidate_count = 0;
-  int total_live_bytes = 0;
+  size_t total_live_bytes = 0;
 
   const bool reduce_memory = heap()->ShouldReduceMemory();
   if (FLAG_manual_evacuation_candidates_selection) {
@@ -687,12 +686,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     // them starting with the page with the most free memory, adding them to the
     // set of evacuation candidates as long as both conditions (fragmentation
     // and quota) hold.
-    int max_evacuated_bytes;
+    size_t max_evacuated_bytes;
     int target_fragmentation_percent;
     ComputeEvacuationHeuristics(area_size, &target_fragmentation_percent,
                                 &max_evacuated_bytes);
 
-    const intptr_t free_bytes_threshold =
+    const size_t free_bytes_threshold =
         target_fragmentation_percent * (area_size / 100);
 
     // Sort pages from the most free to the least free, then select
@@ -705,8 +704,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
                 return a.first < b.first;
               });
     for (size_t i = 0; i < pages.size(); i++) {
-      int live_bytes = pages[i].first;
-      int free_bytes = area_size - live_bytes;
+      size_t live_bytes = pages[i].first;
+      DCHECK_GE(area_size, live_bytes);
+      size_t free_bytes = area_size - live_bytes;
       if (FLAG_always_compact ||
           ((free_bytes >= free_bytes_threshold) &&
            ((total_live_bytes + live_bytes) <= max_evacuated_bytes))) {
@@ -715,10 +715,10 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       }
       if (FLAG_trace_fragmentation_verbose) {
         PrintIsolate(isolate(),
-                     "compaction-selection-page: space=%s free_bytes_page=%d "
+                     "compaction-selection-page: space=%s free_bytes_page=%zu "
                      "fragmentation_limit_kb=%" V8PRIdPTR
-                     " fragmentation_limit_percent=%d sum_compaction_kb=%d "
-                     "compaction_limit_kb=%d\n",
+                     " fragmentation_limit_percent=%d sum_compaction_kb=%zu "
+                     "compaction_limit_kb=%zu\n",
                      AllocationSpaceName(space->identity()), free_bytes / KB,
                      free_bytes_threshold / KB, target_fragmentation_percent,
                      total_live_bytes / KB, max_evacuated_bytes / KB);
@@ -726,7 +726,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     }
     // How many pages we will allocated for the evacuated objects
     // in the worst case: ceil(total_live_bytes / area_size)
-    int estimated_new_pages = (total_live_bytes + area_size - 1) / area_size;
+    int estimated_new_pages =
+        static_cast<int>((total_live_bytes + area_size - 1) / area_size);
     DCHECK_LE(estimated_new_pages, candidate_count);
     int estimated_released_pages = candidate_count - estimated_new_pages;
     // Avoid (compact -> expand) cycles.
@@ -741,7 +742,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   if (FLAG_trace_fragmentation) {
     PrintIsolate(isolate(),
                  "compaction-selection: space=%s reduce_memory=%d pages=%d "
-                 "total_live_bytes=%d\n",
+                 "total_live_bytes=%zu\n",
                  AllocationSpaceName(space->identity()), reduce_memory,
                  candidate_count, total_live_bytes / KB);
   }
@@ -3354,7 +3355,8 @@ int MarkCompactCollector::Sweeper::RawSweep(
     DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
     Address free_end = object->address();
     if (free_end != free_start) {
-      int size = static_cast<int>(free_end - free_start);
+      CHECK_GT(free_end, free_start);
+      size_t size = static_cast<size_t>(free_end - free_start);
       if (free_space_mode == ZAP_FREE_SPACE) {
         memset(free_start, 0xcc, size);
       }
@@ -3363,7 +3365,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
             free_start, size);
         max_freed_bytes = Max(freed_bytes, max_freed_bytes);
       } else {
-        p->heap()->CreateFillerObjectAt(free_start, size,
+        p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                         ClearRecordedSlots::kNo);
       }
     }
@@ -3385,7 +3387,8 @@ int MarkCompactCollector::Sweeper::RawSweep(
   p->ClearLiveness();
 
   if (free_start != p->area_end()) {
-    int size = static_cast<int>(p->area_end() - free_start);
+    CHECK_GT(p->area_end(), free_start);
+    size_t size = static_cast<size_t>(p->area_end() - free_start);
     if (free_space_mode == ZAP_FREE_SPACE) {
       memset(free_start, 0xcc, size);
     }
@@ -3394,7 +3397,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
           free_start, size);
       max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     } else {
-      p->heap()->CreateFillerObjectAt(free_start, size,
+      p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                       ClearRecordedSlots::kNo);
     }
   }
@@ -3856,7 +3859,8 @@ void MarkCompactCollector::Sweeper::AddLatePage(AllocationSpace space,
 void MarkCompactCollector::Sweeper::PrepareToBeSweptPage(AllocationSpace space,
                                                          Page* page) {
   page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
-  int to_sweep = page->area_size() - page->LiveBytes();
+  DCHECK_GE(page->area_size(), static_cast<size_t>(page->LiveBytes()));
+  size_t to_sweep = page->area_size() - page->LiveBytes();
   if (space != NEW_SPACE)
     heap_->paged_space(space)->accounting_stats_.ShrinkSpace(to_sweep);
 }

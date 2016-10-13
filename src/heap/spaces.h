@@ -135,7 +135,8 @@ enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 class FreeListCategory {
  public:
   static const int kSize = kIntSize +      // FreeListCategoryType type_
-                           kIntSize +      // int available_
+                           kIntSize +      // padding for type_
+                           kSizetSize +    // size_t available_
                            kPointerSize +  // FreeSpace* top_
                            kPointerSize +  // FreeListCategory* prev_
                            kPointerSize;   // FreeListCategory* next_
@@ -167,28 +168,28 @@ class FreeListCategory {
   // category is currently unlinked.
   void Relink();
 
-  bool Free(FreeSpace* node, int size_in_bytes, FreeMode mode);
+  bool Free(FreeSpace* node, size_t size_in_bytes, FreeMode mode);
 
   // Picks a node from the list and stores its size in |node_size|. Returns
   // nullptr if the category is empty.
-  FreeSpace* PickNodeFromList(int* node_size);
+  FreeSpace* PickNodeFromList(size_t* node_size);
 
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
   // node is found.
-  FreeSpace* TryPickNodeFromList(int minimum_size, int* node_size);
+  FreeSpace* TryPickNodeFromList(size_t minimum_size, size_t* node_size);
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
-  FreeSpace* SearchForNodeInList(int minimum_size, int* node_size);
+  FreeSpace* SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
   inline FreeList* owner();
   inline bool is_linked();
   bool is_empty() { return top() == nullptr; }
-  int available() const { return available_; }
+  size_t available() const { return available_; }
 
 #ifdef DEBUG
-  intptr_t SumFreeList();
+  size_t SumFreeList();
   int FreeListLength();
 #endif
 
@@ -211,7 +212,7 @@ class FreeListCategory {
 
   // |available_|: Total available bytes in all blocks of this free list
   // category.
-  int available_;
+  size_t available_;
 
   // |top_|: Points to the top FreeSpace* in the free list category.
   FreeSpace* top_;
@@ -320,26 +321,26 @@ class MemoryChunk {
   static const intptr_t kFlagsOffset = kSizeOffset + kPointerSize;
 
   static const size_t kMinHeaderSize =
-      kSizeOffset + kPointerSize  // size_t size
-      + kIntptrSize               // Flags flags_
-      + kPointerSize              // Address area_start_
-      + kPointerSize              // Address area_end_
-      + 2 * kPointerSize          // base::VirtualMemory reservation_
-      + kPointerSize              // Address owner_
-      + kPointerSize              // Heap* heap_
-      + kIntSize                  // int progress_bar_
-      + kIntSize                  // int live_bytes_count_
-      + kPointerSize              // SlotSet* old_to_new_slots_
-      + kPointerSize              // SlotSet* old_to_old_slots_
-      + kPointerSize              // TypedSlotSet* typed_old_to_new_slots_
-      + kPointerSize              // TypedSlotSet* typed_old_to_old_slots_
-      + kPointerSize              // SkipList* skip_list_
-      + kPointerSize              // AtomicValue high_water_mark_
-      + kPointerSize              // base::Mutex* mutex_
-      + kPointerSize              // base::AtomicWord concurrent_sweeping_
-      + 2 * kPointerSize          // AtomicNumber free-list statistics
-      + kPointerSize              // AtomicValue next_chunk_
-      + kPointerSize              // AtomicValue prev_chunk_
+      kSizeOffset + kSizetSize  // size_t size
+      + kIntptrSize             // Flags flags_
+      + kPointerSize            // Address area_start_
+      + kPointerSize            // Address area_end_
+      + 2 * kPointerSize        // base::VirtualMemory reservation_
+      + kPointerSize            // Address owner_
+      + kPointerSize            // Heap* heap_
+      + kIntSize                // int progress_bar_
+      + kIntSize                // int live_bytes_count_
+      + kPointerSize            // SlotSet* old_to_new_slots_
+      + kPointerSize            // SlotSet* old_to_old_slots_
+      + kPointerSize            // TypedSlotSet* typed_old_to_new_slots_
+      + kPointerSize            // TypedSlotSet* typed_old_to_old_slots_
+      + kPointerSize            // SkipList* skip_list_
+      + kPointerSize            // AtomicValue high_water_mark_
+      + kPointerSize            // base::Mutex* mutex_
+      + kPointerSize            // base::AtomicWord concurrent_sweeping_
+      + 2 * kSizetSize          // AtomicNumber free-list statistics
+      + kPointerSize            // AtomicValue next_chunk_
+      + kPointerSize            // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
       + FreeListCategory::kSize * kNumberOfCategories +
       kPointerSize  // LocalArrayBufferTracker* local_tracker_
@@ -459,7 +460,7 @@ class MemoryChunk {
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
-  int area_size() { return static_cast<int>(area_end() - area_start()); }
+  size_t area_size() { return static_cast<size_t>(area_end() - area_start()); }
 
   bool CommitArea(size_t requested);
 
@@ -749,13 +750,10 @@ class Page : public MemoryChunk {
   }
 
   // Returns the offset of a given address to this page.
-  inline int Offset(Address a) {
-    int offset = static_cast<int>(a - address());
-    return offset;
-  }
+  inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
 
   // Returns the address for a given offset to the this page.
-  Address OffsetToAddress(int offset) {
+  Address OffsetToAddress(size_t offset) {
     DCHECK_PAGE_OFFSET(offset);
     return address() + offset;
   }
@@ -775,9 +773,11 @@ class Page : public MemoryChunk {
 
   void ResetFreeListStatistics();
 
-  int LiveBytesFromFreeList() {
-    return static_cast<int>(area_size() - wasted_memory() -
-                            available_in_free_list());
+  size_t AvailableInFreeList();
+
+  size_t LiveBytesFromFreeList() {
+    DCHECK_GE(area_size(), wasted_memory() + available_in_free_list());
+    return area_size() - wasted_memory() - available_in_free_list();
   }
 
   FreeListCategory* free_list_category(FreeListCategoryType type) {
@@ -786,11 +786,17 @@ class Page : public MemoryChunk {
 
   bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
 
-  intptr_t wasted_memory() { return wasted_memory_.Value(); }
-  void add_wasted_memory(intptr_t waste) { wasted_memory_.Increment(waste); }
-  intptr_t available_in_free_list() { return available_in_free_list_.Value(); }
-  void add_available_in_free_list(intptr_t available) {
+  size_t wasted_memory() { return wasted_memory_.Value(); }
+  void add_wasted_memory(size_t waste) { wasted_memory_.Increment(waste); }
+  size_t available_in_free_list() { return available_in_free_list_.Value(); }
+  void add_available_in_free_list(size_t available) {
+    DCHECK_LE(available, area_size());
     available_in_free_list_.Increment(available);
+  }
+  void remove_available_in_free_list(size_t available) {
+    DCHECK_LE(available, area_size());
+    DCHECK_GE(available_in_free_list(), available);
+    available_in_free_list_.Decrement(available);
   }
 
   size_t ShrinkToHighWaterMark();
@@ -1693,12 +1699,12 @@ class FreeList {
   // was too small. Bookkeeping information will be written to the block, i.e.,
   // its contents will be destroyed. The start address should be word aligned,
   // and the size should be a non-zero multiple of the word size.
-  int Free(Address start, int size_in_bytes, FreeMode mode);
+  size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
 
   // Allocate a block of size {size_in_bytes} from the free list. The block is
   // unitialized. A failure is returned if no block is available. The size
   // should be a non-zero multiple of the word size.
-  MUST_USE_RESULT HeapObject* Allocate(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* Allocate(size_t size_in_bytes);
 
   // Clear the free list.
   void Reset();
@@ -1729,11 +1735,11 @@ class FreeList {
   // Used after booting the VM.
   void RepairLists(Heap* heap);
 
-  intptr_t EvictFreeListItems(Page* page);
+  size_t EvictFreeListItems(Page* page);
   bool ContainsPageFreeListItems(Page* page);
 
   PagedSpace* owner() { return owner_; }
-  intptr_t wasted_bytes() { return wasted_bytes_.Value(); }
+  size_t wasted_bytes() { return wasted_bytes_.Value(); }
 
   template <typename Callback>
   void ForAllFreeListCategories(FreeListCategoryType type, Callback callback) {
@@ -1757,7 +1763,7 @@ class FreeList {
   void PrintCategories(FreeListCategoryType type);
 
 #ifdef DEBUG
-  intptr_t SumFreeLists();
+  size_t SumFreeLists();
   bool IsVeryLong();
 #endif
 
@@ -1781,33 +1787,33 @@ class FreeList {
   };
 
   // The size range of blocks, in bytes.
-  static const int kMinBlockSize = 3 * kPointerSize;
-  static const int kMaxBlockSize = Page::kAllocatableMemory;
+  static const size_t kMinBlockSize = 3 * kPointerSize;
+  static const size_t kMaxBlockSize = Page::kAllocatableMemory;
 
-  static const int kTiniestListMax = 0xa * kPointerSize;
-  static const int kTinyListMax = 0x1f * kPointerSize;
-  static const int kSmallListMax = 0xff * kPointerSize;
-  static const int kMediumListMax = 0x7ff * kPointerSize;
-  static const int kLargeListMax = 0x3fff * kPointerSize;
-  static const int kTinyAllocationMax = kTiniestListMax;
-  static const int kSmallAllocationMax = kTinyListMax;
-  static const int kMediumAllocationMax = kSmallListMax;
-  static const int kLargeAllocationMax = kMediumListMax;
+  static const size_t kTiniestListMax = 0xa * kPointerSize;
+  static const size_t kTinyListMax = 0x1f * kPointerSize;
+  static const size_t kSmallListMax = 0xff * kPointerSize;
+  static const size_t kMediumListMax = 0x7ff * kPointerSize;
+  static const size_t kLargeListMax = 0x3fff * kPointerSize;
+  static const size_t kTinyAllocationMax = kTiniestListMax;
+  static const size_t kSmallAllocationMax = kTinyListMax;
+  static const size_t kMediumAllocationMax = kSmallListMax;
+  static const size_t kLargeAllocationMax = kMediumListMax;
 
-  FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
+  FreeSpace* FindNodeFor(size_t size_in_bytes, size_t* node_size);
 
   // Walks all available categories for a given |type| and tries to retrieve
   // a node. Returns nullptr if the category is empty.
-  FreeSpace* FindNodeIn(FreeListCategoryType type, int* node_size);
+  FreeSpace* FindNodeIn(FreeListCategoryType type, size_t* node_size);
 
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty.
-  FreeSpace* TryFindNodeIn(FreeListCategoryType type, int* node_size,
-                           int minimum_size);
+  FreeSpace* TryFindNodeIn(FreeListCategoryType type, size_t* node_size,
+                           size_t minimum_size);
 
   // Searches a given |type| for a node of at least |minimum_size|.
-  FreeSpace* SearchForNodeInList(FreeListCategoryType type, int* node_size,
-                                 int minimum_size);
+  FreeSpace* SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
+                                 size_t minimum_size);
 
   FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
     if (size_in_bytes <= kTiniestListMax) {
@@ -1840,7 +1846,7 @@ class FreeList {
   FreeListCategory* top(FreeListCategoryType type) { return categories_[type]; }
 
   PagedSpace* owner_;
-  base::AtomicNumber<intptr_t> wasted_bytes_;
+  base::AtomicNumber<size_t> wasted_bytes_;
   FreeListCategory* categories_[kNumberOfCategories];
 
   friend class FreeListCategory;
@@ -2027,14 +2033,16 @@ class PagedSpace : public Space {
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
   // no attempt to add area to free list is made.
-  int Free(Address start, int size_in_bytes) {
-    int wasted = free_list_.Free(start, size_in_bytes, kLinkCategory);
+  size_t Free(Address start, size_t size_in_bytes) {
+    size_t wasted = free_list_.Free(start, size_in_bytes, kLinkCategory);
     accounting_stats_.DeallocateBytes(size_in_bytes);
+    DCHECK_GE(size_in_bytes, wasted);
     return size_in_bytes - wasted;
   }
 
-  int UnaccountedFree(Address start, int size_in_bytes) {
-    int wasted = free_list_.Free(start, size_in_bytes, kDoNotLinkCategory);
+  size_t UnaccountedFree(Address start, size_t size_in_bytes) {
+    size_t wasted = free_list_.Free(start, size_in_bytes, kDoNotLinkCategory);
+    DCHECK_GE(size_in_bytes, wasted);
     return size_in_bytes - wasted;
   }
 
