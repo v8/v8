@@ -1527,28 +1527,10 @@ Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
 }
 
 Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
-  type = NumberToUint32(ToNumber(type, t), t);
-  Factory* f = t->isolate()->factory();
-  double min = type->Min();
-  double max = type->Max();
-  if (min == max) {
-    uint32_t code = static_cast<uint32_t>(min) & String::kMaxUtf16CodeUnitU;
-    Handle<String> string = f->LookupSingleCharacterStringFromCode(code);
-    return Type::HeapConstant(string, t->zone());
-  }
   return Type::String();
 }
 
 Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
-  type = NumberToUint32(ToNumber(type, t), t);
-  Factory* f = t->isolate()->factory();
-  double min = type->Min();
-  double max = type->Max();
-  if (min == max) {
-    uint32_t code = static_cast<uint32_t>(min) & String::kMaxUtf16CodeUnitU;
-    Handle<String> string = f->LookupSingleCharacterStringFromCode(code);
-    return Type::HeapConstant(string, t->zone());
-  }
   return Type::String();
 }
 
