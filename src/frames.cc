@@ -991,16 +991,16 @@ int JavaScriptFrame::LookupExceptionHandlerInTable(
   return code->LookupRangeInHandlerTable(pc_offset, stack_depth, prediction);
 }
 
-void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
-                                             Address pc, FILE* file,
+void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
+                                             AbstractCode* code,
+                                             int code_offset, FILE* file,
                                              bool print_line_number) {
   PrintF(file, "%s", function->IsOptimized() ? "*" : "~");
   function->PrintName(file);
-  int code_offset = static_cast<int>(pc - code->instruction_start());
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
     SharedFunctionInfo* shared = function->shared();
-    int source_pos = AbstractCode::cast(code)->SourcePosition(code_offset);
+    int source_pos = code->SourcePosition(code_offset);
     Object* maybe_script = shared->script();
     if (maybe_script->IsScript()) {
       Script* script = Script::cast(maybe_script);
@@ -1030,8 +1030,17 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
     if (it.frame()->is_java_script()) {
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) PrintF(file, "new ");
-      PrintFunctionAndOffset(frame->function(), frame->unchecked_code(),
-                             frame->pc(), file, print_line_number);
+      JSFunction* function = frame->function();
+      int code_offset = 0;
+      if (frame->is_interpreted()) {
+        InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
+        code_offset = iframe->GetBytecodeOffset();
+      } else {
+        Code* code = frame->unchecked_code();
+        code_offset = static_cast<int>(frame->pc() - code->instruction_start());
+      }
+      PrintFunctionAndOffset(function, function->abstract_code(), code_offset,
+                             file, print_line_number);
       if (print_args) {
         // function arguments
         // (we are intentionally only printing the actually
@@ -1360,6 +1369,17 @@ int InterpretedFrame::GetBytecodeOffset() const {
       InterpreterFrameConstants::kBytecodeOffsetFromFp,
       InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   int raw_offset = Smi::cast(GetExpression(index))->value();
+  return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
+}
+
+int InterpretedFrame::GetBytecodeOffset(Address fp) {
+  const int offset = InterpreterFrameConstants::kExpressionsOffset;
+  const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeOffsetFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  Address expression_offset = fp + offset - index * kPointerSize;
+  int raw_offset = Smi::cast(Memory::Object_at(expression_offset))->value();
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 

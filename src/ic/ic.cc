@@ -111,8 +111,15 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
         Memory::Object_at(fp_ + JavaScriptFrameConstants::kFunctionOffset);
     if (maybe_function->IsJSFunction()) {
       JSFunction* function = JSFunction::cast(maybe_function);
-      JavaScriptFrame::PrintFunctionAndOffset(function, function->code(), pc(),
-                                              stdout, true);
+      int code_offset = 0;
+      if (function->code()->is_interpreter_trampoline_builtin()) {
+        code_offset = InterpretedFrame::GetBytecodeOffset(fp());
+      } else {
+        code_offset =
+            static_cast<int>(pc() - function->code()->instruction_start());
+      }
+      JavaScriptFrame::PrintFunctionAndOffset(
+          function, function->abstract_code(), code_offset, stdout, true);
     }
 
     const char* modifier = "";
@@ -171,6 +178,16 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   StackFrame* frame = it.frame();
   DCHECK(fp == frame->fp() && pc_address == frame->pc_address());
 #endif
+  // For interpreted functions, some bytecode handlers construct a
+  // frame. We have to skip the constructed frame to find the interpreted
+  // function's frame. Check if the there is an additional frame, and if there
+  // is skip this frame. However, the pc should not be updated. The call to
+  // ICs happen from bytecode handlers.
+  Object* frame_type =
+      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  if (frame_type == Smi::FromInt(StackFrame::STUB)) {
+    fp = Memory::Address_at(fp + TypedFrameConstants::kCallerFPOffset);
+  }
   fp_ = fp;
   if (FLAG_enable_embedded_constant_pool) {
     constant_pool_address_ = constant_pool;

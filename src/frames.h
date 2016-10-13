@@ -872,8 +872,8 @@ class JavaScriptFrame : public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(JSFunction* function, Code* code,
-                                     Address pc, FILE* file,
+  static void PrintFunctionAndOffset(JSFunction* function, AbstractCode* code,
+                                     int code_offset, FILE* file,
                                      bool print_line_number);
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
@@ -987,6 +987,8 @@ class InterpretedFrame : public JavaScriptFrame {
   void Summarize(
       List<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+
+  static int GetBytecodeOffset(Address fp);
 
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
