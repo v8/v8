@@ -5,7 +5,7 @@
 #include "src/type-feedback-vector.h"
 
 #include "src/code-stubs.h"
-#include "src/ic/ic.h"
+#include "src/ic/ic-inl.h"
 #include "src/ic/ic-state.h"
 #include "src/objects.h"
 #include "src/type-feedback-vector-inl.h"
@@ -851,16 +851,9 @@ int GetStepSize(FixedArray* array, Isolate* isolate) {
   DCHECK(array->length() >= 2);
   Object* second = array->get(1);
   if (second->IsWeakCell() || second->IsUndefined(isolate)) return 3;
-  DCHECK(second->IsCode() || second->IsSmi());
+  DCHECK(IC::IsHandler(second));
   return 2;
 }
-
-#ifdef DEBUG  // Only used by DCHECKs below.
-bool IsHandler(Object* object) {
-  return object->IsSmi() ||
-         (object->IsCode() && Code::cast(object)->is_handler());
-}
-#endif
 
 }  // namespace
 
@@ -914,7 +907,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
         Map* array_map = Map::cast(cell->value());
         if (array_map == *map) {
           Object* code = array->get(i + increment - 1);
-          DCHECK(IsHandler(code));
+          DCHECK(IC::IsHandler(code));
           return handle(code, isolate);
         }
       }
@@ -925,7 +918,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
       Map* cell_map = Map::cast(cell->value());
       if (cell_map == *map) {
         Object* code = GetFeedbackExtra();
-        DCHECK(IsHandler(code));
+        DCHECK(IC::IsHandler(code));
         return handle(code, isolate);
       }
     }
@@ -952,7 +945,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
       // Be sure to skip handlers whose maps have been cleared.
       if (!cell->cleared()) {
         Object* code = array->get(i + increment - 1);
-        DCHECK(IsHandler(code));
+        DCHECK(IC::IsHandler(code));
         code_list->Add(handle(code, isolate));
         count++;
       }
@@ -961,7 +954,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
     WeakCell* cell = WeakCell::cast(feedback);
     if (!cell->cleared()) {
       Object* code = GetFeedbackExtra();
-      DCHECK(IsHandler(code));
+      DCHECK(IC::IsHandler(code));
       code_list->Add(handle(code, isolate));
       count++;
     }

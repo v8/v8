@@ -85,29 +85,6 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-// Takes an offset as computed by GetLoadByFieldOffset and reconstructs a
-// FieldIndex object from it.
-// static
-inline FieldIndex FieldIndex::ForLoadByFieldOffset(Map* map, int offset) {
-  DCHECK(LoadHandlerTypeBit::decode(offset) == kLoadICHandlerForProperties);
-  bool is_inobject = FieldOffsetIsInobject::decode(offset);
-  bool is_double = FieldOffsetIsDouble::decode(offset);
-  int field_index = FieldOffsetOffset::decode(offset) >> kPointerSizeLog2;
-  int first_inobject_offset = 0;
-  if (is_inobject) {
-    first_inobject_offset =
-        map->IsJSObjectMap() ? map->GetInObjectPropertyOffset(0) : 0;
-  } else {
-    first_inobject_offset = FixedArray::kHeaderSize;
-  }
-  int inobject_properties =
-      map->IsJSObjectMap() ? map->GetInObjectProperties() : 0;
-  FieldIndex result(is_inobject, field_index, is_double, inobject_properties,
-                    first_inobject_offset);
-  DCHECK(result.GetLoadByFieldOffset() == offset);
-  return result;
-}
-
 // Returns the offset format consumed by TurboFan stubs:
 // (offset << 3) | (is_double << 2) | (is_inobject << 1) | is_property
 // Where |offset| is relative to object start or FixedArray start, respectively.

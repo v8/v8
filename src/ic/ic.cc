@@ -691,11 +691,8 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
   return true;
 }
 
-bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
-  DCHECK(code->IsSmi() || code->IsCode());
-  if (!code->IsSmi() && !Code::cast(*code)->is_handler()) {
-    return false;
-  }
+bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
+  DCHECK(IsHandler(*handler));
   if (is_keyed() && state() != RECOMPUTE_HANDLER) return false;
   Handle<Map> map = receiver_map();
   MapHandleList maps;
@@ -735,16 +732,16 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
   number_of_valid_maps++;
   if (number_of_valid_maps > 1 && is_keyed()) return false;
   if (number_of_valid_maps == 1) {
-    ConfigureVectorState(name, receiver_map(), code);
+    ConfigureVectorState(name, receiver_map(), handler);
   } else {
     if (handler_to_overwrite >= 0) {
-      handlers.Set(handler_to_overwrite, code);
+      handlers.Set(handler_to_overwrite, handler);
       if (!map.is_identical_to(maps.at(handler_to_overwrite))) {
         maps.Set(handler_to_overwrite, map);
       }
     } else {
       maps.Add(map);
-      handlers.Add(code);
+      handlers.Add(handler);
     }
 
     ConfigureVectorState(name, &maps, &handlers);
@@ -754,8 +751,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
 }
 
 void IC::UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name) {
-  DCHECK(handler->IsSmi() ||
-         (handler->IsCode() && Handle<Code>::cast(handler)->is_handler()));
+  DCHECK(IsHandler(*handler));
   ConfigureVectorState(name, receiver_map(), handler);
 }
 
@@ -786,24 +782,26 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   return transitioned_map == target_map;
 }
 
-void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
-  DCHECK(code->IsCode() || (code->IsSmi() && (kind() == Code::LOAD_IC ||
-                                              kind() == Code::KEYED_LOAD_IC)));
+void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
+  DCHECK(IsHandler(*handler));
+  // Currently only LoadIC and KeyedLoadIC support non-code handlers.
+  DCHECK_IMPLIES(!handler->IsCode(),
+                 kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
-      UpdateMonomorphicIC(code, name);
+      UpdateMonomorphicIC(handler, name);
       break;
     case RECOMPUTE_HANDLER:
     case MONOMORPHIC:
       if (kind() == Code::LOAD_GLOBAL_IC) {
-        UpdateMonomorphicIC(code, name);
+        UpdateMonomorphicIC(handler, name);
         break;
       }
     // Fall through.
     case POLYMORPHIC:
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
-        if (UpdatePolymorphicIC(name, code)) break;
+        if (UpdatePolymorphicIC(name, handler)) break;
         // For keyed stubs, we can't know whether old handlers were for the
         // same key.
         CopyICToMegamorphicCache(name);
@@ -812,7 +810,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
       ConfigureVectorState(MEGAMORPHIC, name);
     // Fall through.
     case MEGAMORPHIC:
-      UpdateMegamorphicCache(*receiver_map(), *name, *code);
+      UpdateMegamorphicCache(*receiver_map(), *name, *handler);
       // Indicate that we've handled this case.
       DCHECK(UseVector());
       vector_set_ = true;
@@ -964,30 +962,17 @@ StubCache* IC::stub_cache() {
   return nullptr;
 }
 
-void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* code) {
-  if (code->IsSmi()) {
-    // TODO(jkummerow): Support Smis in the code cache.
-    Handle<Map> map_handle(map, isolate());
-    Handle<Name> name_handle(name, isolate());
-    FieldIndex index =
-        FieldIndex::ForLoadByFieldOffset(map, Smi::cast(code)->value());
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
-    LoadFieldStub stub(isolate(), index);
-    Code* handler = *stub.GetCode();
-    stub_cache()->Set(*name_handle, *map_handle, handler);
-    return;
-  }
-  DCHECK(code->IsCode());
-  stub_cache()->Set(name, map, Code::cast(code));
+void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* handler) {
+  stub_cache()->Set(name, map, handler);
 }
 
 Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
                                   Handle<Object> value) {
   // Try to find a globally shared handler stub.
-  Handle<Object> handler_or_index = GetMapIndependentHandler(lookup);
-  if (!handler_or_index.is_null()) {
-    DCHECK(handler_or_index->IsCode() || handler_or_index->IsSmi());
-    return handler_or_index;
+  Handle<Object> handler = GetMapIndependentHandler(lookup);
+  if (!handler.is_null()) {
+    DCHECK(IC::IsHandler(*handler));
+    return handler;
   }
 
   // Otherwise check the map's handler cache for a map-specific handler, and
@@ -1024,8 +1009,9 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
       // cache (which just missed) is different from the cached handler.
       if (state() == MEGAMORPHIC && lookup->GetReceiver()->IsHeapObject()) {
         Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
-        Code* megamorphic_cached_code = stub_cache()->Get(*lookup->name(), map);
-        if (megamorphic_cached_code != *code) {
+        Object* megamorphic_cached_handler =
+            stub_cache()->Get(*lookup->name(), map);
+        if (megamorphic_cached_handler != *code) {
           TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
           return code;
         }

@@ -81,6 +81,8 @@ class IC {
 
   static InlineCacheState StateFromCode(Code* code);
 
+  static inline bool IsHandler(Object* object);
+
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }

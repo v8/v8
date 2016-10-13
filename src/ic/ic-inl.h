@@ -92,6 +92,11 @@ Code* IC::target() const {
   return GetTargetAtAddress(address(), constant_pool());
 }
 
+bool IC::IsHandler(Object* object) {
+  return (object->IsSmi() && (object != nullptr)) ||
+         (object->IsCode() && Code::cast(object)->is_handler());
+}
+
 Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
                                       bool receiver_is_holder, Isolate* isolate,
                                       CacheHolderFlag* flag) {
