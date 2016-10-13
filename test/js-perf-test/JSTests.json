@@ -119,7 +119,7 @@
       "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
       "run_count": 1,
       "timeout": 240,
-      "timeout_arm": 360,
+      "timeout_arm": 420,
       "tests": [
         {"name": "StringFunctions"}
       ]
