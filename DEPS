@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "f9e6643a250f066ccdec9790ffb1dbfa3d38c6ca",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "ee1c1b5b087b31f4f6dff6edbece64fd62f29409",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -18,7 +18,7 @@ deps = {
   "v8/buildtools":
     Var("chromium_url") + "/chromium/buildtools.git" + "@" + "39b1db2ab4aa4b2ccaa263c29bdf63e7c1ee28aa",
   "v8/base/trace_event/common":
-    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "98499f31650fa32813b7ddcc74f9fe23a2857d9c",
+    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
     Var("chromium_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "3280c57c4c575ce82ccd13e4a403492fb4ca624b",
   "v8/third_party/jinja2":
@@ -41,7 +41,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "6551b7ff20a898999e217da5709f56e30b300402",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "6ba3d23a1b700d4d5a06908e3bd541f32173c7bb",
 }
 
 deps_os = {
@@ -49,7 +49,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "25d57ead05d3dfef26e9c19b13ed10b0a69829cf",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "5b5774b1223d05518b1d75da409297ebcf93e24a",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "c73d4a17b02306c5f05f71b4101b0b0c5a18a7f2",
   },
   "win": {
     "v8/third_party/cygwin":
