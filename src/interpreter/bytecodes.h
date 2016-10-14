@@ -314,7 +314,7 @@ enum class Bytecode : uint8_t {
 #define CONSTEXPR constexpr
 #endif
 
-class Bytecodes final {
+class V8_EXPORT_PRIVATE Bytecodes final {
  public:
   //  The maximum number of operands a bytecode may have.
   static const int kMaxOperands = 4;
@@ -733,7 +733,8 @@ class Bytecodes final {
 // See crbug.com/603131.
 #undef CONSTEXPR
 
-std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Bytecode& bytecode);
 
 }  // namespace interpreter
 }  // namespace internal

@@ -115,7 +115,8 @@ inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
-std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandScale& operand_scale);
 std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size);
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
 

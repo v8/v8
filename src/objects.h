@@ -791,8 +791,8 @@ STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
 STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
-
-std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           InstanceType instance_type);
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
@@ -1526,7 +1526,7 @@ class Smi: public Object {
   DECLARE_CAST(Smi)
 
   // Dispatched behavior.
-  void SmiPrint(std::ostream& os) const;  // NOLINT
+  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
   DECLARE_VERIFIER(Smi)
 
   V8_EXPORT_PRIVATE static Smi* const kZero;
@@ -1755,7 +1755,7 @@ class HeapNumber: public HeapObject {
   // Dispatched behavior.
   bool HeapNumberBooleanValue();
 
-  void HeapNumberPrint(std::ostream& os);  // NOLINT
+  V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);  // NOLINT
   DECLARE_VERIFIER(HeapNumber)
 
   inline int get_exponent();
@@ -9835,7 +9835,7 @@ class ConsString: public String {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
-  uint16_t ConsStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t ConsStringGet(int index);
 
   DECLARE_CAST(ConsString)
 
@@ -9878,7 +9878,7 @@ class SlicedString: public String {
   inline void set_offset(int offset);
 
   // Dispatched behavior.
-  uint16_t SlicedStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t SlicedStringGet(int index);
 
   DECLARE_CAST(SlicedString)
 

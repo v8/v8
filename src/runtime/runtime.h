@@ -9,6 +9,7 @@
 
 #include "src/allocation.h"
 #include "src/base/platform/time.h"
+#include "src/globals.h"
 #include "src/objects.h"
 #include "src/unicode.h"
 #include "src/zone/zone.h"
@@ -1044,7 +1045,7 @@ class Runtime : public AllStatic {
   static const Function* FunctionForName(const unsigned char* name, int length);
 
   // Get the intrinsic function with the given FunctionId.
-  static const Function* FunctionForId(FunctionId id);
+  V8_EXPORT_PRIVATE static const Function* FunctionForId(FunctionId id);
 
   // Get the intrinsic function with the given function entry address.
   static const Function* FunctionForEntry(Address ref);

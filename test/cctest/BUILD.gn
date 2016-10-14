@@ -412,18 +412,10 @@ v8_executable("generate-bytecode-expectations") {
   ]
 
   deps = [
+    "../..:v8",
+    "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]
-
-  defines = []
-
-  if (is_component_build) {
-    # Same as cctest, we need to depend on the underlying static target.
-    deps += [ "../..:v8_maybe_snapshot" ]
-    defines += [ "BUILDING_V8_SHARED" ]
-  } else {
-    deps += [ "../..:v8" ]
-  }
 }

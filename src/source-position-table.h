@@ -7,6 +7,7 @@
 
 #include "src/assert-scope.h"
 #include "src/checks.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/zone/zone-containers.h"
 
@@ -55,7 +56,7 @@ class SourcePositionTableBuilder {
   PositionTableEntry previous_;  // Previously written entry, to compute delta.
 };
 
-class SourcePositionTableIterator {
+class V8_EXPORT_PRIVATE SourcePositionTableIterator {
  public:
   explicit SourcePositionTableIterator(ByteArray* byte_array);
 

@@ -8,6 +8,7 @@
 #include "src/interpreter/bytecodes.h"
 
 #include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +16,7 @@ namespace interpreter {
 
 // An interpreter Register which is located in the function's Register file
 // in its stack-frame. Register hold parameters, this, and expression values.
-class Register final {
+class V8_EXPORT_PRIVATE Register final {
  public:
   explicit Register(int index = kInvalidIndex) : index_(index) {}
 

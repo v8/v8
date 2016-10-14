@@ -474,16 +474,9 @@
       'target_name': 'generate-bytecode-expectations',
       'type': 'executable',
       'dependencies': [
+        '../../src/v8.gyp:v8',
+        '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
-      ],
-      'conditions': [
-        ['component=="shared_library"', {
-          # Same as cctest, we need to depend on the underlying static target.
-          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
-          'defines': [ 'BUILDING_V8_SHARED', ]
-        }, {
-          'dependencies': ['../../src/v8.gyp:v8'],
-        }],
       ],
       'include_dirs+': [
         '../..',
