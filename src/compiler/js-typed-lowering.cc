@@ -82,17 +82,24 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
-      if (left_type()->IsConstant() &&
-          left_type()->AsConstant()->Value()->IsString()) {
-        Handle<String> left_string =
-            Handle<String>::cast(left_type()->AsConstant()->Value());
-        if (left_string->length() >= ConsString::kMinLength) return true;
-      }
       if (right_type()->IsConstant() &&
           right_type()->AsConstant()->Value()->IsString()) {
         Handle<String> right_string =
             Handle<String>::cast(right_type()->AsConstant()->Value());
         if (right_string->length() >= ConsString::kMinLength) return true;
+      }
+      if (left_type()->IsConstant() &&
+          left_type()->AsConstant()->Value()->IsString()) {
+        Handle<String> left_string =
+            Handle<String>::cast(left_type()->AsConstant()->Value());
+        if (left_string->length() >= ConsString::kMinLength) {
+          // The invariant for ConsString requires the left hand side to be
+          // a sequential or external string if the right hand side is the
+          // empty string. Since we don't know anything about the right hand
+          // side here, we must ensure that the left hand side satisfy the
+          // constraints independent of the right hand side.
+          return left_string->IsSeqString() || left_string->IsExternalString();
+        }
       }
     }
     return false;
