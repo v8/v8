@@ -444,7 +444,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 
   OFStream os(stdout);
 #ifdef DEBUG
-  if (args[0]->IsString() && isolate->context() != nullptr) {
+  if (args[0]->IsString()) {
     // If we have a string, assume it's a code "marker"
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it(isolate);
