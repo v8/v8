@@ -857,18 +857,15 @@ Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   return stub.GetCode();
 }
 
-Handle<Object> LoadIC::SimpleFieldLoadFromPrototype(FieldIndex index,
-                                                    Handle<Map> receiver_map,
-                                                    Handle<JSObject> holder) {
-  if (!FLAG_tf_load_ic_stub) return Handle<Object>::null();
-
+bool LoadIC::IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
+                                                Handle<JSObject> holder) {
   DCHECK(holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
   if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap() ||
       receiver_map->IsJSGlobalObjectMap() ||
       receiver_map->is_dictionary_map()) {
-    return Handle<Object>::null();
+    return false;
   }
 
   // Switch to custom compiled handler if the prototype chain contains global
@@ -879,21 +876,27 @@ Handle<Object> LoadIC::SimpleFieldLoadFromPrototype(FieldIndex index,
     Map* current_map = current->map();
     if (current_map->IsJSGlobalObjectMap() ||
         current_map->IsJSGlobalProxyMap() || current_map->is_dictionary_map()) {
-      return Handle<Object>::null();
+      return false;
     }
     // Only objects that do not require access checks are allowed in stubs.
     DCHECK(!current_map->is_access_check_needed());
   }
-  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
+  return true;
+}
+
+Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
+                                               Handle<JSObject> holder,
+                                               Handle<Object> smi_handler) {
+  DCHECK(IsPrototypeValidityCellCheckEnough(receiver_map, holder));
+
   Handle<Cell> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   DCHECK(!validity_cell.is_null());
 
-  Handle<Object> handler(SmiHandler::MakeLoadFieldHandler(isolate(), index));
   Factory* factory = isolate()->factory();
 
   Handle<WeakCell> holder_cell = factory->NewWeakCell(holder);
-  return factory->NewTuple3(validity_cell, holder_cell, handler);
+  return factory->NewTuple3(validity_cell, holder_cell, smi_handler);
 }
 
 bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
@@ -1196,28 +1199,37 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
         FieldIndex field = lookup->GetFieldIndex();
+        Handle<Object> smi_handler = SimpleFieldLoad(field);
         if (receiver_is_holder) {
-          return SimpleFieldLoad(field);
+          return smi_handler;
         }
-        Handle<Object> handler =
-            SimpleFieldLoadFromPrototype(field, map, holder);
-        if (!handler.is_null()) {
-          return handler;
+        if (FLAG_tf_load_ic_stub &&
+            IsPrototypeValidityCellCheckEnough(map, holder)) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
+          return SimpleLoadFromPrototype(map, holder, smi_handler);
         }
         break;  // Custom-compiled handler.
       }
 
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      if (receiver_is_holder) {
-        if (FLAG_tf_load_ic_stub) {
+      if (FLAG_tf_load_ic_stub) {
+        Handle<Object> smi_handler = SmiHandler::MakeLoadConstantHandler(
+            isolate(), lookup->GetConstantIndex());
+        if (receiver_is_holder) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
-          return SmiHandler::MakeLoadConstantHandler(
-              isolate(), lookup->GetConstantIndex());
+          return smi_handler;
         }
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
-        LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
-        return stub.GetCode();
+        if (IsPrototypeValidityCellCheckEnough(map, holder)) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
+          return SimpleLoadFromPrototype(map, holder, smi_handler);
+        }
+      } else {
+        if (receiver_is_holder) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
+          LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
+          return stub.GetCode();
+        }
       }
       break;  // Custom-compiled handler.
     }

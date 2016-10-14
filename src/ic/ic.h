@@ -310,9 +310,18 @@ class LoadIC : public IC {
 
  private:
   Handle<Object> SimpleFieldLoad(FieldIndex index);
-  Handle<Object> SimpleFieldLoadFromPrototype(FieldIndex index,
-                                              Handle<Map> receiver_map,
-                                              Handle<JSObject> holder);
+
+  // Returns true if the validity cell check is enough to ensure that the
+  // prototype chain from |receiver_map| till |holder| did not change.
+  bool IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
+                                          Handle<JSObject> holder);
+
+  // Creates a data handler that represents a prototype chain check followed
+  // by given Smi-handler that encoded a load from the holder.
+  // Can be used only if IsPrototypeValidityCellCheckEnough() predicate is true.
+  Handle<Object> SimpleLoadFromPrototype(Handle<Map> receiver_map,
+                                         Handle<JSObject> holder,
+                                         Handle<Object> smi_handler);
 
   friend class IC;
 };
