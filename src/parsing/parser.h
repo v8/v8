@@ -7,9 +7,11 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparse-data-format.h"
+#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/pending-compilation-error-handler.h"
 
@@ -167,7 +169,7 @@ struct ParserTypes<Parser> {
   typedef ParserTargetScope TargetScope;
 };
 
-class Parser : public ParserBase<Parser> {
+class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  public:
   explicit Parser(ParseInfo* info);
   ~Parser() {
@@ -1099,6 +1101,47 @@ class Parser : public ParserBase<Parser> {
   HistogramTimer* pre_parse_timer_;
 
   bool parsing_on_main_thread_;
+};
+
+// ----------------------------------------------------------------------------
+// Target is a support class to facilitate manipulation of the
+// Parser's target_stack_ (the stack of potential 'break' and
+// 'continue' statement targets). Upon construction, a new target is
+// added; it is removed upon destruction.
+
+class ParserTarget BASE_EMBEDDED {
+ public:
+  ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
+      : variable_(&parser->impl()->target_stack_),
+        statement_(statement),
+        previous_(parser->impl()->target_stack_) {
+    parser->impl()->target_stack_ = this;
+  }
+
+  ~ParserTarget() { *variable_ = previous_; }
+
+  ParserTarget* previous() { return previous_; }
+  BreakableStatement* statement() { return statement_; }
+
+ private:
+  ParserTarget** variable_;
+  BreakableStatement* statement_;
+  ParserTarget* previous_;
+};
+
+class ParserTargetScope BASE_EMBEDDED {
+ public:
+  explicit ParserTargetScope(ParserBase<Parser>* parser)
+      : variable_(&parser->impl()->target_stack_),
+        previous_(parser->impl()->target_stack_) {
+    parser->impl()->target_stack_ = nullptr;
+  }
+
+  ~ParserTargetScope() { *variable_ = previous_; }
+
+ private:
+  ParserTarget** variable_;
+  ParserTarget* previous_;
 };
 
 }  // namespace internal

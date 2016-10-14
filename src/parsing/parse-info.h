@@ -26,7 +26,7 @@ class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class ParseInfo {
+class V8_EXPORT_PRIVATE ParseInfo {
  public:
   explicit ParseInfo(Zone* zone);
   ParseInfo(Zone* zone, Handle<JSFunction> function);

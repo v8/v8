@@ -51,18 +51,13 @@
       'target_name': 'parser_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        'fuzzer_support_nocomponent',
+        'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
         'parser.cc',
-      ],
-      'conditions': [
-        ['component=="shared_library"', {
-          'defines': [ 'BUILDING_V8_SHARED', ]
-        }],
       ],
     },
     {
@@ -400,31 +395,6 @@
       'sources': [  ### gcmole(all) ###
         'fuzzer-support.cc',
         'fuzzer-support.h',
-      ],
-    },
-    {
-      'target_name': 'fuzzer_support_nocomponent',
-      'type': 'static_library',
-      'dependencies': [
-        '../../src/v8.gyp:v8_libbase',
-        '../../src/v8.gyp:v8_libplatform',
-      ],
-      'include_dirs': [
-        '../..',
-      ],
-      'sources': [  ### gcmole(all) ###
-        'fuzzer-support.cc',
-        'fuzzer-support.h',
-      ],
-      'conditions': [
-        ['component=="shared_library"', {
-          # fuzzers can't be built against a shared library, so we need to
-          # depend on the underlying static target in that case.
-          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
-          'defines': [ 'BUILDING_V8_SHARED', ]
-        }, {
-          'dependencies': ['../../src/v8.gyp:v8'],
-        }],
       ],
     },
   ],

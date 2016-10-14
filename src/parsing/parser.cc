@@ -292,49 +292,6 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   return function_literal;
 }
 
-
-// ----------------------------------------------------------------------------
-// Target is a support class to facilitate manipulation of the
-// Parser's target_stack_ (the stack of potential 'break' and
-// 'continue' statement targets). Upon construction, a new target is
-// added; it is removed upon destruction.
-
-class ParserTarget BASE_EMBEDDED {
- public:
-  ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
-      : variable_(&parser->impl()->target_stack_),
-        statement_(statement),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = this;
-  }
-
-  ~ParserTarget() { *variable_ = previous_; }
-
-  ParserTarget* previous() { return previous_; }
-  BreakableStatement* statement() { return statement_; }
-
- private:
-  ParserTarget** variable_;
-  BreakableStatement* statement_;
-  ParserTarget* previous_;
-};
-
-class ParserTargetScope BASE_EMBEDDED {
- public:
-  explicit ParserTargetScope(ParserBase<Parser>* parser)
-      : variable_(&parser->impl()->target_stack_),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = nullptr;
-  }
-
-  ~ParserTargetScope() { *variable_ = previous_; }
-
- private:
-  ParserTarget** variable_;
-  ParserTarget* previous_;
-};
-
-
 // ----------------------------------------------------------------------------
 // The CHECK_OK macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning !*ok).
