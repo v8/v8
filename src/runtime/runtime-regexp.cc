@@ -898,14 +898,10 @@ class MatchInfoBackedMatch : public String::Match {
   }
 
   MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
-    Handle<Object> capture_obj =
-        RegExpUtils::GenericCaptureGetter(isolate_, match_info_, i);
-    if (capture_obj->IsUndefined(isolate_)) {
-      *capture_exists = false;
-      return isolate_->factory()->empty_string();
-    }
-    *capture_exists = true;
-    return Object::ToString(isolate_, capture_obj);
+    Handle<Object> capture_obj = RegExpUtils::GenericCaptureGetter(
+        isolate_, match_info_, i, capture_exists);
+    return (*capture_exists) ? Object::ToString(isolate_, capture_obj)
+                             : isolate_->factory()->empty_string();
   }
 
   Handle<String> GetPrefix() override {
