@@ -524,7 +524,9 @@ void Builtins::Generate_Add(CodeStubAssembler* assembler) {
       assembler->Bind(&if_rhsissmi);
       {
         // Try fast Smi addition first.
-        Node* pair = assembler->SmiAddWithOverflow(lhs, rhs);
+        Node* pair = assembler->IntPtrAddWithOverflow(
+            assembler->BitcastTaggedToWord(lhs),
+            assembler->BitcastTaggedToWord(rhs));
         Node* overflow = assembler->Projection(1, pair);
 
         // Check if the Smi additon overflowed.
@@ -539,7 +541,8 @@ void Builtins::Generate_Add(CodeStubAssembler* assembler) {
         }
 
         assembler->Bind(&if_notoverflow);
-        var_result.Bind(assembler->Projection(0, pair));
+        var_result.Bind(assembler->BitcastWordToTaggedSigned(
+            assembler->Projection(0, pair)));
         assembler->Goto(&end);
       }
 
@@ -886,7 +889,9 @@ void Builtins::Generate_Subtract(CodeStubAssembler* assembler) {
       assembler->Bind(&if_rhsissmi);
       {
         // Try a fast Smi subtraction first.
-        Node* pair = assembler->SmiSubWithOverflow(lhs, rhs);
+        Node* pair = assembler->IntPtrSubWithOverflow(
+            assembler->BitcastTaggedToWord(lhs),
+            assembler->BitcastTaggedToWord(rhs));
         Node* overflow = assembler->Projection(1, pair);
 
         // Check if the Smi subtraction overflowed.
@@ -902,7 +907,8 @@ void Builtins::Generate_Subtract(CodeStubAssembler* assembler) {
         }
 
         assembler->Bind(&if_notoverflow);
-        var_result.Bind(assembler->Projection(0, pair));
+        var_result.Bind(assembler->BitcastWordToTaggedSigned(
+            assembler->Projection(0, pair)));
         assembler->Goto(&end);
       }
 

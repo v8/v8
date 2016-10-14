@@ -121,9 +121,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Smi operations.
   compiler::Node* SmiAdd(compiler::Node* a, compiler::Node* b);
-  compiler::Node* SmiAddWithOverflow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiSub(compiler::Node* a, compiler::Node* b);
-  compiler::Node* SmiSubWithOverflow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiEqual(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiAbove(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiAboveOrEqual(compiler::Node* a, compiler::Node* b);

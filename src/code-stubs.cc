@@ -692,7 +692,9 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Bind(&if_rhsissmi);
     {
       // Try fast Smi addition first.
-      Node* pair = assembler->SmiAddWithOverflow(lhs, rhs);
+      Node* pair =
+          assembler->IntPtrAddWithOverflow(assembler->BitcastTaggedToWord(lhs),
+                                           assembler->BitcastTaggedToWord(rhs));
       Node* overflow = assembler->Projection(1, pair);
 
       // Check if the Smi additon overflowed.
@@ -710,7 +712,8 @@ compiler::Node* AddWithFeedbackStub::Generate(
       {
         var_type_feedback.Bind(
             assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall));
-        var_result.Bind(assembler->Projection(0, pair));
+        var_result.Bind(assembler->BitcastWordToTaggedSigned(
+            assembler->Projection(0, pair)));
         assembler->Goto(&end);
       }
     }
@@ -852,7 +855,9 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     assembler->Bind(&if_rhsissmi);
     {
       // Try a fast Smi subtraction first.
-      Node* pair = assembler->SmiSubWithOverflow(lhs, rhs);
+      Node* pair =
+          assembler->IntPtrSubWithOverflow(assembler->BitcastTaggedToWord(lhs),
+                                           assembler->BitcastTaggedToWord(rhs));
       Node* overflow = assembler->Projection(1, pair);
 
       // Check if the Smi subtraction overflowed.
@@ -872,7 +877,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       // lhs, rhs, result smi. combined - smi.
       var_type_feedback.Bind(
           assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall));
-      var_result.Bind(assembler->Projection(0, pair));
+      var_result.Bind(
+          assembler->BitcastWordToTaggedSigned(assembler->Projection(0, pair)));
       assembler->Goto(&end);
     }
 
@@ -1459,7 +1465,9 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
     {
       // Try fast Smi addition first.
       Node* one = assembler->SmiConstant(Smi::FromInt(1));
-      Node* pair = assembler->SmiAddWithOverflow(value, one);
+      Node* pair = assembler->IntPtrAddWithOverflow(
+          assembler->BitcastTaggedToWord(value),
+          assembler->BitcastTaggedToWord(one));
       Node* overflow = assembler->Projection(1, pair);
 
       // Check if the Smi addition overflowed.
@@ -1470,7 +1478,8 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
       var_type_feedback.Bind(assembler->Word32Or(
           var_type_feedback.value(),
           assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall)));
-      result_var.Bind(assembler->Projection(0, pair));
+      result_var.Bind(
+          assembler->BitcastWordToTaggedSigned(assembler->Projection(0, pair)));
       assembler->Goto(&end);
 
       assembler->Bind(&if_overflow);
@@ -1569,7 +1578,9 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
     {
       // Try fast Smi subtraction first.
       Node* one = assembler->SmiConstant(Smi::FromInt(1));
-      Node* pair = assembler->SmiSubWithOverflow(value, one);
+      Node* pair = assembler->IntPtrSubWithOverflow(
+          assembler->BitcastTaggedToWord(value),
+          assembler->BitcastTaggedToWord(one));
       Node* overflow = assembler->Projection(1, pair);
 
       // Check if the Smi subtraction overflowed.
@@ -1580,7 +1591,8 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
       var_type_feedback.Bind(assembler->Word32Or(
           var_type_feedback.value(),
           assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall)));
-      result_var.Bind(assembler->Projection(0, pair));
+      result_var.Bind(
+          assembler->BitcastWordToTaggedSigned(assembler->Projection(0, pair)));
       assembler->Goto(&end);
 
       assembler->Bind(&if_overflow);

@@ -1226,7 +1226,8 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
   __ Bind(&fastpath);
   {
     // Try fast Smi addition first.
-    Node* pair = __ SmiAddWithOverflow(left, right);
+    Node* pair = __ IntPtrAddWithOverflow(__ BitcastTaggedToWord(left),
+                                          __ BitcastTaggedToWord(right));
     Node* overflow = __ Projection(1, pair);
 
     // Check if the Smi additon overflowed.
@@ -1236,7 +1237,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
     {
       __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                         type_feedback_vector, slot_index);
-      var_result.Bind(__ Projection(0, pair));
+      var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
     }
   }
@@ -1279,7 +1280,8 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
   __ Bind(&fastpath);
   {
     // Try fast Smi subtraction first.
-    Node* pair = __ SmiSubWithOverflow(left, right);
+    Node* pair = __ IntPtrSubWithOverflow(__ BitcastTaggedToWord(left),
+                                          __ BitcastTaggedToWord(right));
     Node* overflow = __ Projection(1, pair);
 
     // Check if the Smi subtraction overflowed.
@@ -1289,7 +1291,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
     {
       __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                         type_feedback_vector, slot_index);
-      var_result.Bind(__ Projection(0, pair));
+      var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
     }
   }

@@ -296,17 +296,9 @@ Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) {
       IntPtrAdd(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
 }
 
-Node* CodeStubAssembler::SmiAddWithOverflow(Node* a, Node* b) {
-  return IntPtrAddWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
 Node* CodeStubAssembler::SmiSub(Node* a, Node* b) {
   return BitcastWordToTaggedSigned(
       IntPtrSub(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
-}
-
-Node* CodeStubAssembler::SmiSubWithOverflow(Node* a, Node* b) {
-  return IntPtrSubWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) {
