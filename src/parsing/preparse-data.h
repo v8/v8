@@ -81,6 +81,8 @@ class SingletonLogger : public ParserRecorder {
                            LanguageMode language_mode, bool uses_super_property,
                            bool calls_eval) {
     DCHECK(!has_error_);
+    // Check that we only log at most one function.
+    DCHECK(start_ == -1 && end_ == -1);
     start_ = start;
     end_ = end;
     literals_ = literals;

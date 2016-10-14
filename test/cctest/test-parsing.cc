@@ -461,35 +461,29 @@ TEST(RegressChromium62639) {
 
 
 TEST(Regress928) {
-  v8::V8::Initialize();
-  i::Isolate* isolate = CcTest::i_isolate();
+  // Test only applies when lazy parsing.
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+  i::FLAG_min_preparse_length = 0;
 
-  // Preparsing didn't consider the catch clause of a try statement
-  // as with-content, which made it assume that a function inside
-  // the block could be lazily compiled, and an extra, unexpected,
-  // entry was added to the data.
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                        128 * 1024);
-
+  // Tests that the first non-toplevel function is not included in the preparse
+  // data.
   const char* program =
       "try { } catch (e) { var foo = function () { /* first */ } }"
       "var bar = function () { /* second */ }";
 
-  v8::HandleScope handles(CcTest::isolate());
-  auto stream = i::ScannerStream::ForTesting(program);
-  i::CompleteParserRecorder log;
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream.get());
-  i::Zone zone(CcTest::i_isolate()->allocator());
-  i::AstValueFactory ast_value_factory(&zone,
-                                       CcTest::i_isolate()->heap()->HashSeed());
-  i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
-                         CcTest::i_isolate()->stack_guard()->real_climit());
-  preparser.set_allow_lazy(true);
-  i::PreParser::PreParseResult result = preparser.PreParseProgram();
-  CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  i::ScriptData* sd = log.GetScriptData();
-  i::ParseData* pd = i::ParseData::FromCachedData(sd);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handles(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  v8::ScriptCompiler::Source script_source(v8_str(program));
+  v8::ScriptCompiler::Compile(context, &script_source,
+                              v8::ScriptCompiler::kProduceParserCache)
+      .ToLocalChecked();
+
+  const v8::ScriptCompiler::CachedData* cached_data =
+      script_source.GetCachedData();
+  i::ScriptData script_data(cached_data->data, cached_data->length);
+  std::unique_ptr<i::ParseData> pd(i::ParseData::FromCachedData(&script_data));
   pd->Initialize();
 
   int first_function =
@@ -507,8 +501,6 @@ TEST(Regress928) {
   i::FunctionEntry entry2 = pd->GetFunctionEntry(second_lbrace);
   CHECK(entry2.is_valid());
   CHECK_EQ('}', program[entry2.end_pos() - 1]);
-  delete sd;
-  delete pd;
 }
 
 

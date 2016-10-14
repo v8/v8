@@ -888,7 +888,7 @@ class PreParser : public ParserBase<PreParser> {
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
   PreParseResult PreParseLazyFunction(DeclarationScope* function_scope,
-                                      bool parsing_module, ParserRecorder* log,
+                                      bool parsing_module, SingletonLogger* log,
                                       bool track_unresolved_variables,
                                       bool may_abort, int* use_counts);
 
@@ -921,7 +921,7 @@ class PreParser : public ParserBase<PreParser> {
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_pos, FunctionLiteral::FunctionType function_type,
       LanguageMode language_mode, bool* ok);
-  LazyParsingResult ParseLazyFunctionLiteralBody(bool may_abort, bool* ok);
+  LazyParsingResult ParseStatementListAndLogFunction(bool may_abort, bool* ok);
 
   struct TemplateLiteralState {};
 
