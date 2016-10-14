@@ -1372,8 +1372,8 @@ BUILTIN(RegExpPrototypeSplit) {
                                                  factory->undefined_value()));
 
     if (result->IsNull(isolate)) {
-      string_index += RegExpUtils::AdvanceStringIndex(isolate, string,
-                                                      string_index, unicode);
+      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
+                                                     string_index, unicode);
       continue;
     }
 
@@ -1388,8 +1388,8 @@ BUILTIN(RegExpPrototypeSplit) {
 
     const int end = std::min(last_index, length);
     if (end == prev_string_index) {
-      string_index += RegExpUtils::AdvanceStringIndex(isolate, string,
-                                                      string_index, unicode);
+      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
+                                                     string_index, unicode);
       continue;
     }
 

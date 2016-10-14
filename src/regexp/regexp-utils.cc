@@ -145,23 +145,19 @@ bool RegExpUtils::IsBuiltinExec(Handle<Object> exec) {
   return (code->builtin_index() == Builtins::kRegExpPrototypeExec);
 }
 
-// ES#sec-advancestringindex
-// AdvanceStringIndex ( S, index, unicode )
 int RegExpUtils::AdvanceStringIndex(Isolate* isolate, Handle<String> string,
                                     int index, bool unicode) {
-  int increment = 1;
-
   if (unicode && index < string->length()) {
     const uint16_t first = string->Get(index);
     if (first >= 0xD800 && first <= 0xDBFF && string->length() > index + 1) {
       const uint16_t second = string->Get(index + 1);
       if (second >= 0xDC00 && second <= 0xDFFF) {
-        increment = 2;
+        return index + 2;
       }
     }
   }
 
-  return increment;
+  return index + 1;
 }
 
 MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
@@ -178,7 +174,7 @@ MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
 
   const int last_index = Handle<Smi>::cast(last_index_obj)->value();
   const int new_last_index =
-      last_index + AdvanceStringIndex(isolate, string, last_index, unicode);
+      AdvanceStringIndex(isolate, string, last_index, unicode);
 
   return SetLastIndex(isolate, regexp, new_last_index);
 }

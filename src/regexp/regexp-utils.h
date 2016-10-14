@@ -37,7 +37,8 @@ class RegExpUtils : public AllStatic {
   // Checks whether exec is identical to the initial RegExp.prototype.exec.
   static bool IsBuiltinExec(Handle<Object> exec);
 
-  // Generic index increment methods respecting unicode surrogate pairs.
+  // ES#sec-advancestringindex
+  // AdvanceStringIndex ( S, index, unicode )
   static int AdvanceStringIndex(Isolate* isolate, Handle<String> string,
                                 int index, bool unicode);
   static MaybeHandle<Object> SetAdvancedStringIndex(Isolate* isolate,
