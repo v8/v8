@@ -2056,38 +2056,6 @@ Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> wasm) {
   return new_info;
 }
 
-bool wasm::UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
-                                  Address new_start, uint32_t old_size,
-                                  uint32_t new_size) {
-  DisallowHeapAllocation no_allocation;
-  if (!IsWasmObject(*object)) {
-    return false;
-  }
-
-  // Get code table associated with the module js_object
-  Object* obj = object->GetInternalField(kWasmModuleCodeTable);
-  Handle<FixedArray> code_table(FixedArray::cast(obj));
-
-  // Iterate through the code objects in the code table and update relocation
-  // information
-  for (int i = 0; i < code_table->length(); ++i) {
-    obj = code_table->get(i);
-    Handle<Code> code(Code::cast(obj));
-
-    int mode_mask = RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
-    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-      RelocInfo::Mode mode = it.rinfo()->rmode();
-      if (RelocInfo::IsWasmMemoryReference(mode) ||
-          RelocInfo::IsWasmMemorySizeReference(mode)) {
-        it.rinfo()->update_wasm_memory_reference(old_start, new_start, old_size,
-                                                 new_size);
-      }
-    }
-  }
-  return true;
-}
-
 Handle<FixedArray> wasm::BuildFunctionTable(Isolate* isolate, uint32_t index,
                                             const WasmModule* module) {
   const WasmIndirectFunctionTable* table = &module->function_tables[index];
@@ -2239,9 +2207,9 @@ int32_t wasm::GetInstanceMemorySize(Isolate* isolate,
 
 int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                                  uint32_t pages) {
-  if (pages == 0) {
-    return GetInstanceMemorySize(isolate, instance);
-  }
+  if (!IsWasmObject(*instance)) return false;
+  if (pages == 0) return GetInstanceMemorySize(isolate, instance);
+
   Address old_mem_start = nullptr;
   uint32_t old_size = 0, new_size = 0;
 
@@ -2278,10 +2246,8 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
     memcpy(new_mem_start, old_mem_start, old_size);
   }
   SetInstanceMemory(instance, *buffer);
-  if (!UpdateWasmModuleMemory(instance, old_mem_start, new_mem_start, old_size,
-                              new_size)) {
-    return -1;
-  }
+  RelocateInstanceCode(instance, old_mem_start, new_mem_start, old_size,
+                       new_size);
   DCHECK(old_size % WasmModule::kPageSize == 0);
   return (old_size / WasmModule::kPageSize);
 }

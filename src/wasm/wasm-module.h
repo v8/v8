@@ -515,11 +515,6 @@ Handle<Script> GetAsmWasmScript(Handle<JSObject> wasm);
 int GetAsmWasmSourcePosition(Handle<JSObject> wasm, int func_index,
                              int byte_offset);
 
-// Update memory references of code objects associated with the module
-bool UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
-                            Address new_start, uint32_t old_size,
-                            uint32_t new_size);
-
 // Constructs a single function table as a FixedArray of double size,
 // populating it with function signature indices and function indices.
 Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
