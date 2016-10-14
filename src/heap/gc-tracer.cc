@@ -467,9 +467,9 @@ void GCTracer::PrintNVP() const {
           " "
           "allocated=%" PRIuS
           " "
-          "promoted=%" PRIuS
+          "promoted=%" V8PRIdPTR
           " "
-          "semi_space_copied=%" PRIuS
+          "semi_space_copied=%" V8PRIdPTR
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
@@ -579,9 +579,9 @@ void GCTracer::PrintNVP() const {
           " "
           "allocated=%" PRIuS
           " "
-          "promoted=%" PRIuS
+          "promoted=%" V8PRIdPTR
           " "
-          "semi_space_copied=%" PRIuS
+          "semi_space_copied=%" V8PRIdPTR
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
