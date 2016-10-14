@@ -41,7 +41,7 @@ BUILTIN(FixedArrayIteratorNext) {
   // particular iterator object for which the function was created.
   if (!receiver->IsJSFixedArrayIterator() ||
       Handle<JSFixedArrayIterator>::cast(receiver)->initial_next() !=
-          *args.target<JSFunction>()) {
+          *args.target()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               isolate->factory()->next_string(), receiver));

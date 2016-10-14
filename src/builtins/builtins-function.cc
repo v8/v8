@@ -21,7 +21,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   DCHECK_LE(1, args.length());
   int const argc = args.length() - 1;
 
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
 
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {

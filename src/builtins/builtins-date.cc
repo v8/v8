@@ -203,7 +203,7 @@ BUILTIN(DateConstructor) {
 BUILTIN(DateConstructor_ConstructStub) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   double time_val;
   if (argc == 0) {

@@ -28,7 +28,7 @@ BUILTIN(ErrorConstructor) {
   }
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, ErrorUtils::Construct(isolate, args.target<JSFunction>(),
+      isolate, ErrorUtils::Construct(isolate, args.target(),
                                      Handle<Object>::cast(args.new_target()),
                                      args.atOrUndefined(isolate, 1), mode,
                                      caller, false));

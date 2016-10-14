@@ -48,9 +48,8 @@ class BuiltinArguments : public Arguments {
   static const int kNumExtraArgs = 3;
   static const int kNumExtraArgsWithReceiver = 4;
 
-  template <class S>
-  Handle<S> target() {
-    return Arguments::at<S>(Arguments::length() - 1 - kTargetOffset);
+  Handle<JSFunction> target() {
+    return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);
   }
   Handle<HeapObject> new_target() {
     return Arguments::at<HeapObject>(Arguments::length() - 1 -
