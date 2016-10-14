@@ -678,6 +678,7 @@ class RuntimeCallTimer {
   V(CompileEval)                                    \
   V(CompileFullCode)                                \
   V(CompileIgnition)                                \
+  V(CompilerDispatcher)                             \
   V(CompileSerialize)                               \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \

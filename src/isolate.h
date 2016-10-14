@@ -45,6 +45,7 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
+class CompilerDispatcherTracer;
 class CompilationStatistics;
 class ContextSlotCache;
 class Counters;
@@ -1162,6 +1163,10 @@ class Isolate {
 
   AccountingAllocator* allocator() { return allocator_; }
 
+  CompilerDispatcherTracer* compiler_dispatcher_tracer() const {
+    return compiler_dispatcher_tracer_;
+  }
+
   bool IsInAnyContext(Object* object, uint32_t index);
 
   void SetRAILMode(RAILMode rail_mode);
@@ -1388,6 +1393,8 @@ class Isolate {
   FunctionEntryHook function_entry_hook_;
 
   interpreter::Interpreter* interpreter_;
+
+  CompilerDispatcherTracer* compiler_dispatcher_tracer_;
 
   typedef std::pair<InterruptCallback, void*> InterruptEntry;
   std::queue<InterruptEntry> api_interrupts_queue_;

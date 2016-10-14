@@ -675,7 +675,7 @@ void GCTracer::PrintNVP() const {
   }
 }
 
-double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+double GCTracer::AverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer,
                               const BytesAndDuration& initial, double time_ms) {
   BytesAndDuration sum = buffer.Sum(
       [time_ms](BytesAndDuration a, BytesAndDuration b) {
@@ -694,7 +694,8 @@ double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
   return speed;
 }
 
-double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer) {
+double GCTracer::AverageSpeed(
+    const base::RingBuffer<BytesAndDuration>& buffer) {
   return AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 0);
 }
 

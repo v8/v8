@@ -20,6 +20,7 @@
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
 #include "src/compilation-statistics.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
@@ -2234,6 +2235,9 @@ void Isolate::Deinit() {
 
   cancelable_task_manager()->CancelAndWait();
 
+  delete compiler_dispatcher_tracer_;
+  compiler_dispatcher_tracer_ = nullptr;
+
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
 
@@ -2445,6 +2449,7 @@ bool Isolate::Init(Deserializer* des) {
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
+  compiler_dispatcher_tracer_ = new CompilerDispatcherTracer(this);
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);

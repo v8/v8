@@ -7,50 +7,13 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
+#include "src/base/ring-buffer.h"
 #include "src/counters.h"
 #include "src/globals.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class RingBuffer {
- public:
-  RingBuffer() { Reset(); }
-  static const int kSize = 10;
-  void Push(const T& value) {
-    if (count_ == kSize) {
-      elements_[start_++] = value;
-      if (start_ == kSize) start_ = 0;
-    } else {
-      DCHECK_EQ(start_, 0);
-      elements_[count_++] = value;
-    }
-  }
-
-  int Count() const { return count_; }
-
-  template <typename Callback>
-  T Sum(Callback callback, const T& initial) const {
-    int j = start_ + count_ - 1;
-    if (j >= kSize) j -= kSize;
-    T result = initial;
-    for (int i = 0; i < count_; i++) {
-      result = callback(result, elements_[j]);
-      if (--j == -1) j += kSize;
-    }
-    return result;
-  }
-
-  void Reset() { start_ = count_ = 0; }
-
- private:
-  T elements_[kSize];
-  int start_;
-  int count_;
-  DISALLOW_COPY_AND_ASSIGN(RingBuffer);
-};
 
 typedef std::pair<uint64_t, double> BytesAndDuration;
 
@@ -377,8 +340,8 @@ class GCTracer {
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
   // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
-  static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer);
-  static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+  static double AverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer);
+  static double AverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer,
                              const BytesAndDuration& initial, double time_ms);
 
   void ResetForTesting();
@@ -453,15 +416,15 @@ class GCTracer {
   // Separate timer used for --runtime_call_stats
   RuntimeCallTimer timer_;
 
-  RingBuffer<BytesAndDuration> recorded_scavenges_total_;
-  RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
-  RingBuffer<BytesAndDuration> recorded_compactions_;
-  RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
-  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
-  RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
-  RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
-  RingBuffer<double> recorded_context_disposal_times_;
-  RingBuffer<double> recorded_survival_ratios_;
+  base::RingBuffer<BytesAndDuration> recorded_scavenges_total_;
+  base::RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
+  base::RingBuffer<BytesAndDuration> recorded_compactions_;
+  base::RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
+  base::RingBuffer<BytesAndDuration> recorded_mark_compacts_;
+  base::RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
+  base::RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
+  base::RingBuffer<double> recorded_context_disposal_times_;
+  base::RingBuffer<double> recorded_survival_ratios_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };

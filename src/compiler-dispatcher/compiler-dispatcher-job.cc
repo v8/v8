@@ -6,6 +6,7 @@
 
 #include "src/assert-scope.h"
 #include "src/compilation-info.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
@@ -23,6 +24,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
                                              Handle<SharedFunctionInfo> shared,
                                              size_t max_stack_size)
     : isolate_(isolate),
+      tracer_(isolate_->compiler_dispatcher_tracer()),
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
@@ -45,6 +47,7 @@ CompilerDispatcherJob::~CompilerDispatcherJob() {
 void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kInitial);
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToParse);
   HandleScope scope(isolate_);
   unicode_cache_.reset(new UnicodeCache());
   zone_.reset(new Zone(isolate_->allocator()));
@@ -92,6 +95,9 @@ void CompilerDispatcherJob::Parse() {
   DCHECK(can_parse_on_background_thread_ ||
          ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kReadyToParse);
+  COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
+      tracer_, kParse,
+      parse_info_->end_position() - parse_info_->start_position());
 
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
@@ -119,6 +125,7 @@ void CompilerDispatcherJob::Parse() {
 bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kParsed);
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeParsing);
 
   if (!source_.is_null()) {
     i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
@@ -170,6 +177,7 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
 bool CompilerDispatcherJob::PrepareToCompileOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kReadyToAnalyse);
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
 
   compile_info_.reset(
       new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null()));
@@ -197,6 +205,8 @@ void CompilerDispatcherJob::Compile() {
   DCHECK(status() == CompileJobStatus::kReadyToCompile);
   DCHECK(can_compile_on_background_thread_ ||
          ThreadId::Current().Equals(isolate_->thread_id()));
+  COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
+      tracer_, kCompile, parse_info_->literal()->ast_node_count());
 
   // Disallowing of handle dereference and heap access dealt with in
   // CompilationJob::ExecuteJob.
@@ -215,6 +225,7 @@ void CompilerDispatcherJob::Compile() {
 bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kCompiled);
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeCompiling);
 
   if (compile_job_->state() == CompilationJob::State::kFailed ||
       !Compiler::FinalizeCompilationJob(compile_job_.release())) {

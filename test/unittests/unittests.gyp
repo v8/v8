@@ -81,6 +81,7 @@
       'compiler/value-numbering-reducer-unittest.cc',
       'compiler/zone-stats-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-job-unittest.cc',
+      'compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc',
       'counters-unittest.cc',
       'eh-frame-iterator-unittest.cc',
       'eh-frame-writer-unittest.cc',
