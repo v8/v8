@@ -31,7 +31,6 @@ class FieldIndex final {
   static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
-  int GetLoadByFieldOffset() const;
 
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);

@@ -951,6 +951,7 @@
         'ic/call-optimization.h',
         'ic/handler-compiler.cc',
         'ic/handler-compiler.h',
+        'ic/handler-configuration-inl.h',
         'ic/handler-configuration.h',
         'ic/ic-inl.h',
         'ic/ic-state.cc',

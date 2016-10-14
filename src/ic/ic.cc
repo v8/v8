@@ -16,6 +16,7 @@
 #include "src/frames-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/stub-cache.h"
@@ -849,7 +850,7 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   if (FLAG_tf_load_ic_stub) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-    return handle(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
+    return SmiHandler::MakeLoadFieldHandler(isolate(), index);
   }
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
   LoadFieldStub stub(isolate(), index);
@@ -888,9 +889,7 @@ Handle<Object> LoadIC::SimpleFieldLoadFromPrototype(FieldIndex index,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   DCHECK(!validity_cell.is_null());
 
-  Handle<Object> handler(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
-  DCHECK(handler->IsSmi());
-
+  Handle<Object> handler(SmiHandler::MakeLoadFieldHandler(isolate(), index));
   Factory* factory = isolate()->factory();
 
   Handle<WeakCell> holder_cell = factory->NewWeakCell(holder);

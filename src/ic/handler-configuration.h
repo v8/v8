@@ -6,6 +6,7 @@
 #define V8_IC_HANDLER_CONFIGURATION_H_
 
 #include "src/elements-kind.h"
+#include "src/field-index.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -17,7 +18,7 @@ enum LoadHandlerType {
   kLoadICHandlerForProperties = 1
 };
 
-class LoadHandlerTypeBit : public BitField<bool, 0, 1> {};
+class LoadHandlerTypeBit : public BitField<LoadHandlerType, 0, 1> {};
 
 // Encoding for configuration Smis for property loads:
 class FieldOffsetIsInobject
@@ -38,6 +39,18 @@ class KeyedLoadElementsKind
     : public BitField<ElementsKind, KeyedLoadConvertHole::kNext, 8> {};
 // Make sure we don't overflow into the sign bit.
 STATIC_ASSERT(KeyedLoadElementsKind::kNext <= kSmiValueSize - 1);
+
+// This class is a collection of factory methods for various Smi-encoded
+// IC handlers consumed by respective IC dispatchers.
+class SmiHandler {
+ public:
+  static inline Handle<Object> MakeLoadFieldHandler(Isolate* isolate,
+                                                    FieldIndex field_index);
+
+  static inline Handle<Object> MakeKeyedLoadHandler(
+      Isolate* isolate, ElementsKind elements_kind,
+      bool convert_hole_to_undefined, bool is_js_array);
+};
 
 }  // namespace internal
 }  // namespace v8

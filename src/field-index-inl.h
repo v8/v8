@@ -6,7 +6,6 @@
 #define V8_FIELD_INDEX_INL_H_
 
 #include "src/field-index.h"
-#include "src/ic/handler-configuration.h"
 
 namespace v8 {
 namespace internal {
@@ -83,16 +82,6 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   }
   result <<= 1;
   return is_double() ? (result | 1) : result;
-}
-
-// Returns the offset format consumed by TurboFan stubs:
-// (offset << 3) | (is_double << 2) | (is_inobject << 1) | is_property
-// Where |offset| is relative to object start or FixedArray start, respectively.
-inline int FieldIndex::GetLoadByFieldOffset() const {
-  return FieldOffsetIsInobject::encode(is_inobject()) |
-         FieldOffsetIsDouble::encode(is_double()) |
-         FieldOffsetOffset::encode(index() << kPointerSizeLog2) |
-         LoadHandlerTypeBit::encode(kLoadICHandlerForProperties);
 }
 
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {

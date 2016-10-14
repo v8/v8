@@ -718,6 +718,7 @@ class RuntimeCallTimer {
   V(KeyedLoadIC_LoadIndexedStringStub)          \
   V(KeyedLoadIC_LoadIndexedInterceptorStub)     \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)   \
+  V(KeyedLoadIC_LoadElementDH)                  \
   V(KeyedLoadIC_LoadFastElementStub)            \
   V(KeyedLoadIC_LoadDictionaryElementStub)      \
   V(KeyedLoadIC_SlowStub)                       \

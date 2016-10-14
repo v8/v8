@@ -1411,6 +1411,7 @@ v8_source_set("v8_base") {
     "src/ic/call-optimization.h",
     "src/ic/handler-compiler.cc",
     "src/ic/handler-compiler.h",
+    "src/ic/handler-configuration-inl.h",
     "src/ic/handler-configuration.h",
     "src/ic/ic-compiler.cc",
     "src/ic/ic-compiler.h",
