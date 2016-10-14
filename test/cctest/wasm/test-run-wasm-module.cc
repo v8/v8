@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/snapshot/code-serializer.h"
+#include "src/version.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -228,9 +230,16 @@ TEST(Run_WasmModule_Serialization) {
   create_params.array_buffer_allocator =
       CcTest::InitIsolateOnce()->array_buffer_allocator();
 
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < 3; ++i) {
     v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
     if (i == 1) {
+      // Invalidate the header by providing a mismatched version
+      uint32_t* buffer = reinterpret_cast<uint32_t*>(
+          const_cast<uint8_t*>(serialized_bytes.first));
+      buffer[SerializedCodeData::kVersionHashOffset] = Version::Hash() + 1;
+    }
+
+    if (i == 2) {
       // Provide no serialized data to force recompilation.
       serialized_bytes.first = nullptr;
       serialized_bytes.second = 0;

@@ -96,6 +96,31 @@ class SerializedCodeData : public SerializedData {
     INVALID_HEADER = 7
   };
 
+  // The data header consists of uint32_t-sized entries:
+  // [0] magic number and external reference count
+  // [1] version hash
+  // [2] source hash
+  // [3] cpu features
+  // [4] flag hash
+  // [5] number of code stub keys
+  // [6] number of reservation size entries
+  // [7] payload length
+  // [8] payload checksum part 1
+  // [9] payload checksum part 2
+  // ...  reservations
+  // ...  code stub keys
+  // ...  serialized payload
+  static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
+  static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
+  static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
+  static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
+  static const int kNumReservationsOffset = kFlagHashOffset + kInt32Size;
+  static const int kNumCodeStubKeysOffset = kNumReservationsOffset + kInt32Size;
+  static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
+  static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
+  static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
+  static const int kHeaderSize = kChecksum2Offset + kInt32Size;
+
   // Used when consuming.
   static const SerializedCodeData FromCachedData(
       Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
@@ -125,30 +150,6 @@ class SerializedCodeData : public SerializedData {
 
   SanityCheckResult SanityCheck(Isolate* isolate,
                                 uint32_t expected_source_hash) const;
-  // The data header consists of uint32_t-sized entries:
-  // [0] magic number and external reference count
-  // [1] version hash
-  // [2] source hash
-  // [3] cpu features
-  // [4] flag hash
-  // [5] number of code stub keys
-  // [6] number of reservation size entries
-  // [7] payload length
-  // [8] payload checksum part 1
-  // [9] payload checksum part 2
-  // ...  reservations
-  // ...  code stub keys
-  // ...  serialized payload
-  static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
-  static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
-  static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
-  static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
-  static const int kNumReservationsOffset = kFlagHashOffset + kInt32Size;
-  static const int kNumCodeStubKeysOffset = kNumReservationsOffset + kInt32Size;
-  static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
-  static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
-  static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
-  static const int kHeaderSize = kChecksum2Offset + kInt32Size;
 };
 
 }  // namespace internal
