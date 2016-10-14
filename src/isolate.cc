@@ -2227,13 +2227,14 @@ void Isolate::Deinit() {
   delete heap_profiler_;
   heap_profiler_ = NULL;
 
+  cancelable_task_manager()->CancelAndWait();
+
   heap_.TearDown();
   logger_->TearDown();
 
   delete interpreter_;
   interpreter_ = NULL;
 
-  cancelable_task_manager()->CancelAndWait();
 
   delete compiler_dispatcher_tracer_;
   compiler_dispatcher_tracer_ = nullptr;

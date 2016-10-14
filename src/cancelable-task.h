@@ -27,6 +27,7 @@ class CancelableTaskManager {
 
   // Registers a new cancelable {task}. Returns the unique {id} of the task that
   // can be used to try to abort a task by calling {Abort}.
+  // Must not be called after CancelAndWait.
   uint32_t Register(Cancelable* task);
 
   // Try to abort running a task identified by {id}. The possible outcomes are:
@@ -40,7 +41,7 @@ class CancelableTaskManager {
   bool TryAbort(uint32_t id);
 
   // Cancels all remaining registered tasks and waits for tasks that are
-  // already running.
+  // already running. This disallows subsequent Register calls.
   void CancelAndWait();
 
  private:
@@ -58,6 +59,8 @@ class CancelableTaskManager {
   // well as waiting for background tasks on {CancelAndWait}.
   base::ConditionVariable cancelable_tasks_barrier_;
   base::Mutex mutex_;
+
+  bool canceled_;
 
   friend class Cancelable;
 
