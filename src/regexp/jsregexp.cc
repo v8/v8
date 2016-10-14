@@ -141,11 +141,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   MaybeHandle<FixedArray> maybe_cached =
       compilation_cache->LookupRegExp(pattern, flags);
   Handle<FixedArray> cached;
-  bool in_cache = maybe_cached.ToHandle(&cached);
-  LOG(isolate, RegExpCompileEvent(re, in_cache));
-
-  Handle<Object> result;
-  if (in_cache) {
+  if (maybe_cached.ToHandle(&cached)) {
     re->set_data(*cached);
     return re;
   }

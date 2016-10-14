@@ -1060,7 +1060,6 @@ DEFINE_BOOL(prof_cpp, false, "Like --prof, but ignore generated code.")
 DEFINE_IMPLICATION(prof, prof_cpp)
 DEFINE_BOOL(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
-DEFINE_BOOL(log_regexp, false, "Log regular expression execution.")
 DEFINE_STRING(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
