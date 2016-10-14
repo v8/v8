@@ -1161,6 +1161,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         object_function, "getPrototypeOf", Builtins::kObjectGetPrototypeOf,
         1, false);
     native_context()->set_object_get_prototype_of(*object_get_prototype_of);
+    SimpleInstallFunction(object_function, "setPrototypeOf",
+                          Builtins::kObjectSetPrototypeOf, 2, false);
 
     Handle<JSFunction> object_is_extensible = SimpleInstallFunction(
         object_function, "isExtensible", Builtins::kObjectIsExtensible,

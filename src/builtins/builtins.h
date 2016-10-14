@@ -525,6 +525,7 @@ namespace internal {
   CPP(ObjectGetOwnPropertyNames)                                              \
   CPP(ObjectGetOwnPropertySymbols)                                            \
   CPP(ObjectGetPrototypeOf)                                                   \
+  CPP(ObjectSetPrototypeOf)                                                   \
   /* ES6 section 19.1.3.2 Object.prototype.hasOwnProperty */                  \
   TFJ(ObjectHasOwnProperty, 2)                                                \
   CPP(ObjectIs)                                                               \

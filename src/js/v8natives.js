@@ -104,21 +104,6 @@ function GetMethod(obj, p) {
   throw %make_type_error(kCalledNonCallable, typeof func);
 }
 
-// ES6 section 19.1.2.18.
-function ObjectSetPrototypeOf(obj, proto) {
-  CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
-
-  if (proto !== null && !IS_RECEIVER(proto)) {
-    throw %make_type_error(kProtoObjectOrNull, proto);
-  }
-
-  if (IS_RECEIVER(obj)) {
-    %SetPrototype(obj, proto);
-  }
-
-  return obj;
-}
-
 // ES6 B.2.2.1.1
 function ObjectGetProto() {
   return %object_get_prototype_of(this);
@@ -168,14 +153,6 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
 ]);
 utils.InstallGetterSetter(
     GlobalObject.prototype, "__proto__", ObjectGetProto, ObjectSetProto);
-
-// Set up non-enumerable functions in the Object object.
-utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  "setPrototypeOf", ObjectSetPrototypeOf,
-  // getOwnPropertySymbols is added in symbol.js.
-  // Others are added in bootstrapper.cc.
-]);
-
 
 
 // ----------------------------------------------------------------------------
