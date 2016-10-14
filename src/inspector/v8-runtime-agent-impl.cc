@@ -41,7 +41,6 @@
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
-#include "src/tracing/trace-event.h"
 
 #include "include/v8-inspector.h"
 
@@ -273,8 +272,6 @@ void V8RuntimeAgentImpl::evaluate(
     const Maybe<bool>& generatePreview, const Maybe<bool>& userGesture,
     const Maybe<bool>& awaitPromise,
     std::unique_ptr<EvaluateCallback> callback) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
-               "EvaluateScript");
   ErrorString errorString;
   int contextId =
       ensureContext(&errorString, m_inspector, m_session->contextGroupId(),
