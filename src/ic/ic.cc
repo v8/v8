@@ -1210,6 +1210,11 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
       if (receiver_is_holder) {
+        if (FLAG_tf_load_ic_stub) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
+          return SmiHandler::MakeLoadConstantHandler(
+              isolate(), lookup->GetConstantIndex());
+        }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
         LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
         return stub.GetCode();

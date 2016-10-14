@@ -4855,7 +4855,7 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_cell_handler);
 
-  // |handler| is a Smi, encoding what to do. See handler-configuration.h
+  // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
   Bind(&if_smi_handler);
   {
@@ -4864,10 +4864,10 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
 
     Node* holder = var_holder.value();
     Node* handler_word = SmiUntag(var_smi_handler.value());
+    Node* handler_type =
+        WordAnd(handler_word, IntPtrConstant(LoadHandlerTypeBits::kMask));
     if (support_elements == kSupportElements) {
       Label property(this);
-      Node* handler_type =
-          WordAnd(handler_word, IntPtrConstant(LoadHandlerTypeBit::kMask));
       GotoUnless(
           WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForElements)),
           &property);
@@ -4914,44 +4914,65 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
       Comment("property_load");
     }
 
-    // |handler_word| is a field index as obtained by
-    // FieldIndex.GetLoadByFieldOffset():
-    Label inobject_double(this), out_of_object(this),
-        out_of_object_double(this);
-    Node* inobject_bit =
-        WordAnd(handler_word, IntPtrConstant(FieldOffsetIsInobject::kMask));
-    Node* double_bit =
-        WordAnd(handler_word, IntPtrConstant(FieldOffsetIsDouble::kMask));
-    Node* offset =
-        WordSar(handler_word, IntPtrConstant(FieldOffsetOffset::kShift));
+    Label constant(this), field(this);
+    Branch(WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForFields)),
+           &field, &constant);
 
-    GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
+    Bind(&field);
+    {
+      Comment("field_load");
+      Label inobject_double(this), out_of_object(this),
+          out_of_object_double(this);
+      Node* inobject_bit =
+          WordAnd(handler_word, IntPtrConstant(FieldOffsetIsInobject::kMask));
+      Node* double_bit =
+          WordAnd(handler_word, IntPtrConstant(FieldOffsetIsDouble::kMask));
+      Node* offset =
+          WordSar(handler_word, IntPtrConstant(FieldOffsetOffset::kShift));
 
-    GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &inobject_double);
-    Return(LoadObjectField(holder, offset));
+      GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
 
-    Bind(&inobject_double);
-    if (FLAG_unbox_double_fields) {
-      var_double_value.Bind(
-          LoadObjectField(holder, offset, MachineType::Float64()));
-    } else {
-      Node* mutable_heap_number = LoadObjectField(holder, offset);
-      var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+      GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &inobject_double);
+      Return(LoadObjectField(holder, offset));
+
+      Bind(&inobject_double);
+      if (FLAG_unbox_double_fields) {
+        var_double_value.Bind(
+            LoadObjectField(holder, offset, MachineType::Float64()));
+      } else {
+        Node* mutable_heap_number = LoadObjectField(holder, offset);
+        var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+      }
+      Goto(&rebox_double);
+
+      Bind(&out_of_object);
+      Node* properties = LoadProperties(holder);
+      Node* value = LoadObjectField(properties, offset);
+      GotoUnless(WordEqual(double_bit, IntPtrConstant(0)),
+                 &out_of_object_double);
+      Return(value);
+
+      Bind(&out_of_object_double);
+      var_double_value.Bind(LoadHeapNumberValue(value));
+      Goto(&rebox_double);
+
+      Bind(&rebox_double);
+      Return(AllocateHeapNumberWithValue(var_double_value.value()));
     }
-    Goto(&rebox_double);
 
-    Bind(&out_of_object);
-    Node* properties = LoadProperties(holder);
-    Node* value = LoadObjectField(properties, offset);
-    GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &out_of_object_double);
-    Return(value);
-
-    Bind(&out_of_object_double);
-    var_double_value.Bind(LoadHeapNumberValue(value));
-    Goto(&rebox_double);
-
-    Bind(&rebox_double);
-    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    Bind(&constant);
+    {
+      Comment("constant_load");
+      Node* descriptors = LoadMapDescriptors(LoadMap(holder));
+      Node* descriptor = WordSar(
+          handler_word, IntPtrConstant(ValueIndexInDescriptorArray::kShift));
+#if defined(DEBUG)
+      Assert(UintPtrLessThan(descriptor,
+                             LoadAndUntagFixedArrayBaseLength(descriptors)));
+#endif
+      Return(
+          LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS));
+    }
   }
 
   Bind(&try_proto_cell_handler);

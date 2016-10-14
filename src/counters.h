@@ -729,6 +729,7 @@ class RuntimeCallTimer {
   V(LoadIC_FunctionPrototypeStub)               \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
+  V(LoadIC_LoadConstantDH)                      \
   V(LoadIC_LoadConstant)                        \
   V(LoadIC_LoadConstantStub)                    \
   V(LoadIC_LoadFieldDH)                         \
