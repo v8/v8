@@ -43,6 +43,7 @@ function assertLog(msg) {
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.AsyncTaskEvent) return;
   try {
+    if ("Promise.resolve" == event_data.name()) return;
     if (base_id < 0)
       base_id = event_data.id();
     var id = event_data.id() - base_id + 1;
@@ -72,4 +73,25 @@ resolver();
 
 %RunMicrotasks();
 
+assertNull(exception);
+
+Debug.clearBreakOnUncaughtException();
+Debug.setListener(null);
+
+var resolve;
+var turnOnListenerPromise = new Promise(r => resolve = r);
+async function confused() {
+  await turnOnListenerPromise;
+  throw foo
+}
+
+confused();
+
+Promise.resolve().then(() => {
+  Debug.setListener(listener);
+  Debug.setBreakOnUncaughtException();
+  resolve();
+});
+
+%RunMicrotasks();
 assertNull(exception);
