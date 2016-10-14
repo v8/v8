@@ -60,9 +60,7 @@ MaybeHandle<JSRegExp> RegExpInitialize(Isolate* isolate,
   }
 
   // TODO(jgruber): We could avoid the flags back and forth conversions.
-  RETURN_RESULT(isolate,
-                JSRegExp::Initialize(regexp, pattern_string, flags_string),
-                JSRegExp);
+  return JSRegExp::Initialize(regexp, pattern_string, flags_string);
 }
 
 }  // namespace

@@ -118,16 +118,6 @@ class Interpreter;
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
 
-#define RETURN_RESULT(isolate, call, T)           \
-  do {                                            \
-    Handle<T> __result__;                         \
-    if (!(call).ToHandle(&__result__)) {          \
-      DCHECK((isolate)->has_pending_exception()); \
-      return MaybeHandle<T>();                    \
-    }                                             \
-    return __result__;                            \
-  } while (false)
-
 #define RETURN_RESULT_OR_FAILURE(isolate, call)     \
   do {                                              \
     Handle<Object> __result__;                      \

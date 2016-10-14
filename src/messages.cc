@@ -598,14 +598,14 @@ MaybeHandle<String> JSStackFrame::ToString() {
     builder.AppendString(Handle<String>::cast(function_name));
   } else {
     AppendFileLocation(isolate_, this, &builder);
-    RETURN_RESULT(isolate_, builder.Finish(), String);
+    return builder.Finish();
   }
 
   builder.AppendCString(" (");
   AppendFileLocation(isolate_, this, &builder);
   builder.AppendCString(")");
 
-  RETURN_RESULT(isolate_, builder.Finish(), String);
+  return builder.Finish();
 }
 
 int JSStackFrame::GetPosition() const { return code_->SourcePosition(offset_); }
@@ -734,7 +734,7 @@ MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
 
   if (IsNonEmptyString(function_name)) builder.AppendCString(")");
 
-  RETURN_RESULT(isolate_, builder.Finish(), String);
+  return builder.Finish();
 }
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
@@ -943,7 +943,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
     }
   }
 
-  RETURN_RESULT(isolate, builder.Finish(), Object);
+  return builder.Finish();
 }
 
 Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
