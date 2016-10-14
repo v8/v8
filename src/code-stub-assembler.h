@@ -146,7 +146,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* InnerAllocate(compiler::Node* previous,
                                 compiler::Node* offset);
 
-  void Assert(compiler::Node* condition);
+  void Assert(compiler::Node* condition, const char* string = nullptr,
+              const char* file = nullptr, int line = 0);
 
   // Check a value for smi-ness
   compiler::Node* TaggedIsSmi(compiler::Node* a);
@@ -988,6 +989,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   static const int kElementLoopUnrollThreshold = 8;
 };
+
+#define CSA_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 
