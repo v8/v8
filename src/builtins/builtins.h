@@ -539,6 +539,8 @@ namespace internal {
   /* ES6 section 19.1.3.6 Object.prototype.toString () */                     \
   TFJ(ObjectProtoToString, 1)                                                 \
   CPP(ObjectPrototypePropertyIsEnumerable)                                    \
+  CPP(ObjectPrototypeGetProto)                                                \
+  CPP(ObjectPrototypeSetProto)                                                \
   CPP(ObjectSeal)                                                             \
   CPP(ObjectValues)                                                           \
                                                                               \

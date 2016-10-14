@@ -250,18 +250,6 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   return *obj;
 }
 
-
-RUNTIME_FUNCTION(Runtime_SetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  MAYBE_RETURN(
-      JSReceiver::SetPrototype(obj, prototype, true, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
-  return *obj;
-}
-
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

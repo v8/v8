@@ -104,22 +104,6 @@ function GetMethod(obj, p) {
   throw %make_type_error(kCalledNonCallable, typeof func);
 }
 
-// ES6 B.2.2.1.1
-function ObjectGetProto() {
-  return %object_get_prototype_of(this);
-}
-
-
-// ES6 B.2.2.1.2
-function ObjectSetProto(proto) {
-  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
-
-  if ((IS_RECEIVER(proto) || IS_NULL(proto)) && IS_RECEIVER(this)) {
-    %SetPrototype(this, proto);
-  }
-}
-
-
 // ES6 19.1.1.1
 function ObjectConstructor(x) {
   if (GlobalObject != new.target && !IS_UNDEFINED(new.target)) {
@@ -151,8 +135,6 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   // __defineSetter__ is added in bootstrapper.cc.
   // __lookupSetter__ is added in bootstrapper.cc.
 ]);
-utils.InstallGetterSetter(
-    GlobalObject.prototype, "__proto__", ObjectGetProto, ObjectSetProto);
 
 
 // ----------------------------------------------------------------------------
