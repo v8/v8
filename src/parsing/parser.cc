@@ -678,8 +678,8 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
 
   HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
-  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::Parse);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.Parse");
+  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseProgram);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -837,14 +837,14 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   return result;
 }
 
-
-FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
+FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseLazy);
+  RuntimeCallTimerScope runtime_timer(isolate,
+                                      &RuntimeCallStats::ParseFunction);
   HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseLazy");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -861,8 +861,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
-    result =
-        DoParseLazy(info, ast_value_factory()->GetString(name), stream.get());
+    result = DoParseFunction(info, ast_value_factory()->GetString(name),
+                             stream.get());
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -891,9 +891,9 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
-                                     const AstRawString* raw_name,
-                                     Utf16CharacterStream* source) {
+FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
+                                         const AstRawString* raw_name,
+                                         Utf16CharacterStream* source) {
   scanner_.Initialize(source);
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
@@ -2789,7 +2789,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   // AST. This gathers the data needed to build a lazy function.
   SingletonLogger logger;
   PreParser::PreParseResult result =
-      ParseLazyFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
+      ParseFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
@@ -3249,7 +3249,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   return result;
 }
 
-PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
+PreParser::PreParseResult Parser::ParseFunctionBodyWithPreParser(
     SingletonLogger* logger, bool is_inner_function, bool may_abort) {
   // This function may be called on a background thread too; record only the
   // main thread preparse times.
@@ -3279,7 +3279,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   DCHECK(!is_inner_function || !may_abort);
 
   DeclarationScope* function_scope = function_state_->scope();
-  PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
+  PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
       function_scope, parsing_module_, logger, is_inner_function, may_abort,
       use_counts_);
   if (pre_parse_timer_ != NULL) {
@@ -3771,7 +3771,7 @@ bool Parser::Parse(ParseInfo* info) {
     SetCachedData(info);
     result = ParseProgram(isolate, info);
   } else {
-    result = ParseLazy(isolate, info);
+    result = ParseFunction(isolate, info);
   }
   info->set_literal(result);
 
@@ -3815,7 +3815,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     scanner_.Initialize(stream_ptr);
     result = DoParseProgram(info);
   } else {
-    result = DoParseLazy(info, info->function_name(), stream_ptr);
+    result = DoParseFunction(info, info->function_name(), stream_ptr);
   }
 
   info->set_literal(result);

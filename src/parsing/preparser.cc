@@ -83,7 +83,7 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
-PreParser::PreParseResult PreParser::PreParseLazyFunction(
+PreParser::PreParseResult PreParser::PreParseFunction(
     DeclarationScope* function_scope, bool parsing_module, SingletonLogger* log,
     bool is_inner_function, bool may_abort, int* use_counts) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());

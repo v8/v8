@@ -236,9 +236,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
-  FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info);
-  FunctionLiteral* DoParseLazy(ParseInfo* info, const AstRawString* raw_name,
-                               Utf16CharacterStream* source);
+  FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* DoParseFunction(ParseInfo* info,
+                                   const AstRawString* raw_name,
+                                   Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);
@@ -494,7 +495,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                          bool is_inner_function, bool may_abort,
                                          bool* ok);
 
-  PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
+  PreParser::PreParseResult ParseFunctionBodyWithPreParser(
       SingletonLogger* logger, bool is_inner_function, bool may_abort);
 
   Block* BuildParameterInitializationBlock(

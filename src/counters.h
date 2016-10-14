@@ -702,8 +702,8 @@ class RuntimeCallTimer {
   V(Map_TransitionToDataProperty)                   \
   V(Object_DeleteProperty)                          \
   V(OptimizeCode)                                   \
-  V(Parse)                                          \
-  V(ParseLazy)                                      \
+  V(ParseProgram)                                   \
+  V(ParseFunction)                                  \
   V(PropertyCallback)                               \
   V(PrototypeMap_TransitionToAccessorProperty)      \
   V(PrototypeMap_TransitionToDataProperty)          \

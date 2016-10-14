@@ -887,10 +887,10 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(DeclarationScope* function_scope,
-                                      bool parsing_module, SingletonLogger* log,
-                                      bool track_unresolved_variables,
-                                      bool may_abort, int* use_counts);
+  PreParseResult PreParseFunction(DeclarationScope* function_scope,
+                                  bool parsing_module, SingletonLogger* log,
+                                  bool track_unresolved_variables,
+                                  bool may_abort, int* use_counts);
 
  private:
   // These types form an algebra over syntactic categories that is just
