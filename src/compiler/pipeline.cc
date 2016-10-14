@@ -1781,7 +1781,10 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
         info(), data->graph(), data->schedule()));
   }
 
-  if (FLAG_turbo_verify_machine_graph) {
+  if (FLAG_turbo_verify_machine_graph != nullptr &&
+      (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
+       !strcmp(FLAG_turbo_verify_machine_graph,
+               data->info()->GetDebugName().get()))) {
     Zone temp_zone(data->isolate()->allocator());
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
                               &temp_zone);

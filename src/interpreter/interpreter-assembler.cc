@@ -1035,7 +1035,7 @@ Node* InterpreterAssembler::LoadBytecode(compiler::Node* bytecode_offset) {
 Node* InterpreterAssembler::StarDispatchLookahead(Node* target_bytecode) {
   Label do_inline_star(this), done(this);
 
-  Variable var_bytecode(this, MachineRepresentation::kWord8);
+  Variable var_bytecode(this, MachineType::PointerRepresentation());
   var_bytecode.Bind(target_bytecode);
 
   Node* star_bytecode = IntPtrConstant(static_cast<int>(Bytecode::kStar));

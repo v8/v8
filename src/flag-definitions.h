@@ -450,8 +450,8 @@ DEFINE_BOOL(turbo_asm, true, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_asm_deoptimization, false,
             "enable deoptimization in TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
-DEFINE_BOOL(turbo_verify_machine_graph, false,
-            "verify TurboFan machine graph before instruction selection")
+DEFINE_STRING(turbo_verify_machine_graph, nullptr,
+              "verify TurboFan machine graph before instruction selection")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_stats_nvp, false,
             "print TurboFan statistics in machine-readable format")

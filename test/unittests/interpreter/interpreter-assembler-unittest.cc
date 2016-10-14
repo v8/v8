@@ -335,7 +335,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
             IsChangeUint32ToUint64(after_lookahead_bytecode);
       }
       target_bytecode_matcher =
-          IsPhi(MachineRepresentation::kWord8, target_bytecode_matcher,
+          IsPhi(MachineType::PointerRepresentation(), target_bytecode_matcher,
                 after_lookahead_bytecode, _);
       code_target_matcher =
           m.IsLoad(MachineType::Pointer(),

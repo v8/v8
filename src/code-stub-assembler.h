@@ -135,7 +135,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
   compiler::Node* SmiMul(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiOr(compiler::Node* a, compiler::Node* b) {
-    return WordOr(a, b);
+    return BitcastWordToTaggedSigned(
+        WordOr(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
   }
 
   // Allocate an object of the given size.
