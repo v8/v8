@@ -722,51 +722,6 @@ BUILTIN(ObjectSetPrototypeOf) {
   return *receiver;
 }
 
-// ES6 section B.2.2.1.1 get Object.prototype.__proto__
-BUILTIN(ObjectPrototypeGetProto) {
-  HandleScope scope(isolate);
-  // 1. Let O be ? ToObject(this value).
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, receiver, Object::ToObject(isolate, args.receiver()));
-
-  // 2. Return ? O.[[GetPrototypeOf]]().
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSReceiver::GetPrototype(isolate, receiver));
-}
-
-// ES6 section B.2.2.1.2 set Object.prototype.__proto__
-BUILTIN(ObjectPrototypeSetProto) {
-  HandleScope scope(isolate);
-  // 1. Let O be ? RequireObjectCoercible(this value).
-  Handle<Object> object = args.receiver();
-  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "set Object.prototype.__proto__")));
-  }
-
-  // 2. If Type(proto) is neither Object nor Null, return undefined.
-  Handle<Object> proto = args.at<Object>(1);
-  if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
-    return isolate->heap()->undefined_value();
-  }
-
-  // 3. If Type(O) is not Object, return undefined.
-  if (!object->IsJSReceiver()) return isolate->heap()->undefined_value();
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-
-  // 4. Let status be ? O.[[SetPrototypeOf]](proto).
-  // 5. If status is false, throw a TypeError exception.
-  MAYBE_RETURN(
-      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
-
-  // Return undefined.
-  return isolate->heap()->undefined_value();
-}
-
 // ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
 BUILTIN(ObjectGetOwnPropertyDescriptor) {
   HandleScope scope(isolate);

@@ -459,14 +459,14 @@ void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
       Name::ToFunctionName(name, isolate->factory()->get_string())
           .ToHandleChecked();
   Handle<JSFunction> getter =
-      SimpleCreateFunction(isolate, getter_name, call_getter, 0, true);
+      SimpleCreateFunction(isolate, getter_name, call_getter, 0, false);
   getter->shared()->set_native(true);
 
   Handle<String> setter_name =
       Name::ToFunctionName(name, isolate->factory()->set_string())
           .ToHandleChecked();
   Handle<JSFunction> setter =
-      SimpleCreateFunction(isolate, setter_name, call_setter, 1, true);
+      SimpleCreateFunction(isolate, setter_name, call_setter, 0, false);
   setter->shared()->set_native(true);
 
   JSObject::DefineAccessor(base, name, getter, setter, attribs).Check();
@@ -1198,11 +1198,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(
         isolate->initial_object_prototype(), "propertyIsEnumerable",
         Builtins::kObjectPrototypePropertyIsEnumerable, 1, false);
-
-    SimpleInstallGetterSetter(isolate->initial_object_prototype(),
-                              factory->proto_string(),
-                              Builtins::kObjectPrototypeGetProto,
-                              Builtins::kObjectPrototypeSetProto, DONT_ENUM);
   }
 
   Handle<JSObject> global(native_context()->global_object());
