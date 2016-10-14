@@ -80,34 +80,3 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     }
   }
 })();
-
-(function ValidateBoundsCheck() {
-  print("Validate bounds check");
-  let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
-  assertEquals(kPageSize, memory.buffer.byteLength);
-  let i32 = new Int32Array(memory.buffer);
-  let builder = new WasmModuleBuilder();
-  // builder.addImportedMemory("mine");
-  builder.addImportedMemory("mine");
-  builder.addFunction("load", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
-      .exportFunc();
-  builder.addFunction("store", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-                kExprGetLocal, 1])
-      .exportFunc();
-  var offset;
-  let instance = builder.instantiate({mine: memory});
-  function load() { return instance.exports.load(offset); }
-  function store(value) { return instance.exports.store(offset, value); }
-
-  for (offset = 0; offset < kPageSize -3; offset+=4) {
-    store(offset);
-  }
-  for (offset = 0; offset < kPageSize - 3; offset+=4) {
-    assertEquals(offset, load());
-  }
-  for (offset = kPageSize - 3; offset < kPageSize + 4; offset++) {
-    assertTraps(kTrapMemOutOfBounds, load);
-  }
-})();
