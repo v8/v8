@@ -401,7 +401,7 @@ void TruncateRegexpIndicesList(Isolate* isolate) {
 template <typename ResultSeqString>
 MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> pattern_regexp,
-    Handle<String> replacement, Handle<JSObject> last_match_info) {
+    Handle<String> replacement, Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
@@ -479,7 +479,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
 
 MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
-    Handle<String> replacement, Handle<JSObject> last_match_info) {
+    Handle<String> replacement, Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
@@ -561,7 +561,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
 template <typename ResultSeqString>
 MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
-    Handle<JSObject> last_match_info) {
+    Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
 
   // Shortcut for simple non-regexp global replacements
@@ -660,9 +660,8 @@ namespace {
 
 Object* StringReplaceGlobalRegExpWithStringHelper(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    Handle<String> replacement, Handle<JSObject> last_match_info) {
+    Handle<String> replacement, Handle<RegExpMatchInfo> last_match_info) {
   CHECK(regexp->GetFlags() & JSRegExp::kGlobal);
-  CHECK(last_match_info->HasFastObjectElements());
 
   subject = String::Flatten(subject);
 
@@ -691,7 +690,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 3);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
 
   return StringReplaceGlobalRegExpWithStringHelper(
       isolate, regexp, subject, replacement, last_match_info);
@@ -811,7 +810,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_INT32_ARG_CHECKED(index, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 3);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK(index >= 0);
@@ -877,10 +876,8 @@ RUNTIME_FUNCTION(Runtime_RegExpInternalReplace) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
 
-  static const int kInitialMatchSlots = 2;
-  Handle<JSArray> internal_match_info = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, 0, RegExpImpl::kLastMatchOverhead + kInitialMatchSlots,
-      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  Handle<RegExpMatchInfo> internal_match_info =
+      isolate->regexp_internal_match_info();
 
   return StringReplaceGlobalRegExpWithStringHelper(
       isolate, regexp, subject, replacement, internal_match_info);
@@ -891,7 +888,7 @@ namespace {
 class MatchInfoBackedMatch : public String::Match {
  public:
   MatchInfoBackedMatch(Isolate* isolate, Handle<String> subject,
-                       Handle<JSObject> match_info)
+                       Handle<RegExpMatchInfo> match_info)
       : isolate_(isolate), match_info_(match_info) {
     subject_ = String::Flatten(subject);
   }
@@ -912,20 +909,18 @@ class MatchInfoBackedMatch : public String::Match {
   }
 
   Handle<String> GetPrefix() override {
-    const int match_start =
-        RegExpUtils::GetLastMatchCapture(isolate_, match_info_, 0);
+    const int match_start = match_info_->Capture(0);
     return isolate_->factory()->NewSubString(subject_, 0, match_start);
   }
 
   Handle<String> GetSuffix() override {
-    const int match_end =
-        RegExpUtils::GetLastMatchCapture(isolate_, match_info_, 1);
+    const int match_end = match_info_->Capture(1);
     return isolate_->factory()->NewSubString(subject_, match_end,
                                              subject_->length());
   }
 
   int CaptureCount() override {
-    return RegExpUtils::GetLastMatchNumberOfCaptures(isolate_, match_info_) / 2;
+    return match_info_->NumberOfCaptureRegisters() / 2;
   }
 
   virtual ~MatchInfoBackedMatch() {}
@@ -933,7 +928,7 @@ class MatchInfoBackedMatch : public String::Match {
  private:
   Isolate* isolate_;
   Handle<String> subject_;
-  Handle<JSObject> match_info_;
+  Handle<RegExpMatchInfo> match_info_;
 };
 
 class VectorBackedMatch : public String::Match {
@@ -985,11 +980,10 @@ class VectorBackedMatch : public String::Match {
 // Only called from RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
 template <bool has_capture>
-MaybeHandle<Object> SearchRegExpMultiple(Isolate* isolate,
-                                         Handle<String> subject,
-                                         Handle<JSRegExp> regexp,
-                                         Handle<JSObject> last_match_array,
-                                         Handle<FixedArray> result_elements) {
+MaybeHandle<Object> SearchRegExpMultiple(
+    Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
+    Handle<RegExpMatchInfo> last_match_array,
+    Handle<FixedArray> result_elements) {
   DCHECK(subject->IsFlat());
   DCHECK_NE(has_capture, regexp->CaptureCount() == 0);
 
@@ -1133,10 +1127,8 @@ MaybeHandle<Object> SearchRegExpMultiple(Isolate* isolate,
 MaybeHandle<Object> RegExpExecMultiple(Isolate* isolate,
                                        Handle<JSRegExp> regexp,
                                        Handle<String> subject,
-                                       Handle<JSObject> last_match_info,
+                                       Handle<RegExpMatchInfo> last_match_info,
                                        Handle<FixedArray> result_array) {
-  CHECK(last_match_info->HasFastObjectElements());
-
   subject = String::Flatten(subject);
   CHECK(regexp->GetFlags() & JSRegExp::kGlobal);
 
@@ -1158,7 +1150,7 @@ MaybeHandle<String> StringReplaceGlobalRegExpWithFunction(
 
   // TODO(jgruber): Convert result_array into a List<Handle<Object>> (or
   // similar) and adapt / remove FixedArrayBuilder.
-  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+  Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
   Handle<FixedArray> result_array = factory->NewFixedArrayWithHoles(16);
 
   Handle<Object> res;
@@ -1175,8 +1167,7 @@ MaybeHandle<String> StringReplaceGlobalRegExpWithFunction(
   result_array = Handle<FixedArray>::cast(res);
   const int result_length = result_array->length();
 
-  const int num_captures =
-      RegExpUtils::GetLastMatchNumberOfCaptures(isolate, last_match_info) / 2;
+  const int num_captures = last_match_info->NumberOfCaptureRegisters() / 2;
   if (num_captures == 1) {
     // If the number of captures is one then there are no explicit captures in
     // the regexp, just the implicit capture that captures the whole match.  In
@@ -1309,7 +1300,7 @@ MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
     Handle<Object> replace_obj) {
   Factory* factory = isolate->factory();
-  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+  Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
 
   // TODO(jgruber): This is a pattern we could refactor.
   Handle<Object> match_indices_obj;
@@ -1323,11 +1314,11 @@ MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
     return subject;
   }
 
-  Handle<JSObject> match_indices = Handle<JSObject>::cast(match_indices_obj);
+  Handle<RegExpMatchInfo> match_indices =
+      Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-  const int index = RegExpUtils::GetLastMatchCapture(isolate, match_indices, 0);
-  const int end_of_match =
-      RegExpUtils::GetLastMatchCapture(isolate, match_indices, 1);
+  const int index = match_indices->Capture(0);
+  const int end_of_match = match_indices->Capture(1);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(factory->NewSubString(subject, 0, index));
@@ -1335,8 +1326,7 @@ MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
   // Compute the parameter list consisting of the match, captures, index,
   // and subject for the replace function invocation.
   // The number of captures plus one for the match.
-  const int m =
-      RegExpUtils::GetLastMatchNumberOfCaptures(isolate, match_indices) / 2;
+  const int m = match_indices->NumberOfCaptureRegisters() / 2;
 
   const int argc = m + 2;
   ScopedVector<Handle<Object>> argv(argc);
@@ -1392,7 +1382,7 @@ MaybeHandle<String> RegExpReplace(Isolate* isolate, Handle<JSRegExp> regexp,
                                Object::ToString(isolate, replace_obj), String);
     replace = String::Flatten(replace);
 
-    Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+    Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
 
     if (!global) {
       // Non-global regexp search, string replace.
@@ -1408,25 +1398,16 @@ MaybeHandle<String> RegExpReplace(Isolate* isolate, Handle<JSRegExp> regexp,
         return string;
       }
 
-      auto match_indices = Handle<JSReceiver>::cast(match_indices_obj);
+      auto match_indices = Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-      Handle<Object> start_index_obj =
-          JSReceiver::GetElement(isolate, match_indices,
-                                 RegExpImpl::kFirstCapture)
-              .ToHandleChecked();
-      const int start_index = Handle<Smi>::cast(start_index_obj)->value();
-
-      Handle<Object> end_index_obj =
-          JSReceiver::GetElement(isolate, match_indices,
-                                 RegExpImpl::kFirstCapture + 1)
-              .ToHandleChecked();
-      const int end_index = Handle<Smi>::cast(end_index_obj)->value();
+      const int start_index = match_indices->Capture(0);
+      const int end_index = match_indices->Capture(1);
 
       IncrementalStringBuilder builder(isolate);
       builder.AppendString(factory->NewSubString(string, 0, start_index));
 
       if (replace->length() > 0) {
-        MatchInfoBackedMatch m(isolate, string, last_match_info);
+        MatchInfoBackedMatch m(isolate, string, match_indices);
         Handle<String> replacement;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, replacement, String::GetSubstitution(isolate, &m, replace),

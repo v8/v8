@@ -810,14 +810,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(edx, Immediate(2));  // edx was a smi.
 
   // edx: Number of capture registers
-  // Load last_match_info which is still known to be a fast-elements JSObject.
-  // Check that the fourth object is a JSObject.
-  __ mov(eax, Operand(esp, kLastMatchInfoOffset));
-  __ JumpIfSmi(eax, &runtime);
-  __ CmpObjectType(eax, JS_OBJECT_TYPE, ebx);
-  __ j(not_equal, &runtime);
+  // Check that the last match info is a FixedArray.
+  __ mov(ebx, Operand(esp, kLastMatchInfoOffset));
+  __ JumpIfSmi(ebx, &runtime);
   // Check that the object has fast elements.
-  __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
   __ mov(eax, FieldOperand(ebx, HeapObject::kMapOffset));
   __ cmp(eax, factory->fixed_array_map());
   __ j(not_equal, &runtime);
@@ -825,31 +821,25 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // additional information.
   __ mov(eax, FieldOperand(ebx, FixedArray::kLengthOffset));
   __ SmiUntag(eax);
-  __ sub(eax, Immediate(RegExpImpl::kLastMatchOverhead));
+  __ sub(eax, Immediate(RegExpMatchInfo::kLastMatchOverhead));
   __ cmp(edx, eax);
   __ j(greater, &runtime);
 
-  // ebx: last_match_info backing store (FixedArray)
+  // ebx: last_match_info (FixedArray)
   // edx: number of capture registers
   // Store the capture count.
   __ SmiTag(edx);  // Number of capture registers to smi.
-  __ mov(FieldOperand(ebx, RegExpImpl::kLastCaptureCountOffset), edx);
+  __ mov(FieldOperand(ebx, RegExpMatchInfo::kNumberOfCapturesOffset), edx);
   __ SmiUntag(edx);  // Number of capture registers back from smi.
   // Store last subject and last input.
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(ecx, eax);
-  __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
-  __ RecordWriteField(ebx,
-                      RegExpImpl::kLastSubjectOffset,
-                      eax,
-                      edi,
+  __ mov(FieldOperand(ebx, RegExpMatchInfo::kLastSubjectOffset), eax);
+  __ RecordWriteField(ebx, RegExpMatchInfo::kLastSubjectOffset, eax, edi,
                       kDontSaveFPRegs);
   __ mov(eax, ecx);
-  __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
-  __ RecordWriteField(ebx,
-                      RegExpImpl::kLastInputOffset,
-                      eax,
-                      edi,
+  __ mov(FieldOperand(ebx, RegExpMatchInfo::kLastInputOffset), eax);
+  __ RecordWriteField(ebx, RegExpMatchInfo::kLastInputOffset, eax, edi,
                       kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
@@ -857,12 +847,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       ExternalReference::address_of_static_offsets_vector(isolate());
   __ mov(ecx, Immediate(address_of_static_offsets_vector));
 
-  // ebx: last_match_info backing store (FixedArray)
+  // ebx: last_match_info (FixedArray)
   // ecx: offsets vector
   // edx: number of capture registers
   Label next_capture, done;
   // Capture register counter starts from number of capture registers and
-  // counts down until wraping after zero.
+  // counts down until wrapping after zero.
   __ bind(&next_capture);
   __ sub(edx, Immediate(1));
   __ j(negative, &done, Label::kNear);
@@ -870,16 +860,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(edi, Operand(ecx, edx, times_int_size, 0));
   __ SmiTag(edi);
   // Store the smi value in the last match info.
-  __ mov(FieldOperand(ebx,
-                      edx,
-                      times_pointer_size,
-                      RegExpImpl::kFirstCaptureOffset),
-                      edi);
+  __ mov(FieldOperand(ebx, edx, times_pointer_size,
+                      RegExpMatchInfo::kFirstCaptureOffset),
+         edi);
   __ jmp(&next_capture);
   __ bind(&done);
 
   // Return last match info.
-  __ mov(eax, Operand(esp, kLastMatchInfoOffset));
+  __ mov(eax, ebx);
   __ ret(4 * kPointerSize);
 
   // Do the runtime call to execute the regexp.

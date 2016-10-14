@@ -248,7 +248,7 @@ void StoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
 compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
                                                 CodeStubAssembler* a,
                                                 compiler::Node* context,
-                                                compiler::Node* match_elements,
+                                                compiler::Node* match_info,
                                                 compiler::Node* string) {
   typedef CodeStubAssembler::Variable Variable;
   typedef CodeStubAssembler::Label Label;
@@ -258,13 +258,14 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
 
   CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
   Node* const num_indices = a->SmiUntag(a->LoadFixedArrayElement(
-      match_elements, a->IntPtrConstant(RegExpImpl::kLastCaptureCount), 0,
+      match_info, a->IntPtrConstant(RegExpMatchInfo::kNumberOfCapturesIndex), 0,
       mode));
   Node* const num_results = a->SmiTag(a->WordShr(num_indices, 1));
   Node* const start = a->LoadFixedArrayElement(
-      match_elements, a->IntPtrConstant(RegExpImpl::kFirstCapture), 0, mode);
+      match_info, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), 0,
+      mode);
   Node* const end = a->LoadFixedArrayElement(
-      match_elements, a->IntPtrConstant(RegExpImpl::kFirstCapture + 1), 0,
+      match_info, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1), 0,
       mode);
 
   // Calculate the substring of the first match before creating the result array
@@ -281,13 +282,14 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
   a->GotoIf(a->SmiEqual(num_results, a->SmiConstant(Smi::FromInt(1))), &out);
 
   // Store all remaining captures.
-  Node* const limit =
-      a->IntPtrAdd(a->IntPtrConstant(RegExpImpl::kFirstCapture), num_indices);
+  Node* const limit = a->IntPtrAdd(
+      a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), num_indices);
 
   Variable var_from_cursor(a, MachineType::PointerRepresentation());
   Variable var_to_cursor(a, MachineType::PointerRepresentation());
 
-  var_from_cursor.Bind(a->IntPtrConstant(RegExpImpl::kFirstCapture + 2));
+  var_from_cursor.Bind(
+      a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
   var_to_cursor.Bind(a->IntPtrConstant(1));
 
   Variable* vars[] = {&var_from_cursor, &var_to_cursor};
@@ -298,15 +300,14 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
   {
     Node* const from_cursor = var_from_cursor.value();
     Node* const to_cursor = var_to_cursor.value();
-    Node* const start = a->LoadFixedArrayElement(match_elements, from_cursor);
+    Node* const start = a->LoadFixedArrayElement(match_info, from_cursor);
 
     Label next_iter(a);
     a->GotoIf(a->SmiEqual(start, a->SmiConstant(Smi::FromInt(-1))), &next_iter);
 
     Node* const from_cursor_plus1 =
         a->IntPtrAdd(from_cursor, a->IntPtrConstant(1));
-    Node* const end =
-        a->LoadFixedArrayElement(match_elements, from_cursor_plus1);
+    Node* const end = a->LoadFixedArrayElement(match_info, from_cursor_plus1);
 
     Node* const capture = a->SubString(context, string, start, end);
     a->StoreFixedArrayElement(result_elements, to_cursor, capture);
@@ -417,7 +418,7 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
     match_indices = a->CallStub(exec_callable, context, regexp, string,
                                 var_lastindex.value(), last_match_info);
 
-    // {match_indices} is either null or the RegExpLastMatchInfo array.
+    // {match_indices} is either null or the RegExpMatchInfo array.
     // Return early if exec failed, possibly updating last index.
     a->GotoUnless(a->WordEqual(match_indices, null), &successful_match);
 
@@ -434,13 +435,12 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
   Label construct_result(a);
   a->Bind(&successful_match);
   {
-    Node* const match_elements = a->LoadElements(match_indices);
-
     a->GotoUnless(should_update_last_index, &construct_result);
 
     // Update the new last index from {match_indices}.
     Node* const new_lastindex = a->LoadFixedArrayElement(
-        match_elements, a->IntPtrConstant(RegExpImpl::kFirstCapture + 1));
+        match_indices,
+        a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1));
 
     StoreLastIndex(a, context, has_initialmap, regexp, new_lastindex);
     a->Goto(&construct_result);
@@ -448,7 +448,7 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
     a->Bind(&construct_result);
     {
       Node* result = ConstructNewResultFromMatchInfo(isolate, a, context,
-                                                     match_elements, string);
+                                                     match_indices, string);
       a->Return(result);
     }
   }
@@ -882,8 +882,7 @@ DEFINE_CAPTURE_GETTER(9)
 
 BUILTIN(RegExpInputGetter) {
   HandleScope scope(isolate);
-  Handle<Object> obj = RegExpUtils::GetLastMatchInput(
-      isolate, isolate->regexp_last_match_info());
+  Handle<Object> obj(isolate->regexp_last_match_info()->LastInput(), isolate);
   return obj->IsUndefined(isolate) ? isolate->heap()->empty_string()
                                    : String::cast(*obj);
 }
@@ -894,8 +893,7 @@ BUILTIN(RegExpInputSetter) {
   Handle<String> str;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
                                      Object::ToString(isolate, value));
-  RegExpUtils::SetLastMatchField(isolate, isolate->regexp_last_match_info(),
-                                 RegExpImpl::kLastInput, str);
+  isolate->regexp_last_match_info()->SetLastInput(*str);
   return isolate->heap()->undefined_value();
 }
 
@@ -911,9 +909,8 @@ BUILTIN(RegExpLastMatchGetter) {
 
 BUILTIN(RegExpLastParenGetter) {
   HandleScope scope(isolate);
-  Handle<JSObject> match_info = isolate->regexp_last_match_info();
-  const int length =
-      RegExpUtils::GetLastMatchNumberOfCaptures(isolate, match_info);
+  Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
+  const int length = match_info->NumberOfCaptureRegisters();
   if (length <= 2) return isolate->heap()->empty_string();  // No captures.
 
   DCHECK_EQ(0, length % 2);
@@ -927,21 +924,17 @@ BUILTIN(RegExpLastParenGetter) {
 
 BUILTIN(RegExpLeftContextGetter) {
   HandleScope scope(isolate);
-  Handle<JSObject> match_info = isolate->regexp_last_match_info();
-  const int start_index =
-      RegExpUtils::GetLastMatchCapture(isolate, match_info, 0);
-  Handle<String> last_subject =
-      RegExpUtils::GetLastMatchSubject(isolate, match_info);
+  Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
+  const int start_index = match_info->Capture(0);
+  Handle<String> last_subject(match_info->LastSubject());
   return *isolate->factory()->NewSubString(last_subject, 0, start_index);
 }
 
 BUILTIN(RegExpRightContextGetter) {
   HandleScope scope(isolate);
-  Handle<JSObject> match_info = isolate->regexp_last_match_info();
-  const int start_index =
-      RegExpUtils::GetLastMatchCapture(isolate, match_info, 1);
-  Handle<String> last_subject =
-      RegExpUtils::GetLastMatchSubject(isolate, match_info);
+  Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
+  const int start_index = match_info->Capture(1);
+  Handle<String> last_subject(match_info->LastSubject());
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
 }
@@ -1136,7 +1129,7 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
 
   if (limit == 0) return factory->NewJSArray(0);
 
-  Handle<JSObject> last_match_info = isolate->regexp_last_match_info();
+  Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
 
   if (length == 0) {
     Handle<Object> match_indices;
@@ -1170,7 +1163,8 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
     Handle<Object> match_indices_obj;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, match_indices_obj,
-        RegExpImpl::Exec(regexp, string, start_index, last_match_info),
+        RegExpImpl::Exec(regexp, string, start_index,
+                         isolate->regexp_last_match_info()),
         JSArray);
 
     if (match_indices_obj->IsNull(isolate)) {
@@ -1180,13 +1174,9 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
       break;
     }
 
-    auto match_indices = Handle<JSReceiver>::cast(match_indices_obj);
+    auto match_indices = Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-    Handle<Object> start_match_obj =
-        JSReceiver::GetElement(isolate, match_indices,
-                               RegExpImpl::kFirstCapture)
-            .ToHandleChecked();
-    start_match = Handle<Smi>::cast(start_match_obj)->value();
+    start_match = match_indices->Capture(0);
 
     if (start_match == length) {
       Handle<String> substr =
@@ -1195,11 +1185,7 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
       break;
     }
 
-    Handle<Object> end_index_obj =
-        JSReceiver::GetElement(isolate, match_indices,
-                               RegExpImpl::kFirstCapture + 1)
-            .ToHandleChecked();
-    const int end_index = Handle<Smi>::cast(end_index_obj)->value();
+    const int end_index = match_indices->Capture(1);
 
     if (start_index == end_index && end_index == current_index) {
       const bool unicode = (regexp->GetFlags() & JSRegExp::kUnicode) != 0;
@@ -1219,21 +1205,9 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
 
     if (num_elems == limit) break;
 
-    Handle<Object> num_captures_obj =
-        JSReceiver::GetElement(isolate, match_indices,
-                               RegExpImpl::kLastCaptureCount)
-            .ToHandleChecked();
-    const int match_indices_len = Handle<Smi>::cast(num_captures_obj)->value() +
-                                  RegExpImpl::kFirstCapture;
-
-    for (int i = RegExpImpl::kFirstCapture + 2; i < match_indices_len;) {
-      Handle<Object> start_obj =
-          JSReceiver::GetElement(isolate, match_indices, i++).ToHandleChecked();
-      const int start = Handle<Smi>::cast(start_obj)->value();
-
-      Handle<Object> end_obj =
-          JSReceiver::GetElement(isolate, match_indices, i++).ToHandleChecked();
-      const int end = Handle<Smi>::cast(end_obj)->value();
+    for (int i = 2; i < match_indices->NumberOfCaptureRegisters(); i += 2) {
+      const int start = match_indices->Capture(i);
+      const int end = match_indices->Capture(i + 1);
 
       if (end != -1) {
         Handle<String> substr = factory->NewSubString(string, start, end);
@@ -1529,17 +1503,16 @@ compiler::Node* ReplaceFastPath(CodeStubAssembler* a, compiler::Node* context,
 
     a->Bind(&if_matched);
     {
-      Node* const match_elements = a->LoadElements(match_indices);
       CodeStubAssembler::ParameterMode mode =
           CodeStubAssembler::INTPTR_PARAMETERS;
 
       Node* const subject_start = smi_zero;
       Node* const match_start = a->LoadFixedArrayElement(
-          match_elements, a->IntPtrConstant(RegExpImpl::kFirstCapture), 0,
-          mode);
+          match_indices, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex),
+          0, mode);
       Node* const match_end = a->LoadFixedArrayElement(
-          match_elements, a->IntPtrConstant(RegExpImpl::kFirstCapture + 1), 0,
-          mode);
+          match_indices,
+          a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1), 0, mode);
       Node* const subject_end = a->LoadStringLength(subject_string);
 
       Label if_replaceisempty(a), if_replaceisnotempty(a);
@@ -1653,29 +1626,6 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   }
 }
 
-namespace {
-
-// TODO(jgruber): Replace this with a FixedArray.
-compiler::Node* GetInternalMatchInfo(CodeStubAssembler* a,
-                                     compiler::Node* context) {
-  typedef compiler::Node Node;
-
-  const ElementsKind elements_kind = FAST_ELEMENTS;
-  Node* const native_context = a->LoadNativeContext(context);
-  Node* const array_map =
-      a->LoadJSArrayElementsMap(elements_kind, native_context);
-  Node* const capacity = a->IntPtrConstant(RegExpImpl::kLastMatchOverhead + 2);
-  Node* const allocation_site = nullptr;
-
-  Node* const smi_zero = a->SmiConstant(Smi::kZero);
-
-  return a->AllocateJSArray(elements_kind, array_map, capacity, smi_zero,
-                            allocation_site,
-                            CodeStubAssembler::INTPTR_PARAMETERS);
-}
-
-}  // namespace
-
 // Simple string matching functionality for internal use which does not modify
 // the last match info.
 void Builtins::Generate_RegExpInternalMatch(CodeStubAssembler* a) {
@@ -1690,7 +1640,10 @@ void Builtins::Generate_RegExpInternalMatch(CodeStubAssembler* a) {
 
   Node* const null = a->NullConstant();
   Node* const smi_zero = a->SmiConstant(Smi::FromInt(0));
-  Node* const internal_match_info = GetInternalMatchInfo(a, context);
+
+  Node* const native_context = a->LoadNativeContext(context);
+  Node* const internal_match_info = a->LoadContextElement(
+      native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX);
 
   Callable exec_callable = CodeFactory::RegExpExec(isolate);
   Node* const match_indices = a->CallStub(
@@ -1704,9 +1657,8 @@ void Builtins::Generate_RegExpInternalMatch(CodeStubAssembler* a) {
 
   a->Bind(&if_matched);
   {
-    Node* const match_elements = a->LoadElements(match_indices);
     Node* result = ConstructNewResultFromMatchInfo(isolate, a, context,
-                                                   match_elements, string);
+                                                   match_indices, string);
     a->Return(result);
   }
 }

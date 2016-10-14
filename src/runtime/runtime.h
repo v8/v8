@@ -812,7 +812,6 @@ namespace internal {
   F(SubString, 3, 1)                      \
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \
-  F(StringMatch, 3, 1)                    \
   F(StringCharCodeAtRT, 2, 1)             \
   F(StringCompare, 2, 1)                  \
   F(StringBuilderConcat, 3, 1)            \

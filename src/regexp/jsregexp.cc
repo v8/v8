@@ -194,7 +194,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 
 MaybeHandle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                      Handle<String> subject, int index,
-                                     Handle<JSObject> last_match_info) {
+                                     Handle<RegExpMatchInfo> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index, last_match_info);
@@ -222,17 +222,14 @@ void RegExpImpl::AtomCompile(Handle<JSRegExp> re,
                                                  match_pattern);
 }
 
-
-static void SetAtomLastCapture(FixedArray* array,
-                               String* subject,
-                               int from,
-                               int to) {
-  SealHandleScope shs(array->GetIsolate());
-  RegExpImpl::SetLastCaptureCount(array, 2);
-  RegExpImpl::SetLastSubject(array, subject);
-  RegExpImpl::SetLastInput(array, subject);
-  RegExpImpl::SetCapture(array, 0, from);
-  RegExpImpl::SetCapture(array, 1, to);
+static void SetAtomLastCapture(Handle<RegExpMatchInfo> last_match_info,
+                               String* subject, int from, int to) {
+  SealHandleScope shs(last_match_info->GetIsolate());
+  last_match_info->SetNumberOfCaptureRegisters(2);
+  last_match_info->SetLastSubject(subject);
+  last_match_info->SetLastInput(subject);
+  last_match_info->SetCapture(0, from);
+  last_match_info->SetCapture(1, to);
 }
 
 
@@ -289,7 +286,7 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
 
 Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re, Handle<String> subject,
                                     int index,
-                                    Handle<JSObject> last_match_info) {
+                                    Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = re->GetIsolate();
 
   static const int kNumRegisters = 2;
@@ -302,8 +299,8 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re, Handle<String> subject,
 
   DCHECK_EQ(res, RegExpImpl::RE_SUCCESS);
   SealHandleScope shs(isolate);
-  FixedArray* array = FixedArray::cast(last_match_info->elements());
-  SetAtomLastCapture(array, *subject, output_registers[0], output_registers[1]);
+  SetAtomLastCapture(last_match_info, *subject, output_registers[0],
+                     output_registers[1]);
   return last_match_info;
 }
 
@@ -566,10 +563,9 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
 #endif  // V8_INTERPRETED_REGEXP
 }
 
-MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
-                                             Handle<String> subject,
-                                             int previous_index,
-                                             Handle<JSObject> last_match_info) {
+MaybeHandle<Object> RegExpImpl::IrregexpExec(
+    Handle<JSRegExp> regexp, Handle<String> subject, int previous_index,
+    Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = regexp->GetIsolate();
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
@@ -613,31 +609,40 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   return isolate->factory()->null_value();
 }
 
-static void EnsureSize(Handle<JSObject> array, uint32_t minimum_size) {
-  if (static_cast<uint32_t>(array->elements()->length()) < minimum_size) {
-    array->GetElementsAccessor()->GrowCapacityAndConvert(array, minimum_size);
-  }
-}
+Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
+    Handle<RegExpMatchInfo> last_match_info, Handle<String> subject,
+    int capture_count, int32_t* match) {
+  // This is the only place where match infos can grow. If, after executing the
+  // regexp, RegExpExecStub finds that the match info is too small, it restarts
+  // execution in RegExpImpl::Exec, which finally grows the match info right
+  // here.
 
-Handle<JSObject> RegExpImpl::SetLastMatchInfo(Handle<JSObject> last_match_info,
-                                              Handle<String> subject,
-                                              int capture_count,
-                                              int32_t* match) {
-  DCHECK(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
-  EnsureSize(last_match_info, capture_register_count + kLastMatchOverhead);
-  DisallowHeapAllocation no_allocation;
-  FixedArray* array = FixedArray::cast(last_match_info->elements());
-  if (match != NULL) {
-    for (int i = 0; i < capture_register_count; i += 2) {
-      SetCapture(array, i, match[i]);
-      SetCapture(array, i + 1, match[i + 1]);
+  Handle<RegExpMatchInfo> result =
+      RegExpMatchInfo::ReserveCaptures(last_match_info, capture_register_count);
+  result->SetNumberOfCaptureRegisters(capture_register_count);
+
+  if (*result != *last_match_info) {
+    // The match info has been reallocated, update the corresponding reference
+    // on the native context.
+    Isolate* isolate = last_match_info->GetIsolate();
+    if (*last_match_info == *isolate->regexp_last_match_info()) {
+      isolate->native_context()->set_regexp_last_match_info(*result);
+    } else if (*last_match_info == *isolate->regexp_internal_match_info()) {
+      isolate->native_context()->set_regexp_internal_match_info(*result);
     }
   }
-  SetLastCaptureCount(array, capture_register_count);
-  SetLastSubject(array, *subject);
-  SetLastInput(array, *subject);
-  return last_match_info;
+
+  DisallowHeapAllocation no_allocation;
+  if (match != NULL) {
+    for (int i = 0; i < capture_register_count; i += 2) {
+      result->SetCapture(i, match[i]);
+      result->SetCapture(i + 1, match[i + 1]);
+    }
+  }
+  result->SetLastSubject(*subject);
+  result->SetLastInput(*subject);
+  return result;
 }
 
 

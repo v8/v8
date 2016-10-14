@@ -716,6 +716,8 @@ bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
 
 bool HeapObject::IsArrayList() const { return IsFixedArray(); }
 
+bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArray(); }
+
 bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
 }
@@ -2535,6 +2537,48 @@ void ArrayList::Clear(int index, Object* undefined) {
       ->set(kFirstIndex + index, undefined, SKIP_WRITE_BARRIER);
 }
 
+int RegExpMatchInfo::NumberOfCaptureRegisters() {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  Object* obj = get(kNumberOfCapturesIndex);
+  return Smi::cast(obj)->value();
+}
+
+void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  set(kNumberOfCapturesIndex, Smi::FromInt(value));
+}
+
+String* RegExpMatchInfo::LastSubject() {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  Object* obj = get(kLastSubjectIndex);
+  return String::cast(obj);
+}
+
+void RegExpMatchInfo::SetLastSubject(String* value) {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  set(kLastSubjectIndex, value);
+}
+
+Object* RegExpMatchInfo::LastInput() {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  return get(kLastInputIndex);
+}
+
+void RegExpMatchInfo::SetLastInput(Object* value) {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  set(kLastInputIndex, value);
+}
+
+int RegExpMatchInfo::Capture(int i) {
+  DCHECK_LT(i, NumberOfCaptureRegisters());
+  Object* obj = get(kFirstCaptureIndex + i);
+  return Smi::cast(obj)->value();
+}
+
+void RegExpMatchInfo::SetCapture(int i, int value) {
+  DCHECK_LT(i, NumberOfCaptureRegisters());
+  set(kFirstCaptureIndex + i, Smi::FromInt(value));
+}
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
@@ -3314,6 +3358,7 @@ CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
 CAST_ACCESSOR(SeqOneByteString)

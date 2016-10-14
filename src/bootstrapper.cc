@@ -1706,6 +1706,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->set_instance_class_name(isolate->heap()->RegExp_string());
     shared->DontAdaptArguments();
     shared->set_length(2);
+
     {
       // RegExp.prototype setup.
 
@@ -1774,7 +1775,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       // Store the initial RegExp.prototype map. This is used in fast-path
       // checks. Do not alter the prototype after this point.
-      isolate->native_context()->set_regexp_prototype_map(prototype->map());
+      native_context()->set_regexp_prototype_map(prototype->map());
     }
 
     {
@@ -1880,8 +1881,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       function->shared()->set_internal_formal_parameter_count(2);
       function->shared()->set_length(2);
       function->shared()->set_native(true);
-      isolate->native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
+      native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
     }
+
+    // Create the last match info. One for external use, and one for internal
+    // use when we don't want to modify the externally visible match info.
+    Handle<RegExpMatchInfo> last_match_info = factory->NewRegExpMatchInfo();
+    native_context()->set_regexp_last_match_info(*last_match_info);
+    Handle<RegExpMatchInfo> internal_match_info = factory->NewRegExpMatchInfo();
+    native_context()->set_regexp_internal_match_info(*internal_match_info);
   }
 
   {  // -- E r r o r

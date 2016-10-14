@@ -1625,13 +1625,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Daddu(a1, a1, Operand(1));
   __ dsll(a1, a1, 1);  // Multiply by 2.
 
-  __ ld(a0, MemOperand(sp, kLastMatchInfoOffset));
-  __ JumpIfSmi(a0, &runtime);
-  __ GetObjectType(a0, a2, a2);
-  __ Branch(&runtime, ne, a2, Operand(JS_OBJECT_TYPE));
+  // Check that the last match info is a FixedArray.
+  __ ld(last_match_info_elements, MemOperand(sp, kLastMatchInfoOffset));
+  __ JumpIfSmi(last_match_info_elements, &runtime);
   // Check that the object has fast elements.
-  __ ld(last_match_info_elements,
-        FieldMemOperand(a0, JSArray::kElementsOffset));
   __ ld(a0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
   __ LoadRoot(at, Heap::kFixedArrayMapRootIndex);
   __ Branch(&runtime, ne, a0, Operand(at));
@@ -1639,7 +1636,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // additional information.
   __ ld(a0,
         FieldMemOperand(last_match_info_elements, FixedArray::kLengthOffset));
-  __ Daddu(a2, a1, Operand(RegExpImpl::kLastMatchOverhead));
+  __ Daddu(a2, a1, Operand(RegExpMatchInfo::kLastMatchOverhead));
 
   __ SmiUntag(at, a0);
   __ Branch(&runtime, gt, a2, Operand(at));
@@ -1649,28 +1646,20 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store the capture count.
   __ SmiTag(a2, a1);  // To smi.
   __ sd(a2, FieldMemOperand(last_match_info_elements,
-                             RegExpImpl::kLastCaptureCountOffset));
+                            RegExpMatchInfo::kNumberOfCapturesOffset));
   // Store last subject and last input.
-  __ sd(subject,
-         FieldMemOperand(last_match_info_elements,
-                         RegExpImpl::kLastSubjectOffset));
+  __ sd(subject, FieldMemOperand(last_match_info_elements,
+                                 RegExpMatchInfo::kLastSubjectOffset));
   __ mov(a2, subject);
   __ RecordWriteField(last_match_info_elements,
-                      RegExpImpl::kLastSubjectOffset,
-                      subject,
-                      a7,
-                      kRAHasNotBeenSaved,
-                      kDontSaveFPRegs);
+                      RegExpMatchInfo::kLastSubjectOffset, subject, a7,
+                      kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ mov(subject, a2);
-  __ sd(subject,
-         FieldMemOperand(last_match_info_elements,
-                         RegExpImpl::kLastInputOffset));
+  __ sd(subject, FieldMemOperand(last_match_info_elements,
+                                 RegExpMatchInfo::kLastInputOffset));
   __ RecordWriteField(last_match_info_elements,
-                      RegExpImpl::kLastInputOffset,
-                      subject,
-                      a7,
-                      kRAHasNotBeenSaved,
-                      kDontSaveFPRegs);
+                      RegExpMatchInfo::kLastInputOffset, subject, a7,
+                      kRAHasNotBeenSaved, kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
@@ -1682,9 +1671,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label next_capture, done;
   // Capture register counter starts from number of capture registers and
   // counts down until wrapping after zero.
-  __ Daddu(a0,
-         last_match_info_elements,
-         Operand(RegExpImpl::kFirstCaptureOffset - kHeapObjectTag));
+  __ Daddu(a0, last_match_info_elements,
+           Operand(RegExpMatchInfo::kFirstCaptureOffset - kHeapObjectTag));
   __ bind(&next_capture);
   __ Dsubu(a1, a1, Operand(1));
   __ Branch(&done, lt, a1, Operand(zero_reg));
@@ -1700,7 +1688,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&done);
 
   // Return last match info.
-  __ ld(v0, MemOperand(sp, kLastMatchInfoOffset));
+  __ mov(v0, last_match_info_elements);
   __ DropAndRet(4);
 
   // Do the runtime call to execute the regexp.

@@ -10,22 +10,6 @@
 
 // -------------------------------------------------------------------
 
-// Property of the builtins object for recording the result of the last
-// regexp match.  The property RegExpLastMatchInfo includes the matchIndices
-// array of the last successful regexp match (an array of start/end index
-// pairs for the match and all the captured substrings), the invariant is
-// that there are at least two capture indices.  The array also contains
-// the subject string for the last successful match.
-// We use a JSObject rather than a JSArray so we don't have to manually update
-// its length.
-var RegExpLastMatchInfo = {
-  REGEXP_NUMBER_OF_CAPTURES: 2,
-  REGEXP_LAST_SUBJECT:       "",
-  REGEXP_LAST_INPUT:         UNDEFINED,  // Settable with RegExpSetInput.
-  CAPTURE0:                  0,
-  CAPTURE1:                  0
-};
-
 // ES#sec-getsubstitution
 // GetSubstitution(matched, str, position, captures, replacement)
 // Expand the $-expressions in the string and return a new string with
@@ -110,10 +94,6 @@ function GetSubstitution(matched, string, position, captures, replacement) {
   }
   return result;
 }
-
-// -------------------------------------------------------------------
-
-%InstallToContext(["regexp_last_match_info", RegExpLastMatchInfo]);
 
 // -------------------------------------------------------------------
 // Exports

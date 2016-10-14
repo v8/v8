@@ -12,67 +12,24 @@
 namespace v8 {
 namespace internal {
 
-// Constants for accessing RegExpLastMatchInfo.
-// TODO(jgruber): Currently, RegExpLastMatchInfo is still a JSObject maintained
-// and accessed from JS. This is a crutch until all RegExp logic is ported, then
-// we can take care of RegExpLastMatchInfo.
-
-Handle<Object> RegExpUtils::GetLastMatchField(Isolate* isolate,
-                                              Handle<JSObject> match_info,
-                                              int index) {
-  return JSReceiver::GetElement(isolate, match_info, index).ToHandleChecked();
-}
-
-void RegExpUtils::SetLastMatchField(Isolate* isolate,
-                                    Handle<JSObject> match_info, int index,
-                                    Handle<Object> value) {
-  JSReceiver::SetElement(isolate, match_info, index, value, SLOPPY)
-      .ToHandleChecked();
-}
-
-int RegExpUtils::GetLastMatchNumberOfCaptures(Isolate* isolate,
-                                              Handle<JSObject> match_info) {
-  Handle<Object> obj =
-      GetLastMatchField(isolate, match_info, RegExpImpl::kLastCaptureCount);
-  return Handle<Smi>::cast(obj)->value();
-}
-
-Handle<String> RegExpUtils::GetLastMatchSubject(Isolate* isolate,
-                                                Handle<JSObject> match_info) {
-  return Handle<String>::cast(
-      GetLastMatchField(isolate, match_info, RegExpImpl::kLastSubject));
-}
-
-Handle<Object> RegExpUtils::GetLastMatchInput(Isolate* isolate,
-                                              Handle<JSObject> match_info) {
-  return GetLastMatchField(isolate, match_info, RegExpImpl::kLastInput);
-}
-
-int RegExpUtils::GetLastMatchCapture(Isolate* isolate,
-                                     Handle<JSObject> match_info, int i) {
-  Handle<Object> obj =
-      GetLastMatchField(isolate, match_info, RegExpImpl::kFirstCapture + i);
-  return Handle<Smi>::cast(obj)->value();
-}
-
-Handle<String> RegExpUtils::GenericCaptureGetter(Isolate* isolate,
-                                                 Handle<JSObject> match_info,
-                                                 int capture, bool* ok) {
+Handle<String> RegExpUtils::GenericCaptureGetter(
+    Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture,
+    bool* ok) {
   const int index = capture * 2;
-  if (index >= GetLastMatchNumberOfCaptures(isolate, match_info)) {
+  if (index >= match_info->NumberOfCaptureRegisters()) {
     if (ok != nullptr) *ok = false;
     return isolate->factory()->empty_string();
   }
 
-  const int match_start = GetLastMatchCapture(isolate, match_info, index);
-  const int match_end = GetLastMatchCapture(isolate, match_info, index + 1);
+  const int match_start = match_info->Capture(index);
+  const int match_end = match_info->Capture(index + 1);
   if (match_start == -1 || match_end == -1) {
     if (ok != nullptr) *ok = false;
     return isolate->factory()->empty_string();
   }
 
   if (ok != nullptr) *ok = true;
-  Handle<String> last_subject = GetLastMatchSubject(isolate, match_info);
+  Handle<String> last_subject(match_info->LastSubject());
   return isolate->factory()->NewSubString(last_subject, match_start, match_end);
 }
 

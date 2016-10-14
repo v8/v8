@@ -726,6 +726,8 @@ class Factory final {
                                         int number_of_properties,
                                         bool* is_result_from_cache);
 
+  V8_EXPORT_PRIVATE Handle<RegExpMatchInfo> NewRegExpMatchInfo();
+
   // Creates a new FixedArray that holds the data associated with the
   // atom regexp and stores it in the regexp.
   void SetRegExpAtomData(Handle<JSRegExp> regexp,

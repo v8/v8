@@ -14,21 +14,8 @@ namespace internal {
 class RegExpUtils : public AllStatic {
  public:
   // Last match info accessors.
-  static Handle<Object> GetLastMatchField(Isolate* isolate,
-                                          Handle<JSObject> match_info,
-                                          int index);
-  static void SetLastMatchField(Isolate* isolate, Handle<JSObject> match_info,
-                                int index, Handle<Object> value);
-  static int GetLastMatchNumberOfCaptures(Isolate* isolate,
-                                          Handle<JSObject> match_info);
-  static Handle<String> GetLastMatchSubject(Isolate* isolate,
-                                            Handle<JSObject> match_info);
-  static Handle<Object> GetLastMatchInput(Isolate* isolate,
-                                          Handle<JSObject> match_info);
-  static int GetLastMatchCapture(Isolate* isolate, Handle<JSObject> match_info,
-                                 int i);
   static Handle<String> GenericCaptureGetter(Isolate* isolate,
-                                             Handle<JSObject> match_info,
+                                             Handle<RegExpMatchInfo> match_info,
                                              int capture, bool* ok = nullptr);
 
   // Last index (RegExp.lastIndex) accessors.

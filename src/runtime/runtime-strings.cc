@@ -157,59 +157,6 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StringMatch) {
-  HandleScope handles(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, regexp_info, 2);
-
-  CHECK(regexp_info->HasFastObjectElements());
-
-  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
-  if (global_cache.HasException()) return isolate->heap()->exception();
-
-  int capture_count = regexp->CaptureCount();
-
-  Zone zone(isolate->allocator());
-  ZoneList<int> offsets(8, &zone);
-
-  while (true) {
-    int32_t* match = global_cache.FetchNext();
-    if (match == NULL) break;
-    offsets.Add(match[0], &zone);  // start
-    offsets.Add(match[1], &zone);  // end
-  }
-
-  if (global_cache.HasException()) return isolate->heap()->exception();
-
-  if (offsets.length() == 0) {
-    // Not a single match.
-    return isolate->heap()->null_value();
-  }
-
-  RegExpImpl::SetLastMatchInfo(regexp_info, subject, capture_count,
-                               global_cache.LastSuccessfulMatch());
-
-  int matches = offsets.length() / 2;
-  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(matches);
-  Handle<String> substring =
-      isolate->factory()->NewSubString(subject, offsets.at(0), offsets.at(1));
-  elements->set(0, *substring);
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 1, i, i < matches, i++, {
-    int from = offsets.at(i * 2);
-    int to = offsets.at(i * 2 + 1);
-    Handle<String> substring =
-        isolate->factory()->NewProperSubString(subject, from, to);
-    elements->set(i, *substring);
-  });
-  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
-  result->set_length(Smi::FromInt(matches));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);

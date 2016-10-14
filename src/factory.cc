@@ -2494,6 +2494,23 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   regexp->set_data(*store);
 }
 
+Handle<RegExpMatchInfo> Factory::NewRegExpMatchInfo() {
+  // Initially, the last match info consists of all fixed fields plus space for
+  // the match itself (i.e., 2 capture indices).
+  static const int kInitialSize = RegExpMatchInfo::kFirstCaptureIndex +
+                                  RegExpMatchInfo::kInitialCaptureIndices;
+
+  Handle<FixedArray> elems = NewFixedArray(kInitialSize);
+  Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(elems);
+
+  result->SetNumberOfCaptureRegisters(RegExpMatchInfo::kInitialCaptureIndices);
+  result->SetLastSubject(*empty_string());
+  result->SetLastInput(*undefined_value());
+  result->SetCapture(0, 0);
+  result->SetCapture(1, 0);
+
+  return result;
+}
 
 Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {
   if (Name::Equals(name, undefined_string())) return undefined_value();

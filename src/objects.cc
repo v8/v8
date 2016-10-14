@@ -10310,6 +10310,15 @@ Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
   return ret;
 }
 
+Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
+    Handle<RegExpMatchInfo> match_info, int capture_count) {
+  DCHECK_GE(match_info->length(), kLastMatchOverhead);
+  const int required_length = kFirstCaptureIndex + capture_count;
+  Handle<FixedArray> result =
+      EnsureSpaceInFixedArray(match_info, required_length);
+  return Handle<RegExpMatchInfo>::cast(result);
+}
+
 // static
 Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
                                              Handle<Object> receiver,

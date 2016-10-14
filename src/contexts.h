@@ -99,7 +99,6 @@ enum ContextLookupFlags {
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                   \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                         \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)         \
-  V(REGEXP_LAST_MATCH_INFO_INDEX, JSObject, regexp_last_match_info)       \
   V(REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, JSFunction,                      \
     reject_promise_no_debug_event)                                        \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function) \
@@ -207,6 +206,9 @@ enum ContextLookupFlags {
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
+  V(REGEXP_LAST_MATCH_INFO_INDEX, RegExpMatchInfo, regexp_last_match_info)     \
+  V(REGEXP_INTERNAL_MATCH_INFO_INDEX, RegExpMatchInfo,                         \
+    regexp_internal_match_info)                                                \
   V(REGEXP_PROTOTYPE_MAP_INDEX, Map, regexp_prototype_map)                     \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
