@@ -206,16 +206,13 @@ var assertMatches;
 
   function fail(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
-    if (found) {
-      message += ": expected <" + expectedText +
-          "> found <" + PrettyPrint(found) + ">";
-      if (name_opt) {
-        // Fix this when we ditch the old test runner.
-        message += " (" + name_opt + ")";
-      }
-    } else {
-      message += ": " + expectedText;
+    if (name_opt) {
+      // Fix this when we ditch the old test runner.
+      message += " (" + name_opt + ")";
     }
+
+    message += ": expected <" + expectedText +
+        "> found <" + PrettyPrint(found) + ">";
     throw new MjsUnitAssertionError(message);
   }
 
@@ -399,7 +396,7 @@ var assertMatches;
       }
       fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
-               (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
+               (actualTypeName ? " but of < " + actualTypeName + ">" : ""));
     }
   };
 
