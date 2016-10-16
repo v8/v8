@@ -49,7 +49,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "3d6ba29a6693bf3db1343fc213eea47c7d940413",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "c1cc0281f791753f74dff4bc54ff77d416beb375",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "07c81af59775d6414d9863e0e2e5652a6849c683",
   },
   "win": {
     "v8/third_party/cygwin":
