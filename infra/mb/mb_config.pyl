@@ -40,7 +40,7 @@
       'V8 Linux - shared': 'gn_release_x86_shared_verify_heap',
       'V8 Linux - noi18n - debug': 'gn_debug_x86_no_i18n',
       # Linux64.
-      'V8 Linux64 - builder': 'gn_release_x64',
+      'V8 Linux64 - builder': 'gn_release_x64_valgrind',
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
@@ -156,7 +156,7 @@
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
-      'v8_linux64_rel_ng': 'gn_release_x64_trybot',
+      'v8_linux64_rel_ng': 'gn_release_x64_valgrind_trybot',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
@@ -296,6 +296,10 @@
       'gn', 'release_bot', 'x64', 'tsan', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_valgrind': [
+      'gn', 'release_bot', 'x64', 'swarming', 'valgrind'],
+    'gn_release_x64_valgrind_trybot': [
+      'gn', 'release_trybot', 'x64', 'swarming', 'valgrind'],
 
     # GN debug configs for x64.
     'gn_debug_x64': [
