@@ -791,10 +791,12 @@ class DeclarationScope : public Scope {
   // Make sure this closure and all outer closures are eagerly compiled.
   void ForceEagerCompilation() {
     DCHECK_EQ(this, GetClosureScope());
-    for (DeclarationScope* s = this; !s->is_script_scope();
+    DeclarationScope* s;
+    for (s = this; !s->is_script_scope();
          s = s->outer_scope()->GetClosureScope()) {
       s->force_eager_compilation_ = true;
     }
+    s->force_eager_compilation_ = true;
   }
 
 #ifdef DEBUG
