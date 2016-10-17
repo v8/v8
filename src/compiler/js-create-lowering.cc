@@ -36,12 +36,16 @@ class AllocationBuilder final {
         control_(control) {}
 
   // Primitive allocation of static size.
-  void Allocate(int size, PretenureFlag pretenure = NOT_TENURED) {
+  void Allocate(int size, PretenureFlag pretenure = NOT_TENURED,
+                Type* type = Type::Any()) {
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
         graph()->NewNode(simplified()->Allocate(pretenure),
                          jsgraph()->Constant(size), effect_, control_);
+    // TODO(turbofan): Maybe we should put the Type* onto the Allocate operator
+    // at some point, or maybe we should have a completely differnt story.
+    NodeProperties::SetType(allocation_, type);
     effect_ = allocation_;
   }
 
@@ -65,7 +69,7 @@ class AllocationBuilder final {
     int size = (map->instance_type() == FIXED_ARRAY_TYPE)
                    ? FixedArray::SizeFor(length)
                    : FixedDoubleArray::SizeFor(length);
-    Allocate(size, pretenure);
+    Allocate(size, pretenure, Type::OtherInternal());
     Store(AccessBuilder::ForMap(), map);
     Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
   }
@@ -1109,7 +1113,8 @@ Node* JSCreateLowering::AllocateFastLiteral(
 
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
-  builder.Allocate(boilerplate_map->instance_size(), pretenure);
+  builder.Allocate(boilerplate_map->instance_size(), pretenure,
+                   Type::OtherObject());
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectProperties(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
