@@ -1338,8 +1338,8 @@ MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
     }
   }
 
-  argv[m] = handle(Smi::FromInt(index), isolate);
-  argv[m + 1] = subject;
+  argv[argc - 2] = handle(Smi::FromInt(index), isolate);
+  argv[argc - 1] = subject;
 
   Handle<Object> replacement_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
