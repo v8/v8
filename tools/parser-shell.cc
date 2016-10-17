@@ -95,7 +95,6 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   {
     Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator());
     ParseInfo info(&zone, script);
-    info.set_global();
     info.set_cached_data(&cached_data_impl);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
     v8::base::ElapsedTimer timer;
@@ -113,7 +112,6 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   {
     Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator());
     ParseInfo info(&zone, script);
-    info.set_global();
     info.set_cached_data(&cached_data_impl);
     info.set_compile_options(v8::ScriptCompiler::kConsumeParserCache);
     v8::base::ElapsedTimer timer;

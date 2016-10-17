@@ -61,7 +61,7 @@ static const Runtime::Function kIntrinsicFunctions[] = {
 namespace {
 
 V8_DECLARE_ONCE(initialize_function_name_map_once);
-static const base::HashMap* kRuntimeFunctionNameMap;
+static const base::CustomMatcherHashMap* kRuntimeFunctionNameMap;
 
 struct IntrinsicFunctionIdentifier {
   IntrinsicFunctionIdentifier(const unsigned char* data, const int length)
@@ -88,8 +88,8 @@ struct IntrinsicFunctionIdentifier {
 };
 
 void InitializeIntrinsicFunctionNames() {
-  base::HashMap* function_name_map =
-      new base::HashMap(IntrinsicFunctionIdentifier::Match);
+  base::CustomMatcherHashMap* function_name_map =
+      new base::CustomMatcherHashMap(IntrinsicFunctionIdentifier::Match);
   for (size_t i = 0; i < arraysize(kIntrinsicFunctions); ++i) {
     const Runtime::Function* function = &kIntrinsicFunctions[i];
     IntrinsicFunctionIdentifier* identifier = new IntrinsicFunctionIdentifier(

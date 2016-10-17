@@ -17,7 +17,7 @@ namespace internal {
 typedef TestWithContext GCTracerTest;
 
 TEST(GCTracer, AverageSpeed) {
-  RingBuffer<BytesAndDuration> buffer;
+  base::RingBuffer<BytesAndDuration> buffer;
   EXPECT_EQ(100 / 2,
             GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(100, 2), 0));
   buffer.Push(MakeBytesAndDuration(100, 8));

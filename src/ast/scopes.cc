@@ -25,7 +25,7 @@ namespace internal {
 //       this is ensured.
 
 VariableMap::VariableMap(Zone* zone)
-    : ZoneHashMap(ZoneHashMap::PointersMatch, 8, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
@@ -75,7 +75,7 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 }
 
 SloppyBlockFunctionMap::SloppyBlockFunctionMap(Zone* zone)
-    : ZoneHashMap(ZoneHashMap::PointersMatch, 8, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
 void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
                                      SloppyBlockFunctionStatement* stmt) {
@@ -272,7 +272,8 @@ void DeclarationScope::SetDefaults() {
   function_ = nullptr;
   arguments_ = nullptr;
   this_function_ = nullptr;
-  arity_ = 0;
+  should_eager_compile_ = false;
+  is_lazily_parsed_ = false;
 }
 
 void Scope::SetDefaults() {
@@ -303,13 +304,20 @@ void Scope::SetDefaults() {
   force_context_allocation_ = false;
 
   is_declaration_scope_ = false;
-
-  is_lazily_parsed_ = false;
 }
 
 bool Scope::HasSimpleParameters() {
   DeclarationScope* scope = GetClosureScope();
   return !scope->is_function_scope() || scope->has_simple_parameters();
+}
+
+bool DeclarationScope::ShouldEagerCompile() const {
+  if (!AllowsLazyCompilation()) return true;
+  return !is_lazily_parsed_ && should_eager_compile_;
+}
+
+void DeclarationScope::set_should_eager_compile() {
+  should_eager_compile_ = true;
 }
 
 void DeclarationScope::set_asm_module() {
@@ -554,6 +562,9 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
   DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
+
+  // The outer scope is never lazy.
+  scope->set_should_eager_compile();
 
   scope->AllocateVariables(info, mode);
 
@@ -832,9 +843,6 @@ Variable* DeclarationScope::DeclareParameter(
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
   }
-  if (!is_optional && !is_rest && arity_ == params_.length()) {
-    ++arity_;
-  }
   has_rest_ = is_rest;
   params_.Add(var, zone());
   if (name == ast_value_factory->arguments_string()) {
@@ -1009,6 +1017,25 @@ bool Scope::RemoveUnresolved(VariableProxy* var) {
   return false;
 }
 
+bool Scope::RemoveUnresolved(const AstRawString* name) {
+  if (unresolved_ != nullptr && unresolved_->raw_name() == name) {
+    VariableProxy* removed = unresolved_;
+    unresolved_ = unresolved_->next_unresolved();
+    removed->set_next_unresolved(nullptr);
+    return true;
+  }
+  VariableProxy* current = unresolved_;
+  while (current != nullptr) {
+    VariableProxy* next = current->next_unresolved();
+    if (next != nullptr && next->raw_name() == name) {
+      current->set_next_unresolved(next->next_unresolved());
+      next->set_next_unresolved(nullptr);
+      return true;
+    }
+    current = next;
+  }
+  return false;
+}
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
   DeclarationScope* scope = GetClosureScope();
@@ -1077,7 +1104,10 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
     outer_scope = s->scope_info_;
     break;
   }
-  AllocateScopeInfosRecursively(info->isolate(), mode, outer_scope);
+  AllocateScopeInfosRecursively(info->isolate(), outer_scope);
+  if (mode == AnalyzeMode::kDebugger) {
+    AllocateDebuggerScopeInfos(info->isolate(), outer_scope);
+  }
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
@@ -1087,31 +1117,35 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   }
 }
 
-bool Scope::AllowsLazyParsingWithoutUnresolvedVariables() const {
-  // If we are inside a block scope, we must find unresolved variables in the
-  // inner scopes to find out how to allocate variables on the block scope. At
-  // this point, declarations may not have yet been parsed.
-  for (const Scope* s = this; s != nullptr; s = s->outer_scope_) {
-    if (s->is_block_scope()) return false;
-    // TODO(marja): Refactor parsing modes: also add s->is_function_scope()
-    // here.
+bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
+    const Scope* outer) const {
+  // If none of the outer scopes need to decide whether to context allocate
+  // specific variables, we can preparse inner functions without unresolved
+  // variables. Otherwise we need to find unresolved variables to force context
+  // allocation of the matching declarations. We can stop at the outer scope for
+  // the parse, since context allocation of those variables is already
+  // guaranteed to be correct.
+  for (const Scope* s = this; s != outer; s = s->outer_scope_) {
+    // Eval forces context allocation on all outer scopes, so we don't need to
+    // look at those scopes. Sloppy eval makes all top-level variables dynamic,
+    // whereas strict-mode requires context allocation.
+    if (s->is_eval_scope()) return !is_strict(s->language_mode());
+    // Catch scopes force context allocation of all variables.
+    if (s->is_catch_scope()) continue;
+    // With scopes do not introduce variables that need allocation.
+    if (s->is_with_scope()) continue;
+    // If everything is guaranteed to be context allocated we can ignore the
+    // scope.
+    if (s->has_forced_context_allocation()) continue;
+    // Only block scopes and function scopes should disallow preparsing.
+    DCHECK(s->is_block_scope() || s->is_function_scope());
+    return false;
   }
   return true;
 }
 
 bool DeclarationScope::AllowsLazyCompilation() const {
   return !force_eager_compilation_;
-}
-
-bool DeclarationScope::AllowsLazyCompilationWithoutContext() const {
-  if (force_eager_compilation_) return false;
-  // Disallow lazy compilation without context if any outer scope needs a
-  // context.
-  for (const Scope* scope = outer_scope_; scope != nullptr;
-       scope = scope->outer_scope_) {
-    if (scope->NeedsContext()) return false;
-  }
-  return true;
 }
 
 int Scope::ContextChainLength(Scope* scope) const {
@@ -1139,6 +1173,7 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
 int Scope::MaxNestedContextChainLength() {
   int max_context_chain_length = 0;
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (scope->is_function_scope()) continue;
     max_context_chain_length = std::max(scope->MaxNestedContextChainLength(),
                                         max_context_chain_length);
   }
@@ -1156,12 +1191,29 @@ DeclarationScope* Scope::GetDeclarationScope() {
   return scope->AsDeclarationScope();
 }
 
+const DeclarationScope* Scope::GetClosureScope() const {
+  const Scope* scope = this;
+  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
+    scope = scope->outer_scope();
+  }
+  return scope->AsDeclarationScope();
+}
+
 DeclarationScope* Scope::GetClosureScope() {
   Scope* scope = this;
   while (!scope->is_declaration_scope() || scope->is_block_scope()) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
+}
+
+bool Scope::NeedsScopeInfo() const {
+  DCHECK(!already_resolved_);
+  DCHECK(GetClosureScope()->ShouldEagerCompile());
+  // The debugger expects all functions to have scope infos.
+  // TODO(jochen|yangguo): Remove this requirement.
+  if (is_function_scope()) return true;
+  return NeedsContext();
 }
 
 ModuleScope* Scope::GetModuleScope() {
@@ -1207,8 +1259,8 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  decls_.Clear();
-  locals_.Clear();
+  decls_.Rewind(0);
+  locals_.Rewind(0);
   sloppy_block_function_map_.Clear();
   variables_.Clear();
   // Make sure we won't walk the scope tree from here on.
@@ -1232,7 +1284,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
       }
     }
   } else {
-    params_.Clear();
+    params_.Rewind(0);
   }
 
 #ifdef DEBUG
@@ -1421,7 +1473,11 @@ void Scope::Print(int n) {
     Indent(n1, "// scope uses 'super' property\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
-  if (is_lazily_parsed_) Indent(n1, "// lazily parsed\n");
+  if (is_declaration_scope()) {
+    DeclarationScope* scope = AsDeclarationScope();
+    if (scope->is_lazily_parsed()) Indent(n1, "// lazily parsed\n");
+    if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
+  }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
     PrintF("%d stack slots\n", num_stack_slots_);
@@ -1458,8 +1514,7 @@ void Scope::Print(int n) {
 }
 
 void Scope::CheckScopePositions() {
-  // A scope is allowed to have invalid positions if it is hidden and has no
-  // inner scopes
+  // Visible leaf scopes must have real positions.
   if (!is_hidden() && inner_scope_ == nullptr) {
     CHECK_NE(kNoSourcePosition, start_position());
     CHECK_NE(kNoSourcePosition, end_position());
@@ -1473,6 +1528,7 @@ void Scope::CheckZones() {
   DCHECK(!needs_migration_);
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     CHECK_EQ(scope->zone(), zone());
+    scope->CheckZones();
   }
 }
 #endif  // DEBUG
@@ -1757,6 +1813,7 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK(!has_rest_ || var != rest_parameter());
     DCHECK_EQ(this, var->scope());
     if (uses_sloppy_arguments) {
+      var->set_is_used();
       var->ForceContextAllocation();
     }
     AllocateParameter(var, i);
@@ -1845,7 +1902,9 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
   DCHECK_EQ(0, num_stack_slots_);
   // Don't allocate variables of preparsed scopes.
-  if (is_lazily_parsed_) return;
+  if (is_declaration_scope() && AsDeclarationScope()->is_lazily_parsed()) {
+    return;
+  }
 
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
@@ -1886,21 +1945,36 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
 }
 
-void Scope::AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
                                           MaybeHandle<ScopeInfo> outer_scope) {
   DCHECK(scope_info_.is_null());
-  if (mode == AnalyzeMode::kDebugger || NeedsScopeInfo()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
-  }
-
-  // The ScopeInfo chain should mirror the context chain, so we only link to
-  // the next outer scope that needs a context.
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
-  if (NeedsContext()) next_outer_scope = scope_info_;
+
+  if (NeedsScopeInfo()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+    // The ScopeInfo chain should mirror the context chain, so we only link to
+    // the next outer scope that needs a context.
+    if (NeedsContext()) next_outer_scope = scope_info_;
+  }
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->AllocateScopeInfosRecursively(isolate, mode, next_outer_scope);
+    if (!scope->is_function_scope() ||
+        scope->AsDeclarationScope()->ShouldEagerCompile()) {
+      scope->AllocateScopeInfosRecursively(isolate, next_outer_scope);
+    }
+  }
+}
+
+void Scope::AllocateDebuggerScopeInfos(Isolate* isolate,
+                                       MaybeHandle<ScopeInfo> outer_scope) {
+  if (scope_info_.is_null()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+  }
+  MaybeHandle<ScopeInfo> outer = NeedsContext() ? scope_info_ : outer_scope;
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (scope->is_function_scope()) continue;
+    scope->AllocateDebuggerScopeInfos(isolate, outer);
   }
 }
 

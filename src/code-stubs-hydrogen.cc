@@ -38,7 +38,7 @@ static LChunk* OptimizeGraph(HGraph* graph) {
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
   explicit CodeStubGraphBuilderBase(CompilationInfo* info, CodeStub* code_stub)
-      : HGraphBuilder(info, code_stub->GetCallInterfaceDescriptor()),
+      : HGraphBuilder(info, code_stub->GetCallInterfaceDescriptor(), false),
         arguments_length_(NULL),
         info_(info),
         code_stub_(code_stub),
@@ -327,18 +327,6 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   return code;
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
-  info()->MarkAsSavesCallerDoubles();
-  HValue* number = GetParameter(Descriptor::kArgument);
-  return BuildNumberToString(number, AstType::Number());
-}
-
-
-Handle<Code> NumberToStringStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
 
 HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
                                                    HValue* argument_elements,
@@ -1043,7 +1031,7 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
       }
       if_inputisprimitive.End();
       // Convert the primitive to a string value.
-      HValue* values[] = {context(), Pop()};
+      HValue* values[] = {Pop()};
       Callable toString = CodeFactory::ToString(isolate());
       Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(toString.code()), 0,
                                             toString.descriptor(),

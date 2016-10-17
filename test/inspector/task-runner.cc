@@ -4,6 +4,10 @@
 
 #include "test/inspector/task-runner.h"
 
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>  // NOLINT
+#endif               // !defined(_WIN32) && !defined(_WIN64)
+
 namespace {
 
 const int kTaskRunnerIndex = 2;
@@ -19,9 +23,11 @@ void ReportUncaughtException(v8::Isolate* isolate,
 }  //  namespace
 
 TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
+                       bool catch_exceptions,
                        v8::base::Semaphore* ready_semaphore)
     : Thread(Options("Task Runner")),
       extensions_(extensions),
+      catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
       isolate_(nullptr),
       process_queue_semaphore_(0),
@@ -60,14 +66,19 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
   while (nested_loop_count_ == loop_number) {
     TaskRunner::Task* task = GetNext(only_protocol);
     v8::Isolate::Scope isolate_scope(isolate_);
-    v8::TryCatch try_catch(isolate_);
-    task->Run(isolate_, context_);
-    delete task;
-    if (try_catch.HasCaught()) {
-      ReportUncaughtException(isolate_, try_catch);
-      fflush(stdout);
-      fflush(stderr);
-      _exit(0);
+    if (catch_exceptions_) {
+      v8::TryCatch try_catch(isolate_);
+      task->Run(isolate_, context_);
+      delete task;
+      if (try_catch.HasCaught()) {
+        ReportUncaughtException(isolate_, try_catch);
+        fflush(stdout);
+        fflush(stderr);
+        _exit(0);
+      }
+    } else {
+      task->Run(isolate_, context_);
+      delete task;
     }
   }
 }
@@ -106,8 +117,13 @@ TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
 }
 
-ExecuteStringTask::ExecuteStringTask(const v8_inspector::String16& expression)
+ExecuteStringTask::ExecuteStringTask(
+    const v8::internal::Vector<uint16_t>& expression)
     : expression_(expression) {}
+
+ExecuteStringTask::ExecuteStringTask(
+    const v8::internal::Vector<const char>& expression)
+    : expression_utf8_(expression) {}
 
 void ExecuteStringTask::Run(v8::Isolate* isolate,
                             const v8::Global<v8::Context>& context) {
@@ -118,11 +134,18 @@ void ExecuteStringTask::Run(v8::Isolate* isolate,
   v8::Context::Scope context_scope(local_context);
 
   v8::ScriptOrigin origin(v8::String::Empty(isolate));
-  v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, expression_.characters16(),
-                                 v8::NewStringType::kNormal,
-                                 expression_.length())
-          .ToLocalChecked();
+  v8::Local<v8::String> source;
+  if (expression_.length()) {
+    source = v8::String::NewFromTwoByte(isolate, expression_.start(),
+                                        v8::NewStringType::kNormal,
+                                        expression_.length())
+                 .ToLocalChecked();
+  } else {
+    source = v8::String::NewFromUtf8(isolate, expression_utf8_.start(),
+                                     v8::NewStringType::kNormal,
+                                     expression_utf8_.length())
+                 .ToLocalChecked();
+  }
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
   v8::Local<v8::Script> script;

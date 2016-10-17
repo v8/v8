@@ -28,7 +28,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
       context_register_count_(context_count),
-      temporary_allocator_(zone, fixed_register_count()),
+      register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
       pipeline_(&bytecode_array_writer_) {
@@ -46,7 +46,8 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
 
   if (FLAG_ignition_reo) {
     pipeline_ = new (zone) BytecodeRegisterOptimizer(
-        zone, &temporary_allocator_, parameter_count, pipeline_);
+        zone, &register_allocator_, fixed_register_count(), parameter_count,
+        pipeline_);
   }
 
   return_position_ =
@@ -69,10 +70,6 @@ Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   return Register::FromParameterIndex(parameter_index, parameter_count());
 }
 
-bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
-  return reg.is_parameter() || reg.index() < locals_count();
-}
-
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
   DCHECK(return_seen_in_block_);
   DCHECK(!bytecode_generated_);
@@ -80,8 +77,7 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
 
   Handle<FixedArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
-  return pipeline_->ToBytecodeArray(isolate,
-                                    fixed_and_temporary_register_count(),
+  return pipeline_->ToBytecodeArray(isolate, total_register_count(),
                                     parameter_count(), handler_table);
 }
 
@@ -656,9 +652,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
-    Register receiver, Register cache_info_triple) {
+    Register receiver, RegisterList cache_info_triple) {
+  DCHECK_EQ(3, cache_info_triple.register_count());
   Output(Bytecode::kForInPrepare, RegisterOperand(receiver),
-         RegisterOperand(cache_info_triple));
+         RegisterOperand(cache_info_triple.first_register()));
   return *this;
 }
 
@@ -670,10 +667,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInContinue(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
-    Register receiver, Register index, Register cache_type_array_pair,
+    Register receiver, Register index, RegisterList cache_type_array_pair,
     int feedback_slot) {
+  DCHECK_EQ(2, cache_type_array_pair.register_count());
   Output(Bytecode::kForInNext, RegisterOperand(receiver),
-         RegisterOperand(index), RegisterOperand(cache_type_array_pair),
+         RegisterOperand(index),
+         RegisterOperand(cache_type_array_pair.first_register()),
          UnsignedOperand(feedback_slot));
   return *this;
 }
@@ -720,54 +719,39 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
   return *this;
 }
 
-void BytecodeArrayBuilder::EnsureReturn() {
-  if (!return_seen_in_block_) {
-    LoadUndefined();
-    Return();
-  }
-  DCHECK(return_seen_in_block_);
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
-                                                 Register receiver_args,
-                                                 size_t receiver_args_count,
+                                                 RegisterList args,
                                                  int feedback_slot,
                                                  TailCallMode tail_call_mode) {
   if (tail_call_mode == TailCallMode::kDisallow) {
     Output(Bytecode::kCall, RegisterOperand(callable),
-           RegisterOperand(receiver_args), UnsignedOperand(receiver_args_count),
+           RegisterOperand(args.first_register()),
+           UnsignedOperand(args.register_count()),
            UnsignedOperand(feedback_slot));
   } else {
     DCHECK(tail_call_mode == TailCallMode::kAllow);
     Output(Bytecode::kTailCall, RegisterOperand(callable),
-           RegisterOperand(receiver_args), UnsignedOperand(receiver_args_count),
+           RegisterOperand(args.first_register()),
+           UnsignedOperand(args.register_count()),
            UnsignedOperand(feedback_slot));
   }
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
-                                                Register first_arg,
-                                                size_t arg_count,
+                                                RegisterList args,
                                                 int feedback_slot_id) {
-  if (!first_arg.is_valid()) {
-    DCHECK_EQ(0u, arg_count);
-    first_arg = Register(0);
-  }
   Output(Bytecode::kNew, RegisterOperand(constructor),
-         RegisterOperand(first_arg), UnsignedOperand(arg_count),
+         RegisterOperand(args.first_register()),
+         UnsignedOperand(args.register_count()),
          UnsignedOperand(feedback_slot_id));
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
-    Runtime::FunctionId function_id, Register first_arg, size_t arg_count) {
+    Runtime::FunctionId function_id, RegisterList args) {
   DCHECK_EQ(1, Runtime::FunctionForId(function_id)->result_size);
   DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
-  if (!first_arg.is_valid()) {
-    DCHECK_EQ(0u, arg_count);
-    first_arg = Register(0);
-  }
   Bytecode bytecode;
   uint32_t id;
   if (IntrinsicsHelper::IsSupported(function_id)) {
@@ -777,29 +761,45 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     bytecode = Bytecode::kCallRuntime;
     id = static_cast<uint32_t>(function_id);
   }
-  Output(bytecode, id, RegisterOperand(first_arg), UnsignedOperand(arg_count));
+  Output(bytecode, id, RegisterOperand(args.first_register()),
+         UnsignedOperand(args.register_count()));
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
+    Runtime::FunctionId function_id, Register arg) {
+  return CallRuntime(function_id, RegisterList(arg.index(), 1));
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
+    Runtime::FunctionId function_id) {
+  return CallRuntime(function_id, RegisterList());
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
+    Runtime::FunctionId function_id, RegisterList args,
+    RegisterList return_pair) {
+  DCHECK_EQ(2, Runtime::FunctionForId(function_id)->result_size);
+  DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
+  DCHECK_EQ(2, return_pair.register_count());
+  Output(Bytecode::kCallRuntimeForPair, static_cast<uint16_t>(function_id),
+         RegisterOperand(args.first_register()),
+         UnsignedOperand(args.register_count()),
+         RegisterOperand(return_pair.first_register()));
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
-    Runtime::FunctionId function_id, Register first_arg, size_t arg_count,
-    Register first_return) {
-  DCHECK_EQ(2, Runtime::FunctionForId(function_id)->result_size);
-  DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
-  if (!first_arg.is_valid()) {
-    DCHECK_EQ(0u, arg_count);
-    first_arg = Register(0);
-  }
-  Output(Bytecode::kCallRuntimeForPair, static_cast<uint16_t>(function_id),
-         RegisterOperand(first_arg), UnsignedOperand(arg_count),
-         RegisterOperand(first_return));
-  return *this;
+    Runtime::FunctionId function_id, Register arg, RegisterList return_pair) {
+  return CallRuntimeForPair(function_id, RegisterList(arg.index(), 1),
+                            return_pair);
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(
-    int context_index, Register receiver_args, size_t receiver_args_count) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
+                                                          RegisterList args) {
   Output(Bytecode::kCallJSRuntime, UnsignedOperand(context_index),
-         RegisterOperand(receiver_args), UnsignedOperand(receiver_args_count));
+         RegisterOperand(args.first_register()),
+         UnsignedOperand(args.register_count()));
   return *this;
 }
 
@@ -832,10 +832,6 @@ void BytecodeArrayBuilder::SetReturnPosition() {
   latest_source_info_.MakeStatementPosition(return_position_);
 }
 
-bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {
-  return temporary_register_allocator()->RegisterIsLive(reg);
-}
-
 bool BytecodeArrayBuilder::RegisterIsValid(Register reg) const {
   if (!reg.is_valid()) {
     return false;
@@ -850,7 +846,7 @@ bool BytecodeArrayBuilder::RegisterIsValid(Register reg) const {
   } else if (reg.index() < fixed_register_count()) {
     return true;
   } else {
-    return TemporaryRegisterIsLive(reg);
+    return register_allocator()->RegisterIsLive(reg);
   }
 }
 
@@ -867,19 +863,6 @@ bool BytecodeArrayBuilder::OperandsAreValid(
     switch (operand_types[i]) {
       case OperandType::kNone:
         return false;
-      case OperandType::kRegCount: {
-        CHECK_NE(i, 0);
-        CHECK(operand_types[i - 1] == OperandType::kMaybeReg ||
-              operand_types[i - 1] == OperandType::kReg);
-        if (i > 0 && operands[i] > 0) {
-          Register start = Register::FromOperand(operands[i - 1]);
-          Register end(start.index() + static_cast<int>(operands[i]) - 1);
-          if (!RegisterIsValid(start) || !RegisterIsValid(end) || start > end) {
-            return false;
-          }
-        }
-        break;
-      }
       case OperandType::kFlag8:
       case OperandType::kIntrinsicId:
         if (Bytecodes::SizeForUnsignedOperand(operands[i]) >
@@ -900,11 +883,22 @@ bool BytecodeArrayBuilder::OperandsAreValid(
       case OperandType::kUImm:
       case OperandType::kImm:
         break;
-      case OperandType::kMaybeReg:
-        if (Register::FromOperand(operands[i]) == Register(0)) {
-          break;
+      case OperandType::kRegList: {
+        CHECK_LT(i, operand_count - 1);
+        CHECK(operand_types[i + 1] == OperandType::kRegCount);
+        int reg_count = static_cast<int>(operands[i + 1]);
+        if (reg_count == 0) {
+          return Register::FromOperand(operands[i]) == Register(0);
+        } else {
+          Register start = Register::FromOperand(operands[i]);
+          Register end(start.index() + reg_count - 1);
+          if (!RegisterIsValid(start) || !RegisterIsValid(end) || start > end) {
+            return false;
+          }
         }
-      // Fall-through to kReg case.
+        i++;  // Skip past kRegCount operand.
+        break;
+      }
       case OperandType::kReg:
       case OperandType::kRegOut: {
         Register reg = Register::FromOperand(operands[i]);
@@ -932,6 +926,8 @@ bool BytecodeArrayBuilder::OperandsAreValid(
         }
         break;
       }
+      case OperandType::kRegCount:
+        UNREACHABLE();  // Dealt with in kRegList above.
     }
   }
 

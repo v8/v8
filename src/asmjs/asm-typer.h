@@ -306,8 +306,9 @@ class AsmTyper final {
   // 5.2 ReturnTypeAnnotations
   AsmType* ReturnTypeAnnotations(ReturnStatement* statement);
   // 5.4 VariableTypeAnnotations
-  AsmType* VariableTypeAnnotations(Expression* initializer);
   // 5.5 GlobalVariableTypeAnnotations
+  AsmType* VariableTypeAnnotations(Expression* initializer,
+                                   bool global = false);
   AsmType* ImportExpression(Property* import);
   AsmType* NewHeapView(CallNew* new_heap_view);
 

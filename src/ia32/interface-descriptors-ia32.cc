@@ -40,14 +40,8 @@ const Register StoreDescriptor::SlotRegister() { return edi; }
 const Register StoreWithVectorDescriptor::VectorRegister() { return ebx; }
 
 const Register StoreTransitionDescriptor::SlotRegister() { return no_reg; }
-
 const Register StoreTransitionDescriptor::VectorRegister() { return ebx; }
-
 const Register StoreTransitionDescriptor::MapRegister() { return edi; }
-
-const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
-const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }
-
 
 const Register StringCompareDescriptor::LeftRegister() { return edx; }
 const Register StringCompareDescriptor::RightRegister() { return eax; }
@@ -161,7 +155,7 @@ void CallFunctionWithFeedbackDescriptor::InitializePlatformSpecific(
 
 void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi, edx, ebx};
+  Register registers[] = {edi, eax, edx, ebx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

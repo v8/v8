@@ -386,28 +386,36 @@ TEST(InterpreterStringAdd) {
     Handle<Object> lhs;
     Handle<Object> rhs;
     Handle<Object> expected_value;
+    int32_t expected_feedback;
   } test_cases[] = {
       {factory->NewStringFromStaticChars("a"),
        factory->NewStringFromStaticChars("b"),
-       factory->NewStringFromStaticChars("ab")},
+       factory->NewStringFromStaticChars("ab"),
+       BinaryOperationFeedback::kString},
       {factory->NewStringFromStaticChars("aaaaaa"),
        factory->NewStringFromStaticChars("b"),
-       factory->NewStringFromStaticChars("aaaaaab")},
+       factory->NewStringFromStaticChars("aaaaaab"),
+       BinaryOperationFeedback::kString},
       {factory->NewStringFromStaticChars("aaa"),
        factory->NewStringFromStaticChars("bbbbb"),
-       factory->NewStringFromStaticChars("aaabbbbb")},
+       factory->NewStringFromStaticChars("aaabbbbb"),
+       BinaryOperationFeedback::kString},
       {factory->NewStringFromStaticChars(""),
        factory->NewStringFromStaticChars("b"),
-       factory->NewStringFromStaticChars("b")},
+       factory->NewStringFromStaticChars("b"),
+       BinaryOperationFeedback::kString},
       {factory->NewStringFromStaticChars("a"),
        factory->NewStringFromStaticChars(""),
-       factory->NewStringFromStaticChars("a")},
+       factory->NewStringFromStaticChars("a"),
+       BinaryOperationFeedback::kString},
       {factory->NewStringFromStaticChars("1.11"), factory->NewHeapNumber(2.5),
-       factory->NewStringFromStaticChars("1.112.5")},
+       factory->NewStringFromStaticChars("1.112.5"),
+       BinaryOperationFeedback::kAny},
       {factory->NewStringFromStaticChars("-1.11"), factory->NewHeapNumber(2.56),
-       factory->NewStringFromStaticChars("-1.112.56")},
+       factory->NewStringFromStaticChars("-1.112.56"),
+       BinaryOperationFeedback::kAny},
       {factory->NewStringFromStaticChars(""), factory->NewHeapNumber(2.5),
-       factory->NewStringFromStaticChars("2.5")},
+       factory->NewStringFromStaticChars("2.5"), BinaryOperationFeedback::kAny},
   };
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {
@@ -429,6 +437,11 @@ TEST(InterpreterStringAdd) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_cases[i].expected_value));
+
+    Object* feedback = vector->Get(slot);
+    CHECK(feedback->IsSmi());
+    CHECK_EQ(test_cases[i].expected_feedback,
+             static_cast<Smi*>(feedback)->value());
   }
 }
 
@@ -695,7 +708,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
        isolate->factory()->NewHeapNumber(3.1415 - 2.0),
        BinaryOperationFeedback::kNumber},
       {Token::Value::SUB, isolate->factory()->NewStringFromAsciiChecked("2"), 2,
-       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kAny},
+       Handle<Smi>(Smi::kZero, isolate), BinaryOperationFeedback::kAny},
       // BIT_OR
       {Token::Value::BIT_OR, Handle<Smi>(Smi::FromInt(4), isolate), 1,
        Handle<Smi>(Smi::FromInt(5), isolate),
@@ -713,7 +726,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
        Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kNumber},
       {Token::Value::BIT_AND,
        isolate->factory()->NewStringFromAsciiChecked("2"), 1,
-       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kAny},
+       Handle<Smi>(Smi::kZero, isolate), BinaryOperationFeedback::kAny},
       // SHL
       {Token::Value::SHL, Handle<Smi>(Smi::FromInt(3), isolate), 1,
        Handle<Smi>(Smi::FromInt(6), isolate),
@@ -728,7 +741,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
        Handle<Smi>(Smi::FromInt(1), isolate),
        BinaryOperationFeedback::kSignedSmall},
       {Token::Value::SAR, isolate->factory()->NewHeapNumber(3.1415), 2,
-       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kNumber},
+       Handle<Smi>(Smi::kZero, isolate), BinaryOperationFeedback::kNumber},
       {Token::Value::SAR, isolate->factory()->NewStringFromAsciiChecked("2"), 1,
        Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny}};
 
@@ -1236,12 +1249,13 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check with no args.
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
-
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0));
+        .StoreAccumulatorInRegister(reg)
+        .MoveRegister(builder.Parameter(0), args[0]);
 
-    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
-                 tail_call_mode);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
 
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1258,11 +1272,12 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check that receiver is passed properly.
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
-
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0));
-    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
-                 tail_call_mode);
+        .StoreAccumulatorInRegister(reg)
+        .MoveRegister(builder.Parameter(0), args[0]);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1281,17 +1296,19 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check with two parameters (+ receiver).
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 4);
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(3);
 
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0))
+        .StoreAccumulatorInRegister(reg)
         .LoadAccumulatorWithRegister(builder.Parameter(0))
-        .StoreAccumulatorInRegister(Register(1))
+        .StoreAccumulatorInRegister(args[0])
         .LoadLiteral(Smi::FromInt(51))
-        .StoreAccumulatorInRegister(Register(2))
+        .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(Smi::FromInt(11))
-        .StoreAccumulatorInRegister(Register(3));
+        .StoreAccumulatorInRegister(args[2]);
 
-    builder.Call(Register(0), Register(1), 3, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
 
     builder.Return();
 
@@ -1311,33 +1328,35 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check with 10 parameters (+ receiver).
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 12);
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(11);
 
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0))
+        .StoreAccumulatorInRegister(reg)
         .LoadAccumulatorWithRegister(builder.Parameter(0))
-        .StoreAccumulatorInRegister(Register(1))
+        .StoreAccumulatorInRegister(args[0])
         .LoadLiteral(factory->NewStringFromAsciiChecked("a"))
-        .StoreAccumulatorInRegister(Register(2))
+        .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(factory->NewStringFromAsciiChecked("b"))
-        .StoreAccumulatorInRegister(Register(3))
+        .StoreAccumulatorInRegister(args[2])
         .LoadLiteral(factory->NewStringFromAsciiChecked("c"))
-        .StoreAccumulatorInRegister(Register(4))
+        .StoreAccumulatorInRegister(args[3])
         .LoadLiteral(factory->NewStringFromAsciiChecked("d"))
-        .StoreAccumulatorInRegister(Register(5))
+        .StoreAccumulatorInRegister(args[4])
         .LoadLiteral(factory->NewStringFromAsciiChecked("e"))
-        .StoreAccumulatorInRegister(Register(6))
+        .StoreAccumulatorInRegister(args[5])
         .LoadLiteral(factory->NewStringFromAsciiChecked("f"))
-        .StoreAccumulatorInRegister(Register(7))
+        .StoreAccumulatorInRegister(args[6])
         .LoadLiteral(factory->NewStringFromAsciiChecked("g"))
-        .StoreAccumulatorInRegister(Register(8))
+        .StoreAccumulatorInRegister(args[7])
         .LoadLiteral(factory->NewStringFromAsciiChecked("h"))
-        .StoreAccumulatorInRegister(Register(9))
+        .StoreAccumulatorInRegister(args[8])
         .LoadLiteral(factory->NewStringFromAsciiChecked("i"))
-        .StoreAccumulatorInRegister(Register(10))
+        .StoreAccumulatorInRegister(args[9])
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
-        .StoreAccumulatorInRegister(Register(11));
+        .StoreAccumulatorInRegister(args[10]);
 
-    builder.Call(Register(0), Register(1), 11, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
 
     builder.Return();
 
@@ -1402,7 +1421,7 @@ TEST(InterpreterJumps) {
   Register reg(0), scratch(1);
   BytecodeLabel label[3];
 
-  builder.LoadLiteral(Smi::FromInt(0))
+  builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[1]);
   SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
@@ -1444,7 +1463,7 @@ TEST(InterpreterConditionalJumps) {
   BytecodeLabel label[2];
   BytecodeLabel done, done1;
 
-  builder.LoadLiteral(Smi::FromInt(0))
+  builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
@@ -1494,7 +1513,7 @@ TEST(InterpreterConditionalJumps2) {
   BytecodeLabel label[2];
   BytecodeLabel done, done1;
 
-  builder.LoadLiteral(Smi::FromInt(0))
+  builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
@@ -1538,7 +1557,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   Register reg(0), scratch(256);
   BytecodeLabel done, fake;
 
-  builder.LoadLiteral(Smi::FromInt(0));
+  builder.LoadLiteral(Smi::kZero);
   builder.StoreAccumulatorInRegister(reg);
   // Consume all 8-bit operands
   for (int i = 1; i <= 256; i++) {
@@ -1551,7 +1570,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   // Emit more than 16-bit immediate operands worth of code to jump over.
   builder.Bind(&fake);
   for (int i = 0; i < 6600; i++) {
-    builder.LoadLiteral(Smi::FromInt(0));                 // 1-byte
+    builder.LoadLiteral(Smi::kZero);  // 1-byte
     builder.BinaryOperation(Token::Value::ADD, scratch,
                             vector->GetIndex(slot));      // 6-bytes
     builder.StoreAccumulatorInRegister(scratch);          // 4-bytes
@@ -1588,14 +1607,14 @@ TEST(InterpreterJumpWith32BitOperand) {
   Register reg(0);
   BytecodeLabel done;
 
-  builder.LoadLiteral(Smi::FromInt(0));
+  builder.LoadLiteral(Smi::kZero);
   builder.StoreAccumulatorInRegister(reg);
   // Consume all 16-bit constant pool entries
   for (int i = 1; i <= 65536; i++) {
     builder.LoadLiteral(isolate->factory()->NewNumber(i));
   }
   builder.Jump(&done);
-  builder.LoadLiteral(Smi::FromInt(0));
+  builder.LoadLiteral(Smi::kZero);
   builder.Bind(&done);
   builder.Return();
 
@@ -1697,7 +1716,7 @@ TEST(InterpreterSmiComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
+        CHECK_EQ(CompareOperationFeedback::kSignedSmall,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1744,7 +1763,7 @@ TEST(InterpreterHeapNumberComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kNumber,
+        CHECK_EQ(CompareOperationFeedback::kNumber,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1790,7 +1809,7 @@ TEST(InterpreterStringComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kAny,
+        CHECK_EQ(CompareOperationFeedback::kAny,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1856,7 +1875,7 @@ TEST(InterpreterMixedComparisons) {
                    CompareC(comparison, lhs, rhs, true));
           Object* feedback = vector->Get(slot);
           CHECK(feedback->IsSmi());
-          CHECK_EQ(BinaryOperationFeedback::kAny,
+          CHECK_EQ(CompareOperationFeedback::kAny,
                    static_cast<Smi*>(feedback)->value());
         }
       }
@@ -2112,12 +2131,13 @@ TEST(InterpreterCallRuntime) {
   Isolate* isolate = handles.main_isolate();
 
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 2);
+  RegisterList args = builder.register_allocator()->NewRegisterList(2);
 
   builder.LoadLiteral(Smi::FromInt(15))
-      .StoreAccumulatorInRegister(Register(0))
+      .StoreAccumulatorInRegister(args[0])
       .LoadLiteral(Smi::FromInt(40))
-      .StoreAccumulatorInRegister(Register(1))
-      .CallRuntime(Runtime::kAdd, Register(0), 2)
+      .StoreAccumulatorInRegister(args[1])
+      .CallRuntime(Runtime::kAdd, args)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -2136,7 +2156,7 @@ TEST(InterpreterInvokeIntrinsic) {
 
   builder.LoadLiteral(Smi::FromInt(15))
       .StoreAccumulatorInRegister(Register(0))
-      .CallRuntime(Runtime::kInlineIsArray, Register(0), 1)
+      .CallRuntime(Runtime::kInlineIsArray, Register(0))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -2295,7 +2315,7 @@ TEST(InterpreterConstruct) {
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(0));
+  CHECK_EQ(Smi::cast(*return_val), Smi::kZero);
 }
 
 
@@ -2508,10 +2528,10 @@ TEST(InterpreterLogicalAnd) {
       std::make_pair("var a, b = 10; return a && b;\n",
                      factory->undefined_value()),
       std::make_pair("var a = 0, b = 10; return a && b / a;\n",
-                     handle(Smi::FromInt(0), isolate)),
+                     handle(Smi::kZero, isolate)),
       std::make_pair("var a = '0', b = 10; return a && b;\n",
                      handle(Smi::FromInt(10), isolate)),
-      std::make_pair("return 0.0 && 3.2;\n", handle(Smi::FromInt(0), isolate)),
+      std::make_pair("return 0.0 && 3.2;\n", handle(Smi::kZero, isolate)),
       std::make_pair("return 'a' && 'b';\n",
                      factory->NewStringFromStaticChars("b")),
       std::make_pair("return 'a' && 0 || 'b', 'c';\n",
@@ -2663,16 +2683,12 @@ TEST(InterpreterCountOperators) {
                      handle(Smi::FromInt(4), isolate)),
       std::make_pair("var a = 5; return a--;",
                      handle(Smi::FromInt(5), isolate)),
-      std::make_pair("var a = 5.2; return --a;",
-                     factory->NewHeapNumber(4.2)),
-      std::make_pair("var a = 'string'; return ++a;",
-                     factory->nan_value()),
-      std::make_pair("var a = 'string'; return a--;",
-                     factory->nan_value()),
+      std::make_pair("var a = 5.2; return --a;", factory->NewHeapNumber(4.2)),
+      std::make_pair("var a = 'string'; return ++a;", factory->nan_value()),
+      std::make_pair("var a = 'string'; return a--;", factory->nan_value()),
       std::make_pair("var a = true; return ++a;",
                      handle(Smi::FromInt(2), isolate)),
-      std::make_pair("var a = false; return a--;",
-                     handle(Smi::FromInt(0), isolate)),
+      std::make_pair("var a = false; return a--;", handle(Smi::kZero, isolate)),
       std::make_pair("var a = { val: 11 }; return ++a.val;",
                      handle(Smi::FromInt(12), isolate)),
       std::make_pair("var a = { val: 11 }; return a.val--;",
@@ -2692,9 +2708,9 @@ TEST(InterpreterCountOperators) {
       std::make_pair("var i = 1; if(i--) { return 1; } else { return 2; };",
                      handle(Smi::FromInt(1), isolate)),
       std::make_pair("var i = -2; do {} while(i++) {}; return i;",
-                      handle(Smi::FromInt(1), isolate)),
+                     handle(Smi::FromInt(1), isolate)),
       std::make_pair("var i = -1; for(; i++; ) {}; return i",
-                      handle(Smi::FromInt(1), isolate)),
+                     handle(Smi::FromInt(1), isolate)),
       std::make_pair("var i = 20; switch(i++) {\n"
                      "  case 20: return 1;\n"
                      "  default: return 2;\n"
@@ -3875,19 +3891,19 @@ TEST(InterpreterLookupContextSlot) {
   std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
       // Eval in inner context.
       std::make_tuple("var x = 0;", "eval(''); return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
       std::make_tuple("var x = 0;", "eval('var x = 1'); return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("var x = 0;",
                       "'use strict'; eval('var x = 1'); return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
       // Eval in outer context.
       std::make_tuple("var x = 0; eval('');", "return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
       std::make_tuple("var x = 0; eval('var x = 1');", "return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("'use strict'; var x = 0; eval('var x = 1');",
-                      "return x;", handle(Smi::FromInt(0), isolate)),
+                      "return x;", handle(Smi::kZero, isolate)),
   };
 
   for (size_t i = 0; i < arraysize(lookup_slot); i++) {
@@ -3917,18 +3933,18 @@ TEST(InterpreterLookupGlobalSlot) {
   std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
       // Eval in inner context.
       std::make_tuple("x = 0;", "eval(''); return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
       std::make_tuple("x = 0;", "eval('var x = 1'); return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("x = 0;", "'use strict'; eval('var x = 1'); return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
       // Eval in outer context.
       std::make_tuple("x = 0; eval('');", "return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
       std::make_tuple("x = 0; eval('var x = 1');", "return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("'use strict'; x = 0; eval('var x = 1');", "return x;",
-                      handle(Smi::FromInt(0), isolate)),
+                      handle(Smi::kZero, isolate)),
   };
 
   for (size_t i = 0; i < arraysize(lookup_slot); i++) {

@@ -76,6 +76,7 @@ class ValueSerializer {
   void WriteUint32(uint32_t value);
   void WriteUint64(uint64_t value);
   void WriteRawBytes(const void* source, size_t length);
+  void WriteDouble(double value);
 
  private:
   // Writing the wire format.
@@ -84,7 +85,6 @@ class ValueSerializer {
   void WriteVarint(T value);
   template <typename T>
   void WriteZigZag(T value);
-  void WriteDouble(double value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
   uint8_t* ReserveRawBytes(size_t bytes);
@@ -190,6 +190,7 @@ class ValueDeserializer {
    */
   bool ReadUint32(uint32_t* value) WARN_UNUSED_RESULT;
   bool ReadUint64(uint64_t* value) WARN_UNUSED_RESULT;
+  bool ReadDouble(double* value) WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) WARN_UNUSED_RESULT;
 
  private:

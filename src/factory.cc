@@ -97,8 +97,17 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
   result->set_prototype_users(WeakFixedArray::Empty());
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
-  result->set_validity_cell(Smi::FromInt(0));
+  result->set_validity_cell(Smi::kZero);
   result->set_bit_field(0);
+  return result;
+}
+
+Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
+                                  Handle<Object> value3) {
+  Handle<Tuple3> result = Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE));
+  result->set_value1(*value1);
+  result->set_value2(*value2);
+  result->set_value3(*value3);
   return result;
 }
 
@@ -179,7 +188,7 @@ Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
   DCHECK_LE(0, number_of_frames);
   Handle<FixedArray> result =
       NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
-  result->set(FrameArray::kFrameCountIndex, Smi::FromInt(0));
+  result->set(FrameArray::kFrameCountIndex, Smi::kZero);
   return Handle<FrameArray>::cast(result);
 }
 
@@ -779,7 +788,8 @@ Handle<Context> Factory::NewNativeContext() {
   array->set_map_no_write_barrier(*native_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_native_context(*context);
-  context->set_errors_thrown(Smi::FromInt(0));
+  context->set_errors_thrown(Smi::kZero);
+  context->set_math_random_index(Smi::kZero);
   Handle<WeakCell> weak_cell = NewWeakCell(context);
   context->set_self_weak_cell(*weak_cell);
   DCHECK(context->IsNativeContext());
@@ -922,18 +932,34 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
       Struct);
 }
 
-Handle<PromiseContainer> Factory::NewPromiseContainer(
+Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
     Handle<JSReceiver> thenable, Handle<JSReceiver> then,
     Handle<JSFunction> resolve, Handle<JSFunction> reject,
     Handle<Object> before_debug_event, Handle<Object> after_debug_event) {
-  Handle<PromiseContainer> result =
-      Handle<PromiseContainer>::cast(NewStruct(PROMISE_CONTAINER_TYPE));
+  Handle<PromiseResolveThenableJobInfo> result =
+      Handle<PromiseResolveThenableJobInfo>::cast(
+          NewStruct(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE));
   result->set_thenable(*thenable);
   result->set_then(*then);
   result->set_resolve(*resolve);
   result->set_reject(*reject);
   result->set_before_debug_event(*before_debug_event);
   result->set_after_debug_event(*after_debug_event);
+  return result;
+}
+
+Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
+    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
+    Handle<Object> before_debug_event, Handle<Object> after_debug_event,
+    Handle<Context> context) {
+  Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
+      NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
+  result->set_value(*value);
+  result->set_tasks(*tasks);
+  result->set_deferred(*deferred);
+  result->set_before_debug_event(*before_debug_event);
+  result->set_after_debug_event(*after_debug_event);
+  result->set_context(*context);
   return result;
 }
 
@@ -970,7 +996,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
   script->set_eval_from_position(0);
-  script->set_shared_function_infos(Smi::FromInt(0));
+  script->set_shared_function_infos(Smi::kZero);
   script->set_flags(0);
 
   heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
@@ -1272,6 +1298,8 @@ DEFINE_ERROR(RangeError, range_error)
 DEFINE_ERROR(ReferenceError, reference_error)
 DEFINE_ERROR(SyntaxError, syntax_error)
 DEFINE_ERROR(TypeError, type_error)
+DEFINE_ERROR(WasmCompileError, wasm_compile_error)
+DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 #undef DEFINE_ERROR
 
 Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
@@ -1504,7 +1532,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowHeapAllocation no_gc;
-  code->set_gc_metadata(Smi::FromInt(0));
+  code->set_gc_metadata(Smi::kZero);
   code->set_ic_age(isolate()->heap()->global_ic_age());
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
@@ -1514,7 +1542,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_raw_kind_specific_flags2(0);
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_raw_type_feedback_info(Smi::FromInt(0));
+  code->set_raw_type_feedback_info(Smi::kZero);
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_source_position_table(*empty_byte_array(), SKIP_WRITE_BARRIER);
@@ -1706,7 +1734,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
   DCHECK(capacity >= length);
 
   if (capacity == 0) {
-    array->set_length(Smi::FromInt(0));
+    array->set_length(Smi::kZero);
     array->set_elements(*empty_fixed_array());
     return;
   }
@@ -1735,6 +1763,10 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
   array->set_length(Smi::FromInt(length));
 }
 
+Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
+  Handle<Map> map = isolate()->js_module_namespace_map();
+  return Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map));
+}
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
@@ -1758,17 +1790,14 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
-  // To make it easy to hash Modules, we set a new symbol as the name of
-  // SharedFunctionInfo representing this Module.
-  Handle<Symbol> name_symbol = NewSymbol();
-  code->set_name(*name_symbol);
-
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
   module->set_exports(*exports);
+  module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
+  module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
-  module->set_flags(0);
-  module->set_embedder_data(isolate()->heap()->undefined_value());
+  DCHECK(!module->instantiated());
+  DCHECK(!module->evaluated());
   return module;
 }
 
@@ -2012,7 +2041,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
   CHECK(number_of_elements <= static_cast<size_t>(Smi::kMaxValue));
   size_t byte_length = number_of_elements * element_size;
 
-  obj->set_byte_offset(Smi::FromInt(0));
+  obj->set_byte_offset(Smi::kZero);
   i::Handle<i::Object> byte_length_object =
       NewNumberFromSize(byte_length, pretenure);
   obj->set_byte_length(*byte_length_object);
@@ -2215,7 +2244,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     code = isolate()->builtins()->Illegal();
   }
   share->set_code(*code);
-  share->set_optimized_code_map(*cleared_optimized_code_map());
+  share->set_optimized_code_map(*empty_fixed_array());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =
@@ -2459,13 +2488,30 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
   store->set(JSRegExp::kIrregexpLatin1CodeSavedIndex, uninitialized);
   store->set(JSRegExp::kIrregexpUC16CodeSavedIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(0));
+  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::kZero);
   store->set(JSRegExp::kIrregexpCaptureCountIndex,
              Smi::FromInt(capture_count));
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
   regexp->set_data(*store);
 }
 
+Handle<RegExpMatchInfo> Factory::NewRegExpMatchInfo() {
+  // Initially, the last match info consists of all fixed fields plus space for
+  // the match itself (i.e., 2 capture indices).
+  static const int kInitialSize = RegExpMatchInfo::kFirstCaptureIndex +
+                                  RegExpMatchInfo::kInitialCaptureIndices;
+
+  Handle<FixedArray> elems = NewFixedArray(kInitialSize);
+  Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(elems);
+
+  result->SetNumberOfCaptureRegisters(RegExpMatchInfo::kInitialCaptureIndices);
+  result->SetLastSubject(*empty_string());
+  result->SetLastInput(*undefined_value());
+  result->SetCapture(0, 0);
+  result->SetCapture(1, 0);
+
+  return result;
+}
 
 Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {
   if (Name::Equals(name, undefined_string())) return undefined_value();
@@ -2606,6 +2652,27 @@ void Factory::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                  prototype, attribs);
     map->AppendDescriptor(&d);
   }
+}
+
+Handle<JSFixedArrayIterator> Factory::NewJSFixedArrayIterator(
+    Handle<FixedArray> array) {
+  // Create the "next" function (must be unique per iterator object).
+  Handle<Code> code(
+      isolate()->builtins()->builtin(Builtins::kFixedArrayIteratorNext));
+  // TODO(neis): Don't create a new SharedFunctionInfo each time.
+  Handle<JSFunction> next = isolate()->factory()->NewFunctionWithoutPrototype(
+      isolate()->factory()->next_string(), code, false);
+  next->shared()->set_native(true);
+
+  // Create the iterator.
+  Handle<Map> map(isolate()->native_context()->fixed_array_iterator_map());
+  Handle<JSFixedArrayIterator> iterator =
+      Handle<JSFixedArrayIterator>::cast(NewJSObjectFromMap(map));
+  iterator->set_initial_next(*next);
+  iterator->set_array(*array);
+  iterator->set_index(0);
+  iterator->InObjectPropertyAtPut(JSFixedArrayIterator::kNextIndex, *next);
+  return iterator;
 }
 
 }  // namespace internal

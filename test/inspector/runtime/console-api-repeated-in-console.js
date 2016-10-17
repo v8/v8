@@ -7,12 +7,12 @@ print("Check that console.log is reported through Console domain as well.");
 var expectedMessages = 4;
 var messages = [];
 
-InspectorTest.eventHandler["Runtime.consoleAPICalled"] = consoleAPICalled;
-InspectorTest.eventHandler["Console.messageAdded"] = messageAdded;
-InspectorTest.sendCommandOrDie("Runtime.enable", {});
-InspectorTest.sendCommandOrDie("Console.enable", {});
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "console.log(42)" });
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "console.error('abc')" });
+Protocol.Runtime.onConsoleAPICalled(consoleAPICalled);
+Protocol.Console.onMessageAdded(messageAdded);
+Protocol.Runtime.enable();
+Protocol.Console.enable();
+Protocol.Runtime.evaluate({ "expression": "console.log(42)" });
+Protocol.Runtime.evaluate({ "expression": "console.error('abc')" });
 
 function consoleAPICalled(result)
 {

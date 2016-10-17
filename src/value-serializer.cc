@@ -470,6 +470,8 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
       array->HasFastElements() && !array->HasFastHoleyElements();
 
   if (should_serialize_densely) {
+    DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));
+
     // TODO(jbroman): Distinguish between undefined and a hole (this can happen
     // if serializing one of the elements deletes another). This requires wire
     // format changes.
@@ -903,6 +905,10 @@ bool ValueDeserializer::ReadUint64(uint64_t* value) {
   return ReadVarint<uint64_t>().To(value);
 }
 
+bool ValueDeserializer::ReadDouble(double* value) {
+  return ReadDouble().To(value);
+}
+
 bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
   if (length > static_cast<size_t>(end_ - position_)) return false;
   *data = position_;
@@ -1161,8 +1167,15 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeHandle<JSArray>());
 
+  // We shouldn't permit an array larger than the biggest we can request from
+  // V8. As an additional sanity check, since each entry will take at least one
+  // byte to encode, if there are fewer bytes than that we can also fail fast.
   uint32_t length;
-  if (!ReadVarint<uint32_t>().To(&length)) return MaybeHandle<JSArray>();
+  if (!ReadVarint<uint32_t>().To(&length) ||
+      length > static_cast<uint32_t>(FixedArray::kMaxLength) ||
+      length > static_cast<size_t>(end_ - position_)) {
+    return MaybeHandle<JSArray>();
+  }
 
   uint32_t id = next_id_++;
   HandleScope scope(isolate_);
@@ -1406,7 +1419,8 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   }
-  if (byte_offset % element_size != 0 || byte_length % element_size != 0) {
+  if (element_size == 0 || byte_offset % element_size != 0 ||
+      byte_length % element_size != 0) {
     return MaybeHandle<JSArrayBufferView>();
   }
   Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
@@ -1642,6 +1656,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         uint32_t num_properties;
         if (!ReadVarint<uint32_t>().To(&num_properties) ||
             stack.size() / 2 < num_properties) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
@@ -1653,6 +1669,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_object, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
@@ -1669,6 +1687,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         if (!ReadVarint<uint32_t>().To(&num_properties) ||
             !ReadVarint<uint32_t>().To(&length) ||
             stack.size() / 2 < num_properties) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 
@@ -1681,6 +1701,8 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_array, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
+          isolate_->Throw(*isolate_->factory()->NewError(
+              MessageTemplate::kDataCloneDeserializationError));
           return MaybeHandle<Object>();
         }
 

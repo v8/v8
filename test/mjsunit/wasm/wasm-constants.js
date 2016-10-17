@@ -82,6 +82,7 @@ var kAstI32 = 1;
 var kAstI64 = 2;
 var kAstF32 = 3;
 var kAstF64 = 4;
+var kAstS128 = 5;
 
 var kExternalFunction = 0;
 var kExternalTable = 1;
@@ -89,8 +90,6 @@ var kExternalMemory = 2;
 var kExternalGlobal = 3;
 
 // Useful signatures
-var kSig_i = makeSig([], [kAstI32]);
-var kSig_d = makeSig([], [kAstF64]);
 var kSig_i_i = makeSig([kAstI32], [kAstI32]);
 var kSig_i_l = makeSig([kAstI64], [kAstI32]);
 var kSig_i_ii = makeSig([kAstI32, kAstI32], [kAstI32]);
@@ -100,12 +99,17 @@ var kSig_l_ll = makeSig([kAstI64, kAstI64], [kAstI64]);
 var kSig_i_dd = makeSig([kAstF64, kAstF64], [kAstI32]);
 var kSig_v_v = makeSig([], []);
 var kSig_i_v = makeSig([], [kAstI32]);
+var kSig_l_v = makeSig([], [kAstI64]);
+var kSig_f_v = makeSig([], [kAstF64]);
+var kSig_d_v = makeSig([], [kAstF64]);
 var kSig_v_i = makeSig([kAstI32], []);
 var kSig_v_ii = makeSig([kAstI32, kAstI32], []);
 var kSig_v_iii = makeSig([kAstI32, kAstI32, kAstI32], []);
+var kSig_v_l = makeSig([kAstI64], []);
 var kSig_v_d = makeSig([kAstF64], []);
 var kSig_v_dd = makeSig([kAstF64, kAstF64], []);
 var kSig_v_ddi = makeSig([kAstF64, kAstF64, kAstI32], []);
+var kSig_s_v = makeSig([], [kAstS128]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -144,6 +148,8 @@ var kExprBrIf = 0x07;
 var kExprBrTable = 0x08;
 var kExprReturn = 0x09;
 var kExprThrow = 0xfa;
+var kExprTry = 0xfb;
+var kExprCatch = 0xfe;
 var kExprEnd = 0x0f;
 var kExprTeeLocal = 0x19;
 var kExprDrop = 0x0b;

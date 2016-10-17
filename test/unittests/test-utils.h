@@ -95,7 +95,6 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolate);
 };
 
-
 class TestWithZone : public virtual ::testing::Test {
  public:
   TestWithZone() : zone_(&allocator_) {}
@@ -110,7 +109,6 @@ class TestWithZone : public virtual ::testing::Test {
   DISALLOW_COPY_AND_ASSIGN(TestWithZone);
 };
 
-
 class TestWithIsolateAndZone : public virtual TestWithIsolate {
  public:
   TestWithIsolateAndZone() : zone_(&allocator_) {}
@@ -123,6 +121,18 @@ class TestWithIsolateAndZone : public virtual TestWithIsolate {
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);
+};
+
+class TestWithNativeContext : public virtual ::v8::TestWithContext,
+                              public virtual TestWithIsolate {
+ public:
+  TestWithNativeContext() {}
+  virtual ~TestWithNativeContext();
+
+  Handle<Context> native_context() const;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(TestWithNativeContext);
 };
 
 }  // namespace internal

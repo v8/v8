@@ -14,12 +14,10 @@ namespace tracing {
 TEST(TestTraceConfig) {
   LocalContext env;
   TraceConfig* trace_config = new TraceConfig();
-  trace_config->EnableSampling();
   trace_config->AddIncludedCategory("v8");
   trace_config->AddIncludedCategory(TRACE_DISABLED_BY_DEFAULT("v8.runtime"));
   trace_config->AddExcludedCategory("v8.cpu_profile");
 
-  CHECK_EQ(trace_config->IsSamplingEnabled(), true);
   CHECK_EQ(trace_config->IsSystraceEnabled(), false);
   CHECK_EQ(trace_config->IsArgumentFilterEnabled(), false);
   CHECK_EQ(trace_config->IsCategoryGroupEnabled("v8"), true);

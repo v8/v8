@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
@@ -20,8 +19,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/compiler/zone-pool.h"
-
+#include "src/compiler/zone-stats.h"
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
@@ -68,7 +66,7 @@ const uint32_t kMaxGlobalsSize = 128;
 
 // A helper for module environments that adds the ability to allocate memory
 // and global variables. Contains a built-in {WasmModule} and
-// {WasmModuleInstance}.
+// {WasmInstance}.
 class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(WasmExecutionMode mode = kExecuteCompiled)
@@ -229,10 +227,13 @@ class TestingModule : public ModuleEnv {
   }
 
   void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
-    module_.function_tables.push_back(
-        {table_size, table_size, std::vector<int32_t>(), false, false});
+    module_.function_tables.push_back({table_size, table_size,
+                                       std::vector<int32_t>(), false, false,
+                                       SignatureMap()});
+    WasmIndirectFunctionTable& table = module_.function_tables.back();
     for (uint32_t i = 0; i < table_size; ++i) {
-      module_.function_tables.back().values.push_back(functions[i]);
+      table.values.push_back(functions[i]);
+      table.map.FindOrInsert(module_.functions[functions[i]].sig);
     }
 
     Handle<FixedArray> values = BuildFunctionTable(
@@ -257,7 +258,7 @@ class TestingModule : public ModuleEnv {
  private:
   WasmExecutionMode execution_mode_;
   WasmModule module_;
-  WasmModuleInstance instance_;
+  WasmInstance instance_;
   Isolate* isolate_;
   v8::internal::AccountingAllocator allocator_;
   uint32_t global_offset;
@@ -268,7 +269,7 @@ class TestingModule : public ModuleEnv {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
     module_.globals.push_back(
-        {type, true, NO_INIT, global_offset, false, false});
+        {type, true, WasmInitExpr(), global_offset, false, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);

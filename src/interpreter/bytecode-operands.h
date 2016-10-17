@@ -13,9 +13,9 @@ namespace interpreter {
 
 #define INVALID_OPERAND_TYPE_LIST(V) V(None, OperandTypeInfo::kNone)
 
-#define REGISTER_INPUT_OPERAND_TYPE_LIST(V)         \
-  V(MaybeReg, OperandTypeInfo::kScalableSignedByte) \
-  V(Reg, OperandTypeInfo::kScalableSignedByte)      \
+#define REGISTER_INPUT_OPERAND_TYPE_LIST(V)        \
+  V(RegList, OperandTypeInfo::kScalableSignedByte) \
+  V(Reg, OperandTypeInfo::kScalableSignedByte)     \
   V(RegPair, OperandTypeInfo::kScalableSignedByte)
 
 #define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)          \
@@ -115,7 +115,8 @@ inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
-std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandScale& operand_scale);
 std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size);
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
 

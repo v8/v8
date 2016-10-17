@@ -275,6 +275,7 @@ class UsePosition final : public ZoneObject {
   }
   bool HasHint() const;
   bool HintRegister(int* register_code) const;
+  void SetHint(UsePosition* use_pos);
   void ResolveHint(UsePosition* use_pos);
   bool IsResolved() const {
     return hint_type() != UsePositionHintType::kUnresolved;
@@ -368,8 +369,12 @@ class LiveRange : public ZoneObject {
   // live range to the result live range.
   // The current range will terminate at position, while result will start from
   // position.
+  enum HintConnectionOption : bool {
+    DoNotConnectHints = false,
+    ConnectHints = true
+  };
   UsePosition* DetachAt(LifetimePosition position, LiveRange* result,
-                        Zone* zone);
+                        Zone* zone, HintConnectionOption connect_hints);
 
   // Detaches at position, and then links the resulting ranges. Returns the
   // child, which starts at position.
@@ -1047,8 +1052,15 @@ class LinearScanAllocator final : public RegisterAllocator {
 
   // Helper methods for allocating registers.
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
-  bool TryAllocateFreeReg(LiveRange* range);
+  bool TryAllocateFreeReg(LiveRange* range,
+                          const Vector<LifetimePosition>& free_until_pos);
+  bool TryAllocatePreferredReg(LiveRange* range,
+                               const Vector<LifetimePosition>& free_until_pos);
+  void FindFreeRegistersForRange(LiveRange* range,
+                                 Vector<LifetimePosition> free_until_pos);
+  void ProcessCurrentRange(LiveRange* current);
   void AllocateBlockedReg(LiveRange* range);
+  bool TrySplitAndSpillSplinter(LiveRange* range);
 
   // Spill the given life range after position pos.
   void SpillAfter(LiveRange* range, LifetimePosition pos);

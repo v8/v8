@@ -12,8 +12,8 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -77,22 +77,6 @@ WASM_EXEC_TEST(Int32Const_many) {
     BUILD(r, WASM_I32V(kExpectedValue));
     CHECK_EQ(kExpectedValue, r.Call());
   }
-}
-
-WASM_EXEC_TEST(MemorySize1) {
-  TestingModule module(execution_mode);
-  WasmRunner<int32_t> r(&module);
-  module.AddMemory(WasmModule::kPageSize * 1);
-  BUILD(r, kExprMemorySize);
-  CHECK_EQ(1, r.Call());
-}
-
-WASM_EXEC_TEST(MemorySize2) {
-  TestingModule module(execution_mode);
-  WasmRunner<int32_t> r(&module);
-  module.AddMemory(WasmModule::kPageSize * 3);
-  BUILD(r, kExprMemorySize);
-  CHECK_EQ(3, r.Call());
 }
 
 WASM_EXEC_TEST(Int32Param0) {
@@ -2646,6 +2630,49 @@ WASM_EXEC_TEST(CallIndirect_NoTable) {
   CHECK_TRAP(r.Call(0));
   CHECK_TRAP(r.Call(1));
   CHECK_TRAP(r.Call(2));
+}
+
+WASM_EXEC_TEST(CallIndirect_canonical) {
+  TestSignatures sigs;
+  TestingModule module(execution_mode);
+
+  WasmFunctionCompiler t1(sigs.i_ii(), &module);
+  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t1.CompileAndAdd(/*sig_index*/ 0);
+
+  WasmFunctionCompiler t2(sigs.i_ii(), &module);
+  BUILD(t2, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t2.CompileAndAdd(/*sig_index*/ 1);
+
+  WasmFunctionCompiler t3(sigs.f_ff(), &module);
+  BUILD(t3, WASM_F32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t3.CompileAndAdd(/*sig_index*/ 2);
+
+  // Signature table.
+  module.AddSignature(sigs.i_ii());
+  module.AddSignature(sigs.i_ii());
+  module.AddSignature(sigs.f_ff());
+
+  // Function table.
+  uint16_t i1 = static_cast<uint16_t>(t1.function_index());
+  uint16_t i2 = static_cast<uint16_t>(t2.function_index());
+  uint16_t i3 = static_cast<uint16_t>(t3.function_index());
+  uint16_t indirect_function_table[] = {i1, i2, i3, i1, i2};
+
+  module.AddIndirectFunctionTable(indirect_function_table,
+                                  arraysize(indirect_function_table));
+  module.PopulateIndirectFunctionTable();
+
+  // Builder the caller function.
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
+  BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I8(77), WASM_I8(11)));
+
+  CHECK_EQ(88, r.Call(0));
+  CHECK_EQ(66, r.Call(1));
+  CHECK_TRAP(r.Call(2));
+  CHECK_EQ(88, r.Call(3));
+  CHECK_EQ(66, r.Call(4));
+  CHECK_TRAP(r.Call(5));
 }
 
 WASM_EXEC_TEST(F32Floor) {

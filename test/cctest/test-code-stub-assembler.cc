@@ -173,7 +173,7 @@ TEST(TryToName) {
 
   {
     // TryToName(<zero smi>) => if_keyisindex: smi value.
-    Handle<Object> key(Smi::FromInt(0), isolate);
+    Handle<Object> key(Smi::kZero, isolate);
     ft.CheckTrue(key, expect_index, key);
   }
 
@@ -944,7 +944,7 @@ TEST(TryLookupElement) {
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
-  Handle<Object> smi0(Smi::FromInt(0), isolate);
+  Handle<Object> smi0(Smi::kZero, isolate);
   Handle<Object> smi1(Smi::FromInt(1), isolate);
   Handle<Object> smi7(Smi::FromInt(7), isolate);
   Handle<Object> smi13(Smi::FromInt(13), isolate);
@@ -1346,14 +1346,14 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Code* handler = stub_cache.Get(*name, receiver->map());
+    Object* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
     }
 
-    Handle<Code> expected_handler(handler, isolate);
+    Handle<Object> expected_handler(handler, isolate);
     ft.CheckTrue(receiver, name, expected_handler);
   }
 
@@ -1362,14 +1362,14 @@ TEST(TryProbeStubCache) {
     int index2 = rand_gen.NextInt();
     Handle<Name> name = names[index1 % names.size()];
     Handle<JSObject> receiver = receivers[index2 % receivers.size()];
-    Code* handler = stub_cache.Get(*name, receiver->map());
+    Object* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
     }
 
-    Handle<Code> expected_handler(handler, isolate);
+    Handle<Object> expected_handler(handler, isolate);
     ft.CheckTrue(receiver, name, expected_handler);
   }
   // Ensure we performed both kind of queries.

@@ -82,17 +82,21 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
-      if (left_type()->IsConstant() &&
-          left_type()->AsConstant()->Value()->IsString()) {
-        Handle<String> left_string =
-            Handle<String>::cast(left_type()->AsConstant()->Value());
-        if (left_string->length() >= ConsString::kMinLength) return true;
-      }
-      if (right_type()->IsConstant() &&
-          right_type()->AsConstant()->Value()->IsString()) {
-        Handle<String> right_string =
-            Handle<String>::cast(right_type()->AsConstant()->Value());
+      HeapObjectBinopMatcher m(node_);
+      if (m.right().HasValue() && m.right().Value()->IsString()) {
+        Handle<String> right_string = Handle<String>::cast(m.right().Value());
         if (right_string->length() >= ConsString::kMinLength) return true;
+      }
+      if (m.left().HasValue() && m.left().Value()->IsString()) {
+        Handle<String> left_string = Handle<String>::cast(m.left().Value());
+        if (left_string->length() >= ConsString::kMinLength) {
+          // The invariant for ConsString requires the left hand side to be
+          // a sequential or external string if the right hand side is the
+          // empty string. Since we don't know anything about the right hand
+          // side here, we must ensure that the left hand side satisfy the
+          // constraints independent of the right hand side.
+          return left_string->IsSeqString() || left_string->IsExternalString();
+        }
       }
     }
     return false;
@@ -447,7 +451,6 @@ class JSBinopReduction final {
 // - immediately put in type bounds for all new nodes
 // - relax effects from generic but not-side-effecting operations
 
-
 JSTypedLowering::JSTypedLowering(Editor* editor,
                                  CompilationDependencies* dependencies,
                                  Flags flags, JSGraph* jsgraph, Zone* zone)
@@ -456,7 +459,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       flags_(flags),
       jsgraph_(jsgraph),
       the_hole_type_(
-          Type::Constant(factory()->the_hole_value(), graph()->zone())),
+          Type::HeapConstant(factory()->the_hole_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -597,21 +600,20 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   }
 
   // Determine the {first} length.
+  HeapObjectBinopMatcher m(node);
   Node* first_length =
-      first_type->IsConstant()
+      (m.left().HasValue() && m.left().Value()->IsString())
           ? jsgraph()->Constant(
-                Handle<String>::cast(first_type->AsConstant()->Value())
-                    ->length())
+                Handle<String>::cast(m.left().Value())->length())
           : effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForStringLength()),
                 first, effect, control);
 
   // Determine the {second} length.
   Node* second_length =
-      second_type->IsConstant()
+      (m.right().HasValue() && m.right().Value()->IsString())
           ? jsgraph()->Constant(
-                Handle<String>::cast(second_type->AsConstant()->Value())
-                    ->length())
+                Handle<String>::cast(m.right().Value())->length())
           : effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForStringLength()),
                 second, effect, control);
@@ -759,6 +761,35 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   } else {
     return r.ChangeToPureOperator(comparison);
   }
+}
+
+Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
+  Node* const input = node->InputAt(0);
+  Type* type = NodeProperties::GetType(input);
+  Factory* const f = factory();
+  if (type->Is(Type::Boolean())) {
+    return Replace(jsgraph()->Constant(f->boolean_string()));
+  } else if (type->Is(Type::Number())) {
+    return Replace(jsgraph()->Constant(f->number_string()));
+  } else if (type->Is(Type::String())) {
+    return Replace(jsgraph()->Constant(f->string_string()));
+  } else if (type->Is(Type::Symbol())) {
+    return Replace(jsgraph()->Constant(f->symbol_string()));
+  } else if (type->Is(Type::Union(Type::Undefined(), Type::OtherUndetectable(),
+                                  graph()->zone()))) {
+    return Replace(jsgraph()->Constant(f->undefined_string()));
+  } else if (type->Is(Type::Null())) {
+    return Replace(jsgraph()->Constant(f->object_string()));
+  } else if (type->Is(Type::Function())) {
+    return Replace(jsgraph()->Constant(f->function_string()));
+  } else if (type->IsHeapConstant()) {
+    return Replace(jsgraph()->Constant(
+        Object::TypeOf(isolate(), type->AsHeapConstant()->Value())));
+  } else if (type->IsOtherNumberConstant()) {
+    return Replace(jsgraph()->Constant(f->number_string()));
+  }
+
+  return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
@@ -980,12 +1011,17 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
 Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   // Try constant-folding of JSToNumber with constant inputs.
   Type* input_type = NodeProperties::GetType(input);
-  if (input_type->IsConstant()) {
-    Handle<Object> input_value = input_type->AsConstant()->Value();
-    if (input_value->IsString()) {
+  if (input_type->Is(Type::String())) {
+    HeapObjectMatcher m(input);
+    if (m.HasValue() && m.Value()->IsString()) {
+      Handle<Object> input_value = m.Value();
       return Replace(jsgraph()->Constant(
           String::ToNumber(Handle<String>::cast(input_value))));
-    } else if (input_value->IsOddball()) {
+    }
+  }
+  if (input_type->IsHeapConstant()) {
+    Handle<Object> input_value = input_type->AsHeapConstant()->Value();
+    if (input_value->IsOddball()) {
       return Replace(jsgraph()->Constant(
           Oddball::ToNumber(Handle<Oddball>::cast(input_value))));
     }
@@ -1280,13 +1316,13 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* effect = r.effect();
   Node* control = r.control();
 
-  if (!r.right_type()->IsConstant() ||
-      !r.right_type()->AsConstant()->Value()->IsJSFunction()) {
+  if (!r.right_type()->IsHeapConstant() ||
+      !r.right_type()->AsHeapConstant()->Value()->IsJSFunction()) {
     return NoChange();
   }
 
   Handle<JSFunction> function =
-      Handle<JSFunction>::cast(r.right_type()->AsConstant()->Value());
+      Handle<JSFunction>::cast(r.right_type()->AsHeapConstant()->Value());
   Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
   // Make sure the prototype of {function} is the %FunctionPrototype%, and it
@@ -1485,9 +1521,9 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   // with the global proxy unconditionally.
   if (receiver_type->Is(Type::NullOrUndefined()) ||
       mode == ConvertReceiverMode::kNullOrUndefined) {
-    if (context_type->IsConstant()) {
+    if (context_type->IsHeapConstant()) {
       Handle<JSObject> global_proxy(
-          Handle<Context>::cast(context_type->AsConstant()->Value())
+          Handle<Context>::cast(context_type->AsHeapConstant()->Value())
               ->global_proxy(),
           isolate());
       receiver = jsgraph()->Constant(global_proxy);
@@ -1590,9 +1626,9 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Node* eglobal = effect;
   Node* rglobal;
   {
-    if (context_type->IsConstant()) {
+    if (context_type->IsHeapConstant()) {
       Handle<JSObject> global_proxy(
-          Handle<Context>::cast(context_type->AsConstant()->Value())
+          Handle<Context>::cast(context_type->AsHeapConstant()->Value())
               ->global_proxy(),
           isolate());
       rglobal = jsgraph()->Constant(global_proxy);
@@ -1715,10 +1751,10 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Check if {target} is a known JSFunction.
-  if (target_type->IsConstant() &&
-      target_type->AsConstant()->Value()->IsJSFunction()) {
+  if (target_type->IsHeapConstant() &&
+      target_type->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
     const int builtin_index = shared->construct_stub()->builtin_index();
     const bool is_builtin = (builtin_index != -1);
@@ -1800,10 +1836,10 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   }
 
   // Check if {target} is a known JSFunction.
-  if (target_type->IsConstant() &&
-      target_type->AsConstant()->Value()->IsJSFunction()) {
+  if (target_type->IsHeapConstant() &&
+      target_type->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
     const int builtin_index = shared->code()->builtin_index();
     const bool is_builtin = (builtin_index != -1);
@@ -2085,6 +2121,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToString(node);
     case IrOpcode::kJSToObject:
       return ReduceJSToObject(node);
+    case IrOpcode::kJSTypeOf:
+      return ReduceJSTypeOf(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadProperty:

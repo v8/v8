@@ -17,7 +17,7 @@ void ICUtility::Clear(Isolate* isolate, Address address,
 
 
 std::ostream& operator<<(std::ostream& os, const CallICState& s) {
-  return os << "(args(" << s.argc() << "), " << s.convert_mode() << ", ";
+  return os << "(" << s.convert_mode() << ", " << s.tail_call_mode() << ")";
 }
 
 

@@ -734,6 +734,7 @@ class StandardFrame : public StackFrame {
   virtual Object* receiver() const;
   virtual Script* script() const;
   virtual Object* context() const;
+  virtual int position() const;
 
   // Access the expressions in the stack frame including locals.
   inline Object* GetExpression(int index) const;
@@ -871,8 +872,8 @@ class JavaScriptFrame : public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(JSFunction* function, Code* code,
-                                     Address pc, FILE* file,
+  static void PrintFunctionAndOffset(JSFunction* function, AbstractCode* code,
+                                     int code_offset, FILE* file,
                                      bool print_line_number);
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
@@ -957,6 +958,9 @@ class InterpretedFrame : public JavaScriptFrame {
  public:
   Type type() const override { return INTERPRETED; }
 
+  // Accessors.
+  int position() const override;
+
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
@@ -983,6 +987,8 @@ class InterpretedFrame : public JavaScriptFrame {
   void Summarize(
       List<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+
+  static int GetBytecodeOffset(Address fp);
 
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
@@ -1056,6 +1062,10 @@ class WasmFrame : public StandardFrame {
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
+  // Lookup exception handler for current {pc}, returns -1 if none found. Also
+  // returns the stack slot count of the entire frame.
+  int LookupExceptionHandlerInTable(int* data);
+
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
@@ -1063,6 +1073,7 @@ class WasmFrame : public StandardFrame {
   Object* wasm_obj() const;
   uint32_t function_index() const;
   Script* script() const override;
+  int position() const override;
 
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());

@@ -5,7 +5,7 @@
 
 print("Tests that Runtime.awaitPromise works.");
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `
 var resolveCallback;
 var rejectCallback;
@@ -30,105 +30,86 @@ function rejectPromise()
 
 //# sourceURL=test.js`);
 
-InspectorTest.sendCommandPromise("Debugger.enable", {})
-    .then(() => InspectorTest.sendCommandPromise("Debugger.setAsyncCallStackDepth", { maxDepth: 128 }))
-    .then(() => testSuite());
-
-function dumpResult(result)
-{
-  if (result.exceptionDetails) {
-    if (result.exceptionDetails.stackTrace && result.exceptionDetails.stackTrace.parent) {
-      for (var frame of result.exceptionDetails.stackTrace.parent.callFrames) {
-        frame.scriptId = 0;
-        if (!frame.url)
-          frame.url = "(empty)";
-        if (!frame.functionName)
-          frame.functionName = "(anonymous)";
-      }
-    }
-    result.exceptionDetails.exceptionId = 0;
-    if (result.exceptionDetails.exception)
-      result.exceptionDetails.exception.objectId = 0;
-  }
-  InspectorTest.logObject(result);
-}
+Protocol.Debugger.enable()
+  .then(() => Protocol.Debugger.setAsyncCallStackDepth({ maxDepth: 128 }))
+  .then(() => testSuite());
 
 function testSuite()
 {
   InspectorTest.runTestSuite([
     function testResolvedPromise(next)
     {
-      InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "Promise.resolve(239)"})
-        .then((result) => InspectorTest.sendCommandPromise("Runtime.awaitPromise", { promiseObjectId: result.result.result.objectId, returnByValue: false, generatePreview: true }))
-        .then((result) => dumpResult(result.result))
+      Protocol.Runtime.evaluate({ expression: "Promise.resolve(239)"})
+        .then(result => Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId, returnByValue: false, generatePreview: true }))
+        .then(result => InspectorTest.logMessage(result))
         .then(() => next());
     },
 
     function testRejectedPromise(next)
     {
-      InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "Promise.reject({ a : 1 })"})
-        .then((result) => InspectorTest.sendCommandPromise("Runtime.awaitPromise", { promiseObjectId: result.result.result.objectId, returnByValue: true, generatePreview: false }))
-        .then((result) => dumpResult(result.result))
+      Protocol.Runtime.evaluate({ expression: "Promise.reject({ a : 1 })"})
+        .then(result => Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId, returnByValue: true, generatePreview: false }))
+        .then(result => InspectorTest.logMessage(result))
         .then(() => next());
     },
 
     function testRejectedPromiseWithStack(next)
     {
-      InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "createPromise()"})
-        .then((result) => scheduleRejectAndAwaitPromise(result))
-        .then((result) => dumpResult(result.result))
+      Protocol.Runtime.evaluate({ expression: "createPromise()"})
+        .then(result => scheduleRejectAndAwaitPromise(result))
+        .then(result => InspectorTest.logMessage(result))
         .then(() => next());
 
       function scheduleRejectAndAwaitPromise(result)
       {
-        var promise = InspectorTest.sendCommandPromise("Runtime.awaitPromise", { promiseObjectId: result.result.result.objectId });
-        InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "rejectPromise()" });
+        var promise = Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId });
+        Protocol.Runtime.evaluate({ expression: "rejectPromise()" });
         return promise;
       }
     },
 
     function testPendingPromise(next)
     {
-      InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "createPromise()"})
-        .then((result) => scheduleFulfillAndAwaitPromise(result))
-        .then((result) => dumpResult(result.result))
+      Protocol.Runtime.evaluate({ expression: "createPromise()"})
+        .then(result => scheduleFulfillAndAwaitPromise(result))
+        .then(result => InspectorTest.logMessage(result))
         .then(() => next());
 
       function scheduleFulfillAndAwaitPromise(result)
       {
-        var promise = InspectorTest.sendCommandPromise("Runtime.awaitPromise", { promiseObjectId: result.result.result.objectId });
-        InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "resolvePromise()" });
+        var promise = Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId });
+        Protocol.Runtime.evaluate({ expression: "resolvePromise()" });
         return promise;
       }
     },
 
     function testResolvedWithoutArgsPromise(next)
     {
-      InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "Promise.resolve()"})
-        .then((result) => InspectorTest.sendCommandPromise("Runtime.awaitPromise", { promiseObjectId: result.result.result.objectId, returnByValue: true, generatePreview: false }))
-        .then((result) => dumpResult(result.result))
+      Protocol.Runtime.evaluate({ expression: "Promise.resolve()"})
+        .then(result => Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId, returnByValue: true, generatePreview: false }))
+        .then(result => InspectorTest.logMessage(result))
         .then(() => next());
     },
 
     function testGarbageCollectedPromise(next)
     {
-      InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "new Promise(() => undefined)" })
-        .then((result) => scheduleGCAndawaitPromise(result))
-        .then((result) => InspectorTest.logObject(result.error))
+      Protocol.Runtime.evaluate({ expression: "new Promise(() => undefined)" })
+        .then(result => scheduleGCAndawaitPromise(result))
+        .then(result => InspectorTest.logMessage(result))
         .then(() => next());
 
       function scheduleGCAndawaitPromise(result)
       {
         var objectId = result.result.result.objectId;
-        var promise = InspectorTest.sendCommandPromise("Runtime.awaitPromise", { promiseObjectId: objectId });
+        var promise = Protocol.Runtime.awaitPromise({ promiseObjectId: objectId });
         gcPromise(objectId);
         return promise;
       }
 
       function gcPromise(objectId)
       {
-        InspectorTest.sendCommandPromise("Runtime.releaseObject", { objectId: objectId})
-          .then(() => InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: "gc()" }));
+        Protocol.Runtime.releaseObject({ objectId: objectId})
+          .then(() => Protocol.Runtime.evaluate({ expression: "gc()" }));
       }
     }
   ]);

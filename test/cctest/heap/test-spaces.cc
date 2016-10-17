@@ -368,9 +368,9 @@ TEST(NewSpace) {
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= kMaxRegularHeapObjectSize) {
-    Object* obj = new_space.AllocateRawUnaligned(kMaxRegularHeapObjectSize)
-                      .ToObjectChecked();
-    CHECK(new_space.Contains(HeapObject::cast(obj)));
+    CHECK(new_space.Contains(
+        new_space.AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+            .ToObjectChecked()));
   }
 
   new_space.TearDown();
@@ -500,6 +500,8 @@ TEST(SizeOfInitialHeap) {
            ->IsUndefined()) {
     return;
   }
+  // Initial size of LO_SPACE
+  size_t initial_lo_space = isolate->heap()->lo_space()->Size();
 
   // The limit for each space for an empty isolate containing just the
   // snapshot.
@@ -528,7 +530,7 @@ TEST(SizeOfInitialHeap) {
   }
 
   // No large objects required to perform the above steps.
-  CHECK(isolate->heap()->lo_space()->IsEmpty());
+  CHECK_EQ(initial_lo_space, isolate->heap()->lo_space()->Size());
 }
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {

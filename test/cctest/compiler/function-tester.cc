@@ -26,8 +26,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
       function((FLAG_allow_natives_syntax = true, NewFunction(source))),
       flags_(flags) {
   Compile(function);
-  const uint32_t supported_flags = CompilationInfo::kNativeContextSpecializing |
-                                   CompilationInfo::kInliningEnabled;
+  const uint32_t supported_flags = CompilationInfo::kInliningEnabled;
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
@@ -161,23 +160,16 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Zone zone(function->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, function);
-  info.MarkAsDeoptimizationEnabled();
 
-  if (!FLAG_turbo_from_bytecode) {
-    CHECK(Parser::ParseStatic(info.parse_info()));
-  }
   info.SetOptimizing();
-  if (flags_ & CompilationInfo::kNativeContextSpecializing) {
-    info.MarkAsNativeContextSpecializing();
-  }
+  info.MarkAsDeoptimizationEnabled();
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
-  if (FLAG_turbo_from_bytecode) {
-    CHECK(Compiler::EnsureBytecode(&info));
+  if (Compiler::EnsureBytecode(&info)) {
     info.MarkAsOptimizeFromBytecode();
   } else {
-    CHECK(Compiler::Analyze(info.parse_info()));
+    CHECK(Compiler::ParseAndAnalyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
   }
   JSFunction::EnsureLiterals(function);

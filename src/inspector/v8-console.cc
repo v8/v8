@@ -93,12 +93,13 @@ class ConsoleHelper {
                   const std::vector<v8::Local<v8::Value>>& arguments) {
     InspectedContext* inspectedContext = ensureInspectedContext();
     if (!inspectedContext) return;
+    int contextGroupId = inspectedContext->contextGroupId();
     V8InspectorImpl* inspector = inspectedContext->inspector();
     std::unique_ptr<V8ConsoleMessage> message =
         V8ConsoleMessage::createForConsoleAPI(
             inspector->client()->currentTimeMS(), type, arguments,
             inspector->debugger()->captureStackTrace(false), inspectedContext);
-    inspector->ensureConsoleMessageStorage(inspectedContext->contextGroupId())
+    inspector->ensureConsoleMessageStorage(contextGroupId)
         ->addMessage(std::move(message));
   }
 
@@ -138,7 +139,10 @@ class ConsoleHelper {
   v8::MaybeLocal<v8::Function> firstArgAsFunction() {
     if (m_info.Length() < 1 || !m_info[0]->IsFunction())
       return v8::MaybeLocal<v8::Function>();
-    return m_info[0].As<v8::Function>();
+    v8::Local<v8::Function> func = m_info[0].As<v8::Function>();
+    while (func->GetBoundFunction()->IsFunction())
+      func = func->GetBoundFunction().As<v8::Function>();
+    return func;
   }
 
   v8::MaybeLocal<v8::Map> privateMap(const char* name) {
@@ -427,7 +431,7 @@ static void timeEndFunction(const v8::FunctionCallbackInfo<v8::Value>& info,
     double elapsed = client->currentTimeMS() -
                      helper.getDoubleFromMap(timeMap, protocolTitle, 0.0);
     String16 message =
-        protocolTitle + ": " + String16::fromDoublePrecision3(elapsed) + "ms";
+        protocolTitle + ": " + String16::fromDouble(elapsed, 3) + "ms";
     helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
   }
 }

@@ -40,7 +40,7 @@ class ProgramOptions final {
         read_from_stdin_(false),
         rebaseline_(false),
         wrap_(true),
-        execute_(true),
+        module_(false),
         top_level_(false),
         do_expressions_(false),
         verbose_(false) {}
@@ -58,7 +58,7 @@ class ProgramOptions final {
   }
   bool rebaseline() const { return rebaseline_; }
   bool wrap() const { return wrap_; }
-  bool execute() const { return execute_; }
+  bool module() const { return module_; }
   bool top_level() const { return top_level_; }
   bool do_expressions() const { return do_expressions_; }
   bool verbose() const { return verbose_; }
@@ -74,7 +74,7 @@ class ProgramOptions final {
   bool read_from_stdin_;
   bool rebaseline_;
   bool wrap_;
-  bool execute_;
+  bool module_;
   bool top_level_;
   bool do_expressions_;
   bool verbose_;
@@ -127,15 +127,14 @@ bool CollectGoldenFiles(std::vector<std::string>* golden_file_list,
   DIR* directory = opendir(directory_path);
   if (!directory) return false;
 
-  dirent entry_buffer;
-  dirent* entry;
-
-  while (readdir_r(directory, &entry_buffer, &entry) == 0 && entry) {
+  dirent* entry = readdir(directory);
+  while (entry) {
     if (StrEndsWith(entry->d_name, ".golden")) {
       std::string golden_filename(kGoldenFilesPath);
       golden_filename += entry->d_name;
       golden_file_list->push_back(golden_filename);
     }
+    entry = readdir(directory);
   }
 
   closedir(directory);
@@ -160,8 +159,8 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.rebaseline_ = true;
     } else if (strcmp(argv[i], "--no-wrap") == 0) {
       options.wrap_ = false;
-    } else if (strcmp(argv[i], "--no-execute") == 0) {
-      options.execute_ = false;
+    } else if (strcmp(argv[i], "--module") == 0) {
+      options.module_ = true;
     } else if (strcmp(argv[i], "--top-level") == 0) {
       options.top_level_ = true;
     } else if (strcmp(argv[i], "--do-expressions") == 0) {
@@ -240,6 +239,12 @@ bool ProgramOptions::Validate() const {
     return false;
   }
 
+  if (module_ && (!top_level_ || wrap_)) {
+    REPORT_ERROR(
+        "The flag --module currently requires --top-level and --no-wrap.");
+    return false;
+  }
+
   return true;
 }
 
@@ -252,8 +257,8 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
   }
 
   while (std::getline(stream, line)) {
-    if (line.compare(0, 9, "execute: ") == 0) {
-      execute_ = ParseBoolean(line.c_str() + 9);
+    if (line.compare(0, 8, "module: ") == 0) {
+      module_ = ParseBoolean(line.c_str() + 8);
     } else if (line.compare(0, 6, "wrap: ") == 0) {
       wrap_ = ParseBoolean(line.c_str() + 6);
     } else if (line.compare(0, 20, "test function name: ") == 0) {
@@ -275,13 +280,13 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
 
 void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
   stream << "---"
-         << "\nexecute: " << BooleanToString(execute_)
          << "\nwrap: " << BooleanToString(wrap_);
 
   if (!test_function_name_.empty()) {
     stream << "\ntest function name: " << test_function_name_;
   }
 
+  if (module_) stream << "\nmodule: yes";
   if (top_level_) stream << "\ntop level: yes";
   if (do_expressions_) stream << "\ndo expressions: yes";
 
@@ -381,7 +386,7 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
 
   BytecodeExpectationsPrinter printer(platform.isolate());
   printer.set_wrap(options.wrap());
-  printer.set_execute(options.execute());
+  printer.set_module(options.module());
   printer.set_top_level(options.top_level());
   if (!options.test_function_name().empty()) {
     printer.set_test_function_name(options.test_function_name());
@@ -435,7 +440,7 @@ void PrintUsage(const char* exec_path) {
          "  --stdin   Read from standard input instead of file.\n"
          "  --rebaseline  Rebaseline input snippet file.\n"
          "  --no-wrap     Do not wrap the snippet in a function.\n"
-         "  --no-execute  Do not execute after compilation.\n"
+         "  --module      Compile as JavaScript module.\n"
          "  --test-function-name=foo  "
          "Specify the name of the test function.\n"
          "  --top-level   Process top level code, not the top-level function.\n"
@@ -447,9 +452,9 @@ void PrintUsage(const char* exec_path) {
          "      Specify the type of the entries in the constant pool "
          "(default: mixed).\n"
          "\n"
-         "When using --rebaseline, flags --no-wrap, --no-execute, "
-         "--test-function-name\nand --pool-type will be overridden by the "
-         "options specified in the input file\nheader.\n\n"
+         "When using --rebaseline, flags --no-wrap, --test-function-name \n"
+         "and --pool-type will be overridden by the options specified in \n"
+         "the input file header.\n\n"
          "Each raw JavaScript file is interpreted as a single snippet.\n\n"
          "This tool is intended as a help in writing tests.\n"
          "Please, DO NOT blindly copy and paste the output "

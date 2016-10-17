@@ -25,13 +25,13 @@ namespace internal {
 //
 // Note: There is no need to initialize the Zone; the first time an
 // allocation is attempted, a segment of memory will be requested
-// through a call to malloc().
+// through the allocator.
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  explicit Zone(AccountingAllocator* allocator);
+  explicit Zone(AccountingAllocator* allocator, const char* name = "unnamed");
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -44,19 +44,13 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
-  // Deletes all objects and free all memory allocated in the Zone. Keeps one
-  // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
-  void DeleteAll();
-
-  // Deletes the last small segment kept around by DeleteAll(). You
-  // may no longer allocate in the Zone after a call to this method.
-  void DeleteKeptSegment();
-
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
     return segment_bytes_allocated_ > kExcessLimit;
   }
+
+  const char* name() const { return name_; }
 
   size_t allocation_size() const { return allocation_size_; }
 
@@ -65,8 +59,9 @@ class V8_EXPORT_PRIVATE Zone final {
  private:
 // All pointers returned from New() have this alignment.  In addition, if the
 // object being allocated has a size that is divisible by 8 then its alignment
-// will be 8. ASan requires 8-byte alignment.
-#ifdef V8_USE_ADDRESS_SANITIZER
+// will be 8. ASan requires 8-byte alignment. MIPS also requires 8-byte
+// alignment.
+#if defined(V8_USE_ADDRESS_SANITIZER) || defined(V8_TARGET_ARCH_MIPS)
   static const size_t kAlignment = 8;
   STATIC_ASSERT(kPointerSize <= 8);
 #else
@@ -79,11 +74,11 @@ class V8_EXPORT_PRIVATE Zone final {
   // Never allocate segments larger than this size in bytes.
   static const size_t kMaximumSegmentSize = 1 * MB;
 
-  // Never keep segments larger than this size in bytes around.
-  static const size_t kMaximumKeptSegmentSize = 64 * KB;
-
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
+
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_;
@@ -101,7 +96,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Creates a new segment, sets it size, and pushes it to the front
   // of the segment chain. Returns the new segment.
-  inline Segment* NewSegment(size_t size);
+  inline Segment* NewSegment(size_t requested_size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
@@ -112,6 +107,7 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator_;
 
   Segment* segment_head_;
+  const char* name_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects
@@ -131,19 +127,6 @@ class ZoneObject {
   // Zone::DeleteAll() to delete all zone objects in one go.
   void operator delete(void*, size_t) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
-};
-
-// The ZoneScope is used to automatically call DeleteAll() on a
-// Zone when the ZoneScope is destroyed (i.e. goes out of scope)
-class ZoneScope final {
- public:
-  explicit ZoneScope(Zone* zone) : zone_(zone) {}
-  ~ZoneScope() { zone_->DeleteAll(); }
-
-  Zone* zone() const { return zone_; }
-
- private:
-  Zone* zone_;
 };
 
 // The ZoneAllocationPolicy is used to specialize generic data
@@ -233,6 +216,9 @@ class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
 };
 
 typedef base::PointerTemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
+
+typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
+    CustomMatcherZoneHashMap;
 
 }  // namespace internal
 }  // namespace v8

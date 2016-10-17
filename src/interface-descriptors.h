@@ -24,6 +24,7 @@ class PlatformInterfaceDescriptor;
   V(LoadGlobalWithVector)                 \
   V(Store)                                \
   V(StoreWithVector)                      \
+  V(StoreNamedTransition)                 \
   V(StoreTransition)                      \
   V(VarArgFunction)                       \
   V(FastNewClosure)                       \
@@ -81,7 +82,6 @@ class PlatformInterfaceDescriptor;
   V(ArgumentAdaptor)                      \
   V(ApiCallback)                          \
   V(ApiGetter)                            \
-  V(StoreGlobalViaContext)                \
   V(MathPowTagged)                        \
   V(MathPowInteger)                       \
   V(GrowArrayElements)                    \
@@ -349,6 +349,24 @@ class StoreTransitionDescriptor : public StoreDescriptor {
   static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
+class StoreNamedTransitionDescriptor : public StoreTransitionDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kFieldOffset, kMap, kValue, kSlot, kVector,
+                    kName)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreNamedTransitionDescriptor,
+                                               StoreTransitionDescriptor)
+
+  // Always pass name on the stack.
+  static const bool kPassLastArgsOnStack = true;
+  static const int kStackArgumentsCount =
+      StoreTransitionDescriptor::kStackArgumentsCount + 1;
+
+  static const Register NameRegister() { return no_reg; }
+  static const Register FieldOffsetRegister() {
+    return StoreTransitionDescriptor::NameRegister();
+  }
+};
+
 class StoreWithVectorDescriptor : public StoreDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot, kVector)
@@ -534,7 +552,7 @@ class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
 class CallFunctionWithFeedbackAndVectorDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kSlot, kVector)
+  DEFINE_PARAMETERS(kFunction, kActualArgumentsCount, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
       CallFunctionWithFeedbackAndVectorDescriptor, CallInterfaceDescriptor)
 };
@@ -556,17 +574,6 @@ class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kLength, kIndex, kInput)
   DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
-};
-
-
-class StoreGlobalViaContextDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kSlot, kValue)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalViaContextDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register SlotRegister();
-  static const Register ValueRegister();
 };
 
 class CopyFastSmiOrObjectElementsDescriptor : public CallInterfaceDescriptor {

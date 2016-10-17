@@ -20,12 +20,15 @@
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
 #include "src/compilation-statistics.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/elements.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/ic/access-compiler-data.h"
 #include "src/ic/stub-cache.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/interpreter.h"
@@ -519,9 +522,13 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         DCHECK(wasm::IsWasmObject(*wasm_object) ||
                wasm_object->IsUndefined(this));
 
-        elements = FrameArray::AppendWasmFrame(
-            elements, wasm_object, wasm_function_index, abstract_code, offset,
-            FrameArray::kIsWasmFrame);
+        int flags = wasm::WasmIsAsmJs(*wasm_object, this)
+                        ? FrameArray::kIsAsmJsWasmFrame
+                        : FrameArray::kIsWasmFrame;
+
+        elements = FrameArray::AppendWasmFrame(elements, wasm_object,
+                                               wasm_function_index,
+                                               abstract_code, offset, flags);
       } break;
 
       default:
@@ -1063,6 +1070,15 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   HandleScope scope(this);
   Handle<Object> exception_handle(exception, this);
 
+  if (FLAG_print_all_exceptions) {
+    printf("=========================================================\n");
+    printf("Exception thrown:\n");
+    exception->Print();
+    printf("Stack Trace:\n");
+    PrintStack(stdout);
+    printf("=========================================================\n");
+  }
+
   // Determine whether a message needs to be created for the given exception
   // depending on the following criteria:
   // 1) External v8::TryCatch missing: Always create a message because any
@@ -1149,8 +1165,8 @@ Object* Isolate::UnwindAndFindHandler() {
   Address handler_sp = nullptr;
   Address handler_fp = nullptr;
 
-  // Special handling of termination exceptions, uncatchable by JavaScript code,
-  // we unwind the handlers until the top ENTRY handler is found.
+  // Special handling of termination exceptions, uncatchable by JavaScript and
+  // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
 
   // Compute handler and stack unwinding information by performing a full walk
@@ -1170,6 +1186,28 @@ Object* Isolate::UnwindAndFindHandler() {
       handler_sp = handler->address() + StackHandlerConstants::kSize;
       offset = Smi::cast(code->handler_table()->get(0))->value();
       break;
+    }
+
+    if (FLAG_wasm_eh_prototype) {
+      if (frame->is_wasm() && is_catchable_by_wasm(exception)) {
+        int stack_slots = 0;  // Will contain stack slot count of frame.
+        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
+        offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
+        if (offset >= 0) {
+          // Compute the stack pointer from the frame pointer. This ensures that
+          // argument slots on the stack are dropped as returning would.
+          Address return_sp = frame->fp() +
+                              StandardFrameConstants::kFixedFrameSizeAboveFp -
+                              stack_slots * kPointerSize;
+
+          // Gather information from the frame.
+          code = frame->LookupCode();
+
+          handler_sp = return_sp;
+          handler_fp = frame->fp();
+          break;
+        }
+      }
     }
 
     // For optimized frames we perform a lookup in the handler table.
@@ -1908,48 +1946,102 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 class VerboseAccountingAllocator : public AccountingAllocator {
  public:
-  VerboseAccountingAllocator(Heap* heap, size_t sample_bytes)
-      : heap_(heap), last_memory_usage_(0), sample_bytes_(sample_bytes) {}
+  VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes,
+                             size_t pool_sample_bytes)
+      : heap_(heap),
+        last_memory_usage_(0),
+        last_pool_size_(0),
+        nesting_deepth_(0),
+        allocation_sample_bytes_(allocation_sample_bytes),
+        pool_sample_bytes_(pool_sample_bytes) {}
 
-  v8::internal::Segment* AllocateSegment(size_t size) override {
-    v8::internal::Segment* memory = AccountingAllocator::AllocateSegment(size);
+  v8::internal::Segment* GetSegment(size_t size) override {
+    v8::internal::Segment* memory = AccountingAllocator::GetSegment(size);
     if (memory) {
-      size_t current = GetCurrentMemoryUsage();
-      if (last_memory_usage_.Value() + sample_bytes_ < current) {
-        PrintJSON(current);
-        last_memory_usage_.SetValue(current);
+      size_t malloced_current = GetCurrentMemoryUsage();
+      size_t pooled_current = GetCurrentPoolSize();
+
+      if (last_memory_usage_.Value() + allocation_sample_bytes_ <
+              malloced_current ||
+          last_pool_size_.Value() + pool_sample_bytes_ < pooled_current) {
+        PrintMemoryJSON(malloced_current, pooled_current);
+        last_memory_usage_.SetValue(malloced_current);
+        last_pool_size_.SetValue(pooled_current);
       }
     }
     return memory;
   }
 
-  void FreeSegment(v8::internal::Segment* memory) override {
-    AccountingAllocator::FreeSegment(memory);
-    size_t current = GetCurrentMemoryUsage();
-    if (current + sample_bytes_ < last_memory_usage_.Value()) {
-      PrintJSON(current);
-      last_memory_usage_.SetValue(current);
+  void ReturnSegment(v8::internal::Segment* memory) override {
+    AccountingAllocator::ReturnSegment(memory);
+    size_t malloced_current = GetCurrentMemoryUsage();
+    size_t pooled_current = GetCurrentPoolSize();
+
+    if (malloced_current + allocation_sample_bytes_ <
+            last_memory_usage_.Value() ||
+        pooled_current + pool_sample_bytes_ < last_pool_size_.Value()) {
+      PrintMemoryJSON(malloced_current, pooled_current);
+      last_memory_usage_.SetValue(malloced_current);
+      last_pool_size_.SetValue(pooled_current);
     }
   }
 
+  void ZoneCreation(const Zone* zone) override {
+    double time = heap_->isolate()->time_millis_since_init();
+    PrintF(
+        "{"
+        "\"type\": \"zonecreation\", "
+        "\"isolate\": \"%p\", "
+        "\"time\": %f, "
+        "\"ptr\": \"%p\", "
+        "\"name\": \"%s\","
+        "\"nesting\": %zu"
+        "}\n",
+        reinterpret_cast<void*>(heap_->isolate()), time,
+        reinterpret_cast<const void*>(zone), zone->name(),
+        nesting_deepth_.Value());
+    nesting_deepth_.Increment(1);
+  }
+
+  void ZoneDestruction(const Zone* zone) override {
+    nesting_deepth_.Decrement(1);
+    double time = heap_->isolate()->time_millis_since_init();
+    PrintF(
+        "{"
+        "\"type\": \"zonedestruction\", "
+        "\"isolate\": \"%p\", "
+        "\"time\": %f, "
+        "\"ptr\": \"%p\", "
+        "\"name\": \"%s\", "
+        "\"size\": %zu,"
+        "\"nesting\": %zu"
+        "}\n",
+        reinterpret_cast<void*>(heap_->isolate()), time,
+        reinterpret_cast<const void*>(zone), zone->name(),
+        zone->allocation_size(), nesting_deepth_.Value());
+  }
+
  private:
-  void PrintJSON(size_t sample) {
+  void PrintMemoryJSON(size_t malloced, size_t pooled) {
     // Note: Neither isolate, nor heap is locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
     double time = heap_->isolate()->time_millis_since_init();
     PrintF(
         "{"
-        "\"type\": \"malloced\", "
+        "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"value\": %zu"
+        "\"allocated\": %zu,"
+        "\"pooled\": %zu"
         "}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time, sample);
+        reinterpret_cast<void*>(heap_->isolate()), time, malloced, pooled);
   }
 
   Heap* heap_;
   base::AtomicNumber<size_t> last_memory_usage_;
-  size_t sample_bytes_;
+  base::AtomicNumber<size_t> last_pool_size_;
+  base::AtomicNumber<size_t> nesting_deepth_;
+  size_t allocation_sample_bytes_, pool_sample_bytes_;
 };
 
 Isolate::Isolate(bool enable_serializer)
@@ -1977,10 +2069,9 @@ Isolate::Isolate(bool enable_serializer)
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
-      allocator_(FLAG_trace_gc_object_stats
-                     ? new VerboseAccountingAllocator(&heap_, 256 * KB)
-                     : new AccountingAllocator()),
-      runtime_zone_(new Zone(allocator_)),
+      allocator_(FLAG_trace_gc_object_stats ? new VerboseAccountingAllocator(
+                                                  &heap_, 256 * KB, 128 * KB)
+                                            : new AccountingAllocator()),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -2145,13 +2236,17 @@ void Isolate::Deinit() {
   delete heap_profiler_;
   heap_profiler_ = NULL;
 
+  cancelable_task_manager()->CancelAndWait();
+
   heap_.TearDown();
   logger_->TearDown();
 
   delete interpreter_;
   interpreter_ = NULL;
 
-  cancelable_task_manager()->CancelAndWait();
+
+  delete compiler_dispatcher_tracer_;
+  compiler_dispatcher_tracer_ = nullptr;
 
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
@@ -2175,9 +2270,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
-  // Has to be called while counters_ are still alive
-  runtime_zone_->DeleteKeptSegment();
-
   // The entry stack must be empty when we get here.
   DCHECK(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
 
@@ -2192,6 +2284,9 @@ Isolate::~Isolate() {
 
   delete[] call_descriptor_data_;
   call_descriptor_data_ = NULL;
+
+  delete access_compiler_data_;
+  access_compiler_data_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -2253,9 +2348,6 @@ Isolate::~Isolate() {
 
   delete cancelable_task_manager_;
   cancelable_task_manager_ = nullptr;
-
-  delete runtime_zone_;
-  runtime_zone_ = nullptr;
 
   delete allocator_;
   allocator_ = nullptr;
@@ -2363,9 +2455,11 @@ bool Isolate::Init(Deserializer* des) {
   date_cache_ = new DateCache();
   call_descriptor_data_ =
       new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
+  access_compiler_data_ = new AccessCompilerData();
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
+  compiler_dispatcher_tracer_ = new CompilerDispatcherTracer(this);
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);
@@ -2863,6 +2957,14 @@ base::RandomNumberGenerator* Isolate::random_number_generator() {
   return random_number_generator_;
 }
 
+int Isolate::GenerateIdentityHash(uint32_t mask) {
+  int hash;
+  int attempts = 0;
+  do {
+    hash = random_number_generator()->NextInt() & mask;
+  } while (hash == 0 && attempts++ < 30);
+  return hash != 0 ? hash : 1;
+}
 
 Object* Isolate::FindCodeObject(Address a) {
   return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
@@ -2980,20 +3082,85 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
-                                        MaybeHandle<Object>* result,
-                                        MaybeHandle<Object>* maybe_exception) {
-  if (debug()->is_active()) {
-    Handle<Object> before_debug_event(container->before_debug_event(), this);
-    if (before_debug_event->IsJSObject()) {
-      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(before_debug_event));
+namespace {
+class PromiseDebugEventScope {
+ public:
+  PromiseDebugEventScope(Isolate* isolate, Object* before, Object* after)
+      : isolate_(isolate),
+        after_(after, isolate_),
+        is_debug_active_(isolate_->debug()->is_active() &&
+                         before->IsJSObject() && after->IsJSObject()) {
+    if (is_debug_active_) {
+      isolate_->debug()->OnAsyncTaskEvent(
+          handle(JSObject::cast(before), isolate_));
     }
   }
 
-  Handle<JSReceiver> thenable(container->thenable(), this);
-  Handle<JSFunction> resolve(container->resolve(), this);
-  Handle<JSFunction> reject(container->reject(), this);
-  Handle<JSReceiver> then(container->then(), this);
+  ~PromiseDebugEventScope() {
+    if (is_debug_active_) {
+      isolate_->debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_));
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+  Handle<Object> after_;
+  bool is_debug_active_;
+};
+}  // namespace
+
+void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
+                                 MaybeHandle<Object>* result,
+                                 MaybeHandle<Object>* maybe_exception) {
+  PromiseDebugEventScope helper(this, info->before_debug_event(),
+                                info->after_debug_event());
+
+  Handle<Object> value(info->value(), this);
+  Handle<Object> tasks(info->tasks(), this);
+  Handle<JSFunction> promise_handle_fn = promise_handle();
+  Handle<Object> undefined = factory()->undefined_value();
+
+  // If tasks is an array we have multiple onFulfilled/onRejected callbacks
+  // associated with the promise. The deferred object for each callback
+  // is attached to this array as well.
+  // Otherwise, there is a single callback and the deferred object is attached
+  // directly to PromiseReactionJobInfo.
+  if (tasks->IsJSArray()) {
+    Handle<JSArray> array = Handle<JSArray>::cast(tasks);
+    DCHECK(array->length()->IsSmi());
+    int length = Smi::cast(array->length())->value();
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    DCHECK(length % 2 == 0);
+    for (int i = 0; i < length; i += 2) {
+      DCHECK(accessor->HasElement(array, i));
+      DCHECK(accessor->HasElement(array, i + 1));
+      Handle<Object> argv[] = {value, accessor->Get(array, i),
+                               accessor->Get(array, i + 1)};
+      *result = Execution::TryCall(this, promise_handle_fn, undefined,
+                                   arraysize(argv), argv, maybe_exception);
+      // If execution is terminating, just bail out.
+      if (result->is_null() && maybe_exception->is_null()) {
+        return;
+      }
+    }
+  } else {
+    Handle<Object> deferred(info->deferred(), this);
+    Handle<Object> argv[] = {value, tasks, deferred};
+    *result = Execution::TryCall(this, promise_handle_fn, undefined,
+                                 arraysize(argv), argv, maybe_exception);
+  }
+}
+
+void Isolate::PromiseResolveThenableJob(
+    Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
+    MaybeHandle<Object>* maybe_exception) {
+  PromiseDebugEventScope helper(this, info->before_debug_event(),
+                                info->after_debug_event());
+
+  Handle<JSReceiver> thenable(info->thenable(), this);
+  Handle<JSFunction> resolve(info->resolve(), this);
+  Handle<JSFunction> reject(info->reject(), this);
+  Handle<JSReceiver> then(info->then(), this);
   Handle<Object> argv[] = {resolve, reject};
   *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
                                maybe_exception);
@@ -3006,18 +3173,12 @@ void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
         Execution::TryCall(this, reject, factory()->undefined_value(),
                            arraysize(reason_arg), reason_arg, maybe_exception);
   }
-
-  if (debug()->is_active()) {
-    Handle<Object> after_debug_event(container->after_debug_event(), this);
-    if (after_debug_event->IsJSObject()) {
-      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_debug_event));
-    }
-  }
 }
 
 void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
   DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
-         microtask->IsPromiseContainer());
+         microtask->IsPromiseResolveThenableJobInfo() ||
+         microtask->IsPromiseReactionJobInfo());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
   DCHECK(num_tasks <= queue->length());
@@ -3069,11 +3230,17 @@ void Isolate::RunMicrotasksInternal() {
         callback(data);
       } else {
         SaveContext save(this);
-        Context* context = microtask->IsJSFunction()
-                               ? Handle<JSFunction>::cast(microtask)->context()
-                               : Handle<PromiseContainer>::cast(microtask)
-                                     ->resolve()
-                                     ->context();
+        Context* context;
+        if (microtask->IsJSFunction()) {
+          context = Handle<JSFunction>::cast(microtask)->context();
+        } else if (microtask->IsPromiseResolveThenableJobInfo()) {
+          context = Handle<PromiseResolveThenableJobInfo>::cast(microtask)
+                        ->resolve()
+                        ->context();
+        } else {
+          context = Handle<PromiseReactionJobInfo>::cast(microtask)->context();
+        }
+
         set_context(context->native_context());
         handle_scope_implementer_->EnterMicrotaskContext(
             Handle<Context>(context, this));
@@ -3087,9 +3254,13 @@ void Isolate::RunMicrotasksInternal() {
           result = Execution::TryCall(this, microtask_function,
                                       factory()->undefined_value(), 0, NULL,
                                       &maybe_exception);
+        } else if (microtask->IsPromiseResolveThenableJobInfo()) {
+          PromiseResolveThenableJob(
+              Handle<PromiseResolveThenableJobInfo>::cast(microtask), &result,
+              &maybe_exception);
         } else {
-          PromiseResolveThenableJob(Handle<PromiseContainer>::cast(microtask),
-                                    &result, &maybe_exception);
+          PromiseReactionJob(Handle<PromiseReactionJobInfo>::cast(microtask),
+                             &result, &maybe_exception);
         }
 
         handle_scope_implementer_->LeaveMicrotaskContext();
@@ -3188,7 +3359,7 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
   Handle<FixedArray> detached_contexts = factory()->detached_contexts();
   int length = detached_contexts->length();
   detached_contexts = factory()->CopyFixedArrayAndGrow(detached_contexts, 2);
-  detached_contexts->set(length, Smi::FromInt(0));
+  detached_contexts->set(length, Smi::kZero);
   detached_contexts->set(length + 1, *cell);
   heap()->set_detached_contexts(*detached_contexts);
 }

@@ -14,8 +14,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1,1, true);
-  builder.addImport("getValue", kSig_i);
-  builder.addFunction("f", kSig_i)
+  builder.addImport("getValue", kSig_i_v);
+  builder.addFunction("f", kSig_i_v)
     .addBody([
       kExprCallFunction, 0
     ]).exportFunc();

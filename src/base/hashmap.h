@@ -36,8 +36,8 @@ class TemplateHashMapImpl {
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  TemplateHashMapImpl(MatchFun match = MatchFun(),
-                      uint32_t capacity = kDefaultHashMapCapacity,
+  TemplateHashMapImpl(uint32_t capacity = kDefaultHashMapCapacity,
+                      MatchFun match = MatchFun(),
                       AllocationPolicy allocator = AllocationPolicy());
 
   ~TemplateHashMapImpl();
@@ -93,6 +93,8 @@ class TemplateHashMapImpl {
   Entry* map_;
   uint32_t capacity_;
   uint32_t occupancy_;
+  // TODO(leszeks): This takes up space even if it has no state, maybe replace
+  // with something that does the empty base optimisation e.g. std::tuple
   MatchFun match_;
 
   Entry* map_end() const { return map_ + capacity_; }
@@ -106,7 +108,7 @@ class TemplateHashMapImpl {
 template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
-    TemplateHashMapImpl(MatchFun match, uint32_t initial_capacity,
+    TemplateHashMapImpl(uint32_t initial_capacity, MatchFun match,
                         AllocationPolicy allocator)
     : match_(match) {
   Initialize(initial_capacity, allocator);
@@ -267,7 +269,7 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
   DCHECK(map_ <= entry && entry < end);
 
   DCHECK(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (entry->exists() && (hash != entry->hash || !match_(key, entry->key))) {
+  while (entry->exists() && !match_(hash, entry->hash, key, entry->key)) {
     entry++;
     if (entry >= end) {
       entry = map_;
@@ -335,35 +337,84 @@ void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Resize(
   AllocationPolicy::Delete(map);
 }
 
+// Match function which compares hashes before executing a (potentially
+// expensive) key comparison.
+template <typename Key, typename MatchFun>
+struct HashEqualityThenKeyMatcher {
+  explicit HashEqualityThenKeyMatcher(MatchFun match) : match_(match) {}
+
+  bool operator()(uint32_t hash1, uint32_t hash2, const Key& key1,
+                  const Key& key2) const {
+    return hash1 == hash2 && match_(key1, key2);
+  }
+
+ private:
+  MatchFun match_;
+};
+
+// Hashmap<void*, void*> which takes a custom key comparison function pointer.
 template <typename AllocationPolicy>
-class PointerTemplateHashMapImpl
-    : public TemplateHashMapImpl<void*, void*, bool (*)(void*, void*),
-                                 AllocationPolicy> {
-  typedef TemplateHashMapImpl<void*, void*, bool (*)(void*, void*),
-                              AllocationPolicy>
+class CustomMatcherTemplateHashMapImpl
+    : public TemplateHashMapImpl<
+          void*, void*,
+          HashEqualityThenKeyMatcher<void*, bool (*)(void*, void*)>,
+          AllocationPolicy> {
+  typedef TemplateHashMapImpl<
+      void*, void*, HashEqualityThenKeyMatcher<void*, bool (*)(void*, void*)>,
+      AllocationPolicy>
       Base;
 
  public:
   typedef bool (*MatchFun)(void*, void*);
 
-  PointerTemplateHashMapImpl(MatchFun match = PointersMatch,
-                             uint32_t capacity = Base::kDefaultHashMapCapacity,
-                             AllocationPolicy allocator = AllocationPolicy())
-      : Base(match, capacity, allocator) {}
+  CustomMatcherTemplateHashMapImpl(
+      MatchFun match, uint32_t capacity = Base::kDefaultHashMapCapacity,
+      AllocationPolicy allocator = AllocationPolicy())
+      : Base(capacity, HashEqualityThenKeyMatcher<void*, MatchFun>(match),
+             allocator) {}
+};
 
-  static bool PointersMatch(void* key1, void* key2) { return key1 == key2; }
+typedef CustomMatcherTemplateHashMapImpl<DefaultAllocationPolicy>
+    CustomMatcherHashMap;
+
+// Match function which compares keys directly by equality.
+template <typename Key>
+struct KeyEqualityMatcher {
+  bool operator()(uint32_t hash1, uint32_t hash2, const Key& key1,
+                  const Key& key2) const {
+    return key1 == key2;
+  }
+};
+
+// Hashmap<void*, void*> which compares the key pointers directly.
+template <typename AllocationPolicy>
+class PointerTemplateHashMapImpl
+    : public TemplateHashMapImpl<void*, void*, KeyEqualityMatcher<void*>,
+                                 AllocationPolicy> {
+  typedef TemplateHashMapImpl<void*, void*, KeyEqualityMatcher<void*>,
+                              AllocationPolicy>
+      Base;
+
+ public:
+  PointerTemplateHashMapImpl(uint32_t capacity = Base::kDefaultHashMapCapacity,
+                             AllocationPolicy allocator = AllocationPolicy())
+      : Base(capacity, KeyEqualityMatcher<void*>(), allocator) {}
 };
 
 typedef PointerTemplateHashMapImpl<DefaultAllocationPolicy> HashMap;
 
 // A hash map for pointer keys and values with an STL-like interface.
-template <class Key, class Value, class AllocationPolicy>
-class TemplateHashMap : private PointerTemplateHashMapImpl<AllocationPolicy> {
-  typedef PointerTemplateHashMapImpl<AllocationPolicy> Base;
+template <class Key, class Value, class MatchFun, class AllocationPolicy>
+class TemplateHashMap
+    : private TemplateHashMapImpl<void*, void*,
+                                  HashEqualityThenKeyMatcher<void*, MatchFun>,
+                                  AllocationPolicy> {
+  typedef TemplateHashMapImpl<void*, void*,
+                              HashEqualityThenKeyMatcher<void*, MatchFun>,
+                              AllocationPolicy>
+      Base;
 
  public:
-  typedef bool (*MatchFun)(void*, void*);
-
   STATIC_ASSERT(sizeof(Key*) == sizeof(void*));    // NOLINT
   STATIC_ASSERT(sizeof(Value*) == sizeof(void*));  // NOLINT
   struct value_type {
@@ -393,7 +444,8 @@ class TemplateHashMap : private PointerTemplateHashMapImpl<AllocationPolicy> {
 
   TemplateHashMap(MatchFun match,
                   AllocationPolicy allocator = AllocationPolicy())
-      : Base(match, Base::kDefaultHashMapCapacity, allocator) {}
+      : Base(Base::kDefaultHashMapCapacity,
+             HashEqualityThenKeyMatcher<void*, MatchFun>(match), allocator) {}
 
   Iterator begin() const { return Iterator(this, this->Start()); }
   Iterator end() const { return Iterator(this, nullptr); }

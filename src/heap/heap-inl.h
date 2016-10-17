@@ -25,6 +25,16 @@
 namespace v8 {
 namespace internal {
 
+AllocationSpace AllocationResult::RetrySpace() {
+  DCHECK(IsRetry());
+  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+}
+
+HeapObject* AllocationResult::ToObjectChecked() {
+  CHECK(!IsRetry());
+  return HeapObject::cast(object_);
+}
+
 void PromotionQueue::insert(HeapObject* target, int32_t size,
                             bool was_marked_black) {
   if (emergency_stack_ != NULL) {
@@ -480,28 +490,11 @@ bool Heap::InOldSpaceSlow(Address address) {
   return old_space_->ContainsSlow(address);
 }
 
-template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Page* page = Page::FromAddress(old_address);
   Address age_mark = new_space_->age_mark();
-
-  if (promotion_mode == PROMOTE_MARKED) {
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
-    if (!Marking::IsWhite(mark_bit)) {
-      return true;
-    }
-  }
-
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
-}
-
-PromotionMode Heap::CurrentPromotionMode() {
-  if (incremental_marking()->IsMarking()) {
-    return PROMOTE_MARKED;
-  } else {
-    return DEFAULT_PROMOTION;
-  }
 }
 
 void Heap::RecordWrite(Object* object, int offset, Object* o) {
@@ -749,9 +742,7 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
-void Heap::ClearInstanceofCache() {
-  set_instanceof_cache_function(Smi::FromInt(0));
-}
+void Heap::ClearInstanceofCache() { set_instanceof_cache_function(Smi::kZero); }
 
 Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
@@ -759,8 +750,8 @@ Oddball* Heap::ToBoolean(bool condition) {
 
 
 void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(Smi::FromInt(0));
-  set_instanceof_cache_function(Smi::FromInt(0));
+  set_instanceof_cache_map(Smi::kZero);
+  set_instanceof_cache_function(Smi::kZero);
 }
 
 
@@ -783,27 +774,27 @@ int Heap::NextScriptId() {
 }
 
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::kZero);
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
   set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::kZero);
   set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::kZero);
   set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
-  DCHECK(interpreter_entry_return_pc_offset() == Smi::FromInt(0));
+  DCHECK(interpreter_entry_return_pc_offset() == Smi::kZero);
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 

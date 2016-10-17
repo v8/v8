@@ -83,8 +83,8 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
-PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    DeclarationScope* function_scope, bool parsing_module, ParserRecorder* log,
+PreParser::PreParseResult PreParser::PreParseFunction(
+    DeclarationScope* function_scope, bool parsing_module, SingletonLogger* log,
     bool is_inner_function, bool may_abort, int* use_counts) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
@@ -101,7 +101,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
-  LazyParsingResult result = ParseLazyFunctionLiteralBody(may_abort, &ok);
+  LazyParsingResult result = ParseStatementListAndLogFunction(may_abort, &ok);
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
   if (result == kLazyParsingAborted) {
@@ -109,7 +109,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (!ok) {
-    ReportUnexpectedToken(scanner()->current_token());
+    DCHECK(log->has_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
     if (is_strict(function_scope->language_mode())) {
@@ -146,7 +146,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Parse function body.
   PreParserStatementList body;
-  bool outer_is_script_scope = scope()->is_script_scope();
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   if (is_typed) function_scope->SetTyped();
@@ -172,11 +171,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   CheckArityRestrictions(formals.arity, kind, formals.has_rest, start_position,
                          formals_end_position, CHECK_OK);
 
-  // See Parser::ParseFunctionLiteral for more information about lazy parsing
-  // and lazy compilation.
-  bool is_lazily_parsed = (outer_is_script_scope && allow_lazy() &&
-                           !function_state_->this_function_is_parenthesized());
-
   // Parse optional type annotation.
   if (typed() && !(type_flags & typesystem::kDisallowTypeAnnotation) &&
       Check(Token::COLON)) {  // Braces required here.
@@ -193,11 +187,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   Expect(Token::LBRACE, CHECK_OK);
-  if (is_lazily_parsed) {
-    ParseLazyFunctionLiteralBody(false, CHECK_OK);
-  } else {
-    ParseStatementList(body, Token::RBRACE, CHECK_OK);
-  }
+  ParseStatementList(body, Token::RBRACE, CHECK_OK);
   Expect(Token::RBRACE, CHECK_OK);
 
   // Parsing the body may change the language mode in our scope.
@@ -220,7 +210,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   return Expression::Default();
 }
 
-PreParser::LazyParsingResult PreParser::ParseLazyFunctionLiteralBody(
+PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
     bool may_abort, bool* ok) {
   int body_start = position();
   PreParserStatementList body;
@@ -252,7 +242,33 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
     scope()->NewUnresolved(&factory, name.string_, start_position, end_position,
                            NORMAL_VARIABLE);
   }
-  return PreParserExpression::FromIdentifier(name);
+  return PreParserExpression::FromIdentifier(name, zone());
+}
+
+void PreParser::DeclareAndInitializeVariables(
+    PreParserStatement block,
+    const DeclarationDescriptor* declaration_descriptor,
+    const DeclarationParsingResult::Declaration* declaration,
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  if (declaration->pattern.identifiers_ != nullptr) {
+    DCHECK(FLAG_lazy_inner_functions);
+    /* Mimic what Parser does when declaring variables (see
+       Parser::PatternRewriter::VisitVariableProxy).
+
+       var + no initializer -> RemoveUnresolved
+       let / const + no initializer -> RemoveUnresolved
+       var + initializer -> RemoveUnresolved followed by NewUnresolved
+       let / const + initializer -> RemoveUnresolved
+    */
+
+    if (declaration->initializer.IsEmpty() ||
+        (declaration_descriptor->mode == VariableMode::LET ||
+         declaration_descriptor->mode == VariableMode::CONST)) {
+      for (auto identifier : *(declaration->pattern.identifiers_)) {
+        declaration_descriptor->scope->RemoveUnresolved(identifier);
+      }
+    }
+  }
 }
 
 #undef CHECK_OK

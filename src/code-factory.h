@@ -40,12 +40,11 @@ class CodeFactory final {
   static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
   static Callable KeyedLoadIC_Megamorphic(Isolate* isolate);
-  static Callable CallIC(Isolate* isolate, int argc,
+  static Callable CallIC(Isolate* isolate,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable CallICInOptimizedCode(
-      Isolate* isolate, int argc,
-      ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);

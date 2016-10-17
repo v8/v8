@@ -259,7 +259,11 @@ bool Range::AddAndCheckOverflow(const Representation& r, Range* other) {
   bool may_overflow = false;
   lower_ = AddWithoutOverflow(r, lower_, other->lower(), &may_overflow);
   upper_ = AddWithoutOverflow(r, upper_, other->upper(), &may_overflow);
-  KeepOrder();
+  if (may_overflow) {
+    Clear();
+  } else {
+    KeepOrder();
+  }
 #ifdef DEBUG
   Verify();
 #endif
@@ -271,13 +275,21 @@ bool Range::SubAndCheckOverflow(const Representation& r, Range* other) {
   bool may_overflow = false;
   lower_ = SubWithoutOverflow(r, lower_, other->upper(), &may_overflow);
   upper_ = SubWithoutOverflow(r, upper_, other->lower(), &may_overflow);
-  KeepOrder();
+  if (may_overflow) {
+    Clear();
+  } else {
+    KeepOrder();
+  }
 #ifdef DEBUG
   Verify();
 #endif
   return may_overflow;
 }
 
+void Range::Clear() {
+  lower_ = kMinInt;
+  upper_ = kMaxInt;
+}
 
 void Range::KeepOrder() {
   if (lower_ > upper_) {
@@ -301,8 +313,12 @@ bool Range::MulAndCheckOverflow(const Representation& r, Range* other) {
   int v2 = MulWithoutOverflow(r, lower_, other->upper(), &may_overflow);
   int v3 = MulWithoutOverflow(r, upper_, other->lower(), &may_overflow);
   int v4 = MulWithoutOverflow(r, upper_, other->upper(), &may_overflow);
-  lower_ = Min(Min(v1, v2), Min(v3, v4));
-  upper_ = Max(Max(v1, v2), Max(v3, v4));
+  if (may_overflow) {
+    Clear();
+  } else {
+    lower_ = Min(Min(v1, v2), Min(v3, v4));
+    upper_ = Max(Max(v1, v2), Max(v3, v4));
+  }
 #ifdef DEBUG
   Verify();
 #endif
@@ -802,9 +818,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kIsUndetectableAndBranch:
     case HValue::kLeaveInlined:
     case HValue::kLoadFieldByIndex:
-    case HValue::kLoadGlobalGeneric:
     case HValue::kLoadNamedField:
-    case HValue::kLoadNamedGeneric:
     case HValue::kLoadRoot:
     case HValue::kMathMinMax:
     case HValue::kParameter:
@@ -848,7 +862,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:
     case HValue::kLoadKeyed:
-    case HValue::kLoadKeyedGeneric:
     case HValue::kMathFloorOfDiv:
     case HValue::kMaybeGrowElements:
     case HValue::kMod:
@@ -2883,13 +2896,6 @@ std::ostream& HLoadNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-std::ostream& HLoadNamedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  Handle<String> n = Handle<String>::cast(name());
-  return os << NameOf(object()) << "." << n->ToCString().get();
-}
-
-
 std::ostream& HLoadKeyed::PrintDataTo(std::ostream& os) const {  // NOLINT
   if (!is_fixed_typed_array()) {
     os << NameOf(elements());
@@ -2981,45 +2987,39 @@ bool HLoadKeyed::RequiresHoleCheck() const {
   return !UsesMustHandleHole();
 }
 
+HValue* HCallWithDescriptor::Canonicalize() {
+  if (kind() != Code::KEYED_LOAD_IC) return this;
 
-std::ostream& HLoadKeyedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  return os << NameOf(object()) << "[" << NameOf(key()) << "]";
-}
-
-
-HValue* HLoadKeyedGeneric::Canonicalize() {
   // Recognize generic keyed loads that use property name generated
   // by for-in statement as a key and rewrite them into fast property load
   // by index.
-  if (key()->IsLoadKeyed()) {
-    HLoadKeyed* key_load = HLoadKeyed::cast(key());
+  typedef LoadWithVectorDescriptor Descriptor;
+  HValue* key = parameter(Descriptor::kName);
+  if (key->IsLoadKeyed()) {
+    HLoadKeyed* key_load = HLoadKeyed::cast(key);
     if (key_load->elements()->IsForInCacheArray()) {
       HForInCacheArray* names_cache =
           HForInCacheArray::cast(key_load->elements());
 
-      if (names_cache->enumerable() == object()) {
+      HValue* object = parameter(Descriptor::kReceiver);
+      if (names_cache->enumerable() == object) {
         HForInCacheArray* index_cache =
             names_cache->index_cache();
         HCheckMapValue* map_check = HCheckMapValue::New(
             block()->graph()->isolate(), block()->graph()->zone(),
-            block()->graph()->GetInvalidContext(), object(),
-            names_cache->map());
+            block()->graph()->GetInvalidContext(), object, names_cache->map());
         HInstruction* index = HLoadKeyed::New(
             block()->graph()->isolate(), block()->graph()->zone(),
             block()->graph()->GetInvalidContext(), index_cache, key_load->key(),
             key_load->key(), nullptr, key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
-        return Prepend(new(block()->zone()) HLoadFieldByIndex(
-            object(), index));
+        return Prepend(new (block()->zone()) HLoadFieldByIndex(object, index));
       }
     }
   }
-
   return this;
 }
-
 
 std::ostream& HStoreNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << NameOf(object()) << access_ << " = " << NameOf(value());
@@ -3055,12 +3055,6 @@ std::ostream& HTransitionElementsKind::PrintDataTo(
      << ElementsAccessor::ForKind(to_kind)->name() << "]";
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) os << " (simple)";
   return os;
-}
-
-
-std::ostream& HLoadGlobalGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  return os << name()->ToCString().get() << " ";
 }
 
 

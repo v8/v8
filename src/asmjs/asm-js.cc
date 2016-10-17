@@ -162,11 +162,14 @@ MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
   v8::internal::wasm::AsmWasmBuilder builder(info->isolate(), info->zone(),
                                              info->literal(), &typer);
   i::Handle<i::FixedArray> foreign_globals;
-  auto module = builder.Run(&foreign_globals);
+  auto asm_wasm_result = builder.Run(&foreign_globals);
+  wasm::ZoneBuffer* module = asm_wasm_result.module_bytes;
+  wasm::ZoneBuffer* asm_offsets = asm_wasm_result.asm_offset_table;
 
   i::MaybeHandle<i::JSObject> compiled = wasm::CreateModuleObjectFromBytes(
       info->isolate(), module->begin(), module->end(), &thrower,
-      internal::wasm::kAsmJsOrigin);
+      internal::wasm::kAsmJsOrigin, info->script(), asm_offsets->begin(),
+      asm_offsets->end());
   DCHECK(!compiled.is_null());
 
   wasm::AsmTyper::StdlibSet uses = typer.StdlibUses();

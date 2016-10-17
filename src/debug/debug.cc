@@ -1451,7 +1451,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       }
     }
     // If not, compile to reveal inner functions, if possible.
-    if (shared->allows_lazy_compilation_without_context()) {
+    if (shared->allows_lazy_compilation()) {
       HandleScope scope(isolate_);
       if (!Compiler::CompileDebugCode(handle(shared))) break;
       continue;
@@ -1470,7 +1470,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
           candidate = candidate_closure->shared();
         } else if (object->IsSharedFunctionInfo()) {
           candidate = SharedFunctionInfo::cast(object);
-          if (!candidate->allows_lazy_compilation_without_context()) continue;
+          if (!candidate->allows_lazy_compilation()) continue;
         } else {
           continue;
         }

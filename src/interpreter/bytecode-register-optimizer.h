@@ -15,13 +15,14 @@ namespace interpreter {
 // registers. The bytecode generator uses temporary registers
 // liberally for correctness and convenience and this stage removes
 // transfers that are not required and preserves correctness.
-class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
-                                        public TemporaryRegisterObserver,
-                                        public ZoneObject {
+class BytecodeRegisterOptimizer final
+    : public BytecodePipelineStage,
+      public BytecodeRegisterAllocator::Observer,
+      public ZoneObject {
  public:
   BytecodeRegisterOptimizer(Zone* zone,
-                            TemporaryRegisterAllocator* register_allocator,
-                            int parameter_count,
+                            BytecodeRegisterAllocator* register_allocator,
+                            int fixed_registers_count, int parameter_count,
                             BytecodePipelineStage* next_stage);
   virtual ~BytecodeRegisterOptimizer() {}
 
@@ -39,8 +40,10 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
 
   class RegisterInfo;
 
-  // TemporaryRegisterObserver interface.
-  void TemporaryRegisterFreeEvent(Register reg) override;
+  // BytecodeRegisterAllocator::Observer interface.
+  void RegisterAllocateEvent(Register reg) override;
+  void RegisterListAllocateEvent(RegisterList reg_list) override;
+  void RegisterListFreeEvent(RegisterList reg) override;
 
   // Helpers for BytecodePipelineStage interface.
   void FlushState();

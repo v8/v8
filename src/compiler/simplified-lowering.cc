@@ -87,12 +87,14 @@ MachineRepresentation MachineRepresentationFromArrayType(
   return MachineRepresentation::kNone;
 }
 
-UseInfo CheckedUseInfoAsWord32FromHint(NumberOperationHint hint) {
+UseInfo CheckedUseInfoAsWord32FromHint(
+    NumberOperationHint hint, CheckForMinusZeroMode minus_zero_mode =
+                                  CheckForMinusZeroMode::kCheckForMinusZero) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
-      return UseInfo::CheckedSignedSmallAsWord32();
+      return UseInfo::CheckedSignedSmallAsWord32(minus_zero_mode);
     case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32();
+      return UseInfo::CheckedSigned32AsWord32(minus_zero_mode);
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32();
     case NumberOperationHint::kNumberOrOddball:
@@ -127,7 +129,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
-      return UseInfo::TruncatingFloat32();
+      return UseInfo::Float32();
     case MachineRepresentation::kWord64:
       return UseInfo::TruncatingWord64();
     case MachineRepresentation::kWord8:
@@ -161,7 +163,8 @@ void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
     } else if (NodeProperties::IsEffectEdge(edge)) {
       edge.UpdateTo(effect);
     } else {
-      DCHECK(NodeProperties::IsValueEdge(edge));
+      DCHECK(NodeProperties::IsValueEdge(edge) ||
+             NodeProperties::IsContextEdge(edge));
     }
   }
 }
@@ -1030,10 +1033,8 @@ class RepresentationSelector {
         // undefined, because these special oddballs are always in the root set.
         return kNoWriteBarrier;
       }
-      if (value_type->IsConstant() &&
-          value_type->AsConstant()->Value()->IsHeapObject()) {
-        Handle<HeapObject> value_object =
-            Handle<HeapObject>::cast(value_type->AsConstant()->Value());
+      if (value_type->IsHeapConstant()) {
+        Handle<HeapObject> value_object = value_type->AsHeapConstant()->Value();
         RootIndexMap root_index_map(jsgraph_->isolate());
         int root_index = root_index_map.Lookup(*value_object);
         if (root_index != RootIndexMap::kInvalidRootIndex &&
@@ -1147,8 +1148,15 @@ class RepresentationSelector {
 
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
-      VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                 MachineRepresentation::kWord32, Type::Signed32());
+      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
+      // For subtraction, the right hand side can be minus zero without
+      // resulting in minus zero, so we skip the check for it.
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(
+          hint, node->opcode() == IrOpcode::kSpeculativeNumberSubtract
+                    ? CheckForMinusZeroMode::kDontCheckForMinusZero
+                    : CheckForMinusZeroMode::kCheckForMinusZero);
+      VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
+                 Type::Signed32());
       if (lower()) ChangeToInt32OverflowOp(node);
       return;
     }
@@ -1264,6 +1272,30 @@ class RepresentationSelector {
                MachineRepresentation::kFloat64, Type::Number());
     if (lower()) ChangeToPureOp(node, Float64Op(node));
     return;
+  }
+
+  void VisitOsrGuard(Node* node) {
+    VisitInputs(node);
+
+    // Insert a dynamic check for the OSR value type if necessary.
+    switch (OsrGuardTypeOf(node->op())) {
+      case OsrGuardType::kUninitialized:
+        // At this point, we should always have a type for the OsrValue.
+        UNREACHABLE();
+        break;
+      case OsrGuardType::kSignedSmall:
+        if (lower()) {
+          NodeProperties::ChangeOp(node,
+                                   simplified()->CheckedTaggedToTaggedSigned());
+        }
+        return SetOutput(node, MachineRepresentation::kTaggedSigned);
+      case OsrGuardType::kAny:  // Nothing to check.
+        if (lower()) {
+          DeferReplacement(node, node->InputAt(0));
+        }
+        return SetOutput(node, MachineRepresentation::kTagged);
+    }
+    UNREACHABLE();
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -2056,6 +2088,11 @@ class RepresentationSelector {
                   MachineRepresentation::kTagged);
         return;
       }
+      case IrOpcode::kStringFromCodePoint: {
+        VisitUnop(node, UseInfo::TruncatingWord32(),
+                  MachineRepresentation::kTagged);
+        return;
+      }
 
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));
@@ -2409,6 +2446,9 @@ class RepresentationSelector {
         return;
       }
 
+      case IrOpcode::kOsrGuard:
+        return VisitOsrGuard(node);
+
       // Operators with all inputs tagged and no or tagged output have uniform
       // handling.
       case IrOpcode::kEnd:
@@ -2427,9 +2467,9 @@ class RepresentationSelector {
       case IrOpcode::kThrow:
       case IrOpcode::kBeginRegion:
       case IrOpcode::kFinishRegion:
-      case IrOpcode::kOsrValue:
       case IrOpcode::kProjection:
       case IrOpcode::kObjectState:
+      case IrOpcode::kOsrValue:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)

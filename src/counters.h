@@ -678,6 +678,7 @@ class RuntimeCallTimer {
   V(CompileEval)                                    \
   V(CompileFullCode)                                \
   V(CompileIgnition)                                \
+  V(CompilerDispatcher)                             \
   V(CompileSerialize)                               \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
@@ -701,8 +702,8 @@ class RuntimeCallTimer {
   V(Map_TransitionToDataProperty)                   \
   V(Object_DeleteProperty)                          \
   V(OptimizeCode)                                   \
-  V(Parse)                                          \
-  V(ParseLazy)                                      \
+  V(ParseProgram)                                   \
+  V(ParseFunction)                                  \
   V(PropertyCallback)                               \
   V(PrototypeMap_TransitionToAccessorProperty)      \
   V(PrototypeMap_TransitionToDataProperty)          \
@@ -717,6 +718,7 @@ class RuntimeCallTimer {
   V(KeyedLoadIC_LoadIndexedStringStub)          \
   V(KeyedLoadIC_LoadIndexedInterceptorStub)     \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)   \
+  V(KeyedLoadIC_LoadElementDH)                  \
   V(KeyedLoadIC_LoadFastElementStub)            \
   V(KeyedLoadIC_LoadDictionaryElementStub)      \
   V(KeyedLoadIC_SlowStub)                       \
@@ -727,8 +729,12 @@ class RuntimeCallTimer {
   V(LoadIC_FunctionPrototypeStub)               \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
+  V(LoadIC_LoadConstantDH)                      \
+  V(LoadIC_LoadConstantFromPrototypeDH)         \
   V(LoadIC_LoadConstant)                        \
   V(LoadIC_LoadConstantStub)                    \
+  V(LoadIC_LoadFieldDH)                         \
+  V(LoadIC_LoadFieldFromPrototypeDH)            \
   V(LoadIC_LoadField)                           \
   V(LoadIC_LoadFieldStub)                       \
   V(LoadIC_LoadGlobal)                          \

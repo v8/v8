@@ -14,7 +14,7 @@ InspectorTest.runTestSuite([
       /* returnByValue */ true,
       /* generatePreview */ false,
       /* awaitPromise */ false)
-      .then((result) => dumpResult(result.result))
+      .then((result) => InspectorTest.logMessage(result))
       .then(() => next());
   },
 
@@ -27,7 +27,7 @@ InspectorTest.runTestSuite([
       /* returnByValue */ false,
       /* generatePreview */ false,
       /* awaitPromise */ true)
-      .then((result) => dumpResult(result.result))
+      .then((result) => InspectorTest.logMessage(result))
       .then(() => next());
   },
 
@@ -40,7 +40,7 @@ InspectorTest.runTestSuite([
         /* returnByValue */ false,
         /* generatePreview */ false,
         /* awaitPromise */ true)
-        .then((result) => dumpResult(result.result))
+        .then((result) => InspectorTest.logMessage(result))
         .then(() => next());
   },
 
@@ -53,7 +53,7 @@ InspectorTest.runTestSuite([
       /* returnByValue */ false,
       /* generatePreview */ false,
       /* awaitPromise */ true)
-      .then((result) => InspectorTest.logObject(result.error))
+      .then((result) => InspectorTest.logMessage(result.error))
       .then(() => next());
   },
 
@@ -66,7 +66,7 @@ InspectorTest.runTestSuite([
       /* returnByValue */ true,
       /* generatePreview */ false,
       /* awaitPromise */ true)
-      .then((result) => dumpResult(result.result))
+      .then((result) => InspectorTest.logMessage(result))
       .then(() => next());
   },
 
@@ -79,7 +79,7 @@ InspectorTest.runTestSuite([
       /* returnByValue */ false,
       /* generatePreview */ true,
       /* awaitPromise */ true)
-      .then((result) => dumpResult(result.result))
+      .then((result) => InspectorTest.logMessage(result))
       .then(() => next());
   },
 
@@ -92,7 +92,7 @@ InspectorTest.runTestSuite([
       /* returnByValue */ true,
       /* generatePreview */ false,
       /* awaitPromise */ true)
-      .then((result) => dumpResult(result.result))
+      .then((result) => InspectorTest.logMessage(result))
       .then(() => next());
   }
 ]);
@@ -101,14 +101,14 @@ function callFunctionOn(objectExpression, functionDeclaration, argumentExpressio
 {
   var objectId;
   var callArguments = [];
-  var promise = InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: objectExpression })
+  var promise = Protocol.Runtime.evaluate({ expression: objectExpression })
     .then((result) => objectId = result.result.result.objectId)
   for (let argumentExpression of argumentExpressions) {
     promise = promise
-      .then(() => InspectorTest.sendCommandPromise("Runtime.evaluate", { expression: argumentExpression }))
+      .then(() => Protocol.Runtime.evaluate({ expression: argumentExpression }))
       .then((result) => addArgument(result.result.result));
   }
-  return promise.then(() => InspectorTest.sendCommandPromise("Runtime.callFunctionOn", { objectId: objectId, functionDeclaration: functionDeclaration, arguments: callArguments, returnByValue: returnByValue, generatePreview: generatePreview, awaitPromise: awaitPromise }));
+  return promise.then(() => Protocol.Runtime.callFunctionOn({ objectId: objectId, functionDeclaration: functionDeclaration, arguments: callArguments, returnByValue: returnByValue, generatePreview: generatePreview, awaitPromise: awaitPromise }));
 
   function addArgument(result)
   {
@@ -122,21 +122,8 @@ function callFunctionOn(objectExpression, functionDeclaration, argumentExpressio
       callArguments.push({});
     } else {
       InspectorTest.log("Unexpected argument object:");
-      InspectorTest.logObject(result);
+      InspectorTest.logMessage(result);
       InspectorTest.completeTest();
     }
   }
-}
-
-function dumpResult(result)
-{
-  if (result.exceptionDetails && result.exceptionDetails.scriptId)
-    result.exceptionDetails.scriptId = 0;
-  if (result.result && result.result.objectId)
-    result.result.objectId = "[ObjectId]";
-  if (result.exceptionDetails) {
-    result.exceptionDetails.exceptionId = 0;
-    result.exceptionDetails.exception.objectId = 0;
-  }
-  InspectorTest.logObject(result);
 }

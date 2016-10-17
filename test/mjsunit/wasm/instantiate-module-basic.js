@@ -12,7 +12,7 @@ let kReturnValue = 117;
 let buffer = (() => {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, true);
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([kExprI8Const, kReturnValue])
     .exportFunc();
 
@@ -51,9 +51,6 @@ function CheckInstance(instance) {
 
   assertEquals(kReturnValue, main());
 }
-
-// Deprecated experimental API.
-CheckInstance(Wasm.instantiateModule(buffer));
 
 // Official API
 let module = new WebAssembly.Module(buffer);
@@ -119,7 +116,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   builder.addMemory(1,1, true);
   var kSig_v_i = makeSig([kAstI32], []);
   var signature = builder.addType(kSig_v_i);
-  builder.addImport("some_value", kSig_i);
+  builder.addImport("some_value", kSig_i_v);
   builder.addImport("writer", signature);
 
   builder.addFunction("main", kSig_i_i)
@@ -169,7 +166,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function GlobalsArePrivateToTheInstance() {
   print("GlobalsArePrivateToTheInstance...");
     var builder = new WasmModuleBuilder();
-    builder.addGlobal(kAstI32);
+    builder.addGlobal(kAstI32, true);
     builder.addFunction("read", kSig_i_v)
         .addBody([
             kExprGetGlobal, 0])
@@ -196,7 +193,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   var builder = new WasmModuleBuilder();
   builder.addMemory(1,1, true);
 
-  builder.addFunction("f", kSig_i)
+  builder.addFunction("f", kSig_i_v)
     .addBody([
       kExprI32Const, 0,
       kExprI32LoadMem, 0, 0

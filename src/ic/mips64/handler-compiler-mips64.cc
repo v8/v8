@@ -129,9 +129,13 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ Daddu(sp, sp, Operand(2 * kPointerSize));
 }
 
-void PropertyHandlerCompiler::PushReturnAddress(Register tmp) { UNREACHABLE(); }
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) {
+  // No-op. Return address is in ra register.
+}
 
-void PropertyHandlerCompiler::PopReturnAddress(Register tmp) { UNREACHABLE(); }
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) {
+  // No-op. Return address is in ra register.
+}
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,

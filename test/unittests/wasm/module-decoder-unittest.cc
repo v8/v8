@@ -47,8 +47,7 @@ namespace wasm {
 #define EMPTY_SIGNATURES_SECTION SECTION(Type, 1), 0
 #define EMPTY_FUNCTION_SIGNATURES_SECTION SECTION(Function, 1), 0
 #define EMPTY_FUNCTION_BODIES_SECTION SECTION(Code, 1), 0
-#define SECTION_NAMES(size) \
-  kUnknownSectionCode, U32V_1(size + 5), 4, 'n', 'a', 'm', 'e'
+#define SECTION_NAMES(size) SECTION(Unknown, size + 5), 4, 'n', 'a', 'm', 'e'
 #define EMPTY_NAMES_SECTION SECTION_NAMES(1), 0
 
 #define X1(...) __VA_ARGS__
@@ -1286,6 +1285,15 @@ TEST_F(WasmModuleVerifyTest, InitExpr_global) {
   WasmInitExpr expr = DecodeWasmInitExprForTesting(data, data + sizeof(data));
   EXPECT_EQ(WasmInitExpr::kGlobalIndex, expr.kind);
   EXPECT_EQ(37, expr.val.global_index);
+}
+
+TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
+  static const byte data[] = {
+      SECTION(Unknown, 4), 1, 'X', 17,  18,                      // --
+      SECTION(Unknown, 9), 3, 'f', 'o', 'o', 5,   6,   7, 8, 9,  // --
+      SECTION(Unknown, 8), 5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
+  };
+  EXPECT_VERIFIES(data);
 }
 
 }  // namespace wasm

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function TestExpression(a, b) {
     return a + b;
 }`);
@@ -62,7 +62,8 @@ function runRequestSeries(step) {
       }
       processStep(next);
     }
-    InspectorTest.sendCommand(currentStep.command, currentStep.params, innerCallback);
+    var command = currentStep.command.split(".");
+    Protocol[command[0]][command[1]](currentStep.params).then(innerCallback);
   }
 }
 

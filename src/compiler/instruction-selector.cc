@@ -23,7 +23,8 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     SourcePositionMode source_position_mode, Features features,
-    EnableScheduling enable_scheduling)
+    EnableScheduling enable_scheduling,
+    EnableSerialization enable_serialization)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -41,11 +42,13 @@ InstructionSelector::InstructionSelector(
       virtual_register_rename_(zone),
       scheduler_(nullptr),
       enable_scheduling_(enable_scheduling),
-      frame_(frame) {
+      enable_serialization_(enable_serialization),
+      frame_(frame),
+      instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
 }
 
-void InstructionSelector::SelectInstructions() {
+bool InstructionSelector::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   BasicBlockVector* blocks = schedule()->rpo_order();
   for (auto const block : *blocks) {
@@ -64,6 +67,7 @@ void InstructionSelector::SelectInstructions() {
   // Visit each basic block in post order.
   for (auto i = blocks->rbegin(); i != blocks->rend(); ++i) {
     VisitBlock(*i);
+    if (instruction_selection_failed()) return false;
   }
 
   // Schedule the selected instructions.
@@ -90,6 +94,7 @@ void InstructionSelector::SelectInstructions() {
 #if DEBUG
   sequence()->ValidateSSA();
 #endif
+  return true;
 }
 
 void InstructionSelector::StartBlock(RpoNumber rpo) {
@@ -208,6 +213,13 @@ Instruction* InstructionSelector::Emit(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps) {
+  if (output_count >= Instruction::kMaxOutputCount ||
+      input_count >= Instruction::kMaxInputCount ||
+      temp_count >= Instruction::kMaxTempCount) {
+    set_instruction_selection_failed();
+    return nullptr;
+  }
+
   Instruction* instr =
       Instruction::New(instruction_zone(), opcode, output_count, outputs,
                        input_count, inputs, temp_count, temps);
@@ -377,6 +389,16 @@ void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
   size_t const id = node->id();
   DCHECK_LT(id, effect_level_.size());
   effect_level_[id] = effect_level;
+}
+
+bool InstructionSelector::CanAddressRelativeToRootsRegister() const {
+  return enable_serialization_ == kDisableSerialization &&
+         CanUseRootsRegister();
+}
+
+bool InstructionSelector::CanUseRootsRegister() const {
+  return linkage()->GetIncomingDescriptor()->flags() &
+         CallDescriptor::kCanUseRoots;
 }
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
@@ -767,7 +789,6 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
 }
 
-
 void InstructionSelector::VisitBlock(BasicBlock* block) {
   DCHECK(!current_block_);
   current_block_ = block;
@@ -804,6 +825,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     // up".
     size_t current_node_end = instructions_.size();
     VisitNode(node);
+    if (instruction_selection_failed()) return;
     std::reverse(instructions_.begin() + current_node_end, instructions_.end());
     if (instructions_.size() == current_node_end) continue;
     // Mark source position on first instruction emitted.
@@ -1707,19 +1729,23 @@ void InstructionSelector::VisitParameter(Node* node) {
   Emit(kArchNop, op);
 }
 
+namespace {
+LinkageLocation ExceptionLocation() {
+  return LinkageLocation::ForRegister(kReturnRegister0.code(),
+                                      MachineType::IntPtr());
+}
+}
 
 void InstructionSelector::VisitIfException(Node* node) {
   OperandGenerator g(this);
-  Node* call = node->InputAt(1);
-  DCHECK_EQ(IrOpcode::kCall, call->opcode());
-  const CallDescriptor* descriptor = CallDescriptorOf(call->op());
-  Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0)));
+  DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
+  Emit(kArchNop, g.DefineAsLocation(node, ExceptionLocation()));
 }
 
 
 void InstructionSelector::VisitOsrValue(Node* node) {
   OperandGenerator g(this);
-  int index = OpParameter<int>(node);
+  int index = OsrValueIndexOf(node->op());
   Emit(kArchNop,
        g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index)));
 }
@@ -1839,9 +1865,11 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Emit the call instruction.
   size_t const output_count = buffer.outputs.size();
   auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
-  Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-       &buffer.instruction_args.front())
-      ->MarkAsCall();
+  Instruction* call_instr =
+      Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+           &buffer.instruction_args.front());
+  if (instruction_selection_failed()) return;
+  call_instr->MarkAsCall();
 }
 
 
@@ -1947,9 +1975,11 @@ void InstructionSelector::VisitTailCall(Node* node) {
     // Emit the call instruction.
     size_t output_count = buffer.outputs.size();
     auto* outputs = &buffer.outputs.front();
-    Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-         &buffer.instruction_args.front())
-        ->MarkAsCall();
+    Instruction* call_instr =
+        Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+             &buffer.instruction_args.front());
+    if (instruction_selection_failed()) return;
+    call_instr->MarkAsCall();
     Emit(kArchRet, 0, nullptr, output_count, outputs);
   }
 }

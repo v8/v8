@@ -37,6 +37,11 @@ class WasmDebugInfo : public FixedArray {
   // column.
   static Handle<FixedArray> GetFunctionOffsetTable(
       Handle<WasmDebugInfo> debug_info, int func_index);
+
+  // Get the asm.js source position from a byte offset.
+  // Must only be called if the associated wasm object was created from asm.js.
+  static int GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
+                                    int func_index, int byte_offset);
 };
 
 }  // namespace wasm

@@ -904,14 +904,24 @@ void Interpreter::DoPopContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// TODO(mythria): Remove this function once all BinaryOps record type feedback.
-template <class Generator>
-void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
+// TODO(mythria): Remove this function once all CompareOps record type feedback.
+void Interpreter::DoCompareOp(Token::Value compare_op,
+                              InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* lhs = __ LoadRegister(reg_index);
   Node* rhs = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  Node* result;
+  switch (compare_op) {
+    case Token::IN:
+      result = assembler->HasProperty(rhs, lhs, context);
+      break;
+    case Token::INSTANCEOF:
+      result = assembler->InstanceOf(lhs, rhs, context);
+      break;
+    default:
+      UNREACHABLE();
+  }
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -930,8 +940,8 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-template <class Generator>
-void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
+void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
+                                          InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* lhs = __ LoadRegister(reg_index);
   Node* rhs = __ GetAccumulator();
@@ -950,7 +960,7 @@ void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
   Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
   Label lhs_is_smi(assembler), lhs_is_not_smi(assembler),
       gather_rhs_type(assembler), do_compare(assembler);
-  __ Branch(__ WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+  __ Branch(__ TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
   __ Bind(&lhs_is_smi);
   var_type_feedback.Bind(
@@ -976,7 +986,7 @@ void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
   __ Bind(&gather_rhs_type);
   {
     Label rhs_is_smi(assembler);
-    __ GotoIf(__ WordIsSmi(rhs), &rhs_is_smi);
+    __ GotoIf(__ TaggedIsSmi(rhs), &rhs_is_smi);
 
     Node* rhs_map = __ LoadMap(rhs);
     Node* rhs_type =
@@ -999,7 +1009,39 @@ void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
   __ Goto(&skip_feedback_update);
 
   __ Bind(&skip_feedback_update);
-  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  Node* result;
+  switch (compare_op) {
+    case Token::EQ:
+      result = assembler->Equal(CodeStubAssembler::kDontNegateResult, lhs, rhs,
+                                context);
+      break;
+    case Token::NE:
+      result =
+          assembler->Equal(CodeStubAssembler::kNegateResult, lhs, rhs, context);
+      break;
+    case Token::EQ_STRICT:
+      result = assembler->StrictEqual(CodeStubAssembler::kDontNegateResult, lhs,
+                                      rhs, context);
+      break;
+    case Token::LT:
+      result = assembler->RelationalComparison(CodeStubAssembler::kLessThan,
+                                               lhs, rhs, context);
+      break;
+    case Token::GT:
+      result = assembler->RelationalComparison(CodeStubAssembler::kGreaterThan,
+                                               lhs, rhs, context);
+      break;
+    case Token::LTE:
+      result = assembler->RelationalComparison(
+          CodeStubAssembler::kLessThanOrEqual, lhs, rhs, context);
+      break;
+    case Token::GTE:
+      result = assembler->RelationalComparison(
+          CodeStubAssembler::kGreaterThanOrEqual, lhs, rhs, context);
+      break;
+    default:
+      UNREACHABLE();
+  }
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1089,13 +1131,13 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
   }
 
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
 
   if (FLAG_debug_code) {
     Label ok(assembler);
-    __ GotoIf(__ WordIsSmi(result), &ok);
+    __ GotoIf(__ TaggedIsSmi(result), &ok);
     Node* result_map = __ LoadMap(result);
     __ AbortIfWordNotEqual(result_map, __ HeapNumberMapConstant(),
                            kExpectedHeapNumber);
@@ -1180,11 +1222,12 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
-  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ BranchIf(__ TaggedIsSmi(left), &fastpath, &slowpath);
   __ Bind(&fastpath);
   {
     // Try fast Smi addition first.
-    Node* pair = __ SmiAddWithOverflow(left, right);
+    Node* pair = __ IntPtrAddWithOverflow(__ BitcastTaggedToWord(left),
+                                          __ BitcastTaggedToWord(right));
     Node* overflow = __ Projection(1, pair);
 
     // Check if the Smi additon overflowed.
@@ -1194,7 +1237,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
     {
       __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                         type_feedback_vector, slot_index);
-      var_result.Bind(__ Projection(0, pair));
+      var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
     }
   }
@@ -1233,11 +1276,12 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
-  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ BranchIf(__ TaggedIsSmi(left), &fastpath, &slowpath);
   __ Bind(&fastpath);
   {
     // Try fast Smi subtraction first.
-    Node* pair = __ SmiSubWithOverflow(left, right);
+    Node* pair = __ IntPtrSubWithOverflow(__ BitcastTaggedToWord(left),
+                                          __ BitcastTaggedToWord(right));
     Node* overflow = __ Projection(1, pair);
 
     // Check if the Smi subtraction overflowed.
@@ -1247,7 +1291,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
     {
       __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                         type_feedback_vector, slot_index);
-      var_result.Bind(__ Projection(0, pair));
+      var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
     }
   }
@@ -1287,7 +1331,7 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32Or(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1315,7 +1359,7 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32And(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1345,7 +1389,7 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32Shl(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1375,7 +1419,7 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* value = __ Word32Sar(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
   Node* result_type =
-      __ Select(__ WordIsSmi(result),
+      __ Select(__ TaggedIsSmi(result),
                 __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
                 __ Int32Constant(BinaryOperationFeedback::kNumber));
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
@@ -1390,15 +1434,6 @@ Node* Interpreter::BuildUnaryOp(Callable callable,
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   return __ CallStub(callable.descriptor(), target, context, accumulator);
-}
-
-template <class Generator>
-void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = Generator::Generate(assembler, value, context);
-  __ SetAccumulator(result);
-  __ Dispatch();
 }
 
 template <class Generator>
@@ -1520,7 +1555,11 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
 // Load the accumulator with the string representating type of the
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
-  DoUnaryOp<TypeofStub>(assembler);
+  Node* value = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = assembler->Typeof(value, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 void Interpreter::DoDelete(Runtime::FunctionId function_id,
@@ -1698,35 +1737,35 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<EqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::EQ, assembler);
 }
 
 // TestNotEqual <src>
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<NotEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::NE, assembler);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<StrictEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::EQ_STRICT, assembler);
 }
 
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<LessThanStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::LT, assembler);
 }
 
 // TestGreaterThan <src>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<GreaterThanStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::GT, assembler);
 }
 
 // TestLessThanOrEqual <src>
@@ -1734,7 +1773,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<LessThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::LTE, assembler);
 }
 
 // TestGreaterThanOrEqual <src>
@@ -1742,7 +1781,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback<GreaterThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback(Token::Value::GTE, assembler);
 }
 
 // TestIn <src>
@@ -1750,7 +1789,7 @@ void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
 void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
-  DoBinaryOp<HasPropertyStub>(assembler);
+  DoCompareOp(Token::IN, assembler);
 }
 
 // TestInstanceOf <src>
@@ -1758,7 +1797,7 @@ void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
-  DoBinaryOp<InstanceOfStub>(assembler);
+  DoCompareOp(Token::INSTANCEOF, assembler);
 }
 
 // Jump <imm>
@@ -2363,7 +2402,7 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   Node* object_reg = __ BytecodeOperandReg(0);
   Node* receiver = __ LoadRegister(object_reg);
   Node* context = __ GetContext();
-  Node* const zero_smi = __ SmiConstant(Smi::FromInt(0));
+  Node* const zero_smi = __ SmiConstant(Smi::kZero);
 
   Label nothing_to_iterate(assembler, Label::kDeferred),
       use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);
@@ -2371,9 +2410,8 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   if (FLAG_debug_code) {
     Label already_receiver(assembler), abort(assembler);
     Node* instance_type = __ LoadInstanceType(receiver);
-    Node* first_receiver_type = __ Int32Constant(FIRST_JS_RECEIVER_TYPE);
-    __ BranchIfInt32GreaterThanOrEqual(instance_type, first_receiver_type,
-                                       &already_receiver, &abort);
+    __ Branch(__ IsJSReceiverInstanceType(instance_type), &already_receiver,
+              &abort);
     __ Bind(&abort);
     {
       __ Abort(kExpectedJSReceiver);

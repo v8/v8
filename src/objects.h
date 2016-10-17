@@ -71,6 +71,8 @@
 //         - JSValue
 //           - JSDate
 //         - JSMessageObject
+//         - JSModuleNamespace
+//         - JSFixedArrayIterator
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -142,6 +144,8 @@
 //     - Struct
 //       - Box
 //       - AccessorInfo
+//       - PromiseResolveThenableJobInfo
+//       - PromiseReactionJobInfo
 //       - AccessorPair
 //       - AccessCheckInfo
 //       - InterceptorInfo
@@ -397,8 +401,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
-  V(PROMISE_CONTAINER_TYPE)                                     \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
+  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(PROTOTYPE_INFO_TYPE)                                        \
+  V(TUPLE3_TYPE)                                                \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
                                                                 \
@@ -416,6 +422,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_ARGUMENTS_TYPE)                                          \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
+  V(JS_MODULE_NAMESPACE_TYPE)                                   \
+  V(JS_FIXED_ARRAY_ITERATOR_TYPE)                               \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
   V(JS_GLOBAL_PROXY_TYPE)                                       \
   V(JS_API_OBJECT_TYPE)                                         \
@@ -503,7 +511,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // manually.
 #define STRUCT_LIST(V)                                                       \
   V(BOX, Box, box)                                                           \
-  V(PROMISE_CONTAINER, PromiseContainer, promise_container)                  \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
+    promise_resolve_thenable_job_info)                                       \
+  V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
+    promise_reaction_job_info)                                               \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
@@ -519,6 +530,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
+  V(TUPLE3, Tuple3, tuple3)                                                  \
   V(MODULE, Module, module)                                                  \
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)
 
@@ -685,7 +697,8 @@ enum InstanceType {
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
-  PROMISE_CONTAINER_TYPE,
+  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
+  PROMISE_REACTION_JOB_INFO_TYPE,
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
   FIXED_ARRAY_TYPE,
@@ -695,6 +708,7 @@ enum InstanceType {
   TRANSITION_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
+  TUPLE3_TYPE,
   CONTEXT_EXTENSION_TYPE,
   MODULE_TYPE,
 
@@ -717,6 +731,8 @@ enum InstanceType {
   JS_ARGUMENTS_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,
+  JS_MODULE_NAMESPACE_TYPE,
+  JS_FIXED_ARRAY_ITERATOR_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_TYPED_ARRAY_TYPE,
@@ -775,8 +791,8 @@ STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
 STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
-
-std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           InstanceType instance_type);
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
@@ -886,6 +902,7 @@ class LayoutDescriptor;
 class LiteralsArray;
 class LookupIterator;
 class FieldType;
+class Module;
 class ModuleDescriptor;
 class ModuleInfoEntry;
 class ModuleInfo;
@@ -970,6 +987,8 @@ template <class C> inline bool Is(Object* obj);
   V(JSObject)                    \
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
+  V(JSModuleNamespace)           \
+  V(JSFixedArrayIterator)        \
   V(Map)                         \
   V(DescriptorArray)             \
   V(FrameArray)                  \
@@ -985,6 +1004,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedDoubleArray)            \
   V(WeakFixedArray)              \
   V(ArrayList)                   \
+  V(RegExpMatchInfo)             \
   V(Context)                     \
   V(ScriptContextTable)          \
   V(NativeContext)               \
@@ -1507,9 +1527,10 @@ class Smi: public Object {
   DECLARE_CAST(Smi)
 
   // Dispatched behavior.
-  void SmiPrint(std::ostream& os) const;  // NOLINT
+  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
   DECLARE_VERIFIER(Smi)
 
+  V8_EXPORT_PRIVATE static Smi* const kZero;
   static const int kMinValue =
       (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
   static const int kMaxValue = -(kMinValue + 1);
@@ -1735,7 +1756,7 @@ class HeapNumber: public HeapObject {
   // Dispatched behavior.
   bool HeapNumberBooleanValue();
 
-  void HeapNumberPrint(std::ostream& os);  // NOLINT
+  V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);  // NOLINT
   DECLARE_VERIFIER(HeapNumber)
 
   inline int get_exponent();
@@ -2872,7 +2893,7 @@ class WeakFixedArray : public FixedArray {
   inline int Length() const;
 
   inline bool IsEmptySlot(int index) const;
-  static Object* Empty() { return Smi::FromInt(0); }
+  static Object* Empty() { return Smi::kZero; }
 
   class Iterator {
    public:
@@ -2944,6 +2965,57 @@ class ArrayList : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
 };
 
+// The property RegExpMatchInfo includes the matchIndices
+// array of the last successful regexp match (an array of start/end index
+// pairs for the match and all the captured substrings), the invariant is
+// that there are at least two capture indices.  The array also contains
+// the subject string for the last successful match.
+// After creation the result must be treated as a FixedArray in all regards.
+class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
+ public:
+  // Returns the number of captures, which is defined as the length of the
+  // matchIndices objects of the last match. matchIndices contains two indices
+  // for each capture (including the match itself), i.e. 2 * #captures + 2.
+  inline int NumberOfCaptureRegisters();
+  inline void SetNumberOfCaptureRegisters(int value);
+
+  // Returns the subject string of the last match.
+  inline String* LastSubject();
+  inline void SetLastSubject(String* value);
+
+  // Like LastSubject, but modifiable by the user.
+  inline Object* LastInput();
+  inline void SetLastInput(Object* value);
+
+  // Returns the i'th capture index, 0 <= i < NumberOfCaptures(). Capture(0) and
+  // Capture(1) determine the start- and endpoint of the match itself.
+  inline int Capture(int i);
+  inline void SetCapture(int i, int value);
+
+  // Reserves space for captures.
+  static Handle<RegExpMatchInfo> ReserveCaptures(
+      Handle<RegExpMatchInfo> match_info, int capture_count);
+
+  DECLARE_CAST(RegExpMatchInfo)
+
+  static const int kNumberOfCapturesIndex = 0;
+  static const int kLastSubjectIndex = 1;
+  static const int kLastInputIndex = 2;
+  static const int kFirstCaptureIndex = 3;
+  static const int kLastMatchOverhead = kFirstCaptureIndex;
+
+  static const int kNumberOfCapturesOffset = FixedArray::kHeaderSize;
+  static const int kLastSubjectOffset = kNumberOfCapturesOffset + kPointerSize;
+  static const int kLastInputOffset = kLastSubjectOffset + kPointerSize;
+  static const int kFirstCaptureOffset = kLastInputOffset + kPointerSize;
+
+  // Every match info is guaranteed to have enough space to store two captures.
+  static const int kInitialCaptureIndices = 2;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMatchInfo);
+};
+
 #define FRAME_ARRAY_FIELD_LIST(V) \
   V(WasmObject, Object)           \
   V(WasmFunctionIndex, Smi)       \
@@ -2963,14 +3035,16 @@ class FrameArray : public FixedArray {
 #undef DECLARE_FRAME_ARRAY_ACCESSORS
 
   inline bool IsWasmFrame(int frame_ix) const;
+  inline bool IsAsmJsWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
   void ShrinkToFit();
 
   // Flags.
   static const int kIsWasmFrame = 1 << 0;
-  static const int kIsStrict = 1 << 1;
-  static const int kForceConstructor = 1 << 2;
+  static const int kIsAsmJsWasmFrame = 1 << 1;
+  static const int kIsStrict = 1 << 2;
+  static const int kForceConstructor = 1 << 3;
 
   static Handle<FrameArray> AppendJSFrame(Handle<FrameArray> in,
                                           Handle<Object> receiver,
@@ -3950,6 +4024,9 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   Object* Lookup(Handle<Object> key, int32_t hash);
   Object* Lookup(Isolate* isolate, Handle<Object> key, int32_t hash);
 
+  // Returns the value at entry.
+  Object* ValueAt(int entry);
+
   // Adds (or overwrites) the value associated with the given key.
   static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
                                      Handle<Object> key,
@@ -4731,7 +4808,6 @@ class ByteArray: public FixedArrayBase {
   // Setter and getter.
   inline byte get(int index);
   inline void set(int index, byte value);
-  inline const byte* data() const;
 
   // Copy in / copy out whole byte slices.
   inline void copy_out(int index, byte* buffer, int length);
@@ -4862,6 +4938,13 @@ class BytecodeArray : public FixedArrayBase {
   static const int kMaxSize = 512 * MB;
   // Maximal length of a single BytecodeArray.
   static const int kMaxLength = kMaxSize - kHeaderSize;
+
+  static const int kPointerFieldsBeginOffset = kConstantPoolOffset;
+  static const int kPointerFieldsEndOffset = kFrameSizeOffset;
+
+  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
+                              kPointerFieldsEndOffset, kHeaderSize>
+      MarkingBodyDescriptor;
 
   class BodyDescriptor;
 
@@ -5215,11 +5298,14 @@ class Code: public HeapObject {
 
   static const int kPrologueOffsetNotSet = -1;
 
-#ifdef ENABLE_DISASSEMBLER
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   // Printing
   static const char* ICState2String(InlineCacheState state);
   static void PrintExtraICState(std::ostream& os,  // NOLINT
                                 Kind kind, ExtraICState extra);
+#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+
+#ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, std::ostream& os);  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
@@ -5823,9 +5909,9 @@ class DependentCode: public FixedArray {
     // Group of code that depends on global property values in property cells
     // not being changed.
     kPropertyCellChangedGroup,
-    // Group of code that omit run-time type checks for the field(s) introduced
-    // by this map.
-    kFieldTypeGroup,
+    // Group of code that omit run-time checks for field(s) introduced by
+    // this map, i.e. for the field type.
+    kFieldOwnerGroup,
     // Group of code that omit run-time type checks for initial maps of
     // constructors.
     kInitialMapChangedGroup,
@@ -6663,10 +6749,8 @@ class Struct: public HeapObject {
   DECLARE_CAST(Struct)
 };
 
-// A container struct to hold state required for
-// PromiseResolveThenableJob. {before, after}_debug_event could
-// potentially be undefined if the debugger is turned off.
-class PromiseContainer : public Struct {
+// A container struct to hold state required for PromiseResolveThenableJob.
+class PromiseResolveThenableJobInfo : public Struct {
  public:
   DECL_ACCESSORS(thenable, JSReceiver)
   DECL_ACCESSORS(then, JSReceiver)
@@ -6684,12 +6768,39 @@ class PromiseContainer : public Struct {
       kBeforeDebugEventOffset + kPointerSize;
   static const int kSize = kAfterDebugEventOffset + kPointerSize;
 
-  DECLARE_CAST(PromiseContainer)
-  DECLARE_PRINTER(PromiseContainer)
-  DECLARE_VERIFIER(PromiseContainer)
+  DECLARE_CAST(PromiseResolveThenableJobInfo)
+  DECLARE_PRINTER(PromiseResolveThenableJobInfo)
+  DECLARE_VERIFIER(PromiseResolveThenableJobInfo)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseContainer);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobInfo);
+};
+
+// Struct to hold state required for PromiseReactionJob.
+class PromiseReactionJobInfo : public Struct {
+ public:
+  DECL_ACCESSORS(value, Object)
+  DECL_ACCESSORS(tasks, Object)
+  DECL_ACCESSORS(deferred, Object)
+  DECL_ACCESSORS(before_debug_event, Object)
+  DECL_ACCESSORS(after_debug_event, Object)
+  DECL_ACCESSORS(context, Context)
+
+  static const int kValueOffset = Struct::kHeaderSize;
+  static const int kTasksOffset = kValueOffset + kPointerSize;
+  static const int kDeferredOffset = kTasksOffset + kPointerSize;
+  static const int kBeforeDebugEventOffset = kDeferredOffset + kPointerSize;
+  static const int kAfterDebugEventOffset =
+      kBeforeDebugEventOffset + kPointerSize;
+  static const int kContextOffset = kAfterDebugEventOffset + kPointerSize;
+  static const int kSize = kContextOffset + kPointerSize;
+
+  DECLARE_CAST(PromiseReactionJobInfo)
+  DECLARE_PRINTER(PromiseReactionJobInfo)
+  DECLARE_VERIFIER(PromiseReactionJobInfo)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobInfo);
 };
 
 // A simple one-element struct, useful where smis need to be boxed.
@@ -6766,6 +6877,26 @@ class PrototypeInfo : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
 };
 
+class Tuple3 : public Struct {
+ public:
+  DECL_ACCESSORS(value1, Object)
+  DECL_ACCESSORS(value2, Object)
+  DECL_ACCESSORS(value3, Object)
+
+  DECLARE_CAST(Tuple3)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(Tuple3)
+  DECLARE_VERIFIER(Tuple3)
+
+  static const int kValue1Offset = HeapObject::kHeaderSize;
+  static const int kValue2Offset = kValue1Offset + kPointerSize;
+  static const int kValue3Offset = kValue2Offset + kPointerSize;
+  static const int kSize = kValue3Offset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
+};
 
 // Pair used to store both a ScopeInfo and an extension object in the extension
 // slot of a block, catch, or with context. Needed in the rare case where a
@@ -7070,6 +7201,7 @@ class Script: public Struct {
   V(Number, isInteger, NumberIsInteger)                     \
   V(Number, isNaN, NumberIsNaN)                             \
   V(Number, isSafeInteger, NumberIsSafeInteger)             \
+  V(Number, parseFloat, NumberParseFloat)                   \
   V(Number, parseInt, NumberParseInt)                       \
   V(Number.prototype, toString, NumberToString)
 
@@ -7104,6 +7236,7 @@ enum BuiltinFunctionId {
   kTypedArrayByteOffset,
   kTypedArrayLength,
   kSharedArrayBufferByteLength,
+  kStringIteratorNext,
 };
 
 
@@ -7165,10 +7298,6 @@ class SharedFunctionInfo: public HeapObject {
   static Handle<LiteralsArray> FindOrCreateLiterals(
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
-  // Add or update entry in the optimized code map for context-independent code.
-  static void AddSharedCodeToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
-                                              Handle<Code> code);
-
   // Add or update entry in the optimized code map for context-dependent code.
   // If {code} is not given, then an existing entry's code won't be overwritten.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
@@ -7183,8 +7312,7 @@ class SharedFunctionInfo: public HeapObject {
                         Handle<Object> script_object);
 
   // Layout description of the optimized code map.
-  static const int kSharedCodeIndex = 0;
-  static const int kEntriesStart = 1;
+  static const int kEntriesStart = 0;
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
   static const int kLiteralsOffset = 2;
@@ -7294,7 +7422,7 @@ class SharedFunctionInfo: public HeapObject {
   inline String* inferred_name();
   inline void set_inferred_name(String* inferred_name);
 
-  // [script info]: Script from which the function originates.
+  // [script]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
 
   // [num_literals]: Number of literals used by this function.
@@ -7363,12 +7491,6 @@ class SharedFunctionInfo: public HeapObject {
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
-
-  // Indicates if this function can be lazy compiled without a context.
-  // This is used to determine if we can force compilation without reaching
-  // the function through program execution but through other means (e.g. heap
-  // iteration by the debugger).
-  DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation_without_context)
 
   // Indicates whether optimizations have been disabled for this
   // shared function info. If a function is repeatedly optimized or if
@@ -7544,9 +7666,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // Layout description.
   // Pointer fields.
-  static const int kNameOffset = HeapObject::kHeaderSize;
-  static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kOptimizedCodeMapOffset = kCodeOffset + kPointerSize;
+  static const int kCodeOffset = HeapObject::kHeaderSize;
+  static const int kNameOffset = kCodeOffset + kPointerSize;
+  static const int kOptimizedCodeMapOffset = kNameOffset + kPointerSize;
   static const int kScopeInfoOffset = kOptimizedCodeMapOffset + kPointerSize;
   static const int kOuterScopeInfoOffset = kScopeInfoOffset + kPointerSize;
   static const int kConstructStubOffset = kOuterScopeInfoOffset + kPointerSize;
@@ -7671,9 +7793,12 @@ class SharedFunctionInfo: public HeapObject {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
+  typedef FixedBodyDescriptor<kCodeOffset,
+                              kLastPointerFieldOffset + kPointerSize, kSize>
+      BodyDescriptor;
   typedef FixedBodyDescriptor<kNameOffset,
-                              kLastPointerFieldOffset + kPointerSize,
-                              kSize> BodyDescriptor;
+                              kLastPointerFieldOffset + kPointerSize, kSize>
+      BodyDescriptorWeakCode;
 
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
@@ -7687,7 +7812,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     // byte 0
     kAllowLazyCompilation,
-    kAllowLazyCompilationWithoutContext,
+    kIsDeclaration,
     kOptimizationDisabled,
     kNeverCompiled,
     kNative,
@@ -7705,19 +7830,9 @@ class SharedFunctionInfo: public HeapObject {
     kDontFlush,
     // byte 2
     kFunctionKind,
-    kIsArrow = kFunctionKind,
-    kIsGenerator,
-    kIsConciseMethod,
-    kIsDefaultConstructor,
-    kIsSubclassConstructor,
-    kIsBaseConstructor,
-    kIsGetterFunction,
-    kIsSetterFunction,
+    // rest of byte 2 and first two bits of byte 3 are used by FunctionKind
     // byte 3
-    kIsAsyncFunction,
-    kIsModule,
-    kDeserialized,
-    kIsDeclaration,
+    kDeserialized = kFunctionKind + 10,
     kIsAsmWasmBroken,
     kRequiresClassFieldInit,
     kIsClassFieldInitializer,
@@ -7726,23 +7841,8 @@ class SharedFunctionInfo: public HeapObject {
   };
   // kFunctionKind has to be byte-aligned
   STATIC_ASSERT((kFunctionKind % kBitsPerByte) == 0);
-// Make sure that FunctionKind and byte 2 are in sync:
-#define ASSERT_FUNCTION_KIND_ORDER(functionKind, compilerFunctionKind) \
-  STATIC_ASSERT(FunctionKind::functionKind ==                          \
-                1 << (compilerFunctionKind - kFunctionKind))
-  ASSERT_FUNCTION_KIND_ORDER(kArrowFunction, kIsArrow);
-  ASSERT_FUNCTION_KIND_ORDER(kGeneratorFunction, kIsGenerator);
-  ASSERT_FUNCTION_KIND_ORDER(kConciseMethod, kIsConciseMethod);
-  ASSERT_FUNCTION_KIND_ORDER(kDefaultConstructor, kIsDefaultConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kSubclassConstructor, kIsSubclassConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kBaseConstructor, kIsBaseConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kGetterFunction, kIsGetterFunction);
-  ASSERT_FUNCTION_KIND_ORDER(kSetterFunction, kIsSetterFunction);
-  ASSERT_FUNCTION_KIND_ORDER(kAsyncFunction, kIsAsyncFunction);
-  ASSERT_FUNCTION_KIND_ORDER(kModule, kIsModule);
-#undef ASSERT_FUNCTION_KIND_ORDER
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 10> {};
+  class FunctionKindBits : public BitField<FunctionKind, kFunctionKind, 10> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};
@@ -7774,21 +7874,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasDuplicateParametersBit =
       kHasDuplicateParameters + kCompilerHintsSmiTagSize;
 
-  static const int kIsArrowBit = kIsArrow + kCompilerHintsSmiTagSize;
-  static const int kIsGeneratorBit = kIsGenerator + kCompilerHintsSmiTagSize;
-  static const int kIsConciseMethodBit =
-      kIsConciseMethod + kCompilerHintsSmiTagSize;
-  static const int kIsAsyncFunctionBit =
-      kIsAsyncFunction + kCompilerHintsSmiTagSize;
-
-  static const int kAccessorFunctionBits =
-      FunctionKind::kAccessorFunction
-      << (kFunctionKind + kCompilerHintsSmiTagSize);
-  static const int kClassConstructorBits =
-      FunctionKind::kClassConstructor
-      << (kFunctionKind + kCompilerHintsSmiTagSize);
-  static const int kFunctionKindMaskBits = FunctionKindBits::kMask
-                                           << kCompilerHintsSmiTagSize;
+  static const int kFunctionKindShift =
+      kFunctionKind + kCompilerHintsSmiTagSize;
+  static const int kAllFunctionKindBitsMask = FunctionKindBits::kMask
+                                              << kCompilerHintsSmiTagSize;
 
   // Constants for optimizing codegen for strict mode function and
   // native tests.
@@ -7822,8 +7911,8 @@ class SharedFunctionInfo: public HeapObject {
 
  private:
   // Returns entry from optimized code map for specified context and OSR entry.
-  // The result is either kNotFound, kSharedCodeIndex for context-independent
-  // entry or a start index of the context-dependent entry.
+  // The result is either kNotFound, or a start index of the context-dependent
+  // entry.
   int SearchOptimizedCodeMapEntry(Context* native_context,
                                   BailoutId osr_ast_id);
 
@@ -7907,6 +7996,30 @@ class JSGeneratorObject: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
+// When importing a module namespace (import * as foo from "bar"), a
+// JSModuleNamespace object (representing module "bar") is created and bound to
+// the declared variable (foo).  A module can have at most one namespace object.
+class JSModuleNamespace : public JSObject {
+ public:
+  DECLARE_CAST(JSModuleNamespace)
+  DECLARE_PRINTER(JSModuleNamespace)
+  DECLARE_VERIFIER(JSModuleNamespace)
+
+  // The actual module whose namespace is being represented.
+  DECL_ACCESSORS(module, Module)
+
+  // Retrieve the value exported by [module] under the given [name]. If there is
+  // no such export, return Just(undefined). If the export is uninitialized,
+  // schedule an exception and return Nothing.
+  MUST_USE_RESULT MaybeHandle<Object> GetExport(Handle<String> name);
+
+  static const int kModuleOffset = JSObject::kHeaderSize;
+  static const int kSize = kModuleOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSModuleNamespace);
+};
+
 // A Module object is a mapping from export names to cells
 // This is still very much in flux.
 class Module : public Struct {
@@ -7915,44 +8028,39 @@ class Module : public Struct {
   DECLARE_VERIFIER(Module)
   DECLARE_PRINTER(Module)
 
-  // The code representing this Module, either a
-  // SharedFunctionInfo or a JSFunction depending
-  // on whether it's been instantiated.
+  // The code representing this Module, or an abstraction thereof.
+  // This is either a SharedFunctionInfo or a JSFunction or a ModuleInfo
+  // depending on whether the module has been instantiated and evaluated.  See
+  // Module::ModuleVerify() for the precise invariant.
   DECL_ACCESSORS(code, Object)
 
+  // The export table.
   DECL_ACCESSORS(exports, ObjectHashTable)
 
-  // [[RequestedModules]]: Modules imported or re-exported by this module.
+  // Hash for this object (a random non-zero Smi).
+  DECL_INT_ACCESSORS(hash)
+
+  // The namespace object (or undefined).
+  DECL_ACCESSORS(module_namespace, HeapObject)
+
+  // Modules imported or re-exported by this module.
   // Corresponds 1-to-1 to the module specifier strings in
   // ModuleInfo::module_requests.
   DECL_ACCESSORS(requested_modules, FixedArray)
 
-  // [[Evaluated]]: Whether this module has been evaluated. Modules
-  // are only evaluated a single time.
-  DECL_BOOLEAN_ACCESSORS(evaluated)
-
-  // Storage for [[Evaluated]]
-  DECL_INT_ACCESSORS(flags)
-
-  // Embedder-specified data
-  DECL_ACCESSORS(embedder_data, Object)
-
-  // Get the SharedFunctionInfo associated with the code.
-  inline SharedFunctionInfo* shared() const;
-
   // Get the ModuleInfo associated with the code.
   inline ModuleInfo* info() const;
 
-  // Compute a hash for this object.
-  inline uint32_t Hash() const;
+  inline bool instantiated() const;
+  inline bool evaluated() const;
+  inline void set_evaluated();
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
   // otherwise.
   static MUST_USE_RESULT bool Instantiate(Handle<Module> module,
                                           v8::Local<v8::Context> context,
-                                          v8::Module::ResolveCallback callback,
-                                          v8::Local<v8::Value> callback_data);
+                                          v8::Module::ResolveCallback callback);
 
   // Implementation of spec operation ModuleEvaluation.
   static MUST_USE_RESULT MaybeHandle<Object> Evaluate(Handle<Module> module);
@@ -7964,12 +8072,18 @@ class Module : public Struct {
   static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
                                    int module_request);
 
+  // Get the namespace object for [module_request] of [module].  If it doesn't
+  // exist yet, it is created.
+  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module,
+                                                      int module_request);
+
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
-  static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
-  static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
-  static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
-  static const int kSize = kEmbedderDataOffset + kPointerSize;
+  static const int kHashOffset = kExportsOffset + kPointerSize;
+  static const int kModuleNamespaceOffset = kHashOffset + kPointerSize;
+  static const int kRequestedModulesOffset =
+      kModuleNamespaceOffset + kPointerSize;
+  static const int kSize = kRequestedModulesOffset + kPointerSize;
 
  private:
   enum { kEvaluatedBit };
@@ -7977,6 +8091,10 @@ class Module : public Struct {
   static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
   static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
+
+  // Get the namespace object for [module].  If it doesn't exist yet, it is
+  // created.
+  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module);
 
   // The [must_resolve] argument indicates whether or not an exception should be
   // thrown in case the module does not provide an export named [name]
@@ -8551,6 +8669,9 @@ class JSRegExp: public JSObject {
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
 
+  inline void SetLastIndex(int index);
+  inline Object* LastIndex();
+
   static int code_index(bool is_latin1) {
     if (is_latin1) {
       return kIrregexpLatin1CodeIndex;
@@ -8928,6 +9049,10 @@ class AllocationSite: public Struct {
   // field.
   static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
   static const int kPointerFieldsEndOffset = kWeakNextOffset;
+
+  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
+                              kPointerFieldsEndOffset, kSize>
+      MarkingBodyDescriptor;
 
   // For other visitors, use the fixed body descriptor below.
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize, kSize, kSize>
@@ -9434,13 +9559,36 @@ class String: public Name {
   MUST_USE_RESULT static ComparisonResult Compare(Handle<String> x,
                                                   Handle<String> y);
 
+  // Perform ES6 21.1.3.8, including checking arguments.
+  static Object* IndexOf(Isolate* isolate, Handle<Object> receiver,
+                         Handle<Object> search, Handle<Object> position);
   // Perform string match of pattern on subject, starting at start index.
-  // Caller must ensure that 0 <= start_index <= sub->length().
-  static int IndexOf(Isolate* isolate, Handle<String> sub, Handle<String> pat,
-                     int start_index);
+  // Caller must ensure that 0 <= start_index <= sub->length(), as this does not
+  // check any arguments.
+  static int IndexOf(Isolate* isolate, Handle<String> receiver,
+                     Handle<String> search, int start_index);
 
   static Object* LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                              Handle<Object> search, Handle<Object> position);
+
+  // Encapsulates logic related to a match and its capture groups as required
+  // by GetSubstitution.
+  class Match {
+   public:
+    virtual Handle<String> GetMatch() = 0;
+    virtual MaybeHandle<String> GetCapture(int i, bool* capture_exists) = 0;
+    virtual Handle<String> GetPrefix() = 0;
+    virtual Handle<String> GetSuffix() = 0;
+    virtual int CaptureCount() = 0;
+    virtual ~Match() {}
+  };
+
+  // ES#sec-getsubstitution
+  // GetSubstitution(matched, str, position, captures, replacement)
+  // Expand the $-expressions in the string and return a new string with
+  // the result.
+  MUST_USE_RESULT static MaybeHandle<String> GetSubstitution(
+      Isolate* isolate, Match* match, Handle<String> replacement);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -9744,7 +9892,7 @@ class ConsString: public String {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
-  uint16_t ConsStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t ConsStringGet(int index);
 
   DECLARE_CAST(ConsString)
 
@@ -9787,7 +9935,7 @@ class SlicedString: public String {
   inline void set_offset(int offset);
 
   // Dispatched behavior.
-  uint16_t SlicedStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t SlicedStringGet(int index);
 
   DECLARE_CAST(SlicedString)
 
@@ -10179,9 +10327,6 @@ class PropertyCell : public HeapObject {
   static const int kDependentCodeOffset = kValueOffset + kPointerSize;
   static const int kSize = kDependentCodeOffset + kPointerSize;
 
-  static const int kPointerFieldsBeginOffset = kValueOffset;
-  static const int kPointerFieldsEndOffset = kSize;
-
   typedef FixedBodyDescriptor<kValueOffset,
                               kSize,
                               kSize> BodyDescriptor;
@@ -10395,6 +10540,37 @@ class JSStringIterator : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
+};
+
+// A JS iterator over the elements of a FixedArray.
+// This corresponds to ListIterator in ecma262/#sec-createlistiterator.
+class JSFixedArrayIterator : public JSObject {
+ public:
+  DECLARE_CAST(JSFixedArrayIterator)
+  DECLARE_PRINTER(JSFixedArrayIterator)
+  DECLARE_VERIFIER(JSFixedArrayIterator)
+
+  // The array over which the iterator iterates.
+  DECL_ACCESSORS(array, FixedArray)
+
+  // The index of the array element that will be returned next.
+  DECL_INT_ACCESSORS(index)
+
+  // The initial value of the object's "next" property.
+  DECL_ACCESSORS(initial_next, JSFunction)
+
+  static const int kArrayOffset = JSObject::kHeaderSize;
+  static const int kIndexOffset = kArrayOffset + kPointerSize;
+  static const int kNextOffset = kIndexOffset + kPointerSize;
+  static const int kHeaderSize = kNextOffset + kPointerSize;
+
+  enum InObjectPropertyIndex {
+    kNextIndex,
+    kInObjectPropertyCount  // Dummy.
+  };
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSFixedArrayIterator);
 };
 
 // OrderedHashTableIterator is an iterator that iterates over the keys and
@@ -11100,9 +11276,7 @@ class TemplateInfo: public Struct {
   static const int kPropertyListOffset = kNumberOfProperties + kPointerSize;
   static const int kPropertyAccessorsOffset =
       kPropertyListOffset + kPointerSize;
-  static const int kPropertyIntrinsicsOffset =
-      kPropertyAccessorsOffset + kPointerSize;
-  static const int kHeaderSize = kPropertyIntrinsicsOffset + kPointerSize;
+  static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -11248,7 +11422,7 @@ class DebugInfo: public Struct {
   // Get the number of break points for this function.
   int GetBreakPointCount();
 
-  static Smi* uninitialized() { return Smi::FromInt(0); }
+  static Smi* uninitialized() { return Smi::kZero; }
 
   inline bool HasDebugBytecodeArray();
   inline bool HasDebugCode();

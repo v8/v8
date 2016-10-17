@@ -124,6 +124,7 @@ class DiscardableZoneScope {
       parser_->zone_ = temp_zone;
       if (parser_->reusable_preparser_ != nullptr) {
         parser_->reusable_preparser_->zone_ = temp_zone;
+        parser_->reusable_preparser_->factory()->set_zone(temp_zone);
       }
     }
   }
@@ -132,6 +133,7 @@ class DiscardableZoneScope {
     parser_->zone_ = prev_zone_;
     if (parser_->reusable_preparser_ != nullptr) {
       parser_->reusable_preparser_->zone_ = prev_zone_;
+      parser_->reusable_preparser_->factory()->set_zone(prev_zone_);
     }
     ast_node_factory_scope_.Reset();
   }
@@ -148,12 +150,11 @@ class DiscardableZoneScope {
 };
 
 void Parser::SetCachedData(ParseInfo* info) {
-  if (compile_options_ == ScriptCompiler::kNoCompileOptions) {
-    cached_parse_data_ = NULL;
-  } else {
-    DCHECK(info->cached_data() != NULL);
-    if (compile_options_ == ScriptCompiler::kConsumeParserCache) {
-      cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
+  DCHECK_NULL(cached_parse_data_);
+  if (consume_cached_parse_data()) {
+    cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
+    if (cached_parse_data_ == nullptr) {
+      compile_options_ = ScriptCompiler::kNoCompileOptions;
     }
   }
 }
@@ -219,7 +220,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             LanguageMode language_mode) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
-  int parameter_count = 0;
+  const int parameter_count = 0;
   if (name == nullptr) name = ast_value_factory()->empty_string();
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
@@ -282,58 +283,14 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       name, function_scope, body, materialized_literal_count,
-      expected_property_count, parameter_count,
+      expected_property_count, parameter_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, pos);
+      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos);
 
   function_literal->set_requires_class_field_init(requires_class_field_init);
 
   return function_literal;
 }
-
-
-// ----------------------------------------------------------------------------
-// Target is a support class to facilitate manipulation of the
-// Parser's target_stack_ (the stack of potential 'break' and
-// 'continue' statement targets). Upon construction, a new target is
-// added; it is removed upon destruction.
-
-class ParserTarget BASE_EMBEDDED {
- public:
-  ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
-      : variable_(&parser->impl()->target_stack_),
-        statement_(statement),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = this;
-  }
-
-  ~ParserTarget() { *variable_ = previous_; }
-
-  ParserTarget* previous() { return previous_; }
-  BreakableStatement* statement() { return statement_; }
-
- private:
-  ParserTarget** variable_;
-  BreakableStatement* statement_;
-  ParserTarget* previous_;
-};
-
-class ParserTargetScope BASE_EMBEDDED {
- public:
-  explicit ParserTargetScope(ParserBase<Parser>* parser)
-      : variable_(&parser->impl()->target_stack_),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = nullptr;
-  }
-
-  ~ParserTargetScope() { *variable_ = previous_; }
-
- private:
-  ParserTarget** variable_;
-  ParserTarget* previous_;
-};
-
 
 // ----------------------------------------------------------------------------
 // The CHECK_OK macro is a convenient macro to enforce error
@@ -637,7 +594,7 @@ Parser::Parser(ParseInfo* info)
       original_scope_(NULL),
       target_stack_(NULL),
       compile_options_(info->compile_options()),
-      cached_parse_data_(NULL),
+      cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
@@ -646,13 +603,34 @@ Parser::Parser(ParseInfo* info)
   // ParseInfo during background parsing.
   DCHECK(!info->script().is_null() || info->source_stream() != nullptr ||
          info->character_stream() != nullptr);
+  // Determine if functions can be lazily compiled. This is necessary to
+  // allow some of our builtin JS files to be lazily compiled. These
+  // builtins cannot be handled lazily by the parser, since we have to know
+  // if a function uses the special natives syntax, which is something the
+  // parser records.
+  // If the debugger requests compilation for break points, we cannot be
+  // aggressive about lazy compilation, because it might trigger compilation
+  // of functions without an outer context when setting a breakpoint through
+  // Debug::FindSharedFunctionInfoInScript
+  bool can_compile_lazily = FLAG_lazy && !info->is_debug();
+
+  // Consider compiling eagerly when targeting the code cache.
+  can_compile_lazily &= !(FLAG_serialize_eager && info->will_serialize());
+
+  // Consider compiling eagerly when compiling bytecode for Ignition.
+  can_compile_lazily &= !(FLAG_ignition && FLAG_ignition_eager &&
+                          info->isolate()->serializer_enabled());
+
+  set_default_eager_compile_hint(can_compile_lazily
+                                     ? FunctionLiteral::kShouldLazyCompile
+                                     : FunctionLiteral::kShouldEagerCompile);
   set_allow_lazy(FLAG_lazy && info->allow_lazy_parsing() &&
-                 !info->is_native() && info->extension() == nullptr);
+                 !info->is_native() && info->extension() == nullptr &&
+                 can_compile_lazily);
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
                       info->isolate()->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
-  set_allow_harmony_for_in(FLAG_harmony_for_in);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
       FLAG_harmony_restrictive_declarations);
@@ -701,8 +679,8 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
 
   HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
-  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::Parse);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.Parse");
+  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseProgram);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -763,7 +741,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
 
-  Mode parsing_mode = allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY;
+  ParsingModeScope mode(this, allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionLiteral* result = NULL;
   {
@@ -771,25 +749,16 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     DCHECK_NOT_NULL(outer);
     parsing_module_ = info->is_module();
     if (info->is_eval()) {
-      if (!outer->is_script_scope() || is_strict(info->language_mode())) {
-        parsing_mode = PARSE_EAGERLY;
-      }
       outer = NewEvalScope(outer);
     } else if (parsing_module_) {
       DCHECK_EQ(outer, info->script_scope());
       outer = NewModuleScope(info->script_scope());
-      // Never do lazy parsing in modules.  If we want to support this in the
-      // future, we must force context-allocation for all variables that are
-      // declared at the module level but not MODULE-allocated.
-      parsing_mode = PARSE_EAGERLY;
     }
 
     DeclarationScope* scope = outer->AsDeclarationScope();
 
     scope->set_start_position(0);
 
-    // Enter 'scope' with the given parsing mode.
-    ParsingModeScope parsing_mode_scope(this, parsing_mode);
     FunctionState function_state(&function_state_, &scope_state_, scope);
 
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
@@ -870,14 +839,14 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   return result;
 }
 
-
-FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
+FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseLazy);
+  RuntimeCallTimerScope runtime_timer(isolate,
+                                      &RuntimeCallStats::ParseFunction);
   HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseLazy");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -894,8 +863,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
-    result =
-        DoParseLazy(info, ast_value_factory()->GetString(name), stream.get());
+    result = DoParseFunction(info, ast_value_factory()->GetString(name),
+                             stream.get());
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -924,9 +893,9 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
-                                     const AstRawString* raw_name,
-                                     Utf16CharacterStream* source) {
+FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
+                                         const AstRawString* raw_name,
+                                         Utf16CharacterStream* source) {
   scanner_.Initialize(source);
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
@@ -2020,7 +1989,6 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
       for_info.parsing_result.declarations[0];
   if (!IsLexicalVariableMode(for_info.parsing_result.descriptor.mode) &&
       decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
-    DCHECK(!allow_harmony_for_in());
     ++use_counts_[v8::Isolate::kForInInitializer];
     const AstRawString* name = decl.pattern->AsVariableProxy()->raw_name();
     VariableProxy* single_var = NewUnresolved(name);
@@ -2556,7 +2524,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
                                    CHECK_OK_VOID);
 
-  if (parameters->Arity() > Code::kMaxArguments) {
+  if (parameters->arity > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
     return;
@@ -2566,7 +2534,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
   if (!parameters->is_simple) {
     this->classifier()->RecordNonSimpleParameter();
   }
-  for (int i = 0; i < parameters->Arity(); ++i) {
+  for (int i = 0; i < parameters->arity; ++i) {
     auto parameter = parameters->at(i);
     DeclareFormalParameter(parameters->scope, parameter);
     if (!this->classifier()
@@ -2642,7 +2610,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_parenthesized()
           ? FunctionLiteral::kShouldEagerCompile
-          : FunctionLiteral::kShouldLazyCompile;
+          : default_eager_compile_hint();
 
   // Determine if the function can be parsed lazily. Lazy parsing is
   // different from lazy compilation; we need to parse more eagerly than we
@@ -2680,10 +2648,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(mode() == PARSE_LAZILY, allow_lazy());
   DCHECK_IMPLIES(mode() == PARSE_LAZILY, extension_ == nullptr);
 
+  bool can_preparse = mode() == PARSE_LAZILY &&
+                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+
   bool is_lazy_top_level_function =
-      mode() == PARSE_LAZILY &&
-      eager_compile_hint == FunctionLiteral::kShouldLazyCompile &&
-      scope()->AllowsLazyParsingWithoutUnresolvedVariables();
+      can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
 
   // Determine whether we can still lazy parse the inner function.
   // The preconditions are:
@@ -2705,8 +2674,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // will migrate unresolved variable into a Scope in the main Zone.
   // TODO(marja): Refactor parsing modes: simplify this.
   bool use_temp_zone =
-      allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
-      eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
+      (FLAG_lazy_inner_functions
+           ? can_preparse
+           : (is_lazy_top_level_function ||
+              (allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
+               eager_compile_hint == FunctionLiteral::kShouldLazyCompile))) &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
   bool is_lazy_inner_function =
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
@@ -2717,7 +2689,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   if (is_typed) scope->SetTyped();
 
   ZoneList<Statement*>* body = nullptr;
-  int arity = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
@@ -2747,11 +2718,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   ParserFormalParameters formals(scope);
   ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
                            CHECK_OK);
-  arity = formals.Arity();
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
-  CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
+  CheckArityRestrictions(formals.arity, kind, formals.has_rest, start_position,
                          formals_end_position, CHECK_OK);
 
   // Parse optional type annotation.
@@ -2773,10 +2743,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   }
 
   Expect(Token::LBRACE, CHECK_OK);
-  // Don't include the rest parameter into the function's formal parameter
-  // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
-  // which says whether we need to create an arguments adaptor frame).
-  if (formals.has_rest) arity--;
 
   {
     // Temporary zones can nest. When we migrate free variables (see below), we
@@ -2877,7 +2843,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, materialized_literal_count,
-      expected_property_count, arity, duplicate_parameters, function_type,
+      expected_property_count, formals.num_parameters(),
+      formals.function_length, duplicate_parameters, function_type,
       eager_compile_hint, pos);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
@@ -2927,7 +2894,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   // AST. This gathers the data needed to build a lazy function.
   SingletonLogger logger;
   PreParser::PreParseResult result =
-      ParseLazyFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
+      ParseFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
@@ -3044,9 +3011,6 @@ Block* Parser::BuildParameterInitializationBlock(
     // TODO(adamk): Should this be kNoSourcePosition, since
     // it's just copying from a temp var to the real param var?
     descriptor.initialization_pos = parameter.pattern->position();
-    // The initializer position which will end up in,
-    // Variable::initializer_position(), used for hole check elimination.
-    int initializer_position = parameter.pattern->position();
     Expression* initial_value =
         factory()->NewVariableProxy(parameters.scope->parameter(i));
     if (parameter.initializer != nullptr) {
@@ -3062,7 +3026,6 @@ Block* Parser::BuildParameterInitializationBlock(
       initial_value = factory()->NewConditional(
           condition, parameter.initializer, initial_value, kNoSourcePosition);
       descriptor.initialization_pos = parameter.initializer->position();
-      initializer_position = parameter.initializer_end_position;
     }
 
     Scope* param_scope = scope();
@@ -3085,7 +3048,7 @@ Block* Parser::BuildParameterInitializationBlock(
 
     BlockState block_state(&scope_state_, param_scope);
     DeclarationParsingResult::Declaration decl(
-        parameter.pattern, initializer_position, initial_value);
+        parameter.pattern, parameter.initializer_end_position, initial_value);
     PatternRewriter::DeclareAndInitializeVariables(
         this, param_block, &descriptor, &decl, nullptr, CHECK_OK);
 
@@ -3239,11 +3202,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  // Everything inside an eagerly parsed function will be parsed eagerly (see
-  // comment above). Lazy inner functions are handled separately and they won't
-  // require the mode to be PARSE_LAZILY (see ParseFunctionLiteral).
-  // TODO(marja): Refactor parsing modes: remove this.
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ParsingModeScope mode(this, allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY);
   ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
 
   static const int kFunctionNameAssignmentIndex = 0;
@@ -3396,7 +3355,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   return result;
 }
 
-PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
+PreParser::PreParseResult Parser::ParseFunctionBodyWithPreParser(
     SingletonLogger* logger, bool is_inner_function, bool may_abort) {
   // This function may be called on a background thread too; record only the
   // main thread preparse times.
@@ -3414,7 +3373,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
-    SET_ALLOW(harmony_for_in);
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_restrictive_declarations);
     SET_ALLOW(harmony_async_await);
@@ -3428,7 +3386,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   DCHECK(!is_inner_function || !may_abort);
 
   DeclarationScope* function_scope = function_state_->scope();
-  PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
+  PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
       function_scope, parsing_module_, logger, is_inner_function, may_abort,
       use_counts_);
   if (pre_parse_timer_ != NULL) {
@@ -3537,12 +3495,11 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       ast_value_factory()->empty_string(), initializer_scope, body,
       initializer_state.materialized_literal_count(),
-      initializer_state.expected_property_count(), 0,
+      initializer_state.expected_property_count(), 0, count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
   function_literal->set_is_class_field_initializer(true);
-  function_literal->scope()->set_arity(count);
   return function_literal;
 }
 
@@ -3918,16 +3875,11 @@ bool Parser::Parse(ParseInfo* info) {
   Isolate* isolate = info->isolate();
   pre_parse_timer_ = isolate->counters()->pre_parse();
 
-  if (info->is_lazy()) {
-    DCHECK(!info->is_eval());
-    if (info->shared_info()->is_function()) {
-      result = ParseLazy(isolate, info);
-    } else {
-      result = ParseProgram(isolate, info);
-    }
-  } else {
+  if (info->is_toplevel()) {
     SetCachedData(info);
     result = ParseProgram(isolate, info);
+  } else {
+    result = ParseFunction(isolate, info);
   }
   info->set_literal(result);
 
@@ -3966,12 +3918,12 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // don't). We work around this by storing all the scopes which need their end
   // position set at the end of the script (the top scope and possible eval
   // scopes) and set their end position after we know the script length.
-  if (info->is_lazy()) {
-    result = DoParseLazy(info, info->function_name(), stream_ptr);
-  } else {
+  if (info->is_toplevel()) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
     scanner_.Initialize(stream_ptr);
     result = DoParseProgram(info);
+  } else {
+    result = DoParseFunction(info, info->function_name(), stream_ptr);
   }
 
   info->set_literal(result);

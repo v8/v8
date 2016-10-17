@@ -53,7 +53,7 @@ class DuplicateFinder {
   UnicodeCache* unicode_constants_;
   // Backing store used to store strings used as hashmap keys.
   SequenceCollector<unsigned char> backing_store_;
-  base::HashMap map_;
+  base::CustomMatcherHashMap map_;
   // Buffer used for string->number->canonical string conversions.
   char number_buffer_[kBufferSize];
 };

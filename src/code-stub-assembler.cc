@@ -26,11 +26,29 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      const char* name)
     : compiler::CodeAssembler(isolate, zone, parameter_count, flags, name) {}
 
-void CodeStubAssembler::Assert(Node* condition) {
+void CodeStubAssembler::Assert(Node* condition, const char* message,
+                               const char* file, int line) {
 #if defined(DEBUG)
   Label ok(this);
-  Comment("[ Assert");
+  if (message != nullptr && FLAG_code_comments) {
+    Comment("[ Assert: %s", message);
+  } else {
+    Comment("[ Assert ");
+  }
+
   GotoIf(condition, &ok);
+  if (message != nullptr) {
+    char chars[1024];
+    Vector<char> buffer(chars);
+    if (file != nullptr) {
+      SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
+    } else {
+      SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
+    }
+    CallRuntime(
+        Runtime::kGlobalPrint, SmiConstant(Smi::kZero),
+        HeapConstant(factory()->NewStringFromAsciiChecked(&(buffer[0]))));
+  }
   DebugBreak();
   Goto(&ok);
   Bind(&ok);
@@ -38,9 +56,7 @@ void CodeStubAssembler::Assert(Node* condition) {
 #endif
 }
 
-Node* CodeStubAssembler::NoContextConstant() {
-  return SmiConstant(Smi::FromInt(0));
-}
+Node* CodeStubAssembler::NoContextConstant() { return NumberConstant(0); }
 
 #define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
   Node* CodeStubAssembler::name##Constant() {      \
@@ -293,38 +309,39 @@ Node* CodeStubAssembler::SmiToFloat64(Node* value) {
   return ChangeInt32ToFloat64(SmiToWord32(value));
 }
 
-Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
-
-Node* CodeStubAssembler::SmiAddWithOverflow(Node* a, Node* b) {
-  return IntPtrAddWithOverflow(a, b);
+Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) {
+  return BitcastWordToTaggedSigned(
+      IntPtrAdd(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
 }
 
-Node* CodeStubAssembler::SmiSub(Node* a, Node* b) { return IntPtrSub(a, b); }
-
-Node* CodeStubAssembler::SmiSubWithOverflow(Node* a, Node* b) {
-  return IntPtrSubWithOverflow(a, b);
+Node* CodeStubAssembler::SmiSub(Node* a, Node* b) {
+  return BitcastWordToTaggedSigned(
+      IntPtrSub(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
 }
 
-Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
+Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) {
+  return WordEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
+}
 
 Node* CodeStubAssembler::SmiAbove(Node* a, Node* b) {
-  return UintPtrGreaterThan(a, b);
+  return UintPtrGreaterThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiAboveOrEqual(Node* a, Node* b) {
-  return UintPtrGreaterThanOrEqual(a, b);
+  return UintPtrGreaterThanOrEqual(BitcastTaggedToWord(a),
+                                   BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiBelow(Node* a, Node* b) {
-  return UintPtrLessThan(a, b);
+  return UintPtrLessThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiLessThan(Node* a, Node* b) {
-  return IntPtrLessThan(a, b);
+  return IntPtrLessThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
-  return IntPtrLessThanOrEqual(a, b);
+  return IntPtrLessThanOrEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
 Node* CodeStubAssembler::SmiMax(Node* a, Node* b) {
@@ -459,8 +476,9 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::WordIsSmi(Node* a) {
-  return WordEqual(WordAnd(a, IntPtrConstant(kSmiTagMask)), IntPtrConstant(0));
+Node* CodeStubAssembler::TaggedIsSmi(Node* a) {
+  return WordEqual(WordAnd(BitcastTaggedToWord(a), IntPtrConstant(kSmiTagMask)),
+                   IntPtrConstant(0));
 }
 
 Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
@@ -571,7 +589,7 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
                                             Label* if_true, Label* if_false) {
   // Bailout if receiver is a Smi.
-  GotoIf(WordIsSmi(object), if_false);
+  GotoIf(TaggedIsSmi(object), if_false);
 
   Node* map = LoadMap(object);
 
@@ -613,19 +631,17 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
          &no_runtime_call);
 
   Bind(&runtime_call);
-  // AllocateInTargetSpace does not use the context.
-  Node* context = SmiConstant(Smi::FromInt(0));
-
   Node* runtime_result;
   if (flags & kPretenured) {
     Node* runtime_flags = SmiConstant(
         Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
                      AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
-    runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
-                                 SmiTag(size_in_bytes), runtime_flags);
+    runtime_result =
+        CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                    SmiTag(size_in_bytes), runtime_flags);
   } else {
-    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace, context,
-                                 SmiTag(size_in_bytes));
+    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace,
+                                 NoContextConstant(), SmiTag(size_in_bytes));
   }
   result.Bind(runtime_result);
   Goto(&merge_runtime);
@@ -740,7 +756,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   GotoIf(WordEqual(value, BooleanConstant(false)), if_false);
 
   // Check if {value} is a Smi or a HeapObject.
-  Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
   Bind(&if_valueissmi);
   {
@@ -760,9 +776,8 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
     // types, the HeapNumber type and everything else.
     GotoIf(Word32Equal(value_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
            &if_valueisheapnumber);
-    Branch(
-        Int32LessThan(value_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-        &if_valueisstring, &if_valueisother);
+    Branch(IsStringInstanceType(value_instance_type), &if_valueisstring,
+           &if_valueisother);
 
     Bind(&if_valueisstring);
     {
@@ -898,7 +913,8 @@ Node* CodeStubAssembler::LoadInstanceType(Node* object) {
 
 void CodeStubAssembler::AssertInstanceType(Node* object,
                                            InstanceType instance_type) {
-  Assert(Word32Equal(LoadInstanceType(object), Int32Constant(instance_type)));
+  CSA_ASSERT(
+      Word32Equal(LoadInstanceType(object), Int32Constant(instance_type)));
 }
 
 Node* CodeStubAssembler::LoadProperties(Node* object) {
@@ -937,6 +953,11 @@ Node* CodeStubAssembler::LoadMapInstanceType(Node* map) {
   return LoadObjectField(map, Map::kInstanceTypeOffset, MachineType::Uint8());
 }
 
+Node* CodeStubAssembler::LoadMapElementsKind(Node* map) {
+  Node* bit_field2 = LoadMapBitField2(map);
+  return BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+}
+
 Node* CodeStubAssembler::LoadMapDescriptors(Node* map) {
   return LoadObjectField(map, Map::kDescriptorsOffset);
 }
@@ -953,8 +974,8 @@ Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
 Node* CodeStubAssembler::LoadMapInobjectProperties(Node* map) {
   // See Map::GetInObjectProperties() for details.
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  Assert(Int32GreaterThanOrEqual(LoadMapInstanceType(map),
-                                 Int32Constant(FIRST_JS_OBJECT_TYPE)));
+  CSA_ASSERT(Int32GreaterThanOrEqual(LoadMapInstanceType(map),
+                                     Int32Constant(FIRST_JS_OBJECT_TYPE)));
   return ChangeUint32ToWord(LoadObjectField(
       map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
       MachineType::Uint8()));
@@ -963,8 +984,8 @@ Node* CodeStubAssembler::LoadMapInobjectProperties(Node* map) {
 Node* CodeStubAssembler::LoadMapConstructorFunctionIndex(Node* map) {
   // See Map::GetConstructorFunctionIndex() for details.
   STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-  Assert(Int32LessThanOrEqual(LoadMapInstanceType(map),
-                              Int32Constant(LAST_PRIMITIVE_TYPE)));
+  CSA_ASSERT(Int32LessThanOrEqual(LoadMapInstanceType(map),
+                                  Int32Constant(LAST_PRIMITIVE_TYPE)));
   return ChangeUint32ToWord(LoadObjectField(
       map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
       MachineType::Uint8()));
@@ -978,7 +999,7 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
   Goto(&loop);
   Bind(&loop);
   {
-    GotoIf(WordIsSmi(result.value()), &done);
+    GotoIf(TaggedIsSmi(result.value()), &done);
     Node* is_map_type =
         Word32Equal(LoadInstanceType(result.value()), Int32Constant(MAP_TYPE));
     GotoUnless(is_map_type, &done);
@@ -1090,6 +1111,13 @@ Node* CodeStubAssembler::LoadContextElement(Node* context, int slot_index) {
   return Load(MachineType::AnyTagged(), context, IntPtrConstant(offset));
 }
 
+Node* CodeStubAssembler::StoreContextElement(Node* context, int slot_index,
+                                             Node* value) {
+  int offset = Context::SlotOffset(slot_index);
+  return Store(MachineRepresentation::kTagged, context, IntPtrConstant(offset),
+               value);
+}
+
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
   return LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX);
 }
@@ -1111,10 +1139,30 @@ Node* CodeStubAssembler::StoreObjectField(
                IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
+Node* CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
+                                          Node* value) {
+  int const_offset;
+  if (ToInt32Constant(offset, const_offset)) {
+    return StoreObjectField(object, const_offset, value);
+  }
+  return Store(MachineRepresentation::kTagged, object,
+               IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
+}
+
 Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
     Node* object, int offset, Node* value, MachineRepresentation rep) {
   return StoreNoWriteBarrier(rep, object,
                              IntPtrConstant(offset - kHeapObjectTag), value);
+}
+
+Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
+    Node* object, Node* offset, Node* value, MachineRepresentation rep) {
+  int const_offset;
+  if (ToInt32Constant(offset, const_offset)) {
+    return StoreObjectFieldNoWriteBarrier(object, const_offset, value, rep);
+  }
+  return StoreNoWriteBarrier(
+      rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
 }
 
 Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
@@ -1313,6 +1361,84 @@ Node* CodeStubAssembler::AllocateSlicedTwoByteString(Node* length, Node* parent,
   return result;
 }
 
+Node* CodeStubAssembler::AllocateOneByteConsString(Node* length, Node* first,
+                                                   Node* second) {
+  Node* result = Allocate(ConsString::kSize);
+  Node* map = LoadRoot(Heap::kConsOneByteStringMapRootIndex);
+  StoreMapNoWriteBarrier(result, map);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+                                 Int32Constant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, first,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, second,
+                                 MachineRepresentation::kTagged);
+  return result;
+}
+
+Node* CodeStubAssembler::AllocateTwoByteConsString(Node* length, Node* first,
+                                                   Node* second) {
+  Node* result = Allocate(ConsString::kSize);
+  Node* map = LoadRoot(Heap::kConsStringMapRootIndex);
+  StoreMapNoWriteBarrier(result, map);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+                                 Int32Constant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, first,
+                                 MachineRepresentation::kTagged);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, second,
+                                 MachineRepresentation::kTagged);
+  return result;
+}
+
+Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
+                                              Node* index, Node* input) {
+  Node* const max_length =
+      SmiConstant(Smi::FromInt(JSArray::kInitialMaxFastElementArray));
+  CSA_ASSERT(SmiLessThanOrEqual(length, max_length));
+
+  // Allocate the JSRegExpResult.
+  // TODO(jgruber): Fold JSArray and FixedArray allocations, then remove
+  // unneeded store of elements.
+  Node* const result = Allocate(JSRegExpResult::kSize);
+
+  // TODO(jgruber): Store map as Heap constant?
+  Node* const native_context = LoadNativeContext(context);
+  Node* const map =
+      LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
+  StoreMapNoWriteBarrier(result, map);
+
+  // Initialize the header before allocating the elements.
+  Node* const empty_array = EmptyFixedArrayConstant();
+  DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOffset,
+                                 empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
+
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
+  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
+
+  Node* const zero = IntPtrConstant(0);
+  Node* const length_intptr = SmiUntag(length);
+  const ElementsKind elements_kind = FAST_ELEMENTS;
+  const ParameterMode parameter_mode = INTPTR_PARAMETERS;
+
+  Node* const elements =
+      AllocateFixedArray(elements_kind, length_intptr, parameter_mode);
+  StoreObjectField(result, JSArray::kElementsOffset, elements);
+
+  // Fill in the elements with undefined.
+  FillFixedArrayWithValue(elements_kind, elements, zero, length_intptr,
+                          Heap::kUndefinedValueRootIndex, parameter_mode);
+
+  return result;
+}
+
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
     ElementsKind kind, Node* array_map, Node* length, Node* allocation_site) {
   Comment("begin allocation of JSArray without elements");
@@ -1347,7 +1473,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   Node* array = AllocateUninitializedJSArray(kind, array_map, length,
                                              allocation_site, size);
 
-  Node* elements = InnerAllocate(array, elements_offset);
+  // The bitcast here is safe because InnerAllocate doesn't actually allocate.
+  Node* elements = InnerAllocate(BitcastTaggedToWord(array), elements_offset);
   StoreObjectField(array, JSObject::kElementsOffset, elements);
 
   return {array, elements};
@@ -1393,8 +1520,10 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                  TagParameter(capacity, capacity_mode));
 
   // Fill in the elements with holes.
-  FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity,
-                          Heap::kTheHoleValueRootIndex, capacity_mode);
+  FillFixedArrayWithValue(
+      kind, elements, capacity_mode == SMI_PARAMETERS ? SmiConstant(Smi::kZero)
+                                                      : IntPtrConstant(0),
+      capacity, Heap::kTheHoleValueRootIndex, capacity_mode);
 
   return array;
 }
@@ -1403,7 +1532,7 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                             Node* capacity_node,
                                             ParameterMode mode,
                                             AllocationFlags flags) {
-  Node* total_size = GetFixedAarrayAllocationSize(capacity_node, kind, mode);
+  Node* total_size = GetFixedArrayAllocationSize(capacity_node, kind, mode);
 
   // Allocate both array and elements object, and initialize the JSArray.
   Node* array = Allocate(total_size, flags);
@@ -1433,86 +1562,37 @@ void CodeStubAssembler::FillFixedArrayWithValue(
       Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
   Node* value = LoadRoot(value_root_index);
 
-  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
-  int32_t to;
-  bool constant_to = ToInt32Constant(to_node, to);
-  int32_t from;
-  bool constant_from = ToInt32Constant(from_node, from);
-  if (constant_to && constant_from &&
-      (to - from) <= kElementLoopUnrollThreshold) {
-    for (int i = from; i < to; ++i) {
-      Node* index = IntPtrConstant(i);
-      if (is_double) {
-        Node* offset = ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
-                                              first_element_offset);
-        // Don't use doubles to store the hole double, since manipulating the
-        // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-        // change its value on ia32 (the x87 stack is used to return values
-        // and stores to the stack silently clear the signalling bit).
-        //
-        // TODO(danno): When we have a Float32/Float64 wrapper class that
-        // preserves double bits during manipulation, remove this code/change
-        // this to an indexed Float64 store.
-        if (Is64()) {
-          StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
-                              double_hole);
+  BuildFastFixedArrayForEach(
+      array, kind, from_node, to_node,
+      [value, is_double, double_hole](CodeStubAssembler* assembler, Node* array,
+                                      Node* offset) {
+        if (is_double) {
+          // Don't use doubles to store the hole double, since manipulating the
+          // signaling NaN used for the hole in C++, e.g. with bit_cast, will
+          // change its value on ia32 (the x87 stack is used to return values
+          // and stores to the stack silently clear the signalling bit).
+          //
+          // TODO(danno): When we have a Float32/Float64 wrapper class that
+          // preserves double bits during manipulation, remove this code/change
+          // this to an indexed Float64 store.
+          if (assembler->Is64()) {
+            assembler->StoreNoWriteBarrier(MachineRepresentation::kWord64,
+                                           array, offset, double_hole);
+          } else {
+            assembler->StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                                           array, offset, double_hole);
+            assembler->StoreNoWriteBarrier(
+                MachineRepresentation::kWord32, array,
+                assembler->IntPtrAdd(offset,
+                                     assembler->IntPtrConstant(kPointerSize)),
+                double_hole);
+          }
         } else {
-          StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
-                              double_hole);
-          offset = ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
-                                          first_element_offset + kPointerSize);
-          StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
-                              double_hole);
+          assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, array,
+                                         offset, value);
         }
-      } else {
-        StoreFixedArrayElement(array, index, value, SKIP_WRITE_BARRIER,
-                               INTPTR_PARAMETERS);
-      }
-    }
-  } else {
-    Variable current(this, MachineRepresentation::kTagged);
-    Label test(this);
-    Label decrement(this, &current);
-    Label done(this);
-    Node* limit =
-        IntPtrAdd(array, ElementOffsetFromIndex(from_node, kind, mode));
-    current.Bind(IntPtrAdd(array, ElementOffsetFromIndex(to_node, kind, mode)));
-
-    Branch(WordEqual(current.value(), limit), &done, &decrement);
-
-    Bind(&decrement);
-    current.Bind(IntPtrSub(
-        current.value(),
-        IntPtrConstant(IsFastDoubleElementsKind(kind) ? kDoubleSize
-                                                      : kPointerSize)));
-    if (is_double) {
-      // Don't use doubles to store the hole double, since manipulating the
-      // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-      // change its value on ia32 (the x87 stack is used to return values
-      // and stores to the stack silently clear the signalling bit).
-      //
-      // TODO(danno): When we have a Float32/Float64 wrapper class that
-      // preserves double bits during manipulation, remove this code/change
-      // this to an indexed Float64 store.
-      if (Is64()) {
-        StoreNoWriteBarrier(MachineRepresentation::kWord64, current.value(),
-                            Int64Constant(first_element_offset), double_hole);
-      } else {
-        StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
-                            Int32Constant(first_element_offset), double_hole);
-        StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
-                            Int32Constant(kPointerSize + first_element_offset),
-                            double_hole);
-      }
-    } else {
-      StoreNoWriteBarrier(MachineType::PointerRepresentation(), current.value(),
-                          IntPtrConstant(first_element_offset), value);
-    }
-    Node* compare = WordNotEqual(current.value(), limit);
-    Branch(compare, &decrement, &done);
-
-    Bind(&done);
-  }
+      },
+      mode);
 }
 
 void CodeStubAssembler::CopyFixedArrayElements(
@@ -1611,8 +1691,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array, to_offset,
                           value);
     } else {
-      StoreNoWriteBarrier(MachineType::PointerRepresentation(), to_array,
-                          to_offset, value);
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array, to_offset,
+                          value);
     }
     Goto(&next_iter);
 
@@ -1652,14 +1732,14 @@ void CodeStubAssembler::CopyFixedArrayElements(
 void CodeStubAssembler::CopyStringCharacters(compiler::Node* from_string,
                                              compiler::Node* to_string,
                                              compiler::Node* from_index,
+                                             compiler::Node* to_index,
                                              compiler::Node* character_count,
                                              String::Encoding encoding) {
   Label out(this);
 
   // Nothing to do for zero characters.
 
-  GotoIf(SmiLessThanOrEqual(character_count, SmiConstant(Smi::FromInt(0))),
-         &out);
+  GotoIf(SmiLessThanOrEqual(character_count, SmiConstant(Smi::kZero)), &out);
 
   // Calculate offsets into the strings.
 
@@ -1670,20 +1750,22 @@ void CodeStubAssembler::CopyStringCharacters(compiler::Node* from_string,
   {
     Node* byte_count = SmiUntag(character_count);
     Node* from_byte_index = SmiUntag(from_index);
+    Node* to_byte_index = SmiUntag(to_index);
     if (encoding == String::ONE_BYTE_ENCODING) {
       const int offset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
       from_offset = IntPtrAdd(IntPtrConstant(offset), from_byte_index);
       limit_offset = IntPtrAdd(from_offset, byte_count);
-      to_offset = IntPtrConstant(offset);
+      to_offset = IntPtrAdd(IntPtrConstant(offset), to_byte_index);
     } else {
       STATIC_ASSERT(2 == sizeof(uc16));
       byte_count = WordShl(byte_count, 1);
       from_byte_index = WordShl(from_byte_index, 1);
+      to_byte_index = WordShl(to_byte_index, 1);
 
       const int offset = SeqTwoByteString::kHeaderSize - kHeapObjectTag;
       from_offset = IntPtrAdd(IntPtrConstant(offset), from_byte_index);
       limit_offset = IntPtrAdd(from_offset, byte_count);
-      to_offset = IntPtrConstant(offset);
+      to_offset = IntPtrAdd(IntPtrConstant(offset), to_byte_index);
     }
   }
 
@@ -1732,7 +1814,7 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
     return value;
 
   } else {
-    Node* value = Load(MachineType::Pointer(), array, offset);
+    Node* value = Load(MachineType::AnyTagged(), array, offset);
     if (if_hole) {
       GotoIf(WordEqual(value, TheHoleConstant()), if_hole);
     }
@@ -1836,7 +1918,7 @@ void CodeStubAssembler::InitializeAllocationMemento(
   if (FLAG_allocation_site_pretenuring) {
     Node* count = LoadObjectField(allocation_site,
                                   AllocationSite::kPretenureCreateCountOffset);
-    Node* incremented_count = IntPtrAdd(count, SmiConstant(Smi::FromInt(1)));
+    Node* incremented_count = SmiAdd(count, SmiConstant(Smi::FromInt(1)));
     StoreObjectFieldNoWriteBarrier(allocation_site,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    incremented_count);
@@ -1857,7 +1939,7 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
 
     // Check if the {value} is a Smi or a HeapObject.
     Label if_valueissmi(this), if_valueisnotsmi(this);
-    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+    Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
     Bind(&if_valueissmi);
     {
@@ -1908,7 +1990,7 @@ Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
 
     // Check if the {value} is a Smi or a HeapObject.
     Label if_valueissmi(this), if_valueisnotsmi(this);
-    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+    Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
     Bind(&if_valueissmi);
     {
@@ -2070,7 +2152,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
   // Check if the {value} is a Smi or a HeapObject.
   Label if_valueissmi(this, Label::kDeferred), if_valueisnotsmi(this),
       if_valueisstring(this);
-  Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
   Bind(&if_valueisnotsmi);
   {
     // Load the instance type of the {value}.
@@ -2078,9 +2160,8 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
 
     // Check if the {value} is already String.
     Label if_valueisnotstring(this, Label::kDeferred);
-    Branch(
-        Int32LessThan(value_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-        &if_valueisstring, &if_valueisnotstring);
+    Branch(IsStringInstanceType(value_instance_type), &if_valueisstring,
+           &if_valueisnotstring);
     Bind(&if_valueisnotstring);
     {
       // Check if the {value} is null.
@@ -2139,9 +2220,9 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
     value = var_value.value();
 
     // Check if the {value} is a Smi or a HeapObject.
-    GotoIf(WordIsSmi(value), (primitive_type == PrimitiveType::kNumber)
-                                 ? &done_loop
-                                 : &done_throw);
+    GotoIf(TaggedIsSmi(value), (primitive_type == PrimitiveType::kNumber)
+                                   ? &done_loop
+                                   : &done_throw);
 
     // Load the mape of the {value}.
     Node* value_map = LoadMap(value);
@@ -2173,9 +2254,7 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
               &done_loop);
           break;
         case PrimitiveType::kString:
-          GotoIf(Int32LessThan(value_instance_type,
-                               Int32Constant(FIRST_NONSTRING_TYPE)),
-                 &done_loop);
+          GotoIf(IsStringInstanceType(value_instance_type), &done_loop);
           break;
         case PrimitiveType::kSymbol:
           GotoIf(Word32Equal(value_instance_type, Int32Constant(SYMBOL_TYPE)),
@@ -2205,7 +2284,7 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
   Label out(this), throw_exception(this, Label::kDeferred);
   Variable var_value_map(this, MachineRepresentation::kTagged);
 
-  GotoIf(WordIsSmi(value), &throw_exception);
+  GotoIf(TaggedIsSmi(value), &throw_exception);
 
   // Load the instance type of the {value}.
   var_value_map.Bind(LoadMap(value));
@@ -2225,6 +2304,17 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   Bind(&out);
   return var_value_map.value();
+}
+
+Node* CodeStubAssembler::IsStringInstanceType(Node* instance_type) {
+  STATIC_ASSERT(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+  return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
+}
+
+Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  return Int32GreaterThanOrEqual(instance_type,
+                                 Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
@@ -2473,6 +2563,8 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   Label end(a), two_byte_sequential(a);
   Variable var_result(a, MachineRepresentation::kTagged);
 
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
+
   STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
   a->GotoIf(a->Word32Equal(a->Word32And(from_instance_type,
                                         a->Int32Constant(kStringEncodingMask)),
@@ -2483,7 +2575,7 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   {
     Node* result =
         a->AllocateSeqOneByteString(context, a->SmiToWord(character_count));
-    a->CopyStringCharacters(from, result, from_index, character_count,
+    a->CopyStringCharacters(from, result, from_index, smi_zero, character_count,
                             String::ONE_BYTE_ENCODING);
     var_result.Bind(result);
 
@@ -2495,7 +2587,7 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   {
     Node* result =
         a->AllocateSeqTwoByteString(context, a->SmiToWord(character_count));
-    a->CopyStringCharacters(from, result, from_index, character_count,
+    a->CopyStringCharacters(from, result, from_index, smi_zero, character_count,
                             String::TWO_BYTE_ENCODING);
     var_result.Bind(result);
 
@@ -2525,16 +2617,14 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // Make sure first argument is a string.
 
   // Bailout if receiver is a Smi.
-  GotoIf(WordIsSmi(string), &runtime);
+  GotoIf(TaggedIsSmi(string), &runtime);
 
   // Load the instance type of the {string}.
   Node* const instance_type = LoadInstanceType(string);
   var_instance_type.Bind(instance_type);
 
   // Check if {string} is a String.
-  GotoIf(Int32GreaterThanOrEqual(instance_type,
-                                 Int32Constant(FIRST_NONSTRING_TYPE)),
-         &runtime);
+  GotoUnless(IsStringInstanceType(instance_type), &runtime);
 
   // Make sure that both from and to are non-negative smis.
 
@@ -2709,7 +2799,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     GotoIf(SmiAbove(substr_length, string_length), &runtime);
 
     // Equal length - check if {from, to} == {0, str.length}.
-    GotoIf(SmiAbove(from, SmiConstant(Smi::FromInt(0))), &runtime);
+    GotoIf(SmiAbove(from, SmiConstant(Smi::kZero)), &runtime);
 
     // Return the original string (substr_length == string_length).
 
@@ -2729,6 +2819,146 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   }
 
   Bind(&end);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::StringConcat(Node* context, Node* first,
+                                      Node* second) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  Label out(this), runtime(this, Label::kDeferred);
+
+  // TODO(jgruber): Handle indirect, external, and two-byte strings.
+
+  Node* const one_byte_seq_mask = Int32Constant(
+      kIsIndirectStringMask | kExternalStringTag | kStringEncodingMask);
+  Node* const expected_masked = Int32Constant(kOneByteStringTag);
+
+  Node* const first_instance_type = LoadInstanceType(first);
+  GotoUnless(Word32Equal(Word32And(first_instance_type, one_byte_seq_mask),
+                         expected_masked),
+             &runtime);
+
+  Node* const second_instance_type = LoadInstanceType(second);
+  GotoUnless(Word32Equal(Word32And(second_instance_type, one_byte_seq_mask),
+                         expected_masked),
+             &runtime);
+
+  Node* const smi_zero = SmiConstant(Smi::kZero);
+  Node* const first_length = LoadStringLength(first);
+  Node* const second_length = LoadStringLength(second);
+  Node* const length = SmiAdd(first_length, second_length);
+
+  Label if_makeseqstring(this), if_makeconsstring(this);
+  Node* const min_cons_length =
+      SmiConstant(Smi::FromInt(ConsString::kMinLength));
+  Branch(SmiLessThan(length, min_cons_length), &if_makeseqstring,
+         &if_makeconsstring);
+
+  Bind(&if_makeseqstring);
+  {
+    Node* result = AllocateSeqOneByteString(context, SmiToWord(length));
+
+    CopyStringCharacters(first, result, smi_zero, smi_zero, first_length,
+                         String::ONE_BYTE_ENCODING);
+    CopyStringCharacters(second, result, smi_zero, first_length, second_length,
+                         String::ONE_BYTE_ENCODING);
+
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&if_makeconsstring);
+  {
+    Node* result = AllocateOneByteConsString(length, first, second);
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&runtime);
+  {
+    Node* const result =
+        CallRuntime(Runtime::kStringAdd, context, first, second);
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&out);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
+                                           Node* needle_char, Node* from) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  Label out(this), runtime(this, Label::kDeferred);
+
+  // Let runtime handle non-one-byte {needle_char}.
+
+  Node* const one_byte_char_mask = IntPtrConstant(0xFF);
+  GotoUnless(WordEqual(WordAnd(needle_char, one_byte_char_mask), needle_char),
+             &runtime);
+
+  // TODO(jgruber): Handle external and two-byte strings.
+
+  Node* const one_byte_seq_mask = Int32Constant(
+      kIsIndirectStringMask | kExternalStringTag | kStringEncodingMask);
+  Node* const expected_masked = Int32Constant(kOneByteStringTag);
+
+  Node* const string_instance_type = LoadInstanceType(string);
+  GotoUnless(Word32Equal(Word32And(string_instance_type, one_byte_seq_mask),
+                         expected_masked),
+             &runtime);
+
+  // If we reach this, {string} is a non-indirect, non-external one-byte string.
+
+  Node* const length = LoadStringLength(string);
+  Node* const search_range_length = SmiUntag(SmiSub(length, from));
+
+  const int offset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+  Node* const begin = IntPtrConstant(offset);
+  Node* const cursor = IntPtrAdd(begin, SmiUntag(from));
+  Node* const end = IntPtrAdd(cursor, search_range_length);
+
+  Variable var_cursor(this, MachineType::PointerRepresentation());
+  Variable* vars[] = {&var_cursor};
+  Label loop(this, 1, vars), loop_tail(this);
+
+  var_cursor.Bind(cursor);
+  var_result.Bind(SmiConstant(Smi::FromInt(-1)));
+
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* const cursor = var_cursor.value();
+
+    Node* value = Load(MachineType::Uint8(), string, cursor);
+    GotoUnless(WordEqual(value, needle_char), &loop_tail);
+
+    // Found a match.
+    Node* index = SmiTag(IntPtrSub(cursor, begin));
+    var_result.Bind(index);
+    Goto(&out);
+
+    Bind(&loop_tail);
+    {
+      Node* const new_cursor = IntPtrAdd(cursor, IntPtrConstant(1));
+      var_cursor.Bind(new_cursor);
+      Branch(IntPtrLessThan(new_cursor, end), &loop, &out);
+    }
+  }
+
+  Bind(&runtime);
+  {
+    Node* const pattern = StringFromCharCode(needle_char);
+    Node* const result =
+        CallRuntime(Runtime::kStringIndexOf, context, string, pattern, from);
+    var_result.Bind(result);
+    var_cursor.Bind(IntPtrConstant(0));
+    Goto(&out);
+  }
+
+  Bind(&out);
   return var_result.value();
 }
 
@@ -2809,6 +3039,85 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::NumberToString(compiler::Node* context,
+                                        compiler::Node* argument) {
+  Variable result(this, MachineRepresentation::kTagged);
+  Label runtime(this, Label::kDeferred);
+  Label smi(this);
+  Label done(this, &result);
+
+  // Load the number string cache.
+  Node* number_string_cache = LoadRoot(Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  Node* mask = LoadFixedArrayBaseLength(number_string_cache);
+  Node* one = IntPtrConstant(1);
+  mask = IntPtrSub(mask, one);
+
+  GotoIf(TaggedIsSmi(argument), &smi);
+
+  // Argument isn't smi, check to see if it's a heap-number.
+  Node* map = LoadMap(argument);
+  GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
+
+  // Make a hash from the two 32-bit values of the double.
+  Node* low =
+      LoadObjectField(argument, HeapNumber::kValueOffset, MachineType::Int32());
+  Node* high = LoadObjectField(argument, HeapNumber::kValueOffset + kIntSize,
+                               MachineType::Int32());
+  Node* hash = Word32Xor(low, high);
+  if (Is64()) hash = ChangeInt32ToInt64(hash);
+  hash = WordShl(hash, one);
+  Node* index = WordAnd(hash, SmiToWord(mask));
+
+  // Cache entry's key must be a heap number
+  Node* number_key =
+      LoadFixedArrayElement(number_string_cache, index, 0, INTPTR_PARAMETERS);
+  GotoIf(TaggedIsSmi(number_key), &runtime);
+  map = LoadMap(number_key);
+  GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
+
+  // Cache entry's key must match the heap number value we're looking for.
+  Node* low_compare = LoadObjectField(number_key, HeapNumber::kValueOffset,
+                                      MachineType::Int32());
+  Node* high_compare = LoadObjectField(
+      number_key, HeapNumber::kValueOffset + kIntSize, MachineType::Int32());
+  GotoUnless(WordEqual(low, low_compare), &runtime);
+  GotoUnless(WordEqual(high, high_compare), &runtime);
+
+  // Heap number match, return value fro cache entry.
+  IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
+  result.Bind(LoadFixedArrayElement(number_string_cache, index, kPointerSize,
+                                    INTPTR_PARAMETERS));
+  Goto(&done);
+
+  Bind(&runtime);
+  {
+    // No cache entry, go to the runtime.
+    result.Bind(CallRuntime(Runtime::kNumberToString, context, argument));
+  }
+  Goto(&done);
+
+  Bind(&smi);
+  {
+    // Load the smi key, make sure it matches the smi we're looking for.
+    Node* smi_index = WordAnd(WordShl(argument, one), mask);
+    Node* smi_key = LoadFixedArrayElement(number_string_cache, smi_index, 0,
+                                          SMI_PARAMETERS);
+    GotoIf(WordNotEqual(smi_key, argument), &runtime);
+
+    // Smi match, return value from cache entry.
+    IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
+    result.Bind(LoadFixedArrayElement(number_string_cache, smi_index,
+                                      kPointerSize, SMI_PARAMETERS));
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return result.value();
+}
+
 Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -2817,7 +3126,7 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   Variable var_result(this, MachineRepresentation::kTagged);
 
   Label is_number(this);
-  GotoIf(WordIsSmi(value), &is_number);
+  GotoIf(TaggedIsSmi(value), &is_number);
 
   Label not_name(this);
   Node* value_instance_type = LoadInstanceType(value);
@@ -2860,8 +3169,8 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
 
 Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
   // Assert input is a HeapObject (not smi or heap number)
-  Assert(Word32BinaryNot(WordIsSmi(input)));
-  Assert(Word32NotEqual(LoadMap(input), HeapNumberMapConstant()));
+  CSA_ASSERT(Word32BinaryNot(TaggedIsSmi(input)));
+  CSA_ASSERT(Word32NotEqual(LoadMap(input), HeapNumberMapConstant()));
 
   // We might need to loop once here due to ToPrimitive conversions.
   Variable var_input(this, MachineRepresentation::kTagged);
@@ -2880,15 +3189,11 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
     Label if_inputisstring(this), if_inputisoddball(this),
         if_inputisreceiver(this, Label::kDeferred),
         if_inputisother(this, Label::kDeferred);
-    GotoIf(
-        Int32LessThan(input_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-        &if_inputisstring);
+    GotoIf(IsStringInstanceType(input_instance_type), &if_inputisstring);
     GotoIf(Word32Equal(input_instance_type, Int32Constant(ODDBALL_TYPE)),
            &if_inputisoddball);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    Branch(Int32GreaterThanOrEqual(input_instance_type,
-                                   Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-           &if_inputisreceiver, &if_inputisother);
+    Branch(IsJSReceiverInstanceType(input_instance_type), &if_inputisreceiver,
+           &if_inputisother);
 
     Bind(&if_inputisstring);
     {
@@ -2914,7 +3219,7 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
 
       // Check if the {result} is already a Number.
       Label if_resultisnumber(this), if_resultisnotnumber(this);
-      GotoIf(WordIsSmi(result), &if_resultisnumber);
+      GotoIf(TaggedIsSmi(result), &if_resultisnumber);
       Node* result_map = LoadMap(result);
       Branch(WordEqual(result_map, HeapNumberMapConstant()), &if_resultisnumber,
              &if_resultisnotnumber);
@@ -2956,7 +3261,7 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   Label end(this);
 
   Label not_smi(this, Label::kDeferred);
-  GotoUnless(WordIsSmi(input), &not_smi);
+  GotoUnless(TaggedIsSmi(input), &not_smi);
   var_result.Bind(input);
   Goto(&end);
 
@@ -2997,7 +3302,7 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     Node* arg = var_arg.value();
 
     // Check if {arg} is a Smi.
-    GotoIf(WordIsSmi(arg), &out);
+    GotoIf(TaggedIsSmi(arg), &out);
 
     // Check if {arg} is a HeapNumber.
     Label if_argisheapnumber(this),
@@ -3034,7 +3339,7 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     }
 
     Bind(&return_zero);
-    var_arg.Bind(SmiConstant(Smi::FromInt(0)));
+    var_arg.Bind(SmiConstant(Smi::kZero));
     Goto(&out);
   }
 
@@ -3098,9 +3403,7 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
          if_keyisunique);
   // Miss if |key| is not a String.
   STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  GotoIf(
-      Int32GreaterThan(key_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-      if_bailout);
+  GotoUnless(IsStringInstanceType(key_instance_type), if_bailout);
   // |key| is a String. Check if it has a cached array index.
   Node* hash = LoadNameHashField(key);
   Node* contains_index =
@@ -3262,7 +3565,7 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
     Label next_probe(this);
     {
       Label if_currentissmi(this), if_currentisnotsmi(this);
-      Branch(WordIsSmi(current), &if_currentissmi, &if_currentisnotsmi);
+      Branch(TaggedIsSmi(current), &if_currentissmi, &if_currentisnotsmi);
       Bind(&if_currentissmi);
       {
         Node* current_value = SmiUntag(current);
@@ -3294,25 +3597,22 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                                                Label* if_found,
                                                Variable* var_name_index,
                                                Label* if_not_found) {
-  Variable var_descriptor(this, MachineType::PointerRepresentation());
-  Label loop(this, &var_descriptor);
-  var_descriptor.Bind(IntPtrConstant(0));
-  Goto(&loop);
+  Node* first_inclusive = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
+  Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
+  Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
 
-  Bind(&loop);
-  {
-    Node* index = var_descriptor.value();
-    Node* name_offset = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
-    Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
-    GotoIf(WordEqual(index, nof), if_not_found);
-    Node* name_index = IntPtrAdd(name_offset, IntPtrMul(index, factor));
-    Node* candidate_name =
-        LoadFixedArrayElement(descriptors, name_index, 0, INTPTR_PARAMETERS);
-    var_name_index->Bind(name_index);
-    GotoIf(WordEqual(candidate_name, unique_name), if_found);
-    var_descriptor.Bind(IntPtrAdd(index, IntPtrConstant(1)));
-    Goto(&loop);
-  }
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), last_exclusive, first_inclusive,
+      [descriptors, unique_name, if_found, var_name_index](
+          CodeStubAssembler* assembler, Node* name_index) {
+        Node* candidate_name = assembler->LoadFixedArrayElement(
+            descriptors, name_index, 0, INTPTR_PARAMETERS);
+        var_name_index->Bind(name_index);
+        assembler->GotoIf(assembler->WordEqual(candidate_name, unique_name),
+                          if_found);
+      },
+      -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
+  Goto(if_not_found);
 }
 
 void CodeStubAssembler::TryLookupProperty(
@@ -3332,7 +3632,7 @@ void CodeStubAssembler::TryLookupProperty(
   Node* bit_field = LoadMapBitField(map);
   Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
                              1 << Map::kIsAccessCheckNeeded);
-  Assert(Word32Equal(Word32And(bit_field, mask), Int32Constant(0)));
+  CSA_ASSERT(Word32Equal(Word32And(bit_field, mask), Int32Constant(0)));
 
   Node* bit_field3 = LoadMapBitField3(map);
   Node* bit = BitFieldDecode<Map::DictionaryMap>(bit_field3);
@@ -3678,8 +3978,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
          if_bailout);
 
-  Node* bit_field2 = LoadMapBitField2(map);
-  Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+  Node* elements_kind = LoadMapElementsKind(map);
 
   // TODO(verwaest): Support other elements kinds as well.
   Label if_isobjectorsmi(this), if_isdouble(this), if_isdictionary(this),
@@ -3748,8 +4047,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   {
     AssertInstanceType(object, JS_VALUE_TYPE);
     Node* string = LoadJSValueValue(object);
-    Assert(Int32LessThan(LoadInstanceType(string),
-                         Int32Constant(FIRST_NONSTRING_TYPE)));
+    CSA_ASSERT(IsStringInstanceType(LoadInstanceType(string)));
     Node* length = LoadStringLength(string);
     GotoIf(UintPtrLessThan(intptr_index, SmiUntag(length)), if_found);
     Goto(&if_isobjectorsmi);
@@ -3758,8 +4056,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   {
     AssertInstanceType(object, JS_VALUE_TYPE);
     Node* string = LoadJSValueValue(object);
-    Assert(Int32LessThan(LoadInstanceType(string),
-                         Int32Constant(FIRST_NONSTRING_TYPE)));
+    CSA_ASSERT(IsStringInstanceType(LoadInstanceType(string)));
     Node* length = LoadStringLength(string);
     GotoIf(UintPtrLessThan(intptr_index, SmiUntag(length)), if_found);
     Goto(&if_isdictionary);
@@ -3785,7 +4082,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     Label* if_bailout) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   Label if_objectisnotsmi(this);
-  Branch(WordIsSmi(receiver), if_bailout, &if_objectisnotsmi);
+  Branch(TaggedIsSmi(receiver), if_bailout, &if_objectisnotsmi);
   Bind(&if_objectisnotsmi);
 
   Node* map = LoadMap(receiver);
@@ -3895,7 +4192,7 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
       return_runtime(this, Label::kDeferred), return_result(this);
 
   // Goto runtime if {object} is a Smi.
-  GotoIf(WordIsSmi(object), &return_runtime);
+  GotoIf(TaggedIsSmi(object), &return_runtime);
 
   // Load map of {object}.
   Node* object_map = LoadMap(object);
@@ -3918,7 +4215,7 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   }
 
   // Goto runtime if {callable} is a Smi.
-  GotoIf(WordIsSmi(callable), &return_runtime);
+  GotoIf(TaggedIsSmi(callable), &return_runtime);
 
   // Load map of {callable}.
   Node* callable_map = LoadMap(callable);
@@ -4037,6 +4334,7 @@ compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
     element_size_shift -= kSmiShiftBits;
     constant_index = ToIntPtrConstant(index_node, index);
     index = index >> kSmiShiftBits;
+    index_node = BitcastTaggedToWord(index_node);
   } else if (mode == INTEGER_PARAMETERS) {
     int32_t temp = 0;
     constant_index = ToInt32Constant(index_node, temp);
@@ -4091,7 +4389,7 @@ compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
   Label load_smi_map(this /*, Label::kDeferred*/), load_receiver_map(this),
       if_result(this);
 
-  Branch(WordIsSmi(receiver), &load_smi_map, &load_receiver_map);
+  Branch(TaggedIsSmi(receiver), &load_smi_map, &load_receiver_map);
   Bind(&load_smi_map);
   {
     var_receiver_map.Bind(LoadRoot(Heap::kHeapNumberMapRootIndex));
@@ -4189,7 +4487,7 @@ compiler::Node* CodeStubAssembler::StubCachePrimaryOffset(compiler::Node* name,
   STATIC_ASSERT(StubCache::kCacheIndexShift == Name::kHashShift);
   // Compute the hash of the name (use entire hash field).
   Node* hash_field = LoadNameHashField(name);
-  Assert(Word32Equal(
+  CSA_ASSERT(Word32Equal(
       Word32And(hash_field, Int32Constant(Name::kHashNotComputedMask)),
       Int32Constant(0)));
 
@@ -4256,11 +4554,11 @@ void CodeStubAssembler::TryProbeStubCacheTable(
 
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
-  Node* code = Load(MachineType::Pointer(), key_base,
-                    IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize)));
+  Node* handler = Load(MachineType::Pointer(), key_base,
+                       IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize)));
 
   // We found the handler.
-  var_handler->Bind(code);
+  var_handler->Bind(handler);
   Goto(if_handler);
 }
 
@@ -4273,7 +4571,7 @@ void CodeStubAssembler::TryProbeStubCache(
   IncrementCounter(counters->megamorphic_stub_cache_probes(), 1);
 
   // Check that the {receiver} isn't a smi.
-  GotoIf(WordIsSmi(receiver), &miss);
+  GotoIf(TaggedIsSmi(receiver), &miss);
 
   Node* receiver_map = LoadMap(receiver);
 
@@ -4300,7 +4598,7 @@ void CodeStubAssembler::TryProbeStubCache(
 Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
   Variable var_intptr_key(this, MachineType::PointerRepresentation());
   Label done(this, &var_intptr_key), key_is_smi(this);
-  GotoIf(WordIsSmi(key), &key_is_smi);
+  GotoIf(TaggedIsSmi(key), &key_is_smi);
   // Try to convert a heap number to a Smi.
   GotoUnless(WordEqual(LoadMap(key), HeapNumberMapConstant()), miss);
   {
@@ -4546,34 +4844,44 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     const LoadICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
   Comment("have_handler");
-  Label call_handler(this);
-  GotoUnless(WordIsSmi(handler), &call_handler);
+  Variable var_holder(this, MachineRepresentation::kTagged);
+  var_holder.Bind(p->receiver);
+  Variable var_smi_handler(this, MachineRepresentation::kTagged);
+  var_smi_handler.Bind(handler);
 
-  // |handler| is a Smi, encoding what to do. See handler-configuration.h
+  Variable* vars[] = {&var_holder, &var_smi_handler};
+  Label if_smi_handler(this, 2, vars);
+  Label try_proto_cell_handler(this), call_handler(this);
+
+  Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_cell_handler);
+
+  // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
+  Bind(&if_smi_handler);
   {
     Variable var_double_value(this, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
 
-    Node* handler_word = SmiUntag(handler);
+    Node* holder = var_holder.value();
+    Node* handler_word = SmiUntag(var_smi_handler.value());
+    Node* handler_type =
+        WordAnd(handler_word, IntPtrConstant(LoadHandlerTypeBits::kMask));
     if (support_elements == kSupportElements) {
       Label property(this);
-      Node* handler_type =
-          WordAnd(handler_word, IntPtrConstant(LoadHandlerTypeBit::kMask));
       GotoUnless(
           WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForElements)),
           &property);
 
       Comment("element_load");
       Node* intptr_index = TryToIntptr(p->name, miss);
-      Node* elements = LoadElements(p->receiver);
+      Node* elements = LoadElements(holder);
       Node* is_jsarray =
           WordAnd(handler_word, IntPtrConstant(KeyedLoadIsJsArray::kMask));
       Node* is_jsarray_condition = WordNotEqual(is_jsarray, IntPtrConstant(0));
       Node* elements_kind = BitFieldDecode<KeyedLoadElementsKind>(handler_word);
       Label if_hole(this), unimplemented_elements_kind(this);
       Label* out_of_bounds = miss;
-      EmitElementLoad(p->receiver, elements, elements_kind, intptr_index,
+      EmitElementLoad(holder, elements, elements_kind, intptr_index,
                       is_jsarray_condition, &if_hole, &rebox_double,
                       &var_double_value, &unimplemented_elements_kind,
                       out_of_bounds, miss);
@@ -4606,54 +4914,101 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
       Comment("property_load");
     }
 
-    // |handler_word| is a field index as obtained by
-    // FieldIndex.GetLoadByFieldOffset():
-    Label inobject_double(this), out_of_object(this),
-        out_of_object_double(this);
-    Node* inobject_bit =
-        WordAnd(handler_word, IntPtrConstant(FieldOffsetIsInobject::kMask));
-    Node* double_bit =
-        WordAnd(handler_word, IntPtrConstant(FieldOffsetIsDouble::kMask));
-    Node* offset =
-        WordSar(handler_word, IntPtrConstant(FieldOffsetOffset::kShift));
+    Label constant(this), field(this);
+    Branch(WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForFields)),
+           &field, &constant);
 
-    GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
+    Bind(&field);
+    {
+      Comment("field_load");
+      Label inobject_double(this), out_of_object(this),
+          out_of_object_double(this);
+      Node* inobject_bit =
+          WordAnd(handler_word, IntPtrConstant(FieldOffsetIsInobject::kMask));
+      Node* double_bit =
+          WordAnd(handler_word, IntPtrConstant(FieldOffsetIsDouble::kMask));
+      Node* offset =
+          WordSar(handler_word, IntPtrConstant(FieldOffsetOffset::kShift));
 
-    GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &inobject_double);
-    Return(LoadObjectField(p->receiver, offset));
+      GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
 
-    Bind(&inobject_double);
-    if (FLAG_unbox_double_fields) {
-      var_double_value.Bind(
-          LoadObjectField(p->receiver, offset, MachineType::Float64()));
-    } else {
-      Node* mutable_heap_number = LoadObjectField(p->receiver, offset);
-      var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+      GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &inobject_double);
+      Return(LoadObjectField(holder, offset));
+
+      Bind(&inobject_double);
+      if (FLAG_unbox_double_fields) {
+        var_double_value.Bind(
+            LoadObjectField(holder, offset, MachineType::Float64()));
+      } else {
+        Node* mutable_heap_number = LoadObjectField(holder, offset);
+        var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+      }
+      Goto(&rebox_double);
+
+      Bind(&out_of_object);
+      Node* properties = LoadProperties(holder);
+      Node* value = LoadObjectField(properties, offset);
+      GotoUnless(WordEqual(double_bit, IntPtrConstant(0)),
+                 &out_of_object_double);
+      Return(value);
+
+      Bind(&out_of_object_double);
+      var_double_value.Bind(LoadHeapNumberValue(value));
+      Goto(&rebox_double);
+
+      Bind(&rebox_double);
+      Return(AllocateHeapNumberWithValue(var_double_value.value()));
     }
-    Goto(&rebox_double);
 
-    Bind(&out_of_object);
-    Node* properties = LoadProperties(p->receiver);
-    Node* value = LoadObjectField(properties, offset);
-    GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &out_of_object_double);
-    Return(value);
+    Bind(&constant);
+    {
+      Comment("constant_load");
+      Node* descriptors = LoadMapDescriptors(LoadMap(holder));
+      Node* descriptor = WordSar(
+          handler_word, IntPtrConstant(ValueIndexInDescriptorArray::kShift));
+#if defined(DEBUG)
+      Assert(UintPtrLessThan(descriptor,
+                             LoadAndUntagFixedArrayBaseLength(descriptors)));
+#endif
+      Return(
+          LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS));
+    }
+  }
 
-    Bind(&out_of_object_double);
-    var_double_value.Bind(LoadHeapNumberValue(value));
-    Goto(&rebox_double);
+  Bind(&try_proto_cell_handler);
+  {
+    GotoIf(WordNotEqual(LoadMap(handler), LoadRoot(Heap::kTuple3MapRootIndex)),
+           &call_handler);
+    Node* validity_cell = LoadObjectField(handler, Tuple3::kValue1Offset);
+    Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
+    GotoIf(WordNotEqual(cell_value,
+                        SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+           miss);
 
-    Bind(&rebox_double);
-    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    Node* holder =
+        LoadWeakCellValue(LoadObjectField(handler, Tuple3::kValue2Offset));
+    // The |holder| is guaranteed to be alive at this point since we passed
+    // both the receiver map check and the validity cell check.
+    CSA_ASSERT(WordNotEqual(holder, IntPtrConstant(0)));
+
+    Node* smi_handler = LoadObjectField(handler, Tuple3::kValue3Offset);
+    CSA_ASSERT(TaggedIsSmi(smi_handler));
+
+    var_holder.Bind(holder);
+    var_smi_handler.Bind(smi_handler);
+    Goto(&if_smi_handler);
   }
 
   // |handler| is a heap object. Must be code, call it.
   Bind(&call_handler);
-  typedef LoadWithVectorDescriptor Descriptor;
-  TailCallStub(Descriptor(isolate()), handler, p->context,
-               Arg(Descriptor::kReceiver, p->receiver),
-               Arg(Descriptor::kName, p->name),
-               Arg(Descriptor::kSlot, p->slot),
-               Arg(Descriptor::kVector, p->vector));
+  {
+    typedef LoadWithVectorDescriptor Descriptor;
+    TailCallStub(Descriptor(isolate()), handler, p->context,
+                 Arg(Descriptor::kReceiver, p->receiver),
+                 Arg(Descriptor::kName, p->name),
+                 Arg(Descriptor::kSlot, p->slot),
+                 Arg(Descriptor::kVector, p->vector));
+  }
 }
 
 void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
@@ -4772,7 +5127,7 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
       if_property_dictionary(this), if_found_on_receiver(this);
 
   Node* receiver = p->receiver;
-  GotoIf(WordIsSmi(receiver), &slow);
+  GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
@@ -4789,8 +5144,7 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Comment("integer index");
     Node* index = var_index.value();
     Node* elements = LoadElements(receiver);
-    Node* bitfield2 = LoadMapBitField2(receiver_map);
-    Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bitfield2);
+    Node* elements_kind = LoadMapElementsKind(receiver_map);
     Node* is_jsarray_condition =
         Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
     Variable var_double_value(this, MachineRepresentation::kFloat64);
@@ -5022,8 +5376,9 @@ void CodeStubAssembler::ExtendPropertiesBackingStore(compiler::Node* object) {
          FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
   // The size of a new properties backing store is guaranteed to be small
   // enough that the new backing store will be allocated in new space.
-  Assert(UintPtrLessThan(new_capacity, IntPtrConstant(kMaxNumberOfDescriptors +
-                                                      JSObject::kFieldsAdded)));
+  CSA_ASSERT(UintPtrLessThan(
+      new_capacity,
+      IntPtrConstant(kMaxNumberOfDescriptors + JSObject::kFieldsAdded)));
 
   Node* new_properties = AllocateFixedArray(kind, new_capacity, mode);
 
@@ -5044,7 +5399,7 @@ Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
   if (representation.IsDouble()) {
     Variable var_value(this, MachineRepresentation::kFloat64);
     Label if_smi(this), if_heap_object(this), done(this);
-    Branch(WordIsSmi(value), &if_smi, &if_heap_object);
+    Branch(TaggedIsSmi(value), &if_smi, &if_heap_object);
     Bind(&if_smi);
     {
       var_value.Bind(SmiToFloat64(value));
@@ -5063,9 +5418,9 @@ Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
   } else if (representation.IsHeapObject()) {
     // Field type is checked by the handler, here we only check if the value
     // is a heap object.
-    GotoIf(WordIsSmi(value), bailout);
+    GotoIf(TaggedIsSmi(value), bailout);
   } else if (representation.IsSmi()) {
-    GotoUnless(WordIsSmi(value), bailout);
+    GotoUnless(TaggedIsSmi(value), bailout);
   } else {
     DCHECK(representation.IsTagged());
   }
@@ -5077,15 +5432,22 @@ void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
                                         Node* value, bool transition_to_field) {
   DCHECK_EQ(index.is_double(), representation.IsDouble());
 
+  StoreNamedField(object, IntPtrConstant(index.offset()), index.is_inobject(),
+                  representation, value, transition_to_field);
+}
+
+void CodeStubAssembler::StoreNamedField(Node* object, Node* offset,
+                                        bool is_inobject,
+                                        Representation representation,
+                                        Node* value, bool transition_to_field) {
   bool store_value_as_double = representation.IsDouble();
-  int offset = index.offset();
   Node* property_storage = object;
-  if (!index.is_inobject()) {
+  if (!is_inobject) {
     property_storage = LoadProperties(object);
   }
 
   if (representation.IsDouble()) {
-    if (!FLAG_unbox_double_fields || !index.is_inobject()) {
+    if (!FLAG_unbox_double_fields || !is_inobject) {
       if (transition_to_field) {
         Node* heap_number = AllocateHeapNumberWithValue(value, MUTABLE);
         // Store the new mutable heap number into the object.
@@ -5095,7 +5457,7 @@ void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
         // Load the heap number.
         property_storage = LoadObjectField(property_storage, offset);
         // Store the double value into it.
-        offset = HeapNumber::kValueOffset;
+        offset = IntPtrConstant(HeapNumber::kValueOffset);
       }
     }
   }
@@ -5140,7 +5502,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   bool is_load = value == nullptr;
 
-  GotoUnless(WordIsSmi(key), bailout);
+  GotoUnless(TaggedIsSmi(key), bailout);
   key = SmiUntag(key);
   GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
 
@@ -5163,7 +5525,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   Bind(&if_mapped);
   {
-    Assert(WordIsSmi(mapped_index));
+    CSA_ASSERT(TaggedIsSmi(mapped_index));
     mapped_index = SmiUntag(mapped_index);
     Node* the_context = LoadFixedArrayElement(elements, IntPtrConstant(0), 0,
                                               INTPTR_PARAMETERS);
@@ -5175,7 +5537,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
     if (is_load) {
       Node* result = LoadFixedArrayElement(the_context, mapped_index, 0,
                                            INTPTR_PARAMETERS);
-      Assert(WordNotEqual(result, TheHoleConstant()));
+      CSA_ASSERT(WordNotEqual(result, TheHoleConstant()));
       var_result.Bind(result);
     } else {
       StoreFixedArrayElement(the_context, mapped_index, value,
@@ -5372,7 +5734,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   // a smi before manipulating the backing store. Otherwise the backing store
   // may be left in an invalid state.
   if (IsFastSmiElementsKind(elements_kind)) {
-    GotoUnless(WordIsSmi(value), bailout);
+    GotoUnless(TaggedIsSmi(value), bailout);
   } else if (IsFastDoubleElementsKind(elements_kind)) {
     value = PrepareValueForWrite(value, Representation::Double(), bailout);
   }
@@ -5628,7 +5990,7 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
     // For all objects but the receiver, check that the cache is empty.
     current_map.Bind(LoadMap(current_js_object.value()));
     Node* enum_length = EnumLength(current_map.value());
-    Node* zero_constant = SmiConstant(Smi::FromInt(0));
+    Node* zero_constant = SmiConstant(Smi::kZero);
     BranchIf(WordEqual(enum_length, zero_constant), &loop, use_runtime);
   }
 }
@@ -5695,6 +6057,1437 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER,
                          CodeStubAssembler::SMI_PARAMETERS);
   return cell;
+}
+
+void CodeStubAssembler::BuildFastLoop(
+    MachineRepresentation index_rep, Node* start_index, Node* end_index,
+    std::function<void(CodeStubAssembler* assembler, Node* index)> body,
+    int increment, IndexAdvanceMode mode) {
+  Variable var(this, index_rep);
+  var.Bind(start_index);
+  Label loop(this, &var);
+  Label after_loop(this);
+  // Introduce an explicit second check of the termination condition before the
+  // loop that helps turbofan generate better code. If there's only a single
+  // check, then the CodeStubAssembler forces it to be at the beginning of the
+  // loop requiring a backwards branch at the end of the loop (it's not possible
+  // to force the loop header check at the end of the loop and branch forward to
+  // it from the pre-header). The extra branch is slower in the case that the
+  // loop actually iterates.
+  BranchIf(WordEqual(var.value(), end_index), &after_loop, &loop);
+  Bind(&loop);
+  {
+    if (mode == IndexAdvanceMode::kPre) {
+      var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
+    }
+    body(this, var.value());
+    if (mode == IndexAdvanceMode::kPost) {
+      var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
+    }
+    BranchIf(WordNotEqual(var.value(), end_index), &loop, &after_loop);
+  }
+  Bind(&after_loop);
+}
+
+void CodeStubAssembler::BuildFastFixedArrayForEach(
+    compiler::Node* fixed_array, ElementsKind kind,
+    compiler::Node* first_element_inclusive,
+    compiler::Node* last_element_exclusive,
+    std::function<void(CodeStubAssembler* assembler,
+                       compiler::Node* fixed_array, compiler::Node* offset)>
+        body,
+    ParameterMode mode, ForEachDirection direction) {
+  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  int32_t first_val;
+  bool constant_first = ToInt32Constant(first_element_inclusive, first_val);
+  int32_t last_val;
+  bool constent_last = ToInt32Constant(last_element_exclusive, last_val);
+  if (constant_first && constent_last) {
+    int delta = last_val - first_val;
+    DCHECK(delta >= 0);
+    if (delta <= kElementLoopUnrollThreshold) {
+      if (direction == ForEachDirection::kForward) {
+        for (int i = first_val; i < last_val; ++i) {
+          Node* index = IntPtrConstant(i);
+          Node* offset =
+              ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
+                                     FixedArray::kHeaderSize - kHeapObjectTag);
+          body(this, fixed_array, offset);
+        }
+      } else {
+        for (int i = last_val - 1; i >= first_val; --i) {
+          Node* index = IntPtrConstant(i);
+          Node* offset =
+              ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
+                                     FixedArray::kHeaderSize - kHeapObjectTag);
+          body(this, fixed_array, offset);
+        }
+      }
+      return;
+    }
+  }
+
+  Node* start =
+      ElementOffsetFromIndex(first_element_inclusive, kind, mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  Node* limit =
+      ElementOffsetFromIndex(last_element_exclusive, kind, mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  if (direction == ForEachDirection::kReverse) std::swap(start, limit);
+
+  int increment = IsFastDoubleElementsKind(kind) ? kDoubleSize : kPointerSize;
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), start, limit,
+      [fixed_array, body](CodeStubAssembler* assembler, Node* offset) {
+        body(assembler, fixed_array, offset);
+      },
+      direction == ForEachDirection::kReverse ? -increment : increment,
+      direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
+                                              : IndexAdvanceMode::kPost);
+}
+
+compiler::Node* CodeStubAssembler::RelationalComparison(
+    RelationalComparisonMode mode, compiler::Node* lhs, compiler::Node* rhs,
+    compiler::Node* context) {
+  typedef compiler::Node Node;
+
+  Label return_true(this), return_false(this), end(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  // Shared entry for floating point comparison.
+  Label do_fcmp(this);
+  Variable var_fcmp_lhs(this, MachineRepresentation::kFloat64),
+      var_fcmp_rhs(this, MachineRepresentation::kFloat64);
+
+  // We might need to loop several times due to ToPrimitive and/or ToNumber
+  // conversions.
+  Variable var_lhs(this, MachineRepresentation::kTagged),
+      var_rhs(this, MachineRepresentation::kTagged);
+  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
+  Label loop(this, 2, loop_vars);
+  var_lhs.Bind(lhs);
+  var_rhs.Bind(rhs);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {lhs} and {rhs} values.
+    lhs = var_lhs.value();
+    rhs = var_rhs.value();
+
+    // Check if the {lhs} is a Smi or a HeapObject.
+    Label if_lhsissmi(this), if_lhsisnotsmi(this);
+    Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+    Bind(&if_lhsissmi);
+    {
+      // Check if {rhs} is a Smi or a HeapObject.
+      Label if_rhsissmi(this), if_rhsisnotsmi(this);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+      Bind(&if_rhsissmi);
+      {
+        // Both {lhs} and {rhs} are Smi, so just perform a fast Smi comparison.
+        switch (mode) {
+          case kLessThan:
+            BranchIfSmiLessThan(lhs, rhs, &return_true, &return_false);
+            break;
+          case kLessThanOrEqual:
+            BranchIfSmiLessThanOrEqual(lhs, rhs, &return_true, &return_false);
+            break;
+          case kGreaterThan:
+            BranchIfSmiLessThan(rhs, lhs, &return_true, &return_false);
+            break;
+          case kGreaterThanOrEqual:
+            BranchIfSmiLessThanOrEqual(rhs, lhs, &return_true, &return_false);
+            break;
+        }
+      }
+
+      Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of {rhs}.
+        Node* rhs_map = LoadMap(rhs);
+
+        // Check if the {rhs} is a HeapNumber.
+        Label if_rhsisnumber(this), if_rhsisnotnumber(this, Label::kDeferred);
+        Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
+
+        Bind(&if_rhsisnumber);
+        {
+          // Convert the {lhs} and {rhs} to floating point values, and
+          // perform a floating point comparison.
+          var_fcmp_lhs.Bind(SmiToFloat64(lhs));
+          var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+          Goto(&do_fcmp);
+        }
+
+        Bind(&if_rhsisnotnumber);
+        {
+          // Convert the {rhs} to a Number; we don't need to perform the
+          // dedicated ToPrimitive(rhs, hint Number) operation, as the
+          // ToNumber(rhs) will by itself already invoke ToPrimitive with
+          // a Number hint.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_rhs.Bind(CallStub(callable, context, rhs));
+          Goto(&loop);
+        }
+      }
+    }
+
+    Bind(&if_lhsisnotsmi);
+    {
+      // Load the HeapNumber map for later comparisons.
+      Node* number_map = HeapNumberMapConstant();
+
+      // Load the map of {lhs}.
+      Node* lhs_map = LoadMap(lhs);
+
+      // Check if {rhs} is a Smi or a HeapObject.
+      Label if_rhsissmi(this), if_rhsisnotsmi(this);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+      Bind(&if_rhsissmi);
+      {
+        // Check if the {lhs} is a HeapNumber.
+        Label if_lhsisnumber(this), if_lhsisnotnumber(this, Label::kDeferred);
+        Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
+               &if_lhsisnotnumber);
+
+        Bind(&if_lhsisnumber);
+        {
+          // Convert the {lhs} and {rhs} to floating point values, and
+          // perform a floating point comparison.
+          var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
+          var_fcmp_rhs.Bind(SmiToFloat64(rhs));
+          Goto(&do_fcmp);
+        }
+
+        Bind(&if_lhsisnotnumber);
+        {
+          // Convert the {lhs} to a Number; we don't need to perform the
+          // dedicated ToPrimitive(lhs, hint Number) operation, as the
+          // ToNumber(lhs) will by itself already invoke ToPrimitive with
+          // a Number hint.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_lhs.Bind(CallStub(callable, context, lhs));
+          Goto(&loop);
+        }
+      }
+
+      Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of {rhs}.
+        Node* rhs_map = LoadMap(rhs);
+
+        // Check if {lhs} is a HeapNumber.
+        Label if_lhsisnumber(this), if_lhsisnotnumber(this);
+        Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
+               &if_lhsisnotnumber);
+
+        Bind(&if_lhsisnumber);
+        {
+          // Check if {rhs} is also a HeapNumber.
+          Label if_rhsisnumber(this), if_rhsisnotnumber(this, Label::kDeferred);
+          Branch(WordEqual(lhs_map, rhs_map), &if_rhsisnumber,
+                 &if_rhsisnotnumber);
+
+          Bind(&if_rhsisnumber);
+          {
+            // Convert the {lhs} and {rhs} to floating point values, and
+            // perform a floating point comparison.
+            var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
+            var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+            Goto(&do_fcmp);
+          }
+
+          Bind(&if_rhsisnotnumber);
+          {
+            // Convert the {rhs} to a Number; we don't need to perform
+            // dedicated ToPrimitive(rhs, hint Number) operation, as the
+            // ToNumber(rhs) will by itself already invoke ToPrimitive with
+            // a Number hint.
+            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            var_rhs.Bind(CallStub(callable, context, rhs));
+            Goto(&loop);
+          }
+        }
+
+        Bind(&if_lhsisnotnumber);
+        {
+          // Load the instance type of {lhs}.
+          Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
+
+          // Check if {lhs} is a String.
+          Label if_lhsisstring(this), if_lhsisnotstring(this, Label::kDeferred);
+          Branch(IsStringInstanceType(lhs_instance_type), &if_lhsisstring,
+                 &if_lhsisnotstring);
+
+          Bind(&if_lhsisstring);
+          {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
+
+            // Check if {rhs} is also a String.
+            Label if_rhsisstring(this, Label::kDeferred),
+                if_rhsisnotstring(this, Label::kDeferred);
+            Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
+                   &if_rhsisnotstring);
+
+            Bind(&if_rhsisstring);
+            {
+              // Both {lhs} and {rhs} are strings.
+              switch (mode) {
+                case kLessThan:
+                  result.Bind(CallStub(CodeFactory::StringLessThan(isolate()),
+                                       context, lhs, rhs));
+                  Goto(&end);
+                  break;
+                case kLessThanOrEqual:
+                  result.Bind(
+                      CallStub(CodeFactory::StringLessThanOrEqual(isolate()),
+                               context, lhs, rhs));
+                  Goto(&end);
+                  break;
+                case kGreaterThan:
+                  result.Bind(
+                      CallStub(CodeFactory::StringGreaterThan(isolate()),
+                               context, lhs, rhs));
+                  Goto(&end);
+                  break;
+                case kGreaterThanOrEqual:
+                  result.Bind(
+                      CallStub(CodeFactory::StringGreaterThanOrEqual(isolate()),
+                               context, lhs, rhs));
+                  Goto(&end);
+                  break;
+              }
+            }
+
+            Bind(&if_rhsisnotstring);
+            {
+              // The {lhs} is a String, while {rhs} is neither a Number nor a
+              // String, so we need to call ToPrimitive(rhs, hint Number) if
+              // {rhs} is a receiver or ToNumber(lhs) and ToNumber(rhs) in the
+              // other cases.
+              STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+              Label if_rhsisreceiver(this, Label::kDeferred),
+                  if_rhsisnotreceiver(this, Label::kDeferred);
+              Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                     &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+              Bind(&if_rhsisreceiver);
+              {
+                // Convert {rhs} to a primitive first passing Number hint.
+                Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                    isolate(), ToPrimitiveHint::kNumber);
+                var_rhs.Bind(CallStub(callable, context, rhs));
+                Goto(&loop);
+              }
+
+              Bind(&if_rhsisnotreceiver);
+              {
+                // Convert both {lhs} and {rhs} to Number.
+                Callable callable = CodeFactory::ToNumber(isolate());
+                var_lhs.Bind(CallStub(callable, context, lhs));
+                var_rhs.Bind(CallStub(callable, context, rhs));
+                Goto(&loop);
+              }
+            }
+          }
+
+          Bind(&if_lhsisnotstring);
+          {
+            // The {lhs} is neither a Number nor a String, so we need to call
+            // ToPrimitive(lhs, hint Number) if {lhs} is a receiver or
+            // ToNumber(lhs) and ToNumber(rhs) in the other cases.
+            STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+            Label if_lhsisreceiver(this, Label::kDeferred),
+                if_lhsisnotreceiver(this, Label::kDeferred);
+            Branch(IsJSReceiverInstanceType(lhs_instance_type),
+                   &if_lhsisreceiver, &if_lhsisnotreceiver);
+
+            Bind(&if_lhsisreceiver);
+            {
+              // Convert {lhs} to a primitive first passing Number hint.
+              Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                  isolate(), ToPrimitiveHint::kNumber);
+              var_lhs.Bind(CallStub(callable, context, lhs));
+              Goto(&loop);
+            }
+
+            Bind(&if_lhsisnotreceiver);
+            {
+              // Convert both {lhs} and {rhs} to Number.
+              Callable callable = CodeFactory::ToNumber(isolate());
+              var_lhs.Bind(CallStub(callable, context, lhs));
+              var_rhs.Bind(CallStub(callable, context, rhs));
+              Goto(&loop);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  Bind(&do_fcmp);
+  {
+    // Load the {lhs} and {rhs} floating point values.
+    Node* lhs = var_fcmp_lhs.value();
+    Node* rhs = var_fcmp_rhs.value();
+
+    // Perform a fast floating point comparison.
+    switch (mode) {
+      case kLessThan:
+        BranchIfFloat64LessThan(lhs, rhs, &return_true, &return_false);
+        break;
+      case kLessThanOrEqual:
+        BranchIfFloat64LessThanOrEqual(lhs, rhs, &return_true, &return_false);
+        break;
+      case kGreaterThan:
+        BranchIfFloat64GreaterThan(lhs, rhs, &return_true, &return_false);
+        break;
+      case kGreaterThanOrEqual:
+        BranchIfFloat64GreaterThanOrEqual(lhs, rhs, &return_true,
+                                          &return_false);
+        break;
+    }
+  }
+
+  Bind(&return_true);
+  {
+    result.Bind(BooleanConstant(true));
+    Goto(&end);
+  }
+
+  Bind(&return_false);
+  {
+    result.Bind(BooleanConstant(false));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return result.value();
+}
+
+namespace {
+
+void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
+                        CodeStubAssembler::Label* if_equal,
+                        CodeStubAssembler::Label* if_notequal) {
+  // In case of abstract or strict equality checks, we need additional checks
+  // for NaN values because they are not considered equal, even if both the
+  // left and the right hand side reference exactly the same value.
+  // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
+  // seems to be what is tested in the current SIMD.js testsuite.
+
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  // Check if {value} is a Smi or a HeapObject.
+  Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
+  assembler->Branch(assembler->TaggedIsSmi(value), &if_valueissmi,
+                    &if_valueisnotsmi);
+
+  assembler->Bind(&if_valueisnotsmi);
+  {
+    // Load the map of {value}.
+    Node* value_map = assembler->LoadMap(value);
+
+    // Check if {value} (and therefore {rhs}) is a HeapNumber.
+    Label if_valueisnumber(assembler), if_valueisnotnumber(assembler);
+    assembler->Branch(assembler->IsHeapNumberMap(value_map), &if_valueisnumber,
+                      &if_valueisnotnumber);
+
+    assembler->Bind(&if_valueisnumber);
+    {
+      // Convert {value} (and therefore {rhs}) to floating point value.
+      Node* value_value = assembler->LoadHeapNumberValue(value);
+
+      // Check if the HeapNumber value is a NaN.
+      assembler->BranchIfFloat64IsNaN(value_value, if_notequal, if_equal);
+    }
+
+    assembler->Bind(&if_valueisnotnumber);
+    assembler->Goto(if_equal);
+  }
+
+  assembler->Bind(&if_valueissmi);
+  assembler->Goto(if_equal);
+}
+
+void GenerateEqual_Simd128Value_HeapObject(
+    CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* lhs_map,
+    compiler::Node* rhs, compiler::Node* rhs_map,
+    CodeStubAssembler::Label* if_equal, CodeStubAssembler::Label* if_notequal) {
+  assembler->BranchIfSimd128Equal(lhs, lhs_map, rhs, rhs_map, if_equal,
+                                  if_notequal);
+}
+
+}  // namespace
+
+// ES6 section 7.2.12 Abstract Equality Comparison
+compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
+                                         compiler::Node* rhs,
+                                         compiler::Node* context) {
+  // This is a slightly optimized version of Object::Equals represented as
+  // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
+  // change something functionality wise in here, remember to update the
+  // Object::Equals method as well.
+  typedef compiler::Node Node;
+
+  Label if_equal(this), if_notequal(this),
+      do_rhsstringtonumber(this, Label::kDeferred), end(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  // Shared entry for floating point comparison.
+  Label do_fcmp(this);
+  Variable var_fcmp_lhs(this, MachineRepresentation::kFloat64),
+      var_fcmp_rhs(this, MachineRepresentation::kFloat64);
+
+  // We might need to loop several times due to ToPrimitive and/or ToNumber
+  // conversions.
+  Variable var_lhs(this, MachineRepresentation::kTagged),
+      var_rhs(this, MachineRepresentation::kTagged);
+  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
+  Label loop(this, 2, loop_vars);
+  var_lhs.Bind(lhs);
+  var_rhs.Bind(rhs);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {lhs} and {rhs} values.
+    lhs = var_lhs.value();
+    rhs = var_rhs.value();
+
+    // Check if {lhs} and {rhs} refer to the same object.
+    Label if_same(this), if_notsame(this);
+    Branch(WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+    Bind(&if_same);
+    {
+      // The {lhs} and {rhs} reference the exact same value, yet we need special
+      // treatment for HeapNumber, as NaN is not equal to NaN.
+      GenerateEqual_Same(this, lhs, &if_equal, &if_notequal);
+    }
+
+    Bind(&if_notsame);
+    {
+      // Check if {lhs} is a Smi or a HeapObject.
+      Label if_lhsissmi(this), if_lhsisnotsmi(this);
+      Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+      Bind(&if_lhsissmi);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(this), if_rhsisnotsmi(this);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+        Bind(&if_rhsissmi);
+        // We have already checked for {lhs} and {rhs} being the same value, so
+        // if both are Smis when we get here they must not be equal.
+        Goto(&if_notequal);
+
+        Bind(&if_rhsisnotsmi);
+        {
+          // Load the map of {rhs}.
+          Node* rhs_map = LoadMap(rhs);
+
+          // Check if {rhs} is a HeapNumber.
+          Node* number_map = HeapNumberMapConstant();
+          Label if_rhsisnumber(this), if_rhsisnotnumber(this);
+          Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
+                 &if_rhsisnotnumber);
+
+          Bind(&if_rhsisnumber);
+          {
+            // Convert {lhs} and {rhs} to floating point values, and
+            // perform a floating point comparison.
+            var_fcmp_lhs.Bind(SmiToFloat64(lhs));
+            var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+            Goto(&do_fcmp);
+          }
+
+          Bind(&if_rhsisnotnumber);
+          {
+            // Load the instance type of the {rhs}.
+            Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
+
+            // Check if the {rhs} is a String.
+            Label if_rhsisstring(this, Label::kDeferred),
+                if_rhsisnotstring(this);
+            Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
+                   &if_rhsisnotstring);
+
+            Bind(&if_rhsisstring);
+            {
+              // The {rhs} is a String and the {lhs} is a Smi; we need
+              // to convert the {rhs} to a Number and compare the output to
+              // the Number on the {lhs}.
+              Goto(&do_rhsstringtonumber);
+            }
+
+            Bind(&if_rhsisnotstring);
+            {
+              // Check if the {rhs} is a Boolean.
+              Label if_rhsisboolean(this), if_rhsisnotboolean(this);
+              Branch(IsBooleanMap(rhs_map), &if_rhsisboolean,
+                     &if_rhsisnotboolean);
+
+              Bind(&if_rhsisboolean);
+              {
+                // The {rhs} is a Boolean, load its number value.
+                var_rhs.Bind(LoadObjectField(rhs, Oddball::kToNumberOffset));
+                Goto(&loop);
+              }
+
+              Bind(&if_rhsisnotboolean);
+              {
+                // Check if the {rhs} is a Receiver.
+                STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+                Label if_rhsisreceiver(this, Label::kDeferred),
+                    if_rhsisnotreceiver(this);
+                Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                       &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+                Bind(&if_rhsisreceiver);
+                {
+                  // Convert {rhs} to a primitive first (passing no hint).
+                  Callable callable =
+                      CodeFactory::NonPrimitiveToPrimitive(isolate());
+                  var_rhs.Bind(CallStub(callable, context, rhs));
+                  Goto(&loop);
+                }
+
+                Bind(&if_rhsisnotreceiver);
+                Goto(&if_notequal);
+              }
+            }
+          }
+        }
+      }
+
+      Bind(&if_lhsisnotsmi);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(this), if_rhsisnotsmi(this);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+        Bind(&if_rhsissmi);
+        {
+          // The {lhs} is a HeapObject and the {rhs} is a Smi; swapping {lhs}
+          // and {rhs} is not observable and doesn't matter for the result, so
+          // we can just swap them and use the Smi handling above (for {lhs}
+          // being a Smi).
+          var_lhs.Bind(rhs);
+          var_rhs.Bind(lhs);
+          Goto(&loop);
+        }
+
+        Bind(&if_rhsisnotsmi);
+        {
+          Label if_lhsisstring(this), if_lhsisnumber(this),
+              if_lhsissymbol(this), if_lhsissimd128value(this),
+              if_lhsisoddball(this), if_lhsisreceiver(this);
+
+          // Both {lhs} and {rhs} are HeapObjects, load their maps
+          // and their instance types.
+          Node* lhs_map = LoadMap(lhs);
+          Node* rhs_map = LoadMap(rhs);
+
+          // Load the instance types of {lhs} and {rhs}.
+          Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
+          Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
+
+          // Dispatch based on the instance type of {lhs}.
+          size_t const kNumCases = FIRST_NONSTRING_TYPE + 4;
+          Label* case_labels[kNumCases];
+          int32_t case_values[kNumCases];
+          for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+            case_labels[i] = new Label(this);
+            case_values[i] = i;
+          }
+          case_labels[FIRST_NONSTRING_TYPE + 0] = &if_lhsisnumber;
+          case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 1] = &if_lhsissymbol;
+          case_values[FIRST_NONSTRING_TYPE + 1] = SYMBOL_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 2] = &if_lhsissimd128value;
+          case_values[FIRST_NONSTRING_TYPE + 2] = SIMD128_VALUE_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 3] = &if_lhsisoddball;
+          case_values[FIRST_NONSTRING_TYPE + 3] = ODDBALL_TYPE;
+          Switch(lhs_instance_type, &if_lhsisreceiver, case_values, case_labels,
+                 arraysize(case_values));
+          for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+            Bind(case_labels[i]);
+            Goto(&if_lhsisstring);
+            delete case_labels[i];
+          }
+
+          Bind(&if_lhsisstring);
+          {
+            // Check if {rhs} is also a String.
+            Label if_rhsisstring(this, Label::kDeferred),
+                if_rhsisnotstring(this);
+            Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
+                   &if_rhsisnotstring);
+
+            Bind(&if_rhsisstring);
+            {
+              // Both {lhs} and {rhs} are of type String, just do the
+              // string comparison then.
+              Callable callable = (mode == kDontNegateResult)
+                                      ? CodeFactory::StringEqual(isolate())
+                                      : CodeFactory::StringNotEqual(isolate());
+              result.Bind(CallStub(callable, context, lhs, rhs));
+              Goto(&end);
+            }
+
+            Bind(&if_rhsisnotstring);
+            {
+              // The {lhs} is a String and the {rhs} is some other HeapObject.
+              // Swapping {lhs} and {rhs} is not observable and doesn't matter
+              // for the result, so we can just swap them and use the String
+              // handling below (for {rhs} being a String).
+              var_lhs.Bind(rhs);
+              var_rhs.Bind(lhs);
+              Goto(&loop);
+            }
+          }
+
+          Bind(&if_lhsisnumber);
+          {
+            // Check if {rhs} is also a HeapNumber.
+            Label if_rhsisnumber(this), if_rhsisnotnumber(this);
+            Branch(Word32Equal(lhs_instance_type, rhs_instance_type),
+                   &if_rhsisnumber, &if_rhsisnotnumber);
+
+            Bind(&if_rhsisnumber);
+            {
+              // Convert {lhs} and {rhs} to floating point values, and
+              // perform a floating point comparison.
+              var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
+              var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+              Goto(&do_fcmp);
+            }
+
+            Bind(&if_rhsisnotnumber);
+            {
+              // The {lhs} is a Number, the {rhs} is some other HeapObject.
+              Label if_rhsisstring(this, Label::kDeferred),
+                  if_rhsisnotstring(this);
+              Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
+                     &if_rhsisnotstring);
+
+              Bind(&if_rhsisstring);
+              {
+                // The {rhs} is a String and the {lhs} is a HeapNumber; we need
+                // to convert the {rhs} to a Number and compare the output to
+                // the Number on the {lhs}.
+                Goto(&do_rhsstringtonumber);
+              }
+
+              Bind(&if_rhsisnotstring);
+              {
+                // Check if the {rhs} is a JSReceiver.
+                Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+                STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+                Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                       &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+                Bind(&if_rhsisreceiver);
+                {
+                  // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+                  // Swapping {lhs} and {rhs} is not observable and doesn't
+                  // matter for the result, so we can just swap them and use
+                  // the JSReceiver handling below (for {lhs} being a
+                  // JSReceiver).
+                  var_lhs.Bind(rhs);
+                  var_rhs.Bind(lhs);
+                  Goto(&loop);
+                }
+
+                Bind(&if_rhsisnotreceiver);
+                {
+                  // Check if {rhs} is a Boolean.
+                  Label if_rhsisboolean(this), if_rhsisnotboolean(this);
+                  Branch(IsBooleanMap(rhs_map), &if_rhsisboolean,
+                         &if_rhsisnotboolean);
+
+                  Bind(&if_rhsisboolean);
+                  {
+                    // The {rhs} is a Boolean, convert it to a Smi first.
+                    var_rhs.Bind(
+                        LoadObjectField(rhs, Oddball::kToNumberOffset));
+                    Goto(&loop);
+                  }
+
+                  Bind(&if_rhsisnotboolean);
+                  Goto(&if_notequal);
+                }
+              }
+            }
+          }
+
+          Bind(&if_lhsisoddball);
+          {
+            // The {lhs} is an Oddball and {rhs} is some other HeapObject.
+            Label if_lhsisboolean(this), if_lhsisnotboolean(this);
+            Node* boolean_map = BooleanMapConstant();
+            Branch(WordEqual(lhs_map, boolean_map), &if_lhsisboolean,
+                   &if_lhsisnotboolean);
+
+            Bind(&if_lhsisboolean);
+            {
+              // The {lhs} is a Boolean, check if {rhs} is also a Boolean.
+              Label if_rhsisboolean(this), if_rhsisnotboolean(this);
+              Branch(WordEqual(rhs_map, boolean_map), &if_rhsisboolean,
+                     &if_rhsisnotboolean);
+
+              Bind(&if_rhsisboolean);
+              {
+                // Both {lhs} and {rhs} are distinct Boolean values.
+                Goto(&if_notequal);
+              }
+
+              Bind(&if_rhsisnotboolean);
+              {
+                // Convert the {lhs} to a Number first.
+                var_lhs.Bind(LoadObjectField(lhs, Oddball::kToNumberOffset));
+                Goto(&loop);
+              }
+            }
+
+            Bind(&if_lhsisnotboolean);
+            {
+              // The {lhs} is either Null or Undefined; check if the {rhs} is
+              // undetectable (i.e. either also Null or Undefined or some
+              // undetectable JSReceiver).
+              Node* rhs_bitfield = LoadMapBitField(rhs_map);
+              BranchIfWord32Equal(
+                  Word32And(rhs_bitfield,
+                            Int32Constant(1 << Map::kIsUndetectable)),
+                  Int32Constant(0), &if_notequal, &if_equal);
+            }
+          }
+
+          Bind(&if_lhsissymbol);
+          {
+            // Check if the {rhs} is a JSReceiver.
+            Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+            STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+            Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                   &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+            Bind(&if_rhsisreceiver);
+            {
+              // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+              // Swapping {lhs} and {rhs} is not observable and doesn't
+              // matter for the result, so we can just swap them and use
+              // the JSReceiver handling below (for {lhs} being a JSReceiver).
+              var_lhs.Bind(rhs);
+              var_rhs.Bind(lhs);
+              Goto(&loop);
+            }
+
+            Bind(&if_rhsisnotreceiver);
+            {
+              // The {rhs} is not a JSReceiver and also not the same Symbol
+              // as the {lhs}, so this is equality check is considered false.
+              Goto(&if_notequal);
+            }
+          }
+
+          Bind(&if_lhsissimd128value);
+          {
+            // Check if the {rhs} is also a Simd128Value.
+            Label if_rhsissimd128value(this), if_rhsisnotsimd128value(this);
+            Branch(Word32Equal(lhs_instance_type, rhs_instance_type),
+                   &if_rhsissimd128value, &if_rhsisnotsimd128value);
+
+            Bind(&if_rhsissimd128value);
+            {
+              // Both {lhs} and {rhs} is a Simd128Value.
+              GenerateEqual_Simd128Value_HeapObject(
+                  this, lhs, lhs_map, rhs, rhs_map, &if_equal, &if_notequal);
+            }
+
+            Bind(&if_rhsisnotsimd128value);
+            {
+              // Check if the {rhs} is a JSReceiver.
+              Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+              STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+              Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                     &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+              Bind(&if_rhsisreceiver);
+              {
+                // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+                // Swapping {lhs} and {rhs} is not observable and doesn't
+                // matter for the result, so we can just swap them and use
+                // the JSReceiver handling below (for {lhs} being a JSReceiver).
+                var_lhs.Bind(rhs);
+                var_rhs.Bind(lhs);
+                Goto(&loop);
+              }
+
+              Bind(&if_rhsisnotreceiver);
+              {
+                // The {rhs} is some other Primitive.
+                Goto(&if_notequal);
+              }
+            }
+          }
+
+          Bind(&if_lhsisreceiver);
+          {
+            // Check if the {rhs} is also a JSReceiver.
+            Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+            STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+            Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                   &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+            Bind(&if_rhsisreceiver);
+            {
+              // Both {lhs} and {rhs} are different JSReceiver references, so
+              // this cannot be considered equal.
+              Goto(&if_notequal);
+            }
+
+            Bind(&if_rhsisnotreceiver);
+            {
+              // Check if {rhs} is Null or Undefined (an undetectable check
+              // is sufficient here, since we already know that {rhs} is not
+              // a JSReceiver).
+              Label if_rhsisundetectable(this),
+                  if_rhsisnotundetectable(this, Label::kDeferred);
+              Node* rhs_bitfield = LoadMapBitField(rhs_map);
+              BranchIfWord32Equal(
+                  Word32And(rhs_bitfield,
+                            Int32Constant(1 << Map::kIsUndetectable)),
+                  Int32Constant(0), &if_rhsisnotundetectable,
+                  &if_rhsisundetectable);
+
+              Bind(&if_rhsisundetectable);
+              {
+                // Check if {lhs} is an undetectable JSReceiver.
+                Node* lhs_bitfield = LoadMapBitField(lhs_map);
+                BranchIfWord32Equal(
+                    Word32And(lhs_bitfield,
+                              Int32Constant(1 << Map::kIsUndetectable)),
+                    Int32Constant(0), &if_notequal, &if_equal);
+              }
+
+              Bind(&if_rhsisnotundetectable);
+              {
+                // The {rhs} is some Primitive different from Null and
+                // Undefined, need to convert {lhs} to Primitive first.
+                Callable callable =
+                    CodeFactory::NonPrimitiveToPrimitive(isolate());
+                var_lhs.Bind(CallStub(callable, context, lhs));
+                Goto(&loop);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    Bind(&do_rhsstringtonumber);
+    {
+      Callable callable = CodeFactory::StringToNumber(isolate());
+      var_rhs.Bind(CallStub(callable, context, rhs));
+      Goto(&loop);
+    }
+  }
+
+  Bind(&do_fcmp);
+  {
+    // Load the {lhs} and {rhs} floating point values.
+    Node* lhs = var_fcmp_lhs.value();
+    Node* rhs = var_fcmp_rhs.value();
+
+    // Perform a fast floating point comparison.
+    BranchIfFloat64Equal(lhs, rhs, &if_equal, &if_notequal);
+  }
+
+  Bind(&if_equal);
+  {
+    result.Bind(BooleanConstant(mode == kDontNegateResult));
+    Goto(&end);
+  }
+
+  Bind(&if_notequal);
+  {
+    result.Bind(BooleanConstant(mode == kNegateResult));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return result.value();
+}
+
+compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
+                                               compiler::Node* lhs,
+                                               compiler::Node* rhs,
+                                               compiler::Node* context) {
+  // Here's pseudo-code for the algorithm below in case of kDontNegateResult
+  // mode; for kNegateResult mode we properly negate the result.
+  //
+  // if (lhs == rhs) {
+  //   if (lhs->IsHeapNumber()) return HeapNumber::cast(lhs)->value() != NaN;
+  //   return true;
+  // }
+  // if (!lhs->IsSmi()) {
+  //   if (lhs->IsHeapNumber()) {
+  //     if (rhs->IsSmi()) {
+  //       return Smi::cast(rhs)->value() == HeapNumber::cast(lhs)->value();
+  //     } else if (rhs->IsHeapNumber()) {
+  //       return HeapNumber::cast(rhs)->value() ==
+  //       HeapNumber::cast(lhs)->value();
+  //     } else {
+  //       return false;
+  //     }
+  //   } else {
+  //     if (rhs->IsSmi()) {
+  //       return false;
+  //     } else {
+  //       if (lhs->IsString()) {
+  //         if (rhs->IsString()) {
+  //           return %StringEqual(lhs, rhs);
+  //         } else {
+  //           return false;
+  //         }
+  //       } else if (lhs->IsSimd128()) {
+  //         if (rhs->IsSimd128()) {
+  //           return %StrictEqual(lhs, rhs);
+  //         }
+  //       } else {
+  //         return false;
+  //       }
+  //     }
+  //   }
+  // } else {
+  //   if (rhs->IsSmi()) {
+  //     return false;
+  //   } else {
+  //     if (rhs->IsHeapNumber()) {
+  //       return Smi::cast(lhs)->value() == HeapNumber::cast(rhs)->value();
+  //     } else {
+  //       return false;
+  //     }
+  //   }
+  // }
+
+  typedef compiler::Node Node;
+
+  Label if_equal(this), if_notequal(this), end(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  // Check if {lhs} and {rhs} refer to the same object.
+  Label if_same(this), if_notsame(this);
+  Branch(WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+  Bind(&if_same);
+  {
+    // The {lhs} and {rhs} reference the exact same value, yet we need special
+    // treatment for HeapNumber, as NaN is not equal to NaN.
+    GenerateEqual_Same(this, lhs, &if_equal, &if_notequal);
+  }
+
+  Bind(&if_notsame);
+  {
+    // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber,
+    // String and Simd128Value they can still be considered equal.
+    Node* number_map = HeapNumberMapConstant();
+
+    // Check if {lhs} is a Smi or a HeapObject.
+    Label if_lhsissmi(this), if_lhsisnotsmi(this);
+    Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+    Bind(&if_lhsisnotsmi);
+    {
+      // Load the map of {lhs}.
+      Node* lhs_map = LoadMap(lhs);
+
+      // Check if {lhs} is a HeapNumber.
+      Label if_lhsisnumber(this), if_lhsisnotnumber(this);
+      Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
+             &if_lhsisnotnumber);
+
+      Bind(&if_lhsisnumber);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(this), if_rhsisnotsmi(this);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+        Bind(&if_rhsissmi);
+        {
+          // Convert {lhs} and {rhs} to floating point values.
+          Node* lhs_value = LoadHeapNumberValue(lhs);
+          Node* rhs_value = SmiToFloat64(rhs);
+
+          // Perform a floating point comparison of {lhs} and {rhs}.
+          BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal, &if_notequal);
+        }
+
+        Bind(&if_rhsisnotsmi);
+        {
+          // Load the map of {rhs}.
+          Node* rhs_map = LoadMap(rhs);
+
+          // Check if {rhs} is also a HeapNumber.
+          Label if_rhsisnumber(this), if_rhsisnotnumber(this);
+          Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
+                 &if_rhsisnotnumber);
+
+          Bind(&if_rhsisnumber);
+          {
+            // Convert {lhs} and {rhs} to floating point values.
+            Node* lhs_value = LoadHeapNumberValue(lhs);
+            Node* rhs_value = LoadHeapNumberValue(rhs);
+
+            // Perform a floating point comparison of {lhs} and {rhs}.
+            BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal, &if_notequal);
+          }
+
+          Bind(&if_rhsisnotnumber);
+          Goto(&if_notequal);
+        }
+      }
+
+      Bind(&if_lhsisnotnumber);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(this), if_rhsisnotsmi(this);
+        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+        Bind(&if_rhsissmi);
+        Goto(&if_notequal);
+
+        Bind(&if_rhsisnotsmi);
+        {
+          // Load the instance type of {lhs}.
+          Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
+
+          // Check if {lhs} is a String.
+          Label if_lhsisstring(this), if_lhsisnotstring(this);
+          Branch(IsStringInstanceType(lhs_instance_type), &if_lhsisstring,
+                 &if_lhsisnotstring);
+
+          Bind(&if_lhsisstring);
+          {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = LoadInstanceType(rhs);
+
+            // Check if {rhs} is also a String.
+            Label if_rhsisstring(this, Label::kDeferred),
+                if_rhsisnotstring(this);
+            Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
+                   &if_rhsisnotstring);
+
+            Bind(&if_rhsisstring);
+            {
+              Callable callable = (mode == kDontNegateResult)
+                                      ? CodeFactory::StringEqual(isolate())
+                                      : CodeFactory::StringNotEqual(isolate());
+              result.Bind(CallStub(callable, context, lhs, rhs));
+              Goto(&end);
+            }
+
+            Bind(&if_rhsisnotstring);
+            Goto(&if_notequal);
+          }
+
+          Bind(&if_lhsisnotstring);
+          {
+            // Check if {lhs} is a Simd128Value.
+            Label if_lhsissimd128value(this), if_lhsisnotsimd128value(this);
+            Branch(Word32Equal(lhs_instance_type,
+                               Int32Constant(SIMD128_VALUE_TYPE)),
+                   &if_lhsissimd128value, &if_lhsisnotsimd128value);
+
+            Bind(&if_lhsissimd128value);
+            {
+              // Load the map of {rhs}.
+              Node* rhs_map = LoadMap(rhs);
+
+              // Check if {rhs} is also a Simd128Value that is equal to {lhs}.
+              GenerateEqual_Simd128Value_HeapObject(
+                  this, lhs, lhs_map, rhs, rhs_map, &if_equal, &if_notequal);
+            }
+
+            Bind(&if_lhsisnotsimd128value);
+            Goto(&if_notequal);
+          }
+        }
+      }
+    }
+
+    Bind(&if_lhsissmi);
+    {
+      // We already know that {lhs} and {rhs} are not reference equal, and {lhs}
+      // is a Smi; so {lhs} and {rhs} can only be strictly equal if {rhs} is a
+      // HeapNumber with an equal floating point value.
+
+      // Check if {rhs} is a Smi or a HeapObject.
+      Label if_rhsissmi(this), if_rhsisnotsmi(this);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+      Bind(&if_rhsissmi);
+      Goto(&if_notequal);
+
+      Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of the {rhs}.
+        Node* rhs_map = LoadMap(rhs);
+
+        // The {rhs} could be a HeapNumber with the same value as {lhs}.
+        Label if_rhsisnumber(this), if_rhsisnotnumber(this);
+        Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
+               &if_rhsisnotnumber);
+
+        Bind(&if_rhsisnumber);
+        {
+          // Convert {lhs} and {rhs} to floating point values.
+          Node* lhs_value = SmiToFloat64(lhs);
+          Node* rhs_value = LoadHeapNumberValue(rhs);
+
+          // Perform a floating point comparison of {lhs} and {rhs}.
+          BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal, &if_notequal);
+        }
+
+        Bind(&if_rhsisnotnumber);
+        Goto(&if_notequal);
+      }
+    }
+  }
+
+  Bind(&if_equal);
+  {
+    result.Bind(BooleanConstant(mode == kDontNegateResult));
+    Goto(&end);
+  }
+
+  Bind(&if_notequal);
+  {
+    result.Bind(BooleanConstant(mode == kNegateResult));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return result.value();
+}
+
+compiler::Node* CodeStubAssembler::ForInFilter(compiler::Node* key,
+                                               compiler::Node* object,
+                                               compiler::Node* context) {
+  Label return_undefined(this, Label::kDeferred), return_to_name(this),
+      end(this);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  Node* has_property =
+      HasProperty(object, key, context, Runtime::kForInHasProperty);
+
+  Branch(WordEqual(has_property, BooleanConstant(true)), &return_to_name,
+         &return_undefined);
+
+  Bind(&return_to_name);
+  {
+    var_result.Bind(ToName(context, key));
+    Goto(&end);
+  }
+
+  Bind(&return_undefined);
+  {
+    var_result.Bind(UndefinedConstant());
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
+compiler::Node* CodeStubAssembler::HasProperty(
+    compiler::Node* object, compiler::Node* key, compiler::Node* context,
+    Runtime::FunctionId fallback_runtime_function_id) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label call_runtime(this, Label::kDeferred), return_true(this),
+      return_false(this), end(this);
+
+  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
+      [this, &return_true](Node* receiver, Node* holder, Node* holder_map,
+                           Node* holder_instance_type, Node* unique_name,
+                           Label* next_holder, Label* if_bailout) {
+        TryHasOwnProperty(holder, holder_map, holder_instance_type, unique_name,
+                          &return_true, next_holder, if_bailout);
+      };
+
+  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
+      [this, &return_true](Node* receiver, Node* holder, Node* holder_map,
+                           Node* holder_instance_type, Node* index,
+                           Label* next_holder, Label* if_bailout) {
+        TryLookupElement(holder, holder_map, holder_instance_type, index,
+                         &return_true, next_holder, if_bailout);
+      };
+
+  TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+                          lookup_element_in_holder, &return_false,
+                          &call_runtime);
+
+  Variable result(this, MachineRepresentation::kTagged);
+  Bind(&return_true);
+  {
+    result.Bind(BooleanConstant(true));
+    Goto(&end);
+  }
+
+  Bind(&return_false);
+  {
+    result.Bind(BooleanConstant(false));
+    Goto(&end);
+  }
+
+  Bind(&call_runtime);
+  {
+    result.Bind(
+        CallRuntime(fallback_runtime_function_id, context, object, key));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return result.value();
+}
+
+compiler::Node* CodeStubAssembler::Typeof(compiler::Node* value,
+                                          compiler::Node* context) {
+  Variable result_var(this, MachineRepresentation::kTagged);
+
+  Label return_number(this, Label::kDeferred), if_oddball(this),
+      return_function(this), return_undefined(this), return_object(this),
+      return_string(this), return_result(this);
+
+  GotoIf(TaggedIsSmi(value), &return_number);
+
+  Node* map = LoadMap(value);
+
+  GotoIf(IsHeapNumberMap(map), &return_number);
+
+  Node* instance_type = LoadMapInstanceType(map);
+
+  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &if_oddball);
+
+  Node* callable_or_undetectable_mask = Word32And(
+      LoadMapBitField(map),
+      Int32Constant(1 << Map::kIsCallable | 1 << Map::kIsUndetectable));
+
+  GotoIf(Word32Equal(callable_or_undetectable_mask,
+                     Int32Constant(1 << Map::kIsCallable)),
+         &return_function);
+
+  GotoUnless(Word32Equal(callable_or_undetectable_mask, Int32Constant(0)),
+             &return_undefined);
+
+  GotoIf(IsJSReceiverInstanceType(instance_type), &return_object);
+
+  GotoIf(IsStringInstanceType(instance_type), &return_string);
+
+#define SIMD128_BRANCH(TYPE, Type, type, lane_count, lane_type) \
+  Label return_##type(this);                                    \
+  Node* type##_map = HeapConstant(factory()->type##_map());     \
+  GotoIf(WordEqual(map, type##_map), &return_##type);
+  SIMD128_TYPES(SIMD128_BRANCH)
+#undef SIMD128_BRANCH
+
+  CSA_ASSERT(Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)));
+  result_var.Bind(HeapConstant(isolate()->factory()->symbol_string()));
+  Goto(&return_result);
+
+  Bind(&return_number);
+  {
+    result_var.Bind(HeapConstant(isolate()->factory()->number_string()));
+    Goto(&return_result);
+  }
+
+  Bind(&if_oddball);
+  {
+    Node* type = LoadObjectField(value, Oddball::kTypeOfOffset);
+    result_var.Bind(type);
+    Goto(&return_result);
+  }
+
+  Bind(&return_function);
+  {
+    result_var.Bind(HeapConstant(isolate()->factory()->function_string()));
+    Goto(&return_result);
+  }
+
+  Bind(&return_undefined);
+  {
+    result_var.Bind(HeapConstant(isolate()->factory()->undefined_string()));
+    Goto(&return_result);
+  }
+
+  Bind(&return_object);
+  {
+    result_var.Bind(HeapConstant(isolate()->factory()->object_string()));
+    Goto(&return_result);
+  }
+
+  Bind(&return_string);
+  {
+    result_var.Bind(HeapConstant(isolate()->factory()->string_string()));
+    Goto(&return_result);
+  }
+
+#define SIMD128_BIND_RETURN(TYPE, Type, type, lane_count, lane_type)      \
+  Bind(&return_##type);                                                   \
+  {                                                                       \
+    result_var.Bind(HeapConstant(isolate()->factory()->type##_string())); \
+    Goto(&return_result);                                                 \
+  }
+  SIMD128_TYPES(SIMD128_BIND_RETURN)
+#undef SIMD128_BIND_RETURN
+
+  Bind(&return_result);
+  return result_var.value();
+}
+
+compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
+                                              compiler::Node* callable,
+                                              compiler::Node* context) {
+  Label return_runtime(this, Label::kDeferred), end(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  // Check if no one installed @@hasInstance somewhere.
+  GotoUnless(
+      WordEqual(LoadObjectField(LoadRoot(Heap::kHasInstanceProtectorRootIndex),
+                                PropertyCell::kValueOffset),
+                SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+      &return_runtime);
+
+  // Check if {callable} is a valid receiver.
+  GotoIf(TaggedIsSmi(callable), &return_runtime);
+  GotoIf(Word32Equal(Word32And(LoadMapBitField(LoadMap(callable)),
+                               Int32Constant(1 << Map::kIsCallable)),
+                     Int32Constant(0)),
+         &return_runtime);
+
+  // Use the inline OrdinaryHasInstance directly.
+  result.Bind(OrdinaryHasInstance(context, callable, object));
+  Goto(&end);
+
+  // TODO(bmeurer): Use GetPropertyStub here once available.
+  Bind(&return_runtime);
+  {
+    result.Bind(CallRuntime(Runtime::kInstanceOf, context, object, callable));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return result.value();
 }
 
 }  // namespace internal

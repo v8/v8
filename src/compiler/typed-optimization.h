@@ -39,6 +39,7 @@ class TypedOptimization final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceCheckHeapObject(Node* node);
   Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceCheckString(Node* node);
   Reduction ReduceLoadField(Node* node);

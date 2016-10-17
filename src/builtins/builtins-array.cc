@@ -1084,7 +1084,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage = SeededNumberDictionary::New(isolate, at_least_space_for);
   } else {
     DCHECK(species->IsConstructor());
-    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> length(Smi::kZero, isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
@@ -1236,7 +1236,7 @@ void Builtins::Generate_ArrayIsArray(CodeStubAssembler* assembler) {
   Label call_runtime(assembler), return_true(assembler),
       return_false(assembler);
 
-  assembler->GotoIf(assembler->WordIsSmi(object), &return_false);
+  assembler->GotoIf(assembler->TaggedIsSmi(object), &return_false);
   Node* instance_type = assembler->LoadInstanceType(object);
 
   assembler->GotoIf(assembler->Word32Equal(
@@ -1296,7 +1296,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler->LoadObjectField(array, JSArray::kLengthOffset);
-    assembler->GotoUnless(assembler->WordIsSmi(len), &call_runtime);
+    assembler->GotoUnless(assembler->TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler->SmiToWord(len));
     assembler->Branch(assembler->WordEqual(len_var.value(), intptr_zero),
@@ -1309,7 +1309,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         init_k_zero(assembler), init_k_n(assembler);
     Node* tagged_n = assembler->ToInteger(context, start_from);
 
-    assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
+    assembler->Branch(assembler->TaggedIsSmi(tagged_n), &init_k_smi,
                       &init_k_heap_num);
 
     assembler->Bind(&init_k_smi);
@@ -1381,9 +1381,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
                                     &if_packed_doubles, &if_holey_doubles};
 
   Node* map = assembler->LoadMap(array);
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+  Node* elements_kind = assembler->LoadMapElementsKind(map);
   Node* elements = assembler->LoadElements(array);
   assembler->Switch(elements_kind, &return_false, kElementsKind,
                     element_kind_handlers, arraysize(kElementsKind));
@@ -1397,7 +1395,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         undef_loop(assembler, &index_var), not_smi(assembler),
         not_heap_num(assembler);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &not_smi);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&heap_num_loop);
 
@@ -1412,10 +1410,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
 
     assembler->Bind(&not_heap_num);
     Node* search_type = assembler->LoadMapInstanceType(map);
-    assembler->GotoIf(
-        assembler->Int32LessThan(
-            search_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-        &string_loop);
+    assembler->GotoIf(assembler->IsStringInstanceType(search_type),
+                      &string_loop);
     assembler->GotoIf(
         assembler->Word32Equal(search_type,
                                assembler->Int32Constant(SIMD128_VALUE_TYPE)),
@@ -1468,7 +1464,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         Node* element_k = assembler->LoadFixedArrayElement(
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoUnless(assembler->WordIsSmi(element_k), &not_smi);
+        assembler->GotoUnless(assembler->TaggedIsSmi(element_k), &not_smi);
         assembler->Branch(
             assembler->Float64Equal(search_num.value(),
                                     assembler->SmiToFloat64(element_k)),
@@ -1496,7 +1492,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         Node* element_k = assembler->LoadFixedArrayElement(
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+        assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
         assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
                                                   heap_number_map),
                           &continue_loop);
@@ -1518,10 +1514,9 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           &return_false);
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-      assembler->GotoUnless(assembler->Int32LessThan(
-                                assembler->LoadInstanceType(element_k),
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
+      assembler->GotoUnless(assembler->IsStringInstanceType(
+                                assembler->LoadInstanceType(element_k)),
                             &continue_loop);
 
       // TODO(bmeurer): Consider inlining the StringEqual logic here.
@@ -1551,7 +1546,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
 
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
 
       Node* map_k = assembler->LoadMap(element_k);
       assembler->BranchIfSimd128Equal(search_element, map, element_k, map_k,
@@ -1569,7 +1564,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         hole_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -1623,7 +1619,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         hole_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -1743,7 +1740,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler->LoadObjectField(array, JSArray::kLengthOffset);
-    assembler->GotoUnless(assembler->WordIsSmi(len), &call_runtime);
+    assembler->GotoUnless(assembler->TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler->SmiToWord(len));
     assembler->Branch(assembler->WordEqual(len_var.value(), intptr_zero),
@@ -1756,7 +1753,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         init_k_zero(assembler), init_k_n(assembler);
     Node* tagged_n = assembler->ToInteger(context, start_from);
 
-    assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
+    assembler->Branch(assembler->TaggedIsSmi(tagged_n), &init_k_smi,
                       &init_k_heap_num);
 
     assembler->Bind(&init_k_smi);
@@ -1828,9 +1825,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
                                     &if_packed_doubles, &if_holey_doubles};
 
   Node* map = assembler->LoadMap(array);
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+  Node* elements_kind = assembler->LoadMapElementsKind(map);
   Node* elements = assembler->LoadElements(array);
   assembler->Switch(elements_kind, &return_not_found, kElementsKind,
                     element_kind_handlers, arraysize(kElementsKind));
@@ -1844,7 +1839,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         undef_loop(assembler, &index_var), not_smi(assembler),
         not_heap_num(assembler);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &not_smi);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&heap_num_loop);
 
@@ -1859,10 +1854,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
 
     assembler->Bind(&not_heap_num);
     Node* search_type = assembler->LoadMapInstanceType(map);
-    assembler->GotoIf(
-        assembler->Int32LessThan(
-            search_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-        &string_loop);
+    assembler->GotoIf(assembler->IsStringInstanceType(search_type),
+                      &string_loop);
     assembler->GotoIf(
         assembler->Word32Equal(search_type,
                                assembler->Int32Constant(SIMD128_VALUE_TYPE)),
@@ -1912,7 +1905,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         Node* element_k = assembler->LoadFixedArrayElement(
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoUnless(assembler->WordIsSmi(element_k), &not_smi);
+        assembler->GotoUnless(assembler->TaggedIsSmi(element_k), &not_smi);
         assembler->Branch(
             assembler->Float64Equal(search_num.value(),
                                     assembler->SmiToFloat64(element_k)),
@@ -1940,10 +1933,9 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
           &return_not_found);
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-      assembler->GotoUnless(assembler->Int32LessThan(
-                                assembler->LoadInstanceType(element_k),
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
+      assembler->GotoUnless(assembler->IsStringInstanceType(
+                                assembler->LoadInstanceType(element_k)),
                             &continue_loop);
 
       // TODO(bmeurer): Consider inlining the StringEqual logic here.
@@ -1973,7 +1965,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
 
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
 
       Node* map_k = assembler->LoadMap(element_k);
       assembler->BranchIfSimd128Equal(search_element, map, element_k, map_k,
@@ -1990,7 +1982,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
     Label not_nan_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -2027,7 +2020,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
     Label not_nan_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 

@@ -355,16 +355,8 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
-
-static bool AddressesMatch(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
 HeapObjectsMap::HeapObjectsMap(Heap* heap)
-    : next_id_(kFirstAvailableObjectId),
-      entries_map_(AddressesMatch),
-      heap_(heap) {
+    : next_id_(kFirstAvailableObjectId), heap_(heap) {
   // This dummy element solves a problem with entries_map_.
   // When we do lookup in HashMap we see no difference between two cases:
   // it has an entry with NULL as the value or it has created

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.sendCommand("Runtime.evaluate", { expression: "let a = 42;" }, step2);
+Protocol.Runtime.evaluate({ expression: "let a = 42;" }).then(step2);
 
 function step2(response)
 {
   failIfError(response);
   InspectorTest.log("first \"let a = 1;\" result: wasThrown = " + !!response.result.exceptionDetails);
-  InspectorTest.sendCommand("Runtime.evaluate", { expression: "let a = 239;" }, step3);
+  Protocol.Runtime.evaluate({ expression: "let a = 239;" }).then(step3);
 }
 
 function step3(response)
@@ -17,7 +17,7 @@ function step3(response)
   InspectorTest.log("second \"let a = 1;\" result: wasThrown = " + !!response.result.exceptionDetails);
   if (response.result.exceptionDetails)
     InspectorTest.log("exception message: " + response.result.exceptionDetails.text + " " + response.result.exceptionDetails.exception.description);
-  InspectorTest.sendCommand("Runtime.evaluate", { expression: "a" }, step4);
+  Protocol.Runtime.evaluate({ expression: "a" }).then(step4);
 }
 
 function step4(response)
@@ -42,7 +42,7 @@ function checkMethod(response)
   if (!method)
     InspectorTest.completeTest();
 
-  InspectorTest.sendCommand("Runtime.evaluate", { expression: method, includeCommandLineAPI: true }, checkMethod);
+  Protocol.Runtime.evaluate({ expression: method, includeCommandLineAPI: true }).then(checkMethod);
 }
 
 function failIfError(response)

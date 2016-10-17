@@ -12,7 +12,8 @@
 
 #include "src/asmjs/asm-types.h"
 #include "src/asmjs/asm-wasm-builder.h"
-#include "src/wasm/switch-logic.h"
+#include "src/asmjs/switch-logic.h"
+
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -44,14 +45,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
   AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, FunctionLiteral* literal,
                      AsmTyper* typer)
-      : local_variables_(base::HashMap::PointersMatch,
-                         ZoneHashMap::kDefaultHashMapCapacity,
+      : local_variables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
-        functions_(base::HashMap::PointersMatch,
-                   ZoneHashMap::kDefaultHashMapCapacity,
+        functions_(ZoneHashMap::kDefaultHashMapCapacity,
                    ZoneAllocationPolicy(zone)),
-        global_variables_(base::HashMap::PointersMatch,
-                          ZoneHashMap::kDefaultHashMapCapacity,
+        global_variables_(ZoneHashMap::kDefaultHashMapCapacity,
                           ZoneAllocationPolicy(zone)),
         scope_(kModuleScope),
         builder_(new (zone) WasmModuleBuilder(zone)),
@@ -65,8 +63,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         init_function_(nullptr),
         foreign_init_function_(nullptr),
         next_table_index_(0),
-        function_tables_(base::HashMap::PointersMatch,
-                         ZoneHashMap::kDefaultHashMapCapacity,
+        function_tables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
         imported_function_table_(this) {
     InitializeAstVisitor(isolate);
@@ -85,14 +82,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
          ++i) {
       b.AddParam(i->type);
     }
-    foreign_init_function_->SetExported();
-    std::string raw_name = "__foreign_init__";
-    foreign_init_function_->SetName(
-        AsmWasmBuilder::foreign_init_name,
-        static_cast<int>(strlen(AsmWasmBuilder::foreign_init_name)));
-
-    foreign_init_function_->SetName(raw_name.data(),
-                                    static_cast<int>(raw_name.size()));
+    foreign_init_function_->ExportAs(
+        CStrVector(AsmWasmBuilder::foreign_init_name));
     foreign_init_function_->SetSignature(b.Build());
     for (size_t pos = 0; pos < foreign_variables_.size(); ++pos) {
       foreign_init_function_->EmitGetLocal(static_cast<uint32_t>(pos));
@@ -112,20 +103,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     return ret;
   }
 
-  void BuildImports() {
-    for (const AsmTyper::FFIUseSignature& ffi : typer_->FFIUseSignatures()) {
-      size_t ret_count = ffi.return_type_ == AsmType::Void() ? 0 : 1;
-      FunctionSig::Builder b(zone_, ret_count, ffi.arg_types_.size());
-      for (AsmType* arg : ffi.arg_types_) b.AddParam(TypeFrom(arg));
-      if (ffi.return_type_ != AsmType::Void()) {
-        b.AddReturn(TypeFrom(ffi.return_type_));
-      }
-      imported_function_table_.AddFunction(ffi.var, b.Build());
-    }
-  }
-
   void Build() {
-    BuildImports();
     InitializeInitFunction();
     RECURSE(VisitFunctionLiteral(literal_));
     BuildForeignInitFunction();
@@ -580,10 +558,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       Variable* var = expr->var();
       DCHECK(var->is_function());
       WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-      function->SetExported();
-      function->SetName(
-          AsmWasmBuilder::single_function_name,
-          static_cast<int>(strlen(AsmWasmBuilder::single_function_name)));
+      function->ExportAs(CStrVector(AsmWasmBuilder::single_function_name));
     }
   }
 
@@ -667,9 +642,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       const AstRawString* raw_name = name->AsRawPropertyName();
       if (var->is_function()) {
         WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-        function->SetExported();
-        function->SetName(reinterpret_cast<const char*>(raw_name->raw_data()),
-                          raw_name->length());
+        function->Export();
+        function->SetName({reinterpret_cast<const char*>(raw_name->raw_data()),
+                           raw_name->length()});
       }
     }
   }
@@ -737,66 +712,46 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
    private:
     class ImportedFunctionIndices : public ZoneObject {
      public:
-      bool has_name_;
+      const char* name_;
+      int name_length_;
       WasmModuleBuilder::SignatureMap signature_to_index_;
 
-      explicit ImportedFunctionIndices(Zone* zone)
-          : has_name_(false), signature_to_index_(zone) {}
+      ImportedFunctionIndices(const char* name, int name_length, Zone* zone)
+          : name_(name), name_length_(name_length), signature_to_index_(zone) {}
     };
     ZoneHashMap table_;
     AsmWasmBuilderImpl* builder_;
 
    public:
     explicit ImportedFunctionTable(AsmWasmBuilderImpl* builder)
-        : table_(base::HashMap::PointersMatch,
-                 ZoneHashMap::kDefaultHashMapCapacity,
+        : table_(ZoneHashMap::kDefaultHashMapCapacity,
                  ZoneAllocationPolicy(builder->zone())),
           builder_(builder) {}
 
-    // Set the imported name of a variable. Must happen after all signatures
-    // (and thus import indices) are added for a given variable.
-    void SetImportName(Variable* v, const char* name, int name_length) {
-      auto indices = GetEntry(v);
-      if (indices) {
-        for (auto entry : indices->signature_to_index_) {
-          uint32_t index = entry.second;
-          builder_->builder_->SetImportName(index, name, name_length);
-        }
-        indices->has_name_ = true;
-      }
-    }
-
-    // Get a function's index. Does not insert new entries.
-    uint32_t GetFunctionIndex(Variable* v, FunctionSig* sig) {
-      auto indices = GetEntry(v);
-      DCHECK_NOT_NULL(indices);
-      auto pos = indices->signature_to_index_.find(sig);
-      DCHECK(pos != indices->signature_to_index_.end());
-      return pos->second;
-    }
-
-    // Add a function and register it as an import with the builder.
-    void AddFunction(Variable* v, FunctionSig* sig) {
-      auto entry = table_.LookupOrInsert(
+    void AddImport(Variable* v, const char* name, int name_length) {
+      ImportedFunctionIndices* indices = new (builder_->zone())
+          ImportedFunctionIndices(name, name_length, builder_->zone());
+      auto* entry = table_.LookupOrInsert(
           v, ComputePointerHash(v), ZoneAllocationPolicy(builder_->zone()));
-      if (entry->value == nullptr) {
-        entry->value =
-            new (builder_->zone()) ImportedFunctionIndices(builder_->zone());
-      }
-      auto indices = reinterpret_cast<ImportedFunctionIndices*>(entry->value);
-      DCHECK(!indices->has_name_);
-      auto pos = indices->signature_to_index_.find(sig);
-      if (pos == indices->signature_to_index_.end()) {
-        // A new import. Name is not known up front.
-        uint32_t index = builder_->builder_->AddImport(nullptr, 0, sig);
-        indices->signature_to_index_[sig] = index;
-      }
+      entry->value = indices;
     }
 
-    ImportedFunctionIndices* GetEntry(Variable* v) {
-      auto entry = table_.Lookup(v, ComputePointerHash(v));
-      if (entry == nullptr) return nullptr;
-      return reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+    // Get a function's index (or allocate if new).
+    uint32_t LookupOrInsertImport(Variable* v, FunctionSig* sig) {
+      ZoneHashMap::Entry* entry = table_.Lookup(v, ComputePointerHash(v));
+      DCHECK_NOT_NULL(entry);
+      ImportedFunctionIndices* indices =
+          reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+      WasmModuleBuilder::SignatureMap::iterator pos =
+          indices->signature_to_index_.find(sig);
+      if (pos != indices->signature_to_index_.end()) {
+        return pos->second;
+      } else {
+        uint32_t index = builder_->builder_->AddImport(
+            indices->name_, indices->name_length_, sig);
+        indices->signature_to_index_[sig] = index;
+        return index;
+      }
     }
   };
 
@@ -947,7 +902,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           if (typer_->TypeOf(target)->AsFFIType() != nullptr) {
             const AstRawString* name =
                 prop->key()->AsLiteral()->AsRawPropertyName();
-            imported_function_table_.SetImportName(
+            imported_function_table_.AddImport(
                 target->var(), reinterpret_cast<const char*>(name->raw_data()),
                 name->length());
           }
@@ -1376,13 +1331,16 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     bool returns_value = true;
     switch (call_type) {
       case Call::OTHER_CALL: {
-        DCHECK_EQ(kFuncScope, scope_);
         VariableProxy* proxy = expr->expression()->AsVariableProxy();
         if (proxy != nullptr) {
+          DCHECK(kFuncScope == scope_ ||
+                 typer_->VariableAsStandardMember(proxy->var()) ==
+                     AsmTyper::kMathFround);
           if (VisitStdlibFunction(expr, proxy)) {
             return true;
           }
         }
+        DCHECK(kFuncScope == scope_);
         VariableProxy* vp = expr->expression()->AsVariableProxy();
         DCHECK_NOT_NULL(vp);
         if (typer_->TypeOf(vp)->AsFFIType() != nullptr) {
@@ -1398,16 +1356,19 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           for (int i = 0; i < args->length(); ++i) {
             sig.AddParam(TypeOf(args->at(i)));
           }
-          uint32_t index =
-              imported_function_table_.GetFunctionIndex(vp->var(), sig.Build());
+          uint32_t index = imported_function_table_.LookupOrInsertImport(
+              vp->var(), sig.Build());
           VisitCallArgs(expr);
+          current_function_builder_->AddAsmWasmOffset(expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitVarInt(index);
         } else {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
+          current_function_builder_->AddAsmWasmOffset(expr->position());
           current_function_builder_->Emit(kExprCallFunction);
-          current_function_builder_->EmitVarInt(function->func_index());
+          current_function_builder_->EmitDirectCallIndex(
+              function->func_index());
           returns_value = function->signature()->return_count() > 0;
         }
         break;
@@ -1430,6 +1391,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VisitCallArgs(expr);
 
         current_function_builder_->EmitGetLocal(tmp.index());
+        current_function_builder_->AddAsmWasmOffset(expr->position());
         current_function_builder_->Emit(kExprCallIndirect);
         current_function_builder_->EmitVarInt(indices->signature_index);
         returns_value =
@@ -1854,8 +1816,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       entry = functions_.LookupOrInsert(v, ComputePointerHash(v),
                                         ZoneAllocationPolicy(zone()));
       function->SetName(
-          reinterpret_cast<const char*>(v->raw_name()->raw_data()),
-          v->raw_name()->length());
+          {reinterpret_cast<const char*>(v->raw_name()->raw_data()),
+           v->raw_name()->length()});
       entry->value = function;
     }
     return (reinterpret_cast<WasmFunctionBuilder*>(entry->value));
@@ -1911,13 +1873,16 @@ AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
-ZoneBuffer* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
+AsmWasmBuilder::Result AsmWasmBuilder::Run(
+    i::Handle<i::FixedArray>* foreign_args) {
   AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
   impl.Build();
   *foreign_args = impl.GetForeignArgs();
-  ZoneBuffer* buffer = new (zone_) ZoneBuffer(zone_);
-  impl.builder_->WriteTo(*buffer);
-  return buffer;
+  ZoneBuffer* module_buffer = new (zone_) ZoneBuffer(zone_);
+  impl.builder_->WriteTo(*module_buffer);
+  ZoneBuffer* asm_offsets_buffer = new (zone_) ZoneBuffer(zone_);
+  impl.builder_->WriteAsmJsOffsetTable(*asm_offsets_buffer);
+  return {module_buffer, asm_offsets_buffer};
 }
 
 const char* AsmWasmBuilder::foreign_init_name = "__foreign_init__";

@@ -530,7 +530,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
-                                       call.frequency());
+                                       call.frequency(), nullptr);
     graph_builder.CreateGraph();
 
     // Extract the inlinee start/end nodes.

@@ -322,7 +322,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // Add proper code dependencies in case of stable field map(s).
               Handle<Map> field_owner_map(map->FindFieldOwner(number),
                                           isolate());
-              dependencies()->AssumeFieldType(field_owner_map);
+              dependencies()->AssumeFieldOwner(field_owner_map);
 
               // Remember the field map, and try to infer a useful type.
               field_type = Type::For(descriptors_field_type->AsClass());
@@ -512,7 +512,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
         // Add proper code dependencies in case of stable field map(s).
         Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
                                     isolate());
-        dependencies()->AssumeFieldType(field_owner_map);
+        dependencies()->AssumeFieldOwner(field_owner_map);
 
         // Remember the field map, and try to infer a useful type.
         field_type = Type::For(descriptors_field_type->AsClass());

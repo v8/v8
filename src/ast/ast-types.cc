@@ -208,6 +208,8 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_MODULE_NAMESPACE_TYPE:
+    case JS_FIXED_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
@@ -260,7 +262,8 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case CALL_HANDLER_INFO_TYPE:
-    case PROMISE_CONTAINER_TYPE:
+    case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
+    case PROMISE_REACTION_JOB_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case SIGNATURE_INFO_TYPE:
@@ -274,6 +277,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
       UNREACHABLE();
       return kNone;

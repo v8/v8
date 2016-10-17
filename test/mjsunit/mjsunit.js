@@ -117,6 +117,9 @@ var assertUnoptimized;
 // Assert that a string contains another expected substring.
 var assertContains;
 
+// Assert that a string matches a given regex.
+var assertMatches;
+
 
 (function () {  // Scope for utility functions.
 
@@ -198,6 +201,11 @@ var assertContains;
   function PrettyPrintArrayElement(value, index, array) {
     if (value === undefined && !(index in array)) return "";
     return PrettyPrint(value);
+  }
+
+
+  function failWithMessage(message) {
+    throw new MjsUnitAssertionError(message);
   }
 
 
@@ -361,7 +369,7 @@ var assertContains;
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
       } else if (type_opt !== void 0) {
-        fail("invalid use of assertThrows, maybe you want assertThrowsEquals");
+        failWithMessage("invalid use of assertThrows, maybe you want assertThrowsEquals");
       }
       if (arguments.length >= 3) {
         assertEquals(e.type, cause_opt);
@@ -369,7 +377,7 @@ var assertContains;
       // Success.
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -380,7 +388,7 @@ var assertContains;
       assertEquals(val, e);
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -391,9 +399,9 @@ var assertContains;
       if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithmessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
-               (actualTypeName ? " but of < " + actualTypeName + ">" : ""));
+               (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }
   };
 
@@ -406,7 +414,7 @@ var assertContains;
         eval(code);
       }
     } catch (e) {
-      fail("threw an exception: ", e.message || e, name_opt);
+      failWithMessage("threw an exception: " + (e.message || e));
     }
   };
 
@@ -416,12 +424,21 @@ var assertContains;
     if (name_opt) {
       message += " - " + name_opt;
     }
-    throw new MjsUnitAssertionError(message);
+    failWithMessage(message);
   };
 
   assertContains = function(sub, value, name_opt) {
     if (value == null ? (sub != null) : value.indexOf(sub) == -1) {
       fail("contains '" + String(sub) + "'", value, name_opt);
+    }
+  };
+
+  assertMatches = function(regexp, str, name_opt) {
+    if (!(regexp instanceof RegExp)) {
+      regexp = new RegExp(regexp);
+    }
+    if (!str.match(regexp)) {
+      fail("should match '" + regexp + "'", str, name_opt);
     }
   };
 

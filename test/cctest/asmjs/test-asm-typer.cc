@@ -52,8 +52,6 @@ class AsmTyperHarnessBuilder {
             factory_->NewStringFromUtf8(CStrVector(source)).ToHandleChecked()),
         script_(factory_->NewScript(source_code_)) {
     ParseInfo info(zone_, script_);
-    info.set_global();
-    info.set_lazy(false);
     info.set_allow_lazy_parsing(false);
     info.set_toplevel(true);
     info.set_ast_value_factory(&ast_value_factory_);
@@ -515,7 +513,6 @@ TEST(ErrorsInGlobalVariableDefinition) {
       {"var v = __fround__(1.0);", "expected call fround(literal)"},
       {"var v = fround(1.0, 1.0);", "expected call fround(literal)"},
       {"var v = fround(not_fround);", "literal argument for call to fround"},
-      {"var v = fround(1);", "literal argument to be a floating point"},
       {"var v = stdlib.nan", "Invalid import"},
       {"var v = stdlib.Math.nan", "Invalid import"},
       {"var v = stdlib.Mathh.E", "Invalid import"},

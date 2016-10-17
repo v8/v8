@@ -161,6 +161,7 @@ class Utf8 {
   typedef uint32_t Utf8IncrementalBuffer;
   static uchar ValueOfIncremental(byte next_byte,
                                   Utf8IncrementalBuffer* buffer);
+  static uchar ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer);
 
   // Excludes non-characters from the set of valid code points.
   static inline bool IsValidCharacter(uchar c);

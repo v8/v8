@@ -19,8 +19,7 @@ namespace internal {
 static Address AllocateLabBackingStore(Heap* heap, intptr_t size_in_bytes) {
   AllocationResult result = heap->old_space()->AllocateRaw(
       static_cast<int>(size_in_bytes), kDoubleAligned);
-  Object* obj = result.ToObjectChecked();
-  Address adr = HeapObject::cast(obj)->address();
+  Address adr = result.ToObjectChecked()->address();
   return adr;
 }
 

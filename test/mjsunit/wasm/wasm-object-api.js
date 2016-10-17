@@ -4,12 +4,19 @@
 
 // Flags: --expose-wasm
 
-assertFalse(undefined === Wasm);
-assertFalse(undefined == Wasm);
-assertEquals("function", typeof Wasm.verifyModule);
-assertEquals("function", typeof Wasm.verifyFunction);
-assertEquals("function", typeof Wasm.instantiateModule);
-assertFalse(undefined == Wasm.experimentalVersion);
+var oldApi = true;
+
+if (oldApi) {
+  assertFalse(undefined === Wasm);
+  assertFalse(undefined == Wasm);
+  assertEquals("function", typeof Wasm.verifyModule);
+  assertEquals("function", typeof Wasm.verifyFunction);
+  assertEquals("function", typeof Wasm.instantiateModule);
+  assertFalse(undefined == Wasm.experimentalVersion);
+} else {
+  assertTrue(undefined === Wasm);
+  assertTrue(undefined == Wasm);
+}
 
 assertEquals('object', typeof WebAssembly);
 assertEquals('function', typeof WebAssembly.Module);

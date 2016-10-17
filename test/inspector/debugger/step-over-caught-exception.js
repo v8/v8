@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function testFunction()
 {
   function foo()
@@ -17,15 +17,15 @@ InspectorTest.evaluateInPage(
   console.log("completed");
 }`);
 
-InspectorTest.sendCommandOrDie("Debugger.enable", {});
-InspectorTest.sendCommandOrDie("Runtime.enable", {});
+Protocol.Debugger.enable();
+Protocol.Runtime.enable();
 step1();
 
 function step1()
 {
-  InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "setTimeout(testFunction, 0);"});
+  Protocol.Runtime.evaluate({ "expression": "setTimeout(testFunction, 0);"});
   var commands = [ "Print", "stepOver", "stepOver", "Print", "resume" ];
-  InspectorTest.eventHandler["Debugger.paused"] = function(messageObject)
+  Protocol.Debugger.onPaused(function(messageObject)
   {
     var command = commands.shift();
     if (command === "Print") {
@@ -35,24 +35,24 @@ function step1()
       command = commands.shift();
     }
     if (command)
-      InspectorTest.sendCommandOrDie("Debugger." + command, {});
-  }
+      Protocol.Debugger[command]();
+  });
 
-  InspectorTest.eventHandler["Runtime.consoleAPICalled"] = function(messageObject)
+  Protocol.Runtime.onConsoleAPICalled(function(messageObject)
   {
     if (messageObject.params.args[0].value === "completed") {
       if (commands.length)
         InspectorTest.log("[FAIL]: execution was resumed too earlier.")
       step2();
     }
-  }
+  });
 }
 
 function step2()
 {
-  InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "setTimeout(testFunction, 0);"});
+  Protocol.Runtime.evaluate({ "expression": "setTimeout(testFunction, 0);"});
   var commands = [ "Print", "stepOver", "stepInto", "stepOver", "stepOver", "Print", "resume" ];
-  InspectorTest.eventHandler["Debugger.paused"] = function(messageObject)
+  Protocol.Debugger.onPaused(function(messageObject)
   {
     var command = commands.shift();
     if (command === "Print") {
@@ -62,15 +62,15 @@ function step2()
       command = commands.shift();
     }
     if (command)
-      InspectorTest.sendCommandOrDie("Debugger." + command, {});
-  }
+      Protocol.Debugger[command]();
+  });
 
-  InspectorTest.eventHandler["Runtime.consoleAPICalled"] = function(messageObject)
+  Protocol.Runtime.onConsoleAPICalled(function(messageObject)
   {
     if (messageObject.params.args[0].value === "completed") {
       if (commands.length)
         InspectorTest.log("[FAIL]: execution was resumed too earlier.")
       InspectorTest.completeTest();
     }
-  }
+  });
 }

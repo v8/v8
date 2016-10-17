@@ -133,7 +133,7 @@ void Generate_MathRoundingOperation(
 
     // Check if {x} is a Smi or a HeapObject.
     Label if_xissmi(assembler), if_xisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
     assembler->Bind(&if_xissmi);
     {
@@ -214,7 +214,7 @@ void Builtins::Generate_MathClz32(CodeStubAssembler* assembler) {
 
     // Check if {x} is a Smi or a HeapObject.
     Label if_xissmi(assembler), if_xisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+    assembler->Branch(assembler->TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
     assembler->Bind(&if_xissmi);
     {
@@ -316,7 +316,7 @@ void Builtins::Generate_MathFround(CodeStubAssembler* assembler) {
 BUILTIN(MathHypot) {
   HandleScope scope(isolate);
   int const length = args.length() - 1;
-  if (length == 0) return Smi::FromInt(0);
+  if (length == 0) return Smi::kZero;
   DCHECK_LT(0, length);
   double max = 0;
   bool one_arg_is_nan = false;
@@ -345,7 +345,7 @@ BUILTIN(MathHypot) {
   }
 
   if (max == 0) {
-    return Smi::FromInt(0);
+    return Smi::kZero;
   }
   DCHECK_GT(max, 0);
 
@@ -450,6 +450,46 @@ void Builtins::Generate_MathPow(CodeStubAssembler* assembler) {
   Node* value = assembler->Float64Pow(x_value, y_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
+}
+
+// ES6 section 20.2.2.27 Math.random ( )
+void Builtins::Generate_MathRandom(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* context = assembler->Parameter(3);
+  Node* native_context = assembler->LoadNativeContext(context);
+
+  // Load cache index.
+  CodeStubAssembler::Variable smi_index(assembler,
+                                        MachineRepresentation::kTagged);
+  smi_index.Bind(assembler->LoadContextElement(
+      native_context, Context::MATH_RANDOM_INDEX_INDEX));
+
+  // Cached random numbers are exhausted if index is 0. Go to slow path.
+  CodeStubAssembler::Label if_cached(assembler);
+  assembler->GotoIf(assembler->SmiAbove(smi_index.value(),
+                                        assembler->SmiConstant(Smi::kZero)),
+                    &if_cached);
+
+  // Cache exhausted, populate the cache. Return value is the new index.
+  smi_index.Bind(
+      assembler->CallRuntime(Runtime::kGenerateRandomNumbers, context));
+  assembler->Goto(&if_cached);
+
+  // Compute next index by decrement.
+  assembler->Bind(&if_cached);
+  Node* new_smi_index = assembler->SmiSub(
+      smi_index.value(), assembler->SmiConstant(Smi::FromInt(1)));
+  assembler->StoreContextElement(
+      native_context, Context::MATH_RANDOM_INDEX_INDEX, new_smi_index);
+
+  // Load and return next cached random number.
+  Node* array = assembler->LoadContextElement(native_context,
+                                              Context::MATH_RANDOM_CACHE_INDEX);
+  Node* random = assembler->LoadFixedDoubleArrayElement(
+      array, new_smi_index, MachineType::Float64(), 0,
+      CodeStubAssembler::SMI_PARAMETERS);
+  assembler->Return(assembler->ChangeFloat64ToTagged(random));
 }
 
 // ES6 section 20.2.2.28 Math.round ( x )

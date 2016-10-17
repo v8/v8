@@ -4,7 +4,7 @@
 
 print("Check that console.log doesn't run microtasks.");
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `
 function testFunction()
 {
@@ -13,10 +13,10 @@ function testFunction()
   console.log(43);
 }`);
 
-InspectorTest.sendCommandOrDie("Runtime.enable", {});
-InspectorTest.eventHandler["Runtime.consoleAPICalled"] = messageAdded;
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "testFunction()" });
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "setTimeout(() => console.log(\"finished\"), 0)" });
+Protocol.Runtime.enable();
+Protocol.Runtime.onConsoleAPICalled(messageAdded);
+Protocol.Runtime.evaluate({ "expression": "testFunction()" });
+Protocol.Runtime.evaluate({ "expression": "setTimeout(() => console.log(\"finished\"), 0)" });
 
 function messageAdded(result)
 {

@@ -39,20 +39,18 @@ class CompilationInfo final {
     kRequiresFrame = 1 << 3,
     kMustNotHaveEagerFrame = 1 << 4,
     kDeoptimizationSupport = 1 << 5,
-    kDebug = 1 << 6,
+    kAccessorInliningEnabled = 1 << 6,
     kSerializing = 1 << 7,
     kFunctionContextSpecializing = 1 << 8,
     kFrameSpecializing = 1 << 9,
-    kNativeContextSpecializing = 1 << 10,
-    kInliningEnabled = 1 << 11,
-    kDisableFutureOptimization = 1 << 12,
-    kSplittingEnabled = 1 << 13,
-    kDeoptimizationEnabled = 1 << 14,
-    kSourcePositionsEnabled = 1 << 15,
-    kBailoutOnUninitialized = 1 << 16,
-    kOptimizeFromBytecode = 1 << 17,
-    kTypeFeedbackEnabled = 1 << 18,
-    kAccessorInliningEnabled = 1 << 19,
+    kInliningEnabled = 1 << 10,
+    kDisableFutureOptimization = 1 << 11,
+    kSplittingEnabled = 1 << 12,
+    kDeoptimizationEnabled = 1 << 13,
+    kSourcePositionsEnabled = 1 << 14,
+    kBailoutOnUninitialized = 1 << 15,
+    kOptimizeFromBytecode = 1 << 16,
+    kTypeFeedbackEnabled = 1 << 17,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -92,8 +90,6 @@ class CompilationInfo final {
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
-  bool is_tracking_positions() const { return track_positions_; }
-
   bool is_calling() const {
     return GetFlag(kDeferredCalling) || GetFlag(kNonDeferredCalling);
   }
@@ -124,13 +120,13 @@ class CompilationInfo final {
   // Inner functions that cannot be compiled w/o context are compiled eagerly.
   // Always include deoptimization support to avoid having to recompile again.
   void MarkAsDebug() {
-    SetFlag(kDebug);
+    set_is_debug();
     SetFlag(kDeoptimizationSupport);
   }
 
-  bool is_debug() const { return GetFlag(kDebug); }
+  bool is_debug() const;
 
-  void PrepareForSerializing() { SetFlag(kSerializing); }
+  void PrepareForSerializing();
 
   bool will_serialize() const { return GetFlag(kSerializing); }
 
@@ -145,14 +141,6 @@ class CompilationInfo final {
   void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
 
   bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
-
-  void MarkAsNativeContextSpecializing() {
-    SetFlag(kNativeContextSpecializing);
-  }
-
-  bool is_native_context_specializing() const {
-    return GetFlag(kNativeContextSpecializing);
-  }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
 
@@ -348,6 +336,8 @@ class CompilationInfo final {
 
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
+  void set_is_debug();
+
   unsigned flags_;
 
   Code::Flags code_flags_;
@@ -378,8 +368,6 @@ class CompilationInfo final {
   BailoutReason bailout_reason_;
 
   int prologue_offset_;
-
-  bool track_positions_;
 
   InlinedFunctionList inlined_functions_;
 

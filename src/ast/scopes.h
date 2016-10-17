@@ -176,6 +176,7 @@ class Scope: public ZoneObject {
   // allocated globally as a "ghost" variable. RemoveUnresolved removes
   // such a variable again if it was added; otherwise this is a no-op.
   bool RemoveUnresolved(VariableProxy* var);
+  bool RemoveUnresolved(const AstRawString* name);
 
   // Creates a new temporary variable in this scope's TemporaryScope.  The
   // name is only used for printing and cannot be used to find the variable.
@@ -356,7 +357,7 @@ class Scope: public ZoneObject {
 
   // Determine if we can parse a function literal in this scope lazily without
   // caring about the unresolved variables within.
-  bool AllowsLazyParsingWithoutUnresolvedVariables() const;
+  bool AllowsLazyParsingWithoutUnresolvedVariables(const Scope* outer) const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope) const;
@@ -379,6 +380,7 @@ class Scope: public ZoneObject {
   // the scope for which a function prologue allocates a context) or declaring
   // temporaries.
   DeclarationScope* GetClosureScope();
+  const DeclarationScope* GetClosureScope() const;
 
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
@@ -427,8 +429,6 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
-  bool is_lazily_parsed() const { return is_lazily_parsed_; }
-
  protected:
   explicit Scope(Zone* zone);
 
@@ -455,16 +455,7 @@ class Scope: public ZoneObject {
   // not deserialized from a context). Also, since NeedsContext() is only
   // returning a valid result after variables are resolved, NeedsScopeInfo()
   // should also be invoked after resolution.
-  bool NeedsScopeInfo() const {
-    DCHECK(!already_resolved_);
-    // A lazily parsed scope doesn't contain enough information to create a
-    // ScopeInfo from it.
-    if (is_lazily_parsed_) return false;
-    // The debugger expects all functions to have scope infos.
-    // TODO(jochen|yangguo): Remove this requirement.
-    if (is_function_scope()) return true;
-    return NeedsContext();
-  }
+  bool NeedsScopeInfo() const;
 
   Zone* zone_;
 
@@ -536,8 +527,6 @@ class Scope: public ZoneObject {
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
 
-  bool is_lazily_parsed_ : 1;
-
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
@@ -572,8 +561,10 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+  void AllocateScopeInfosRecursively(Isolate* isolate,
                                      MaybeHandle<ScopeInfo> outer_scope);
+  void AllocateDebuggerScopeInfos(Isolate* isolate,
+                                  MaybeHandle<ScopeInfo> outer_scope);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
@@ -642,6 +633,10 @@ class DeclarationScope : public Scope {
                                         IsAccessorFunction(function_kind()) ||
                                         IsClassConstructor(function_kind())));
   }
+
+  bool is_lazily_parsed() const { return is_lazily_parsed_; }
+  bool ShouldEagerCompile() const;
+  void set_should_eager_compile();
 
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
     DCHECK(is_script_scope());
@@ -712,16 +707,6 @@ class DeclarationScope : public Scope {
     DCHECK(is_function_scope() || is_module_scope());
     return params_[index];
   }
-
-  // Returns the default function arity excluding default or rest parameters.
-  // This will be used to set the length of the function, by default.
-  // Class field initializers use this property to indicate the number of
-  // fields being initialized.
-  int arity() const { return arity_; }
-
-  // Normal code should not need to call this. Class field initializers use this
-  // property to indicate the number of fields being initialized.
-  void set_arity(int arity) { arity_ = arity; }
 
   // Returns the number of formal parameters, excluding a possible rest
   // parameter.  Examples:
@@ -805,16 +790,15 @@ class DeclarationScope : public Scope {
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;
 
-  // Determine if we can use lazy compilation for this scope without a context.
-  bool AllowsLazyCompilationWithoutContext() const;
-
   // Make sure this closure and all outer closures are eagerly compiled.
   void ForceEagerCompilation() {
     DCHECK_EQ(this, GetClosureScope());
-    for (DeclarationScope* s = this; !s->is_script_scope();
+    DeclarationScope* s;
+    for (s = this; !s->is_script_scope();
          s = s->outer_scope()->GetClosureScope()) {
       s->force_eager_compilation_ = true;
     }
+    s->force_eager_compilation_ = true;
   }
 
 #ifdef DEBUG
@@ -857,9 +841,9 @@ class DeclarationScope : public Scope {
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
+  bool should_eager_compile_ : 1;
+  bool is_lazily_parsed_ : 1;
 
-  // Info about the parameter list of a function.
-  int arity_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
   // Map of function names to lists of functions defined in sloppy blocks

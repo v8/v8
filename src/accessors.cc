@@ -202,6 +202,50 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
                       attributes);
 }
 
+//
+// Accessors::ModuleNamespaceEntry
+//
+
+void Accessors::ModuleNamespaceEntryGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  JSModuleNamespace* holder =
+      JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  if (!holder->GetExport(Handle<String>::cast(Utils::OpenHandle(*name)))
+           .ToHandle(&result)) {
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(result));
+  }
+}
+
+void Accessors::ModuleNamespaceEntrySetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
+  Handle<JSModuleNamespace> holder =
+      Handle<JSModuleNamespace>::cast(Utils::OpenHandle(*info.Holder()));
+
+  if (info.ShouldThrowOnError()) {
+    isolate->Throw(*factory->NewTypeError(
+        MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
+        i::Object::TypeOf(isolate, holder), holder));
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(factory->ToBoolean(false)));
+  }
+}
+
+Handle<AccessorInfo> Accessors::ModuleNamespaceEntryInfo(
+    Isolate* isolate, Handle<String> name, PropertyAttributes attributes) {
+  return MakeAccessor(isolate, name, &ModuleNamespaceEntryGetter,
+                      &ModuleNamespaceEntrySetter, attributes);
+}
+
 
 //
 // Accessors::StringLength
@@ -738,7 +782,7 @@ void Accessors::FunctionLengthGetter(
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSFunction::GetLength(isolate, function).ToHandle(&result)) {
-    result = handle(Smi::FromInt(0), isolate);
+    result = handle(Smi::kZero, isolate);
     isolate->OptionalRescheduleException(false);
   }
 
@@ -1072,7 +1116,7 @@ void Accessors::BoundFunctionLengthGetter(
   Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
                             isolate);
   if (!JSFunction::GetLength(isolate, target).ToHandle(&target_length)) {
-    target_length = handle(Smi::FromInt(0), isolate);
+    target_length = handle(Smi::kZero, isolate);
     isolate->OptionalRescheduleException(false);
     return;
   }

@@ -6,7 +6,7 @@
 
 #include "src/v8.h"
 
-#include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/test-signatures.h"
 
 #include "src/objects.h"
 
@@ -1283,7 +1283,7 @@ class TestModuleEnv : public ModuleEnv {
     module = &mod;
   }
   byte AddGlobal(LocalType type, bool mutability = true) {
-    mod.globals.push_back({type, mutability, NO_INIT, 0, false, false});
+    mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
     CHECK(mod.globals.size() <= 127);
     return static_cast<byte>(mod.globals.size() - 1);
   }

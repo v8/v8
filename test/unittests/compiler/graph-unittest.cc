@@ -13,7 +13,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
+GraphTest::GraphTest(int num_parameters)
+    : TestWithNativeContext(),
+      TestWithIsolateAndZone(),
+      common_(zone()),
+      graph_(zone()) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
 }
@@ -54,7 +58,7 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type* type = Type::Constant(value, zone());
+  Type* type = Type::NewConstant(value, zone());
   NodeProperties::SetType(node, type);
   return node;
 }

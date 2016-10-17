@@ -44,9 +44,15 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ addp(rsp, Immediate(2 * kPointerSize));
 }
 
-void PropertyHandlerCompiler::PushReturnAddress(Register tmp) { UNREACHABLE(); }
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) {
+  MacroAssembler* masm = this->masm();
+  __ Push(tmp);
+}
 
-void PropertyHandlerCompiler::PopReturnAddress(Register tmp) { UNREACHABLE(); }
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) {
+  MacroAssembler* masm = this->masm();
+  __ Pop(tmp);
+}
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,

@@ -35,6 +35,11 @@
   # https://code.google.com/p/v8/issues/detail?id=705
   'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
 
+  # Date tests that fail in CE(S)T timezone.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
+  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
+  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
+
   ###################### MISSING ES6 FEATURES #######################
 
   # The order of adding the name property is wrong
@@ -378,12 +383,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5136
-  'annexB/language/comments/multi-line-html-close': [FAIL],
-  'annexB/language/comments/single-line-html-close': [FAIL],
-  'annexB/language/comments/single-line-html-close-asi': [FAIL],
-  'annexB/language/comments/single-line-html-open': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5137
   'annexB/built-ins/RegExp/prototype/compile/flags-undefined': [FAIL],
   'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-distinct': [FAIL],
@@ -474,9 +473,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5336
   'language/expressions/super/call-proto-not-ctor': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5337
-  'language/expressions/arrow-function/dstr-dflt-ary-ptrn-rest-ary-rest': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -623,20 +619,37 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
+
 # Module-related tests
 # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-['variant != ignition', {
+
+['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   'language/eval-code/direct/export': [SKIP],
   'language/eval-code/direct/import': [SKIP],
   'language/eval-code/indirect/export': [SKIP],
   'language/eval-code/indirect/import': [SKIP],
   'language/module-code/*': [SKIP],
-}],  # 'variant != ignition'
-['variant == ignition', {
-  'language/module-code/comment-*': [SKIP],
-  'language/module-code/eval-*': [SKIP],
-  'language/module-code/instn-*': [SKIP],
-  'language/module-code/namespace/*': [SKIP],
-}],  # 'variant == ignition'
+}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+
+['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
+  # v8:5485
+  'language/module-code/comment-multi-line-html*': [FAIL],
+  'language/module-code/comment-single-line-html*': [FAIL],
+
+  # v8:5486
+  'language/module-code/instn-iee-star-cycle': [FAIL],
+  'language/module-code/instn-named-star-cycle': [FAIL],
+  'language/module-code/instn-star-star-cycle': [FAIL],
+
+  # v8:5487
+  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
+
+  # v8:5401
+  'language/module-code/namespace/internals/set': [FAIL],
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
+
+  # https://github.com/tc39/test262/issues/773
+  'language/module-code/namespace/Symbol.iterator/values-binding-types_': [SKIP],
+}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]

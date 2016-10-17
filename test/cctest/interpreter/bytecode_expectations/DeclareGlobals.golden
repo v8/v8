@@ -3,7 +3,6 @@
 #
 
 ---
-execute: no
 wrap: no
 top level: yes
 

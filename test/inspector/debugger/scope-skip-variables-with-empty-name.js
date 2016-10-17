@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function testFunction()
 {
     for (var a of [1]) {
@@ -11,9 +11,9 @@ InspectorTest.evaluateInPage(
     }
 }`);
 
-InspectorTest.sendCommandOrDie("Debugger.enable", {});
-InspectorTest.eventHandler["Debugger.paused"] = dumpScopeOnPause;
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "testFunction()" });
+Protocol.Debugger.enable();
+Protocol.Debugger.oncePaused().then(dumpScopeOnPause);
+Protocol.Runtime.evaluate({ "expression": "testFunction()" });
 
 var waitScopeObjects = 0;
 function dumpScopeOnPause(message)
@@ -29,14 +29,14 @@ function dumpScopeOnPause(message)
     InspectorTest.completeTest();
   } else {
     for (var objectId of localScopeObjectIds)
-      InspectorTest.sendCommandOrDie("Runtime.getProperties", { "objectId" : objectId }, dumpProperties);
+      Protocol.Runtime.getProperties({ "objectId" : objectId }).then(dumpProperties);
   }
 }
 
 function dumpProperties(message)
 {
-  InspectorTest.logObject(message);
+  InspectorTest.logMessage(message);
   --waitScopeObjects;
   if (!waitScopeObjects)
-    InspectorTest.sendCommandOrDie("Debugger.resume", {}, () => InspectorTest.completeTest());
+    Protocol.Debugger.resume().then(InspectorTest.completeTest);
 }

@@ -165,14 +165,6 @@ bool NewSpace::FromSpaceContainsSlow(Address a) {
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
-// --------------------------------------------------------------------------
-// AllocationResult
-
-AllocationSpace AllocationResult::RetrySpace() {
-  DCHECK(IsRetry());
-  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
-}
-
 Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        SemiSpace* owner) {
   DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
@@ -287,6 +279,7 @@ intptr_t PagedSpace::RelinkFreeListCategories(Page* page) {
     added += category->available();
     category->Relink();
   });
+  DCHECK_EQ(page->AvailableInFreeList(), page->available_in_free_list());
   return added;
 }
 

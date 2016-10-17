@@ -99,7 +99,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
       isolate_->heap()->undefined_value());
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
-  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+  if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
     isolate_->heap()->set_allocation_sites_list(
         isolate_->heap()->undefined_value());
   }
@@ -277,7 +277,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
-    if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+    if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
       site->set_weak_next(isolate_->heap()->undefined_value());
     } else {
       site->set_weak_next(isolate_->heap()->allocation_sites_list());
@@ -414,7 +414,7 @@ Address Deserializer::Allocate(int space_index, int size) {
     LargeObjectSpace* lo_space = isolate_->heap()->lo_space();
     Executability exec = static_cast<Executability>(source_.Get());
     AllocationResult result = lo_space->AllocateRaw(size, exec);
-    HeapObject* obj = HeapObject::cast(result.ToObjectChecked());
+    HeapObject* obj = result.ToObjectChecked();
     deserialized_large_objects_.Add(obj);
     return obj->address();
   } else if (space_index == MAP_SPACE) {

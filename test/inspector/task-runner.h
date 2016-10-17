@@ -10,8 +10,8 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/inspector/string-16.h"
 #include "src/locked-queue-inl.h"
+#include "src/vector.h"
 
 class TaskRunner : public v8::base::Thread {
  public:
@@ -23,8 +23,8 @@ class TaskRunner : public v8::base::Thread {
                      const v8::Global<v8::Context>& context) = 0;
   };
 
-  explicit TaskRunner(v8::ExtensionConfiguration* extensions,
-                      v8::base::Semaphore* ready_semaphore);
+  TaskRunner(v8::ExtensionConfiguration* extensions, bool catch_exceptions,
+             v8::base::Semaphore* ready_semaphore);
   virtual ~TaskRunner();
 
   // Thread implementation.
@@ -44,6 +44,7 @@ class TaskRunner : public v8::base::Thread {
   Task* GetNext(bool only_protocol);
 
   v8::ExtensionConfiguration* extensions_;
+  bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
 
   v8::Isolate* isolate_;
@@ -64,14 +65,17 @@ class TaskRunner : public v8::base::Thread {
 
 class ExecuteStringTask : public TaskRunner::Task {
  public:
-  explicit ExecuteStringTask(const v8_inspector::String16& expression);
+  explicit ExecuteStringTask(const v8::internal::Vector<uint16_t>& expression);
+  explicit ExecuteStringTask(
+      const v8::internal::Vector<const char>& expression);
   bool is_inspector_task() override { return false; }
 
   void Run(v8::Isolate* isolate,
            const v8::Global<v8::Context>& context) override;
 
  private:
-  v8_inspector::String16 expression_;
+  v8::internal::Vector<uint16_t> expression_;
+  v8::internal::Vector<const char> expression_utf8_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
 };

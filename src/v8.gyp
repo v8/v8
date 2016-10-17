@@ -68,16 +68,6 @@
               'USING_V8_SHARED',
             ],
           },
-          'target_conditions': [
-            ['OS=="android" and _toolset=="target"', {
-              'libraries': [
-                '-llog',
-              ],
-              'include_dirs': [
-                'src/common/android/include',
-              ],
-            }],
-          ],
           'conditions': [
             ['OS=="mac"', {
               'xcode_settings': {
@@ -433,6 +423,8 @@
         'asmjs/asm-types.h',
         'asmjs/asm-wasm-builder.cc',
         'asmjs/asm-wasm-builder.h',
+        'asmjs/switch-logic.h',
+        'asmjs/switch-logic.cc',
         'assembler.cc',
         'assembler.h',
         'assert-scope.h',
@@ -662,6 +654,8 @@
         'compiler/machine-operator-reducer.h',
         'compiler/machine-operator.cc',
         'compiler/machine-operator.h',
+        'compiler/machine-graph-verifier.cc',
+        'compiler/machine-graph-verifier.h',
         'compiler/memory-optimizer.cc',
         'compiler/memory-optimizer.h',
         'compiler/move-optimizer.cc',
@@ -739,10 +733,12 @@
         'compiler/wasm-compiler.cc',
         'compiler/wasm-compiler.h',
         'compiler/wasm-linkage.cc',
-        'compiler/zone-pool.cc',
-        'compiler/zone-pool.h',
+        'compiler/zone-stats.cc',
+        'compiler/zone-stats.h',
         'compiler-dispatcher/compiler-dispatcher-job.cc',
         'compiler-dispatcher/compiler-dispatcher-job.h',
+        'compiler-dispatcher/compiler-dispatcher-tracer.cc',
+        'compiler-dispatcher/compiler-dispatcher-tracer.h',
         'compiler-dispatcher/optimizing-compile-dispatcher.cc',
         'compiler-dispatcher/optimizing-compile-dispatcher.h',
         'compiler.cc',
@@ -948,12 +944,14 @@
         'i18n.h',
         'icu_util.cc',
         'icu_util.h',
+        'ic/access-compiler-data.h',
         'ic/access-compiler.cc',
         'ic/access-compiler.h',
         'ic/call-optimization.cc',
         'ic/call-optimization.h',
         'ic/handler-compiler.cc',
         'ic/handler-compiler.h',
+        'ic/handler-configuration-inl.h',
         'ic/handler-configuration.h',
         'ic/ic-inl.h',
         'ic/ic-state.cc',
@@ -993,7 +991,6 @@
         'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register.cc',
         'interpreter/bytecode-register.h',
-        'interpreter/bytecode-register-allocator.cc',
         'interpreter/bytecode-register-allocator.h',
         'interpreter/bytecode-register-optimizer.cc',
         'interpreter/bytecode-register-optimizer.h',
@@ -1133,6 +1130,8 @@
         'regexp/regexp-parser.h',
         'regexp/regexp-stack.cc',
         'regexp/regexp-stack.h',
+        'regexp/regexp-utils.cc',
+        'regexp/regexp-utils.h',
         'register-configuration.cc',
         'register-configuration.h',
         'runtime-profiler.cc',
@@ -1155,6 +1154,7 @@
         'runtime/runtime-literals.cc',
         'runtime/runtime-liveedit.cc',
         'runtime/runtime-maths.cc',
+        'runtime/runtime-module.cc',
         'runtime/runtime-numbers.cc',
         'runtime/runtime-object.cc',
         'runtime/runtime-operators.cc',
@@ -1211,6 +1211,8 @@
         'ic/stub-cache.h',
         'tracing/trace-event.cc',
         'tracing/trace-event.h',
+        'tracing/traced-value.cc',
+        'tracing/traced-value.h',
         'transitions-inl.h',
         'transitions.cc',
         'transitions.h',
@@ -1249,10 +1251,11 @@
         'wasm/ast-decoder.h',
         'wasm/decoder.h',
         'wasm/leb-helper.h',
+        'wasm/managed.h',
         'wasm/module-decoder.cc',
         'wasm/module-decoder.h',
-        'wasm/switch-logic.h',
-        'wasm/switch-logic.cc',
+        'wasm/signature-map.cc',
+        'wasm/signature-map.h',
         'wasm/wasm-debug.cc',
         'wasm/wasm-debug.h',
         'wasm/wasm-external-refs.cc',
@@ -1274,9 +1277,12 @@
         'wasm/wasm-result.h',
         'zone/accounting-allocator.cc',
         'zone/accounting-allocator.h',
+        'zone/zone-segment.cc',
         'zone/zone-segment.h',
         'zone/zone.cc',
         'zone/zone.h',
+        'zone/zone-segment.cc',
+        'zone/zone-segment.h',
         'zone/zone-allocator.h',
         'zone/zone-containers.h',
       ],
@@ -1761,7 +1767,7 @@
     },
     {
       'target_name': 'v8_libbase',
-      'type': 'static_library',
+      'type': '<(component)',
       'variables': {
         'optimize': 'max',
       },
@@ -1784,6 +1790,7 @@
         'base/atomicops_internals_x86_gcc.cc',
         'base/atomicops_internals_x86_gcc.h',
         'base/atomicops_internals_x86_msvc.h',
+        'base/base-export.h',
         'base/bits.cc',
         'base/bits.h',
         'base/build_config.h',
@@ -1822,6 +1829,7 @@
         'base/platform/platform.h',
         'base/platform/semaphore.cc',
         'base/platform/semaphore.h',
+        'base/ring-buffer.h',
         'base/safe_conversions.h',
         'base/safe_conversions_impl.h',
         'base/safe_math.h',
@@ -1831,12 +1839,32 @@
         'base/utils/random-number-generator.cc',
         'base/utils/random-number-generator.h',
       ],
+      'target_conditions': [
+        ['OS=="android" and _toolset=="target"', {
+          'libraries': [
+            '-llog',
+          ],
+          'include_dirs': [
+            'src/common/android/include',
+          ],
+        }],
+      ],
       'conditions': [
         ['want_separate_host_toolset==1 or \
           want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
+        }],
+        ['component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_BASE_SHARED',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'USING_V8_BASE_SHARED',
+            ],
+          },
         }],
         ['OS=="linux"', {
             'link_settings': {
@@ -2045,7 +2073,7 @@
     },
     {
       'target_name': 'v8_libplatform',
-      'type': 'static_library',
+      'type': '<(component)',
       'variables': {
         'optimize': 'max',
       },
@@ -2059,6 +2087,7 @@
       ],
       'sources': [
         '../include/libplatform/libplatform.h',
+        '../include/libplatform/libplatform-export.h',
         '../include/libplatform/v8-tracing.h',
         'libplatform/default-platform.cc',
         'libplatform/default-platform.h',
@@ -2080,6 +2109,12 @@
         }, {
           'toolsets': ['target'],
         }],
+        ['component=="shared_library"', {
+          'direct_dependent_settings': {
+            'defines': [ 'USING_V8_PLATFORM_SHARED' ],
+          },
+          'defines': [ 'BUILDING_V8_PLATFORM_SHARED' ],
+        }]
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -2195,7 +2230,6 @@
           'js/symbol.js',
           'js/array.js',
           'js/string.js',
-          'js/math.js',
           'js/regexp.js',
           'js/arraybuffer.js',
           'js/typedarray.js',
@@ -2398,7 +2432,12 @@
     {
       'target_name': 'mksnapshot',
       'type': 'executable',
-      'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
+      'dependencies': [
+        'v8_base',
+        'v8_libbase',
+        'v8_nosnapshot',
+        'v8_libplatform'
+      ],
       'include_dirs+': [
         '..',
         '<(DEPTH)',

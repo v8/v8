@@ -60,14 +60,24 @@ class Factory final {
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
 
-  // Create a new PromiseContainer struct.
-  Handle<PromiseContainer> NewPromiseContainer(
+  // Create a new PromiseReactionJobInfo struct.
+  Handle<PromiseReactionJobInfo> NewPromiseReactionJobInfo(
+      Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
+      Handle<Object> before_debug, Handle<Object> after_debug_event,
+      Handle<Context> context);
+
+  // Create a new PromiseResolveThenableJobInfo struct.
+  Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(
       Handle<JSReceiver> thenable, Handle<JSReceiver> then,
       Handle<JSFunction> resolve, Handle<JSFunction> reject,
       Handle<Object> before_debug_event, Handle<Object> after_debug_event);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
+
+  // Create a new Tuple3 struct.
+  Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
+                           Handle<Object> value3);
 
   // Create a new ContextExtension struct.
   Handle<ContextExtension> NewContextExtension(Handle<ScopeInfo> scope_info,
@@ -486,6 +496,8 @@ class Factory final {
 
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
+  Handle<JSModuleNamespace> NewJSModuleNamespace();
+
   Handle<Module> NewModule(Handle<SharedFunctionInfo> code);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
@@ -521,6 +533,9 @@ class Factory final {
   // TODO(aandrey): Maybe these should take table, index and kind arguments.
   Handle<JSMapIterator> NewJSMapIterator();
   Handle<JSSetIterator> NewJSSetIterator();
+
+  Handle<JSFixedArrayIterator> NewJSFixedArrayIterator(
+      Handle<FixedArray> array);
 
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
@@ -623,6 +638,8 @@ class Factory final {
   DECLARE_ERROR(ReferenceError)
   DECLARE_ERROR(SyntaxError)
   DECLARE_ERROR(TypeError)
+  DECLARE_ERROR(WasmCompileError)
+  DECLARE_ERROR(WasmRuntimeError)
 #undef DEFINE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number,
@@ -708,6 +725,8 @@ class Factory final {
   Handle<Map> ObjectLiteralMapFromCache(Handle<Context> context,
                                         int number_of_properties,
                                         bool* is_result_from_cache);
+
+  V8_EXPORT_PRIVATE Handle<RegExpMatchInfo> NewRegExpMatchInfo();
 
   // Creates a new FixedArray that holds the data associated with the
   // atom regexp and stores it in the regexp.

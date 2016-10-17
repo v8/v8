@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(`
+InspectorTest.addScript(`
 function testFunction()
 {
   debugger;
 }
 //# sourceURL=foo.js`);
 
-InspectorTest.sendCommand("Debugger.enable", {});
+Protocol.Debugger.enable();
 
-InspectorTest.eventHandler["Debugger.paused"] = handleDebuggerPausedOne;
+Protocol.Debugger.oncePaused().then(handleDebuggerPausedOne);
 
-InspectorTest.sendCommand("Runtime.evaluate", { "expression": "setTimeout(testFunction, 0)" });
+Protocol.Runtime.evaluate({ "expression": "setTimeout(testFunction, 0)" });
 
 var obsoleteTopFrameId;
 
@@ -24,30 +24,28 @@ function handleDebuggerPausedOne(messageObject)
   var topFrame = messageObject.params.callFrames[0];
   obsoleteTopFrameId = topFrame.callFrameId;
 
-  InspectorTest.eventHandler["Debugger.paused"] = undefined;
-
-  InspectorTest.sendCommand("Debugger.resume", { }, callbackResume);
+  Protocol.Debugger.resume().then(callbackResume);
 }
 
 function callbackResume(response)
 {
   InspectorTest.log("resume");
   InspectorTest.log("restartFrame");
-  InspectorTest.sendCommand("Debugger.restartFrame", { callFrameId: obsoleteTopFrameId }, callbackRestartFrame);
+  Protocol.Debugger.restartFrame({ callFrameId: obsoleteTopFrameId }).then(callbackRestartFrame);
 }
 
 function callbackRestartFrame(response)
 {
   logErrorResponse(response);
   InspectorTest.log("evaluateOnFrame");
-  InspectorTest.sendCommand("Debugger.evaluateOnCallFrame", { callFrameId: obsoleteTopFrameId, expression: "0"} , callbackEvaluate);
+  Protocol.Debugger.evaluateOnCallFrame({ callFrameId: obsoleteTopFrameId, expression: "0"}).then(callbackEvaluate);
 }
 
 function callbackEvaluate(response)
 {
   logErrorResponse(response);
   InspectorTest.log("setVariableValue");
-  InspectorTest.sendCommand("Debugger.setVariableValue", { callFrameId: obsoleteTopFrameId, scopeNumber: 0, variableName: "a", newValue: { value: 0 } }, callbackSetVariableValue);
+  Protocol.Debugger.setVariableValue({ callFrameId: obsoleteTopFrameId, scopeNumber: 0, variableName: "a", newValue: { value: 0 } }).then(callbackSetVariableValue);
 }
 
 function callbackSetVariableValue(response)

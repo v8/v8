@@ -100,12 +100,29 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   return isolate->StackOverflow();
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  Handle<Object> arg0 = (args.length() > 1) ? args.at<Object>(1) : undefined;
+  Handle<Object> arg1 = (args.length() > 2) ? args.at<Object>(2) : undefined;
+  Handle<Object> arg2 = (args.length() > 3) ? args.at<Object>(3) : undefined;
+
+  MessageTemplate::Template message_id =
+      static_cast<MessageTemplate::Template>(message_id_smi);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(message_id, arg0, arg1, arg2));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
-  Handle<Object> error_obj = isolate->factory()->NewError(
+  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
 
   // For wasm traps, the byte offset (a.k.a source position) can not be
@@ -554,6 +571,22 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
 }
 
+RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, tasks, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, deferred, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 4);
+  Handle<PromiseReactionJobInfo> info =
+      isolate->factory()->NewPromiseReactionJobInfo(
+          value, tasks, deferred, before_debug_event, after_debug_event,
+          isolate->native_context());
+  isolate->EnqueueMicrotask(info);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 6);
@@ -563,9 +596,11 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 4);
   CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 5);
-  Handle<PromiseContainer> container = isolate->factory()->NewPromiseContainer(
-      resolution, then, resolve, reject, before_debug_event, after_debug_event);
-  isolate->EnqueueMicrotask(container);
+  Handle<PromiseResolveThenableJobInfo> info =
+      isolate->factory()->NewPromiseResolveThenableJobInfo(
+          resolution, then, resolve, reject, before_debug_event,
+          after_debug_event);
+  isolate->EnqueueMicrotask(info);
   return isolate->heap()->undefined_value();
 }
 

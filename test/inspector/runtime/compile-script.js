@@ -4,13 +4,13 @@
 
 var executionContextId;
 
-InspectorTest.sendCommand("Debugger.enable", {}, onDebuggerEnabled);
+Protocol.Debugger.enable().then(onDebuggerEnabled);
 
 function onDebuggerEnabled()
 {
-  InspectorTest.sendCommand("Runtime.enable", {});
-  InspectorTest.eventHandler["Debugger.scriptParsed"] = onScriptParsed;
-  InspectorTest.eventHandler["Runtime.executionContextCreated"] = onExecutionContextCreated;
+  Protocol.Runtime.enable();
+  Protocol.Debugger.onScriptParsed(onScriptParsed);
+  Protocol.Runtime.onExecutionContextCreated(onExecutionContextCreated);
 }
 
 function onScriptParsed(messageObject)
@@ -34,28 +34,17 @@ function testCompileScript(expression, persistScript, sourceURL)
 {
   InspectorTest.log("Compiling script: " + sourceURL);
   InspectorTest.log("         persist: " + persistScript);
-  var callback;
-  var promise = new Promise(resolver => callback = resolver);
-  InspectorTest.sendCommand("Runtime.compileScript", {
+  return Protocol.Runtime.compileScript({
     expression: expression,
     sourceURL: sourceURL,
     persistScript: persistScript,
     executionContextId: executionContextId
-  }, onCompiled);
-  return promise;
+  }).then(onCompiled);
 
   function onCompiled(messageObject)
   {
-    var result = messageObject.result;
-    if (result.exceptionDetails) {
-      result.exceptionDetails.exceptionId = 0;
-      result.exceptionDetails.exception.objectId = 0;
-      result.exceptionDetails.scriptId = 0;
-    }
-    if (result.scriptId)
-      result.scriptId = 0;
-    InspectorTest.logObject(result, "compilation result: ");
+    InspectorTest.log("compilation result: ");
+    InspectorTest.logMessage(messageObject);
     InspectorTest.log("-----");
-    callback();
   }
 }

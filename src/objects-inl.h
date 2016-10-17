@@ -305,7 +305,7 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate,
                                      Handle<Object> object,
                                      Representation representation) {
   if (representation.IsSmi() && object->IsUninitialized(isolate)) {
-    return handle(Smi::FromInt(0), isolate);
+    return handle(Smi::kZero, isolate);
   }
   if (!representation.IsDouble()) return object;
   double value;
@@ -702,6 +702,7 @@ TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
+TYPE_CHECKER(JSFixedArrayIterator, JS_FIXED_ARRAY_ITERATOR_TYPE)
 
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
@@ -714,6 +715,8 @@ bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
 
 bool HeapObject::IsArrayList() const { return IsFixedArray(); }
+
+bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArray(); }
 
 bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
@@ -1589,9 +1592,9 @@ FixedArrayBase* JSObject::elements() const {
 
 
 void AllocationSite::Initialize() {
-  set_transition_info(Smi::FromInt(0));
+  set_transition_info(Smi::kZero);
   SetElementsKind(GetInitialFastElementsKind());
-  set_nested_site(Smi::FromInt(0));
+  set_nested_site(Smi::kZero);
   set_pretenure_data(0);
   set_pretenure_create_count(0);
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
@@ -2019,7 +2022,7 @@ void WeakCell::clear() {
   // initializing the root empty weak cell.
   DCHECK(GetHeap()->gc_state() == Heap::MARK_COMPACT ||
          this == GetHeap()->empty_weak_cell());
-  WRITE_FIELD(this, kValueOffset, Smi::FromInt(0));
+  WRITE_FIELD(this, kValueOffset, Smi::kZero);
 }
 
 
@@ -2034,9 +2037,7 @@ void WeakCell::initialize(HeapObject* val) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kValueOffset, val, mode);
 }
 
-
-bool WeakCell::cleared() const { return value() == Smi::FromInt(0); }
-
+bool WeakCell::cleared() const { return value() == Smi::kZero; }
 
 Object* WeakCell::next() const { return READ_FIELD(this, kNextOffset); }
 
@@ -2116,6 +2117,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSObject::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:
       return JSStringIterator::kSize;
+    case JS_FIXED_ARRAY_ITERATOR_TYPE:
+      return JSFixedArrayIterator::kHeaderSize;
     default:
       UNREACHABLE();
       return 0;
@@ -2469,7 +2472,7 @@ bool WeakFixedArray::IsEmptySlot(int index) const {
 
 
 void WeakFixedArray::Clear(int index) {
-  FixedArray::cast(this)->set(index + kFirstIndex, Smi::FromInt(0));
+  FixedArray::cast(this)->set(index + kFirstIndex, Smi::kZero);
 }
 
 
@@ -2534,6 +2537,48 @@ void ArrayList::Clear(int index, Object* undefined) {
       ->set(kFirstIndex + index, undefined, SKIP_WRITE_BARRIER);
 }
 
+int RegExpMatchInfo::NumberOfCaptureRegisters() {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  Object* obj = get(kNumberOfCapturesIndex);
+  return Smi::cast(obj)->value();
+}
+
+void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  set(kNumberOfCapturesIndex, Smi::FromInt(value));
+}
+
+String* RegExpMatchInfo::LastSubject() {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  Object* obj = get(kLastSubjectIndex);
+  return String::cast(obj);
+}
+
+void RegExpMatchInfo::SetLastSubject(String* value) {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  set(kLastSubjectIndex, value);
+}
+
+Object* RegExpMatchInfo::LastInput() {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  return get(kLastInputIndex);
+}
+
+void RegExpMatchInfo::SetLastInput(Object* value) {
+  DCHECK_GE(length(), kLastMatchOverhead);
+  set(kLastInputIndex, value);
+}
+
+int RegExpMatchInfo::Capture(int i) {
+  DCHECK_LT(i, NumberOfCaptureRegisters());
+  Object* obj = get(kFirstCaptureIndex + i);
+  return Smi::cast(obj)->value();
+}
+
+void RegExpMatchInfo::SetCapture(int i, int value) {
+  DCHECK_LT(i, NumberOfCaptureRegisters());
+  set(kFirstCaptureIndex + i, Smi::FromInt(value));
+}
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
@@ -2639,6 +2684,11 @@ FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
 bool FrameArray::IsWasmFrame(int frame_ix) const {
   const int flags = Flags(frame_ix)->value();
   return (flags & kIsWasmFrame) != 0;
+}
+
+bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
+  const int flags = Flags(frame_ix)->value();
+  return (flags & kIsAsmJsWasmFrame) != 0;
 }
 
 int FrameArray::FrameCount() const {
@@ -3279,6 +3329,8 @@ CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
+CAST_ACCESSOR(JSModuleNamespace)
+CAST_ACCESSOR(JSFixedArrayIterator)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
@@ -3306,6 +3358,7 @@ CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
 CAST_ACCESSOR(SeqOneByteString)
@@ -4059,10 +4112,6 @@ byte ByteArray::get(int index) {
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
-const byte* ByteArray::data() const {
-  return reinterpret_cast<const byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
-}
-
 void ByteArray::set(int index, byte value) {
   DCHECK(index >= 0 && index < this->length());
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize, value);
@@ -4231,7 +4280,7 @@ int FixedTypedArrayBase::ElementSize(InstanceType type) {
 
 
 int FixedTypedArrayBase::DataSize(InstanceType type) {
-  if (base_pointer() == Smi::FromInt(0)) return 0;
+  if (base_pointer() == Smi::kZero) return 0;
   return length() * ElementSize(type);
 }
 
@@ -5654,12 +5703,23 @@ ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
 
-ACCESSORS(PromiseContainer, thenable, JSReceiver, kThenableOffset)
-ACCESSORS(PromiseContainer, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseContainer, resolve, JSFunction, kResolveOffset)
-ACCESSORS(PromiseContainer, reject, JSFunction, kRejectOffset)
-ACCESSORS(PromiseContainer, before_debug_event, Object, kBeforeDebugEventOffset)
-ACCESSORS(PromiseContainer, after_debug_event, Object, kAfterDebugEventOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, before_debug_event, Object,
+          kBeforeDebugEventOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, after_debug_event, Object,
+          kAfterDebugEventOffset)
+
+ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
+ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred, Object, kDeferredOffset);
+ACCESSORS(PromiseReactionJobInfo, before_debug_event, Object,
+          kBeforeDebugEventOffset);
+ACCESSORS(PromiseReactionJobInfo, after_debug_event, Object,
+          kAfterDebugEventOffset);
+ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
 
 Map* PrototypeInfo::ObjectCreateMap() {
   return Map::cast(WeakCell::cast(object_create_map())->value());
@@ -5709,26 +5769,43 @@ ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
+ACCESSORS(Tuple3, value1, Object, kValue1Offset)
+ACCESSORS(Tuple3, value2, Object, kValue2Offset)
+ACCESSORS(Tuple3, value3, Object, kValue3Offset)
+
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
 ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
+ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
+
+ACCESSORS(JSFixedArrayIterator, array, FixedArray, kArrayOffset)
+SMI_ACCESSORS(JSFixedArrayIterator, index, kIndexOffset)
+ACCESSORS(JSFixedArrayIterator, initial_next, JSFunction, kNextOffset)
+
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
+ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
-SMI_ACCESSORS(Module, flags, kFlagsOffset)
-BOOL_ACCESSORS(Module, flags, evaluated, kEvaluatedBit)
-ACCESSORS(Module, embedder_data, Object, kEmbedderDataOffset)
+SMI_ACCESSORS(Module, hash, kHashOffset)
 
-SharedFunctionInfo* Module::shared() const {
-  return code()->IsSharedFunctionInfo() ? SharedFunctionInfo::cast(code())
-                                        : JSFunction::cast(code())->shared();
+bool Module::evaluated() const { return code()->IsModuleInfo(); }
+
+void Module::set_evaluated() {
+  DCHECK(instantiated());
+  DCHECK(!evaluated());
+  return set_code(
+      JSFunction::cast(code())->shared()->scope_info()->ModuleDescriptorInfo());
 }
+
+bool Module::instantiated() const { return !code()->IsSharedFunctionInfo(); }
 
 ModuleInfo* Module::info() const {
-  return shared()->scope_info()->ModuleDescriptorInfo();
+  if (evaluated()) return ModuleInfo::cast(code());
+  ScopeInfo* scope_info = instantiated()
+                              ? JSFunction::cast(code())->shared()->scope_info()
+                              : SharedFunctionInfo::cast(code())->scope_info();
+  return scope_info->ModuleDescriptorInfo();
 }
-
-uint32_t Module::Hash() const { return Symbol::cast(shared()->name())->Hash(); }
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
@@ -5955,10 +6032,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
 
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
                kAllowLazyCompilation)
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               allows_lazy_compilation_without_context,
-               kAllowLazyCompilationWithoutContext)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                uses_arguments,
@@ -6435,7 +6508,7 @@ bool SharedFunctionInfo::IsSubjectToDebugging() { return !IsBuiltin(); }
 
 
 bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
-  return optimized_code_map() == GetHeap()->cleared_optimized_code_map();
+  return optimized_code_map() == GetHeap()->empty_fixed_array();
 }
 
 
@@ -6687,6 +6760,8 @@ bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 
+TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
+
 ACCESSORS(JSValue, value, Object, kValueOffset)
 
 
@@ -6934,7 +7009,7 @@ void JSArrayBuffer::set_is_shared(bool value) {
 
 
 Object* JSArrayBufferView::byte_offset() const {
-  if (WasNeutered()) return Smi::FromInt(0);
+  if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));
 }
 
@@ -6946,7 +7021,7 @@ void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
 
 
 Object* JSArrayBufferView::byte_length() const {
-  if (WasNeutered()) return Smi::FromInt(0);
+  if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kByteLengthOffset));
 }
 
@@ -6970,7 +7045,7 @@ bool JSArrayBufferView::WasNeutered() const {
 
 
 Object* JSTypedArray::length() const {
-  if (WasNeutered()) return Smi::FromInt(0);
+  if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kLengthOffset));
 }
 
@@ -7048,6 +7123,18 @@ void JSRegExp::SetDataAt(int index, Object* value) {
   FixedArray::cast(data())->set(index, value);
 }
 
+void JSRegExp::SetLastIndex(int index) {
+  static const int offset =
+      kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+  Smi* value = Smi::FromInt(index);
+  WRITE_FIELD(this, offset, value);
+}
+
+Object* JSRegExp::LastIndex() {
+  static const int offset =
+      kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+  return READ_FIELD(this, offset);
+}
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
@@ -7722,7 +7809,7 @@ template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
                                                Handle<Object> key,
                                                Handle<Object> value) {
-  this->SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
+  this->SetEntry(entry, key, value, PropertyDetails(Smi::kZero));
 }
 
 
@@ -8117,9 +8204,9 @@ void TypeFeedbackInfo::change_ic_generic_count(int delta) {
 
 
 void TypeFeedbackInfo::initialize_storage() {
-  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(0));
-  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(0));
-  WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(0));
+  WRITE_FIELD(this, kStorage1Offset, Smi::kZero);
+  WRITE_FIELD(this, kStorage2Offset, Smi::kZero);
+  WRITE_FIELD(this, kStorage3Offset, Smi::kZero);
 }
 
 

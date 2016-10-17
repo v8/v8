@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class CompilerDispatcherTracer;
 class CompilationInfo;
 class CompilationJob;
 class Isolate;
@@ -81,6 +82,7 @@ class CompilerDispatcherJob {
 
   CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
+  CompilerDispatcherTracer* tracer_;
   Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;        // Global handle.
   size_t max_stack_size_;

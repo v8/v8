@@ -218,11 +218,6 @@ class Logger : public CodeEventListener {
   INLINE(static void CallEventLogger(Isolate* isolate, const char* name,
                                      StartEnd se, bool expose_to_api));
 
-  // ==== Events logged by --log-regexp ====
-  // Regexp compilation and execution events.
-
-  void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
-
   bool is_logging() {
     return is_logging_;
   }

@@ -61,6 +61,8 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   }
 
  private:
+  bool DoesRegisterAllocation() const override { return false; }
+
   InstructionOperand ConvertMoveArg(TestOperand op) {
     CHECK_EQ(kNoValue, op.vreg_.value_);
     CHECK_NE(kNoValue, op.value_);
@@ -70,14 +72,16 @@ class MoveOptimizerTest : public InstructionSequenceTest {
       case kFixedSlot:
         return AllocatedOperand(LocationOperand::STACK_SLOT,
                                 MachineRepresentation::kWord32, op.value_);
-      case kFixedRegister:
-        CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return AllocatedOperand(LocationOperand::REGISTER,
-                                MachineRepresentation::kWord32, op.value_);
-      case kExplicit:
-        CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return ExplicitOperand(LocationOperand::REGISTER,
-                               MachineRepresentation::kWord32, op.value_);
+      case kFixedRegister: {
+        MachineRepresentation rep = GetCanonicalRep(op);
+        CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
+        return AllocatedOperand(LocationOperand::REGISTER, rep, op.value_);
+      }
+      case kExplicit: {
+        MachineRepresentation rep = GetCanonicalRep(op);
+        CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
+        return ExplicitOperand(LocationOperand::REGISTER, rep, op.value_);
+      }
       default:
         break;
     }
@@ -90,31 +94,37 @@ class MoveOptimizerTest : public InstructionSequenceTest {
 TEST_F(MoveOptimizerTest, RemovesRedundant) {
   StartBlock();
   auto first_instr = EmitNop();
-  AddMove(first_instr, Reg(0), Reg(1));
   auto last_instr = EmitNop();
+
+  AddMove(first_instr, Reg(0), Reg(1));
   AddMove(last_instr, Reg(1), Reg(0));
+
+  AddMove(first_instr, FPReg(0), FPReg(1));
+  AddMove(last_instr, FPReg(1), FPReg(0));
+
   EndBlock(Last());
 
   Optimize();
 
   CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
   auto move = last_instr->parallel_moves()[0];
-  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK_EQ(2, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
+  CHECK(Contains(move, FPReg(0), FPReg(1)));
 }
 
 
 TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
-  int first_reg_index =
-      RegisterConfiguration::Turbofan()->GetAllocatableGeneralCode(0);
-  int second_reg_index =
-      RegisterConfiguration::Turbofan()->GetAllocatableGeneralCode(1);
+  int first_reg_index = GetAllocatableCode(0);
+  int second_reg_index = GetAllocatableCode(1);
 
   StartBlock();
   auto first_instr = EmitNop();
-  AddMove(first_instr, Reg(first_reg_index), ExplicitReg(second_reg_index));
   auto last_instr = EmitNop();
+
+  AddMove(first_instr, Reg(first_reg_index), ExplicitReg(second_reg_index));
   AddMove(last_instr, Reg(second_reg_index), Reg(first_reg_index));
+
   EndBlock(Last());
 
   Optimize();
@@ -185,11 +195,16 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   AddMove(gap_0, Reg(0), Reg(1));
   AddMove(LastInstruction(), Reg(1), Reg(0));
 
+  AddMove(gap_0, FPReg(0), FPReg(1));
+  AddMove(LastInstruction(), FPReg(1), FPReg(0));
+
   StartBlock();
   EndBlock(Jump(1));
   auto gap_1 = LastInstruction();
   AddMove(gap_1, Reg(0), Reg(1));
   AddMove(gap_1, Reg(1), Reg(0));
+  AddMove(gap_1, FPReg(0), FPReg(1));
+  AddMove(gap_1, FPReg(1), FPReg(0));
 
   StartBlock();
   EndBlock(Last());
@@ -201,9 +216,11 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   CHECK(gap_0->AreMovesRedundant());
   CHECK(gap_1->AreMovesRedundant());
   auto move = last->parallel_moves()[0];
-  CHECK_EQ(2, NonRedundantSize(move));
+  CHECK_EQ(4, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
   CHECK(Contains(move, Reg(1), Reg(0)));
+  CHECK(Contains(move, FPReg(0), FPReg(1)));
+  CHECK(Contains(move, FPReg(1), FPReg(0)));
 }
 
 
@@ -325,7 +342,8 @@ TEST_F(MoveOptimizerTest, ClobberedDestinationsAreEliminated) {
   EmitNop();
   Instruction* first_instr = LastInstruction();
   AddMove(first_instr, Reg(0), Reg(1));
-  EmitOI(Reg(1), 0, nullptr);
+  AddMove(first_instr, FPReg(0), FPReg(1));
+  EmitOOI(Reg(1), FPReg(1), 0, nullptr);
   Instruction* last_instr = LastInstruction();
   EndBlock();
   Optimize();

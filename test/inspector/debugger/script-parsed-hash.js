@@ -5,14 +5,13 @@
 var hashes = new Set(["1C6D2E82E4E4F1BA4CB5762843D429DC872EBA18",
                       "EBF1ECD351E7A3294CB5762843D429DC872EBA18",
                       "86A31E7131896CF01BA837945C2894385F369F24"]);
-InspectorTest.sendCommandOrDie("Debugger.enable", {}, function() {
-  InspectorTest.eventHandler["Debugger.scriptParsed"] = function(messageObject)
-  {
-    if (hashes.has(messageObject.params.hash))
-      InspectorTest.log(`Hash received: ${messageObject.params.hash}`);
-    else
-      InspectorTest.log(`[FAIL]: unknown hash ${messageObject.params.hash}`);
-  }
+Protocol.Debugger.enable();
+Protocol.Debugger.onScriptParsed(function(messageObject)
+{
+  if (hashes.has(messageObject.params.hash))
+    InspectorTest.log(`Hash received: ${messageObject.params.hash}`);
+  else
+    InspectorTest.log(`[FAIL]: unknown hash ${messageObject.params.hash}`);
 });
 
 function longScript() {
@@ -21,10 +20,10 @@ function longScript() {
     longScript += "++b;";
 }
 
-InspectorTest.sendCommandOrDie("Runtime.enable");
-InspectorTest.sendCommandOrDie("Runtime.compileScript", { expression: "1", sourceURL: "foo1.js", persistScript: true });
-InspectorTest.sendCommandOrDie("Runtime.compileScript", { expression: "239", sourceURL: "foo2.js", persistScript: true });
-InspectorTest.sendCommandOrDie("Runtime.compileScript", { expression: "(" + longScript + ")()", sourceURL: "foo3.js", persistScript: true }, step2);
+Protocol.Runtime.enable();
+Protocol.Runtime.compileScript({ expression: "1", sourceURL: "foo1.js", persistScript: true });
+Protocol.Runtime.compileScript({ expression: "239", sourceURL: "foo2.js", persistScript: true });
+Protocol.Runtime.compileScript({ expression: "(" + longScript + ")()", sourceURL: "foo3.js", persistScript: true }).then(step2);
 
 function step2()
 {

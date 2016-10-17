@@ -8,8 +8,10 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <iomanip>
 #include <limits>
 #include <locale>
+#include <sstream>
 #include <string>
 
 #include "src/base/platform/platform.h"
@@ -375,32 +377,25 @@ String16 String16::fromInteger(int number) {
 String16 String16::fromInteger(size_t number) {
   const size_t kBufferSize = 50;
   char buffer[kBufferSize];
-  std::snprintf(buffer, kBufferSize, "%zu", number);
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
   return String16(buffer);
 }
 
 // static
 String16 String16::fromDouble(double number) {
-  const size_t kBufferSize = 100;
-  char buffer[kBufferSize];
-  v8::base::OS::SNPrintF(buffer, kBufferSize, "%f", number);
-  return String16(buffer);
+  std::ostringstream s;
+  s.imbue(std::locale("C"));
+  s << std::fixed << std::setprecision(std::numeric_limits<double>::digits10)
+    << number;
+  return String16(s.str().c_str());
 }
 
 // static
-String16 String16::fromDoublePrecision3(double number) {
-  const size_t kBufferSize = 100;
-  char buffer[kBufferSize];
-  v8::base::OS::SNPrintF(buffer, kBufferSize, "%.3g", number);
-  return String16(buffer);
-}
-
-// static
-String16 String16::fromDoublePrecision6(double number) {
-  const size_t kBufferSize = 100;
-  char buffer[kBufferSize];
-  v8::base::OS::SNPrintF(buffer, kBufferSize, "%.6g", number);
-  return String16(buffer);
+String16 String16::fromDouble(double number, int precision) {
+  std::ostringstream s;
+  s.imbue(std::locale("C"));
+  s << std::fixed << std::setprecision(precision) << number;
+  return String16(s.str().c_str());
 }
 
 int String16::toInteger(bool* ok) const {

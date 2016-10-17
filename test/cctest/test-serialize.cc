@@ -826,7 +826,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   const char* source =
       "function f() { return Math.abs(1); }\n"
       "function g() { return Number.parseInt(1); }\n"
-      "Number.parseFloat(1);"
+      "Object.valueOf(1);"
       "var a = 5";
   const char* warmup = "a = f()";
 
@@ -851,7 +851,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
     CHECK(!IsCompiled("Number.parseInt"));
-    CHECK(!IsCompiled("Number.parseFloat"));
+    CHECK(!IsCompiled("Object.valueOf"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();

@@ -709,7 +709,6 @@ TEST(DeclareGlobals) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_test_function_name("f");
-  printer.set_execute(false);
   printer.set_top_level(true);
 
   const char* snippets[] = {
@@ -1203,7 +1202,6 @@ TEST(TopLevelObjectLiterals) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_test_function_name("f");
-  printer.set_execute(false);
   printer.set_top_level(true);
 
   const char* snippets[] = {
@@ -2203,6 +2201,47 @@ TEST(Generators) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("Generators.golden")));
+}
+
+TEST(Modules) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_module(true);
+  printer.set_top_level(true);
+
+  const char* snippets[] = {
+      "import \"bar\";\n",
+
+      "import {foo} from \"bar\";\n",
+
+      "import {foo as goo} from \"bar\";\n"
+      "goo(42);\n"
+      "{ let x; { goo(42) } };\n",
+
+      "export var foo = 42;\n"
+      "foo++;\n"
+      "{ let x; { foo++ } };\n",
+
+      "export let foo = 42;\n"
+      "foo++;\n"
+      "{ let x; { foo++ } };\n",
+
+      "export const foo = 42;\n"
+      "foo++;\n"
+      "{ let x; { foo++ } };\n",
+
+      "export default (function () {});\n",
+
+      "export default (class {});\n",
+
+      "export {foo as goo} from \"bar\"\n",
+
+      "export * from \"bar\"\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("Modules.golden")));
 }
 
 }  // namespace interpreter

@@ -27,6 +27,10 @@ class DecoderTest : public TestWithZone {
     EXPECT_EQ(expected,                                                \
               decoder.checked_read_u32v(decoder.start(), 0, &length)); \
     EXPECT_EQ(expected_length, length);                                \
+    EXPECT_EQ(data, decoder.pc());                                     \
+    EXPECT_TRUE(decoder.ok());                                         \
+    EXPECT_EQ(expected, decoder.consume_u32v());                       \
+    EXPECT_EQ(data + expected_length, decoder.pc());                   \
   } while (false)
 
 #define CHECK_INT32V_INLINE(expected, expected_length, ...)            \
@@ -37,6 +41,10 @@ class DecoderTest : public TestWithZone {
     EXPECT_EQ(expected,                                                \
               decoder.checked_read_i32v(decoder.start(), 0, &length)); \
     EXPECT_EQ(expected_length, length);                                \
+    EXPECT_EQ(data, decoder.pc());                                     \
+    EXPECT_TRUE(decoder.ok());                                         \
+    EXPECT_EQ(expected, decoder.consume_i32v());                       \
+    EXPECT_EQ(data + expected_length, decoder.pc());                   \
   } while (false)
 
 #define CHECK_UINT64V_INLINE(expected, expected_length, ...)           \
@@ -661,6 +669,13 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
   decoder.checked_read_i64v(decoder.start(), 0, &length);
   EXPECT_EQ(10, length);
   EXPECT_FALSE(decoder.ok());
+}
+
+TEST_F(DecoderTest, FailOnNullData) {
+  decoder.Reset(nullptr, 0);
+  decoder.checkAvailable(1);
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_FALSE(decoder.toResult(nullptr).ok());
 }
 
 }  // namespace wasm

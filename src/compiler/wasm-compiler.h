@@ -84,8 +84,8 @@ class WasmCompilationUnit final {
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
-                                    Handle<String> import_module,
-                                    MaybeHandle<String> import_function);
+                                    Handle<String> module_name,
+                                    MaybeHandle<String> import_name);
 
 // Wraps a given wasm code object, producing a code object.
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
@@ -135,12 +135,15 @@ class WasmGraphBuilder {
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* GrowMemory(Node* input);
   Node* Throw(Node* input);
+  Node* Catch(Node* input, wasm::WasmCodePosition position);
   unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
+  bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
   void AppendToPhi(Node* phi, Node* from);
 
-  void StackCheck(wasm::WasmCodePosition position);
+  void StackCheck(wasm::WasmCodePosition position, Node** effect = nullptr,
+                  Node** control = nullptr);
 
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
@@ -153,10 +156,10 @@ class WasmGraphBuilder {
   Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
-  Node** CallDirect(uint32_t index, Node** args,
-                    wasm::WasmCodePosition position);
-  Node** CallIndirect(uint32_t index, Node** args,
-                      wasm::WasmCodePosition position);
+  Node* CallDirect(uint32_t index, Node** args, Node*** rets,
+                   wasm::WasmCodePosition position);
+  Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
+                     wasm::WasmCodePosition position);
 
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
@@ -196,7 +199,7 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
-  Node* DefaultS128Value();
+  Node* CreateS128Value(int32_t value);
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
   Node* SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input);
@@ -240,8 +243,8 @@ class WasmGraphBuilder {
   Node* MaskShiftCount64(Node* node);
 
   Node* BuildCCall(MachineSignature* sig, Node** args);
-  Node** BuildWasmCall(wasm::FunctionSig* sig, Node** args,
-                       wasm::WasmCodePosition position);
+  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
+                      wasm::WasmCodePosition position);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

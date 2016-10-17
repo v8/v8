@@ -62,12 +62,8 @@ class NamedEntriesDetector {
     if (strcmp(entry->name(), "C2") == 0) has_C2 = true;
   }
 
-  static bool AddressesMatch(void* key1, void* key2) {
-    return key1 == key2;
-  }
-
   void CheckAllReachables(i::HeapEntry* root) {
-    v8::base::HashMap visited(AddressesMatch);
+    v8::base::HashMap visited;
     i::List<i::HeapEntry*> list(10);
     list.Add(root);
     CheckEntry(root);
@@ -135,17 +131,12 @@ static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
 }
 
 
-static bool AddressesMatch(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
 // Check that snapshot has no unretained entries except root.
 static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
   i::HeapSnapshot* heap_snapshot = const_cast<i::HeapSnapshot*>(
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 
-  v8::base::HashMap visited(AddressesMatch);
+  v8::base::HashMap visited;
   i::List<i::HeapGraphEdge>& edges = heap_snapshot->edges();
   for (int i = 0; i < edges.length(); ++i) {
     v8::base::HashMap::Entry* entry = visited.LookupOrInsert(

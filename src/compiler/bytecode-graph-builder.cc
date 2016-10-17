@@ -438,6 +438,24 @@ void BytecodeGraphBuilder::Environment::PrepareForOsrEntry() {
     if (i >= accumulator_base()) idx = Linkage::kOsrAccumulatorRegisterIndex;
     values()->at(i) = graph()->NewNode(common()->OsrValue(idx), entry);
   }
+
+  BailoutId loop_id(builder_->bytecode_iterator().current_offset());
+  Node* frame_state =
+      Checkpoint(loop_id, OutputFrameStateCombine::Ignore(), false);
+  Node* checkpoint =
+      graph()->NewNode(common()->Checkpoint(), frame_state, entry, entry);
+  UpdateEffectDependency(checkpoint);
+
+  // Create the OSR guard nodes.
+  const Operator* guard_op = common()->OsrGuard(OsrGuardType::kUninitialized);
+  Node* effect = checkpoint;
+  for (int i = 0; i < size; i++) {
+    values()->at(i) = effect =
+        graph()->NewNode(guard_op, values()->at(i), effect, entry);
+  }
+  Node* context = effect = graph()->NewNode(guard_op, Context(), effect, entry);
+  SetContext(context);
+  UpdateEffectDependency(effect);
 }
 
 bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
@@ -569,10 +587,9 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
                                 1, output_poke_start, output_poke_end);
 }
 
-BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
-                                           CompilationInfo* info,
-                                           JSGraph* jsgraph,
-                                           float invocation_frequency)
+BytecodeGraphBuilder::BytecodeGraphBuilder(
+    Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
+    float invocation_frequency, SourcePositionTable* source_positions)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
@@ -595,8 +612,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
                                     info->is_deoptimization_enabled()),
       state_values_cache_(jsgraph),
       liveness_analyzer_(
-          static_cast<size_t>(bytecode_array()->register_count()), local_zone) {
-}
+          static_cast<size_t>(bytecode_array()->register_count()), local_zone),
+      source_positions_(source_positions) {}
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
   if (!new_target_.is_set()) {
@@ -696,11 +713,16 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   loop_analysis.Analyze();
   set_branch_analysis(&analysis);
   set_loop_analysis(&loop_analysis);
+
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   set_bytecode_iterator(&iterator);
+  SourcePositionTableIterator source_position_iterator(
+      bytecode_array()->source_position_table());
+
   BuildOSRNormalEntryPoint();
   while (!iterator.done()) {
     int current_offset = iterator.current_offset();
+    UpdateCurrentSourcePosition(&source_position_iterator, current_offset);
     EnterAndExitExceptionHandlers(current_offset);
     SwitchToMergeEnvironment(current_offset);
     if (environment() != nullptr) {
@@ -718,6 +740,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     }
     iterator.Advance();
   }
+
   set_branch_analysis(nullptr);
   set_bytecode_iterator(nullptr);
   DCHECK(exception_handlers_.empty());
@@ -896,8 +919,6 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
   // Output environment where the context has an extension
   Environment* slow_environment = nullptr;
 
-  DCHECK_GT(depth, 0u);
-
   // We only need to check up to the last-but-one depth, because the an eval in
   // the same scope as the variable itself has no way of shadowing it.
   for (uint32_t d = 0; d < depth; d++) {
@@ -931,7 +952,9 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     }
   }
 
-  DCHECK_NOT_NULL(slow_environment);
+  // The depth can be zero, in which case no slow-path checks are built, and the
+  // slow path environment can be null.
+  DCHECK(depth == 0 || slow_environment != nullptr);
 
   return slow_environment;
 }
@@ -949,28 +972,33 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     const Operator* op = javascript()->LoadContext(depth, slot_index, false);
     Node* context = environment()->Context();
     environment()->BindAccumulator(NewNode(op, context));
+  }
+
+  // Only build the slow path if there were any slow-path checks.
+  if (slow_environment != nullptr) {
+    // Add a merge to the fast environment.
     NewMerge();
+    Environment* fast_environment = environment();
+
+    // Slow path, do a runtime load lookup.
+    set_environment(slow_environment);
+    {
+      FrameStateBeforeAndAfter states(this);
+
+      Node* name = jsgraph()->Constant(
+          bytecode_iterator().GetConstantForIndexOperand(0));
+
+      const Operator* op =
+          javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
+                                        ? Runtime::kLoadLookupSlot
+                                        : Runtime::kLoadLookupSlotInsideTypeof);
+      Node* value = NewNode(op, name);
+      environment()->BindAccumulator(value, &states);
+    }
+
+    fast_environment->Merge(environment());
+    set_environment(fast_environment);
   }
-  Environment* fast_environment = environment();
-
-  // Slow path, do a runtime load lookup.
-  set_environment(slow_environment);
-  {
-    FrameStateBeforeAndAfter states(this);
-
-    Node* name =
-        jsgraph()->Constant(bytecode_iterator().GetConstantForIndexOperand(0));
-
-    const Operator* op =
-        javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
-                                      ? Runtime::kLoadLookupSlot
-                                      : Runtime::kLoadLookupSlotInsideTypeof);
-    Node* value = NewNode(op, name);
-    environment()->BindAccumulator(value, &states);
-  }
-
-  fast_environment->Merge(environment());
-  set_environment(fast_environment);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupContextSlot() {
@@ -993,29 +1021,33 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
     Node* node =
         BuildLoadGlobal(bytecode_iterator().GetIndexOperand(1), typeof_mode);
     environment()->BindAccumulator(node, &states);
+  }
 
+  // Only build the slow path if there were any slow-path checks.
+  if (slow_environment != nullptr) {
+    // Add a merge to the fast environment.
     NewMerge();
+    Environment* fast_environment = environment();
+
+    // Slow path, do a runtime load lookup.
+    set_environment(slow_environment);
+    {
+      FrameStateBeforeAndAfter states(this);
+
+      Node* name = jsgraph()->Constant(
+          bytecode_iterator().GetConstantForIndexOperand(0));
+
+      const Operator* op =
+          javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
+                                        ? Runtime::kLoadLookupSlot
+                                        : Runtime::kLoadLookupSlotInsideTypeof);
+      Node* value = NewNode(op, name);
+      environment()->BindAccumulator(value, &states);
+    }
+
+    fast_environment->Merge(environment());
+    set_environment(fast_environment);
   }
-  Environment* fast_environment = environment();
-
-  // Slow path, do a runtime load lookup.
-  set_environment(slow_environment);
-  {
-    FrameStateBeforeAndAfter states(this);
-
-    Node* name =
-        jsgraph()->Constant(bytecode_iterator().GetConstantForIndexOperand(0));
-
-    const Operator* op =
-        javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
-                                      ? Runtime::kLoadLookupSlot
-                                      : Runtime::kLoadLookupSlotInsideTypeof);
-    Node* value = NewNode(op, name);
-    environment()->BindAccumulator(value, &states);
-  }
-
-  fast_environment->Merge(environment());
-  set_environment(fast_environment);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupGlobalSlot() {
@@ -2227,6 +2259,21 @@ Node* BytecodeGraphBuilder::MergeValue(Node* value, Node* other,
     value->ReplaceInput(inputs - 1, other);
   }
   return value;
+}
+
+void BytecodeGraphBuilder::UpdateCurrentSourcePosition(
+    SourcePositionTableIterator* it, int offset) {
+  // TODO(neis): Remove this once inlining supports source positions.
+  if (source_positions_ == nullptr) return;
+
+  if (it->done()) return;
+
+  if (it->code_offset() == offset) {
+    source_positions_->set_current_position(it->source_position());
+    it->Advance();
+  } else {
+    DCHECK_GT(it->code_offset(), offset);
+  }
 }
 
 }  // namespace compiler

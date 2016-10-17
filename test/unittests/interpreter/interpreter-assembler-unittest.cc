@@ -335,7 +335,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
             IsChangeUint32ToUint64(after_lookahead_bytecode);
       }
       target_bytecode_matcher =
-          IsPhi(MachineRepresentation::kWord8, target_bytecode_matcher,
+          IsPhi(MachineType::PointerRepresentation(), target_bytecode_matcher,
                 after_lookahead_bytecode, _);
       code_target_matcher =
           m.IsLoad(MachineType::Pointer(),
@@ -430,7 +430,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
                         m.IsSignedOperand(offset, operand_size));
             break;
           }
-          case interpreter::OperandType::kMaybeReg:
+          case interpreter::OperandType::kRegList:
           case interpreter::OperandType::kReg:
           case interpreter::OperandType::kRegOut:
           case interpreter::OperandType::kRegOutPair:
@@ -538,9 +538,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* value = m.Int32Constant(44);
-    EXPECT_THAT(m.SmiTag(value),
-                IsIntPtrConstant(static_cast<intptr_t>(44)
-                                 << (kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiTag(value), IsBitcastWordToTaggedSigned(IsIntPtrConstant(
+                                     static_cast<intptr_t>(44)
+                                     << (kSmiShiftSize + kSmiTagSize))));
     EXPECT_THAT(m.SmiUntag(value),
                 IsWordSar(IsBitcastTaggedToWord(value),
                           IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));

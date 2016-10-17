@@ -123,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     function->shared()->ReplaceCode(
         isolate->builtins()->builtin(Builtins::kCompileLazy));
   }
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {
@@ -361,7 +361,20 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       // match. Fix heuristics for reenabling optimizations!
       function->shared()->increment_deopt_count();
 
-      if (!result->is_turbofanned()) {
+      if (result->is_turbofanned()) {
+        // When we're waiting for concurrent optimization, set to compile on
+        // the next call - otherwise we'd run unoptimized once more
+        // and potentially compile for OSR another time as well.
+        if (function->IsMarkedForConcurrentOptimization()) {
+          if (FLAG_trace_osr) {
+            PrintF("[OSR - Re-marking ");
+            function->PrintName();
+            PrintF(" for non-concurrent optimization]\n");
+          }
+          function->ReplaceCode(
+              isolate->builtins()->builtin(Builtins::kCompileOptimized));
+        }
+      } else {
         // Crankshafted OSR code can be installed into the function.
         function->ReplaceCode(*result);
       }

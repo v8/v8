@@ -64,6 +64,7 @@
   V(eval_string, "eval")                                           \
   V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
+  V(flags_string, "flags")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
   V(for_api_string, "for_api")                                     \
@@ -94,7 +95,7 @@
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
-  V(last_index_string, "lastIndex")                                \
+  V(lastIndex_string, "lastIndex")                                 \
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \
   V(literal_string, "literal")                                     \
@@ -139,6 +140,7 @@
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(stackTraceLimit_string, "stackTraceLimit")                     \
+  V(sticky_string, "sticky")                                       \
   V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
@@ -154,6 +156,8 @@
   V(true_string, "true")                                           \
   V(TypeError_string, "TypeError")                                 \
   V(type_string, "type")                                           \
+  V(CompileError_string, "CompileError")                           \
+  V(RuntimeError_string, "RuntimeError")                           \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \
   V(uint32x4_string, "uint32x4")                                   \
@@ -162,6 +166,7 @@
   V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
+  V(unicode_string, "unicode")                                     \
   V(URIError_string, "URIError")                                   \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \
@@ -172,50 +177,48 @@
   V(writable_string, "writable")                                   \
   V(year_string, "year")
 
-#define PRIVATE_SYMBOL_LIST(V)              \
-  V(array_iteration_kind_symbol)            \
-  V(array_iterator_next_symbol)             \
-  V(array_iterator_object_symbol)           \
-  V(call_site_frame_array_symbol)           \
-  V(call_site_frame_index_symbol)           \
-  V(class_end_position_symbol)              \
-  V(class_start_position_symbol)            \
-  V(detailed_stack_trace_symbol)            \
-  V(elements_transition_symbol)             \
-  V(error_end_pos_symbol)                   \
-  V(error_script_symbol)                    \
-  V(error_start_pos_symbol)                 \
-  V(frozen_symbol)                          \
-  V(hash_code_symbol)                       \
-  V(home_object_symbol)                     \
-  V(intl_impl_object_symbol)                \
-  V(intl_initialized_marker_symbol)         \
-  V(intl_pattern_symbol)                    \
-  V(intl_resolved_symbol)                   \
-  V(megamorphic_symbol)                     \
-  V(native_context_index_symbol)            \
-  V(nonexistent_symbol)                     \
-  V(nonextensible_symbol)                   \
-  V(normal_ic_symbol)                       \
-  V(not_mapped_symbol)                      \
-  V(premonomorphic_symbol)                  \
-  V(promise_async_stack_id_symbol)          \
-  V(promise_debug_marker_symbol)            \
-  V(promise_deferred_reactions_symbol)      \
-  V(promise_forwarding_handler_symbol)      \
-  V(promise_fulfill_reactions_symbol)       \
-  V(promise_handled_by_symbol)              \
-  V(promise_handled_hint_symbol)            \
-  V(promise_has_handler_symbol)             \
-  V(promise_raw_symbol)                     \
-  V(promise_reject_reactions_symbol)        \
-  V(promise_result_symbol)                  \
-  V(promise_state_symbol)                   \
-  V(sealed_symbol)                          \
-  V(stack_trace_symbol)                     \
-  V(strict_function_transition_symbol)      \
-  V(string_iterator_iterated_string_symbol) \
-  V(string_iterator_next_index_symbol)      \
+#define PRIVATE_SYMBOL_LIST(V)         \
+  V(array_iteration_kind_symbol)       \
+  V(array_iterator_next_symbol)        \
+  V(array_iterator_object_symbol)      \
+  V(call_site_frame_array_symbol)      \
+  V(call_site_frame_index_symbol)      \
+  V(class_end_position_symbol)         \
+  V(class_start_position_symbol)       \
+  V(detailed_stack_trace_symbol)       \
+  V(elements_transition_symbol)        \
+  V(error_end_pos_symbol)              \
+  V(error_script_symbol)               \
+  V(error_start_pos_symbol)            \
+  V(frozen_symbol)                     \
+  V(hash_code_symbol)                  \
+  V(home_object_symbol)                \
+  V(intl_impl_object_symbol)           \
+  V(intl_initialized_marker_symbol)    \
+  V(intl_pattern_symbol)               \
+  V(intl_resolved_symbol)              \
+  V(megamorphic_symbol)                \
+  V(native_context_index_symbol)       \
+  V(nonexistent_symbol)                \
+  V(nonextensible_symbol)              \
+  V(normal_ic_symbol)                  \
+  V(not_mapped_symbol)                 \
+  V(premonomorphic_symbol)             \
+  V(promise_async_stack_id_symbol)     \
+  V(promise_debug_marker_symbol)       \
+  V(promise_deferred_reaction_symbol)  \
+  V(promise_forwarding_handler_symbol) \
+  V(promise_fulfill_reactions_symbol)  \
+  V(promise_handled_by_symbol)         \
+  V(promise_handled_hint_symbol)       \
+  V(promise_has_handler_symbol)        \
+  V(promise_raw_symbol)                \
+  V(promise_reject_reactions_symbol)   \
+  V(promise_result_symbol)             \
+  V(promise_state_symbol)              \
+  V(sealed_symbol)                     \
+  V(stack_trace_symbol)                \
+  V(strict_function_transition_symbol) \
   V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                \

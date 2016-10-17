@@ -211,8 +211,6 @@ void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
     // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kShort, Smi::FromInt(delta));
-    DCHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<uint32_t>(entry)),
-              OperandSize::kShort);
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
     bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
     WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));

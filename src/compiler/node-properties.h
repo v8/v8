@@ -131,18 +131,6 @@ class NodeProperties final {
   static MaybeHandle<Context> GetSpecializationContext(
       Node* node, MaybeHandle<Context> context = MaybeHandle<Context>());
 
-  // Try to retrieve the specialization native context from the given
-  // {node}, optionally utilizing the knowledge about the (outermost)
-  // {native_context}.
-  static MaybeHandle<Context> GetSpecializationNativeContext(
-      Node* node, MaybeHandle<Context> native_context = MaybeHandle<Context>());
-
-  // Try to retrieve the specialization global object from the given
-  // {node}, optionally utilizing the knowledge about the (outermost)
-  // {native_context}.
-  static MaybeHandle<JSGlobalObject> GetSpecializationGlobalObject(
-      Node* node, MaybeHandle<Context> native_context = MaybeHandle<Context>());
-
   // ---------------------------------------------------------------------------
   // Type.
 

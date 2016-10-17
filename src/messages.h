@@ -148,8 +148,7 @@ class WasmStackFrame : public StackFrameBase {
 
   MaybeHandle<String> ToString() override;
 
- private:
-  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+ protected:
   Handle<Object> Null() const;
 
   Isolate* isolate_;
@@ -159,7 +158,28 @@ class WasmStackFrame : public StackFrameBase {
   Handle<AbstractCode> code_;
   int offset_;
 
+ private:
+  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+
   friend class FrameArrayIterator;
+};
+
+class AsmJsWasmStackFrame : public WasmStackFrame {
+ public:
+  virtual ~AsmJsWasmStackFrame() {}
+
+  Handle<Object> GetReceiver() const override;
+  Handle<Object> GetFunction() const override;
+
+  Handle<Object> GetFileName() override;
+  Handle<Object> GetFunctionName() override;
+  Handle<Object> GetScriptNameOrSourceUrl() override;
+
+  int GetPosition() const override;
+  int GetLineNumber() override;
+  int GetColumnNumber() override;
+
+  MaybeHandle<String> ToString() override;
 };
 
 class FrameArrayIterator {
@@ -179,6 +199,7 @@ class FrameArrayIterator {
   int next_frame_ix_;
 
   WasmStackFrame wasm_frame_;
+  AsmJsWasmStackFrame asm_wasm_frame_;
   JSStackFrame js_frame_;
 };
 

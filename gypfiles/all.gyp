@@ -25,6 +25,11 @@
             '../test/unittests/unittests.gyp:*',
           ],
         }],
+        ['v8_enable_inspector==1', {
+          'dependencies': [
+            '../test/inspector/inspector.gyp:*',
+          ],
+        }],
         ['test_isolation_mode != "noop"', {
           'dependencies': [
             '../test/bot_default.gyp:*',

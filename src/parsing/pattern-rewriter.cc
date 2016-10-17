@@ -67,16 +67,6 @@ Expression* Parser::PatternRewriter::RewriteDestructuringAssignment(
 }
 
 
-bool Parser::PatternRewriter::IsAssignmentContext(PatternContext c) const {
-  return c == ASSIGNMENT || c == ASSIGNMENT_INITIALIZER;
-}
-
-
-bool Parser::PatternRewriter::IsBindingContext(PatternContext c) const {
-  return c == BINDING || c == INITIALIZER;
-}
-
-
 Parser::PatternRewriter::PatternContext
 Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
   PatternContext old_context = context();

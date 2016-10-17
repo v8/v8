@@ -444,7 +444,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 
   OFStream os(stdout);
 #ifdef DEBUG
-  if (args[0]->IsString()) {
+  if (args[0]->IsString() && isolate->context() != nullptr) {
     // If we have a string, assume it's a code "marker"
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it(isolate);
@@ -768,8 +768,9 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
   }
-  return *wasm::CreateCompiledModuleObject(isolate, compiled_module,
-                                           wasm::ModuleOrigin::kWasmOrigin);
+  return *wasm::CreateCompiledModuleObject(
+      isolate, Handle<wasm::WasmCompiledModule>::cast(compiled_module),
+      wasm::kWasmOrigin);
 }
 
 RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {

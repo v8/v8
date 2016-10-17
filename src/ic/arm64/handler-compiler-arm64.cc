@@ -44,9 +44,13 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ Drop(2);
 }
 
-void PropertyHandlerCompiler::PushReturnAddress(Register tmp) { UNREACHABLE(); }
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) {
+  // No-op. Return address is in lr register.
+}
 
-void PropertyHandlerCompiler::PopReturnAddress(Register tmp) { UNREACHABLE(); }
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) {
+  // No-op. Return address is in lr register.
+}
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,

@@ -35,6 +35,7 @@ class ObjectStats {
 
   void CheckpointObjectStats();
   void PrintJSON(const char* key);
+  void Dump(std::stringstream& stream);
 
   void RecordObjectStats(InstanceType type, size_t size) {
     DCHECK(type <= LAST_TYPE);
@@ -73,6 +74,9 @@ class ObjectStats {
       over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
           over_allocated;
       over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
+                               [HistogramIndexFromSize(over_allocated)]++;
+      over_allocated_[InstanceType::FIXED_ARRAY_TYPE] += over_allocated;
+      over_allocated_histogram_[InstanceType::FIXED_ARRAY_TYPE]
                                [HistogramIndexFromSize(over_allocated)]++;
     }
     return true;

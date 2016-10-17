@@ -780,7 +780,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                        target_keys->get(i));
       nonconfigurable_keys_length++;
       // The key was moved, null it out in the original list.
-      target_keys->set(i, Smi::FromInt(0));
+      target_keys->set(i, Smi::kZero);
     } else {
       // 14c. Else,
       // 14c i. Append key as an element of targetConfigurableKeys.

@@ -749,46 +749,6 @@ TEST(DeleteWeakGlobalHandle) {
   CHECK(WeakPointerCleared);
 }
 
-TEST(DoNotPromoteWhiteObjectsOnScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
-
-  HandleScope scope(isolate);
-  Handle<Object> white = factory->NewStringFromStaticChars("white");
-
-  CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*white))));
-
-  CcTest::CollectGarbage(NEW_SPACE);
-
-  CHECK(heap->InNewSpace(*white));
-}
-
-TEST(PromoteGreyOrBlackObjectsOnScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
-
-  HandleScope scope(isolate);
-  Handle<Object> marked = factory->NewStringFromStaticChars("marked");
-
-  IncrementalMarking* marking = heap->incremental_marking();
-  marking->Stop();
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                i::GarbageCollectionReason::kTesting);
-  while (
-      Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*marked)))) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::DO_NOT_FORCE_COMPLETION, StepOrigin::kV8);
-  }
-
-  CcTest::CollectGarbage(NEW_SPACE);
-
-  CHECK(!heap->InNewSpace(*marked));
-}
-
 TEST(BytecodeArray) {
   static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
   static const int kRawBytesSize = sizeof(kRawBytes);
@@ -1078,7 +1038,7 @@ TEST(JSArray) {
 
   // Set array length to 0.
   JSArray::SetLength(array, 0);
-  CHECK_EQ(Smi::FromInt(0), array->length());
+  CHECK_EQ(Smi::kZero, array->length());
   // Must be in fast mode.
   CHECK(array->HasFastSmiOrObjectElements());
 
@@ -1584,7 +1544,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // is running so that incremental marking aborts and code flushing is
   // disabled.
   int position = function->shared()->start_position();
-  Handle<Object> breakpoint_object(Smi::FromInt(0), isolate);
+  Handle<Object> breakpoint_object(Smi::kZero, isolate);
   EnableDebugger(CcTest::isolate());
   isolate->debug()->SetBreakPoint(function, breakpoint_object, &position);
   isolate->debug()->ClearBreakPoint(breakpoint_object);
@@ -2230,9 +2190,8 @@ TEST(TestAlignedOverAllocation) {
   AllocationResult dummy =
       heap->old_space()->AllocateRawUnaligned(kPointerSize);
   CHECK(!dummy.IsRetry());
-  heap->CreateFillerObjectAt(
-      HeapObject::cast(dummy.ToObjectChecked())->address(), kPointerSize,
-      ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(dummy.ToObjectChecked()->address(), kPointerSize,
+                             ClearRecordedSlots::kNo);
 
   // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
   const intptr_t double_misalignment = kDoubleSize - kPointerSize;
@@ -7078,7 +7037,8 @@ TEST(RememberedSetRemoveRange) {
     return KEEP_SLOT;
   });
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kPointerSize);
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kPointerSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   slots[start] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
     CHECK(slots[addr]);
@@ -7086,7 +7046,8 @@ TEST(RememberedSetRemoveRange) {
   });
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kPointerSize,
-                                         start + Page::kPageSize);
+                                         start + Page::kPageSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + kPointerSize] = false;
   slots[start + Page::kPageSize - kPointerSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
@@ -7094,8 +7055,9 @@ TEST(RememberedSetRemoveRange) {
     return KEEP_SLOT;
   });
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(
-      chunk, start, start + Page::kPageSize + kPointerSize);
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start,
+                                         start + Page::kPageSize + kPointerSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + Page::kPageSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
     CHECK(slots[addr]);
@@ -7103,7 +7065,8 @@ TEST(RememberedSetRemoveRange) {
   });
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(
-      chunk, chunk->area_end() - kPointerSize, chunk->area_end());
+      chunk, chunk->area_end() - kPointerSize, chunk->area_end(),
+      SlotSet::FREE_EMPTY_BUCKETS);
   slots[chunk->area_end() - kPointerSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
     CHECK(slots[addr]);

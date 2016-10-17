@@ -51,14 +51,16 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       locals_(builder->zone()),
       signature_index_(0),
       exported_(0),
-      func_index_(static_cast<uint32_t>(builder->imports_.size() +
-                                        builder->functions_.size())),
+      func_index_(static_cast<uint32_t>(builder->functions_.size())),
       body_(builder->zone()),
       name_(builder->zone()),
+      exported_name_(builder->zone()),
       i32_temps_(builder->zone()),
       i64_temps_(builder->zone()),
       f32_temps_(builder->zone()),
-      f64_temps_(builder->zone()) {}
+      f64_temps_(builder->zone()),
+      direct_calls_(builder->zone()),
+      asm_offsets_(builder->zone(), 8) {}
 
 void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   byte buffer[8];
@@ -130,15 +132,40 @@ void WasmFunctionBuilder::EmitI32Const(int32_t value) {
   }
 }
 
-void WasmFunctionBuilder::SetExported() { exported_ = true; }
+void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
+  DirectCallIndex call;
+  call.offset = body_.size();
+  call.direct_index = index;
+  direct_calls_.push_back(call);
+  byte code[] = {U32V_5(0)};
+  EmitCode(code, sizeof(code));
+}
 
-void WasmFunctionBuilder::SetName(const char* name, int name_length) {
-  name_.clear();
-  if (name_length > 0) {
-    for (int i = 0; i < name_length; ++i) {
-      name_.push_back(*(name + i));
-    }
-  }
+void WasmFunctionBuilder::Export() { exported_ = true; }
+
+void WasmFunctionBuilder::ExportAs(Vector<const char> name) {
+  exported_ = true;
+  exported_name_.resize(name.length());
+  memcpy(exported_name_.data(), name.start(), name.length());
+}
+
+void WasmFunctionBuilder::SetName(Vector<const char> name) {
+  name_.resize(name.length());
+  memcpy(name_.data(), name.start(), name.length());
+}
+
+void WasmFunctionBuilder::AddAsmWasmOffset(int asm_position) {
+  // We only want to emit one mapping per byte offset:
+  DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
+
+  DCHECK_LE(body_.size(), kMaxUInt32);
+  uint32_t byte_offset = static_cast<uint32_t>(body_.size());
+  asm_offsets_.write_u32v(byte_offset - last_asm_byte_offset_);
+  last_asm_byte_offset_ = byte_offset;
+
+  DCHECK_GE(asm_position, 0);
+  asm_offsets_.write_i32v(asm_position - last_asm_source_position_);
+  last_asm_source_position_ = asm_position;
 }
 
 void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
@@ -147,12 +174,14 @@ void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
 
 void WasmFunctionBuilder::WriteExport(ZoneBuffer& buffer) const {
   if (exported_) {
-    buffer.write_size(name_.size());
-    if (name_.size() > 0) {
-      buffer.write(reinterpret_cast<const byte*>(&name_[0]), name_.size());
-    }
+    const ZoneVector<char>* exported_name =
+        exported_name_.size() == 0 ? &name_ : &exported_name_;
+    buffer.write_size(exported_name->size());
+    buffer.write(reinterpret_cast<const byte*>(exported_name->data()),
+                 exported_name->size());
     buffer.write_u8(kExternalFunction);
-    buffer.write_u32v(func_index_);
+    buffer.write_u32v(func_index_ +
+                      static_cast<uint32_t>(builder_->imports_.size()));
   }
 }
 
@@ -164,8 +193,26 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
   locals_.Emit(*ptr);
   (*ptr) += locals_size;  // UGLY: manual bump of position pointer
   if (body_.size() > 0) {
+    size_t base = buffer.offset();
     buffer.write(&body_[0], body_.size());
+    for (DirectCallIndex call : direct_calls_) {
+      buffer.patch_u32v(
+          base + call.offset,
+          call.direct_index + static_cast<uint32_t>(builder_->imports_.size()));
+    }
   }
+}
+
+void WasmFunctionBuilder::WriteAsmWasmOffsetTable(ZoneBuffer& buffer) const {
+  if (asm_offsets_.size() == 0) {
+    buffer.write_size(0);
+    return;
+  }
+  buffer.write_size(asm_offsets_.size() + kInt32Size);
+  // Offset of the recorded byte offsets.
+  DCHECK_GE(kMaxUInt32, locals_.Size());
+  buffer.write_u32(static_cast<uint32_t>(locals_.Size()));
+  buffer.write(asm_offsets_.begin(), asm_offsets_.size());
 }
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
@@ -230,7 +277,6 @@ void WasmModuleBuilder::AddIndirectFunction(uint32_t index) {
 
 uint32_t WasmModuleBuilder::AddImport(const char* name, int name_length,
                                       FunctionSig* sig) {
-  DCHECK_EQ(0, functions_.size());  // imports must be added before functions!
   imports_.push_back({AddSignature(sig), name, name_length});
   return static_cast<uint32_t>(imports_.size() - 1);
 }
@@ -240,8 +286,9 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
 }
 
 uint32_t WasmModuleBuilder::AddGlobal(LocalType type, bool exported,
-                                      bool mutability) {
-  globals_.push_back({type, exported, mutability});
+                                      bool mutability,
+                                      const WasmInitExpr& init) {
+  globals_.push_back({type, exported, mutability, init});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -329,29 +376,64 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     for (auto global : globals_) {
       buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(global.type));
       buffer.write_u8(global.mutability ? 1 : 0);
-      switch (global.type) {
-        case kAstI32: {
-          static const byte code[] = {WASM_I32V_1(0)};
+      switch (global.init.kind) {
+        case WasmInitExpr::kI32Const: {
+          DCHECK_EQ(kAstI32, global.type);
+          const byte code[] = {WASM_I32V_5(global.init.val.i32_const)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case kAstF32: {
-          static const byte code[] = {WASM_F32(0)};
+        case WasmInitExpr::kI64Const: {
+          DCHECK_EQ(kAstI64, global.type);
+          const byte code[] = {WASM_I64V_10(global.init.val.i64_const)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case kAstI64: {
-          static const byte code[] = {WASM_I64V_1(0)};
+        case WasmInitExpr::kF32Const: {
+          DCHECK_EQ(kAstF32, global.type);
+          const byte code[] = {WASM_F32(global.init.val.f32_const)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case kAstF64: {
-          static const byte code[] = {WASM_F64(0.0)};
+        case WasmInitExpr::kF64Const: {
+          DCHECK_EQ(kAstF64, global.type);
+          const byte code[] = {WASM_F64(global.init.val.f64_const)};
           buffer.write(code, sizeof(code));
           break;
         }
-        default:
-          UNREACHABLE();
+        case WasmInitExpr::kGlobalIndex: {
+          const byte code[] = {kExprGetGlobal,
+                               U32V_5(global.init.val.global_index)};
+          buffer.write(code, sizeof(code));
+          break;
+        }
+        default: {
+          // No initializer, emit a default value.
+          switch (global.type) {
+            case kAstI32: {
+              const byte code[] = {WASM_I32V_1(0)};
+              buffer.write(code, sizeof(code));
+              break;
+            }
+            case kAstI64: {
+              const byte code[] = {WASM_I64V_1(0)};
+              buffer.write(code, sizeof(code));
+              break;
+            }
+            case kAstF32: {
+              const byte code[] = {WASM_F32(0.0)};
+              buffer.write(code, sizeof(code));
+              break;
+            }
+            case kAstF64: {
+              const byte code[] = {WASM_F64(0.0)};
+              buffer.write(code, sizeof(code));
+              break;
+            }
+            default:
+              UNREACHABLE();
+          }
+        }
       }
       buffer.write_u8(kExprEnd);
     }
@@ -369,7 +451,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == emit start function index ==============================================
   if (start_function_index_ >= 0) {
     size_t start = EmitSection(kStartSectionCode, buffer);
-    buffer.write_u32v(start_function_index_);
+    buffer.write_u32v(start_function_index_ +
+                      static_cast<uint32_t>(imports_.size()));
     FixupSection(buffer, start);
   }
 
@@ -384,7 +467,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(indirect_functions_.size());  // element count
 
     for (auto index : indirect_functions_) {
-      buffer.write_u32v(index);
+      buffer.write_u32v(index + static_cast<uint32_t>(imports_.size()));
     }
 
     FixupSection(buffer, start);
@@ -436,6 +519,15 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       buffer.write_u8(0);
     }
     FixupSection(buffer, start);
+  }
+}
+
+void WasmModuleBuilder::WriteAsmJsOffsetTable(ZoneBuffer& buffer) const {
+  // == Emit asm.js offset table ===============================================
+  buffer.write_size(functions_.size());
+  // Emit the offset table per function.
+  for (auto function : functions_) {
+    function->WriteAsmWasmOffsetTable(buffer);
   }
 }
 }  // namespace wasm

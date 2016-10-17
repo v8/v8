@@ -21,6 +21,7 @@ enum {
   kWasmDebugInfoWasmBytesHash,
   kWasmDebugInfoFunctionByteOffsets,
   kWasmDebugInfoFunctionScripts,
+  kWasmDebugInfoAsmJsOffsets,
   kWasmDebugInfoNumEntries
 };
 
@@ -31,12 +32,11 @@ ByteArray *GetOrCreateFunctionOffsetTable(Handle<WasmDebugInfo> debug_info) {
 
   FunctionOffsetsResult function_offsets;
   {
-    DisallowHeapAllocation no_gc;
     Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
     uint32_t num_imported_functions =
-        wasm::GetNumImportedFunctions(wasm_object);
-    SeqOneByteString *wasm_bytes =
-        wasm::GetWasmBytes(debug_info->wasm_object());
+        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_object));
+    Handle<SeqOneByteString> wasm_bytes = wasm::GetWasmBytes(wasm_object);
+    DisallowHeapAllocation no_gc;
     const byte *bytes_start = wasm_bytes->GetChars();
     const byte *bytes_end = bytes_start + wasm_bytes->length();
     function_offsets = wasm::DecodeWasmFunctionOffsets(bytes_start, bytes_end,
@@ -72,8 +72,8 @@ std::pair<int, int> GetFunctionOffsetAndLength(Handle<WasmDebugInfo> debug_info,
 
 Vector<const uint8_t> GetFunctionBytes(Handle<WasmDebugInfo> debug_info,
                                        int func_index) {
-  SeqOneByteString *module_bytes =
-      wasm::GetWasmBytes(debug_info->wasm_object());
+  Handle<JSObject> wasm_object(debug_info->wasm_object());
+  Handle<SeqOneByteString> module_bytes = wasm::GetWasmBytes(wasm_object);
   std::pair<int, int> offset_and_length =
       GetFunctionOffsetAndLength(debug_info, func_index);
   return Vector<const uint8_t>(
@@ -81,6 +81,57 @@ Vector<const uint8_t> GetFunctionBytes(Handle<WasmDebugInfo> debug_info,
       offset_and_length.second);
 }
 
+FixedArray *GetOffsetTables(Handle<WasmDebugInfo> debug_info,
+                            Isolate *isolate) {
+  Object *offset_tables = debug_info->get(kWasmDebugInfoAsmJsOffsets);
+  if (!offset_tables->IsUndefined(isolate)) {
+    return FixedArray::cast(offset_tables);
+  }
+
+  AsmJsOffsetsResult asm_offsets;
+  {
+    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
+    Handle<WasmCompiledModule> compiled_module =
+        handle(GetCompiledModule(*wasm_object), isolate);
+    DCHECK(compiled_module->has_asm_js_offset_tables());
+    Handle<ByteArray> asm_offset_tables =
+        compiled_module->asm_js_offset_tables();
+    uint32_t num_imported_functions =
+        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_object));
+    DisallowHeapAllocation no_gc;
+    const byte *bytes_start = asm_offset_tables->GetDataStartAddress();
+    const byte *bytes_end = bytes_start + asm_offset_tables->length();
+    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end,
+                                           num_imported_functions);
+  }
+  // Wasm bytes must be valid and must contain asm.js offset table.
+  DCHECK(asm_offsets.ok());
+  DCHECK_GE(static_cast<size_t>(kMaxInt), asm_offsets.val.size());
+  int num_functions = static_cast<int>(asm_offsets.val.size());
+  DCHECK_EQ(wasm::GetNumberOfFunctions(handle(debug_info->wasm_object())),
+            num_functions);
+  Handle<FixedArray> all_tables =
+      isolate->factory()->NewFixedArray(num_functions);
+  debug_info->set(kWasmDebugInfoAsmJsOffsets, *all_tables);
+  for (int func = 0; func < num_functions; ++func) {
+    std::vector<std::pair<int, int>> &func_asm_offsets = asm_offsets.val[func];
+    if (func_asm_offsets.empty()) continue;
+    size_t array_size = 2 * kIntSize * func_asm_offsets.size();
+    CHECK_LE(array_size, static_cast<size_t>(kMaxInt));
+    ByteArray *arr =
+        *isolate->factory()->NewByteArray(static_cast<int>(array_size));
+    all_tables->set(func, arr);
+    int idx = 0;
+    for (std::pair<int, int> p : func_asm_offsets) {
+      // Byte offsets must be strictly monotonously increasing:
+      DCHECK(idx == 0 || p.first > arr->get_int(idx - 2));
+      arr->set_int(idx++, p.first);
+      arr->set_int(idx++, p.second);
+    }
+    DCHECK_EQ(arr->length(), idx * kIntSize);
+  }
+  return *all_tables;
+}
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<JSObject> wasm) {
@@ -90,7 +141,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<JSObject> wasm) {
       factory->NewFixedArray(kWasmDebugInfoNumEntries, TENURED);
   arr->set(kWasmDebugInfoWasmObj, *wasm);
   int hash = 0;
-  Handle<SeqOneByteString> wasm_bytes(GetWasmBytes(*wasm), isolate);
+  Handle<SeqOneByteString> wasm_bytes = GetWasmBytes(wasm);
   {
     DisallowHeapAllocation no_gc;
     hash = StringHasher::HashSequentialString(
@@ -130,7 +181,8 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   Object *scripts_obj = debug_info->get(kWasmDebugInfoFunctionScripts);
   Handle<FixedArray> scripts;
   if (scripts_obj->IsUndefined(isolate)) {
-    int num_functions = wasm::GetNumberOfFunctions(debug_info->wasm_object());
+    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
+    int num_functions = wasm::GetNumberOfFunctions(wasm_object);
     scripts = isolate->factory()->NewFixedArray(num_functions, TENURED);
     debug_info->set(kWasmDebugInfoFunctionScripts, *scripts);
   } else {
@@ -235,4 +287,30 @@ Handle<FixedArray> WasmDebugInfo::GetFunctionOffsetTable(
   DCHECK_EQ(idx, offset_table->length());
 
   return offset_table;
+}
+
+int WasmDebugInfo::GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
+                                          int func_index, int byte_offset) {
+  Isolate *isolate = debug_info->GetIsolate();
+  FixedArray *offset_tables = GetOffsetTables(debug_info, isolate);
+
+  DCHECK_LT(func_index, offset_tables->length());
+  ByteArray *offset_table = ByteArray::cast(offset_tables->get(func_index));
+
+  // Binary search for the current byte offset.
+  int left = 0;                                       // inclusive
+  int right = offset_table->length() / kIntSize / 2;  // exclusive
+  DCHECK_LT(left, right);
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    if (offset_table->get_int(2 * mid) < byte_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // There should be an entry for each position that could show up on the stack
+  // trace:
+  DCHECK_EQ(byte_offset, offset_table->get_int(2 * left));
+  return offset_table->get_int(2 * left + 1);
 }

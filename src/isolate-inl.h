@@ -76,6 +76,11 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
   return exception != heap()->termination_exception();
 }
 
+bool Isolate::is_catchable_by_wasm(Object* exception) {
+  return is_catchable_by_javascript(exception) &&
+         (exception->IsNumber() || exception->IsSmi());
+}
+
 void Isolate::FireBeforeCallEnteredCallback() {
   for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
     before_call_entered_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));

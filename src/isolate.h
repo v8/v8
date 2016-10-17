@@ -33,6 +33,7 @@ class RandomNumberGenerator;
 
 namespace internal {
 
+class AccessCompilerData;
 class BasicBlockProfiler;
 class Bootstrapper;
 class CancelableTaskManager;
@@ -44,6 +45,7 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
+class CompilerDispatcherTracer;
 class CompilationStatistics;
 class ContextSlotCache;
 class Counters;
@@ -115,16 +117,6 @@ class Interpreter;
 
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
-
-#define RETURN_RESULT(isolate, call, T)           \
-  do {                                            \
-    Handle<T> __result__;                         \
-    if (!(call).ToHandle(&__result__)) {          \
-      DCHECK((isolate)->has_pending_exception()); \
-      return MaybeHandle<T>();                    \
-    }                                             \
-    return __result__;                            \
-  } while (false)
 
 #define RETURN_RESULT_OR_FAILURE(isolate, call)     \
   do {                                              \
@@ -361,9 +353,9 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #if USE_SIMULATOR
 
-#define ISOLATE_INIT_SIMULATOR_LIST(V)       \
-  V(bool, simulator_initialized, false)      \
-  V(base::HashMap*, simulator_i_cache, NULL) \
+#define ISOLATE_INIT_SIMULATOR_LIST(V)                    \
+  V(bool, simulator_initialized, false)                   \
+  V(base::CustomMatcherHashMap*, simulator_i_cache, NULL) \
   V(Redirection*, simulator_redirection, NULL)
 #else
 
@@ -621,6 +613,7 @@ class Isolate {
   bool IsExternalHandlerOnTop(Object* exception);
 
   inline bool is_catchable_by_javascript(Object* exception);
+  inline bool is_catchable_by_wasm(Object* exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -722,7 +715,7 @@ class Isolate {
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result
-  // of Throw() as its return vaue.
+  // of Throw() as its return value.
   Object* Throw(Object* exception, MessageLocation* location = NULL);
   Object* ThrowIllegalOperation();
 
@@ -885,7 +878,6 @@ class Isolate {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
-  Zone* runtime_zone() { return runtime_zone_; }
 
   UnicodeCache* unicode_cache() {
     return unicode_cache_;
@@ -925,6 +917,8 @@ class Isolate {
   }
 
   RegExpStack* regexp_stack() { return regexp_stack_; }
+
+  List<int>* regexp_indices() { return &regexp_indices_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
@@ -1027,6 +1021,8 @@ class Isolate {
 
   CallInterfaceDescriptorData* call_descriptor_data(int index);
 
+  AccessCompilerData* access_compiler_data() { return access_compiler_data_; }
+
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1064,6 +1060,10 @@ class Isolate {
 
   base::RandomNumberGenerator* random_number_generator();
 
+  // Generates a random number that is non-zero when masked
+  // with the provided mask.
+  int GenerateIdentityHash(uint32_t mask);
+
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 
@@ -1100,7 +1100,10 @@ class Isolate {
   void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
-  void PromiseResolveThenableJob(Handle<PromiseContainer> container,
+  void PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
+                          MaybeHandle<Object>* result,
+                          MaybeHandle<Object>* maybe_exception);
+  void PromiseResolveThenableJob(Handle<PromiseResolveThenableJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception);
   void EnqueueMicrotask(Handle<Object> microtask);
@@ -1149,6 +1152,10 @@ class Isolate {
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
   AccountingAllocator* allocator() { return allocator_; }
+
+  CompilerDispatcherTracer* compiler_dispatcher_tracer() const {
+    return compiler_dispatcher_tracer_;
+  }
 
   bool IsInAnyContext(Object* object, uint32_t index);
 
@@ -1325,7 +1332,6 @@ class Isolate {
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   AccountingAllocator* allocator_;
-  Zone* runtime_zone_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
@@ -1338,8 +1344,10 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
+  List<int> regexp_indices_;
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
+  AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::AtomicValue<RAILMode> rail_mode_;
 
@@ -1375,6 +1383,8 @@ class Isolate {
   FunctionEntryHook function_entry_hook_;
 
   interpreter::Interpreter* interpreter_;
+
+  CompilerDispatcherTracer* compiler_dispatcher_tracer_;
 
   typedef std::pair<InterruptCallback, void*> InterruptEntry;
   std::queue<InterruptEntry> api_interrupts_queue_;

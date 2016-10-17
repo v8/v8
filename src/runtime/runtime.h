@@ -9,6 +9,7 @@
 
 #include "src/allocation.h"
 #include "src/base/platform/time.h"
+#include "src/globals.h"
 #include "src/objects.h"
 #include "src/unicode.h"
 #include "src/zone/zone.h"
@@ -290,6 +291,7 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(EnqueueMicrotask, 1, 1)                         \
+  F(EnqueuePromiseReactionJob, 5, 1)                \
   F(EnqueuePromiseResolveThenableJob, 6, 1)         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(ExportExperimentalFromRuntime, 1, 1)            \
@@ -325,6 +327,7 @@ namespace internal {
   F(ThrowNotGeneric, 1, 1)                          \
   F(ThrowReferenceError, 1, 1)                      \
   F(ThrowStackOverflow, 0, 1)                       \
+  F(ThrowTypeError, -1 /* >= 1 */, 1)               \
   F(ThrowWasmError, 2, 1)                           \
   F(ThrowUndefinedOrNullToObject, 1, 1)             \
   F(Typeof, 1, 1)                                   \
@@ -350,7 +353,13 @@ namespace internal {
   F(LiveEditCompareStrings, 2, 1)                   \
   F(LiveEditRestartFrame, 2, 1)
 
-#define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 1, 1)
+#define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
+
+#define FOR_EACH_INTRINSIC_MODULE(F) \
+  F(GetModuleNamespace, 1, 1)        \
+  F(LoadModuleExport, 1, 1)          \
+  F(LoadModuleImport, 2, 1)          \
+  F(StoreModuleExport, 2, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
   F(IsValidSmi, 1, 1)                  \
@@ -371,12 +380,9 @@ namespace internal {
   F(GetPrototype, 1, 1)                              \
   F(ObjectHasOwnProperty, 2, 1)                      \
   F(InternalSetPrototype, 2, 1)                      \
-  F(SetPrototype, 2, 1)                              \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
   F(KeyedGetProperty, 2, 1)                          \
-  F(StoreGlobalViaContext_Sloppy, 2, 1)              \
-  F(StoreGlobalViaContext_Strict, 2, 1)              \
   F(AddNamedProperty, 4, 1)                          \
   F(SetProperty, 4, 1)                               \
   F(AddElement, 3, 1)                                \
@@ -418,10 +424,7 @@ namespace internal {
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
-  F(CreateDataProperty, 3, 1)                        \
-  F(LoadModuleExport, 1, 1)                          \
-  F(LoadModuleImport, 2, 1)                          \
-  F(StoreModuleExport, 2, 1)
+  F(CreateDataProperty, 3, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \
@@ -456,12 +459,14 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_REGEXP(F)           \
   F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringSplit, 3, 1)                         \
+  F(RegExpCreate, 1, 1)                        \
   F(RegExpExec, 4, 1)                          \
   F(RegExpFlags, 1, 1)                         \
+  F(RegExpReplace, 3, 1)                       \
   F(RegExpSource, 1, 1)                        \
   F(RegExpConstructResult, 3, 1)               \
   F(RegExpInitializeAndCompile, 3, 1)          \
-  F(RegExpExecMultiple, 4, 1)                  \
+  F(RegExpInternalReplace, 3, 1)               \
   F(RegExpExecReThrow, 4, 1)                   \
   F(IsRegExp, 1, 1)
 
@@ -807,7 +812,6 @@ namespace internal {
   F(SubString, 3, 1)                      \
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \
-  F(StringMatch, 3, 1)                    \
   F(StringCharCodeAtRT, 2, 1)             \
   F(StringCompare, 2, 1)                  \
   F(StringBuilderConcat, 3, 1)            \
@@ -917,8 +921,10 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WASM(F) \
   F(WasmGrowMemory, 1, 1)          \
+  F(WasmMemorySize, 0, 1)          \
   F(WasmThrowTypeError, 0, 1)      \
-  F(WasmThrow, 2, 1)
+  F(WasmThrow, 2, 1)               \
+  F(WasmGetCaughtExceptionValue, 1, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -969,6 +975,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \
   FOR_EACH_INTRINSIC_MATHS(F)               \
+  FOR_EACH_INTRINSIC_MODULE(F)              \
   FOR_EACH_INTRINSIC_NUMBERS(F)             \
   FOR_EACH_INTRINSIC_OBJECT(F)              \
   FOR_EACH_INTRINSIC_OPERATORS(F)           \
@@ -1037,7 +1044,7 @@ class Runtime : public AllStatic {
   static const Function* FunctionForName(const unsigned char* name, int length);
 
   // Get the intrinsic function with the given FunctionId.
-  static const Function* FunctionForId(FunctionId id);
+  V8_EXPORT_PRIVATE static const Function* FunctionForId(FunctionId id);
 
   // Get the intrinsic function with the given function entry address.
   static const Function* FunctionForEntry(Address ref);

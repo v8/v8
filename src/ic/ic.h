@@ -81,6 +81,8 @@ class IC {
 
   static InlineCacheState StateFromCode(Code* code);
 
+  static inline bool IsHandler(Object* object);
+
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
@@ -91,7 +93,6 @@ class IC {
   // Get the code object of the caller.
   Code* GetCode() const;
 
-  bool AddressIsOptimizedCode() const;
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
                                               Address address);
@@ -172,7 +173,7 @@ class IC {
            kind_ == Code::KEYED_STORE_IC);
     return kind_;
   }
-  bool ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name);
+  bool ShouldRecomputeHandler(Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
 
@@ -309,6 +310,18 @@ class LoadIC : public IC {
 
  private:
   Handle<Object> SimpleFieldLoad(FieldIndex index);
+
+  // Returns true if the validity cell check is enough to ensure that the
+  // prototype chain from |receiver_map| till |holder| did not change.
+  bool IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
+                                          Handle<JSObject> holder);
+
+  // Creates a data handler that represents a prototype chain check followed
+  // by given Smi-handler that encoded a load from the holder.
+  // Can be used only if IsPrototypeValidityCellCheckEnough() predicate is true.
+  Handle<Object> SimpleLoadFromPrototype(Handle<Map> receiver_map,
+                                         Handle<JSObject> holder,
+                                         Handle<Object> smi_handler);
 
   friend class IC;
 };

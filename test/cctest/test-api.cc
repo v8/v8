@@ -151,6 +151,8 @@ UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
 }
 
+// Tests that Smi::kZero is set up properly.
+UNINITIALIZED_TEST(SmiZero) { CHECK_EQ(i::Smi::kZero, i::Smi::kZero); }
 
 THREADED_TEST(Handles) {
   v8::HandleScope scope(CcTest::isolate());
@@ -14293,11 +14295,6 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 }
 
 
-static bool MatchPointers(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
 struct SymbolInfo {
   size_t id;
   size_t size;
@@ -14808,10 +14805,10 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::base::HashMap code(MatchPointers);
+    v8::base::HashMap code;
     code_map = &code;
 
-    v8::base::HashMap lineinfo(MatchPointers);
+    v8::base::HashMap lineinfo;
     jitcode_line_info = &lineinfo;
 
     saw_bar = 0;
@@ -14874,10 +14871,10 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     CompileRun(script);
 
     // Now get code through initial iteration.
-    v8::base::HashMap code(MatchPointers);
+    v8::base::HashMap code;
     code_map = &code;
 
-    v8::base::HashMap lineinfo(MatchPointers);
+    v8::base::HashMap lineinfo;
     jitcode_line_info = &lineinfo;
 
     isolate->SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,
@@ -21832,10 +21829,8 @@ void TestStubCache(bool primary) {
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
           i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
-          i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
           i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
           i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
-          i::CodeStub::StoreICTF,    i::CodeStub::StoreICTrampolineTF,
           i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -21875,22 +21870,10 @@ void TestStubCache(bool primary) {
 }  // namespace
 
 UNINITIALIZED_TEST(PrimaryStubCache) {
-  i::FLAG_tf_load_ic_stub = false;
   TestStubCache(true);
 }
 
 UNINITIALIZED_TEST(SecondaryStubCache) {
-  i::FLAG_tf_load_ic_stub = false;
-  TestStubCache(false);
-}
-
-UNINITIALIZED_TEST(PrimaryStubCacheTF) {
-  i::FLAG_tf_load_ic_stub = true;
-  TestStubCache(true);
-}
-
-UNINITIALIZED_TEST(SecondaryStubCacheTF) {
-  i::FLAG_tf_load_ic_stub = true;
   TestStubCache(false);
 }
 

@@ -5,7 +5,7 @@
 #include "src/type-feedback-vector.h"
 
 #include "src/code-stubs.h"
-#include "src/ic/ic.h"
+#include "src/ic/ic-inl.h"
 #include "src/ic/ic-state.h"
 #include "src/objects.h"
 #include "src/type-feedback-vector-inl.h"
@@ -91,7 +91,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   array->set(kSlotsCountIndex, Smi::FromInt(slot_count));
   // Fill the bit-vector part with zeros.
   for (int i = 0; i < slot_kinds_length; i++) {
-    array->set(kReservedIndexCount + i, Smi::FromInt(0));
+    array->set(kReservedIndexCount + i, Smi::kZero);
   }
 
   Handle<TypeFeedbackMetadata> metadata =
@@ -102,9 +102,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
 
   Handle<UnseededNumberDictionary> names;
   if (name_count) {
-    names = UnseededNumberDictionary::New(
-        isolate, base::bits::RoundUpToPowerOfTwo32(name_count), TENURED,
-        USE_CUSTOM_MINIMUM_CAPACITY);
+    names = UnseededNumberDictionary::New(isolate, name_count, TENURED);
   }
 
   int name_index = 0;
@@ -114,13 +112,16 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
     if (SlotRequiresName(kind)) {
       Handle<String> name = spec->GetName(name_index);
       DCHECK(!name.is_null());
-      names = UnseededNumberDictionary::AtNumberPut(names, i, name);
+      Handle<UnseededNumberDictionary> new_names =
+          UnseededNumberDictionary::AtNumberPut(names, i, name);
+      DCHECK_EQ(*new_names, *names);
+      names = new_names;
       name_index++;
     }
   }
   DCHECK_EQ(name_count, name_index);
   metadata->set(kNamesTableIndex,
-                name_count ? static_cast<Object*>(*names) : Smi::FromInt(0));
+                name_count ? static_cast<Object*>(*names) : Smi::kZero);
 
   // It's important that the TypeFeedbackMetadata have a COW map, since it's
   // pointed to by both a SharedFunctionInfo and indirectly by closures through
@@ -240,7 +241,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set(kMetadataIndex, *metadata);
-  array->set(kInvocationCountIndex, Smi::FromInt(0));
+  array->set(kInvocationCountIndex, Smi::kZero);
 
   DisallowHeapAllocation no_gc;
 
@@ -258,13 +259,13 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
       value = *factory->empty_weak_cell();
     } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
                kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
-      value = Smi::FromInt(0);
+      value = Smi::kZero;
     } else {
       value = *uninitialized_sentinel;
     }
     array->set(index, value, SKIP_WRITE_BARRIER);
 
-    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::FromInt(0)
+    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::kZero
                                                     : *uninitialized_sentinel;
     for (int j = 1; j < entry_size; j++) {
       array->set(index + j, value, SKIP_WRITE_BARRIER);
@@ -350,7 +351,7 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
         case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
           DCHECK(Get(slot)->IsSmi());
           // don't clear these smi slots.
-          // Set(slot, Smi::FromInt(0));
+          // Set(slot, Smi::kZero);
           break;
         }
         case FeedbackVectorSlotKind::GENERAL: {
@@ -656,7 +657,7 @@ void CallICNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
   SetFeedback(*TypeFeedbackVector::UninitializedSentinel(isolate),
               SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
 }
 
 void CallICNexus::ConfigureMonomorphicArray() {
@@ -850,16 +851,9 @@ int GetStepSize(FixedArray* array, Isolate* isolate) {
   DCHECK(array->length() >= 2);
   Object* second = array->get(1);
   if (second->IsWeakCell() || second->IsUndefined(isolate)) return 3;
-  DCHECK(second->IsCode() || second->IsSmi());
+  DCHECK(IC::IsHandler(second));
   return 2;
 }
-
-#ifdef DEBUG  // Only used by DCHECKs below.
-bool IsHandler(Object* object) {
-  return object->IsSmi() ||
-         (object->IsCode() && Code::cast(object)->is_handler());
-}
-#endif
 
 }  // namespace
 
@@ -913,7 +907,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
         Map* array_map = Map::cast(cell->value());
         if (array_map == *map) {
           Object* code = array->get(i + increment - 1);
-          DCHECK(IsHandler(code));
+          DCHECK(IC::IsHandler(code));
           return handle(code, isolate);
         }
       }
@@ -924,7 +918,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
       Map* cell_map = Map::cast(cell->value());
       if (cell_map == *map) {
         Object* code = GetFeedbackExtra();
-        DCHECK(IsHandler(code));
+        DCHECK(IC::IsHandler(code));
         return handle(code, isolate);
       }
     }
@@ -951,7 +945,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
       // Be sure to skip handlers whose maps have been cleared.
       if (!cell->cleared()) {
         Object* code = array->get(i + increment - 1);
-        DCHECK(IsHandler(code));
+        DCHECK(IC::IsHandler(code));
         code_list->Add(handle(code, isolate));
         count++;
       }
@@ -960,7 +954,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
     WeakCell* cell = WeakCell::cast(feedback);
     if (!cell->cleared()) {
       Object* code = GetFeedbackExtra();
-      DCHECK(IsHandler(code));
+      DCHECK(IC::IsHandler(code));
       code_list->Add(handle(code, isolate));
       count++;
     }

@@ -291,6 +291,8 @@
   'test-run-machops/RunFloat64Tan': [SKIP],
   'test-cpu-profiler/Inlining': [SKIP],
   'test-gap-resolver/FuzzResolver': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f32': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f64': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
@@ -394,10 +396,6 @@
 
 ##############################################################################
 ['variant == ignition_turbofan', {
-  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
-  # on nodes (behind --turbo_source_positions flag).
-  'test-cpu-profiler/TickLinesOptimized': [FAIL],
-
   # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
@@ -427,14 +425,16 @@
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_turbofan
 
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
-['variant != ignition and variant != ignition_staging', {
+##############################################################################
+['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   # Ongoing implementation of modules.
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
   'test-modules/*': [SKIP],
-}],  # variants != ignition and variant != ignition_staging
+}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+
+##############################################################################
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
 
 ]

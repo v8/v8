@@ -179,20 +179,15 @@ class IncrementalMarkingMarkingVisitor
     StaticMarkingVisitor<IncrementalMarkingMarkingVisitor>::Initialize();
     table_.Register(kVisitFixedArray, &VisitFixedArrayIncremental);
     table_.Register(kVisitNativeContext, &VisitNativeContextIncremental);
-    table_.Register(kVisitJSRegExp, &VisitJSRegExp);
   }
 
   static const int kProgressBarScanningChunk = 32 * 1024;
 
   static void VisitFixedArrayIncremental(Map* map, HeapObject* object) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    // TODO(mstarzinger): Move setting of the flag to the allocation site of
-    // the array. The visitor should just check the flag.
-    if (FLAG_use_marking_progress_bar &&
-        chunk->owner()->identity() == LO_SPACE) {
-      chunk->SetFlag(MemoryChunk::HAS_PROGRESS_BAR);
-    }
     if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
+      DCHECK(!FLAG_use_marking_progress_bar ||
+             chunk->owner()->identity() == LO_SPACE);
       Heap* heap = map->GetHeap();
       // When using a progress bar for large fixed arrays, scan only a chunk of
       // the array and try to push it onto the marking deque again until it is
@@ -633,9 +628,9 @@ void IncrementalMarking::ProcessWeakCells() {
 
   Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
-  Object* weak_cell_head = Smi::FromInt(0);
+  Object* weak_cell_head = Smi::kZero;
   WeakCell* prev_weak_cell_obj = NULL;
-  while (weak_cell_obj != Smi::FromInt(0)) {
+  while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
@@ -653,7 +648,7 @@ void IncrementalMarking::ProcessWeakCells() {
       weak_cell_obj = weak_cell->next();
       weak_cell->clear_next(the_hole_value);
     } else {
-      if (weak_cell_head == Smi::FromInt(0)) {
+      if (weak_cell_head == Smi::kZero) {
         weak_cell_head = weak_cell;
       }
       prev_weak_cell_obj = weak_cell;

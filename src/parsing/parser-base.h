@@ -59,10 +59,27 @@ static inline bool operator&(ParseFunctionFlags bitfield,
 
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
+
+  int num_parameters() const {
+    // Don't include the rest parameter into the function's formal parameter
+    // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
+    // which says whether we need to create an arguments adaptor frame).
+    return arity - has_rest;
+  }
+
+  void UpdateArityAndFunctionLength(bool is_optional, bool is_rest) {
+    if (!is_optional && !is_rest && function_length == arity) {
+      ++function_length;
+    }
+    ++arity;
+  }
+
   DeclarationScope* scope;
   bool has_rest = false;
   bool is_simple = true;
   int materialized_literals_count = 0;
+  int function_length = 0;
+  int arity = 0;
 };
 
 
@@ -226,12 +243,12 @@ class ParserBase {
         classifier_(nullptr),
         scanner_(scanner),
         stack_overflow_(false),
+        default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
         allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
-        allow_harmony_for_in_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false),
@@ -248,7 +265,6 @@ class ParserBase {
   ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
-  ALLOW_ACCESSORS(harmony_for_in);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
@@ -262,26 +278,28 @@ class ParserBase {
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
 
+  void set_default_eager_compile_hint(
+      FunctionLiteral::EagerCompileHint eager_compile_hint) {
+    default_eager_compile_hint_ = eager_compile_hint;
+  }
+
+  FunctionLiteral::EagerCompileHint default_eager_compile_hint() const {
+    return default_eager_compile_hint_;
+  }
+
   Zone* zone() const { return zone_; }
 
  protected:
   friend class v8::internal::ExpressionClassifier<ParserTypes<Impl>>;
 
-  // clang-format off
   enum AllowRestrictedIdentifiers {
     kAllowRestrictedIdentifiers,
     kDontAllowRestrictedIdentifiers
   };
 
-  enum Mode {
-    PARSE_LAZILY,
-    PARSE_EAGERLY
-  };
+  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
 
-  enum LazyParsingResult {
-    kLazyParsingComplete,
-    kLazyParsingAborted
-  };
+  enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
 
   enum VariableDeclarationContext {
     kStatementListItem,
@@ -289,11 +307,7 @@ class ParserBase {
     kForStatement
   };
 
-  enum class FunctionBodyType {
-    kNormal,
-    kSingleExpression
-  };
-  // clang-format on
+  enum class FunctionBodyType { kNormal, kSingleExpression };
 
   class Checkpoint;
   class ClassLiteralChecker;
@@ -1534,12 +1548,13 @@ class ParserBase {
   Scanner* scanner_;
   bool stack_overflow_;
 
+  FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
+
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
   bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
-  bool allow_harmony_for_in_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
@@ -2516,10 +2531,10 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), initializer_scope, body,
       initializer_state.materialized_literal_count(),
-      initializer_state.expected_property_count(), 0,
+      initializer_state.expected_property_count(), 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
+      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
+      initializer_scope->start_position());
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
@@ -2988,8 +3003,7 @@ ParserBase<Impl>::ParseAssignmentExpression(
   if (is_destructuring_assignment) {
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
-    productions &= ~(ExpressionClassifier::ExpressionProduction |
-                     ExpressionClassifier::TailCallExpressionProduction);
+    productions &= ~ExpressionClassifier::ExpressionProduction;
   }
 
   if (optional || !Token::IsAssignmentOp(peek())) {
@@ -3394,8 +3408,8 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           // Also the trailing parenthesis are a hint that the function will
           // be called immediately. If we happen to have parsed a preceding
           // function literal eagerly, we can also compile it eagerly.
-          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
-            result->AsFunctionLiteral()->set_should_eager_compile();
+          if (result->IsFunctionLiteral()) {
+            result->AsFunctionLiteral()->SetShouldEagerCompile();
           }
         }
         Scanner::Location spread_pos;
@@ -3754,10 +3768,10 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
           pos = position();
         } else {
           pos = peek_position();
-          if (expression->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+          if (expression->IsFunctionLiteral()) {
             // If the tag function looks like an IIFE, set_parenthesized() to
             // force eager compilation.
-            expression->AsFunctionLiteral()->set_should_eager_compile();
+            expression->AsFunctionLiteral()->SetShouldEagerCompile();
           }
         }
         expression = ParseTemplateLiteral(expression, pos, CHECK_OK);
@@ -3837,11 +3851,11 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
   //   FormalParameter[?Yield]
   //   FormalParameterList[?Yield] , FormalParameter[?Yield]
 
-  DCHECK_EQ(0, parameters->Arity());
+  DCHECK_EQ(0, parameters->arity);
 
   if (peek() != Token::RPAREN) {
     while (true) {
-      if (parameters->Arity() > Code::kMaxArguments) {
+      if (parameters->arity > Code::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         *ok = false;
         return;
@@ -3868,7 +3882,7 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
     }
   }
 
-  for (int i = 0; i < parameters->Arity(); ++i) {
+  for (int i = 0; i < parameters->arity; ++i) {
     auto parameter = parameters->at(i);
     impl()->DeclareFormalParameter(parameters->scope, parameter);
   }
@@ -4296,13 +4310,18 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   }
 
   StatementListT body = impl()->NullStatementList();
-  int num_parameters = formal_parameters.scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;
 
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
-      FunctionLiteral::kShouldLazyCompile;
+      default_eager_compile_hint_;
+  bool can_preparse = mode() == PARSE_LAZILY &&
+                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+  // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
+  // handling in Scope::ResolveVariable needs to change.
+  bool is_lazy_top_level_function =
+      can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool should_be_used_once_hint = false;
   {
     FunctionState function_state(&function_state_, &scope_state_,
@@ -4319,13 +4338,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       // Multiple statement body
       Consume(Token::LBRACE);
       DCHECK_EQ(scope(), formal_parameters.scope);
-      bool is_lazily_parsed =
-          (mode() == PARSE_LAZILY &&
-           formal_parameters.scope
-               ->AllowsLazyParsingWithoutUnresolvedVariables());
-      // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
-      // handling in Scope::ResolveVariable needs to change.
-      if (is_lazily_parsed) {
+      if (is_lazy_top_level_function) {
         Scanner::BookmarkScope bookmark(scanner());
         bookmark.Set();
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
@@ -4342,7 +4355,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         if (result == kLazyParsingAborted) {
           bookmark.Apply();
           // Trigger eager (re-)parsing, just below this block.
-          is_lazily_parsed = false;
+          is_lazy_top_level_function = false;
 
           // This is probably an initialization function. Inform the compiler it
           // should also eager-compile this function, and that we expect it to
@@ -4351,7 +4364,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           should_be_used_once_hint = true;
         }
       }
-      if (!is_lazily_parsed) {
+      if (!is_lazy_top_level_function) {
         body = impl()->ParseEagerFunctionBody(
             impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
             kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
@@ -4412,7 +4425,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
-      materialized_literal_count, expected_property_count, num_parameters,
+      materialized_literal_count, expected_property_count,
+      formal_parameters.num_parameters(), formal_parameters.function_length,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position());
@@ -5156,7 +5170,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   //   Identifier ':' Statement
   //
   // ExpressionStatement[Yield] :
-  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
+  //   [lookahead notin {{, function, class, let [}] Expression[In, ?Yield] ;
 
   int pos = peek_position();
 
@@ -5644,13 +5658,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
              for_info.mode == ForEachStatement::ITERATE ||
              bound_names_are_lexical ||
              !impl()->IsIdentifier(
-                 for_info.parsing_result.declarations[0].pattern) ||
-             allow_harmony_for_in())) {
-          // Only increment the use count if we would have let this through
-          // without the flag.
-          if (allow_harmony_for_in()) {
-            impl()->CountUsage(v8::Isolate::kForInInitializer);
-          }
+                 for_info.parsing_result.declarations[0].pattern))) {
           impl()->ReportMessageAt(
               for_info.parsing_result.first_initializer_loc,
               MessageTemplate::kForInOfLoopInitializer,

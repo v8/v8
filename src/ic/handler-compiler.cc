@@ -6,7 +6,7 @@
 
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
-#include "src/ic/handler-configuration.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
@@ -504,7 +504,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
-    StoreTransitionStub stub(isolate());
+    StoreMapStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
 
   } else {
@@ -520,10 +520,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     if (need_save_restore) {
       PopVectorAndSlot();
     }
-    GenerateRestoreName(name);
-    StoreTransitionStub stub(isolate(),
-                             FieldIndex::ForDescriptor(*transition, descriptor),
-                             representation, store_mode);
+    // We need to pass name on the stack.
+    PopReturnAddress(this->name());
+    __ Push(name);
+    PushReturnAddress(this->name());
+
+    FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
+    __ Move(StoreNamedTransitionDescriptor::FieldOffsetRegister(),
+            Smi::FromInt(index.index() << kPointerSizeLog2));
+
+    StoreTransitionStub stub(isolate(), index.is_inobject(), representation,
+                             store_mode);
     GenerateTailCall(masm(), stub.GetCode());
   }
 
@@ -626,11 +633,9 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
     if (FLAG_tf_load_ic_stub) {
-      int config = KeyedLoadElementsKind::encode(elements_kind) |
-                   KeyedLoadConvertHole::encode(false) |
-                   KeyedLoadIsJsArray::encode(is_js_array) |
-                   LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
-      return handle(Smi::FromInt(config), isolate);
+      TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
+      return SmiHandler::MakeKeyedLoadHandler(isolate, elements_kind, false,
+                                              is_js_array);
     }
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
     return LoadDictionaryElementStub(isolate).GetCode();
@@ -642,11 +647,9 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
       is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
       *receiver_map == isolate->get_initial_js_array_map(elements_kind);
   if (FLAG_tf_load_ic_stub) {
-    int config = KeyedLoadElementsKind::encode(elements_kind) |
-                 KeyedLoadConvertHole::encode(convert_hole_to_undefined) |
-                 KeyedLoadIsJsArray::encode(is_js_array) |
-                 LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
-    return handle(Smi::FromInt(config), isolate);
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
+    return SmiHandler::MakeKeyedLoadHandler(
+        isolate, elements_kind, convert_hole_to_undefined, is_js_array);
   } else {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadFastElementStub);
     return LoadFastElementStub(isolate, is_js_array, elements_kind,

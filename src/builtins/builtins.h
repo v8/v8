@@ -52,6 +52,8 @@ namespace internal {
   /* Code aging */                                                            \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                       \
                                                                               \
+  TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion)                     \
+                                                                              \
   /* Calls */                                                                 \
   ASM(ArgumentsAdaptorTrampoline)                                             \
   /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */             \
@@ -172,6 +174,9 @@ namespace internal {
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                     \
   TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                     \
+  TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion)                    \
+  TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion)                     \
+  TFS(Typeof, BUILTIN, kNoExtraICState, Typeof)                               \
                                                                               \
   /* Handlers */                                                              \
   ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
@@ -445,6 +450,8 @@ namespace internal {
   ASM(MathMin)                                                                \
   /* ES6 section 20.2.2.26 Math.pow ( x, y ) */                               \
   TFJ(MathPow, 3)                                                             \
+  /* ES6 section 20.2.2.27 Math.random */                                     \
+  TFJ(MathRandom, 1)                                                          \
   /* ES6 section 20.2.2.28 Math.round ( x ) */                                \
   TFJ(MathRound, 2)                                                           \
   /* ES6 section 20.2.2.29 Math.sign ( x ) */                                 \
@@ -475,6 +482,8 @@ namespace internal {
   TFJ(NumberIsNaN, 2)                                                         \
   /* ES6 section 20.1.2.5 Number.isSafeInteger ( number ) */                  \
   TFJ(NumberIsSafeInteger, 2)                                                 \
+  /* ES6 section 20.1.2.12 Number.parseFloat ( string ) */                    \
+  TFJ(NumberParseFloat, 2)                                                    \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \
@@ -482,6 +491,25 @@ namespace internal {
   CPP(NumberPrototypeToString)                                                \
   /* ES6 section 20.1.3.7 Number.prototype.valueOf ( ) */                     \
   TFJ(NumberPrototypeValueOf, 1)                                              \
+  TFS(Add, BUILTIN, kNoExtraICState, BinaryOp)                                \
+  TFS(Subtract, BUILTIN, kNoExtraICState, BinaryOp)                           \
+  TFS(Multiply, BUILTIN, kNoExtraICState, BinaryOp)                           \
+  TFS(Divide, BUILTIN, kNoExtraICState, BinaryOp)                             \
+  TFS(Modulus, BUILTIN, kNoExtraICState, BinaryOp)                            \
+  TFS(BitwiseAnd, BUILTIN, kNoExtraICState, BinaryOp)                         \
+  TFS(BitwiseOr, BUILTIN, kNoExtraICState, BinaryOp)                          \
+  TFS(BitwiseXor, BUILTIN, kNoExtraICState, BinaryOp)                         \
+  TFS(ShiftLeft, BUILTIN, kNoExtraICState, BinaryOp)                          \
+  TFS(ShiftRight, BUILTIN, kNoExtraICState, BinaryOp)                         \
+  TFS(ShiftRightLogical, BUILTIN, kNoExtraICState, BinaryOp)                  \
+  TFS(LessThan, BUILTIN, kNoExtraICState, Compare)                            \
+  TFS(LessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                     \
+  TFS(GreaterThan, BUILTIN, kNoExtraICState, Compare)                         \
+  TFS(GreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)                  \
+  TFS(Equal, BUILTIN, kNoExtraICState, Compare)                               \
+  TFS(NotEqual, BUILTIN, kNoExtraICState, Compare)                            \
+  TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare)                         \
+  TFS(StrictNotEqual, BUILTIN, kNoExtraICState, Compare)                      \
                                                                               \
   /* Object */                                                                \
   CPP(ObjectAssign)                                                           \
@@ -497,6 +525,7 @@ namespace internal {
   CPP(ObjectGetOwnPropertyNames)                                              \
   CPP(ObjectGetOwnPropertySymbols)                                            \
   CPP(ObjectGetPrototypeOf)                                                   \
+  CPP(ObjectSetPrototypeOf)                                                   \
   /* ES6 section 19.1.3.2 Object.prototype.hasOwnProperty */                  \
   TFJ(ObjectHasOwnProperty, 2)                                                \
   CPP(ObjectIs)                                                               \
@@ -510,8 +539,14 @@ namespace internal {
   /* ES6 section 19.1.3.6 Object.prototype.toString () */                     \
   TFJ(ObjectProtoToString, 1)                                                 \
   CPP(ObjectPrototypePropertyIsEnumerable)                                    \
+  CPP(ObjectPrototypeGetProto)                                                \
+  CPP(ObjectPrototypeSetProto)                                                \
   CPP(ObjectSeal)                                                             \
   CPP(ObjectValues)                                                           \
+                                                                              \
+  TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty)                     \
+  TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                          \
+  TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \
@@ -532,13 +567,45 @@ namespace internal {
   CPP(ReflectSet)                                                             \
   CPP(ReflectSetPrototypeOf)                                                  \
                                                                               \
+  /* RegExp */                                                                \
+  CPP(RegExpCapture1Getter)                                                   \
+  CPP(RegExpCapture2Getter)                                                   \
+  CPP(RegExpCapture3Getter)                                                   \
+  CPP(RegExpCapture4Getter)                                                   \
+  CPP(RegExpCapture5Getter)                                                   \
+  CPP(RegExpCapture6Getter)                                                   \
+  CPP(RegExpCapture7Getter)                                                   \
+  CPP(RegExpCapture8Getter)                                                   \
+  CPP(RegExpCapture9Getter)                                                   \
+  CPP(RegExpConstructor)                                                      \
+  TFJ(RegExpInternalMatch, 3)                                                 \
+  CPP(RegExpInputGetter)                                                      \
+  CPP(RegExpInputSetter)                                                      \
+  CPP(RegExpLastMatchGetter)                                                  \
+  CPP(RegExpLastParenGetter)                                                  \
+  CPP(RegExpLeftContextGetter)                                                \
+  CPP(RegExpPrototypeCompile)                                                 \
+  TFJ(RegExpPrototypeExec, 2)                                                 \
+  TFJ(RegExpPrototypeFlagsGetter, 1)                                          \
+  TFJ(RegExpPrototypeGlobalGetter, 1)                                         \
+  TFJ(RegExpPrototypeIgnoreCaseGetter, 1)                                     \
+  CPP(RegExpPrototypeMatch)                                                   \
+  TFJ(RegExpPrototypeMultilineGetter, 1)                                      \
+  TFJ(RegExpPrototypeReplace, 3)                                              \
+  CPP(RegExpPrototypeSearch)                                                  \
+  CPP(RegExpPrototypeSourceGetter)                                            \
+  CPP(RegExpPrototypeSpeciesGetter)                                           \
+  CPP(RegExpPrototypeSplit)                                                   \
+  TFJ(RegExpPrototypeStickyGetter, 1)                                         \
+  CPP(RegExpPrototypeTest)                                                    \
+  CPP(RegExpPrototypeToString)                                                \
+  TFJ(RegExpPrototypeUnicodeGetter, 1)                                        \
+  CPP(RegExpRightContextGetter)                                               \
+                                                                              \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
   TFJ(AtomicsLoad, 3)                                                         \
   TFJ(AtomicsStore, 4)                                                        \
-                                                                              \
-  /* RegExp */                                                                \
-  TFJ(RegExpPrototypeExec, 2)                                                 \
                                                                               \
   /* String */                                                                \
   ASM(StringConstructor)                                                      \
@@ -550,6 +617,15 @@ namespace internal {
   TFJ(StringPrototypeCharAt, 2)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \
   TFJ(StringPrototypeCharCodeAt, 2)                                           \
+  /* ES6 section 21.1.3.6 */                                                  \
+  /* String.prototype.endsWith ( searchString [ , endPosition ] ) */          \
+  CPP(StringPrototypeEndsWith)                                                \
+  /* ES6 section 21.1.3.7 */                                                  \
+  /* String.prototype.includes ( searchString [ , position ] ) */             \
+  CPP(StringPrototypeIncludes)                                                \
+  /* ES6 section 21.1.3.8 */                                                  \
+  /* String.prototype.indexOf ( searchString [ , position ] ) */              \
+  CPP(StringPrototypeIndexOf)                                                 \
   /* ES6 section 21.1.3.9 */                                                  \
   /* String.prototype.lastIndexOf ( searchString [ , position ] ) */          \
   CPP(StringPrototypeLastIndexOf)                                             \
@@ -557,8 +633,13 @@ namespace internal {
   CPP(StringPrototypeLocaleCompare)                                           \
   /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */           \
   CPP(StringPrototypeNormalize)                                               \
+  /* ES6 section B.2.3.1 String.prototype.substr ( start, length ) */         \
+  TFJ(StringPrototypeSubstr, 3)                                               \
   /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */       \
   TFJ(StringPrototypeSubstring, 3)                                            \
+  /* ES6 section 21.1.3.20 */                                                 \
+  /* String.prototype.startsWith ( searchString [ , position ] ) */           \
+  CPP(StringPrototypeStartsWith)                                              \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                    \
   TFJ(StringPrototypeToString, 1)                                             \
   CPP(StringPrototypeTrim)                                                    \
@@ -589,7 +670,10 @@ namespace internal {
   /* ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset */            \
   TFJ(TypedArrayPrototypeByteOffset, 1)                                       \
   /* ES6 section 22.2.3.18 get %TypedArray%.prototype.length */               \
-  TFJ(TypedArrayPrototypeLength, 1)
+  TFJ(TypedArrayPrototypeLength, 1)                                           \
+                                                                              \
+  CPP(ModuleNamespaceIterator)                                                \
+  CPP(FixedArrayIteratorNext)
 
 #define IGNORE_BUILTIN(...)
 

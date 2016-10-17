@@ -5,7 +5,8 @@
 #include "test/inspector/inspector-impl.h"
 
 #include "include/v8.h"
-#include "src/inspector/string-16.h"
+
+#include "src/vector.h"
 
 namespace {
 
@@ -38,6 +39,49 @@ InspectorClientImpl* InspectorClientFromContext(
       context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
   CHECK(inspector_client);
   return inspector_client;
+}
+
+v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+  v8::internal::Vector<uint16_t> buffer =
+      v8::internal::Vector<uint16_t>::New(str->Length());
+  str->Write(buffer.start(), 0, str->Length());
+  return buffer;
+}
+
+void MessageHandler(v8::Local<v8::Message> message,
+                    v8::Local<v8::Value> exception) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  if (context.IsEmpty()) return;
+  v8_inspector::V8Inspector* inspector =
+      InspectorClientImpl::InspectorFromContext(context);
+
+  v8::Local<v8::StackTrace> stack = message->GetStackTrace();
+  int script_id =
+      static_cast<int>(message->GetScriptOrigin().ScriptID()->Value());
+  if (!stack.IsEmpty() && stack->GetFrameCount() > 0) {
+    int top_script_id = stack->GetFrame(0)->GetScriptId();
+    if (top_script_id == script_id) script_id = 0;
+  }
+  int line_number = message->GetLineNumber(context).FromMaybe(0);
+  int column_number = 0;
+  if (message->GetStartColumn(context).IsJust())
+    column_number = message->GetStartColumn(context).FromJust() + 1;
+
+  v8_inspector::StringView detailed_message;
+  v8::internal::Vector<uint16_t> message_text_string = ToVector(message->Get());
+  v8_inspector::StringView message_text(message_text_string.start(),
+                                        message_text_string.length());
+  v8::internal::Vector<uint16_t> url_string;
+  if (message->GetScriptOrigin().ResourceName()->IsString()) {
+    url_string =
+        ToVector(message->GetScriptOrigin().ResourceName().As<v8::String>());
+  }
+  v8_inspector::StringView url(url_string.start(), url_string.length());
+
+  inspector->exceptionThrown(context, message_text, exception, detailed_message,
+                             url, line_number, column_number,
+                             inspector->createStackTrace(stack), script_id);
 }
 
 }  //  namespace
@@ -76,6 +120,7 @@ InspectorClientImpl::~InspectorClientImpl() {}
 
 void InspectorClientImpl::connect(v8::Local<v8::Context> context) {
   isolate_ = context->GetIsolate();
+  isolate_->AddMessageListener(MessageHandler);
   channel_.reset(new ChannelImpl(frontend_channel_));
 
   inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
@@ -116,7 +161,8 @@ v8_inspector::V8InspectorSession* InspectorClientImpl::SessionFromContext(
 
 class SendMessageToBackendTask : public TaskRunner::Task {
  public:
-  explicit SendMessageToBackendTask(const v8_inspector::String16& message)
+  explicit SendMessageToBackendTask(
+      const v8::internal::Vector<uint16_t>& message)
       : message_(message) {}
 
   bool is_inspector_task() final { return true; }
@@ -130,14 +176,12 @@ class SendMessageToBackendTask : public TaskRunner::Task {
       session = InspectorClientImpl::SessionFromContext(context);
       CHECK(session);
     }
-    v8_inspector::StringView message_view(
-        reinterpret_cast<const uint16_t*>(message_.characters16()),
-        message_.length());
+    v8_inspector::StringView message_view(message_.start(), message_.length());
     session->dispatchProtocolMessage(message_view);
   }
 
  private:
-  v8_inspector::String16 message_;
+  v8::internal::Vector<uint16_t> message_;
 };
 
 TaskRunner* SendMessageToBackendExtension::backend_task_runner_ = nullptr;
@@ -154,9 +198,5 @@ void SendMessageToBackendExtension::SendMessageToBackend(
   CHECK(backend_task_runner_);
   CHECK(args.Length() == 1 && args[0]->IsString());
   v8::Local<v8::String> message = args[0].As<v8::String>();
-  std::unique_ptr<uint16_t[]> buffer(new uint16_t[message->Length()]);
-  message.As<v8::String>()->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0,
-                                  message->Length());
-  v8_inspector::String16 message_string(buffer.get(), message->Length());
-  backend_task_runner_->Append(new SendMessageToBackendTask(message_string));
+  backend_task_runner_->Append(new SendMessageToBackendTask(ToVector(message)));
 }

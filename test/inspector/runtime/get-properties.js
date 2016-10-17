@@ -50,7 +50,8 @@ function runRequestSeries(step)
       }
       processStep(next);
     }
-    InspectorTest.sendCommand(s.command, s.params, innerCallback);
+    var command = s.command.split(".");
+    Protocol[command[0]][command[1]](s.params).then(innerCallback);
   }
 }
 

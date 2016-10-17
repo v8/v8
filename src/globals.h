@@ -141,19 +141,20 @@ const int kMinUInt16 = 0;
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 const int kMinUInt32 = 0;
 
-const int kCharSize      = sizeof(char);      // NOLINT
-const int kShortSize     = sizeof(short);     // NOLINT
-const int kIntSize       = sizeof(int);       // NOLINT
-const int kInt32Size     = sizeof(int32_t);   // NOLINT
-const int kInt64Size     = sizeof(int64_t);   // NOLINT
-const int kFloatSize     = sizeof(float);     // NOLINT
-const int kDoubleSize    = sizeof(double);    // NOLINT
-const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
-const int kPointerSize   = sizeof(void*);     // NOLINT
+const int kCharSize = sizeof(char);
+const int kShortSize = sizeof(short);  // NOLINT
+const int kIntSize = sizeof(int);
+const int kInt32Size = sizeof(int32_t);
+const int kInt64Size = sizeof(int64_t);
+const int kSizetSize = sizeof(size_t);
+const int kFloatSize = sizeof(float);
+const int kDoubleSize = sizeof(double);
+const int kIntptrSize = sizeof(intptr_t);
+const int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-const int kRegisterSize  = kPointerSize + kPointerSize;
+const int kRegisterSize = kPointerSize + kPointerSize;
 #else
-const int kRegisterSize  = kPointerSize;
+const int kRegisterSize = kPointerSize;
 #endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
@@ -187,10 +188,6 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
 const size_t kReservedCodeRangePages = 1;
-// On PPC Linux PageSize is 4MB
-#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-const size_t kMinimumCodeRangeSize = 12 * MB;
-const size_t kReservedCodeRangePages = 0;
 #else
 const size_t kMinimumCodeRangeSize = 3 * MB;
 const size_t kReservedCodeRangePages = 0;
@@ -1212,10 +1209,23 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kNumber  -> kAny
+// kSignedSmall -> kNumber  -> kNumberOrOddball -> kAny
+//                             kString          -> kAny
+// TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
+// similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
+// information about Number might reduce few instructions but causes more
+// deopts. We collect Number only because crankshaft does not handle all
+// cases of oddballs.
 class BinaryOperationFeedback {
  public:
-  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+  enum {
+    kNone = 0x0,
+    kSignedSmall = 0x1,
+    kNumber = 0x3,
+    kNumberOrOddball = 0x7,
+    kString = 0x8,
+    kAny = 0x1F
+  };
 };
 
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
@@ -1237,6 +1247,27 @@ enum LiveEditFrameDropMode {
   LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL,
   LIVE_EDIT_CURRENTLY_SET_MODE
 };
+
+enum class UnicodeEncoding : uint8_t {
+  // Different unicode encodings in a |word32|:
+  UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate
+  UTF32,  // full UTF32 code unit / Unicode codepoint
+};
+
+inline size_t hash_value(UnicodeEncoding encoding) {
+  return static_cast<uint8_t>(encoding);
+}
+
+inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
+  switch (encoding) {
+    case UnicodeEncoding::UTF16:
+      return os << "UTF16";
+    case UnicodeEncoding::UTF32:
+      return os << "UTF32";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 }  // namespace internal
 }  // namespace v8

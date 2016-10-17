@@ -40,14 +40,5 @@ bool Variable::IsGlobalObjectProperty() const {
          scope_ != NULL && scope_->is_script_scope();
 }
 
-
-bool Variable::IsStaticGlobalObjectProperty() const {
-  // Temporaries are never global, they must always be allocated in the
-  // activation frame.
-  return (IsDeclaredVariableMode(mode()) && !IsLexicalVariableMode(mode())) &&
-         scope_ != NULL && scope_->is_script_scope();
-}
-
-
 }  // namespace internal
 }  // namespace v8

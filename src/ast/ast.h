@@ -158,8 +158,7 @@ class FeedbackVectorSlotCache {
  public:
   explicit FeedbackVectorSlotCache(Zone* zone)
       : zone_(zone),
-        hash_map_(base::HashMap::PointersMatch,
-                  ZoneHashMap::kDefaultHashMapCapacity,
+        hash_map_(ZoneHashMap::kDefaultHashMapCapacity,
                   ZoneAllocationPolicy(zone)) {}
 
   void Put(Variable* variable, FeedbackVectorSlot slot) {
@@ -1554,12 +1553,13 @@ class ObjectLiteral final : public MaterializedLiteral {
 // A map from property names to getter/setter pairs allocated in the zone.
 class AccessorTable
     : public base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                                   bool (*)(void*, void*),
                                    ZoneAllocationPolicy> {
  public:
   explicit AccessorTable(Zone* zone)
       : base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                              ZoneAllocationPolicy>(Literal::Match,
-                                                    ZoneAllocationPolicy(zone)),
+                              bool (*)(void*, void*), ZoneAllocationPolicy>(
+            Literal::Match, ZoneAllocationPolicy(zone)),
         zone_(zone) {}
 
   Iterator lookup(Literal* literal) {
@@ -2631,9 +2631,9 @@ class FunctionLiteral final : public Expression {
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
+  int function_length() { return function_length_; }
 
   bool AllowsLazyCompilation();
-  bool AllowsLazyCompilationWithoutContext();
 
   Handle<String> debug_name() const {
     if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
@@ -2683,12 +2683,8 @@ class FunctionLiteral final : public Expression {
   // function will be called immediately:
   // - (function() { ... })();
   // - var x = function() { ... }();
-  bool should_eager_compile() const {
-    return ShouldEagerCompile::decode(bit_field_);
-  }
-  void set_should_eager_compile() {
-    bit_field_ = ShouldEagerCompile::update(bit_field_, true);
-  }
+  bool ShouldEagerCompile() const;
+  void SetShouldEagerCompile();
 
   // A hint that we expect this function to be called (exactly) once,
   // i.e. we suspect it's an initialization function.
@@ -2749,7 +2745,7 @@ class FunctionLiteral final : public Expression {
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   ZoneList<Statement*>* body, int materialized_literal_count,
                   int expected_property_count, int parameter_count,
-                  FunctionType function_type,
+                  int function_length, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
                   bool is_function)
@@ -2757,6 +2753,7 @@ class FunctionLiteral final : public Expression {
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
+        function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         yield_count_(0),
         raw_name_(name),
@@ -2769,11 +2766,11 @@ class FunctionLiteral final : public Expression {
         HasDuplicateParameters::encode(has_duplicate_parameters ==
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
-        ShouldEagerCompile::encode(eager_compile_hint == kShouldEagerCompile) |
         RequiresClassFieldInit::encode(false) |
         ShouldNotBeUsedOnceHintField::encode(false) |
         DontOptimizeReasonField::encode(kNoReason) |
         IsClassFieldInitializer::encode(false);
+    if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
   class FunctionTypeBits
@@ -2781,9 +2778,8 @@ class FunctionLiteral final : public Expression {
   class Pretenure : public BitField<bool, FunctionTypeBits::kNext, 1> {};
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class IsFunction : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
-  class ShouldEagerCompile : public BitField<bool, IsFunction::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
-      : public BitField<bool, ShouldEagerCompile::kNext, 1> {};
+      : public BitField<bool, IsFunction::kNext, 1> {};
   class RequiresClassFieldInit
       : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
   class IsClassFieldInitializer
@@ -2794,6 +2790,7 @@ class FunctionLiteral final : public Expression {
   int materialized_literal_count_;
   int expected_property_count_;
   int parameter_count_;
+  int function_length_;
   int function_token_position_;
   int yield_count_;
 
@@ -3945,15 +3942,15 @@ class AstNodeFactory final BASE_EMBEDDED {
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
       ZoneList<Statement*>* body, int materialized_literal_count,
-      int expected_property_count, int parameter_count,
+      int expected_property_count, int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
-    return new (zone_) FunctionLiteral(zone_, name, ast_value_factory_, scope,
-                                       body, materialized_literal_count,
-                                       expected_property_count, parameter_count,
-                                       function_type, has_duplicate_parameters,
-                                       eager_compile_hint, position, true);
+    return new (zone_) FunctionLiteral(
+        zone_, name, ast_value_factory_, scope, body,
+        materialized_literal_count, expected_property_count, parameter_count,
+        function_length, function_type, has_duplicate_parameters,
+        eager_compile_hint, position, true);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3966,7 +3963,7 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, materialized_literal_count, expected_property_count,
-        parameter_count, FunctionLiteral::kAnonymousExpression,
+        parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, false);
   }

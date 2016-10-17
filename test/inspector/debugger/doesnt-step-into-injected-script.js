@@ -4,15 +4,15 @@
 
 print("Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.");
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function foo()
 {
     return 239;
 }`);
 
-InspectorTest.sendCommandOrDie("Debugger.enable", {});
-InspectorTest.eventHandler["Debugger.paused"] = debuggerPaused;
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "(function boo() { setTimeout(foo, 0); debugger; })()" });
+Protocol.Debugger.enable();
+Protocol.Debugger.onPaused(debuggerPaused);
+Protocol.Runtime.evaluate({ "expression": "(function boo() { setTimeout(foo, 0); debugger; })()" });
 
 var actions = [ "stepInto", "stepInto", "stepInto" ];
 function debuggerPaused(result)
@@ -24,9 +24,9 @@ function debuggerPaused(result)
 
   var action = actions.shift();
   if (!action) {
-    InspectorTest.sendCommandOrDie("Debugger.resume", {}, () => InspectorTest.completeTest());
+    Protocol.Debugger.resume().then(InspectorTest.completeTest);
     return;
   }
   InspectorTest.log("Perform " + action);
-  InspectorTest.sendCommandOrDie("Debugger." + action, {});
+  Protocol.Debugger[action]();
 }

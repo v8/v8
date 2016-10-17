@@ -3,7 +3,6 @@
 #
 
 ---
-execute: yes
 wrap: no
 test function name: test
 
@@ -35,8 +34,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
   /*  117 E> */ B(Call), R(1), R(this), U8(1), U8(2),
-                B(Star), R(3),
-                B(AddSmi), U8(1), R(3), U8(8),
+                B(Star), R(1),
+                B(AddSmi), U8(1), R(1), U8(8),
   /*  131 S> */ B(Return),
 ]
 constant pool: [
@@ -116,7 +115,7 @@ bytecodes: [
                 B(LdaSmi), U8(1),
                 B(Star), R(3),
                 B(Ldar), R(0),
-  /*  118 E> */ B(New), R(2), R(3), U8(1), U8(0),
+  /*  118 E> */ B(New), R(2), R(3), U8(1), U8(2),
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
@@ -171,7 +170,7 @@ bytecodes: [
   /*  117 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
                 B(Star), R(2),
                 B(Ldar), R(0),
-  /*  117 E> */ B(New), R(2), R(0), U8(0), U8(0),
+  /*  117 E> */ B(New), R(2), R(0), U8(0), U8(2),
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),

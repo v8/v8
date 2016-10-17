@@ -136,6 +136,22 @@ class X64OperandGenerator final : public OperandGenerator {
   AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
                                                   InstructionOperand inputs[],
                                                   size_t* input_count) {
+    if (selector()->CanAddressRelativeToRootsRegister()) {
+      LoadMatcher<ExternalReferenceMatcher> m(operand);
+      if (m.index().HasValue() && m.object().HasValue()) {
+        Address const kRootsRegisterValue =
+            kRootRegisterBias +
+            reinterpret_cast<Address>(
+                selector()->isolate()->heap()->roots_array_start());
+        ptrdiff_t const delta =
+            m.index().Value() +
+            (m.object().Value().address() - kRootsRegisterValue);
+        if (is_int32(delta)) {
+          inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
+          return kMode_Root;
+        }
+      }
+    }
     BaseWithIndexAndDisplacement64Matcher m(operand, AddressOption::kAllowAll);
     DCHECK(m.matches());
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
@@ -155,6 +171,7 @@ class X64OperandGenerator final : public OperandGenerator {
 };
 
 namespace {
+
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
@@ -187,6 +204,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   }
   return opcode;
 }
+
 }  // namespace
 
 void InstructionSelector::VisitLoad(Node* node) {
@@ -723,6 +741,7 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
           case kMode_M2I:
           case kMode_M4I:
           case kMode_M8I:
+          case kMode_Root:
             UNREACHABLE();
         }
         inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
@@ -1756,6 +1775,29 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 void VisitWord64Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
+  if (selector->CanUseRootsRegister()) {
+    Heap* const heap = selector->isolate()->heap();
+    Heap::RootListIndex root_index;
+    HeapObjectBinopMatcher m(node);
+    if (m.right().HasValue() &&
+        heap->IsRootHandle(m.right().Value(), &root_index)) {
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      InstructionCode opcode =
+          kX64Cmp | AddressingModeField::encode(kMode_Root);
+      return VisitCompare(
+          selector, opcode,
+          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.UseRegister(m.left().node()), cont);
+    } else if (m.left().HasValue() &&
+               heap->IsRootHandle(m.left().Value(), &root_index)) {
+      InstructionCode opcode =
+          kX64Cmp | AddressingModeField::encode(kMode_Root);
+      return VisitCompare(
+          selector, opcode,
+          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.UseRegister(m.right().node()), cont);
+    }
+  }
   Int64BinopMatcher m(node);
   if (m.left().IsLoad() && m.right().IsLoadStackPointer()) {
     LoadMatcher<ExternalReferenceMatcher> mleft(m.left().node());

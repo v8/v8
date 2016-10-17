@@ -5,7 +5,6 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
-#include <map>
 #include <string>
 
 #include "src/allocation.h"
@@ -78,14 +77,14 @@ class CounterMap {
     const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
     Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
    private:
-    base::HashMap* map_;
-    base::HashMap::Entry* entry_;
+    base::CustomMatcherHashMap* map_;
+    base::CustomMatcherHashMap::Entry* entry_;
   };
 
  private:
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
-  base::HashMap hash_map_;
+  base::CustomMatcherHashMap hash_map_;
 };
 
 
@@ -455,9 +454,8 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static MaybeLocal<Module> FetchModuleTree(
-      Isolate* isolate, const std::string& file_name,
-      std::map<std::string, Global<Module>>* module_map);
+  static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
+                                            const std::string& file_name);
 };
 
 

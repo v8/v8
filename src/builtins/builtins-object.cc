@@ -28,7 +28,7 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
 
   // Smi receivers do not have own properties.
   Label if_objectisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), &return_false,
+  assembler->Branch(assembler->TaggedIsSmi(object), &return_false,
                     &if_objectisnotsmi);
   assembler->Bind(&if_objectisnotsmi);
 
@@ -224,16 +224,14 @@ void IsString(CodeStubAssembler* assembler, compiler::Node* object,
   typedef CodeStubAssembler::Label Label;
 
   Label if_notsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), if_notstring, &if_notsmi);
+  assembler->Branch(assembler->TaggedIsSmi(object), if_notstring, &if_notsmi);
 
   assembler->Bind(&if_notsmi);
   {
     Node* instance_type = assembler->LoadInstanceType(object);
 
-    assembler->Branch(
-        assembler->Int32LessThan(
-            instance_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-        if_string, if_notstring);
+    assembler->Branch(assembler->IsStringInstanceType(instance_type), if_string,
+                      if_notstring);
   }
 }
 
@@ -259,10 +257,8 @@ void ReturnIfPrimitive(CodeStubAssembler* assembler,
                        CodeStubAssembler::Label* return_string,
                        CodeStubAssembler::Label* return_boolean,
                        CodeStubAssembler::Label* return_number) {
-  assembler->GotoIf(
-      assembler->Int32LessThan(instance_type,
-                               assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-      return_string);
+  assembler->GotoIf(assembler->IsStringInstanceType(instance_type),
+                    return_string);
 
   assembler->GotoIf(assembler->Word32Equal(
                         instance_type, assembler->Int32Constant(ODDBALL_TYPE)),
@@ -306,7 +302,7 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
   assembler->GotoIf(assembler->Word32Equal(receiver, assembler->NullConstant()),
                     &return_null);
 
-  assembler->GotoIf(assembler->WordIsSmi(receiver), &return_number);
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &return_number);
 
   Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
   ReturnIfPrimitive(assembler, receiver_instance_type, &return_string,
@@ -431,7 +427,7 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
     assembler->Bind(&return_jsvalue);
     {
       Node* value = assembler->LoadJSValueValue(receiver);
-      assembler->GotoIf(assembler->WordIsSmi(value), &return_number);
+      assembler->GotoIf(assembler->TaggedIsSmi(value), &return_number);
 
       ReturnIfPrimitive(assembler, assembler->LoadInstanceType(value),
                         &return_string, &return_boolean, &return_number);
@@ -692,6 +688,85 @@ BUILTIN(ObjectGetPrototypeOf) {
                            JSReceiver::GetPrototype(isolate, receiver));
 }
 
+// ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
+BUILTIN(ObjectSetPrototypeOf) {
+  HandleScope scope(isolate);
+
+  // 1. Let O be ? RequireObjectCoercible(O).
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Object.setPrototypeOf")));
+  }
+
+  // 2. If Type(proto) is neither Object nor Null, throw a TypeError exception.
+  Handle<Object> proto = args.atOrUndefined(isolate, 2);
+  if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, proto));
+  }
+
+  // 3. If Type(O) is not Object, return O.
+  if (!object->IsJSReceiver()) return *object;
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+
+  // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+  // 5. If status is false, throw a TypeError exception.
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
+
+  // 6. Return O.
+  return *receiver;
+}
+
+// ES6 section B.2.2.1.1 get Object.prototype.__proto__
+BUILTIN(ObjectPrototypeGetProto) {
+  HandleScope scope(isolate);
+  // 1. Let O be ? ToObject(this value).
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args.receiver()));
+
+  // 2. Return ? O.[[GetPrototypeOf]]().
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSReceiver::GetPrototype(isolate, receiver));
+}
+
+// ES6 section B.2.2.1.2 set Object.prototype.__proto__
+BUILTIN(ObjectPrototypeSetProto) {
+  HandleScope scope(isolate);
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  Handle<Object> object = args.receiver();
+  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "set Object.prototype.__proto__")));
+  }
+
+  // 2. If Type(proto) is neither Object nor Null, return undefined.
+  Handle<Object> proto = args.at<Object>(1);
+  if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
+    return isolate->heap()->undefined_value();
+  }
+
+  // 3. If Type(O) is not Object, return undefined.
+  if (!object->IsJSReceiver()) return isolate->heap()->undefined_value();
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+
+  // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+  // 5. If status is false, throw a TypeError exception.
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
+
+  // Return undefined.
+  return isolate->heap()->undefined_value();
+}
+
 // ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
 BUILTIN(ObjectGetOwnPropertyDescriptor) {
   HandleScope scope(isolate);
@@ -908,6 +983,39 @@ BUILTIN(ObjectSeal) {
                  isolate->heap()->exception());
   }
   return *object;
+}
+
+void Builtins::Generate_HasProperty(CodeStubAssembler* assembler) {
+  typedef HasPropertyDescriptor Descriptor;
+  typedef compiler::Node Node;
+
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(
+      assembler->HasProperty(object, key, context, Runtime::kHasProperty));
+}
+
+void Builtins::Generate_ForInFilter(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef ForInFilterDescriptor Descriptor;
+
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->ForInFilter(key, object, context));
+}
+
+void Builtins::Generate_InstanceOf(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CompareDescriptor Descriptor;
+  Node* object = assembler->Parameter(Descriptor::kLeft);
+  Node* callable = assembler->Parameter(Descriptor::kRight);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->InstanceOf(object, callable, context));
 }
 
 }  // namespace internal

@@ -140,6 +140,12 @@ void HeapObject::HeapObjectVerify() {
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
       break;
+    case JS_MODULE_NAMESPACE_TYPE:
+      JSModuleNamespace::cast(this)->JSModuleNamespaceVerify();
+      break;
+    case JS_FIXED_ARRAY_ITERATOR_TYPE:
+      JSFixedArrayIterator::cast(this)->JSFixedArrayIteratorVerify();
+      break;
     case JS_SET_TYPE:
       JSSet::cast(this)->JSSetVerify();
       break;
@@ -677,7 +683,7 @@ void Code::CodeVerify() {
       last_gc_pc = it.rinfo()->pc();
     }
   }
-  CHECK(raw_type_feedback_info() == Smi::FromInt(0) ||
+  CHECK(raw_type_feedback_info() == Smi::kZero ||
         raw_type_feedback_info()->IsSmi() == IsCodeStubOrIC());
 }
 
@@ -785,7 +791,7 @@ void JSWeakMap::JSWeakMapVerify() {
 void JSStringIterator::JSStringIteratorVerify() {
   CHECK(IsJSStringIterator());
   JSObjectVerify();
-  CHECK(string()->IsSeqString() || string()->IsExternalString());
+  CHECK(string()->IsString());
 
   CHECK_GE(index(), 0);
   CHECK_LE(index(), String::kMaxLength);
@@ -872,7 +878,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify() {
   VerifyPointer(buffer());
   Isolate* isolate = GetIsolate();
   CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined(isolate) ||
-        buffer() == Smi::FromInt(0));
+        buffer() == Smi::kZero);
 
   VerifyPointer(raw_byte_offset());
   CHECK(raw_byte_offset()->IsSmi() || raw_byte_offset()->IsHeapNumber() ||
@@ -909,25 +915,63 @@ void Box::BoxVerify() {
   value()->ObjectVerify();
 }
 
-void PromiseContainer::PromiseContainerVerify() {
-  CHECK(IsPromiseContainer());
-  thenable()->ObjectVerify();
-  then()->ObjectVerify();
-  resolve()->ObjectVerify();
-  reject()->ObjectVerify();
-  before_debug_event()->ObjectVerify();
-  after_debug_event()->ObjectVerify();
+void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
+  Isolate* isolate = GetIsolate();
+  CHECK(IsPromiseResolveThenableJobInfo());
+  CHECK(thenable()->IsJSReceiver());
+  CHECK(then()->IsJSReceiver());
+  CHECK(resolve()->IsJSFunction());
+  CHECK(reject()->IsJSFunction());
+  CHECK(before_debug_event()->IsJSObject() ||
+        before_debug_event()->IsUndefined(isolate));
+  CHECK(after_debug_event()->IsJSObject() ||
+        after_debug_event()->IsUndefined(isolate));
+}
+
+void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
+  Isolate* isolate = GetIsolate();
+  CHECK(IsPromiseReactionJobInfo());
+  CHECK(value()->IsObject());
+  CHECK(tasks()->IsJSArray() || tasks()->IsCallable());
+  CHECK(deferred()->IsJSObject() || deferred()->IsUndefined(isolate));
+  CHECK(before_debug_event()->IsJSObject() ||
+        before_debug_event()->IsUndefined(isolate));
+  CHECK(after_debug_event()->IsJSObject() ||
+        after_debug_event()->IsUndefined(isolate));
+  CHECK(context()->IsContext());
+}
+
+void JSModuleNamespace::JSModuleNamespaceVerify() {
+  CHECK(IsJSModuleNamespace());
+  VerifyPointer(module());
+}
+
+void JSFixedArrayIterator::JSFixedArrayIteratorVerify() {
+  CHECK(IsJSFixedArrayIterator());
+
+  VerifyPointer(array());
+  VerifyPointer(initial_next());
+  VerifySmiField(kIndexOffset);
+
+  CHECK_LE(index(), array()->length());
 }
 
 void Module::ModuleVerify() {
   CHECK(IsModule());
-  CHECK(code()->IsSharedFunctionInfo() || code()->IsJSFunction());
-  code()->ObjectVerify();
-  exports()->ObjectVerify();
-  requested_modules()->ObjectVerify();
-  VerifySmiField(kFlagsOffset);
-  embedder_data()->ObjectVerify();
-  CHECK(shared()->name()->IsSymbol());
+
+  VerifyPointer(code());
+  VerifyPointer(exports());
+  VerifyPointer(module_namespace());
+  VerifyPointer(requested_modules());
+  VerifySmiField(kHashOffset);
+
+  CHECK((!instantiated() && code()->IsSharedFunctionInfo()) ||
+        (instantiated() && !evaluated() && code()->IsJSFunction()) ||
+        (instantiated() && evaluated() && code()->IsModuleInfo()));
+
+  CHECK(module_namespace()->IsUndefined(GetIsolate()) ||
+        module_namespace()->IsJSModuleNamespace());
+
   // TODO(neis): Check more.
 }
 
@@ -939,6 +983,13 @@ void PrototypeInfo::PrototypeInfoVerify() {
     CHECK(prototype_users()->IsSmi());
   }
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
+}
+
+void Tuple3::Tuple3Verify() {
+  CHECK(IsTuple3());
+  VerifyObjectField(kValue1Offset);
+  VerifyObjectField(kValue2Offset);
+  VerifyObjectField(kValue3Offset);
 }
 
 void ContextExtension::ContextExtensionVerify() {

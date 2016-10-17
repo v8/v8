@@ -2,59 +2,68 @@ Tests that Runtime.callFunctionOn works with awaitPromise flag.
 
 Running test: testArguments
 {
+    id : <messageId>
     result : {
-        type : string
-        value : undefined|NaN|[object Object]|[object Object]
+        result : {
+            type : string
+            value : undefined|NaN|[object Object]|[object Object]
+        }
     }
 }
 
 Running test: testSyntaxErrorInFunction
 {
-    exceptionDetails : {
-        columnNumber : 2
-        exception : {
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token }
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
             className : SyntaxError
             description : SyntaxError: Unexpected token }
-            objectId : 0
+            objectId : <objectId>
             subtype : error
             type : object
         }
-        exceptionId : 0
-        lineNumber : 1
-        scriptId : 0
-        text : Uncaught
-    }
-    result : {
-        className : SyntaxError
-        description : SyntaxError: Unexpected token }
-        objectId : [ObjectId]
-        subtype : error
-        type : object
     }
 }
 
 Running test: testExceptionInFunctionExpression
 {
-    exceptionDetails : {
-        columnNumber : 15
-        exception : {
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 15
+            exception : {
+                className : Error
+                description : Error     at <anonymous>:1:22     at <anonymous>:1:36
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
             className : Error
             description : Error     at <anonymous>:1:22     at <anonymous>:1:36
-            objectId : 0
+            objectId : <objectId>
             subtype : error
             type : object
         }
-        exceptionId : 0
-        lineNumber : 0
-        scriptId : 0
-        text : Uncaught
-    }
-    result : {
-        className : Error
-        description : Error     at <anonymous>:1:22     at <anonymous>:1:36
-        objectId : [ObjectId]
-        subtype : error
-        type : object
     }
 }
 
@@ -66,60 +75,67 @@ Running test: testFunctionReturnNotPromise
 
 Running test: testFunctionReturnResolvedPromiseReturnByValue
 {
+    id : <messageId>
     result : {
-        type : object
-        value : {
-            a : 3
+        result : {
+            type : object
+            value : {
+                a : 3
+            }
         }
     }
 }
 
 Running test: testFunctionReturnResolvedPromiseWithPreview
 {
+    id : <messageId>
     result : {
-        className : Object
-        description : Object
-        objectId : [ObjectId]
-        preview : {
+        result : {
+            className : Object
             description : Object
-            overflow : false
-            properties : [
-                [0] : {
-                    name : a
-                    type : number
-                    value : 3
-                }
-            ]
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        type : number
+                        value : 3
+                    }
+                ]
+                type : object
+            }
             type : object
         }
-        type : object
     }
 }
 
 Running test: testFunctionReturnRejectedPromise
 {
-    exceptionDetails : {
-        columnNumber : 0
-        exception : {
-            objectId : 0
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                type : object
+                value : {
+                    a : 3
+                }
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                ]
+            }
+            text : Uncaught (in promise)
+        }
+        result : {
             type : object
             value : {
                 a : 3
             }
         }
-        exceptionId : 0
-        lineNumber : 0
-        stackTrace : {
-            callFrames : [
-            ]
-        }
-        text : Uncaught (in promise)
-    }
-    result : {
-        type : object
-        value : {
-            a : 3
-        }
     }
 }
-

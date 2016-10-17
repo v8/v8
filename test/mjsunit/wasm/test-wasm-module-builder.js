@@ -12,7 +12,7 @@ var debug = true;
 (function BasicTest() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
-    module.addFunction("foo", kSig_i)
+    module.addFunction("foo", kSig_i_v)
         .addBody([kExprI8Const, 11])
         .exportAs("blarg");
 
@@ -105,7 +105,7 @@ var debug = true;
     module.addFunction("load", kSig_i_i)
         .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
         .exportAs("load");
-    module.addDataSegment(0, [9, 9, 9, 9], true);
+    module.addDataSegment(0, [9, 9, 9, 9]);
 
     var buffer = module.toBuffer(debug);
     var instance = Wasm.instantiateModule(buffer);
@@ -116,7 +116,7 @@ var debug = true;
 (function BasicTestWithUint8Array() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
-    module.addFunction("foo", kSig_i)
+    module.addFunction("foo", kSig_i_v)
         .addBody([kExprI8Const, 17])
         .exportAs("blarg");
 

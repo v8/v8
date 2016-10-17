@@ -91,15 +91,16 @@ class V8_EXPORT_PRIVATE ErrorThrower {
       : isolate_(isolate), context_(context) {}
   ~ErrorThrower();
 
-  PRINTF_FORMAT(2, 3) void Error(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RangeError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void CompileError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
   template <typename T>
-  void Failed(const char* error, Result<T>& result) {
+  void CompileFailed(const char* error, Result<T>& result) {
     std::ostringstream str;
     str << error << result;
-    Error("%s", str.str().c_str());
+    CompileError("%s", str.str().c_str());
   }
 
   i::Handle<i::Object> Reify() {

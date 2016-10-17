@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function blackboxedBoo()
 {
     var a = 42;
@@ -11,7 +11,7 @@ InspectorTest.evaluateInPage(
 }
 //# sourceURL=blackboxed-script.js`);
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function notBlackboxedFoo()
 {
     var a = 42;
@@ -34,7 +34,7 @@ function notBlackboxedBoo()
 }
 //# sourceURL=mixed-source.js`);
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function testFunction()
 {
     notBlackboxedBoo(); // for setup ranges and stepOut
@@ -47,22 +47,22 @@ function foo()
     return 239;
 }`);
 
-InspectorTest.eventHandler["Debugger.paused"] = setBlackboxedScriptRanges;
-InspectorTest.sendCommandOrDie("Debugger.enable", {}, callTestFunction);
+Protocol.Debugger.oncePaused().then(setBlackboxedScriptRanges);
+Protocol.Debugger.enable().then(callTestFunction);
 
 function callTestFunction(response)
 {
-  InspectorTest.sendCommand("Runtime.evaluate", { expression: "setTimeout(testFunction, 0);"});
+  Protocol.Runtime.evaluate({ expression: "setTimeout(testFunction, 0);"});
 }
 
 function setBlackboxedScriptRanges(response)
 {
   var callFrames = response.params.callFrames;
   printCallFrames(callFrames);
-  InspectorTest.sendCommand("Debugger.setBlackboxedRanges", {
+  Protocol.Debugger.setBlackboxedRanges({
     scriptId: callFrames[1].location.scriptId,
     positions: [ { lineNumber: 0, columnNumber: 0 } ] // blackbox ranges for blackboxed.js
-  }, setIncorrectRanges.bind(null, callFrames[2].location.scriptId));
+  }).then(setIncorrectRanges.bind(null, callFrames[2].location.scriptId));
 }
 
 var incorrectPositions = [
@@ -81,19 +81,19 @@ function setIncorrectRanges(scriptId, response)
     return;
   }
   InspectorTest.log("Try to set positions: " + JSON.stringify(positions));
-  InspectorTest.sendCommand("Debugger.setBlackboxedRanges", {
+  Protocol.Debugger.setBlackboxedRanges({
     scriptId: scriptId,
     positions: positions
-  }, setIncorrectRanges.bind(null, scriptId));
+  }).then(setIncorrectRanges.bind(null, scriptId));
 }
 
 function setMixedSourceRanges(scriptId)
 {
-  InspectorTest.eventHandler["Debugger.paused"] = runAction;
-  InspectorTest.sendCommandOrDie("Debugger.setBlackboxedRanges", {
+  Protocol.Debugger.onPaused(runAction);
+  Protocol.Debugger.setBlackboxedRanges({
     scriptId: scriptId,
     positions: [ { lineNumber: 8, columnNumber: 0 }, { lineNumber: 15, columnNumber: 0 } ] // blackbox ranges for mixed.js
-  }, runAction);
+  }).then(runAction);
 }
 
 var actions = [ "stepOut", "print", "stepOut", "print", "stepOut", "print",
@@ -111,7 +111,7 @@ function runAction(response)
     runAction({});
   } else {
     InspectorTest.log("action: " + action);
-    InspectorTest.sendCommandOrDie("Debugger." + action, {});
+    Protocol.Debugger[action]();
   }
 }
 

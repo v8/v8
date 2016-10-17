@@ -158,11 +158,16 @@ function AsyncFunctionPromiseRelease(promise) {
   if (DEBUG_IS_ACTIVE) {
     // Cancel
     var id = GET_PRIVATE(promise, promiseAsyncStackIDSymbol);
-    %DebugAsyncTaskEvent({
-      type: "cancel",
-      id: id,
-      name: "async function",
-    });
+
+    // Don't send invalid events when catch prediction is turned on in
+    // the middle of some async operation.
+    if (!IS_UNDEFINED(id)) {
+      %DebugAsyncTaskEvent({
+        type: "cancel",
+        id: id,
+        name: "async function",
+      });
+    }
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.
     %DebugPopPromise();

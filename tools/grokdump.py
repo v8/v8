@@ -39,6 +39,7 @@ import mmap
 import optparse
 import os
 import re
+import StringIO
 import sys
 import types
 import urllib
@@ -2101,24 +2102,34 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       query_components = urlparse.parse_qs(parsedurl.query)
       if parsedurl.path == "/dumps.html":
         self.send_success_html_headers()
-        self.server.output_dumps(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.server.output_dumps(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/summary.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_summary(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_summary(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/info.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_info(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_info(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/modules.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_modules(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_modules(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/search.html" or parsedurl.path == "/s":
         address = query_components.get("val", [])
         if len(address) != 1:
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
+        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_search_res(
-            self.wfile, address[0])
+            out_buffer, address[0])
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/disasm.html":
         address = query_components.get("val", [])
         exact = query_components.get("exact", ["on"])
@@ -2126,15 +2137,19 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
+        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_disasm(
-            self.wfile, address[0], exact[0])
+            out_buffer, address[0], exact[0])
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/data.html":
         address = query_components.get("val", [])
         datakind = query_components.get("type", ["address"])
         if len(address) == 1 and len(datakind) == 1:
           self.send_success_html_headers()
+          out_buffer = StringIO.StringIO()
           self.formatter(query_components).output_data(
-              self.wfile, address[0], datakind[0])
+              out_buffer, address[0], datakind[0])
+          self.wfile.write(out_buffer.getvalue())
         else:
           self.send_error(404,'Invalid params')
       elif parsedurl.path == "/setdumpdesc":
@@ -2253,7 +2268,7 @@ class InspectionWebFormatter(object):
   def output_footer(self, f):
     f.write(WEB_FOOTER)
 
-  MAX_CONTEXT_STACK = 4096
+  MAX_CONTEXT_STACK = 2048
 
   def output_summary(self, f):
     self.output_header(f)
@@ -2263,9 +2278,10 @@ class InspectionWebFormatter(object):
 
     # Output stack
     exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
-    stack_bottom = exception_thread.stack.start + \
-        min(exception_thread.stack.memory.data_size, self.MAX_CONTEXT_STACK)
     stack_top = self.reader.ExceptionSP()
+    stack_bottom = min(exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size,
+        stack_top + self.MAX_CONTEXT_STACK)
     self.output_words(f, stack_top - 16, stack_bottom, stack_top, "Stack")
 
     f.write('</div>')

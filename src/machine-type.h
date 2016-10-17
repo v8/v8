@@ -22,12 +22,14 @@ enum class MachineRepresentation : uint8_t {
   kWord16,
   kWord32,
   kWord64,
-  kFloat32,
-  kFloat64,  // must follow kFloat32
-  kSimd128,  // must follow kFloat64
   kTaggedSigned,
   kTaggedPointer,
-  kTagged
+  kTagged,
+  // FP representations must be last, and in order of increasing size.
+  kFloat32,
+  kFloat64,
+  kSimd128,
+  kFirstFPRepresentation = kFloat32
 };
 
 const char* MachineReprToString(MachineRepresentation);
@@ -224,9 +226,7 @@ std::ostream& operator<<(std::ostream& os, MachineSemantic type);
 std::ostream& operator<<(std::ostream& os, MachineType type);
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
-  return rep == MachineRepresentation::kFloat32 ||
-         rep == MachineRepresentation::kFloat64 ||
-         rep == MachineRepresentation::kSimd128;
+  return rep >= MachineRepresentation::kFirstFPRepresentation;
 }
 
 inline bool CanBeTaggedPointer(MachineRepresentation rep) {

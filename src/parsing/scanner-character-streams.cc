@@ -286,6 +286,20 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
   uint16_t* cursor = buffer_ + (buffer_end_ - buffer_start_);
   DCHECK_EQ(cursor, buffer_end_);
 
+  // If the current chunk is the last (empty) chunk we'll have to process
+  // any left-over, partial characters.
+  if (chunk.length == 0) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncrementalFinish(&current_.pos.incomplete_char);
+    if (t != unibrow::Utf8::kBufferEmpty) {
+      DCHECK(t < unibrow::Utf16::kMaxNonSurrogateCharCode);
+      *cursor = static_cast<uc16>(t);
+      buffer_end_++;
+      current_.pos.chars++;
+    }
+    return;
+  }
+
   static const unibrow::uchar kUtf8Bom = 0xfeff;
 
   unibrow::Utf8::Utf8IncrementalBuffer incomplete_char =
@@ -421,7 +435,7 @@ size_t Utf8ExternalStreamingStream::FillBuffer(size_t position) {
     if (current_.chunk_no == chunks_.size()) {
       out_of_data = !FetchChunk();
     }
-    if (!out_of_data) FillBufferFromCurrentChunk();
+    FillBufferFromCurrentChunk();
   }
 
   DCHECK_EQ(current_.pos.chars - position, buffer_end_ - buffer_cursor_);

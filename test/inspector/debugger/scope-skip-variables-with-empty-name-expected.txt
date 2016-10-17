@@ -1,17 +1,19 @@
 {
-    result : [
-        [0] : {
-            configurable : true
-            enumerable : true
-            isOwn : true
-            name : a
-            value : {
-                description : 2
-                type : number
-                value : 2
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
             }
-            writable : true
-        }
-    ]
+        ]
+    }
 }
-

@@ -29,6 +29,7 @@ v8_executable("unittests") {
     "cancelable-tasks-unittest.cc",
     "char-predicates-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-job-unittest.cc",
+    "compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc",
     "compiler/branch-elimination-unittest.cc",
     "compiler/checkpoint-elimination-unittest.cc",
     "compiler/common-operator-reducer-unittest.cc",
@@ -82,7 +83,7 @@ v8_executable("unittests") {
     "compiler/typed-optimization-unittest.cc",
     "compiler/typer-unittest.cc",
     "compiler/value-numbering-reducer-unittest.cc",
-    "compiler/zone-pool-unittest.cc",
+    "compiler/zone-stats-unittest.cc",
     "counters-unittest.cc",
     "eh-frame-iterator-unittest.cc",
     "eh-frame-writer-unittest.cc",
@@ -159,6 +160,7 @@ v8_executable("unittests") {
   #}],
 
   deps = [
+    "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
@@ -166,10 +168,13 @@ v8_executable("unittests") {
     "//testing/gtest",
   ]
 
+  defines = []
+
   if (is_component_build) {
     # compiler-unittests can't be built against a shared library, so we
     # need to depend on the underlying static target in that case.
     deps += [ "../..:v8_maybe_snapshot" ]
+    defines += [ "BUILDING_V8_SHARED" ]
   } else {
     deps += [ "../..:v8" ]
   }
@@ -179,13 +184,5 @@ v8_executable("unittests") {
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
     cflags = [ "/wd4309" ]
-
-    # Suppress warnings about importing locally defined symbols.
-    if (is_component_build) {
-      ldflags = [
-        "/ignore:4049",
-        "/ignore:4217",
-      ]
-    }
   }
 }

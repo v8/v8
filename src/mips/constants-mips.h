@@ -898,7 +898,6 @@ class InstructionBase {
   inline int Bits(int hi, int lo) const {
     return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
   }
-  enum TypeChecks { NORMAL, EXTRA };
 
 
   static constexpr uint64_t kOpcodeImmediateTypeMask =
@@ -967,7 +966,7 @@ class InstructionBase {
   inline int SaFieldRaw() const { return InstructionBits() & kSaFieldMask; }
 
   // Get the encoding type of the instruction.
-  inline Type InstructionType(TypeChecks checks = NORMAL) const;
+  inline Type InstructionType() const;
 
  protected:
   InstructionBase() {}
@@ -1142,11 +1141,16 @@ class InstructionGetters : public T {
 
 class Instruction : public InstructionGetters<InstructionBase> {
  public:
+  // Instructions are read of out a code stream. The only way to get a
+  // reference to an instruction is to convert a pointer. There is no way
+  // to allocate or create instances of class Instruction.
+  // Use the At(pc) function to create references to Instruction.
   static Instruction* At(byte* pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 
  private:
+  // We need to prevent the creation of instances of class Instruction.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Instruction);
 };
 
@@ -1165,26 +1169,14 @@ const int kBArgsSlotsSize = 0 * Instruction::kInstrSize;
 
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
-InstructionBase::Type InstructionBase::InstructionType(
-    TypeChecks checks) const {
-  if (checks == EXTRA) {
-    if (OpcodeToBitNumber(OpcodeFieldRaw()) & kOpcodeImmediateTypeMask) {
-      return kImmediateType;
-    }
-  }
+InstructionBase::Type InstructionBase::InstructionType() const {
   switch (OpcodeFieldRaw()) {
     case SPECIAL:
-      if (checks == EXTRA) {
-        if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
-            kFunctionFieldRegisterTypeMask) {
-          return kRegisterType;
-        } else {
-          return kUnsupported;
-        }
-      } else {
+      if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
+          kFunctionFieldRegisterTypeMask) {
         return kRegisterType;
       }
-      break;
+      return kUnsupported;
     case SPECIAL2:
       switch (FunctionFieldRaw()) {
         case MUL:
@@ -1239,11 +1231,7 @@ InstructionBase::Type InstructionBase::InstructionType(
       return kJumpType;
 
     default:
-      if (checks == NORMAL) {
         return kImmediateType;
-      } else {
-        return kUnsupported;
-      }
   }
 }
 

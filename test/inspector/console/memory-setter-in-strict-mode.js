@@ -4,11 +4,10 @@
 
 print("Tests checks that console.memory property can be set in strict mode (crbug.com/468611).")
 
-InspectorTest.sendCommand("Runtime.evaluate", { expression: "\"use strict\"\nconsole.memory = {};undefined" }, dumpResult);
+Protocol.Runtime.evaluate({ expression: "\"use strict\"\nconsole.memory = {};undefined" }).then(dumpResult);
 
 function dumpResult(result)
 {
-  result.id = 0;
-  InspectorTest.logObject(result);
+  InspectorTest.logMessage(result);
   InspectorTest.completeTest();
 }

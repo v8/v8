@@ -1065,14 +1065,16 @@ class HAllocationMode final BASE_EMBEDDED {
 class HGraphBuilder {
  public:
   explicit HGraphBuilder(CompilationInfo* info,
-                         CallInterfaceDescriptor descriptor)
+                         CallInterfaceDescriptor descriptor,
+                         bool track_positions)
       : info_(info),
         descriptor_(descriptor),
         graph_(NULL),
         current_block_(NULL),
         scope_(info->scope()),
         position_(SourcePosition::Unknown()),
-        start_position_(0) {}
+        start_position_(0),
+        track_positions_(track_positions) {}
   virtual ~HGraphBuilder() {}
 
   Scope* scope() const { return scope_; }
@@ -1874,7 +1876,7 @@ class HGraphBuilder {
   }
 
   void EnterInlinedSource(int start_position, int id) {
-    if (top_info()->is_tracking_positions()) {
+    if (is_tracking_positions()) {
       start_position_ = start_position;
       position_.set_inlining_id(id);
     }
@@ -1894,6 +1896,8 @@ class HGraphBuilder {
 
   SourcePosition source_position() { return position_; }
   void set_source_position(SourcePosition position) { position_ = position; }
+
+  bool is_tracking_positions() { return track_positions_; }
 
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                            SourcePosition position);
@@ -1920,6 +1924,7 @@ class HGraphBuilder {
   Scope* scope_;
   SourcePosition position_;
   int start_position_;
+  bool track_positions_;
 };
 
 template <>
@@ -2117,7 +2122,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     BreakAndContinueScope* next_;
   };
 
-  explicit HOptimizedGraphBuilder(CompilationInfo* info);
+  explicit HOptimizedGraphBuilder(CompilationInfo* info, bool track_positions);
 
   bool BuildGraph() override;
 

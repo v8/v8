@@ -16,6 +16,7 @@
 #include "src/frames-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/stub-cache.h"
@@ -111,8 +112,15 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
         Memory::Object_at(fp_ + JavaScriptFrameConstants::kFunctionOffset);
     if (maybe_function->IsJSFunction()) {
       JSFunction* function = JSFunction::cast(maybe_function);
-      JavaScriptFrame::PrintFunctionAndOffset(function, function->code(), pc(),
-                                              stdout, true);
+      int code_offset = 0;
+      if (function->code()->is_interpreter_trampoline_builtin()) {
+        code_offset = InterpretedFrame::GetBytecodeOffset(fp());
+      } else {
+        code_offset =
+            static_cast<int>(pc() - function->code()->instruction_start());
+      }
+      JavaScriptFrame::PrintFunctionAndOffset(
+          function, function->abstract_code(), code_offset, stdout, true);
     }
 
     const char* modifier = "";
@@ -171,6 +179,16 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   StackFrame* frame = it.frame();
   DCHECK(fp == frame->fp() && pc_address == frame->pc_address());
 #endif
+  // For interpreted functions, some bytecode handlers construct a
+  // frame. We have to skip the constructed frame to find the interpreted
+  // function's frame. Check if the there is an additional frame, and if there
+  // is skip this frame. However, the pc should not be updated. The call to
+  // ICs happen from bytecode handlers.
+  Object* frame_type =
+      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  if (frame_type == Smi::FromInt(StackFrame::STUB)) {
+    fp = Memory::Address_at(fp + TypedFrameConstants::kCallerFPOffset);
+  }
   fp_ = fp;
   if (FLAG_enable_embedded_constant_pool) {
     constant_pool_address_ = constant_pool;
@@ -244,13 +262,6 @@ Code* IC::GetCode() const {
   return code;
 }
 
-
-bool IC::AddressIsOptimizedCode() const {
-  Code* host =
-      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
-  return host->kind() == Code::OPTIMIZED_FUNCTION;
-}
-
 static void LookupForRead(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -283,7 +294,7 @@ static void LookupForRead(LookupIterator* it) {
   }
 }
 
-bool IC::ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name) {
+bool IC::ShouldRecomputeHandler(Handle<String> name) {
   if (!RecomputeHandlerForName(name)) return false;
 
   DCHECK(UseVector());
@@ -333,7 +344,7 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
   // again.
-  if (ShouldRecomputeHandler(receiver, Handle<String>::cast(name))) {
+  if (ShouldRecomputeHandler(Handle<String>::cast(name))) {
     MarkRecomputeHandler(name);
   }
 }
@@ -698,11 +709,8 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
   return true;
 }
 
-bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
-  DCHECK(code->IsSmi() || code->IsCode());
-  if (!code->IsSmi() && !Code::cast(*code)->is_handler()) {
-    return false;
-  }
+bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
+  DCHECK(IsHandler(*handler));
   if (is_keyed() && state() != RECOMPUTE_HANDLER) return false;
   Handle<Map> map = receiver_map();
   MapHandleList maps;
@@ -741,18 +749,17 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
 
   number_of_valid_maps++;
   if (number_of_valid_maps > 1 && is_keyed()) return false;
-  Handle<Code> ic;
   if (number_of_valid_maps == 1) {
-    ConfigureVectorState(name, receiver_map(), code);
+    ConfigureVectorState(name, receiver_map(), handler);
   } else {
     if (handler_to_overwrite >= 0) {
-      handlers.Set(handler_to_overwrite, code);
+      handlers.Set(handler_to_overwrite, handler);
       if (!map.is_identical_to(maps.at(handler_to_overwrite))) {
         maps.Set(handler_to_overwrite, map);
       }
     } else {
       maps.Add(map);
-      handlers.Add(code);
+      handlers.Add(handler);
     }
 
     ConfigureVectorState(name, &maps, &handlers);
@@ -762,8 +769,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
 }
 
 void IC::UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name) {
-  DCHECK(handler->IsSmi() ||
-         (handler->IsCode() && Handle<Code>::cast(handler)->is_handler()));
+  DCHECK(IsHandler(*handler));
   ConfigureVectorState(name, receiver_map(), handler);
 }
 
@@ -794,24 +800,26 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   return transitioned_map == target_map;
 }
 
-void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
-  DCHECK(code->IsCode() || (code->IsSmi() && (kind() == Code::LOAD_IC ||
-                                              kind() == Code::KEYED_LOAD_IC)));
+void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
+  DCHECK(IsHandler(*handler));
+  // Currently only LoadIC and KeyedLoadIC support non-code handlers.
+  DCHECK_IMPLIES(!handler->IsCode(),
+                 kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
-      UpdateMonomorphicIC(code, name);
+      UpdateMonomorphicIC(handler, name);
       break;
     case RECOMPUTE_HANDLER:
     case MONOMORPHIC:
       if (kind() == Code::LOAD_GLOBAL_IC) {
-        UpdateMonomorphicIC(code, name);
+        UpdateMonomorphicIC(handler, name);
         break;
       }
     // Fall through.
     case POLYMORPHIC:
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
-        if (UpdatePolymorphicIC(name, code)) break;
+        if (UpdatePolymorphicIC(name, handler)) break;
         // For keyed stubs, we can't know whether old handlers were for the
         // same key.
         CopyICToMegamorphicCache(name);
@@ -820,7 +828,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
       ConfigureVectorState(MEGAMORPHIC, name);
     // Fall through.
     case MEGAMORPHIC:
-      UpdateMegamorphicCache(*receiver_map(), *name, *code);
+      UpdateMegamorphicCache(*receiver_map(), *name, *handler);
       // Indicate that we've handled this case.
       DCHECK(UseVector());
       vector_set_ = true;
@@ -841,13 +849,55 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
 
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   if (FLAG_tf_load_ic_stub) {
-    return handle(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
+    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
+    return SmiHandler::MakeLoadFieldHandler(isolate(), index);
   }
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
   LoadFieldStub stub(isolate(), index);
   return stub.GetCode();
 }
 
+bool LoadIC::IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
+                                                Handle<JSObject> holder) {
+  DCHECK(holder->HasFastProperties());
+
+  // The following kinds of receiver maps require custom handler compilation.
+  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap() ||
+      receiver_map->IsJSGlobalObjectMap() ||
+      receiver_map->is_dictionary_map()) {
+    return false;
+  }
+
+  // Switch to custom compiled handler if the prototype chain contains global
+  // or dictionary objects.
+  for (PrototypeIterator iter(*receiver_map); !iter.IsAtEnd(); iter.Advance()) {
+    JSObject* current = iter.GetCurrent<JSObject>();
+    if (current == *holder) break;
+    Map* current_map = current->map();
+    if (current_map->IsJSGlobalObjectMap() ||
+        current_map->IsJSGlobalProxyMap() || current_map->is_dictionary_map()) {
+      return false;
+    }
+    // Only objects that do not require access checks are allowed in stubs.
+    DCHECK(!current_map->is_access_check_needed());
+  }
+  return true;
+}
+
+Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
+                                               Handle<JSObject> holder,
+                                               Handle<Object> smi_handler) {
+  DCHECK(IsPrototypeValidityCellCheckEnough(receiver_map, holder));
+
+  Handle<Cell> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+  DCHECK(!validity_cell.is_null());
+
+  Factory* factory = isolate()->factory();
+
+  Handle<WeakCell> holder_cell = factory->NewWeakCell(holder);
+  return factory->NewTuple3(validity_cell, holder_cell, smi_handler);
+}
 
 bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
   DCHECK(lookup->state() == LookupIterator::ACCESSOR);
@@ -972,30 +1022,17 @@ StubCache* IC::stub_cache() {
   return nullptr;
 }
 
-void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* code) {
-  if (code->IsSmi()) {
-    // TODO(jkummerow): Support Smis in the code cache.
-    Handle<Map> map_handle(map, isolate());
-    Handle<Name> name_handle(name, isolate());
-    FieldIndex index =
-        FieldIndex::ForLoadByFieldOffset(map, Smi::cast(code)->value());
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
-    LoadFieldStub stub(isolate(), index);
-    Code* handler = *stub.GetCode();
-    stub_cache()->Set(*name_handle, *map_handle, handler);
-    return;
-  }
-  DCHECK(code->IsCode());
-  stub_cache()->Set(name, map, Code::cast(code));
+void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* handler) {
+  stub_cache()->Set(name, map, handler);
 }
 
 Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
                                   Handle<Object> value) {
   // Try to find a globally shared handler stub.
-  Handle<Object> handler_or_index = GetMapIndependentHandler(lookup);
-  if (!handler_or_index.is_null()) {
-    DCHECK(handler_or_index->IsCode() || handler_or_index->IsSmi());
-    return handler_or_index;
+  Handle<Object> handler = GetMapIndependentHandler(lookup);
+  if (!handler.is_null()) {
+    DCHECK(IC::IsHandler(*handler));
+    return handler;
   }
 
   // Otherwise check the map's handler cache for a map-specific handler, and
@@ -1032,8 +1069,9 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
       // cache (which just missed) is different from the cached handler.
       if (state() == MEGAMORPHIC && lookup->GetReceiver()->IsHeapObject()) {
         Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
-        Code* megamorphic_cached_code = stub_cache()->Get(*lookup->name(), map);
-        if (megamorphic_cached_code != *code) {
+        Object* megamorphic_cached_handler =
+            stub_cache()->Get(*lookup->name(), map);
+        if (megamorphic_cached_handler != *code) {
           TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
           return code;
         }
@@ -1161,18 +1199,37 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
         FieldIndex field = lookup->GetFieldIndex();
+        Handle<Object> smi_handler = SimpleFieldLoad(field);
         if (receiver_is_holder) {
-          return SimpleFieldLoad(field);
+          return smi_handler;
+        }
+        if (FLAG_tf_load_ic_stub &&
+            IsPrototypeValidityCellCheckEnough(map, holder)) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
+          return SimpleLoadFromPrototype(map, holder, smi_handler);
         }
         break;  // Custom-compiled handler.
       }
 
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      if (receiver_is_holder) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
-        LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
-        return stub.GetCode();
+      if (FLAG_tf_load_ic_stub) {
+        Handle<Object> smi_handler = SmiHandler::MakeLoadConstantHandler(
+            isolate(), lookup->GetConstantIndex());
+        if (receiver_is_holder) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
+          return smi_handler;
+        }
+        if (IsPrototypeValidityCellCheckEnough(map, holder)) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
+          return SimpleLoadFromPrototype(map, holder, smi_handler);
+        }
+      } else {
+        if (receiver_is_holder) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
+          LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
+          return stub.GetCode();
+        }
       }
       break;  // Custom-compiled handler.
     }

@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function testFunction()
 {
     var a = 2;
     debugger;
 }`);
 
-InspectorTest.sendCommand("Debugger.enable", {});
-InspectorTest.eventHandler["Debugger.paused"] = handleDebuggerPaused;
-InspectorTest.sendCommand("Runtime.evaluate", { "expression": "setTimeout(testFunction, 0)" });
+Protocol.Debugger.enable();
+Protocol.Debugger.oncePaused().then(handleDebuggerPaused);
+Protocol.Runtime.evaluate({ "expression": "setTimeout(testFunction, 0)" });
 
 function handleDebuggerPaused(messageObject)
 {

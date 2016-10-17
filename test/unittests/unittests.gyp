@@ -79,8 +79,9 @@
       'compiler/typed-optimization-unittest.cc',
       'compiler/typer-unittest.cc',
       'compiler/value-numbering-reducer-unittest.cc',
-      'compiler/zone-pool-unittest.cc',
+      'compiler/zone-stats-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-job-unittest.cc',
+      'compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc',
       'counters-unittest.cc',
       'eh-frame-iterator-unittest.cc',
       'eh-frame-writer-unittest.cc',
@@ -163,6 +164,7 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
+        '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
@@ -229,6 +231,7 @@
           # compiler-unittests can't be built against a shared library, so we
           # need to depend on the underlying static target in that case.
           'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
+          'defines': [ 'BUILDING_V8_SHARED', ]
         }, {
           'dependencies': ['../../src/v8.gyp:v8'],
         }],
