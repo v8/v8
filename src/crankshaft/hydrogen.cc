@@ -2232,7 +2232,8 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, AstType* type) {
 }
 
 HValue* HGraphBuilder::BuildToNumber(HValue* input) {
-  if (input->type().IsTaggedNumber()) {
+  if (input->type().IsTaggedNumber() ||
+      input->representation().IsSpecialization()) {
     return input;
   }
   Callable callable = CodeFactory::ToNumber(isolate());
