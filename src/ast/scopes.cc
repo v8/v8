@@ -271,6 +271,8 @@ void DeclarationScope::SetDefaults() {
   function_ = nullptr;
   arguments_ = nullptr;
   this_function_ = nullptr;
+  should_eager_compile_ = false;
+  is_lazily_parsed_ = false;
 }
 
 void Scope::SetDefaults() {
@@ -300,9 +302,6 @@ void Scope::SetDefaults() {
   force_context_allocation_ = false;
 
   is_declaration_scope_ = false;
-
-  is_lazily_parsed_ = false;
-  should_eager_compile_ = false;
 }
 
 bool Scope::HasSimpleParameters() {
@@ -310,20 +309,13 @@ bool Scope::HasSimpleParameters() {
   return !scope->is_function_scope() || scope->has_simple_parameters();
 }
 
-bool Scope::ShouldEagerCompile() const {
-  if (is_declaration_scope() &&
-      !AsDeclarationScope()->AllowsLazyCompilation()) {
-    return true;
-  }
+bool DeclarationScope::ShouldEagerCompile() const {
+  if (!AllowsLazyCompilation()) return true;
   return !is_lazily_parsed_ && should_eager_compile_;
 }
 
-void Scope::SetShouldEagerCompile() {
+void DeclarationScope::set_should_eager_compile() {
   should_eager_compile_ = true;
-  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
-    if (inner->is_function_scope()) continue;
-    inner->SetShouldEagerCompile();
-  }
 }
 
 void DeclarationScope::set_asm_module() {
@@ -569,7 +561,7 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
          scope->outer_scope()->already_resolved_);
 
   // The outer scope is never lazy.
-  scope->SetShouldEagerCompile();
+  scope->set_should_eager_compile();
 
   scope->AllocateVariables(info, mode);
 
@@ -1184,12 +1176,31 @@ DeclarationScope* Scope::GetDeclarationScope() {
   return scope->AsDeclarationScope();
 }
 
+const DeclarationScope* Scope::GetClosureScope() const {
+  const Scope* scope = this;
+  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
+    scope = scope->outer_scope();
+  }
+  return scope->AsDeclarationScope();
+}
+
 DeclarationScope* Scope::GetClosureScope() {
   Scope* scope = this;
   while (!scope->is_declaration_scope() || scope->is_block_scope()) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
+}
+
+bool Scope::NeedsScopeInfo() const {
+  DCHECK(!already_resolved_);
+  // A lazily parsed scope doesn't contain enough information to create a
+  // ScopeInfo from it.
+  if (!GetClosureScope()->ShouldEagerCompile()) return false;
+  // The debugger expects all functions to have scope infos.
+  // TODO(jochen|yangguo): Remove this requirement.
+  if (is_function_scope()) return true;
+  return NeedsContext();
 }
 
 ModuleScope* Scope::GetModuleScope() {
@@ -1446,8 +1457,11 @@ void Scope::Print(int n) {
     Indent(n1, "// scope uses 'super' property\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
-  if (is_lazily_parsed_) Indent(n1, "// lazily parsed\n");
-  if (should_eager_compile_) Indent(n1, "// will be compiled\n");
+  if (is_declaration_scope()) {
+    DeclarationScope* scope = AsDeclarationScope();
+    if (scope->is_lazily_parsed()) Indent(n1, "// lazily parsed\n");
+    if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
+  }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
     PrintF("%d stack slots\n", num_stack_slots_);
@@ -1872,7 +1886,9 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
   DCHECK_EQ(0, num_stack_slots_);
   // Don't allocate variables of preparsed scopes.
-  if (is_lazily_parsed_) return;
+  if (is_declaration_scope() && AsDeclarationScope()->is_lazily_parsed()) {
+    return;
+  }
 
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
@@ -1927,20 +1943,11 @@ void Scope::AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    AnalyzeMode next_mode = mode;
-    bool next_eager = should_eager_compile_;
-    if (scope->is_function_scope()) {
-      // Make sure all inner scopes have are consistently marked: we can't
-      // eager compile inner functions of lazy functions, but if a function
-      // should be eagerly compiled, all its inner scopes are compiled as well.
-      next_eager = should_eager_compile_ ? scope->ShouldEagerCompile() : false;
-
-      // The ScopeIterator which uses the AnalyzeMode::kDebugger only expects
-      // to find ScopeInfos for the current function and all its inner
-      // non-function scopes (see ScopeIterator::GetNestedScopeChain).
-      next_mode = AnalyzeMode::kRegular;
-    }
-    scope->should_eager_compile_ = next_eager;
+    // The ScopeIterator which uses the AnalyzeMode::kDebugger only expects
+    // to find ScopeInfos for the current function and all its inner
+    // non-function scopes (see ScopeIterator::GetNestedScopeChain).
+    AnalyzeMode next_mode =
+        scope->is_function_scope() ? AnalyzeMode::kRegular : mode;
     scope->AllocateScopeInfosRecursively(isolate, next_mode, next_outer_scope);
   }
 }

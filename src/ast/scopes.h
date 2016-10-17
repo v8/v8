@@ -369,6 +369,7 @@ class Scope: public ZoneObject {
   // the scope for which a function prologue allocates a context) or declaring
   // temporaries.
   DeclarationScope* GetClosureScope();
+  const DeclarationScope* GetClosureScope() const;
 
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
@@ -417,14 +418,6 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
-  bool is_lazily_parsed() const { return is_lazily_parsed_; }
-
-  bool ShouldEagerCompile() const;
-
-  // Marks this scope and all inner scopes (except for inner function scopes)
-  // such that they get eagerly compiled.
-  void SetShouldEagerCompile();
-
  protected:
   explicit Scope(Zone* zone);
 
@@ -449,16 +442,7 @@ class Scope: public ZoneObject {
   // not deserialized from a context). Also, since NeedsContext() is only
   // returning a valid result after variables are resolved, NeedsScopeInfo()
   // should also be invoked after resolution.
-  bool NeedsScopeInfo() const {
-    DCHECK(!already_resolved_);
-    // A lazily parsed scope doesn't contain enough information to create a
-    // ScopeInfo from it.
-    if (!ShouldEagerCompile()) return false;
-    // The debugger expects all functions to have scope infos.
-    // TODO(jochen|yangguo): Remove this requirement.
-    if (is_function_scope()) return true;
-    return NeedsContext();
-  }
+  bool NeedsScopeInfo() const;
 
   Zone* zone_;
 
@@ -527,9 +511,6 @@ class Scope: public ZoneObject {
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
-
-  bool is_lazily_parsed_ : 1;
-  bool should_eager_compile_ : 1;
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -635,6 +616,10 @@ class DeclarationScope : public Scope {
                                         IsAccessorFunction(function_kind()) ||
                                         IsClassConstructor(function_kind())));
   }
+
+  bool is_lazily_parsed() const { return is_lazily_parsed_; }
+  bool ShouldEagerCompile() const;
+  void set_should_eager_compile();
 
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
     DCHECK(is_script_scope());
@@ -839,6 +824,8 @@ class DeclarationScope : public Scope {
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
+  bool should_eager_compile_ : 1;
+  bool is_lazily_parsed_ : 1;
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;
