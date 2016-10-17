@@ -798,6 +798,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kStringEqual:
       case IrOpcode::kStringLessThan:
       case IrOpcode::kStringLessThanOrEqual:
+      case IrOpcode::kTypeGuard:
       case IrOpcode::kPlainPrimitiveToNumber:
       case IrOpcode::kPlainPrimitiveToWord32:
       case IrOpcode::kPlainPrimitiveToFloat64:
