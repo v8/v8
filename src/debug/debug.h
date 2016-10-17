@@ -417,7 +417,8 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(Handle<JSObject> data);
+  void OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
+                        Handle<String> name);
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
@@ -588,8 +589,9 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
-      Handle<JSObject> task_event);
+  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<String> type,
+                                                         Handle<Object> id,
+                                                         Handle<String> name);
 
   // Mirror cache handling.
   void ClearMirrorCache();

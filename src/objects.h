@@ -6754,17 +6754,16 @@ class PromiseResolveThenableJobInfo : public Struct {
   DECL_ACCESSORS(then, JSReceiver)
   DECL_ACCESSORS(resolve, JSFunction)
   DECL_ACCESSORS(reject, JSFunction)
-  DECL_ACCESSORS(before_debug_event, Object)
-  DECL_ACCESSORS(after_debug_event, Object)
+  DECL_ACCESSORS(debug_id, Object)
+  DECL_ACCESSORS(debug_name, Object)
 
   static const int kThenableOffset = Struct::kHeaderSize;
   static const int kThenOffset = kThenableOffset + kPointerSize;
   static const int kResolveOffset = kThenOffset + kPointerSize;
   static const int kRejectOffset = kResolveOffset + kPointerSize;
-  static const int kBeforeDebugEventOffset = kRejectOffset + kPointerSize;
-  static const int kAfterDebugEventOffset =
-      kBeforeDebugEventOffset + kPointerSize;
-  static const int kSize = kAfterDebugEventOffset + kPointerSize;
+  static const int kDebugIdOffset = kRejectOffset + kPointerSize;
+  static const int kDebugNameOffset = kDebugIdOffset + kPointerSize;
+  static const int kSize = kDebugNameOffset + kPointerSize;
 
   DECLARE_CAST(PromiseResolveThenableJobInfo)
   DECLARE_PRINTER(PromiseResolveThenableJobInfo)
@@ -6780,17 +6779,16 @@ class PromiseReactionJobInfo : public Struct {
   DECL_ACCESSORS(value, Object)
   DECL_ACCESSORS(tasks, Object)
   DECL_ACCESSORS(deferred, Object)
-  DECL_ACCESSORS(before_debug_event, Object)
-  DECL_ACCESSORS(after_debug_event, Object)
+  DECL_ACCESSORS(debug_id, Object)
+  DECL_ACCESSORS(debug_name, Object)
   DECL_ACCESSORS(context, Context)
 
   static const int kValueOffset = Struct::kHeaderSize;
   static const int kTasksOffset = kValueOffset + kPointerSize;
   static const int kDeferredOffset = kTasksOffset + kPointerSize;
-  static const int kBeforeDebugEventOffset = kDeferredOffset + kPointerSize;
-  static const int kAfterDebugEventOffset =
-      kBeforeDebugEventOffset + kPointerSize;
-  static const int kContextOffset = kAfterDebugEventOffset + kPointerSize;
+  static const int kDebugIdOffset = kDeferredOffset + kPointerSize;
+  static const int kDebugNameOffset = kDebugIdOffset + kPointerSize;
+  static const int kContextOffset = kDebugNameOffset + kPointerSize;
   static const int kSize = kContextOffset + kPointerSize;
 
   DECLARE_CAST(PromiseReactionJobInfo)

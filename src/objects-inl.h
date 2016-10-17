@@ -5707,18 +5707,14 @@ ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, before_debug_event, Object,
-          kBeforeDebugEventOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, after_debug_event, Object,
-          kAfterDebugEventOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, debug_id, Object, kDebugIdOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, debug_name, Object, kDebugNameOffset)
 
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
 ACCESSORS(PromiseReactionJobInfo, deferred, Object, kDeferredOffset);
-ACCESSORS(PromiseReactionJobInfo, before_debug_event, Object,
-          kBeforeDebugEventOffset);
-ACCESSORS(PromiseReactionJobInfo, after_debug_event, Object,
-          kAfterDebugEventOffset);
+ACCESSORS(PromiseReactionJobInfo, debug_id, Object, kDebugIdOffset);
+ACCESSORS(PromiseReactionJobInfo, debug_name, Object, kDebugNameOffset);
 ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
 
 Map* PrototypeInfo::ObjectCreateMap() {

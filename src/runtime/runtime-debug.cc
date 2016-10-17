@@ -1824,10 +1824,12 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
 
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 3);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
-  isolate->debug()->OnAsyncTaskEvent(data);
+  CONVERT_ARG_HANDLE_CHECKED(String, type, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, id, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
+  isolate->debug()->OnAsyncTaskEvent(type, id, name);
   return isolate->heap()->undefined_value();
 }
 

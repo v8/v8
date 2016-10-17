@@ -922,10 +922,8 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
   CHECK(then()->IsJSReceiver());
   CHECK(resolve()->IsJSFunction());
   CHECK(reject()->IsJSFunction());
-  CHECK(before_debug_event()->IsJSObject() ||
-        before_debug_event()->IsUndefined(isolate));
-  CHECK(after_debug_event()->IsJSObject() ||
-        after_debug_event()->IsUndefined(isolate));
+  CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
+  CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
 }
 
 void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
@@ -934,10 +932,8 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   CHECK(value()->IsObject());
   CHECK(tasks()->IsJSArray() || tasks()->IsCallable());
   CHECK(deferred()->IsJSObject() || deferred()->IsUndefined(isolate));
-  CHECK(before_debug_event()->IsJSObject() ||
-        before_debug_event()->IsUndefined(isolate));
-  CHECK(after_debug_event()->IsJSObject() ||
-        after_debug_event()->IsUndefined(isolate));
+  CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
+  CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
   CHECK(context()->IsContext());
 }
 

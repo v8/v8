@@ -145,11 +145,7 @@ function AsyncFunctionPromiseCreate() {
     // resumptions from await.
     var id = PromiseNextMicrotaskID();
     SET_PRIVATE(promise, promiseAsyncStackIDSymbol, id);
-    %DebugAsyncTaskEvent({
-      type: "enqueueRecurring",
-      id: id,
-      name: "async function",
-    });
+    %DebugAsyncTaskEvent("enqueueRecurring", id, "async function");
   }
   return promise;
 }
@@ -162,11 +158,7 @@ function AsyncFunctionPromiseRelease(promise) {
     // Don't send invalid events when catch prediction is turned on in
     // the middle of some async operation.
     if (!IS_UNDEFINED(id)) {
-      %DebugAsyncTaskEvent({
-        type: "cancel",
-        id: id,
-        name: "async function",
-      });
+      %DebugAsyncTaskEvent("cancel", id, "async function");
     }
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.

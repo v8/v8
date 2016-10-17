@@ -53,6 +53,7 @@
   V(default_string, "default")                                     \
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
+  V(did_handle_string, "didHandle")                                \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
   V(dot_result_string, ".result")                                  \
@@ -174,6 +175,7 @@
   V(WeakMap_string, "WeakMap")                                     \
   V(WeakSet_string, "WeakSet")                                     \
   V(weekday_string, "weekday")                                     \
+  V(will_handle_string, "willHandle")                              \
   V(writable_string, "writable")                                   \
   V(year_string, "year")
 

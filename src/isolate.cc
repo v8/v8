@@ -3081,26 +3081,31 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
 namespace {
 class PromiseDebugEventScope {
  public:
-  PromiseDebugEventScope(Isolate* isolate, Object* before, Object* after)
+  PromiseDebugEventScope(Isolate* isolate, Object* id, Object* name)
       : isolate_(isolate),
-        after_(after, isolate_),
-        is_debug_active_(isolate_->debug()->is_active() &&
-                         before->IsJSObject() && after->IsJSObject()) {
+        id_(id, isolate_),
+        name_(name, isolate_),
+        is_debug_active_(isolate_->debug()->is_active() && id_->IsNumber() &&
+                         name_->IsString()) {
     if (is_debug_active_) {
       isolate_->debug()->OnAsyncTaskEvent(
-          handle(JSObject::cast(before), isolate_));
+          isolate_->factory()->will_handle_string(), id_,
+          Handle<String>::cast(name_));
     }
   }
 
   ~PromiseDebugEventScope() {
     if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_));
+      isolate_->debug()->OnAsyncTaskEvent(
+          isolate_->factory()->did_handle_string(), id_,
+          Handle<String>::cast(name_));
     }
   }
 
  private:
   Isolate* isolate_;
-  Handle<Object> after_;
+  Handle<Object> id_;
+  Handle<Object> name_;
   bool is_debug_active_;
 };
 }  // namespace
@@ -3108,8 +3113,7 @@ class PromiseDebugEventScope {
 void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->before_debug_event(),
-                                info->after_debug_event());
+  PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
 
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
@@ -3150,8 +3154,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
 void Isolate::PromiseResolveThenableJob(
     Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
     MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->before_debug_event(),
-                                info->after_debug_event());
+  PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
 
   Handle<JSReceiver> thenable(info->thenable(), this);
   Handle<JSFunction> resolve(info->resolve(), this);

@@ -1142,15 +1142,15 @@ function MakeScriptObject_(script, include_source) {
 }
 
 
-function MakeAsyncTaskEvent(event_data) {
-  return new AsyncTaskEvent(event_data);
+function MakeAsyncTaskEvent(type, id, name) {
+  return new AsyncTaskEvent(type, id, name);
 }
 
 
-function AsyncTaskEvent(event_data) {
-  this.type_ = event_data.type;
-  this.name_ = event_data.name;
-  this.id_ = event_data.id;
+function AsyncTaskEvent(type, id, name) {
+  this.type_ = type;
+  this.id_ = id;
+  this.name_ = name;
 }
 
 
