@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "08e8c31d38a4353f523618b6cc42d6da42d8fa3c",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "5e4af51b5f6846e384df4235e82b07eb2aada49c",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -47,9 +47,9 @@ deps = {
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("chromium_url") + "/android_tools.git" + "@" + "3d6ba29a6693bf3db1343fc213eea47c7d940413",
+      Var("chromium_url") + "/android_tools.git" + "@" + "25d57ead05d3dfef26e9c19b13ed10b0a69829cf",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "07c81af59775d6414d9863e0e2e5652a6849c683",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "60871179ac16079df83009da758b0e64e4227f2e",
   },
   "win": {
     "v8/third_party/cygwin":
