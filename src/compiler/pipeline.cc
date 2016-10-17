@@ -1569,14 +1569,16 @@ bool PipelineImpl::CreateGraph() {
       RunPrintAndVerify("Loop peeled");
     }
 
-    if (FLAG_turbo_escape) {
-      Run<EscapeAnalysisPhase>();
-      RunPrintAndVerify("Escape Analysed");
-    }
+    if (!info()->shared_info()->asm_function()) {
+      if (FLAG_turbo_load_elimination) {
+        Run<LoadEliminationPhase>();
+        RunPrintAndVerify("Load eliminated");
+      }
 
-    if (!info()->shared_info()->asm_function() && FLAG_turbo_load_elimination) {
-      Run<LoadEliminationPhase>();
-      RunPrintAndVerify("Load eliminated");
+      if (FLAG_turbo_escape) {
+        Run<EscapeAnalysisPhase>();
+        RunPrintAndVerify("Escape Analysed");
+      }
     }
   }
 
