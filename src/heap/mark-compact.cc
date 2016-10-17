@@ -716,7 +716,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       if (FLAG_trace_fragmentation_verbose) {
         PrintIsolate(isolate(),
                      "compaction-selection-page: space=%s free_bytes_page=%zu "
-                     "fragmentation_limit_kb=%" V8PRIdPTR
+                     "fragmentation_limit_kb=%" PRIuS
                      " fragmentation_limit_percent=%d sum_compaction_kb=%zu "
                      "compaction_limit_kb=%zu\n",
                      AllocationSpaceName(space->identity()), free_bytes / KB,
