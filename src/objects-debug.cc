@@ -943,30 +943,35 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
-  module()->ObjectVerify();
+  VerifyPointer(module());
 }
 
 void JSFixedArrayIterator::JSFixedArrayIteratorVerify() {
   CHECK(IsJSFixedArrayIterator());
 
-  CHECK(array()->IsFixedArray());
+  VerifyPointer(array());
+  VerifyPointer(initial_next());
   VerifySmiField(kIndexOffset);
-  CHECK(initial_next()->IsJSFunction());
 
   CHECK_LE(index(), array()->length());
 }
 
 void Module::ModuleVerify() {
-  Isolate* isolate = GetIsolate();
   CHECK(IsModule());
-  CHECK(code()->IsSharedFunctionInfo() || code()->IsJSFunction());
-  code()->ObjectVerify();
-  exports()->ObjectVerify();
-  requested_modules()->ObjectVerify();
-  VerifySmiField(kFlagsOffset);
+
+  VerifyPointer(code());
+  VerifyPointer(exports());
+  VerifyPointer(module_namespace());
+  VerifyPointer(requested_modules());
   VerifySmiField(kHashOffset);
-  CHECK(module_namespace()->IsUndefined(isolate) ||
+
+  CHECK((!instantiated() && code()->IsSharedFunctionInfo()) ||
+        (instantiated() && !evaluated() && code()->IsJSFunction()) ||
+        (instantiated() && evaluated() && code()->IsModuleInfo()));
+
+  CHECK(module_namespace()->IsUndefined(GetIsolate()) ||
         module_namespace()->IsJSModuleNamespace());
+
   // TODO(neis): Check more.
 }
 

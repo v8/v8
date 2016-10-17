@@ -8019,35 +8019,32 @@ class Module : public Struct {
   DECLARE_VERIFIER(Module)
   DECLARE_PRINTER(Module)
 
-  // The code representing this Module, either a SharedFunctionInfo or a
-  // JSFunction depending on whether it's been instantiated.
+  // The code representing this Module, or an abstraction thereof.
+  // This is either a SharedFunctionInfo or a JSFunction or a ModuleInfo
+  // depending on whether the module has been instantiated and evaluated.  See
+  // Module::ModuleVerify() for the precise invariant.
   DECL_ACCESSORS(code, Object)
 
+  // The export table.
   DECL_ACCESSORS(exports, ObjectHashTable)
-
-  // The namespace object (or undefined).
-  DECL_ACCESSORS(module_namespace, HeapObject)
-
-  // [[RequestedModules]]: Modules imported or re-exported by this module.
-  // Corresponds 1-to-1 to the module specifier strings in
-  // ModuleInfo::module_requests.
-  DECL_ACCESSORS(requested_modules, FixedArray)
-
-  // [[Evaluated]]: Whether this module has been evaluated. Modules
-  // are only evaluated a single time.
-  DECL_BOOLEAN_ACCESSORS(evaluated)
-
-  // Storage for [[Evaluated]].
-  DECL_INT_ACCESSORS(flags)
 
   // Hash for this object (a random non-zero Smi).
   DECL_INT_ACCESSORS(hash)
 
-  // Get the SharedFunctionInfo associated with the code.
-  inline SharedFunctionInfo* shared() const;
+  // The namespace object (or undefined).
+  DECL_ACCESSORS(module_namespace, HeapObject)
+
+  // Modules imported or re-exported by this module.
+  // Corresponds 1-to-1 to the module specifier strings in
+  // ModuleInfo::module_requests.
+  DECL_ACCESSORS(requested_modules, FixedArray)
 
   // Get the ModuleInfo associated with the code.
   inline ModuleInfo* info() const;
+
+  inline bool instantiated() const;
+  inline bool evaluated() const;
+  inline void set_evaluated();
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
@@ -8073,12 +8070,11 @@ class Module : public Struct {
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
-  static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
-  static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
-  static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
-  static const int kModuleNamespaceOffset = kEmbedderDataOffset + kPointerSize;
-  static const int kHashOffset = kModuleNamespaceOffset + kPointerSize;
-  static const int kSize = kHashOffset + kPointerSize;
+  static const int kHashOffset = kExportsOffset + kPointerSize;
+  static const int kModuleNamespaceOffset = kHashOffset + kPointerSize;
+  static const int kRequestedModulesOffset =
+      kModuleNamespaceOffset + kPointerSize;
+  static const int kSize = kRequestedModulesOffset + kPointerSize;
 
  private:
   enum { kEvaluatedBit };

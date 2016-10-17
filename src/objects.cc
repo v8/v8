@@ -19944,8 +19944,7 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
 
 bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
                          v8::Module::ResolveCallback callback) {
-  // Already instantiated.
-  if (module->code()->IsJSFunction()) return true;
+  if (module->instantiated()) return true;
 
   Isolate* isolate = module->GetIsolate();
   Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
@@ -19955,6 +19954,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
           shared,
           handle(Utils::OpenHandle(*context)->native_context(), isolate));
   module->set_code(*function);
+  DCHECK(module->instantiated());
 
   Handle<ModuleInfo> module_info(shared->scope_info()->ModuleDescriptorInfo(),
                                  isolate);
@@ -20036,16 +20036,15 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
 }
 
 MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
-  DCHECK(module->code()->IsJSFunction());  // Instantiated.
-
-  Isolate* isolate = module->GetIsolate();
+  DCHECK(module->instantiated());
 
   // Each module can only be evaluated once.
+  Isolate* isolate = module->GetIsolate();
   if (module->evaluated()) return isolate->factory()->undefined_value();
-  module->set_evaluated(true);
+  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  module->set_evaluated();
 
   // Initialization.
-  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
   Handle<Object> argv[] = {module};
@@ -20072,7 +20071,7 @@ namespace {
 
 void FetchStarExports(Handle<Module> module, Zone* zone,
                       UnorderedModuleSet* visited) {
-  DCHECK(module->code()->IsJSFunction());  // Instantiated.
+  DCHECK(module->instantiated());
 
   bool cycle = !visited->insert(module).second;
   if (cycle) return;

@@ -1793,10 +1793,11 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
   module->set_exports(*exports);
-  module->set_flags(0);
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
+  DCHECK(!module->instantiated());
+  DCHECK(!module->evaluated());
   return module;
 }
 

@@ -5786,17 +5786,25 @@ ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
-SMI_ACCESSORS(Module, flags, kFlagsOffset)
-BOOL_ACCESSORS(Module, flags, evaluated, kEvaluatedBit)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-SharedFunctionInfo* Module::shared() const {
-  return code()->IsSharedFunctionInfo() ? SharedFunctionInfo::cast(code())
-                                        : JSFunction::cast(code())->shared();
+bool Module::evaluated() const { return code()->IsModuleInfo(); }
+
+void Module::set_evaluated() {
+  DCHECK(instantiated());
+  DCHECK(!evaluated());
+  return set_code(
+      JSFunction::cast(code())->shared()->scope_info()->ModuleDescriptorInfo());
 }
 
+bool Module::instantiated() const { return !code()->IsSharedFunctionInfo(); }
+
 ModuleInfo* Module::info() const {
-  return shared()->scope_info()->ModuleDescriptorInfo();
+  if (evaluated()) return ModuleInfo::cast(code());
+  ScopeInfo* scope_info = instantiated()
+                              ? JSFunction::cast(code())->shared()->scope_info()
+                              : SharedFunctionInfo::cast(code())->scope_info();
+  return scope_info->ModuleDescriptorInfo();
 }
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
