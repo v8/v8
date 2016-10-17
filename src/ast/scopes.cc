@@ -1087,11 +1087,8 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   AllocateVariablesRecursively();
 
   MaybeHandle<ScopeInfo> outer_scope;
-  for (const Scope* s = outer_scope_; s != nullptr; s = s->outer_scope_) {
-    if (s->scope_info_.is_null()) continue;
-    outer_scope = s->scope_info_;
-    break;
-  }
+  if (outer_scope_ != nullptr) outer_scope = outer_scope_->scope_info_;
+
   AllocateScopeInfosRecursively(info->isolate(), outer_scope);
   if (mode == AnalyzeMode::kDebugger) {
     AllocateDebuggerScopeInfos(info->isolate(), outer_scope);
