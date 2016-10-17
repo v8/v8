@@ -189,6 +189,54 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   return reduction.Changed() ? reduction : Changed(node);
 }
 
+namespace {
+
+// TODO(turbofan): Share with similar functionality in JSInliningHeuristic
+// and JSNativeContextSpecialization, i.e. move to NodeProperties helper?!
+MaybeHandle<Map> InferReceiverMap(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  // Check if the {node} is dominated by a CheckMaps with a single map
+  // for the {receiver}, and if so use that map for the lowering below.
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckMaps &&
+        dominator->InputAt(0) == receiver) {
+      if (dominator->op()->ValueInputCount() == 2) {
+        HeapObjectMatcher m(dominator->InputAt(1));
+        if (m.HasValue()) return Handle<Map>::cast(m.Value());
+      }
+      return MaybeHandle<Map>();
+    }
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckMaps node.
+      return MaybeHandle<Map>();
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
+}  // namespace
+
+// ES6 section B.2.2.1.1 get Object.prototype.__proto__
+Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+
+  // Try to determine the {receiver} map.
+  Handle<Map> receiver_map;
+  if (InferReceiverMap(node).ToHandle(&receiver_map)) {
+    // Check if we can constant-fold the {receiver} map.
+    if (!receiver_map->IsJSProxyMap() &&
+        !receiver_map->has_hidden_prototype() &&
+        !receiver_map->is_access_check_needed()) {
+      Handle<Object> receiver_prototype(receiver_map->prototype(), isolate());
+      Node* value = jsgraph()->Constant(receiver_prototype);
+      ReplaceWithValue(node, value);
+      return Replace(value);
+    }
+  }
+
+  return NoChange();
+}
 
 Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
@@ -214,25 +262,22 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       }
 
       // Check for known builtin functions.
-      if (shared->HasBuiltinFunctionId()) {
-        switch (shared->builtin_function_id()) {
-          case kFunctionApply:
-            return ReduceFunctionPrototypeApply(node);
-          case kFunctionCall:
-            return ReduceFunctionPrototypeCall(node);
-          default:
-            break;
-        }
+      switch (shared->code()->builtin_index()) {
+        case Builtins::kFunctionPrototypeApply:
+          return ReduceFunctionPrototypeApply(node);
+        case Builtins::kFunctionPrototypeCall:
+          return ReduceFunctionPrototypeCall(node);
+        case Builtins::kNumberConstructor:
+          return ReduceNumberConstructor(node);
+        case Builtins::kObjectPrototypeGetProto:
+          return ReduceObjectPrototypeGetProto(node);
+        default:
+          break;
       }
 
       // Check for the Array constructor.
       if (*function == function->native_context()->array_function()) {
         return ReduceArrayConstructor(node);
-      }
-
-      // Check for the Number constructor.
-      if (*function == function->native_context()->number_function()) {
-        return ReduceNumberConstructor(node);
       }
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =
