@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_TYPES_H_
 #define V8_COMPILER_TYPES_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/conversions.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
@@ -190,7 +192,7 @@ class Type;
 // -----------------------------------------------------------------------------
 // Bitset types (internal).
 
-class BitsetType {
+class V8_EXPORT_PRIVATE BitsetType {
  public:
   typedef uint32_t bitset;  // Internal
 
@@ -318,7 +320,7 @@ class OtherNumberConstantType : public TypeBase {
   double value_;
 };
 
-class HeapConstantType : public TypeBase {
+class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
   i::Handle<i::HeapObject> Value() { return object_; }
 
@@ -486,7 +488,7 @@ class UnionType : public StructuralType {
   bool Wellformed();
 };
 
-class Type {
+class V8_EXPORT_PRIVATE Type {
  public:
   typedef BitsetType::bitset bitset;  // Internal
 

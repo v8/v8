@@ -5,6 +5,7 @@
 #ifndef V8_WASM_SWITCH_LOGIC_H
 #define V8_WASM_SWITCH_LOGIC_H
 
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -23,7 +24,7 @@ struct CaseNode : public ZoneObject {
   }
 };
 
-CaseNode* OrderCases(ZoneVector<int>* cases, Zone* zone);
+V8_EXPORT_PRIVATE CaseNode* OrderCases(ZoneVector<int>* cases, Zone* zone);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

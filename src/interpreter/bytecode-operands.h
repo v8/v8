@@ -114,10 +114,12 @@ inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
   return static_cast<AccumulatorUse>(result);
 }
 
-std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const AccumulatorUse& use);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const OperandScale& operand_scale);
-std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandSize& operand_size);
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
 
 }  // namespace interpreter

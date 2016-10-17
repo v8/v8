@@ -5,6 +5,7 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
+#include "src/globals.h"
 #include "src/isolate.h"
 #include "src/messages.h"
 #include "src/type-feedback-vector.h"
@@ -21,15 +22,15 @@ enum FunctionMode {
 };
 
 // Interface for handle based allocation.
-class Factory final {
+class V8_EXPORT_PRIVATE Factory final {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
 
   // Allocates a fixed array initialized with undefined values.
-  V8_EXPORT_PRIVATE Handle<FixedArray> NewFixedArray(
-      int size, PretenureFlag pretenure = NOT_TENURED);
+  Handle<FixedArray> NewFixedArray(int size,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
@@ -91,8 +92,7 @@ class Factory final {
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  V8_EXPORT_PRIVATE Handle<String> InternalizeUtf8String(
-      Vector<const char> str);
+  Handle<String> InternalizeUtf8String(Vector<const char> str);
   Handle<String> InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(CStrVector(str));
   }
@@ -137,7 +137,7 @@ class Factory final {
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
-  V8_EXPORT_PRIVATE MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
       Vector<const uint8_t> str, PretenureFlag pretenure = NOT_TENURED);
 
   template <size_t N>
@@ -180,10 +180,10 @@ class Factory final {
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
-  MUST_USE_RESULT V8_EXPORT_PRIVATE MaybeHandle<String> NewStringFromUtf8(
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
       Vector<const char> str, PretenureFlag pretenure = NOT_TENURED);
 
-  V8_EXPORT_PRIVATE MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
       Vector<const uc16> str, PretenureFlag pretenure = NOT_TENURED);
 
   MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
@@ -316,7 +316,7 @@ class Factory final {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
-  V8_EXPORT_PRIVATE Handle<Script> NewScript(Handle<String> source);
+  Handle<Script> NewScript(Handle<String> source);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -460,7 +460,7 @@ class Factory final {
 
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
-  V8_EXPORT_PRIVATE Handle<JSArray> NewJSArray(
+  Handle<JSArray> NewJSArray(
       ElementsKind elements_kind, int length, int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
@@ -476,11 +476,11 @@ class Factory final {
   }
 
   // Create a JSArray with the given elements.
-  V8_EXPORT_PRIVATE Handle<JSArray> NewJSArrayWithElements(
-      Handle<FixedArrayBase> elements, ElementsKind elements_kind, int length,
-      PretenureFlag pretenure = NOT_TENURED);
+  Handle<JSArray> NewJSArrayWithElements(Handle<FixedArrayBase> elements,
+                                         ElementsKind elements_kind, int length,
+                                         PretenureFlag pretenure = NOT_TENURED);
 
-  V8_EXPORT_PRIVATE Handle<JSArray> NewJSArrayWithElements(
+  Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED) {
@@ -726,7 +726,7 @@ class Factory final {
                                         int number_of_properties,
                                         bool* is_result_from_cache);
 
-  V8_EXPORT_PRIVATE Handle<RegExpMatchInfo> NewRegExpMatchInfo();
+  Handle<RegExpMatchInfo> NewRegExpMatchInfo();
 
   // Creates a new FixedArray that holds the data associated with the
   // atom regexp and stores it in the regexp.

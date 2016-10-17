@@ -160,6 +160,7 @@ v8_executable("unittests") {
   #}],
 
   deps = [
+    "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/config/sanitizers:deps",
@@ -167,17 +168,6 @@ v8_executable("unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-
-  defines = []
-
-  if (is_component_build) {
-    # compiler-unittests can't be built against a shared library, so we
-    # need to depend on the underlying static target in that case.
-    deps += [ "../..:v8_maybe_snapshot" ]
-    defines += [ "BUILDING_V8_SHARED" ]
-  } else {
-    deps += [ "../..:v8" ]
-  }
 
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in

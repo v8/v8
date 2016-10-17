@@ -95,7 +95,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
-class GCTracer {
+class V8_EXPORT_PRIVATE GCTracer {
  public:
   struct IncrementalMarkingInfos {
     IncrementalMarkingInfos() : duration(0), longest_step(0), steps(0) {}

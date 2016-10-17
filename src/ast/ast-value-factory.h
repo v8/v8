@@ -30,6 +30,7 @@
 
 #include "src/api.h"
 #include "src/base/hashmap.h"
+#include "src/globals.h"
 #include "src/utils.h"
 
 // AstString, AstValue and AstValueFactory are for storing strings and values
@@ -395,7 +396,8 @@ class AstValueFactory {
     strings_ = nullptr;
     strings_end_ = &strings_;
   }
-  AstRawString* GetOneByteStringInternal(Vector<const uint8_t> literal);
+  V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
+      Vector<const uint8_t> literal);
   AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);

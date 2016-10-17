@@ -8,6 +8,7 @@
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/cancelable-task.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -79,7 +80,7 @@ class Heap;
 // now_ms is the current time,
 // t' is t if the current event is not a GC event and is now_ms otherwise,
 // long_delay_ms, short_delay_ms, and watchdog_delay_ms are constants.
-class MemoryReducer {
+class V8_EXPORT_PRIVATE MemoryReducer {
  public:
   enum Action { kDone, kWait, kRun };
 

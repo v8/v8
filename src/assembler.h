@@ -38,6 +38,7 @@
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
 #include "src/deoptimize-reason.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/register-configuration.h"
@@ -961,7 +962,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference allocation_sites_list_address(Isolate* isolate);
 
   // Static variable StackGuard::address_of_jslimit()
-  static ExternalReference address_of_stack_limit(Isolate* isolate);
+  V8_EXPORT_PRIVATE static ExternalReference address_of_stack_limit(
+      Isolate* isolate);
 
   // Static variable StackGuard::address_of_real_jslimit()
   static ExternalReference address_of_real_stack_limit(Isolate* isolate);
@@ -1047,7 +1049,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
-  static ExternalReference runtime_function_table_address(Isolate* isolate);
+  V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
+      Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
 
@@ -1107,12 +1110,12 @@ class ExternalReference BASE_EMBEDDED {
   void* address_;
 };
 
-bool operator==(ExternalReference, ExternalReference);
+V8_EXPORT_PRIVATE bool operator==(ExternalReference, ExternalReference);
 bool operator!=(ExternalReference, ExternalReference);
 
 size_t hash_value(ExternalReference);
 
-std::ostream& operator<<(std::ostream&, ExternalReference);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 // -----------------------------------------------------------------------------
 // Utility functions

@@ -6,6 +6,8 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
 #include "src/ast/ast.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
@@ -26,7 +28,8 @@ class BytecodeNode;
 class BytecodePipelineStage;
 class Register;
 
-class BytecodeArrayBuilder final : public ZoneObject {
+class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   BytecodeArrayBuilder(
       Isolate* isolate, Zone* zone, int parameter_count, int context_count,

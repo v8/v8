@@ -1119,8 +1119,7 @@ class RuntimeState {
   DISALLOW_COPY_AND_ASSIGN(RuntimeState);
 };
 
-
-std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.

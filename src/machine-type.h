@@ -223,7 +223,7 @@ V8_INLINE size_t hash_value(MachineType type) {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            MachineRepresentation rep);
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
-std::ostream& operator<<(std::ostream& os, MachineType type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, MachineType type);
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;

@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_ACCESS_BUILDER_H_
 #define V8_COMPILER_ACCESS_BUILDER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/elements-kind.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +17,8 @@ namespace compiler {
 // This access builder provides a set of static methods constructing commonly
 // used FieldAccess and ElementAccess descriptors. These descriptors serve as
 // parameters to simplified load/store operators.
-class AccessBuilder final : public AllStatic {
+class V8_EXPORT_PRIVATE AccessBuilder final
+    : public NON_EXPORTED_BASE(AllStatic) {
  public:
   // ===========================================================================
   // Access to external values (based on external references).

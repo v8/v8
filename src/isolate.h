@@ -1058,7 +1058,7 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  base::RandomNumberGenerator* random_number_generator();
+  V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();
 
   // Generates a random number that is non-zero when masked
   // with the provided mask.

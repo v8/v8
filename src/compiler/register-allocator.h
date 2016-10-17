@@ -5,7 +5,9 @@
 #ifndef V8_REGISTER_ALLOCATOR_H_
 #define V8_REGISTER_ALLOCATOR_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/instruction.h"
+#include "src/globals.h"
 #include "src/ostreams.h"
 #include "src/register-configuration.h"
 #include "src/zone/zone-containers.h"
@@ -246,7 +248,8 @@ static_assert(kUnassignedRegister <= RegisterConfiguration::kMaxFPRegisters,
               "kUnassignedRegister too small");
 
 // Representation of a use position.
-class UsePosition final : public ZoneObject {
+class V8_EXPORT_PRIVATE UsePosition final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   UsePosition(LifetimePosition pos, InstructionOperand* operand, void* hint,
               UsePositionHintType hint_type);
@@ -305,7 +308,7 @@ class LiveRangeGroup;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
-class LiveRange : public ZoneObject {
+class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   UseInterval* first_interval() const { return first_interval_; }
   UsePosition* first_pos() const { return first_pos_; }
@@ -476,8 +479,7 @@ class LiveRangeGroup final : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(LiveRangeGroup);
 };
 
-
-class TopLevelLiveRange final : public LiveRange {
+class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
  public:
   explicit TopLevelLiveRange(int vreg, MachineRepresentation rep);
   int spill_start_index() const { return spill_start_index_; }

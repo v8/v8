@@ -164,6 +164,7 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
+        '../../src/v8.gyp:v8',
         '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
       ],
@@ -226,14 +227,6 @@
         }],
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
-        }],
-        ['component=="shared_library"', {
-          # compiler-unittests can't be built against a shared library, so we
-          # need to depend on the underlying static target in that case.
-          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
-          'defines': [ 'BUILDING_V8_SHARED', ]
-        }, {
-          'dependencies': ['../../src/v8.gyp:v8'],
         }],
         ['os_posix == 1', {
           # TODO(svenpanne): This is a temporary work-around to fix the warnings

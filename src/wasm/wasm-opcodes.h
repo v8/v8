@@ -5,6 +5,7 @@
 #ifndef V8_WASM_OPCODES_H_
 #define V8_WASM_OPCODES_H_
 
+#include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/signature.h"
 
@@ -486,7 +487,7 @@ enum TrapReason {
 };
 
 // A collection of opcode-related static methods.
-class WasmOpcodes {
+class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
   static const char* OpcodeName(WasmOpcode opcode);
   static const char* ShortOpcodeName(WasmOpcode opcode);

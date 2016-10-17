@@ -12,6 +12,7 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"
@@ -171,7 +172,7 @@ class RawMachineLabel;
 // clients, CodeAssembler also provides an abstraction for creating variables
 // and enhanced Label functionality to merge variable values along paths where
 // they have differing values, including loops.
-class CodeAssembler {
+class V8_EXPORT_PRIVATE CodeAssembler {
  public:
   // Create with CallStub linkage.
   // |result_size| specifies the number of results returned by the stub.

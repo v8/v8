@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_REGISTER_OPTIMIZER_H_
 #define V8_INTERPRETER_BYTECODE_REGISTER_OPTIMIZER_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-pipeline.h"
 
 namespace v8 {
@@ -15,10 +17,10 @@ namespace interpreter {
 // registers. The bytecode generator uses temporary registers
 // liberally for correctness and convenience and this stage removes
 // transfers that are not required and preserves correctness.
-class BytecodeRegisterOptimizer final
-    : public BytecodePipelineStage,
-      public BytecodeRegisterAllocator::Observer,
-      public ZoneObject {
+class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
+    : public NON_EXPORTED_BASE(BytecodePipelineStage),
+      public NON_EXPORTED_BASE(BytecodeRegisterAllocator::Observer),
+      public NON_EXPORTED_BASE(ZoneObject) {
  public:
   BytecodeRegisterOptimizer(Zone* zone,
                             BytecodeRegisterAllocator* register_allocator,
@@ -36,7 +38,7 @@ class BytecodeRegisterOptimizer final
       Handle<FixedArray> handler_table) override;
 
  private:
-  static const uint32_t kInvalidEquivalenceId = kMaxUInt32;
+  static const uint32_t kInvalidEquivalenceId;
 
   class RegisterInfo;
 

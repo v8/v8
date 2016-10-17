@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/api.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparse-data.h"
 
@@ -169,7 +170,7 @@ enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
 class WasmCompiledModule;
 
 // Static representation of a module.
-struct WasmModule {
+struct V8_EXPORT_PRIVATE WasmModule {
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
   static const uint32_t kMaxLegalPages = 65536;  // Maximum legal pages
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
@@ -245,9 +246,11 @@ struct WasmModule {
   }
 
   // Creates a new instantiation of the module in the given isolate.
-  V8_EXPORT_PRIVATE static MaybeHandle<JSObject> Instantiate(
-      Isolate* isolate, ErrorThrower* thrower, Handle<JSObject> module_object,
-      Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory);
+  static MaybeHandle<JSObject> Instantiate(Isolate* isolate,
+                                           ErrorThrower* thrower,
+                                           Handle<JSObject> module_object,
+                                           Handle<JSReceiver> ffi,
+                                           Handle<JSArrayBuffer> memory);
 
   MaybeHandle<WasmCompiledModule> CompileFunctions(Isolate* isolate,
                                                    ErrorThrower* thrower) const;
@@ -283,7 +286,7 @@ struct WasmInstance {
 
 // Interface provided to the decoder/graph builder which contains only
 // minimal information about the globals, functions, and function tables.
-struct ModuleEnv {
+struct V8_EXPORT_PRIVATE ModuleEnv {
   const WasmModule* module;
   WasmInstance* instance;
   ModuleOrigin origin;

@@ -7,6 +7,8 @@
 
 #include <iosfwd>
 
+#include "src/globals.h"
+
 // Opcodes for control operators.
 #define CONTROL_OP_LIST(V) \
   V(Start)                 \
@@ -724,7 +726,7 @@ namespace compiler {
 
 // Declare an enumeration with all the opcodes at all levels so that they
 // can be globally, uniquely numbered.
-class IrOpcode {
+class V8_EXPORT_PRIVATE IrOpcode {
  public:
   enum Value {
 #define DECLARE_OPCODE(x) k##x,
@@ -784,7 +786,7 @@ class IrOpcode {
   }
 };
 
-std::ostream& operator<<(std::ostream&, IrOpcode::Value);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IrOpcode::Value);
 
 }  // namespace compiler
 }  // namespace internal

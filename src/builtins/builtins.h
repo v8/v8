@@ -717,7 +717,8 @@ class Builtins {
         builtin_count
   };
 
-#define DECLARE_BUILTIN_ACCESSOR(Name, ...) Handle<Code> Name();
+#define DECLARE_BUILTIN_ACCESSOR(Name, ...) \
+  V8_EXPORT_PRIVATE Handle<Code> Name();
   BUILTIN_LIST_ALL(DECLARE_BUILTIN_ACCESSOR)
 #undef DECLARE_BUILTIN_ACCESSOR
 

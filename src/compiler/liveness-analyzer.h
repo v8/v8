@@ -7,6 +7,7 @@
 
 #include "src/bit-vector.h"
 #include "src/compiler/node.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -50,8 +51,7 @@ class NonLiveFrameStateSlotReplacer {
   NodeVector inputs_buffer_;
 };
 
-
-class LivenessAnalyzer {
+class V8_EXPORT_PRIVATE LivenessAnalyzer {
  public:
   LivenessAnalyzer(size_t local_count, Zone* zone);
 

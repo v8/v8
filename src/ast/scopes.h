@@ -5,6 +5,7 @@
 #ifndef V8_AST_SCOPES_H_
 #define V8_AST_SCOPES_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
 #include "src/objects.h"
@@ -62,7 +63,7 @@ enum class AnalyzeMode { kRegular, kDebugger };
 // and ModuleScope. DeclarationScope is used for any scope that hosts 'var'
 // declarations. This includes script, module, eval, varblock, and function
 // scope. ModuleScope further specializes DeclarationScope.
-class Scope: public ZoneObject {
+class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // ---------------------------------------------------------------------------
   // Construction

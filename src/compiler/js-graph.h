@@ -5,12 +5,14 @@
 #ifndef V8_COMPILER_JS_GRAPH_H_
 #define V8_COMPILER_JS_GRAPH_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -23,7 +25,7 @@ class Typer;
 // Implements a facade on a Graph, enhancing the graph with JS-specific
 // notions, including various builders for operators, canonicalized global
 // constants, and various helper methods.
-class JSGraph : public ZoneObject {
+class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
           JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,

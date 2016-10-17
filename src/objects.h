@@ -1403,7 +1403,7 @@ class Object {
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
   // to implement the Harmony "egal" function.
-  bool SameValue(Object* other);
+  V8_EXPORT_PRIVATE bool SameValue(Object* other);
 
   // Checks whether this object has the same value as the given one.
   // +0 and -0 are treated equal. Everything else is the same as SameValue.
@@ -1490,9 +1490,7 @@ struct Brief {
   const Object* value;
 };
 
-
-std::ostream& operator<<(std::ostream& os, const Brief& v);
-
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
 
 // Smi represents integer Numbers that can be stored in 31 bits.
 // Smis are immediate which means they are NOT allocated in the heap.
@@ -4505,7 +4503,7 @@ class ScopeInfo : public FixedArray {
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
-  static ScopeInfo* Empty(Isolate* isolate);
+  V8_EXPORT_PRIVATE static ScopeInfo* Empty(Isolate* isolate);
 
 #ifdef DEBUG
   void Print();
@@ -5204,7 +5202,7 @@ class LiteralsArray : public FixedArray {
  public:
   static const int kVectorIndex = 0;
   static const int kFirstLiteralIndex = 1;
-  static const int kFeedbackVectorOffset;
+  V8_EXPORT_PRIVATE static const int kFeedbackVectorOffset;
   static const int kOffsetToFirstLiteral;
 
   static int OffsetOfLiteralAt(int index) {
@@ -7303,8 +7301,8 @@ class SharedFunctionInfo: public HeapObject {
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
-  static void SetScript(Handle<SharedFunctionInfo> shared,
-                        Handle<Object> script_object);
+  V8_EXPORT_PRIVATE static void SetScript(Handle<SharedFunctionInfo> shared,
+                                          Handle<Object> script_object);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -10769,9 +10767,10 @@ class JSArrayBuffer: public JSObject {
 
   void Neuter();
 
-  static void Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
-                    bool is_external, void* data, size_t allocated_length,
-                    SharedFlag shared = SharedFlag::kNotShared);
+  V8_EXPORT_PRIVATE static void Setup(
+      Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
+      void* data, size_t allocated_length,
+      SharedFlag shared = SharedFlag::kNotShared);
 
   static bool SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
                                   Isolate* isolate, size_t allocated_length,
@@ -10850,7 +10849,7 @@ class JSTypedArray: public JSArrayBufferView {
   DECLARE_CAST(JSTypedArray)
 
   ExternalArrayType type();
-  size_t element_size();
+  V8_EXPORT_PRIVATE size_t element_size();
 
   Handle<JSArrayBuffer> GetBuffer();
 

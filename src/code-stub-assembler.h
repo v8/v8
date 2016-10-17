@@ -8,6 +8,7 @@
 #include <functional>
 
 #include "src/compiler/code-assembler.h"
+#include "src/globals.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -40,7 +41,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
 // without modifying files in the compiler directory (and requiring a review
 // from a compiler directory OWNER).
-class CodeStubAssembler : public compiler::CodeAssembler {
+class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
  public:
   // Create with CallStub linkage.
   // |result_size| specifies the number of results returned by the stub.

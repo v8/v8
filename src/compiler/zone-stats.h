@@ -9,13 +9,14 @@
 #include <set>
 #include <vector>
 
+#include "src/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZoneStats final {
+class V8_EXPORT_PRIVATE ZoneStats final {
  public:
   class Scope final {
    public:
@@ -38,7 +39,7 @@ class ZoneStats final {
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
-  class StatsScope final {
+  class V8_EXPORT_PRIVATE StatsScope final {
    public:
     explicit StatsScope(ZoneStats* zone_stats);
     ~StatsScope();

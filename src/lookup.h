@@ -6,13 +6,14 @@
 #define V8_LOOKUP_H_
 
 #include "src/factory.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
-class LookupIterator final BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.

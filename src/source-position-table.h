@@ -31,7 +31,7 @@ struct PositionTableEntry {
   bool is_statement;
 };
 
-class SourcePositionTableBuilder {
+class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
  public:
   enum RecordingMode { OMIT_SOURCE_POSITIONS, RECORD_SOURCE_POSITIONS };
 

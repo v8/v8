@@ -5,6 +5,8 @@
 #ifndef V8_WASM_AST_DECODER_H_
 #define V8_WASM_AST_DECODER_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/signature.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -355,15 +357,18 @@ struct AstLocalDecls {
       : decls_encoded_size(0), total_local_count(0), local_types(zone) {}
 };
 
-bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start, const byte* end);
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
-                                           const byte* start, const byte* end);
+V8_EXPORT_PRIVATE bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
+                                        const byte* end);
+V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
+                                                             size_t num_locals,
+                                                             const byte* start,
+                                                             const byte* end);
 
 // Computes the length of the opcode at the given address.
-unsigned OpcodeLength(const byte* pc, const byte* end);
+V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 
 // A simple forward iterator for bytecodes.
-class BytecodeIterator : public Decoder {
+class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
  public:
   // If one wants to iterate over the bytecode without looking at {pc_offset()}.
   class iterator {

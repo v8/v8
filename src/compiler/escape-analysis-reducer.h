@@ -5,9 +5,11 @@
 #ifndef V8_COMPILER_ESCAPE_ANALYSIS_REDUCER_H_
 #define V8_COMPILER_ESCAPE_ANALYSIS_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/bit-vector.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +18,8 @@ namespace compiler {
 // Forward declarations.
 class JSGraph;
 
-class EscapeAnalysisReducer final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
                         EscapeAnalysis* escape_analysis, Zone* zone);

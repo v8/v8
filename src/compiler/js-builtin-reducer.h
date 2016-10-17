@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_JS_BUILTIN_REDUCER_H_
 #define V8_COMPILER_JS_BUILTIN_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +27,8 @@ class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 class TypeCache;
 
-class JSBuiltinReducer final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSBuiltinReducer final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   // Flags that control the mode of operation.
   enum Flag {

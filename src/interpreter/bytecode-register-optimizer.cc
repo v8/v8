@@ -8,7 +8,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-const uint32_t BytecodeRegisterOptimizer::kInvalidEquivalenceId;
+const uint32_t BytecodeRegisterOptimizer::kInvalidEquivalenceId = kMaxUInt32;
 
 // A class for tracking the state of a register. This class tracks
 // which equivalence set a register is a member of and also whether a

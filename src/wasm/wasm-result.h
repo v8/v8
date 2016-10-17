@@ -82,7 +82,8 @@ std::ostream& operator<<(std::ostream& os, const Result<T>& result) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const ErrorCode& error_code);
 
 // A helper for generating error messages that bubble up to JS exceptions.
 class V8_EXPORT_PRIVATE ErrorThrower {

@@ -13,6 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/factory.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +35,7 @@ class Schedule;
 // Also note that the generated graph is only valid together with the generated
 // schedule, using one without the other is invalid as the graph is inherently
 // non-schedulable due to missing control and effect dependencies.
-class RawMachineAssembler {
+class V8_EXPORT_PRIVATE RawMachineAssembler {
  public:
   RawMachineAssembler(
       Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
@@ -834,8 +835,7 @@ class RawMachineAssembler {
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
 };
 
-
-class RawMachineLabel final {
+class V8_EXPORT_PRIVATE RawMachineLabel final {
  public:
   enum Type { kDeferred, kNonDeferred };
 

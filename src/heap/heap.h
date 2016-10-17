@@ -623,8 +623,8 @@ class Heap {
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
 
-  static const double kMinHeapGrowingFactor;
-  static const double kMaxHeapGrowingFactor;
+  V8_EXPORT_PRIVATE static const double kMinHeapGrowingFactor;
+  V8_EXPORT_PRIVATE static const double kMaxHeapGrowingFactor;
   static const double kMaxHeapGrowingFactorMemoryConstrained;
   static const double kMaxHeapGrowingFactorIdle;
   static const double kConservativeHeapGrowingFactor;
@@ -687,7 +687,8 @@ class Heap {
 #endif
   }
 
-  static double HeapGrowingFactor(double gc_speed, double mutator_speed);
+  V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
+                                                    double mutator_speed);
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
