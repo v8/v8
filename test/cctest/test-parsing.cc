@@ -3378,7 +3378,8 @@ TEST(InnerAssignment) {
           v8::Local<v8::Value> v = CompileRun(program.start());
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, f));
+          i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
         } else {
           i::Handle<i::String> source =
               factory->InternalizeUtf8String(program.start());
