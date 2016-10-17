@@ -1997,7 +1997,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           if (i.InputRegister(1).is(i.OutputRegister())) {
             __ shll(i.OutputRegister(), Immediate(1));
           } else {
-            __ leal(i.OutputRegister(), i.MemoryOperand());
+            __ addl(i.OutputRegister(), i.InputRegister(1));
           }
         } else if (mode == kMode_M2) {
           __ shll(i.OutputRegister(), Immediate(1));
@@ -2008,15 +2008,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ leal(i.OutputRegister(), i.MemoryOperand());
         }
+      } else if (mode == kMode_MR1 &&
+                 i.InputRegister(1).is(i.OutputRegister())) {
+        __ addl(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ leal(i.OutputRegister(), i.MemoryOperand());
       }
       __ AssertZeroExtended(i.OutputRegister());
       break;
     }
-    case kX64Lea:
-      __ leaq(i.OutputRegister(), i.MemoryOperand());
+    case kX64Lea: {
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      // Shorten "leaq" to "addq", "subq" or "shlq" if the register allocation
+      // and addressing mode just happens to work out. The "addq"/"subq" forms
+      // in these cases are faster based on measurements.
+      if (i.InputRegister(0).is(i.OutputRegister())) {
+        if (mode == kMode_MRI) {
+          int32_t constant_summand = i.InputInt32(1);
+          if (constant_summand > 0) {
+            __ addq(i.OutputRegister(), Immediate(constant_summand));
+          } else if (constant_summand < 0) {
+            __ subq(i.OutputRegister(), Immediate(-constant_summand));
+          }
+        } else if (mode == kMode_MR1) {
+          if (i.InputRegister(1).is(i.OutputRegister())) {
+            __ shlq(i.OutputRegister(), Immediate(1));
+          } else {
+            __ addq(i.OutputRegister(), i.InputRegister(1));
+          }
+        } else if (mode == kMode_M2) {
+          __ shlq(i.OutputRegister(), Immediate(1));
+        } else if (mode == kMode_M4) {
+          __ shlq(i.OutputRegister(), Immediate(2));
+        } else if (mode == kMode_M8) {
+          __ shlq(i.OutputRegister(), Immediate(3));
+        } else {
+          __ leaq(i.OutputRegister(), i.MemoryOperand());
+        }
+      } else if (mode == kMode_MR1 &&
+                 i.InputRegister(1).is(i.OutputRegister())) {
+        __ addq(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ leaq(i.OutputRegister(), i.MemoryOperand());
+      }
       break;
+    }
     case kX64Dec32:
       __ decl(i.OutputRegister());
       break;
