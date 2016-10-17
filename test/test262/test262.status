@@ -30,11 +30,6 @@
 [ALWAYS, {
   ###################### NEEDS INVESTIGATION #######################
 
-  # This is an incompatibility between ES5 and V8 on enumerating
-  # shadowed elements in a for..in loop.
-  # https://code.google.com/p/v8/issues/detail?id=705
-  'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
-
   # Date tests that fail in CE(S)T timezone.
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
