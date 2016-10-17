@@ -310,12 +310,11 @@ bool Scope::HasSimpleParameters() {
 }
 
 bool DeclarationScope::ShouldEagerCompile() const {
-  if (!AllowsLazyCompilation()) return true;
-  return !is_lazily_parsed_ && should_eager_compile_;
+  return force_eager_compilation_ || should_eager_compile_;
 }
 
 void DeclarationScope::set_should_eager_compile() {
-  should_eager_compile_ = true;
+  should_eager_compile_ = !is_lazily_parsed_;
 }
 
 void DeclarationScope::set_asm_module() {
