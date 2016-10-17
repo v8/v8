@@ -433,7 +433,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       type_hint_analysis_(type_hint_analysis),
       state_values_cache_(jsgraph),
       liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
-                         local_zone),
+                         false, local_zone),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kJavaScriptFunction, info->num_parameters() + 1,
           info->scope()->num_stack_slots(), info->shared_info())) {
@@ -613,7 +613,7 @@ void AstGraphBuilder::ClearNonLiveSlotsInFrameStates() {
 
   NonLiveFrameStateSlotReplacer replacer(
       &state_values_cache_, jsgraph()->OptimizedOutConstant(),
-      liveness_analyzer()->local_count(), local_zone());
+      liveness_analyzer()->local_count(), false, local_zone());
   Variable* arguments = info()->scope()->arguments();
   if (arguments != nullptr && arguments->IsStackAllocated()) {
     replacer.MarkPermanentlyLive(arguments->index());

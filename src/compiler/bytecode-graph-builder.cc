@@ -259,6 +259,10 @@ bool BytecodeGraphBuilder::Environment::IsLivenessBlockConsistent() const {
 }
 
 Node* BytecodeGraphBuilder::Environment::LookupAccumulator() const {
+  DCHECK(IsLivenessBlockConsistent());
+  if (liveness_block() != nullptr) {
+    liveness_block()->LookupAccumulator();
+  }
   return values()->at(accumulator_base_);
 }
 
@@ -294,6 +298,10 @@ void BytecodeGraphBuilder::Environment::BindAccumulator(
     Node* node, FrameStateBeforeAndAfter* states) {
   if (states) {
     states->AddToNode(node, OutputFrameStateCombine::PokeAt(0));
+  }
+  DCHECK(IsLivenessBlockConsistent());
+  if (liveness_block() != nullptr) {
+    liveness_block()->BindAccumulator();
   }
   values()->at(accumulator_base_) = node;
 }
@@ -612,7 +620,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
                                     info->is_deoptimization_enabled()),
       state_values_cache_(jsgraph),
       liveness_analyzer_(
-          static_cast<size_t>(bytecode_array()->register_count()), local_zone),
+          static_cast<size_t>(bytecode_array()->register_count()), true,
+          local_zone),
       source_positions_(source_positions) {}
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
@@ -698,7 +707,7 @@ void BytecodeGraphBuilder::ClearNonLiveSlotsInFrameStates() {
   }
   NonLiveFrameStateSlotReplacer replacer(
       &state_values_cache_, jsgraph()->OptimizedOutConstant(),
-      liveness_analyzer()->local_count(), local_zone());
+      liveness_analyzer()->local_count(), true, local_zone());
   liveness_analyzer()->Run(&replacer);
   if (FLAG_trace_environment_liveness) {
     OFStream os(stdout);
