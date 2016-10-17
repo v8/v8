@@ -880,10 +880,10 @@ Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   DCHECK(!validity_cell.is_null());
 
-  Factory* factory = isolate()->factory();
-
-  Handle<WeakCell> holder_cell = factory->NewWeakCell(holder);
-  return factory->NewTuple3(validity_cell, holder_cell, smi_handler);
+  Handle<WeakCell> holder_cell =
+      Map::GetOrCreatePrototypeWeakCell(holder, isolate());
+  return isolate()->factory()->NewTuple3(validity_cell, holder_cell,
+                                         smi_handler);
 }
 
 bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
