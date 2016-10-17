@@ -238,7 +238,7 @@ class RuntimeCallStatEntries {
       return count_ < other.count_;
     }
 
-    void Print(std::ostream& os) {
+    V8_NOINLINE void Print(std::ostream& os) {
       os.precision(2);
       os << std::fixed << std::setprecision(2);
       os << std::setw(50) << name_;
@@ -249,7 +249,8 @@ class RuntimeCallStatEntries {
       os << std::endl;
     }
 
-    void SetTotal(base::TimeDelta total_time, uint64_t total_count) {
+    V8_NOINLINE void SetTotal(base::TimeDelta total_time,
+                              uint64_t total_count) {
       if (total_time.InMicroseconds() == 0) {
         time_percent_ = 0;
       } else {

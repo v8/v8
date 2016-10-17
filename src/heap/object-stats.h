@@ -100,6 +100,14 @@ class ObjectStats {
   static const int kLastBucket = 1 << kLastBucketShift;
   static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift + 1;
 
+  void PrintKeyAndId(const char* key, int gc_count);
+  // The following functions are excluded from inline to reduce the overall
+  // binary size of VB. On x64 this save around 80KB.
+  V8_NOINLINE void PrintInstanceTypeJSON(const char* key, int gc_count,
+                                         const char* name, int index);
+  V8_NOINLINE void DumpInstanceTypeData(std::stringstream& stream,
+                                        const char* name, int index);
+
   int HistogramIndexFromSize(size_t size) {
     if (size == 0) return 0;
     int idx = static_cast<int>(base::ieee754::log2(static_cast<double>(size))) -
