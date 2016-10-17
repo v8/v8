@@ -6,6 +6,9 @@
 
 'use strict';
 
+load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
+
 // Basic tests.
 
 var outOfUint32RangeValue = 1e12;
@@ -129,19 +132,101 @@ function assertTableIsValid(table) {
 (function TestGet() {
   let table = new WebAssembly.Table({element: "anyfunc", initial: 10});
 
-  for (let i = 0; i < 10; ++i) {
+  for (let i = 0; i < table.length; ++i) {
     assertEquals(null, table.get(i));
     assertEquals(null, table.get(String(i)));
   }
-  assertEquals(null, table.get(""));
-  assertEquals(null, table.get(NaN));
-  assertEquals(null, table.get({}));
-  assertEquals(null, table.get([]));
-  assertEquals(null, table.get(() => {}));
-
-  assertEquals(undefined, table.get(10));
-  assertEquals(undefined, table.get(-1));
-
+  for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+    assertEquals(null, table.get(key));
+  }
+  for (let key of [-1, table.length, table.length * 10]) {
+    assertThrows(() => table.get(key), RangeError);
+  }
   assertThrows(() => table.get(Symbol()), TypeError);
   assertThrows(() => WebAssembly.Table.prototype.get.call([], 0), TypeError);
+})();
+
+(function TestSet() {
+  let builder = new WasmModuleBuilder;
+  builder.addExport("wasm", builder.addFunction("", kSig_v_v));
+  builder.addExport("host", builder.addImportWithModule("test", "f", kSig_v_v));
+  let {wasm, host} = builder.instantiate({test: {f() {}}}).exports;
+
+  let table = new WebAssembly.Table({element: "anyfunc", initial: 10});
+
+  for (let f of [wasm, host]) {
+    for (let i = 0; i < table.length; ++i) table.set(i, null);
+    for (let i = 0; i < table.length; ++i) {
+      assertSame(null, table.get(i));
+      assertSame(undefined, table.set(i, f));
+      assertSame(f, table.get(i));
+    }
+
+    for (let i = 0; i < table.length; ++i) table.set(i, null);
+    for (let i = 0; i < table.length; ++i) {
+      assertSame(null, table.get(i));
+      assertSame(undefined, table.set(String(i), f));
+      assertSame(f, table.get(i));
+    }
+
+    for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+      assertSame(undefined, table.set(0, null));
+      assertSame(undefined, table.set(key, f));
+      assertSame(f, table.get(0));
+    }
+
+    for (let key of [-1, table.length, table.length * 10]) {
+      assertThrows(() => table.set(key, f), RangeError);
+    }
+
+    assertThrows(() => table.set(0), TypeError);
+    for (let val of [undefined, 0, "", {}, [], () => {}]) {
+      assertThrows(() => table.set(0, val), TypeError);
+    }
+
+    assertThrows(() => table.set(Symbol(), f), TypeError);
+    assertThrows(() => WebAssembly.Table.prototype.set.call([], 0, f),
+                 TypeError);
+  }
+})();
+
+(function TestGrow() {
+  let builder = new WasmModuleBuilder;
+  builder.addExport("wasm", builder.addFunction("", kSig_v_v));
+  builder.addExport("host", builder.addImportWithModule("test", "f", kSig_v_v));
+  let {wasm, host} = builder.instantiate({test: {f() {}}}).exports;
+
+  function init(table) {
+    for (let i = 0; i < 5; ++i) table.set(i, wasm);
+    for (let i = 15; i < 20; ++i) table.set(i, host);
+  }
+  function check(table) {
+    for (let i = 0; i < 5; ++i) assertSame(wasm, table.get(i));
+    for (let i = 6; i < 15; ++i) assertSame(null, table.get(i));
+    for (let i = 15; i < 20; ++i) assertSame(host, table.get(i));
+    for (let i = 21; i < table.length; ++i) assertSame(null, table.get(i));
+  }
+
+  let table = new WebAssembly.Table({element: "anyfunc", initial: 20});
+  init(table);
+  check(table);
+  table.grow(0);
+  check(table);
+  table.grow(10);
+  check(table);
+  assertThrows(() => table.grow(-10), RangeError);
+
+  table = new WebAssembly.Table({element: "anyfunc", initial: 20, maximum: 25});
+  init(table);
+  check(table);
+  table.grow(0);
+  check(table);
+  table.grow(5);
+  check(table);
+  table.grow(0);
+  check(table);
+  assertThrows(() => table.grow(1), RangeError);
+  assertThrows(() => table.grow(-10), RangeError);
+
+  assertThrows(() => WebAssembly.Table.prototype.grow.call([], 0), TypeError);
 })();

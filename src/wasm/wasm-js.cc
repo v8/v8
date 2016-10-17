@@ -366,6 +366,8 @@ bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
   return false;
 }
 
+const int max_table_size = 1 << 26;
+
 void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
@@ -392,7 +394,6 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
   }
-  const int max_table_size = 1 << 26;
   // The descriptor's 'initial'.
   int initial;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
@@ -511,10 +512,44 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Table")) {
     return;
   }
-  // TODO(rossberg): grow table and update relevant instances.
-  v8::Local<v8::Value> e =
-      v8::Exception::TypeError(v8_str(isolate, "Table#grow unimplemented"));
-  isolate->ThrowException(e);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::FixedArray> old_array(
+      i::FixedArray::cast(
+          receiver->GetInternalField(kWasmTableArrayFieldIndex)),
+      i_isolate);
+  int old_size = old_array->length();
+  int64_t new_size64 = 0;
+  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
+    return;
+  }
+  new_size64 += old_size;
+
+  i::Handle<i::Object> max_val(
+      receiver->GetInternalField(kWasmTableMaximumFieldIndex), i_isolate);
+  int max_size =
+      max_val->IsSmi() ? i::Smi::cast(*max_val)->value() : max_table_size;
+  if (new_size64 < old_size || new_size64 > max_size) {
+    v8::Local<v8::Value> e = v8::Exception::RangeError(
+        v8_str(isolate, new_size64 < old_size ? "trying to shrink table"
+                                              : "maximum table size exceeded"));
+    isolate->ThrowException(e);
+    return;
+  }
+  int new_size = static_cast<int>(new_size64);
+
+  if (new_size != old_size) {
+    i::Handle<i::FixedArray> new_array =
+        i_isolate->factory()->NewFixedArray(new_size);
+    for (int i = 0; i < old_size; ++i) new_array->set(i, old_array->get(i));
+    i::Object* null = i_isolate->heap()->null_value();
+    for (int i = old_size; i < new_size; ++i) new_array->set(i, null);
+    receiver->SetInternalField(kWasmTableArrayFieldIndex, *new_array);
+  }
+
+  // TODO(titzer): update relevant instances.
 }
 
 void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -535,15 +570,21 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int i = 0;
   if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  if (i >= 0 && i < i::Handle<i::FixedArray>::cast(array)->length()) {
-    i::Handle<i::Object> value(i::Handle<i::FixedArray>::cast(array)->get(i),
-                               i_isolate);
-    return_value.Set(Utils::ToLocal(value));
+  if (i < 0 || i >= i::Handle<i::FixedArray>::cast(array)->length()) {
+    v8::Local<v8::Value> e =
+        v8::Exception::RangeError(v8_str(isolate, "index out of bounds"));
+    isolate->ThrowException(e);
+    return;
   }
+
+  i::Handle<i::Object> value(i::Handle<i::FixedArray>::cast(array)->get(i),
+                             i_isolate);
+  return_value.Set(Utils::ToLocal(value));
 }
 
 void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
   if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
@@ -551,19 +592,39 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Table")) {
     return;
   }
-  if (args.Length() < 2 ||
-      !(args[1]->IsNull() ||
-        (args[1]->IsObject() && v8::Object::Cast(*args[1])->IsCallable()))) {
+  if (args.Length() < 2) {
     v8::Local<v8::Value> e = v8::Exception::TypeError(
         v8_str(isolate, "Argument 1 must be null or a function"));
     isolate->ThrowException(e);
     return;
   }
+  i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
+  if (!value->IsNull(i_isolate) &&
+      (!value->IsJSFunction() ||
+       i::Handle<i::JSFunction>::cast(value)->code()->kind() !=
+           i::Code::JS_TO_WASM_FUNCTION)) {
+    v8::Local<v8::Value> e = v8::Exception::TypeError(
+        v8_str(isolate, "Argument 1 must be null or a WebAssembly function"));
+    isolate->ThrowException(e);
+    return;
+  }
 
-  // TODO(rossberg): set table element and update relevent instances.
-  v8::Local<v8::Value> e =
-      v8::Exception::TypeError(v8_str(isolate, "Table#set unimplemented"));
-  isolate->ThrowException(e);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::Object> array(
+      receiver->GetInternalField(kWasmTableArrayFieldIndex), i_isolate);
+  int i;
+  if (!args[0]->Int32Value(context).To(&i)) return;
+  if (i < 0 || i >= i::Handle<i::FixedArray>::cast(array)->length()) {
+    v8::Local<v8::Value> e =
+        v8::Exception::RangeError(v8_str(isolate, "index out of bounds"));
+    isolate->ThrowException(e);
+    return;
+  }
+
+  i::Handle<i::FixedArray>::cast(array)->set(i, *value);
+
+  // TODO(titzer): update relevant instances.
 }
 
 void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {

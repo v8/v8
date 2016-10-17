@@ -87,7 +87,7 @@ class WasmFunctionBuilder {
   }
 
   exportAs(name) {
-    this.module.exports.push({name: name, kind: kExternalFunction, index: this.index});
+    this.module.addExport(name, this.index);
     return this;
   }
 
@@ -203,6 +203,11 @@ class WasmModuleBuilder {
   addImportedMemory(module, name, initial = 0, maximum) {
     let o = {module: module, name: name, kind: kExternalMemory, initial: initial, maximum: maximum};
     this.imports.push(o);
+    return this;
+  }
+
+  addExport(name, index) {
+    this.exports.push({name: name, kind: kExternalFunction, index: index});
     return this;
   }
 
