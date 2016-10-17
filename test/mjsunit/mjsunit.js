@@ -204,6 +204,11 @@ var assertMatches;
   }
 
 
+  function failWithMessage(message) {
+    throw new MjsUnitAssertionError(message);
+  }
+
+
   function fail(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
     if (name_opt) {
@@ -364,7 +369,7 @@ var assertMatches;
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
       } else if (type_opt !== void 0) {
-        fail("invalid use of assertThrows, maybe you want assertThrowsEquals");
+        failWithMessage("invalid use of assertThrows, maybe you want assertThrowsEquals");
       }
       if (arguments.length >= 3) {
         assertEquals(e.type, cause_opt);
@@ -372,7 +377,7 @@ var assertMatches;
       // Success.
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -383,7 +388,7 @@ var assertMatches;
       assertEquals(val, e);
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -394,9 +399,9 @@ var assertMatches;
       if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithmessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
-               (actualTypeName ? " but of < " + actualTypeName + ">" : ""));
+               (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }
   };
 
@@ -409,7 +414,7 @@ var assertMatches;
         eval(code);
       }
     } catch (e) {
-      fail("threw an exception: ", e.message || e, name_opt);
+      failWithMessage("threw an exception: " + (e.message || e));
     }
   };
 
@@ -419,7 +424,7 @@ var assertMatches;
     if (name_opt) {
       message += " - " + name_opt;
     }
-    throw new MjsUnitAssertionError(message);
+    failWithMessage(message);
   };
 
   assertContains = function(sub, value, name_opt) {
