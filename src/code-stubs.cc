@@ -411,7 +411,7 @@ void CompareICStub::Generate(MacroAssembler* masm) {
 
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
-  Zone zone(isolate()->allocator());
+  Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   CodeStubAssembler assembler(isolate(), &zone, descriptor, GetCodeFlags(),
                               name);

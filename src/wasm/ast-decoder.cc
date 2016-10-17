@@ -1784,7 +1784,7 @@ class WasmFullDecoder : public WasmDecoder {
 bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
                       const byte* end) {
   AccountingAllocator allocator;
-  Zone tmp(&allocator);
+  Zone tmp(&allocator, ZONE_NAME);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
   WasmFullDecoder decoder(&tmp, nullptr, body);
   return decoder.DecodeLocalDecls(decls);
@@ -1803,7 +1803,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
 
 DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                             FunctionBody& body) {
-  Zone zone(allocator);
+  Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, nullptr, body);
   decoder.Decode();
   return decoder.toResult<DecodeStruct*>(nullptr);
@@ -1811,7 +1811,7 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body) {
-  Zone zone(allocator);
+  Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, builder, body);
   decoder.Decode();
   return decoder.toResult<DecodeStruct*>(nullptr);
@@ -1831,7 +1831,7 @@ void PrintAstForDebugging(const byte* start, const byte* end) {
 bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
               std::ostream& os,
               std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
-  Zone zone(allocator);
+  Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, nullptr, body);
   int line_nr = 0;
 

@@ -54,7 +54,7 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
 
 void Interpreter::Initialize() {
   if (IsDispatchTableInitialized()) return;
-  Zone zone(isolate_->allocator());
+  Zone zone(isolate_->allocator(), ZONE_NAME);
   HandleScope scope(isolate_);
 
   if (FLAG_trace_ignition_dispatches) {

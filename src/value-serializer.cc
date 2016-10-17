@@ -130,7 +130,7 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
                                  v8::ValueSerializer::Delegate* delegate)
     : isolate_(isolate),
       delegate_(delegate),
-      zone_(isolate->allocator()),
+      zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), &zone_),
       array_buffer_transfer_map_(isolate->heap(), &zone_) {}
 

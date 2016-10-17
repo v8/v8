@@ -265,7 +265,7 @@ TEST(InterpreterShiftOpsSmi) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
         Factory* factory = isolate->factory();
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
@@ -304,7 +304,7 @@ TEST(InterpreterBinaryOpsSmi) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
         Factory* factory = isolate->factory();
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
@@ -345,7 +345,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
         Factory* factory = isolate->factory();
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
@@ -380,7 +380,7 @@ TEST(InterpreterStringAdd) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   struct TestCase {
     Handle<Object> lhs;
@@ -472,7 +472,7 @@ TEST(InterpreterParameter1) {
 TEST(InterpreterParameter8) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 8, 0, 0);
 
   FeedbackVectorSpec feedback_spec(&zone);
@@ -527,7 +527,7 @@ TEST(InterpreterParameter8) {
 TEST(InterpreterBinaryOpTypeFeedback) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
-  i::Zone zone(isolate->allocator());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
 
   struct BinaryOpExpectation {
     Token::Value op;
@@ -673,7 +673,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
 TEST(InterpreterBinaryOpSmiTypeFeedback) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
-  i::Zone zone(isolate->allocator());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
 
   struct BinaryOpExpectation {
     Token::Value op;
@@ -777,7 +777,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
 TEST(InterpreterUnaryOpFeedback) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
-  i::Zone zone(isolate->allocator());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
 
   Handle<Smi> smi_one = Handle<Smi>(Smi::FromInt(1), isolate);
   Handle<Smi> smi_max = Handle<Smi>(Smi::FromInt(Smi::kMaxValue), isolate);
@@ -854,7 +854,7 @@ TEST(InterpreterUnaryOpFeedback) {
 TEST(InterpreterBitwiseTypeFeedback) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
-  i::Zone zone(isolate->allocator());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
   const Token::Value kBitwiseBinaryOperators[] = {
       Token::Value::BIT_OR, Token::Value::BIT_XOR, Token::Value::BIT_AND,
       Token::Value::SHL,    Token::Value::SHR,     Token::Value::SAR};
@@ -1030,7 +1030,7 @@ TEST(InterpreterLoadNamedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
@@ -1083,7 +1083,7 @@ TEST(InterpreterLoadKeyedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
@@ -1125,7 +1125,7 @@ TEST(InterpreterStoreNamedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
@@ -1184,7 +1184,7 @@ TEST(InterpreterStoreKeyedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
@@ -1231,7 +1231,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
@@ -1407,7 +1407,7 @@ static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
 TEST(InterpreterJumps) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
@@ -1446,7 +1446,7 @@ TEST(InterpreterJumps) {
 TEST(InterpreterConditionalJumps) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
@@ -1496,7 +1496,7 @@ TEST(InterpreterConditionalJumps2) {
   // TODO(oth): Add tests for all conditional jumps near and far.
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
@@ -1547,7 +1547,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   Isolate* isolate = handles.main_isolate();
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 257);
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
@@ -1692,7 +1692,7 @@ TEST(InterpreterSmiComparisons) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
@@ -1739,7 +1739,7 @@ TEST(InterpreterHeapNumberComparisons) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
         Factory* factory = isolate->factory();
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
@@ -1775,7 +1775,7 @@ TEST(InterpreterStringComparisons) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   std::string inputs[] = {"A", "abc", "z", "", "Foo!", "Foo"};
 
@@ -1841,7 +1841,7 @@ TEST(InterpreterMixedComparisons) {
           Isolate* isolate = handles.main_isolate();
           Factory* factory = isolate->factory();
           BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
-          Zone zone(isolate->allocator());
+          Zone zone(isolate->allocator(), ZONE_NAME);
 
           FeedbackVectorSpec feedback_spec(&zone);
           FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();

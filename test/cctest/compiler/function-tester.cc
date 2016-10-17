@@ -157,7 +157,7 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
-  Zone zone(function->GetIsolate()->allocator());
+  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
   ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 
@@ -185,7 +185,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
-  Zone zone(function->GetIsolate()->allocator());
+  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
   ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 

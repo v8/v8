@@ -240,7 +240,7 @@ class JSONGraphEdgeWriter {
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
   AccountingAllocator allocator;
-  Zone tmp_zone(&allocator);
+  Zone tmp_zone(&allocator, ZONE_NAME);
   os << "{\n\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
   os << "],\n\"edges\":[";
@@ -630,7 +630,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
 
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
   AccountingAllocator allocator;
-  Zone tmp_zone(&allocator);
+  Zone tmp_zone(&allocator, ZONE_NAME);
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
 }
@@ -638,7 +638,7 @@ std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
   AccountingAllocator allocator;
-  Zone tmp_zone(&allocator);
+  Zone tmp_zone(&allocator, ZONE_NAME);
   GraphC1Visualizer(os, &tmp_zone)
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
   return os;
@@ -648,7 +648,7 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
   AccountingAllocator allocator;
-  Zone tmp_zone(&allocator);
+  Zone tmp_zone(&allocator, ZONE_NAME);
   GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
   return os;
 }
@@ -659,7 +659,7 @@ const int kVisited = 2;
 
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   AccountingAllocator allocator;
-  Zone local_zone(&allocator);
+  Zone local_zone(&allocator, ZONE_NAME);
 
   // Do a post-order depth-first search on the RPO graph. For every node,
   // print:

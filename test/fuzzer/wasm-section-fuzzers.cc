@@ -36,7 +36,7 @@ int fuzz_wasm_section(WasmSectionCode section, const uint8_t* data,
   v8::TryCatch try_catch(isolate);
 
   v8::internal::AccountingAllocator allocator;
-  v8::internal::Zone zone(&allocator);
+  v8::internal::Zone zone(&allocator, ZONE_NAME);
 
   ZoneBuffer buffer(&zone);
   buffer.write_u32(kWasmMagic);

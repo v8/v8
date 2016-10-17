@@ -95,7 +95,7 @@ void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   RawBuffer buffer = GetRawBufferSource(args[0], &thrower);
   if (thrower.error()) return;
 
-  i::Zone zone(isolate->allocator());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
   internal::wasm::ModuleResult result =
       internal::wasm::DecodeWasmModule(isolate, &zone, buffer.start, buffer.end,
                                        true, internal::wasm::kWasmOrigin);
@@ -123,7 +123,7 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   {
     // Verification of a single function shouldn't allocate.
     i::DisallowHeapAllocation no_allocation;
-    i::Zone zone(isolate->allocator());
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
     result = internal::wasm::DecodeWasmFunction(isolate, &zone, nullptr,
                                                 buffer.start, buffer.end);
   }
@@ -142,7 +142,7 @@ i::MaybeHandle<i::JSObject> InstantiateModule(
 
   // Decode but avoid a redundant pass over function bodies for verification.
   // Verification will happen during compilation.
-  i::Zone zone(isolate->allocator());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
   i::MaybeHandle<i::JSObject> module_object =
       i::wasm::CreateModuleObjectFromBytes(
           isolate, start, end, thrower, i::wasm::kWasmOrigin,

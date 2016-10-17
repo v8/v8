@@ -2650,7 +2650,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // the previous zone is always restored after parsing the body. To be able
     // to do scope analysis correctly after full parsing, we migrate needed
     // information when the function is parsed.
-    Zone temp_zone(zone()->allocator());
+    Zone temp_zone(zone()->allocator(), ZONE_NAME);
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
 #ifdef DEBUG
     if (use_temp_zone) scope->set_needs_migration();

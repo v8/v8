@@ -487,7 +487,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   int subject_length = subject->length();
 
   // CompiledReplacement uses zone allocation.
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   CompiledReplacement compiled_replacement(&zone);
   bool simple_replace =
       compiled_replacement.Compile(replacement, capture_count, subject_length);
@@ -1517,7 +1517,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     }
   }
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneVector<Handle<Object>> results(&zone);
 
   while (true) {

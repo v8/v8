@@ -93,11 +93,11 @@ class PipelineData {
         outer_zone_(info_->zone()),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
-        graph_zone_scope_(zone_stats_),
+        graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_zone_(graph_zone_scope_.zone()),
-        instruction_zone_scope_(zone_stats_),
+        instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
-        register_allocation_zone_scope_(zone_stats_),
+        register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
     graph_ = new (graph_zone_) Graph(graph_zone_);
@@ -120,12 +120,12 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
-        graph_zone_scope_(zone_stats_),
+        graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_(graph),
         source_positions_(source_positions),
-        instruction_zone_scope_(zone_stats_),
+        instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
-        register_allocation_zone_scope_(zone_stats_),
+        register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
   // For machine graph testing entry point.
@@ -135,13 +135,13 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
-        graph_zone_scope_(zone_stats_),
+        graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_(graph),
         source_positions_(new (info->zone()) SourcePositionTable(graph_)),
         schedule_(schedule),
-        instruction_zone_scope_(zone_stats_),
+        instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
-        register_allocation_zone_scope_(zone_stats_),
+        register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
   // For register allocation testing entry point.
@@ -151,11 +151,11 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
-        graph_zone_scope_(zone_stats_),
-        instruction_zone_scope_(zone_stats_),
+        graph_zone_scope_(zone_stats_, ZONE_NAME),
+        instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
-        register_allocation_zone_scope_(zone_stats_),
+        register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
   ~PipelineData() {
@@ -518,7 +518,7 @@ class PipelineRunScope {
       : phase_scope_(
             phase_name == nullptr ? nullptr : data->pipeline_statistics(),
             phase_name),
-        zone_scope_(data->zone_stats()) {}
+        zone_scope_(data->zone_stats(), ZONE_NAME) {}
 
   Zone* zone() { return zone_scope_.zone(); }
 
@@ -568,7 +568,7 @@ class PipelineCompilationJob final : public CompilationJob {
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
       : CompilationJob(isolate, &info_, "TurboFan"),
-        zone_(isolate->allocator()),
+        zone_(isolate->allocator(), ZONE_NAME),
         zone_stats_(isolate->allocator()),
         parse_info_(&zone_, handle(function->shared())),
         info_(&parse_info_, function),
@@ -1787,7 +1787,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
       (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
        !strcmp(FLAG_turbo_verify_machine_graph,
                data->info()->GetDebugName().get()))) {
-    Zone temp_zone(data->isolate()->allocator());
+    Zone temp_zone(data->isolate()->allocator(), ZONE_NAME);
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
                               &temp_zone);
   }
@@ -1911,7 +1911,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   std::unique_ptr<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
-    verifier_zone.reset(new Zone(isolate()->allocator()));
+    verifier_zone.reset(new Zone(isolate()->allocator(), ZONE_NAME));
     verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
         verifier_zone.get(), config, data->sequence());
   }

@@ -614,7 +614,7 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : zone(&allocator_),
+      : zone(&allocator_, ZONE_NAME),
         compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
@@ -626,7 +626,7 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : zone(&allocator_),
+      : zone(&allocator_, ZONE_NAME),
         compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),

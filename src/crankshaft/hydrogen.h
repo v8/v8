@@ -37,7 +37,7 @@ class HCompilationJob final : public CompilationJob {
  public:
   explicit HCompilationJob(Handle<JSFunction> function)
       : CompilationJob(function->GetIsolate(), &info_, "Crankshaft"),
-        zone_(function->GetIsolate()->allocator()),
+        zone_(function->GetIsolate()->allocator(), ZONE_NAME),
         parse_info_(&zone_, handle(function->shared())),
         info_(&parse_info_, function),
         graph_(nullptr),

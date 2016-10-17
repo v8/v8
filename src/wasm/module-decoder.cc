@@ -1106,7 +1106,7 @@ FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
 
 WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
   AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   ModuleDecoder decoder(&zone, start, end, kWasmOrigin);
   return decoder.DecodeInitExpr(start);
 }

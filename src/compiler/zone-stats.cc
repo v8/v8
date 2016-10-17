@@ -84,8 +84,8 @@ size_t ZoneStats::GetTotalAllocatedBytes() {
   return total_deleted_bytes_ + GetCurrentAllocatedBytes();
 }
 
-Zone* ZoneStats::NewEmptyZone() {
-  Zone* zone = new Zone(allocator_);
+Zone* ZoneStats::NewEmptyZone(const char* zone_name) {
+  Zone* zone = new Zone(allocator_, zone_name);
   zones_.push_back(zone);
   return zone;
 }

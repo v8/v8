@@ -276,7 +276,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
   // Move marked code from the optimized code list to the deoptimized
   // code list, collecting them into a ZoneList.
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneList<Code*> codes(10, &zone);
 
   // Walk over all optimized code objects in this native context.

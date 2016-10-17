@@ -136,7 +136,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         JSRegExp::Flags flags) {
   Isolate* isolate = re->GetIsolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<FixedArray> maybe_cached =
       compilation_cache->LookupRegExp(pattern, flags);
@@ -336,7 +336,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  bool is_one_byte) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
   // If we had a compilation error the last time this is saved at the
   // saved code index.

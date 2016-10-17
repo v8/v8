@@ -3093,7 +3093,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   MachineOperatorBuilder machine(&zone);
@@ -3167,7 +3167,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   MachineOperatorBuilder machine(&zone);
@@ -3296,7 +3296,7 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
       isolate_(isolate),
       module_env_(module_env),
       function_(function),
-      graph_zone_(new Zone(isolate->allocator())),
+      graph_zone_(new Zone(isolate->allocator(), ZONE_NAME)),
       jsgraph_(new (graph_zone()) JSGraph(
           isolate, new (graph_zone()) Graph(graph_zone()),
           new (graph_zone()) CommonOperatorBuilder(graph_zone()), nullptr,
@@ -3304,7 +3304,7 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
                        graph_zone(), MachineType::PointerRepresentation(),
                        InstructionSelector::SupportedMachineOperatorFlags(),
                        InstructionSelector::AlignmentRequirements()))),
-      compilation_zone_(isolate->allocator()),
+      compilation_zone_(isolate->allocator(), ZONE_NAME),
       info_(function->name_length != 0
                 ? module_env->module->GetNameOrNull(function->name_offset,
                                                     function->name_length)

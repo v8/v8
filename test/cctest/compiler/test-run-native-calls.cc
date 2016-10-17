@@ -258,7 +258,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
 
 
 Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
-  Zone zone(inner->GetIsolate()->allocator());
+  Zone zone(inner->GetIsolate()->allocator(), ZONE_NAME);
   int param_count = static_cast<int>(desc->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
@@ -424,7 +424,7 @@ class Computer {
     Handle<Code> inner = Handle<Code>::null();
     {
       // Build the graph for the computation.
-      Zone zone(isolate->allocator());
+      Zone zone(isolate->allocator(), ZONE_NAME);
       Graph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       build(desc, raw);
@@ -439,7 +439,7 @@ class Computer {
       Handle<Code> wrapper = Handle<Code>::null();
       {
         // Wrap the above code with a callable function that passes constants.
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         Graph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -471,7 +471,7 @@ class Computer {
       Handle<Code> wrapper = Handle<Code>::null();
       {
         // Wrap the above code with a callable function that loads from {input}.
-        Zone zone(isolate->allocator());
+        Zone zone(isolate->allocator(), ZONE_NAME);
         Graph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -509,7 +509,7 @@ class Computer {
 static void TestInt32Sub(CallDescriptor* desc) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   GraphAndBuilders inner(&zone);
   {
     // Build the add function.
@@ -549,7 +549,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   Handle<Code> inner = Handle<Code>::null();
   {
     // Writes all parameters into the output buffer.
-    Zone zone(isolate->allocator());
+    Zone zone(isolate->allocator(), ZONE_NAME);
     Graph graph(&zone);
     RawMachineAssembler raw(isolate, &graph, desc);
     Node* base = raw.PointerConstant(output);
@@ -566,7 +566,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   Handle<Code> wrapper = Handle<Code>::null();
   {
     // Loads parameters from the input buffer and calls the above code.
-    Zone zone(isolate->allocator());
+    Zone zone(isolate->allocator(), ZONE_NAME);
     Graph graph(&zone);
     CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
     RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -606,7 +606,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
 static void Test_RunInt32SubWithRet(int retreg) {
   Int32Signature sig(2);
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   RegisterPairs pairs;
   while (pairs.More()) {
     int parray[2];
@@ -657,7 +657,7 @@ TEST(Run_Int32Sub_all_allocatable_single) {
   RegisterPairs pairs;
   while (pairs.More()) {
     v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator);
+    Zone zone(&allocator, ZONE_NAME);
     int parray[1];
     int rarray[1];
     pairs.Next(&rarray[0], &parray[0], true);
@@ -675,7 +675,7 @@ TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
   RegisterPairs pairs;
   while (pairs.More()) {
     v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator);
+    Zone zone(&allocator, ZONE_NAME);
     int parray[2];
     int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
     pairs.Next(&parray[0], &parray[1], false);
@@ -726,7 +726,7 @@ static void Test_Int32_WeightedSum_of_size(int count) {
   for (int p0 = 0; p0 < Register::kNumRegisters; p0++) {
     if (GetRegConfig()->IsAllocatableGeneralCode(p0)) {
       v8::internal::AccountingAllocator allocator;
-      Zone zone(&allocator);
+      Zone zone(&allocator, ZONE_NAME);
 
       int parray[] = {p0};
       int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
@@ -789,7 +789,7 @@ void Test_Int32_Select() {
   RegisterConfig config(params, rets);
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   for (int i = which + 1; i <= 64; i++) {
     Int32Signature sig(i);
@@ -828,7 +828,7 @@ TEST(Int64Select_registers) {
 
   RegisterPairs pairs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   while (pairs.More()) {
     int parray[2];
     pairs.Next(&parray[0], &parray[1], false);
@@ -853,7 +853,7 @@ TEST(Float32Select_registers) {
 
   Float32RegisterPairs pairs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   while (pairs.More()) {
     int parray[2];
     pairs.Next(&parray[0], &parray[1], false);
@@ -876,7 +876,7 @@ TEST(Float64Select_registers) {
 
   Float64RegisterPairs pairs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   while (pairs.More()) {
     int parray[2];
     pairs.Next(&parray[0], &parray[1], false);
@@ -898,7 +898,7 @@ TEST(Float32Select_stack_params_return_reg) {
   RegisterConfig config(params, rets);
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   for (int count = 1; count < 6; count++) {
     ArgsBuffer<float32>::Sig sig(count);
     CallDescriptor* desc = config.Create(&zone, &sig);
@@ -919,7 +919,7 @@ TEST(Float64Select_stack_params_return_reg) {
   RegisterConfig config(params, rets);
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   for (int count = 1; count < 6; count++) {
     ArgsBuffer<float64>::Sig sig(count);
     CallDescriptor* desc = config.Create(&zone, &sig);
@@ -942,7 +942,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     // Build the actual select.
-    Zone zone(isolate->allocator());
+    Zone zone(isolate->allocator(), ZONE_NAME);
     Graph graph(&zone);
     RawMachineAssembler raw(isolate, &graph, desc);
     raw.Return(raw.Parameter(which));
@@ -971,7 +971,7 @@ TEST(Float64StackParamsToStackParams) {
   Allocator rets(nullptr, 0, rarray, 1);
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   ArgsBuffer<float64>::Sig sig(2);
   RegisterConfig config(params, rets);
   CallDescriptor* desc = config.Create(&zone, &sig);
@@ -1026,7 +1026,7 @@ void MixedParamTest(int start) {
 
   for (int which = 0; which < num_params; which++) {
     v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator);
+    Zone zone(&allocator, ZONE_NAME);
     HandleScope scope(isolate);
     MachineSignature::Builder builder(&zone, 1, num_params);
     builder.AddReturn(params[which]);
@@ -1037,7 +1037,7 @@ void MixedParamTest(int start) {
     Handle<Code> select;
     {
       // build the select.
-      Zone zone(&allocator);
+      Zone zone(&allocator, ZONE_NAME);
       Graph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       raw.Return(raw.Parameter(which));
@@ -1054,7 +1054,7 @@ void MixedParamTest(int start) {
       CSignature0<int32_t> csig;
       {
         // Wrap the select code with a callable function that passes constants.
-        Zone zone(&allocator);
+        Zone zone(&allocator, ZONE_NAME);
         Graph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -1135,7 +1135,7 @@ void TestStackSlot(MachineType slot_type, T expected) {
   Allocator ralloc(rarray_gp, 1, rarray_fp, 1);
   RegisterConfig config(palloc, ralloc);
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   MachineSignature::Builder builder(&zone, 1, 12);
   builder.AddReturn(MachineType::Int32());

@@ -447,7 +447,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    Zone zone(isolate->allocator());
+    Zone zone(isolate->allocator(), ZONE_NAME);
     std::unique_ptr<ParseInfo> info(
         location.function()->shared()->is_function()
             ? new ParseInfo(&zone, handle(location.function()->shared()))

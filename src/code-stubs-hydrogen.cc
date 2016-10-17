@@ -249,7 +249,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
 Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
     CodeStubDescriptor* descriptor) {
   const char* name = CodeStub::MajorName(MajorKey());
-  Zone zone(isolate()->allocator());
+  Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor interface_descriptor(GetCallInterfaceDescriptor());
   CodeStubAssembler assembler(isolate(), &zone, interface_descriptor,
                               GetCodeFlags(), name);
@@ -307,7 +307,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     timer.Start();
   }
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   CompilationInfo info(CStrVector(CodeStub::MajorName(stub->MajorKey())),
                        isolate, &zone, stub->GetCodeFlags());
   // Parameter count is number of stack parameters.

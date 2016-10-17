@@ -102,7 +102,7 @@ int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, ModuleOrigin origin) {
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   Handle<JSObject> instance = CompileInstantiateWasmModuleForTesting(
       isolate, &thrower, &zone, module_start, module_end, origin);
@@ -117,7 +117,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             WasmVal* args) {
   CHECK(module != nullptr);
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
 
   if (module->import_table.size() > 0) {

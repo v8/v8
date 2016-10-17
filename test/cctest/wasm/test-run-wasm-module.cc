@@ -58,7 +58,7 @@ TEST(Run_WasmModule_Return114) {
   static const int32_t kReturnValue = 114;
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -70,7 +70,7 @@ TEST(Run_WasmModule_Return114) {
 
 TEST(Run_WasmModule_CallAdd) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -93,7 +93,7 @@ TEST(Run_WasmModule_CallAdd) {
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
   static const byte kDataSegmentDest0 = 12;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -111,7 +111,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
 TEST(Run_WasmModule_CheckMemoryIsZero) {
   static const int kCheckSize = 16 * 1024;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -132,7 +132,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
 
 TEST(Run_WasmModule_CallMain_recursive) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -154,7 +154,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
 
 TEST(Run_WasmModule_Global) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -176,7 +176,7 @@ TEST(Run_WasmModule_Global) {
 TEST(Run_WasmModule_Serialization) {
   static const char* kFunctionName = "increment";
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   TestSignatures sigs;
@@ -279,7 +279,7 @@ TEST(MemorySize) {
   static const int kExpectedValue = 16;
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -294,7 +294,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
   static const int kExpectedValue = 26;
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -309,7 +309,7 @@ TEST(GrowMemoryZero) {
   static const int kExpectedValue = 16;
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -361,7 +361,7 @@ TEST(TestInterruptLoop) {
   TestSignatures sigs;
   Isolate* isolate = CcTest::InitIsolateOnce();
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -403,7 +403,7 @@ TEST(TestInterruptLoop) {
 TEST(Run_WasmModule_GrowMemoryInIf) {
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   ExportAsMain(f);
@@ -420,7 +420,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
   int value = 0xaced;
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -439,7 +439,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
   int value = 0xaced;
   TestSignatures sigs;
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
@@ -484,7 +484,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
   TestSignatures sigs;
   Isolate* isolate = CcTest::InitIsolateOnce();
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
@@ -538,7 +538,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
 
 TEST(Run_WasmModule_Global_init) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -557,7 +557,7 @@ TEST(Run_WasmModule_Global_init) {
 template <typename CType>
 static void RunWasmModuleGlobalInitTest(LocalType type, CType expected) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   TestSignatures sigs;
 
   LocalType types[] = {type};

@@ -50,7 +50,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToParse);
   HandleScope scope(isolate_);
   unicode_cache_.reset(new UnicodeCache());
-  zone_.reset(new Zone(isolate_->allocator()));
+  zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
   Handle<Script> script(Script::cast(shared_->script()), isolate_);
   DCHECK(script->type() != Script::TYPE_NATIVE);
 

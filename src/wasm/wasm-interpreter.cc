@@ -1741,7 +1741,7 @@ class WasmInterpreterInternals : public ZoneObject {
 //============================================================================
 WasmInterpreter::WasmInterpreter(WasmInstance* instance,
                                  AccountingAllocator* allocator)
-    : zone_(allocator),
+    : zone_(allocator, ZONE_NAME),
       internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }

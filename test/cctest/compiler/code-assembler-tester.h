@@ -13,7 +13,8 @@ namespace compiler {
 
 class ZoneHolder {
  public:
-  explicit ZoneHolder(Isolate* isolate) : zone_(isolate->allocator()) {}
+  explicit ZoneHolder(Isolate* isolate)
+      : zone_(isolate->allocator(), ZONE_NAME) {}
   Zone* zone() { return &zone_; }
 
  private:

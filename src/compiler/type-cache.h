@@ -21,7 +21,7 @@ class TypeCache final {
  public:
   static TypeCache const& Get();
 
-  TypeCache() : zone_(&allocator) {}
+  TypeCache() : zone_(&allocator, ZONE_NAME) {}
 
   Type* const kInt8 = CreateRange<int8_t>();
   Type* const kUint8 = CreateRange<uint8_t>();

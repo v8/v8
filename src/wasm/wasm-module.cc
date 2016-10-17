@@ -1621,7 +1621,7 @@ class WasmInstanceBuilder {
     } else {
       // Copy the signature to avoid a raw pointer into a heap object when
       // GC can happen.
-      Zone zone(isolate_->allocator());
+      Zone zone(isolate_->allocator(), ZONE_NAME);
       MachineRepresentation* reps =
           zone.NewArray<MachineRepresentation>(sig_data_size);
       memcpy(reps, sig_data->GetDataStartAddress(),
@@ -2131,7 +2131,7 @@ MaybeHandle<JSObject> wasm::CreateModuleObjectFromBytes(
     const byte* asm_js_offset_tables_start,
     const byte* asm_js_offset_tables_end) {
   MaybeHandle<JSObject> nothing;
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ModuleResult result =
       DecodeWasmModule(isolate, &zone, start, end, false, origin);
   std::unique_ptr<const WasmModule> decoded_module(result.val);
@@ -2166,7 +2166,7 @@ MaybeHandle<JSObject> wasm::CreateModuleObjectFromBytes(
 bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
                                const byte* end, ErrorThrower* thrower,
                                ModuleOrigin origin) {
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ModuleResult result =
       DecodeWasmModule(isolate, &zone, start, end, false, origin);
   if (result.ok()) {

@@ -66,7 +66,7 @@ class LoopPeelingTest : public GraphTest {
       OFStream os(stdout);
       os << AsRPO(*graph());
     }
-    Zone zone(isolate()->allocator());
+    Zone zone(isolate()->allocator(), ZONE_NAME);
     return LoopFinder::BuildLoopTree(graph(), &zone);
   }
 

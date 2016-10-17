@@ -3794,7 +3794,7 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
   if (details.type() != DATA) return;
 
-  Zone zone(GetIsolate()->allocator());
+  Zone zone(GetIsolate()->allocator(), ZONE_NAME);
   ZoneQueue<Map*> backlog(&zone);
   backlog.push(this);
 
@@ -20021,7 +20021,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
     }
   }
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   // Resolve imports.
   Handle<FixedArray> regular_imports(module_info->regular_imports(), isolate);
@@ -20184,7 +20184,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   module->set_module_namespace(*ns);
 
   // Collect the export names.
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
   FetchStarExports(module, &zone, &visited);
   Handle<ObjectHashTable> exports(module->exports(), isolate);

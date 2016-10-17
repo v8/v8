@@ -14,6 +14,12 @@
 #include "src/splay-tree.h"
 #include "src/zone/accounting-allocator.h"
 
+#ifndef ZONE_NAME
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define ZONE_NAME __FILE__ ":" TOSTRING(__LINE__)
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -31,7 +37,7 @@ namespace internal {
 // from multi-threaded code.
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  explicit Zone(AccountingAllocator* allocator, const char* name = "unnamed");
+  Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
