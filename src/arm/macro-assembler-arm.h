@@ -729,15 +729,6 @@ class MacroAssembler: public Assembler {
 
   void GetNumberHash(Register t0, Register scratch);
 
-  void LoadFromNumberDictionary(Label* miss,
-                                Register elements,
-                                Register key,
-                                Register result,
-                                Register t0,
-                                Register t1,
-                                Register t2);
-
-
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
   }
@@ -899,13 +890,6 @@ class MacroAssembler: public Assembler {
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);
-
-
-  // Check if a map for a JSObject indicates that the object has fast elements.
-  // Jump to the specified label if it does not.
-  void CheckFastElements(Register map,
-                         Register scratch,
-                         Label* fail);
 
   // Check if a map for a JSObject indicates that the object can have both smi
   // and HeapObject elements.  Jump to the specified label if it does not.

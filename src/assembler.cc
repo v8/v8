@@ -1215,19 +1215,6 @@ ExternalReference ExternalReference::log_leave_external_function(
       Redirect(isolate, FUNCTION_ADDR(Logger::LeaveExternal)));
 }
 
-
-ExternalReference ExternalReference::keyed_lookup_cache_keys(Isolate* isolate) {
-  return ExternalReference(isolate->keyed_lookup_cache()->keys_address());
-}
-
-
-ExternalReference ExternalReference::keyed_lookup_cache_field_offsets(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->keyed_lookup_cache()->field_offsets_address());
-}
-
-
 ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
   return ExternalReference(isolate->heap()->roots_array_start());
 }

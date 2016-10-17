@@ -2099,14 +2099,6 @@ void LoadDictionaryElementStub::InitializeDescriptor(
       FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
 }
 
-
-void KeyedLoadGenericStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
-}
-
-
 void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
   if (kind() == Code::KEYED_LOAD_IC) {

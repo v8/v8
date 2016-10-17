@@ -56,11 +56,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Heap::NewSpaceAllocationTopAddress()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       "mod_two_doubles");
-  // Keyed lookup cache.
-  Add(ExternalReference::keyed_lookup_cache_keys(isolate).address(),
-      "KeyedLookupCache::keys()");
-  Add(ExternalReference::keyed_lookup_cache_field_offsets(isolate).address(),
-      "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::handle_scope_next_address(isolate).address(),
       "HandleScope::next");
   Add(ExternalReference::handle_scope_limit_address(isolate).address(),

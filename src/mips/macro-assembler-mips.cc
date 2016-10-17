@@ -619,87 +619,6 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   And(reg0, reg0, Operand(0x3fffffff));
 }
 
-
-void MacroAssembler::LoadFromNumberDictionary(Label* miss,
-                                              Register elements,
-                                              Register key,
-                                              Register result,
-                                              Register reg0,
-                                              Register reg1,
-                                              Register reg2) {
-  // Register use:
-  //
-  // elements - holds the slow-case elements of the receiver on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // key      - holds the smi key on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  //
-  // result   - holds the result on exit if the load succeeded.
-  //            Allowed to be the same as 'key' or 'result'.
-  //            Unchanged on bailout so 'key' or 'result' can be used
-  //            in further computation.
-  //
-  // Scratch registers:
-  //
-  // reg0 - holds the untagged key on entry and holds the hash once computed.
-  //
-  // reg1 - Used to hold the capacity mask of the dictionary.
-  //
-  // reg2 - Used for the index into the dictionary.
-  // at   - Temporary (avoid MacroAssembler instructions also using 'at').
-  Label done;
-
-  GetNumberHash(reg0, reg1);
-
-  // Compute the capacity mask.
-  lw(reg1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
-  sra(reg1, reg1, kSmiTagSize);
-  Subu(reg1, reg1, Operand(1));
-
-  // Generate an unrolled loop that performs a few probes before giving up.
-  for (int i = 0; i < kNumberDictionaryProbes; i++) {
-    // Use reg2 for index calculations and keep the hash intact in reg0.
-    mov(reg2, reg0);
-    // Compute the masked index: (hash + i + i * i) & mask.
-    if (i > 0) {
-      Addu(reg2, reg2, Operand(SeededNumberDictionary::GetProbeOffset(i)));
-    }
-    and_(reg2, reg2, reg1);
-
-    // Scale the index by multiplying by the element size.
-    DCHECK(SeededNumberDictionary::kEntrySize == 3);
-    Lsa(reg2, reg2, reg2, 1);  // reg2 = reg2 * 3.
-
-    // Check if the key is identical to the name.
-    Lsa(reg2, elements, reg2, kPointerSizeLog2);
-
-    lw(at, FieldMemOperand(reg2, SeededNumberDictionary::kElementsStartOffset));
-    if (i != kNumberDictionaryProbes - 1) {
-      Branch(&done, eq, key, Operand(at));
-    } else {
-      Branch(miss, ne, key, Operand(at));
-    }
-  }
-
-  bind(&done);
-  // Check that the value is a field property.
-  // reg2: elements + (index * kPointerSize).
-  const int kDetailsOffset =
-      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  lw(reg1, FieldMemOperand(reg2, kDetailsOffset));
-  DCHECK_EQ(DATA, 0);
-  And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
-  Branch(miss, ne, at, Operand(zero_reg));
-
-  // Get the value at the masked, scaled index and return.
-  const int kValueOffset =
-      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
-  lw(result, FieldMemOperand(reg2, kValueOffset));
-}
-
-
 // ---------------------------------------------------------------------------
 // Instruction macros.
 
@@ -4734,20 +4653,6 @@ void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
   bind(&entry);
   Branch(&loop, ult, current_address, Operand(end_address));
 }
-
-
-void MacroAssembler::CheckFastElements(Register map,
-                                       Register scratch,
-                                       Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  Branch(fail, hi, scratch,
-         Operand(Map::kMaximumBitField2FastHoleyElementValue));
-}
-
 
 void MacroAssembler::CheckFastObjectElements(Register map,
                                              Register scratch,

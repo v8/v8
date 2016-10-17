@@ -255,8 +255,6 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
 // Flags for experimental implementation features.
-DEFINE_BOOL(compiled_keyed_generic_loads, false,
-            "use optimizing compiler to generate keyed generic load stubs")
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")

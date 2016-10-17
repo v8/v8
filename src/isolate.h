@@ -64,7 +64,6 @@ class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
-class KeyedLookupCache;
 class Logger;
 class MaterializedObjectStore;
 class OptimizingCompileDispatcher;
@@ -860,10 +859,6 @@ class Isolate {
     return materialized_object_store_;
   }
 
-  KeyedLookupCache* keyed_lookup_cache() {
-    return keyed_lookup_cache_;
-  }
-
   ContextSlotCache* context_slot_cache() {
     return context_slot_cache_;
   }
@@ -1325,7 +1320,6 @@ class Isolate {
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
-  KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
   HandleScopeData handle_scope_data_;

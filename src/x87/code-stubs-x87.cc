@@ -2834,14 +2834,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ jmp(ecx);  // Return to IC Miss stub, continuation still on stack.
 }
 
-
-void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
-  KeyedLoadICStub stub(isolate());
-  stub.GenerateForTrampoline(masm);
-}
-
-
 static void HandleArrayCases(MacroAssembler* masm, Register receiver,
                              Register key, Register vector, Register slot,
                              Register feedback, bool is_polymorphic,
@@ -2951,64 +2943,6 @@ static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
                                FixedArray::kHeaderSize + kPointerSize));
   __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
   __ jmp(handler);
-}
-
-
-void KeyedLoadICStub::Generate(MacroAssembler* masm) {
-  GenerateImpl(masm, false);
-}
-
-
-void KeyedLoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
-  GenerateImpl(masm, true);
-}
-
-
-void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = LoadWithVectorDescriptor::ReceiverRegister();  // edx
-  Register key = LoadWithVectorDescriptor::NameRegister();           // ecx
-  Register vector = LoadWithVectorDescriptor::VectorRegister();      // ebx
-  Register slot = LoadWithVectorDescriptor::SlotRegister();          // eax
-  Register feedback = edi;
-  __ mov(feedback, FieldOperand(vector, slot, times_half_pointer_size,
-                                FixedArray::kHeaderSize));
-  // Is it a weak cell?
-  Label try_array;
-  Label not_array, smi_key, key_okay, miss;
-  __ CompareRoot(FieldOperand(feedback, 0), Heap::kWeakCellMapRootIndex);
-  __ j(not_equal, &try_array);
-  HandleMonomorphicCase(masm, receiver, key, vector, slot, feedback, &miss);
-
-  __ bind(&try_array);
-  // Is it a fixed array?
-  __ CompareRoot(FieldOperand(feedback, 0), Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &not_array);
-
-  // We have a polymorphic element handler.
-  Label polymorphic, try_poly_name;
-  __ bind(&polymorphic);
-  HandleArrayCases(masm, receiver, key, vector, slot, feedback, true, &miss);
-
-  __ bind(&not_array);
-  // Is it generic?
-  __ CompareRoot(feedback, Heap::kmegamorphic_symbolRootIndex);
-  __ j(not_equal, &try_poly_name);
-  Handle<Code> megamorphic_stub =
-      KeyedLoadIC::ChooseMegamorphicStub(masm->isolate(), GetExtraICState());
-  __ jmp(megamorphic_stub, RelocInfo::CODE_TARGET);
-
-  __ bind(&try_poly_name);
-  // We might have a name in feedback, and a fixed array in the next slot.
-  __ cmp(key, feedback);
-  __ j(not_equal, &miss);
-  // If the name comparison succeeded, we know we have a fixed array with
-  // at least one map/handler pair.
-  __ mov(feedback, FieldOperand(vector, slot, times_half_pointer_size,
-                                FixedArray::kHeaderSize + kPointerSize));
-  HandleArrayCases(masm, receiver, key, vector, slot, feedback, false, &miss);
-
-  __ bind(&miss);
-  KeyedLoadIC::GenerateMiss(masm);
 }
 
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {

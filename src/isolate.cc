@@ -2064,7 +2064,6 @@ Isolate::Isolate(bool enable_serializer)
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      keyed_lookup_cache_(NULL),
       context_slot_cache_(NULL),
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
@@ -2295,8 +2294,6 @@ Isolate::~Isolate() {
   descriptor_lookup_cache_ = NULL;
   delete context_slot_cache_;
   context_slot_cache_ = NULL;
-  delete keyed_lookup_cache_;
-  keyed_lookup_cache_ = NULL;
 
   delete load_stub_cache_;
   load_stub_cache_ = NULL;
@@ -2438,7 +2435,6 @@ bool Isolate::Init(Deserializer* des) {
 #undef ASSIGN_ELEMENT
 
   compilation_cache_ = new CompilationCache(this);
-  keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();

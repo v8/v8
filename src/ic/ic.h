@@ -355,10 +355,6 @@ class KeyedLoadIC : public LoadIC {
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
-
-  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
-                                            ExtraICState extra_state);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 

@@ -1464,9 +1464,6 @@ void Heap::MarkCompactEpilogue() {
 
 
 void Heap::MarkCompactPrologue() {
-  // At any old GC clear the keyed lookup cache to enable collection of unused
-  // maps.
-  isolate_->keyed_lookup_cache()->Clear();
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
   RegExpResultsCache::Clear(string_split_cache());
@@ -2886,9 +2883,6 @@ void Heap::CreateInitialObjects() {
   set_weak_stack_trace_list(Smi::kZero);
 
   set_noscript_shared_function_infos(Smi::kZero);
-
-  // Initialize keyed lookup cache.
-  isolate_->keyed_lookup_cache()->Clear();
 
   // Initialize context slot cache.
   isolate_->context_slot_cache()->Clear();

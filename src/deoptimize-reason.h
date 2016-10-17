@@ -16,8 +16,6 @@ namespace internal {
   V(ConstantGlobalVariableAssignment, "Constant global variable assignment")  \
   V(ConversionOverflow, "conversion overflow")                                \
   V(DivisionByZero, "division by zero")                                       \
-  V(ElementsKindUnhandledInKeyedLoadGenericStub,                              \
-    "ElementsKind unhandled in KeyedLoadGenericStub")                         \
   V(ExpectedHeapNumber, "Expected heap number")                               \
   V(ExpectedSmi, "Expected smi")                                              \
   V(ForcedDeoptToRuntime, "Forced deopt to runtime")                          \
@@ -46,8 +44,6 @@ namespace internal {
   V(NegativeKeyEncountered, "Negative key encountered")                       \
   V(NegativeValue, "negative value")                                          \
   V(NoCache, "no cache")                                                      \
-  V(NonStrictElementsInKeyedLoadGenericStub,                                  \
-    "non-strict elements in KeyedLoadGenericStub")                            \
   V(NotAHeapNumber, "not a heap number")                                      \
   V(NotAHeapNumberUndefinedBoolean, "not a heap number/undefined/true/false") \
   V(NotAHeapNumberUndefined, "not a heap number/undefined")                   \

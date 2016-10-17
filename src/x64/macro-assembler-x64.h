@@ -1112,12 +1112,6 @@ class MacroAssembler: public Assembler {
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Check if a map for a JSObject indicates that the object has fast elements.
-  // Jump to the specified label if it does not.
-  void CheckFastElements(Register map,
-                         Label* fail,
-                         Label::Distance distance = Label::kFar);
-
   // Check if a map for a JSObject indicates that the object can have both smi
   // and HeapObject elements.  Jump to the specified label if it does not.
   void CheckFastObjectElements(Register map,
@@ -1304,15 +1298,6 @@ class MacroAssembler: public Assembler {
                               Label* miss);
 
   void GetNumberHash(Register r0, Register scratch);
-
-  void LoadFromNumberDictionary(Label* miss,
-                                Register elements,
-                                Register key,
-                                Register r0,
-                                Register r1,
-                                Register r2,
-                                Register result);
-
 
   // ---------------------------------------------------------------------------
   // Allocation support

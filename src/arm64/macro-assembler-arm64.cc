@@ -3719,20 +3719,6 @@ void MacroAssembler::TestAndSplit(const Register& reg,
   }
 }
 
-
-void MacroAssembler::CheckFastElements(Register map,
-                                       Register scratch,
-                                       Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  Ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  Cmp(scratch, Map::kMaximumBitField2FastHoleyElementValue);
-  B(hi, fail);
-}
-
-
 void MacroAssembler::CheckFastObjectElements(Register map,
                                              Register scratch,
                                              Label* fail) {
@@ -3942,69 +3928,6 @@ void MacroAssembler::GetNumberHash(Register key, Register scratch) {
   // hash = hash ^ (hash >> 16);
   Eor(key, key, Operand(key, LSR, 16));
   Bic(key, key, Operand(0xc0000000u));
-}
-
-
-void MacroAssembler::LoadFromNumberDictionary(Label* miss,
-                                              Register elements,
-                                              Register key,
-                                              Register result,
-                                              Register scratch0,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Register scratch3) {
-  DCHECK(!AreAliased(elements, key, scratch0, scratch1, scratch2, scratch3));
-
-  Label done;
-
-  SmiUntag(scratch0, key);
-  GetNumberHash(scratch0, scratch1);
-
-  // Compute the capacity mask.
-  Ldrsw(scratch1,
-        UntagSmiFieldMemOperand(elements,
-                                SeededNumberDictionary::kCapacityOffset));
-  Sub(scratch1, scratch1, 1);
-
-  // Generate an unrolled loop that performs a few probes before giving up.
-  for (int i = 0; i < kNumberDictionaryProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    if (i > 0) {
-      Add(scratch2, scratch0, SeededNumberDictionary::GetProbeOffset(i));
-    } else {
-      Mov(scratch2, scratch0);
-    }
-    And(scratch2, scratch2, scratch1);
-
-    // Scale the index by multiplying by the element size.
-    DCHECK(SeededNumberDictionary::kEntrySize == 3);
-    Add(scratch2, scratch2, Operand(scratch2, LSL, 1));
-
-    // Check if the key is identical to the name.
-    Add(scratch2, elements, Operand(scratch2, LSL, kPointerSizeLog2));
-    Ldr(scratch3,
-        FieldMemOperand(scratch2,
-                        SeededNumberDictionary::kElementsStartOffset));
-    Cmp(key, scratch3);
-    if (i != (kNumberDictionaryProbes - 1)) {
-      B(eq, &done);
-    } else {
-      B(ne, miss);
-    }
-  }
-
-  Bind(&done);
-  // Check that the value is a field property.
-  const int kDetailsOffset =
-      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  Ldrsw(scratch1, UntagSmiFieldMemOperand(scratch2, kDetailsOffset));
-  DCHECK_EQ(DATA, 0);
-  TestAndBranchIfAnySet(scratch1, PropertyDetails::TypeField::kMask, miss);
-
-  // Get the value at the masked, scaled index and return.
-  const int kValueOffset =
-      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
-  Ldr(result, FieldMemOperand(scratch2, kValueOffset));
 }
 
 void MacroAssembler::RecordWriteCodeEntryField(Register js_function,

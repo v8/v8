@@ -1410,28 +1410,6 @@ class HGraphBuilder {
   HValue* BuildToNumber(HValue* input);
   HValue* BuildToObject(HValue* receiver);
 
-  void BuildJSObjectCheck(HValue* receiver,
-                          int bit_field_mask);
-
-  // Checks a key value that's being used for a keyed element access context. If
-  // the key is a index, i.e. a smi or a number in a unique string with a cached
-  // numeric value, the "true" of the continuation is joined. Otherwise,
-  // if the key is a name or a unique string, the "false" of the continuation is
-  // joined. Otherwise, a deoptimization is triggered. In both paths of the
-  // continuation, the key is pushed on the top of the environment.
-  void BuildKeyedIndexCheck(HValue* key,
-                            HIfContinuation* join_continuation);
-
-  // Checks the properties of an object if they are in dictionary case, in which
-  // case "true" of continuation is taken, otherwise the "false"
-  void BuildTestForDictionaryProperties(HValue* object,
-                                        HIfContinuation* continuation);
-
-  void BuildNonGlobalObjectCheck(HValue* receiver);
-
-  HValue* BuildKeyedLookupCacheHash(HValue* object,
-                                    HValue* key);
-
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
                                               HValue* elements, HValue* key,
                                               HValue* hash);

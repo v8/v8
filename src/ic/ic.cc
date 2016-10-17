@@ -522,19 +522,6 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
   PatchInlinedSmiCode(isolate, address, DISABLE_INLINED_SMI_CHECK);
 }
 
-
-// static
-Handle<Code> KeyedLoadIC::ChooseMegamorphicStub(Isolate* isolate,
-                                                ExtraICState extra_state) {
-  // TODO(ishell): remove extra_ic_state
-  if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericStub(isolate).GetCode();
-  } else {
-    return isolate->builtins()->KeyedLoadIC_Megamorphic();
-  }
-}
-
-
 static bool MigrateDeprecated(Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);

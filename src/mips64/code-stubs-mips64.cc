@@ -3263,14 +3263,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ Daddu(sp, sp, a1);
 }
 
-
-void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
-  KeyedLoadICStub stub(isolate());
-  stub.GenerateForTrampoline(masm);
-}
-
-
 void CallICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(a2);
   CallICStub stub(isolate(), state());
@@ -3362,77 +3354,6 @@ static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
         FieldMemOperand(handler, FixedArray::kHeaderSize + kPointerSize));
   __ Daddu(t9, handler, Code::kHeaderSize - kHeapObjectTag);
   __ Jump(t9);
-}
-
-
-void KeyedLoadICStub::Generate(MacroAssembler* masm) {
-  GenerateImpl(masm, false);
-}
-
-
-void KeyedLoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
-  GenerateImpl(masm, true);
-}
-
-
-void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = LoadWithVectorDescriptor::ReceiverRegister();  // a1
-  Register key = LoadWithVectorDescriptor::NameRegister();           // a2
-  Register vector = LoadWithVectorDescriptor::VectorRegister();      // a3
-  Register slot = LoadWithVectorDescriptor::SlotRegister();          // a0
-  Register feedback = a4;
-  Register receiver_map = a5;
-  Register scratch1 = a6;
-
-  __ SmiScale(feedback, slot, kPointerSizeLog2);
-  __ Daddu(feedback, vector, Operand(feedback));
-  __ ld(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
-
-  // Try to quickly handle the monomorphic case without knowing for sure
-  // if we have a weak cell in feedback. We do know it's safe to look
-  // at WeakCell::kValueOffset.
-  Label try_array, load_smi_map, compare_map;
-  Label not_array, miss;
-  HandleMonomorphicCase(masm, receiver, receiver_map, feedback, vector, slot,
-                        scratch1, &compare_map, &load_smi_map, &try_array);
-
-  __ bind(&try_array);
-  // Is it a fixed array?
-  __ ld(scratch1, FieldMemOperand(feedback, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kFixedArrayMapRootIndex);
-  __ Branch(&not_array, ne, scratch1, Operand(at));
-  // We have a polymorphic element handler.
-  __ JumpIfNotSmi(key, &miss);
-
-  Label polymorphic, try_poly_name;
-  __ bind(&polymorphic);
-  HandleArrayCases(masm, feedback, receiver_map, scratch1, a7, true, &miss);
-
-  __ bind(&not_array);
-  // Is it generic?
-  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
-  __ Branch(&try_poly_name, ne, feedback, Operand(at));
-  Handle<Code> megamorphic_stub =
-      KeyedLoadIC::ChooseMegamorphicStub(masm->isolate(), GetExtraICState());
-  __ Jump(megamorphic_stub, RelocInfo::CODE_TARGET);
-
-  __ bind(&try_poly_name);
-  // We might have a name in feedback, and a fixed array in the next slot.
-  __ Branch(&miss, ne, key, Operand(feedback));
-  // If the name comparison succeeded, we know we have a fixed array with
-  // at least one map/handler pair.
-  __ SmiScale(feedback, slot, kPointerSizeLog2);
-  __ Daddu(feedback, vector, Operand(feedback));
-  __ ld(feedback,
-        FieldMemOperand(feedback, FixedArray::kHeaderSize + kPointerSize));
-  HandleArrayCases(masm, feedback, receiver_map, scratch1, a7, false, &miss);
-
-  __ bind(&miss);
-  KeyedLoadIC::GenerateMiss(masm);
-
-  __ bind(&load_smi_map);
-  __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);
-  __ Branch(&compare_map);
 }
 
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {

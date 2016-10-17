@@ -1624,85 +1624,6 @@ void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
   ExtractBitRange(t0, t0, 29, 0);
 }
 
-void MacroAssembler::LoadFromNumberDictionary(Label* miss, Register elements,
-                                              Register key, Register result,
-                                              Register t0, Register t1,
-                                              Register t2) {
-  // Register use:
-  //
-  // elements - holds the slow-case elements of the receiver on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // key      - holds the smi key on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // result   - holds the result on exit if the load succeeded.
-  //            Allowed to be the same as 'key' or 'result'.
-  //            Unchanged on bailout so 'key' or 'result' can be used
-  //            in further computation.
-  //
-  // Scratch registers:
-  //
-  // t0 - holds the untagged key on entry and holds the hash once computed.
-  //
-  // t1 - used to hold the capacity mask of the dictionary
-  //
-  // t2 - used for the index into the dictionary.
-  Label done;
-
-  GetNumberHash(t0, t1);
-
-  // Compute the capacity mask.
-  LoadP(t1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
-  SmiUntag(t1);
-  SubP(t1, Operand(1));
-
-  // Generate an unrolled loop that performs a few probes before giving up.
-  for (int i = 0; i < kNumberDictionaryProbes; i++) {
-    // Use t2 for index calculations and keep the hash intact in t0.
-    LoadRR(t2, t0);
-    // Compute the masked index: (hash + i + i * i) & mask.
-    if (i > 0) {
-      AddP(t2, Operand(SeededNumberDictionary::GetProbeOffset(i)));
-    }
-    AndP(t2, t1);
-
-    // Scale the index by multiplying by the element size.
-    DCHECK(SeededNumberDictionary::kEntrySize == 3);
-    LoadRR(ip, t2);
-    sll(ip, Operand(1));
-    AddP(t2, ip);  // t2 = t2 * 3
-
-    // Check if the key is identical to the name.
-    sll(t2, Operand(kPointerSizeLog2));
-    AddP(t2, elements);
-    LoadP(ip,
-          FieldMemOperand(t2, SeededNumberDictionary::kElementsStartOffset));
-    CmpP(key, ip);
-    if (i != kNumberDictionaryProbes - 1) {
-      beq(&done, Label::kNear);
-    } else {
-      bne(miss);
-    }
-  }
-
-  bind(&done);
-  // Check that the value is a field property.
-  // t2: elements + (index * kPointerSize)
-  const int kDetailsOffset =
-      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  LoadP(t1, FieldMemOperand(t2, kDetailsOffset));
-  LoadSmiLiteral(ip, Smi::FromInt(PropertyDetails::TypeField::kMask));
-  DCHECK_EQ(DATA, 0);
-  AndP(r0, ip, t1);
-  bne(miss);
-
-  // Get the value at the masked, scaled index and return.
-  const int kValueOffset =
-      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
-  LoadP(result, FieldMemOperand(t2, kValueOffset));
-}
-
 void MacroAssembler::Allocate(int object_size, Register result,
                               Register scratch1, Register scratch2,
                               Label* gc_required, AllocationFlags flags) {
@@ -2114,18 +2035,6 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 
 void MacroAssembler::CompareRoot(Register obj, Heap::RootListIndex index) {
   CmpP(obj, MemOperand(kRootRegister, index << kPointerSizeLog2));
-}
-
-void MacroAssembler::CheckFastElements(Register map, Register scratch,
-                                       Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  STATIC_ASSERT(Map::kMaximumBitField2FastHoleyElementValue < 0x8000);
-  CmpLogicalByte(FieldMemOperand(map, Map::kBitField2Offset),
-                 Operand(Map::kMaximumBitField2FastHoleyElementValue));
-  bgt(fail);
 }
 
 void MacroAssembler::CheckFastObjectElements(Register map, Register scratch,

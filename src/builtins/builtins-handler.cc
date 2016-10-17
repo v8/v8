@@ -10,10 +10,6 @@
 namespace v8 {
 namespace internal {
 
-void Builtins::Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm);
-}
-
 void Builtins::Generate_KeyedLoadIC_Megamorphic_TF(
     CodeStubAssembler* assembler) {
   typedef compiler::Node Node;

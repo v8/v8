@@ -701,20 +701,6 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpb(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
-
-void MacroAssembler::CheckFastElements(Register map,
-                                       Label* fail,
-                                       Label::Distance distance) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Immediate(Map::kMaximumBitField2FastHoleyElementValue));
-  j(above, fail, distance);
-}
-
-
 void MacroAssembler::CheckFastObjectElements(Register map,
                                              Label* fail,
                                              Label::Distance distance) {
@@ -1354,82 +1340,6 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   xor_(r0, scratch);
   and_(r0, 0x3fffffff);
 }
-
-
-
-void MacroAssembler::LoadFromNumberDictionary(Label* miss,
-                                              Register elements,
-                                              Register key,
-                                              Register r0,
-                                              Register r1,
-                                              Register r2,
-                                              Register result) {
-  // Register use:
-  //
-  // elements - holds the slow-case elements of the receiver and is unchanged.
-  //
-  // key      - holds the smi key on entry and is unchanged.
-  //
-  // Scratch registers:
-  //
-  // r0 - holds the untagged key on entry and holds the hash once computed.
-  //
-  // r1 - used to hold the capacity mask of the dictionary
-  //
-  // r2 - used for the index into the dictionary.
-  //
-  // result - holds the result on exit if the load succeeds and we fall through.
-
-  Label done;
-
-  GetNumberHash(r0, r1);
-
-  // Compute capacity mask.
-  mov(r1, FieldOperand(elements, SeededNumberDictionary::kCapacityOffset));
-  shr(r1, kSmiTagSize);  // convert smi to int
-  dec(r1);
-
-  // Generate an unrolled loop that performs a few probes before giving up.
-  for (int i = 0; i < kNumberDictionaryProbes; i++) {
-    // Use r2 for index calculations and keep the hash intact in r0.
-    mov(r2, r0);
-    // Compute the masked index: (hash + i + i * i) & mask.
-    if (i > 0) {
-      add(r2, Immediate(SeededNumberDictionary::GetProbeOffset(i)));
-    }
-    and_(r2, r1);
-
-    // Scale the index by multiplying by the entry size.
-    DCHECK(SeededNumberDictionary::kEntrySize == 3);
-    lea(r2, Operand(r2, r2, times_2, 0));  // r2 = r2 * 3
-
-    // Check if the key matches.
-    cmp(key, FieldOperand(elements,
-                          r2,
-                          times_pointer_size,
-                          SeededNumberDictionary::kElementsStartOffset));
-    if (i != (kNumberDictionaryProbes - 1)) {
-      j(equal, &done);
-    } else {
-      j(not_equal, miss);
-    }
-  }
-
-  bind(&done);
-  // Check that the value is a field property.
-  const int kDetailsOffset =
-      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  DCHECK_EQ(DATA, 0);
-  test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
-       Immediate(PropertyDetails::TypeField::kMask << kSmiTagSize));
-  j(not_zero, miss);
-
-  // Get the value at the masked, scaled index.
-  const int kValueOffset =
-      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
-  mov(result, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
-}
-
 
 void MacroAssembler::LoadAllocationTopHelper(Register result,
                                              Register scratch,

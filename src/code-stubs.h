@@ -44,7 +44,6 @@ class ObjectLiteral;
   V(StoreElement)                             \
   V(SubString)                                \
   V(KeyedStoreIC)                             \
-  V(KeyedLoadIC)                              \
   V(LoadGlobalIC)                             \
   V(FastNewObject)                            \
   V(FastNewRestParameter)                     \
@@ -59,7 +58,6 @@ class ObjectLiteral;
   /* version of the corresponding stub is  */ \
   /* used universally */                      \
   V(CallICTrampoline)                         \
-  V(KeyedLoadICTrampoline)                    \
   V(KeyedStoreICTrampoline)                   \
   /* --- HydrogenCodeStubs --- */             \
   V(StringAdd)                                \
@@ -71,7 +69,6 @@ class ObjectLiteral;
   /* These will be ported/eliminated */       \
   /* as part of the new IC system, ask */     \
   /* ishell before doing anything  */         \
-  V(KeyedLoadGeneric)                         \
   V(LoadConstant)                             \
   V(LoadDictionaryElement)                    \
   V(LoadFastElement)                          \
@@ -1994,17 +1991,6 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
 };
 
-
-class KeyedLoadGenericStub : public HydrogenCodeStub {
- public:
-  explicit KeyedLoadGenericStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
-};
-
 class LoadICTrampolineStub : public TurboFanCodeStub {
  public:
   explicit LoadICTrampolineStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -2035,17 +2021,6 @@ class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
   DEFINE_CODE_STUB(LoadGlobalICTrampoline, TurboFanCodeStub);
-};
-
-class KeyedLoadICTrampolineStub : public PlatformCodeStub {
- public:
-  explicit KeyedLoadICTrampolineStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, PlatformCodeStub);
 };
 
 class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
@@ -2155,21 +2130,6 @@ class LoadGlobalICStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalWithVector);
   DEFINE_CODE_STUB(LoadGlobalIC, TurboFanCodeStub);
-};
-
-class KeyedLoadICStub : public PlatformCodeStub {
- public:
-  explicit KeyedLoadICStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  void GenerateForTrampoline(MacroAssembler* masm);
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_PLATFORM_CODE_STUB(KeyedLoadIC, PlatformCodeStub);
-
- protected:
-  void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 class KeyedLoadICTFStub : public LoadICStub {

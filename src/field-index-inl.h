@@ -92,29 +92,9 @@ inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
                           details.representation().IsDouble());
 }
 
-
-inline FieldIndex FieldIndex::ForKeyedLookupCacheIndex(Map* map, int index) {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return ForLoadByFieldIndex(map, index);
-  } else {
-    return ForPropertyIndex(map, index);
-  }
-}
-
-
 inline FieldIndex FieldIndex::FromFieldAccessStubKey(int key) {
   return FieldIndex(key);
 }
-
-
-inline int FieldIndex::GetKeyedLookupCacheIndex() const {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return GetLoadByFieldIndex();
-  } else {
-    return property_index();
-  }
-}
-
 
 }  // namespace internal
 }  // namespace v8
