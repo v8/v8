@@ -1070,6 +1070,15 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   HandleScope scope(this);
   Handle<Object> exception_handle(exception, this);
 
+  if (FLAG_print_all_exceptions) {
+    printf("=========================================================\n");
+    printf("Exception thrown:\n");
+    exception->Print();
+    printf("Stack Trace:\n");
+    PrintStack(stdout);
+    printf("=========================================================\n");
+  }
+
   // Determine whether a message needs to be created for the given exception
   // depending on the following criteria:
   // 1) External v8::TryCatch missing: Always create a message because any

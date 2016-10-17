@@ -877,6 +877,8 @@ DEFINE_INT(hash_seed, 0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
+DEFINE_BOOL(print_all_exceptions, false,
+            "print exception object and stack trace on each thrown exception")
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
