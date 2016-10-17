@@ -1092,7 +1092,10 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
     outer_scope = s->scope_info_;
     break;
   }
-  AllocateScopeInfosRecursively(info->isolate(), mode, outer_scope);
+  AllocateScopeInfosRecursively(info->isolate(), outer_scope);
+  if (mode == AnalyzeMode::kDebugger) {
+    AllocateDebuggerScopeInfos(info->isolate(), outer_scope);
+  }
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
@@ -1194,9 +1197,7 @@ DeclarationScope* Scope::GetClosureScope() {
 
 bool Scope::NeedsScopeInfo() const {
   DCHECK(!already_resolved_);
-  // A lazily parsed scope doesn't contain enough information to create a
-  // ScopeInfo from it.
-  if (!GetClosureScope()->ShouldEagerCompile()) return false;
+  DCHECK(GetClosureScope()->ShouldEagerCompile());
   // The debugger expects all functions to have scope infos.
   // TODO(jochen|yangguo): Remove this requirement.
   if (is_function_scope()) return true;
@@ -1929,26 +1930,36 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
 }
 
-void Scope::AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
                                           MaybeHandle<ScopeInfo> outer_scope) {
   DCHECK(scope_info_.is_null());
-  if (mode == AnalyzeMode::kDebugger || NeedsScopeInfo()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
-  }
-
-  // The ScopeInfo chain should mirror the context chain, so we only link to
-  // the next outer scope that needs a context.
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
-  if (NeedsContext()) next_outer_scope = scope_info_;
+
+  if (NeedsScopeInfo()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+    // The ScopeInfo chain should mirror the context chain, so we only link to
+    // the next outer scope that needs a context.
+    if (NeedsContext()) next_outer_scope = scope_info_;
+  }
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    // The ScopeIterator which uses the AnalyzeMode::kDebugger only expects
-    // to find ScopeInfos for the current function and all its inner
-    // non-function scopes (see ScopeIterator::GetNestedScopeChain).
-    AnalyzeMode next_mode =
-        scope->is_function_scope() ? AnalyzeMode::kRegular : mode;
-    scope->AllocateScopeInfosRecursively(isolate, next_mode, next_outer_scope);
+    if (!scope->is_function_scope() ||
+        scope->AsDeclarationScope()->ShouldEagerCompile()) {
+      scope->AllocateScopeInfosRecursively(isolate, next_outer_scope);
+    }
+  }
+}
+
+void Scope::AllocateDebuggerScopeInfos(Isolate* isolate,
+                                       MaybeHandle<ScopeInfo> outer_scope) {
+  if (scope_info_.is_null()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+  }
+  MaybeHandle<ScopeInfo> outer = NeedsContext() ? scope_info_ : outer_scope;
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (scope->is_function_scope()) continue;
+    scope->AllocateDebuggerScopeInfos(isolate, outer);
   }
 }
 
