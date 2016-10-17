@@ -2342,13 +2342,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 #undef DECLARE_VISIT
 
  private:
-  // Helpers for flow graph construction.
-  enum GlobalPropertyAccess {
-    kUseCell,
-    kUseGeneric
-  };
-  GlobalPropertyAccess LookupGlobalProperty(Variable* var, LookupIterator* it,
-                                            PropertyAccessType access_type);
+  bool CanInlineGlobalPropertyAccess(Variable* var, LookupIterator* it,
+                                     PropertyAccessType access_type);
+
+  bool CanInlineGlobalPropertyAccess(LookupIterator* it,
+                                     PropertyAccessType access_type);
+
+  void InlineGlobalPropertyLoad(LookupIterator* it, BailoutId ast_id);
+  HInstruction* InlineGlobalPropertyStore(LookupIterator* it, HValue* value,
+                                          BailoutId ast_id);
 
   void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);

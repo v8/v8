@@ -5264,12 +5264,16 @@ void HOptimizedGraphBuilder::VisitConditional(Conditional* expr) {
   }
 }
 
+bool HOptimizedGraphBuilder::CanInlineGlobalPropertyAccess(
+    Variable* var, LookupIterator* it, PropertyAccessType access_type) {
+  if (var->is_this()) return false;
+  return CanInlineGlobalPropertyAccess(it, access_type);
+}
 
-HOptimizedGraphBuilder::GlobalPropertyAccess
-HOptimizedGraphBuilder::LookupGlobalProperty(Variable* var, LookupIterator* it,
-                                             PropertyAccessType access_type) {
-  if (var->is_this() || !current_info()->has_global_object()) {
-    return kUseGeneric;
+bool HOptimizedGraphBuilder::CanInlineGlobalPropertyAccess(
+    LookupIterator* it, PropertyAccessType access_type) {
+  if (!current_info()->has_global_object()) {
+    return false;
   }
 
   switch (it->state()) {
@@ -5278,17 +5282,17 @@ HOptimizedGraphBuilder::LookupGlobalProperty(Variable* var, LookupIterator* it,
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::NOT_FOUND:
-      return kUseGeneric;
+      return false;
     case LookupIterator::DATA:
-      if (access_type == STORE && it->IsReadOnly()) return kUseGeneric;
-      if (!it->GetHolder<JSObject>()->IsJSGlobalObject()) return kUseGeneric;
-      return kUseCell;
+      if (access_type == STORE && it->IsReadOnly()) return false;
+      if (!it->GetHolder<JSObject>()->IsJSGlobalObject()) return false;
+      return true;
     case LookupIterator::JSPROXY:
     case LookupIterator::TRANSITION:
       UNREACHABLE();
   }
   UNREACHABLE();
-  return kUseGeneric;
+  return false;
 }
 
 
@@ -5304,6 +5308,55 @@ HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
   return context;
 }
 
+void HOptimizedGraphBuilder::InlineGlobalPropertyLoad(LookupIterator* it,
+                                                      BailoutId ast_id) {
+  Handle<PropertyCell> cell = it->GetPropertyCell();
+  top_info()->dependencies()->AssumePropertyCell(cell);
+  auto cell_type = it->property_details().cell_type();
+  if (cell_type == PropertyCellType::kConstant ||
+      cell_type == PropertyCellType::kUndefined) {
+    Handle<Object> constant_object(cell->value(), isolate());
+    if (constant_object->IsConsString()) {
+      constant_object = String::Flatten(Handle<String>::cast(constant_object));
+    }
+    HConstant* constant = New<HConstant>(constant_object);
+    return ast_context()->ReturnInstruction(constant, ast_id);
+  } else {
+    auto access = HObjectAccess::ForPropertyCellValue();
+    UniqueSet<Map>* field_maps = nullptr;
+    if (cell_type == PropertyCellType::kConstantType) {
+      switch (cell->GetConstantType()) {
+        case PropertyCellConstantType::kSmi:
+          access = access.WithRepresentation(Representation::Smi());
+          break;
+        case PropertyCellConstantType::kStableMap: {
+          // Check that the map really is stable. The heap object could
+          // have mutated without the cell updating state. In that case,
+          // make no promises about the loaded value except that it's a
+          // heap object.
+          access = access.WithRepresentation(Representation::HeapObject());
+          Handle<Map> map(HeapObject::cast(cell->value())->map());
+          if (map->is_stable()) {
+            field_maps = new (zone())
+                UniqueSet<Map>(Unique<Map>::CreateImmovable(map), zone());
+          }
+          break;
+        }
+      }
+    }
+    HConstant* cell_constant = Add<HConstant>(cell);
+    HLoadNamedField* instr;
+    if (field_maps == nullptr) {
+      instr = New<HLoadNamedField>(cell_constant, nullptr, access);
+    } else {
+      instr = New<HLoadNamedField>(cell_constant, nullptr, access, field_maps,
+                                   HType::HeapObject());
+    }
+    instr->ClearDependsOnFlag(kInobjectFields);
+    instr->SetDependsOnFlag(kGlobalVars);
+    return ast_context()->ReturnInstruction(instr, ast_id);
+  }
+}
 
 void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   DCHECK(!HasStackOverflow());
@@ -5352,57 +5405,9 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       LookupIterator it(global, variable->name(), LookupIterator::OWN);
-      GlobalPropertyAccess type = LookupGlobalProperty(variable, &it, LOAD);
-
-      if (type == kUseCell) {
-        Handle<PropertyCell> cell = it.GetPropertyCell();
-        top_info()->dependencies()->AssumePropertyCell(cell);
-        auto cell_type = it.property_details().cell_type();
-        if (cell_type == PropertyCellType::kConstant ||
-            cell_type == PropertyCellType::kUndefined) {
-          Handle<Object> constant_object(cell->value(), isolate());
-          if (constant_object->IsConsString()) {
-            constant_object =
-                String::Flatten(Handle<String>::cast(constant_object));
-          }
-          HConstant* constant = New<HConstant>(constant_object);
-          return ast_context()->ReturnInstruction(constant, expr->id());
-        } else {
-          auto access = HObjectAccess::ForPropertyCellValue();
-          UniqueSet<Map>* field_maps = nullptr;
-          if (cell_type == PropertyCellType::kConstantType) {
-            switch (cell->GetConstantType()) {
-              case PropertyCellConstantType::kSmi:
-                access = access.WithRepresentation(Representation::Smi());
-                break;
-              case PropertyCellConstantType::kStableMap: {
-                // Check that the map really is stable. The heap object could
-                // have mutated without the cell updating state. In that case,
-                // make no promises about the loaded value except that it's a
-                // heap object.
-                access =
-                    access.WithRepresentation(Representation::HeapObject());
-                Handle<Map> map(HeapObject::cast(cell->value())->map());
-                if (map->is_stable()) {
-                  field_maps = new (zone())
-                      UniqueSet<Map>(Unique<Map>::CreateImmovable(map), zone());
-                }
-                break;
-              }
-            }
-          }
-          HConstant* cell_constant = Add<HConstant>(cell);
-          HLoadNamedField* instr;
-          if (field_maps == nullptr) {
-            instr = New<HLoadNamedField>(cell_constant, nullptr, access);
-          } else {
-            instr = New<HLoadNamedField>(cell_constant, nullptr, access,
-                                         field_maps, HType::HeapObject());
-          }
-          instr->ClearDependsOnFlag(kInobjectFields);
-          instr->SetDependsOnFlag(kGlobalVars);
-          return ast_context()->ReturnInstruction(instr, expr->id());
-        }
+      if (CanInlineGlobalPropertyAccess(variable, &it, LOAD)) {
+        InlineGlobalPropertyLoad(&it, expr->id());
+        return;
       } else {
         Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
 
@@ -6506,6 +6511,58 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
              expr->AssignmentId(), expr->IsUninitialized());
 }
 
+HInstruction* HOptimizedGraphBuilder::InlineGlobalPropertyStore(
+    LookupIterator* it, HValue* value, BailoutId ast_id) {
+  Handle<PropertyCell> cell = it->GetPropertyCell();
+  top_info()->dependencies()->AssumePropertyCell(cell);
+  auto cell_type = it->property_details().cell_type();
+  if (cell_type == PropertyCellType::kConstant ||
+      cell_type == PropertyCellType::kUndefined) {
+    Handle<Object> constant(cell->value(), isolate());
+    if (value->IsConstant()) {
+      HConstant* c_value = HConstant::cast(value);
+      if (!constant.is_identical_to(c_value->handle(isolate()))) {
+        Add<HDeoptimize>(DeoptimizeReason::kConstantGlobalVariableAssignment,
+                         Deoptimizer::EAGER);
+      }
+    } else {
+      HValue* c_constant = Add<HConstant>(constant);
+      IfBuilder builder(this);
+      if (constant->IsNumber()) {
+        builder.If<HCompareNumericAndBranch>(value, c_constant, Token::EQ);
+      } else {
+        builder.If<HCompareObjectEqAndBranch>(value, c_constant);
+      }
+      builder.Then();
+      builder.Else();
+      Add<HDeoptimize>(DeoptimizeReason::kConstantGlobalVariableAssignment,
+                       Deoptimizer::EAGER);
+      builder.End();
+    }
+  }
+  HConstant* cell_constant = Add<HConstant>(cell);
+  auto access = HObjectAccess::ForPropertyCellValue();
+  if (cell_type == PropertyCellType::kConstantType) {
+    switch (cell->GetConstantType()) {
+      case PropertyCellConstantType::kSmi:
+        access = access.WithRepresentation(Representation::Smi());
+        break;
+      case PropertyCellConstantType::kStableMap: {
+        // The map may no longer be stable, deopt if it's ever different from
+        // what is currently there, which will allow for restablization.
+        Handle<Map> map(HeapObject::cast(cell->value())->map());
+        Add<HCheckHeapObject>(value);
+        value = Add<HCheckMaps>(value, map);
+        access = access.WithRepresentation(Representation::HeapObject());
+        break;
+      }
+    }
+  }
+  HInstruction* instr = New<HStoreNamedField>(cell_constant, access, value);
+  instr->ClearChangesFlag(kInobjectFields);
+  instr->SetChangesFlag(kGlobalVars);
+  return instr;
+}
 
 // Because not every expression has a position and there is not common
 // superclass of Assignment and CountOperation, we cannot just pass the
@@ -6546,56 +6603,9 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   }
 
   LookupIterator it(global, var->name(), LookupIterator::OWN);
-  GlobalPropertyAccess type = LookupGlobalProperty(var, &it, STORE);
-  if (type == kUseCell) {
-    Handle<PropertyCell> cell = it.GetPropertyCell();
-    top_info()->dependencies()->AssumePropertyCell(cell);
-    auto cell_type = it.property_details().cell_type();
-    if (cell_type == PropertyCellType::kConstant ||
-        cell_type == PropertyCellType::kUndefined) {
-      Handle<Object> constant(cell->value(), isolate());
-      if (value->IsConstant()) {
-        HConstant* c_value = HConstant::cast(value);
-        if (!constant.is_identical_to(c_value->handle(isolate()))) {
-          Add<HDeoptimize>(DeoptimizeReason::kConstantGlobalVariableAssignment,
-                           Deoptimizer::EAGER);
-        }
-      } else {
-        HValue* c_constant = Add<HConstant>(constant);
-        IfBuilder builder(this);
-        if (constant->IsNumber()) {
-          builder.If<HCompareNumericAndBranch>(value, c_constant, Token::EQ);
-        } else {
-          builder.If<HCompareObjectEqAndBranch>(value, c_constant);
-        }
-        builder.Then();
-        builder.Else();
-        Add<HDeoptimize>(DeoptimizeReason::kConstantGlobalVariableAssignment,
-                         Deoptimizer::EAGER);
-        builder.End();
-      }
-    }
-    HConstant* cell_constant = Add<HConstant>(cell);
-    auto access = HObjectAccess::ForPropertyCellValue();
-    if (cell_type == PropertyCellType::kConstantType) {
-      switch (cell->GetConstantType()) {
-        case PropertyCellConstantType::kSmi:
-          access = access.WithRepresentation(Representation::Smi());
-          break;
-        case PropertyCellConstantType::kStableMap: {
-          // The map may no longer be stable, deopt if it's ever different from
-          // what is currently there, which will allow for restablization.
-          Handle<Map> map(HeapObject::cast(cell->value())->map());
-          Add<HCheckHeapObject>(value);
-          value = Add<HCheckMaps>(value, map);
-          access = access.WithRepresentation(Representation::HeapObject());
-          break;
-        }
-      }
-    }
-    HInstruction* instr = Add<HStoreNamedField>(cell_constant, access, value);
-    instr->ClearChangesFlag(kInobjectFields);
-    instr->SetChangesFlag(kGlobalVars);
+  if (CanInlineGlobalPropertyAccess(var, &it, STORE)) {
+    HInstruction* instr = InlineGlobalPropertyStore(&it, value, ast_id);
+    AddInstruction(instr);
     if (instr->HasObservableSideEffects()) {
       Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
     }
@@ -7518,6 +7528,37 @@ HValue* HOptimizedGraphBuilder::BuildNamedAccess(
   DCHECK(maps != NULL);
 
   if (maps->length() > 0) {
+    Handle<JSGlobalObject> global_object(current_info()->global_object());
+    Handle<Context> current_context(current_info()->context());
+    Handle<JSObject> global_proxy(current_context->global_proxy());
+
+    // Check for special case: Access via a single map to the global proxy
+    // can also be handled monomorphically.
+    Handle<Object> map_constructor =
+        handle(maps->first()->GetConstructor(), isolate());
+    if (map_constructor->IsJSFunction()) {
+      Handle<Context> map_context =
+          handle(Handle<JSFunction>::cast(map_constructor)->context());
+      bool is_global_proxy_access =
+          maps->length() == 1 &&  // More than one map, fallback to polymorphic?
+          maps->first()->IsJSGlobalProxyMap() &&
+          isolate()->MayAccess(map_context, global_proxy);
+
+      if (is_global_proxy_access) {
+        LookupIterator it(global_object, name, LookupIterator::OWN);
+        if (CanInlineGlobalPropertyAccess(&it, access)) {
+          BuildCheckHeapObject(object);
+          Add<HCheckMaps>(object, maps);
+          if (access == LOAD) {
+            InlineGlobalPropertyLoad(&it, expr->id());
+            return nullptr;
+          } else {
+            return InlineGlobalPropertyStore(&it, value, expr->id());
+          }
+        }
+      }
+    }
+
     PropertyAccessInfo info(this, access, maps->first(), name);
     if (!info.CanAccessAsMonomorphic(maps)) {
       HandlePolymorphicNamedFieldAccess(access, expr, slot, ast_id, return_id,
