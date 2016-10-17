@@ -216,7 +216,7 @@ Node* CodeAssembler::WordShr(Node* value, int shift) {
 }
 
 Node* CodeAssembler::Word32Shr(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler_->Word32Shr(value, IntPtrConstant(shift))
+  return (shift != 0) ? raw_assembler_->Word32Shr(value, Int32Constant(shift))
                       : value;
 }
 
