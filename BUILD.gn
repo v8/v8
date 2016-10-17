@@ -1713,6 +1713,7 @@ v8_source_set("v8_base") {
     "src/wasm/ast-decoder.h",
     "src/wasm/decoder.h",
     "src/wasm/leb-helper.h",
+    "src/wasm/managed.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
     "src/wasm/signature-map.cc",

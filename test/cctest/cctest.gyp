@@ -203,6 +203,7 @@
       'trace-extension.cc',
       'trace-extension.h',
       'types-fuzz.h',
+      'wasm/test-managed.cc',
       'wasm/test-run-wasm.cc',
       'wasm/test-run-wasm-64.cc',
       'wasm/test-run-wasm-asmjs.cc',

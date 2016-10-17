@@ -1251,6 +1251,7 @@
         'wasm/ast-decoder.h',
         'wasm/decoder.h',
         'wasm/leb-helper.h',
+        'wasm/managed.h',
         'wasm/module-decoder.cc',
         'wasm/module-decoder.h',
         'wasm/signature-map.cc',
