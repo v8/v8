@@ -250,6 +250,24 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = machine()->ChangeFloat32ToFloat64();
+      node = InsertConversion(node, op, use_node);
+      op = simplified()->CheckedFloat64ToInt32(
+          output_type->Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+      node = InsertConversion(node, op, use_node);
+      if (SmiValuesAre32Bits()) {
+        op = simplified()->ChangeInt32ToTagged();
+      } else {
+        op = simplified()->CheckedInt32ToTaggedSigned();
+      }
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
   } else if (CanBeTaggedPointer(output_rep) &&
              use_info.type_check() == TypeCheckKind::kSignedSmall) {
     op = simplified()->CheckedTaggedToTaggedSigned();
