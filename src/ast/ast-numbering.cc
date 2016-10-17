@@ -600,6 +600,10 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
     }
   }
 
+  if (IsClassConstructor(node->kind())) {
+    DisableCrankshaft(kClassConstructorFunction);
+  }
+
   VisitDeclarations(scope->declarations());
   VisitStatements(node->body());
 

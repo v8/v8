@@ -35,6 +35,7 @@ namespace internal {
   V(kBailoutWasNotPrepared, "Bailout was not prepared")                        \
   V(kBothRegistersWereSmisInSelectNonSmi,                                      \
     "Both registers were smis in SelectNonSmi")                                \
+  V(kClassConstructorFunction, "Class constructor function")                   \
   V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
