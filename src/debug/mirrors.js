@@ -1539,7 +1539,7 @@ PropertyMirror.prototype.value = function() {
 
 /**
  * Returns whether this property value is an exception.
- * @return {boolean} True if this property value is an exception
+ * @return {booolean} True if this property value is an exception
  */
 PropertyMirror.prototype.isException = function() {
   return this.exception_ ? true : false;
@@ -1558,7 +1558,7 @@ PropertyMirror.prototype.propertyType = function() {
 
 /**
  * Returns whether this property has a getter defined through __defineGetter__.
- * @return {boolean} True if this property has a getter
+ * @return {booolean} True if this property has a getter
  */
 PropertyMirror.prototype.hasGetter = function() {
   return this.getter_ ? true : false;
@@ -1567,7 +1567,7 @@ PropertyMirror.prototype.hasGetter = function() {
 
 /**
  * Returns whether this property has a setter defined through __defineSetter__.
- * @return {boolean} True if this property has a setter
+ * @return {booolean} True if this property has a setter
  */
 PropertyMirror.prototype.hasSetter = function() {
   return this.setter_ ? true : false;

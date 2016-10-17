@@ -44,7 +44,7 @@ var FormattedScript;
 var JavaScriptCallFrameDetails;
 
 /** @typedef {{
-        sourceID: function():(number),
+        sourceID: function():(number|undefined),
         line: function():number,
         column: function():number,
         thisObject: !Object,
@@ -288,9 +288,6 @@ FrameDetails.prototype.receiver = function() {}
 /** @return {function()} */
 FrameDetails.prototype.func = function() {}
 
-/** @return {!Object} */
-FrameDetails.prototype.script = function() {}
-
 /** @return {boolean} */
 FrameDetails.prototype.isAtReturn = function() {}
 
@@ -468,9 +465,6 @@ FrameMirror.prototype.allScopes = function(ignoreNestedScopes) {}
 
 /** @return {!FrameDetails} */
 FrameMirror.prototype.details = function() {}
-
-/** @return {!ScriptMirror} */
-FrameMirror.prototype.script = function() {}
 
 /**
  * @param {string} source
