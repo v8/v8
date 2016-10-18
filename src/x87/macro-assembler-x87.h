@@ -703,12 +703,6 @@ class MacroAssembler: public Assembler {
   void TryGetFunctionPrototype(Register function, Register result,
                                Register scratch, Label* miss);
 
-  // Picks out an array index from the hash field.
-  // Register use:
-  //   hash - holds the index's hash. Clobbered.
-  //   index - holds the overwritten index on exit.
-  void IndexFromHash(Register hash, Register index);
-
   // ---------------------------------------------------------------------------
   // Runtime calls
 

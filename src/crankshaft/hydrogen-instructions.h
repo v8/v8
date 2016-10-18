@@ -91,9 +91,7 @@ class SmallMapList;
   V(ForceRepresentation)                      \
   V(ForInCacheArray)                          \
   V(ForInPrepareMap)                          \
-  V(GetCachedArrayIndex)                      \
   V(Goto)                                     \
-  V(HasCachedArrayIndexAndBranch)             \
   V(HasInstanceTypeAndBranch)                 \
   V(InnerAllocatedObject)                     \
   V(InvokeFunction)                           \
@@ -4145,45 +4143,6 @@ class HHasInstanceTypeAndBranch final : public HUnaryControlInstruction {
   InstanceType from_;
   InstanceType to_;  // Inclusive range, not all combinations work.
 };
-
-
-class HHasCachedArrayIndexAndBranch final : public HUnaryControlInstruction {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HHasCachedArrayIndexAndBranch, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndexAndBranch)
- private:
-  explicit HHasCachedArrayIndexAndBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
-};
-
-
-class HGetCachedArrayIndex final : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HGetCachedArrayIndex, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex)
-
- protected:
-  bool DataEquals(HValue* other) override { return true; }
-
- private:
-  explicit HGetCachedArrayIndex(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  bool IsDeletable() const override { return true; }
-};
-
 
 class HClassOfTestAndBranch final : public HUnaryControlInstruction {
  public:

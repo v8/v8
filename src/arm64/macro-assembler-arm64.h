@@ -1591,12 +1591,6 @@ class MacroAssembler : public Assembler {
                                    Label* fail,
                                    int elements_offset = 0);
 
-  // Picks out an array index from the hash field.
-  // Register use:
-  //   hash - holds the index's hash. Clobbered.
-  //   index - holds the overwritten index on exit.
-  void IndexFromHash(Register hash, Register index);
-
   // ---------------------------------------------------------------------------
   // Inline caching support.
 

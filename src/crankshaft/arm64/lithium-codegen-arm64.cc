@@ -2659,20 +2659,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ Bind(&use_cache);
 }
 
-
-void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-
-  __ AssertString(input);
-
-  // Assert that we can use a W register load to get the hash.
-  DCHECK((String::kHashShift + String::kArrayIndexValueBits) < kWRegSizeInBits);
-  __ Ldr(result.W(), FieldMemOperand(input, String::kHashFieldOffset));
-  __ IndexFromHash(result, result);
-}
-
-
 void LCodeGen::EmitGoto(int block) {
   // Do not emit jump if we are emitting a goto to the next block.
   if (!IsNextEmittedBlock(block)) {
@@ -2680,24 +2666,9 @@ void LCodeGen::EmitGoto(int block) {
   }
 }
 
-
 void LCodeGen::DoGoto(LGoto* instr) {
   EmitGoto(instr->block_id());
 }
-
-
-void LCodeGen::DoHasCachedArrayIndexAndBranch(
-    LHasCachedArrayIndexAndBranch* instr) {
-  Register input = ToRegister(instr->value());
-  Register temp = ToRegister32(instr->temp());
-
-  // Assert that the cache status bits fit in a W register.
-  DCHECK(is_uint32(String::kContainsCachedArrayIndexMask));
-  __ Ldr(temp, FieldMemOperand(input, String::kHashFieldOffset));
-  __ Tst(temp, String::kContainsCachedArrayIndexMask);
-  EmitBranch(instr, eq);
-}
-
 
 // HHasInstanceTypeAndBranch instruction is built with an interval of type
 // to test but is only used in very restricted ways. The only possible kinds

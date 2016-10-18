@@ -2004,20 +2004,6 @@ bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
 
-
-void MacroAssembler::IndexFromHash(Register hash, Register index) {
-  // The assert checks that the constants for the maximum number of digits
-  // for an array index cached in the hash field and the number of bits
-  // reserved for it does not conflict.
-  DCHECK(TenToThe(String::kMaxCachedArrayIndexLength) <
-         (1 << String::kArrayIndexValueBits));
-  if (!index.is(hash)) {
-    mov(index, hash);
-  }
-  DecodeFieldToSmi<String::ArrayIndexValueBits>(index);
-}
-
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is

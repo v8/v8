@@ -427,21 +427,6 @@ RUNTIME_FUNCTION(Runtime_IsArray) {
   return isolate->heap()->ToBoolean(obj->IsJSArray());
 }
 
-RUNTIME_FUNCTION(Runtime_HasCachedArrayIndex) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  return isolate->heap()->false_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetCachedArrayIndex) {
-  // This can never be reached, because Runtime_HasCachedArrayIndex always
-  // returns false.
-  UNIMPLEMENTED();
-  return nullptr;
-}
-
-
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

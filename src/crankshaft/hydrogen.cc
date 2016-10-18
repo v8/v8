@@ -12001,17 +12001,6 @@ void HOptimizedGraphBuilder::GenerateIsJSReceiver(CallRuntime* call) {
   return ast_context()->ReturnControl(result, call->id());
 }
 
-
-void HOptimizedGraphBuilder::GenerateHasCachedArrayIndex(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HHasCachedArrayIndexAndBranch* result =
-      New<HHasCachedArrayIndexAndBranch>(value);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateIsArray(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
@@ -12459,16 +12448,6 @@ void HOptimizedGraphBuilder::GenerateMapClear(CallRuntime* call) {
   BuildOrderedHashTableClear<OrderedHashMap>(receiver);
   return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
-
-
-void HOptimizedGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HGetCachedArrayIndex* result = New<HGetCachedArrayIndex>(value);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
 
 void HOptimizedGraphBuilder::GenerateDebugBreakInOptimizedCode(
     CallRuntime* call) {

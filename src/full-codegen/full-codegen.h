@@ -478,8 +478,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(Call)                               \
   F(NewObject)                          \
   F(IsJSReceiver)                       \
-  F(HasCachedArrayIndex)                \
-  F(GetCachedArrayIndex)                \
   F(GetSuperConstructor)                \
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \

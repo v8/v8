@@ -52,8 +52,6 @@ namespace internal {
   F(HasComplexElements, 1, 1)        \
   F(IsArray, 1, 1)                   \
   F(ArrayIsArray, 1, 1)              \
-  F(HasCachedArrayIndex, 1, 1)       \
-  F(GetCachedArrayIndex, 1, 1)       \
   F(FixedArrayGet, 2, 1)             \
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)   \

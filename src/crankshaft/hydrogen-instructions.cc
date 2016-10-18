@@ -808,9 +808,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kEnterInlined:
     case HValue::kEnvironmentMarker:
     case HValue::kForceRepresentation:
-    case HValue::kGetCachedArrayIndex:
     case HValue::kGoto:
-    case HValue::kHasCachedArrayIndexAndBranch:
     case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
     case HValue::kIsSmiAndBranch:

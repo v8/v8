@@ -2198,8 +2198,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(ToLength)                          \
   F(ToNumber)                          \
   F(IsJSReceiver)                      \
-  F(HasCachedArrayIndex)               \
-  F(GetCachedArrayIndex)               \
   F(DebugBreakInOptimizedCode)         \
   F(StringCharCodeAt)                  \
   F(SubString)                         \
