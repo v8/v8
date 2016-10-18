@@ -1642,7 +1642,15 @@ AsmType* AsmTyper::ValidateCommaExpression(BinaryOperation* comma) {
   auto* right = comma->right();
   AsmType* right_type = nullptr;
   if (auto* right_as_call = right->AsCall()) {
-    RECURSE(right_type = ValidateCall(AsmType::Void(), right_as_call));
+    RECURSE(right_type = ValidateFloatCoercion(right_as_call));
+    if (right_type != AsmType::Float()) {
+      // right_type == nullptr <-> right_as_call is not a call to fround.
+      DCHECK(right_type == nullptr);
+      RECURSE(right_type = ValidateCall(AsmType::Void(), right_as_call));
+      // Unnanotated function call to something that's not fround must be a call
+      // to a void function.
+      DCHECK_EQ(right_type, AsmType::Void());
+    }
   } else {
     RECURSE(right_type = ValidateExpression(right));
   }
@@ -1674,7 +1682,7 @@ AsmType* AsmTyper::ValidateNumericLiteral(Literal* literal) {
     if (!literal->value()->ToInt32(&value)) {
       FAIL(literal, "Integer literal is out of range.");
     }
-    // *VIOLATION* Not really a violation, but rather a different in the
+    // *VIOLATION* Not really a violation, but rather a difference in
     // validation. The spec handles -NumericLiteral in ValidateUnaryExpression,
     // but V8's AST represents the negative literals as Literals.
     return AsmType::Signed();
