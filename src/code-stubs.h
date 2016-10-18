@@ -60,7 +60,6 @@ class ObjectLiteral;
   V(CallICTrampoline)                         \
   V(KeyedStoreICTrampoline)                   \
   /* --- HydrogenCodeStubs --- */             \
-  V(StringAdd)                                \
   /* These builtins w/ JS linkage are */      \
   /* just fast-cases of C++ builtins. They */ \
   /* require varg support from TF */          \
@@ -119,6 +118,7 @@ class ObjectLiteral;
   V(LoadScriptContextField)                   \
   V(StoreScriptContextField)                  \
   V(NumberToString)                           \
+  V(StringAdd)                                \
   V(GetProperty)                              \
   V(LoadIC)                                   \
   V(KeyedLoadICTF)                            \
@@ -1610,22 +1610,21 @@ class BinaryOpWithAllocationSiteStub final : public BinaryOpICStub {
   DEFINE_HYDROGEN_CODE_STUB(BinaryOpWithAllocationSite, BinaryOpICStub);
 };
 
-
-class StringAddStub final : public HydrogenCodeStub {
+class StringAddStub final : public TurboFanCodeStub {
  public:
   StringAddStub(Isolate* isolate, StringAddFlags flags,
                 PretenureFlag pretenure_flag)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(StringAddFlagsBits::encode(flags) |
-                      PretenureFlagBits::encode(pretenure_flag));
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = (StringAddFlagsBits::encode(flags) |
+                  PretenureFlagBits::encode(pretenure_flag));
   }
 
   StringAddFlags flags() const {
-    return StringAddFlagsBits::decode(sub_minor_key());
+    return StringAddFlagsBits::decode(minor_key_);
   }
 
   PretenureFlag pretenure_flag() const {
-    return PretenureFlagBits::decode(sub_minor_key());
+    return PretenureFlagBits::decode(minor_key_);
   }
 
  private:
@@ -1635,7 +1634,7 @@ class StringAddStub final : public HydrogenCodeStub {
   void PrintBaseName(std::ostream& os) const override;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
-  DEFINE_HYDROGEN_CODE_STUB(StringAdd, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StringAdd, TurboFanCodeStub);
 };
 
 

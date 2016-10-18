@@ -104,6 +104,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
+  compiler::Node* IntPtrAddFoldConstants(compiler::Node* left,
+                                         compiler::Node* right);
+  compiler::Node* IntPtrSubFoldConstants(compiler::Node* left,
+                                         compiler::Node* right);
+
   // Float64 operations.
   compiler::Node* Float64Ceil(compiler::Node* x);
   compiler::Node* Float64Floor(compiler::Node* x);
@@ -351,13 +356,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value,
                                               MutableMode mode = IMMUTABLE);
   // Allocate a SeqOneByteString with the given length.
-  compiler::Node* AllocateSeqOneByteString(int length);
-  compiler::Node* AllocateSeqOneByteString(compiler::Node* context,
-                                           compiler::Node* length);
+  compiler::Node* AllocateSeqOneByteString(int length,
+                                           AllocationFlags flags = kNone);
+  compiler::Node* AllocateSeqOneByteString(
+      compiler::Node* context, compiler::Node* length,
+      ParameterMode mode = INTPTR_PARAMETERS, AllocationFlags flags = kNone);
   // Allocate a SeqTwoByteString with the given length.
-  compiler::Node* AllocateSeqTwoByteString(int length);
-  compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
-                                           compiler::Node* length);
+  compiler::Node* AllocateSeqTwoByteString(int length,
+                                           AllocationFlags flags = kNone);
+  compiler::Node* AllocateSeqTwoByteString(
+      compiler::Node* context, compiler::Node* length,
+      ParameterMode mode = INTPTR_PARAMETERS, AllocationFlags flags = kNone);
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
@@ -375,13 +384,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // expected to be one-byte strings.
   compiler::Node* AllocateOneByteConsString(compiler::Node* length,
                                             compiler::Node* first,
-                                            compiler::Node* second);
+                                            compiler::Node* second,
+                                            AllocationFlags flags = kNone);
   // Allocate a two-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be two-byte strings.
   compiler::Node* AllocateTwoByteConsString(compiler::Node* length,
                                             compiler::Node* first,
-                                            compiler::Node* second);
+                                            compiler::Node* second,
+                                            AllocationFlags flags = kNone);
+
+  // Allocate an appropriate one- or two-byte ConsString with the first and
+  // second parts specified by |first| and |second|.
+  compiler::Node* NewConsString(compiler::Node* context, compiler::Node* length,
+                                compiler::Node* left, compiler::Node* right,
+                                AllocationFlags flags = kNone);
 
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
@@ -456,16 +473,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Copies |character_count| elements from |from_string| to |to_string|
   // starting at the |from_index|'th character. |from_string| and |to_string|
   // must be either both one-byte strings or both two-byte strings.
-  // |from_index|, |to_index| and |character_count| must be Smis s.t.
-  // 0 <= |from_index| <= |from_index| + |character_count| <= from_string.length
-  // and
-  // 0 <= |to_index| <= |to_index| + |character_count| <= to_string.length.
+  // |from_index|, |to_index| and |character_count| must be either Smis or
+  // intptr_ts depending on |mode| s.t. 0 <= |from_index| <= |from_index| +
+  // |character_count| <= from_string.length and 0 <= |to_index| <= |to_index| +
+  // |character_count| <= to_string.length.
   void CopyStringCharacters(compiler::Node* from_string,
                             compiler::Node* to_string,
                             compiler::Node* from_index,
                             compiler::Node* to_index,
                             compiler::Node* character_count,
-                            String::Encoding encoding);
+                            String::Encoding encoding, ParameterMode mode);
 
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
@@ -555,8 +572,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             compiler::Node* from, compiler::Node* to);
 
   // Return a new string object produced by concatenating |first| with |second|.
-  compiler::Node* StringConcat(compiler::Node* context, compiler::Node* first,
-                               compiler::Node* second);
+  compiler::Node* StringAdd(compiler::Node* context, compiler::Node* first,
+                            compiler::Node* second,
+                            AllocationFlags flags = kNone);
 
   // Return the first index >= {from} at which {needle_char} was found in
   // {string}, or -1 if such an index does not exist. The returned value is
@@ -583,6 +601,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                     compiler::Node* input);
   // Convert any object to a Number.
   compiler::Node* ToNumber(compiler::Node* context, compiler::Node* input);
+
+  // Convert any object to a String.
+  compiler::Node* ToString(compiler::Node* context, compiler::Node* input);
+
+  // Convert any object to a Primitive.
+  compiler::Node* JSReceiverToPrimitive(compiler::Node* context,
+                                        compiler::Node* input);
 
   enum ToIntegerTruncationMode {
     kNoTruncation,
@@ -910,10 +935,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode mode = INTPTR_PARAMETERS,
       ForEachDirection direction = ForEachDirection::kReverse);
 
+  compiler::Node* GetArrayAllocationSize(compiler::Node* element_count,
+                                         ElementsKind kind, ParameterMode mode,
+                                         int header_size) {
+    return ElementOffsetFromIndex(element_count, kind, mode, header_size);
+  }
+
   compiler::Node* GetFixedArrayAllocationSize(compiler::Node* element_count,
                                               ElementsKind kind,
                                               ParameterMode mode) {
-    return ElementOffsetFromIndex(element_count, kind, mode,
+    return GetArrayAllocationSize(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
   }
 

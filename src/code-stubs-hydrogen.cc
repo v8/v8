@@ -1120,34 +1120,6 @@ HValue* CodeStubGraphBuilderBase::BuildToPrimitive(HValue* input,
   return Pop();
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
-  StringAddStub* stub = casted_stub();
-  StringAddFlags flags = stub->flags();
-  PretenureFlag pretenure_flag = stub->pretenure_flag();
-
-  HValue* left = GetParameter(Descriptor::kLeft);
-  HValue* right = GetParameter(Descriptor::kRight);
-
-  // Make sure that both arguments are strings if not known in advance.
-  if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    left =
-        BuildToString(left, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
-  }
-  if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    right = BuildToString(right,
-                          (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
-  }
-
-  return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));
-}
-
-
-Handle<Code> StringAddStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 template <>
 HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
   ToBooleanICStub* stub = casted_stub();

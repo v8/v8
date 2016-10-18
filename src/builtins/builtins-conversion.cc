@@ -183,11 +183,7 @@ void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
   }
 
   assembler->Bind(&is_number);
-  {
-    // TODO(tebbi): inline as soon as NumberToString is in the CodeStubAssembler
-    Callable callable = CodeFactory::NumberToString(assembler->isolate());
-    assembler->Return(assembler->CallStub(callable, context, input));
-  }
+  { assembler->Return(assembler->NumberToString(context, input)); }
 
   assembler->Bind(&not_heap_number);
   {

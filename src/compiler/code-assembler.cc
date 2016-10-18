@@ -148,6 +148,20 @@ bool CodeAssembler::ToInt64Constant(Node* node, int64_t& out_value) {
   return m.HasValue();
 }
 
+bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
+  if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
+    node = node->InputAt(0);
+  } else {
+    return false;
+  }
+  IntPtrMatcher m(node);
+  if (m.HasValue()) {
+    out_value = Smi::cast(bit_cast<Object*>(m.Value()));
+    return true;
+  }
+  return false;
+}
+
 bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
   IntPtrMatcher m(node);
   if (m.HasValue()) out_value = m.Value();

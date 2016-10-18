@@ -1530,7 +1530,7 @@ compiler::Node* ReplaceFastPath(CodeStubAssembler* a, compiler::Node* context,
         Node* const second_part =
             a->SubString(context, subject_string, match_end, subject_end);
 
-        Node* const result = a->StringConcat(context, first_part, second_part);
+        Node* const result = a->StringAdd(context, first_part, second_part);
         var_result.Bind(result);
         a->Goto(&out);
       }
@@ -1543,8 +1543,8 @@ compiler::Node* ReplaceFastPath(CodeStubAssembler* a, compiler::Node* context,
         Node* const third_part =
             a->SubString(context, subject_string, match_end, subject_end);
 
-        Node* result = a->StringConcat(context, first_part, second_part);
-        result = a->StringConcat(context, result, third_part);
+        Node* result = a->StringAdd(context, first_part, second_part);
+        result = a->StringAdd(context, result, third_part);
 
         var_result.Bind(result);
         a->Goto(&out);

@@ -345,6 +345,38 @@ void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << "StringAddStub_" << flags() << "_" << pretenure_flag();
 }
 
+void StringAddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* left = assembler->Parameter(Descriptor::kLeft);
+  Node* right = assembler->Parameter(Descriptor::kRight);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  if ((flags() & STRING_ADD_CHECK_LEFT) != 0) {
+    DCHECK((flags() & STRING_ADD_CONVERT) != 0);
+    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+    // combined to avoid duplicate smi and instance type checks.
+    left = assembler->ToString(context,
+                               assembler->JSReceiverToPrimitive(context, left));
+  }
+  if ((flags() & STRING_ADD_CHECK_RIGHT) != 0) {
+    DCHECK((flags() & STRING_ADD_CONVERT) != 0);
+    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+    // combined to avoid duplicate smi and instance type checks.
+    right = assembler->ToString(
+        context, assembler->JSReceiverToPrimitive(context, right));
+  }
+
+  if ((flags() & STRING_ADD_CHECK_BOTH) == 0) {
+    CodeStubAssembler::AllocationFlag flags =
+        (pretenure_flag() == TENURED) ? CodeStubAssembler::kPretenured
+                                      : CodeStubAssembler::kNone;
+    assembler->Return(assembler->StringAdd(context, left, right, flags));
+  } else {
+    Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
+                                               pretenure_flag());
+    assembler->TailCallStub(callable, context, left, right);
+  }
+}
 
 InlineCacheState CompareICStub::GetICState() const {
   CompareICState::State state = Max(left(), right());
@@ -2166,13 +2198,6 @@ void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
   descriptor->Initialize(
       FUNCTION_ADDR(Runtime_BinaryOpIC_MissWithAllocationSite));
 }
-
-
-void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
-  descriptor->SetMissHandler(Runtime::kStringAdd);
-}
-
 
 void GetPropertyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
