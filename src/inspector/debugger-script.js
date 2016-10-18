@@ -416,6 +416,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     var frameDetails = frameMirror.details();
 
     var funcObject = frameDetails.func();
+    var scriptObject = frameDetails.script();
     var sourcePosition = frameDetails.sourcePosition();
     var thisObject = frameDetails.receiver();
 
@@ -448,6 +449,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     // Calculated lazily.
     var scopeChain;
     var funcMirror;
+    var scriptMirror;
     var location;
     /** @type {!Array<?RawLocation>} */
     var scopeStartLocations;
@@ -516,7 +518,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     {
         if (!details) {
             var scopeObjects = ensureScopeChain();
-            var script = ensureFuncMirror().script();
+            var script = ensureScriptMirror();
             /** @type {!Array<Scope>} */
             var scopes = [];
             for (var i = 0; i < scopeObjects.length; ++i) {
@@ -570,14 +572,24 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     /**
+     * @return {!ScriptMirror}
+     */
+    function ensureScriptMirror()
+    {
+        if (!scriptMirror) {
+            scriptMirror = MakeMirror(scriptObject);
+        }
+        return /** @type {!ScriptMirror} */(scriptMirror);
+    }
+
+    /**
      * @return {!{line: number, column: number}}
      */
     function ensureLocation()
     {
         if (!location) {
-            var script = ensureFuncMirror().script();
-            if (script)
-                location = script.locationFromPosition(sourcePosition, true);
+            var script = ensureScriptMirror();
+            location = script.locationFromPosition(sourcePosition, true);
             if (!location)
                 location = { line: 0, column: 0 };
         }
@@ -616,12 +628,12 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     /**
-     * @return {number|undefined}
+     * @return {number}
      */
     function sourceID()
     {
-        var script = ensureFuncMirror().script();
-        return script && script.id();
+        var script = ensureScriptMirror();
+        return script.id();
     }
 
     /**
