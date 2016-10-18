@@ -1030,6 +1030,51 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* context = NodeProperties::GetContextInput(node);
+
+    Node* native_context = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+        context, context, effect);
+    Node* map = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::STRING_ITERATOR_MAP_INDEX, true),
+        native_context, native_context, effect);
+
+    // allocate new iterator
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    Node* value = effect = graph()->NewNode(
+        simplified()->Allocate(NOT_TENURED),
+        jsgraph()->Int32Constant(JSStringIterator::kSize), effect, control);
+    effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                              value, map, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+
+    // attach the iterator to this string
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorString()),
+        value, receiver, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+        value, jsgraph()->SmiConstant(0), effect, control);
+
+    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+
+    // replace it
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1332,6 +1377,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIterator:
+      return ReduceStringIterator(node);
     case kStringIteratorNext:
       return ReduceStringIteratorNext(node);
     case kDataViewByteLength:

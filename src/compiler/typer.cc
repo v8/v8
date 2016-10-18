@@ -1350,6 +1350,7 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kStringToUpperCase:
           return Type::String();
 
+        case kStringIterator:
         case kStringIteratorNext:
           return Type::OtherObject();
 
