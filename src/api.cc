@@ -7247,7 +7247,25 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
     const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
     const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
   MaybeLocal<WasmCompiledModule> ret = Deserialize(isolate, serialized_module);
-  if (!ret.IsEmpty()) return ret;
+  if (!ret.IsEmpty()) {
+    // TODO(mtrofin): once we stop taking a dependency on Deserialize,
+    // clean this up to avoid the back and forth between internal
+    // and external representations.
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Vector<const uint8_t> str(wire_bytes.first,
+                                 static_cast<int>(wire_bytes.second));
+    i::Handle<i::SeqOneByteString> wire_bytes_as_string(
+        i::SeqOneByteString::cast(
+            *i_isolate->factory()->NewStringFromOneByte(str).ToHandleChecked()),
+        i_isolate);
+
+    i::Handle<i::JSObject> obj =
+        i::Handle<i::JSObject>::cast(Utils::OpenHandle(*ret.ToLocalChecked()));
+    i::Handle<i::wasm::WasmCompiledModule> compiled_part =
+        i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+    compiled_part->set_module_bytes(wire_bytes_as_string);
+    return ret;
+  }
   return Compile(isolate, wire_bytes.first, wire_bytes.second);
 }
 

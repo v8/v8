@@ -173,105 +173,192 @@ TEST(Run_WasmModule_Global) {
   TestModule(&zone, builder, 97);
 }
 
-TEST(Run_WasmModule_Serialization) {
-  static const char* kFunctionName = "increment";
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-
-  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  TestSignatures sigs;
-
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-  byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
-  f->EmitCode(code, sizeof(code));
-  f->ExportAs(CStrVector(kFunctionName));
-
-  ZoneBuffer buffer(&zone);
-  builder->WriteTo(buffer);
-
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  ErrorThrower thrower(isolate, "");
-  uint8_t* bytes = nullptr;
-  size_t bytes_size = 0;
-  v8::WasmCompiledModule::SerializedModule data;
-  {
-    HandleScope scope(isolate);
-    testing::SetupIsolateForWasmModule(isolate);
-
-    ModuleResult decoding_result = DecodeWasmModule(
-        isolate, &zone, buffer.begin(), buffer.end(), false, kWasmOrigin);
-    std::unique_ptr<const WasmModule> module(decoding_result.val);
-    CHECK(!decoding_result.failed());
-
-    MaybeHandle<WasmCompiledModule> compiled_module =
-        module->CompileFunctions(isolate, &thrower);
-    CHECK(!compiled_module.is_null());
-    Handle<JSObject> module_obj = CreateCompiledModuleObject(
-        isolate, compiled_module.ToHandleChecked(), ModuleOrigin::kWasmOrigin);
-    v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
-    CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
-
-    v8::Local<v8::WasmCompiledModule> v8_compiled_module =
-        v8_module_obj.As<v8::WasmCompiledModule>();
-    v8::Local<v8::String> uncompiled_bytes =
-        v8_compiled_module->GetWasmWireBytes();
-    bytes_size = static_cast<size_t>(uncompiled_bytes->Length());
-    bytes = zone.NewArray<uint8_t>(uncompiled_bytes->Length());
-    uncompiled_bytes->WriteOneByte(bytes);
-    data = v8_compiled_module->Serialize();
+// Approximate gtest TEST_F style, in case we adopt gtest.
+class WasmSerializationTest {
+ public:
+  WasmSerializationTest() : zone_(&allocator_, ZONE_NAME) {
+    // Don't call here if we move to gtest.
+    SetUp();
   }
 
-  v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes = {
-      const_cast<const uint8_t*>(bytes), bytes_size};
+  void ClearSerializedData() {
+    serialized_bytes_.first = nullptr;
+    serialized_bytes_.second = 0;
+  }
 
-  v8::WasmCompiledModule::CallerOwnedBuffer serialized_bytes = {
-      data.first.get(), data.second};
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
+  void InvalidateVersion() {
+    uint32_t* buffer = reinterpret_cast<uint32_t*>(
+        const_cast<uint8_t*>(serialized_bytes_.first));
+    buffer[SerializedCodeData::kVersionHashOffset] = Version::Hash() + 1;
+  }
 
-  for (int i = 0; i < 3; ++i) {
-    v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
-    if (i == 1) {
-      // Invalidate the header by providing a mismatched version
-      uint32_t* buffer = reinterpret_cast<uint32_t*>(
-          const_cast<uint8_t*>(serialized_bytes.first));
-      buffer[SerializedCodeData::kVersionHashOffset] = Version::Hash() + 1;
-    }
+  void InvalidateWireBytes() {
+    memset(const_cast<uint8_t*>(wire_bytes_.first), '\0',
+           wire_bytes_.second / 2);
+  }
 
-    if (i == 2) {
-      // Provide no serialized data to force recompilation.
-      serialized_bytes.first = nullptr;
-      serialized_bytes.second = 0;
-    }
+  v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
+    ErrorThrower thrower(current_isolate(), "");
+    v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
+        v8::WasmCompiledModule::DeserializeOrCompile(
+            current_isolate_v8(), serialized_bytes(), wire_bytes());
+    return deserialized;
+  }
+
+  void DeserializeAndRun() {
+    ErrorThrower thrower(current_isolate(), "");
+    v8::Local<v8::WasmCompiledModule> deserialized_module;
+    CHECK(Deserialize().ToLocal(&deserialized_module));
+    Handle<JSObject> module_object =
+        Handle<JSObject>::cast(v8::Utils::OpenHandle(*deserialized_module));
     {
-      v8::Isolate::Scope isolate_scope(v8_isolate);
-      v8::HandleScope new_scope(v8_isolate);
-      v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
-      new_ctx->Enter();
-      isolate = reinterpret_cast<Isolate*>(v8_isolate);
-      testing::SetupIsolateForWasmModule(isolate);
-      v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
-          v8::WasmCompiledModule::DeserializeOrCompile(
-              v8_isolate, serialized_bytes, wire_bytes);
-      v8::Local<v8::WasmCompiledModule> compiled_module;
-      CHECK(deserialized.ToLocal(&compiled_module));
-      Handle<JSObject> module_object =
-          Handle<JSObject>::cast(v8::Utils::OpenHandle(*compiled_module));
-      Handle<JSObject> instance =
-          WasmModule::Instantiate(isolate, &thrower, module_object,
-                                  Handle<JSReceiver>::null(),
-                                  Handle<JSArrayBuffer>::null())
-              .ToHandleChecked();
-      Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(41), isolate)};
-      int32_t result = testing::CallWasmFunctionForTesting(
-          isolate, instance, &thrower, kFunctionName, 1, params,
-          ModuleOrigin::kWasmOrigin);
-      CHECK(result == 42);
-      new_ctx->Exit();
+      DisallowHeapAllocation assume_no_gc;
+      Handle<WasmCompiledModule> compiled_part(
+          WasmCompiledModule::cast(module_object->GetInternalField(0)),
+          current_isolate());
+      CHECK_EQ(memcmp(compiled_part->module_bytes()->GetCharsAddress(),
+                      wire_bytes().first, wire_bytes().second),
+               0);
     }
-    v8_isolate->Dispose();
+    Handle<JSObject> instance =
+        WasmModule::Instantiate(current_isolate(), &thrower, module_object,
+                                Handle<JSReceiver>::null(),
+                                Handle<JSArrayBuffer>::null())
+            .ToHandleChecked();
+    Handle<Object> params[1] = {
+        Handle<Object>(Smi::FromInt(41), current_isolate())};
+    int32_t result = testing::CallWasmFunctionForTesting(
+        current_isolate(), instance, &thrower, kFunctionName, 1, params,
+        ModuleOrigin::kWasmOrigin);
+    CHECK(result == 42);
   }
+
+  Isolate* current_isolate() {
+    return reinterpret_cast<Isolate*>(current_isolate_v8_);
+  }
+
+  ~WasmSerializationTest() {
+    // Don't call from here if we move to gtest
+    TearDown();
+  }
+
+ private:
+  static const char* kFunctionName;
+
+  Zone* zone() { return &zone_; }
+  const v8::WasmCompiledModule::CallerOwnedBuffer& wire_bytes() const {
+    return wire_bytes_;
+  }
+
+  const v8::WasmCompiledModule::CallerOwnedBuffer& serialized_bytes() const {
+    return serialized_bytes_;
+  }
+
+  v8::Isolate* current_isolate_v8() { return current_isolate_v8_; }
+
+  void SetUp() {
+    WasmModuleBuilder* builder = new (zone()) WasmModuleBuilder(zone());
+    TestSignatures sigs;
+
+    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
+    f->EmitCode(code, sizeof(code));
+    f->ExportAs(CStrVector(kFunctionName));
+
+    ZoneBuffer buffer(&zone_);
+    builder->WriteTo(buffer);
+
+    Isolate* serialization_isolate = CcTest::InitIsolateOnce();
+    ErrorThrower thrower(serialization_isolate, "");
+    uint8_t* bytes = nullptr;
+    size_t bytes_size = 0;
+    {
+      HandleScope scope(serialization_isolate);
+      testing::SetupIsolateForWasmModule(serialization_isolate);
+
+      ModuleResult decoding_result =
+          DecodeWasmModule(serialization_isolate, zone(), buffer.begin(),
+                           buffer.end(), false, kWasmOrigin);
+      std::unique_ptr<const WasmModule> module(decoding_result.val);
+      CHECK(!decoding_result.failed());
+
+      MaybeHandle<WasmCompiledModule> compiled_module =
+          module->CompileFunctions(serialization_isolate, &thrower);
+      CHECK(!compiled_module.is_null());
+      Handle<JSObject> module_obj = CreateCompiledModuleObject(
+          serialization_isolate, compiled_module.ToHandleChecked(),
+          ModuleOrigin::kWasmOrigin);
+      v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
+      CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
+
+      v8::Local<v8::WasmCompiledModule> v8_compiled_module =
+          v8_module_obj.As<v8::WasmCompiledModule>();
+      v8::Local<v8::String> uncompiled_bytes =
+          v8_compiled_module->GetWasmWireBytes();
+      bytes_size = static_cast<size_t>(uncompiled_bytes->Length());
+      bytes = zone()->NewArray<uint8_t>(uncompiled_bytes->Length());
+      uncompiled_bytes->WriteOneByte(bytes);
+      // keep alive data_ until the end
+      data_ = v8_compiled_module->Serialize();
+    }
+
+    wire_bytes_ = {const_cast<const uint8_t*>(bytes), bytes_size};
+
+    serialized_bytes_ = {data_.first.get(), data_.second};
+
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator =
+        serialization_isolate->array_buffer_allocator();
+
+    current_isolate_v8_ = v8::Isolate::New(create_params);
+    v8::HandleScope new_scope(current_isolate_v8());
+    v8::Local<v8::Context> deserialization_context =
+        v8::Context::New(current_isolate_v8());
+    deserialization_context->Enter();
+    testing::SetupIsolateForWasmModule(current_isolate());
+  }
+
+  void TearDown() {
+    current_isolate_v8()->Dispose();
+    current_isolate_v8_ = nullptr;
+  }
+
+  v8::internal::AccountingAllocator allocator_;
+  Zone zone_;
+  v8::WasmCompiledModule::SerializedModule data_;
+  v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes_;
+  v8::WasmCompiledModule::CallerOwnedBuffer serialized_bytes_;
+  v8::Isolate* current_isolate_v8_;
+};
+
+const char* WasmSerializationTest::kFunctionName = "increment";
+
+TEST(DeserializeValidModule) {
+  WasmSerializationTest test;
+  HandleScope scope(test.current_isolate());
+  test.DeserializeAndRun();
+}
+
+TEST(DeserializeMismatchingVersion) {
+  WasmSerializationTest test;
+  HandleScope scope(test.current_isolate());
+  test.InvalidateVersion();
+  test.DeserializeAndRun();
+}
+
+TEST(DeserializeNoSerializedData) {
+  WasmSerializationTest test;
+  HandleScope scope(test.current_isolate());
+  test.ClearSerializedData();
+  test.DeserializeAndRun();
+}
+
+TEST(DeserializeWireBytesAndSerializedDataInvalid) {
+  WasmSerializationTest test;
+  HandleScope scope(test.current_isolate());
+  test.InvalidateVersion();
+  test.InvalidateWireBytes();
+  test.Deserialize();
 }
 
 TEST(MemorySize) {
