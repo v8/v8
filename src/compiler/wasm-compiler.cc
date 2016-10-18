@@ -2177,9 +2177,8 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args, Node*** rets,
         *effect_, *control_);
     int32_t key = module_->module->function_tables[0].map.Find(sig);
     DCHECK_GE(key, 0);
-    Node* sig_match =
-        graph()->NewNode(machine->Word32Equal(),
-                         BuildChangeSmiToInt32(load_sig), Int32Constant(key));
+    Node* sig_match = graph()->NewNode(machine->WordEqual(), load_sig,
+                                       jsgraph()->SmiConstant(key));
     trap_->AddTrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
   }
 
