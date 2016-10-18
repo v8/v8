@@ -3320,9 +3320,10 @@ int MarkCompactCollector::Sweeper::RawSweep(
     Page* p, FreeListRebuildingMode free_list_mode,
     FreeSpaceTreatmentMode free_space_mode) {
   Space* space = p->owner();
+  AllocationSpace identity = space->identity();
   DCHECK_NOT_NULL(space);
-  DCHECK(free_list_mode == IGNORE_FREE_LIST || space->identity() == OLD_SPACE ||
-         space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
+  DCHECK(free_list_mode == IGNORE_FREE_LIST || identity == OLD_SPACE ||
+         identity == CODE_SPACE || identity == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
   // Before we sweep objects on the page, we free dead array buffers which
@@ -3351,6 +3352,8 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   LiveObjectIterator<kBlackObjects> it(p);
   HeapObject* object = NULL;
+  bool clear_slots =
+      p->old_to_new_slots() && (identity == OLD_SPACE || identity == MAP_SPACE);
   while ((object = it.Next()) != NULL) {
     DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
     Address free_end = object->address();
@@ -3368,6 +3371,11 @@ int MarkCompactCollector::Sweeper::RawSweep(
         p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                         ClearRecordedSlots::kNo);
       }
+
+      if (clear_slots) {
+        RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
+                                               SlotSet::KEEP_EMPTY_BUCKETS);
+      }
     }
     Map* map = object->synchronized_map();
     int size = object->SizeFromMap(map);
@@ -3383,9 +3391,6 @@ int MarkCompactCollector::Sweeper::RawSweep(
     free_start = free_end + size;
   }
 
-  // Clear the mark bits of that page and reset live bytes count.
-  p->ClearLiveness();
-
   if (free_start != p->area_end()) {
     CHECK_GT(p->area_end(), free_start);
     size_t size = static_cast<size_t>(p->area_end() - free_start);
@@ -3400,7 +3405,16 @@ int MarkCompactCollector::Sweeper::RawSweep(
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                       ClearRecordedSlots::kNo);
     }
+
+    if (clear_slots) {
+      RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
+                                             SlotSet::KEEP_EMPTY_BUCKETS);
+    }
   }
+
+  // Clear the mark bits of that page and reset live bytes count.
+  p->ClearLiveness();
+
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
   return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
@@ -3615,6 +3629,11 @@ class PointerUpdateJobTraits {
 
   static SlotCallbackResult CheckAndUpdateOldToNewSlot(Heap* heap,
                                                        Address slot_address) {
+    // There may be concurrent action on slots in dead objects. Concurrent
+    // sweeper threads may overwrite the slot content with a free space object.
+    // Moreover, the pointed-to object may also get concurrently overwritten
+    // with a free space object. The sweeper always gets priority performing
+    // these writes.
     base::NoBarrierAtomicValue<Object*>* slot =
         base::NoBarrierAtomicValue<Object*>::FromAddress(slot_address);
     Object* slot_reference = slot->Value();
@@ -3630,8 +3649,10 @@ class PointerUpdateJobTraits {
         if (map_word.ToRawValue() < Page::kPageSize) {
           return REMOVE_SLOT;
         }
-        // Update the corresponding slot.
-        slot->SetValue(map_word.ToForwardingAddress());
+        // Update the corresponding slot only if the slot content did not
+        // change in the meantime. This may happen when a concurrent sweeper
+        // thread stored a free space object at that memory location.
+        slot->TrySetValue(slot_reference, map_word.ToForwardingAddress());
       }
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
@@ -3816,9 +3837,7 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     if (identity == NEW_SPACE) {
       RawSweep(page, IGNORE_FREE_LIST, free_space_mode);
     } else {
-      if (identity == OLD_SPACE || identity == MAP_SPACE) {
-        RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(heap_, page);
-      } else {
+      if (identity == CODE_SPACE) {
         RememberedSet<OLD_TO_NEW>::ClearInvalidTypedSlots(heap_, page);
       }
       max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
