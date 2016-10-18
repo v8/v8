@@ -703,8 +703,10 @@ compiler::Node* AddWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry for floating point addition.
-  Label do_fadd(assembler), end(assembler),
-      call_add_stub(assembler, Label::kDeferred);
+  Label do_fadd(assembler), if_lhsisnotnumber(assembler, Label::kDeferred),
+      check_rhsisoddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_add_stub(assembler), end(assembler);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64),
       var_type_feedback(assembler, MachineRepresentation::kWord32),
@@ -757,7 +759,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
       // Check if the {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_add_stub);
+                            &check_rhsisoddball);
 
       var_fadd_lhs.Bind(assembler->SmiToFloat64(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -767,14 +769,12 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   assembler->Bind(&if_lhsisnotsmi);
   {
-    Label check_string(assembler);
-
     // Load the map of {lhs}.
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if {lhs} is a HeapNumber.
-    Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
-    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map), &check_string);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
+                          &if_lhsisnotnumber);
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -795,37 +795,11 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
       // Check if the {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_add_stub);
+                            &check_rhsisoddball);
 
       var_fadd_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
       assembler->Goto(&do_fadd);
-    }
-
-    assembler->Bind(&check_string);
-    {
-      // Check if the {rhs} is a smi, and exit the string check early if it is.
-      assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_add_stub);
-
-      Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
-
-      // Exit unless {lhs} is a string
-      assembler->GotoUnless(assembler->IsStringInstanceType(lhs_instance_type),
-                            &call_add_stub);
-
-      Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
-
-      // Exit unless {rhs} is a string
-      assembler->GotoUnless(assembler->IsStringInstanceType(rhs_instance_type),
-                            &call_add_stub);
-
-      var_type_feedback.Bind(
-          assembler->Int32Constant(BinaryOperationFeedback::kString));
-      Callable callable = CodeFactory::StringAdd(
-          assembler->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-      var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
-
-      assembler->Goto(&end);
     }
   }
 
@@ -840,10 +814,81 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_add_stub);
+  assembler->Bind(&if_lhsisnotnumber);
+  {
+    // No checks on rhs are done yet. We just know lhs is not a number or Smi.
+    Label if_lhsisoddball(assembler), if_lhsisnotoddball(assembler);
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* lhs_is_oddball = assembler->Word32Equal(
+        lhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(lhs_is_oddball, &if_lhsisoddball, &if_lhsisnotoddball);
+
+    assembler->Bind(&if_lhsisoddball);
+    {
+      assembler->GotoIf(assembler->TaggedIsSmi(rhs),
+                        &call_with_oddball_feedback);
+
+      // Load the map of the {rhs}.
+      Node* rhs_map = assembler->LoadMap(rhs);
+
+      // Check if {rhs} is a HeapNumber.
+      assembler->Branch(assembler->IsHeapNumberMap(rhs_map),
+                        &call_with_oddball_feedback, &check_rhsisoddball);
+    }
+
+    assembler->Bind(&if_lhsisnotoddball);
+    {
+      // Exit unless {lhs} is a string
+      assembler->GotoUnless(assembler->IsStringInstanceType(lhs_instance_type),
+                            &call_with_any_feedback);
+
+      // Check if the {rhs} is a smi, and exit the string check early if it is.
+      assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_with_any_feedback);
+
+      Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+      // Exit unless {rhs} is a string. Since {lhs} is a string we no longer
+      // need an Oddball check.
+      assembler->GotoUnless(assembler->IsStringInstanceType(rhs_instance_type),
+                            &call_with_any_feedback);
+
+      var_type_feedback.Bind(
+          assembler->Int32Constant(BinaryOperationFeedback::kString));
+      Callable callable = CodeFactory::StringAdd(
+          assembler->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+      var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
+
+      assembler->Goto(&end);
+    }
+  }
+
+  assembler->Bind(&check_rhsisoddball);
+  {
+    // Check if rhs is an oddball. At this point we know lhs is either a
+    // Smi or number or oddball and rhs is not a number or Smi.
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+    Node* rhs_is_oddball = assembler->Word32Equal(
+        rhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(rhs_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_add_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_add_stub);
+  }
+
+  assembler->Bind(&call_add_stub);
+  {
     Callable callable = CodeFactory::Add(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
@@ -1059,8 +1104,10 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point multiplication.
-  Label do_fmul(assembler), end(assembler),
-      call_multiply_stub(assembler, Label::kDeferred);
+  Label do_fmul(assembler), if_lhsisnotnumber(assembler, Label::kDeferred),
+      check_rhsisoddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_multiply_stub(assembler), end(assembler);
   Variable var_lhs_float64(assembler, MachineRepresentation::kFloat64),
       var_rhs_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
@@ -1096,7 +1143,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
       // Check if {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
-                            &call_multiply_stub);
+                            &check_rhsisoddball);
 
       // Convert {lhs} to a double and multiply it with the value of {rhs}.
       var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
@@ -1111,7 +1158,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
     // Check if {lhs} is a HeapNumber.
     assembler->GotoUnless(assembler->WordEqual(lhs_map, number_map),
-                          &call_multiply_stub);
+                          &if_lhsisnotnumber);
 
     // Check if {rhs} is a Smi.
     Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
@@ -1132,7 +1179,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
       // Check if {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
-                            &call_multiply_stub);
+                            &check_rhsisoddball);
 
       // Both {lhs} and {rhs} are HeapNumbers. Load their values and
       // multiply them.
@@ -1153,10 +1200,52 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_multiply_stub);
+  assembler->Bind(&if_lhsisnotnumber);
+  {
+    // No checks on rhs are done yet. We just know lhs is not a number or Smi.
+    // Check if lhs is an oddball.
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* lhs_is_oddball = assembler->Word32Equal(
+        lhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(lhs_is_oddball, &call_with_any_feedback);
+
+    assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_with_oddball_feedback);
+
+    // Load the map of the {rhs}.
+    Node* rhs_map = assembler->LoadMap(rhs);
+
+    // Check if {rhs} is a HeapNumber.
+    assembler->Branch(assembler->IsHeapNumberMap(rhs_map),
+                      &call_with_oddball_feedback, &check_rhsisoddball);
+  }
+
+  assembler->Bind(&check_rhsisoddball);
+  {
+    // Check if rhs is an oddball. At this point we know lhs is either a
+    // Smi or number or oddball and rhs is not a number or Smi.
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+    Node* rhs_is_oddball = assembler->Word32Equal(
+        rhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(rhs_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_multiply_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_multiply_stub);
+  }
+
+  assembler->Bind(&call_multiply_stub);
+  {
     Callable callable = CodeFactory::Multiply(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
@@ -1179,7 +1268,10 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point division.
-  Label do_fdiv(assembler), end(assembler), call_divide_stub(assembler);
+  Label do_fdiv(assembler), dividend_is_not_number(assembler, Label::kDeferred),
+      check_divisor_for_oddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_divide_stub(assembler), end(assembler);
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
@@ -1272,7 +1364,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       // Check if {divisor} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                            &call_divide_stub);
+                            &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
       // {divisor}.
@@ -1287,7 +1379,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       // Check if {dividend} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
-                            &call_divide_stub);
+                            &dividend_is_not_number);
 
       // Check if {divisor} is a Smi.
       Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
@@ -1309,7 +1401,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
         // Check if {divisor} is a HeapNumber.
         assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                              &call_divide_stub);
+                              &check_divisor_for_oddball);
 
         // Both {dividend} and {divisor} are HeapNumbers. Load their values
         // and divide them.
@@ -1330,10 +1422,53 @@ compiler::Node* DivideWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_divide_stub);
+  assembler->Bind(&dividend_is_not_number);
+  {
+    // We just know dividend is not a number or Smi. No checks on divisor yet.
+    // Check if dividend is an oddball.
+    Node* dividend_instance_type = assembler->LoadInstanceType(dividend);
+    Node* dividend_is_oddball = assembler->Word32Equal(
+        dividend_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(dividend_is_oddball, &call_with_any_feedback);
+
+    assembler->GotoIf(assembler->TaggedIsSmi(divisor),
+                      &call_with_oddball_feedback);
+
+    // Load the map of the {divisor}.
+    Node* divisor_map = assembler->LoadMap(divisor);
+
+    // Check if {divisor} is a HeapNumber.
+    assembler->Branch(assembler->IsHeapNumberMap(divisor_map),
+                      &call_with_oddball_feedback, &check_divisor_for_oddball);
+  }
+
+  assembler->Bind(&check_divisor_for_oddball);
+  {
+    // Check if divisor is an oddball. At this point we know dividend is either
+    // a Smi or number or oddball and divisor is not a number or Smi.
+    Node* divisor_instance_type = assembler->LoadInstanceType(divisor);
+    Node* divisor_is_oddball = assembler->Word32Equal(
+        divisor_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(divisor_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_divide_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_divide_stub);
+  }
+
+  assembler->Bind(&call_divide_stub);
+  {
     Callable callable = CodeFactory::Divide(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, dividend, divisor));
     assembler->Goto(&end);
@@ -1355,7 +1490,10 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point division.
-  Label do_fmod(assembler), end(assembler), call_modulus_stub(assembler);
+  Label do_fmod(assembler), dividend_is_not_number(assembler, Label::kDeferred),
+      check_divisor_for_oddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_modulus_stub(assembler), end(assembler);
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
@@ -1389,7 +1527,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
       // Check if {divisor} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                            &call_modulus_stub);
+                            &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
       // {divisor}.
@@ -1405,7 +1543,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
     // Check if {dividend} is a HeapNumber.
     assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
-                          &call_modulus_stub);
+                          &dividend_is_not_number);
 
     // Check if {divisor} is a Smi.
     Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
@@ -1427,7 +1565,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
       // Check if {divisor} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                            &call_modulus_stub);
+                            &check_divisor_for_oddball);
 
       // Both {dividend} and {divisor} are HeapNumbers. Load their values
       // and divide them.
@@ -1447,10 +1585,53 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_modulus_stub);
+  assembler->Bind(&dividend_is_not_number);
+  {
+    // No checks on divisor yet. We just know dividend is not a number or Smi.
+    // Check if dividend is an oddball.
+    Node* dividend_instance_type = assembler->LoadInstanceType(dividend);
+    Node* dividend_is_oddball = assembler->Word32Equal(
+        dividend_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(dividend_is_oddball, &call_with_any_feedback);
+
+    assembler->GotoIf(assembler->TaggedIsSmi(divisor),
+                      &call_with_oddball_feedback);
+
+    // Load the map of the {divisor}.
+    Node* divisor_map = assembler->LoadMap(divisor);
+
+    // Check if {divisor} is a HeapNumber.
+    assembler->Branch(assembler->IsHeapNumberMap(divisor_map),
+                      &call_with_oddball_feedback, &check_divisor_for_oddball);
+  }
+
+  assembler->Bind(&check_divisor_for_oddball);
+  {
+    // Check if divisor is an oddball. At this point we know dividend is either
+    // a Smi or number or oddball and divisor is not a number or Smi.
+    Node* divisor_instance_type = assembler->LoadInstanceType(divisor);
+    Node* divisor_is_oddball = assembler->Word32Equal(
+        divisor_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(divisor_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_modulus_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_modulus_stub);
+  }
+
+  assembler->Bind(&call_modulus_stub);
+  {
     Callable callable = CodeFactory::Modulus(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, dividend, divisor));
     assembler->Goto(&end);
