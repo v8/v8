@@ -824,6 +824,7 @@
         'dateparser.h',
         'debug/debug-evaluate.cc',
         'debug/debug-evaluate.h',
+        'debug/debug-interface.h',
         'debug/debug-frames.cc',
         'debug/debug-frames.h',
         'debug/debug-scopes.cc',

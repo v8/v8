@@ -63,9 +63,11 @@ void V8Debugger::enable() {
   if (m_enableCount++) return;
   DCHECK(!enabled());
   v8::HandleScope scope(m_isolate);
-  v8::Debug::SetDebugEventListener(m_isolate, &V8Debugger::v8DebugEventCallback,
-                                   v8::External::New(m_isolate, this));
-  m_debuggerContext.Reset(m_isolate, v8::Debug::GetDebugContext(m_isolate));
+  v8::DebugInterface::SetDebugEventListener(m_isolate,
+                                            &V8Debugger::v8DebugEventCallback,
+                                            v8::External::New(m_isolate, this));
+  m_debuggerContext.Reset(m_isolate,
+                          v8::DebugInterface::GetDebugContext(m_isolate));
   compileDebuggerScript();
 }
 
@@ -76,7 +78,7 @@ void V8Debugger::disable() {
   m_debuggerScript.Reset();
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
-  v8::Debug::SetDebugEventListener(m_isolate, nullptr);
+  v8::DebugInterface::SetDebugEventListener(m_isolate, nullptr);
 }
 
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
@@ -171,7 +173,7 @@ String16 V8Debugger::setBreakpoint(const String16& sourceID,
           ->Get(context, toV8StringInternalized(m_isolate, "setBreakpoint"))
           .ToLocalChecked());
   v8::Local<v8::Value> breakpointId =
-      v8::Debug::Call(debuggerContext(), setBreakpointFunction, info)
+      v8::DebugInterface::Call(debuggerContext(), setBreakpointFunction, info)
           .ToLocalChecked();
   if (!breakpointId->IsString()) return "";
   *actualLineNumber =
@@ -206,7 +208,7 @@ void V8Debugger::removeBreakpoint(const String16& breakpointId) {
               ->Get(context,
                     toV8StringInternalized(m_isolate, "removeBreakpoint"))
               .ToLocalChecked());
-  v8::Debug::Call(debuggerContext(), removeBreakpointFunction, info)
+  v8::DebugInterface::Call(debuggerContext(), removeBreakpointFunction, info)
       .ToLocalChecked();
 }
 
@@ -219,7 +221,8 @@ void V8Debugger::clearBreakpoints() {
       m_debuggerScript.Get(m_isolate)
           ->Get(context, toV8StringInternalized(m_isolate, "clearBreakpoints"))
           .ToLocalChecked());
-  v8::Debug::Call(debuggerContext(), clearBreakpoints).ToLocalChecked();
+  v8::DebugInterface::Call(debuggerContext(), clearBreakpoints)
+      .ToLocalChecked();
 }
 
 void V8Debugger::setBreakpointsActivated(bool activated) {
@@ -243,7 +246,7 @@ void V8Debugger::setBreakpointsActivated(bool activated) {
               ->Get(context, toV8StringInternalized(m_isolate,
                                                     "setBreakpointsActivated"))
               .ToLocalChecked());
-  v8::Debug::Call(debuggerContext(), setBreakpointsActivated, info)
+  v8::DebugInterface::Call(debuggerContext(), setBreakpointsActivated, info)
       .ToLocalChecked();
 
   m_breakpointsActivated = activated;
@@ -276,9 +279,9 @@ void V8Debugger::setPauseOnExceptionsState(
 void V8Debugger::setPauseOnNextStatement(bool pause) {
   if (m_runningNestedMessageLoop) return;
   if (pause)
-    v8::Debug::DebugBreak(m_isolate);
+    v8::DebugInterface::DebugBreak(m_isolate);
   else
-    v8::Debug::CancelDebugBreak(m_isolate);
+    v8::DebugInterface::CancelDebugBreak(m_isolate);
 }
 
 bool V8Debugger::canBreakProgram() {
@@ -306,7 +309,7 @@ void V8Debugger::breakProgram() {
                          v8::ConstructorBehavior::kThrow)
            .ToLocal(&breakFunction))
     return;
-  v8::Debug::Call(debuggerContext(), breakFunction).ToLocalChecked();
+  v8::DebugInterface::Call(debuggerContext(), breakFunction).ToLocalChecked();
 }
 
 void V8Debugger::continueProgram() {
@@ -359,11 +362,11 @@ bool V8Debugger::setScriptSource(
   class EnableLiveEditScope {
    public:
     explicit EnableLiveEditScope(v8::Isolate* isolate) : m_isolate(isolate) {
-      v8::Debug::SetLiveEditEnabled(m_isolate, true);
+      v8::DebugInterface::SetLiveEditEnabled(m_isolate, true);
       inLiveEditScope = true;
     }
     ~EnableLiveEditScope() {
-      v8::Debug::SetLiveEditEnabled(m_isolate, false);
+      v8::DebugInterface::SetLiveEditEnabled(m_isolate, false);
       inLiveEditScope = false;
     }
 
@@ -459,8 +462,8 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
                       toV8StringInternalized(m_isolate, "currentCallFrames"))
                 .ToLocalChecked());
     currentCallFramesV8 =
-        v8::Debug::Call(debuggerContext(), currentCallFramesFunction,
-                        v8::Integer::New(m_isolate, limit))
+        v8::DebugInterface::Call(debuggerContext(), currentCallFramesFunction,
+                                 v8::Integer::New(m_isolate, limit))
             .ToLocalChecked();
   } else {
     v8::Local<v8::Value> argv[] = {m_executionState,
@@ -559,7 +562,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 }
 
 void V8Debugger::v8DebugEventCallback(
-    const v8::Debug::EventDetails& eventDetails) {
+    const v8::DebugInterface::EventDetails& eventDetails) {
   V8Debugger* thisPtr = toV8Debugger(eventDetails.GetCallbackData());
   thisPtr->handleV8DebugEvent(eventDetails);
 }
@@ -580,7 +583,7 @@ v8::Local<v8::Value> V8Debugger::callInternalGetterFunction(
 }
 
 void V8Debugger::handleV8DebugEvent(
-    const v8::Debug::EventDetails& eventDetails) {
+    const v8::DebugInterface::EventDetails& eventDetails) {
   if (!enabled()) return;
   v8::DebugEvent event = eventDetails.GetEvent();
   if (event != v8::AsyncTaskEvent && event != v8::Break &&
@@ -729,7 +732,8 @@ v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
 v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
   v8::Local<v8::Array> properties;
-  if (!v8::Debug::GetInternalProperties(m_isolate, value).ToLocal(&properties))
+  if (!v8::DebugInterface::GetInternalProperties(m_isolate, value)
+           .ToLocal(&properties))
     return v8::MaybeLocal<v8::Array>();
   if (value->IsFunction()) {
     v8::Local<v8::Function> function = value.As<v8::Function>();

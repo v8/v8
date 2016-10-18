@@ -8764,6 +8764,46 @@ MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
+bool DebugInterface::SetDebugEventListener(Isolate* isolate,
+                                           DebugInterface::EventCallback that,
+                                           Local<Value> data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i::HandleScope scope(i_isolate);
+  i::Handle<i::Object> foreign = i_isolate->factory()->undefined_value();
+  if (that != NULL) {
+    foreign = i_isolate->factory()->NewForeign(FUNCTION_ADDR(that));
+  }
+  i_isolate->debug()->SetEventListener(foreign, Utils::OpenHandle(*data, true));
+  return true;
+}
+
+Local<Context> DebugInterface::GetDebugContext(Isolate* isolate) {
+  return Debug::GetDebugContext(isolate);
+}
+
+MaybeLocal<Value> DebugInterface::Call(Local<Context> context,
+                                       v8::Local<v8::Function> fun,
+                                       v8::Local<v8::Value> data) {
+  return Debug::Call(context, fun, data);
+}
+
+void DebugInterface::SetLiveEditEnabled(Isolate* isolate, bool enable) {
+  Debug::SetLiveEditEnabled(isolate, enable);
+}
+
+void DebugInterface::DebugBreak(Isolate* isolate) {
+  Debug::DebugBreak(isolate);
+}
+
+void DebugInterface::CancelDebugBreak(Isolate* isolate) {
+  Debug::CancelDebugBreak(isolate);
+}
+
+MaybeLocal<Array> DebugInterface::GetInternalProperties(Isolate* isolate,
+                                                        Local<Value> value) {
+  return Debug::GetInternalProperties(isolate, value);
+}
 
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);

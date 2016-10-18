@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/java-script-call-frame.h"
@@ -914,7 +915,7 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
   ErrorString ignored;
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Context> debuggerContext =
-      v8::Debug::GetDebugContext(m_isolate);
+      v8::DebugInterface::GetDebugContext(m_isolate);
   v8::Context::Scope contextScope(debuggerContext);
 
   v8::Local<v8::Array> objects = v8::Array::New(m_isolate);

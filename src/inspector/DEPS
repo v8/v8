@@ -6,4 +6,6 @@ include_rules = [
   "+src/base/platform/platform.h",
   "+src/inspector",
   "+src/tracing",
+  "-include/v8-debug.h",
+  "+src/debug/debug-interface.h",
 ]

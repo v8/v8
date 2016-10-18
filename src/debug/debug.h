@@ -11,6 +11,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
+#include "src/debug/debug-interface.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
@@ -290,7 +291,7 @@ class MessageImpl: public v8::Debug::Message {
 
 
 // Details of the debug event delivered to the debug event listener.
-class EventDetailsImpl : public v8::Debug::EventDetails {
+class EventDetailsImpl : public v8::DebugInterface::EventDetails {
  public:
   EventDetailsImpl(DebugEvent event,
                    Handle<JSObject> exec_state,

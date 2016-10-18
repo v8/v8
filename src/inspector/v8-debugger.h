@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-script.h"
 
-#include "include/v8-debug.h"
 #include "include/v8-inspector.h"
 
 namespace v8_inspector {
@@ -114,10 +114,10 @@ class V8Debugger {
                           v8::Local<v8::Value> exception,
                           v8::Local<v8::Array> hitBreakpoints,
                           bool isPromiseRejection = false);
-  static void v8DebugEventCallback(const v8::Debug::EventDetails&);
+  static void v8DebugEventCallback(const v8::DebugInterface::EventDetails&);
   v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
                                                   const char* functionName);
-  void handleV8DebugEvent(const v8::Debug::EventDetails&);
+  void handleV8DebugEvent(const v8::DebugInterface::EventDetails&);
   void handleV8AsyncTaskEvent(v8::Local<v8::Context>,
                               v8::Local<v8::Object> executionState,
                               v8::Local<v8::Object> eventData);

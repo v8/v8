@@ -1287,6 +1287,7 @@ v8_source_set("v8_base") {
     "src/debug/debug-evaluate.h",
     "src/debug/debug-frames.cc",
     "src/debug/debug-frames.h",
+    "src/debug/debug-interface.h",
     "src/debug/debug-scopes.cc",
     "src/debug/debug-scopes.h",
     "src/debug/debug.cc",
