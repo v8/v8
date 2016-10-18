@@ -1426,6 +1426,9 @@ class WasmInstanceBuilder {
     }
 
     DCHECK(wasm::IsWasmObject(*instance));
+    Handle<Object> memory_object(instance->GetInternalField(kWasmMemObject),
+                                 isolate_);
+    WasmJs::SetWasmMemoryInstance(isolate_, memory_object, instance);
 
     //--------------------------------------------------------------------------
     // Run the start function if one was specified.
@@ -2205,10 +2208,20 @@ int32_t wasm::GetInstanceMemorySize(Isolate* isolate,
   }
 }
 
+uint32_t GetMaxInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance) {
+  uint32_t max_pages = WasmModule::kMaxMemPages;
+  Handle<Object> memory_object(instance->GetInternalField(kWasmMemObject),
+                               isolate);
+  if (memory_object->IsUndefined(isolate)) return max_pages;
+  return WasmJs::GetWasmMemoryMaximumSize(isolate, memory_object);
+}
+
 int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                                  uint32_t pages) {
-  if (!IsWasmObject(*instance)) return false;
+  if (!IsWasmObject(*instance)) return -1;
   if (pages == 0) return GetInstanceMemorySize(isolate, instance);
+  uint32_t max_pages = GetMaxInstanceMemorySize(isolate, instance);
+  if (WasmModule::kMaxMemPages < max_pages) return -1;
 
   Address old_mem_start = nullptr;
   uint32_t old_size = 0, new_size = 0;
@@ -2216,27 +2229,24 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
   MaybeHandle<JSArrayBuffer> maybe_mem_buffer =
       GetInstanceMemory(isolate, instance);
   Handle<JSArrayBuffer> old_buffer;
-  if (!maybe_mem_buffer.ToHandle(&old_buffer)) {
+  if (!maybe_mem_buffer.ToHandle(&old_buffer) ||
+      old_buffer->backing_store() == nullptr) {
     // If module object does not have linear memory associated with it,
     // Allocate new array buffer of given size.
-    // TODO(gdeepti): Fix bounds check to take into account size of memtype.
     new_size = pages * WasmModule::kPageSize;
-    // The code generated in the wasm compiler guarantees this precondition.
-    DCHECK(pages <= WasmModule::kMaxMemPages);
+    if (max_pages < pages) return -1;
   } else {
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
     old_size = old_buffer->byte_length()->Number();
     // If the old memory was zero-sized, we should have been in the
     // "undefined" case above.
     DCHECK_NOT_NULL(old_mem_start);
-    DCHECK_NE(0, old_size);
     DCHECK(old_size + pages * WasmModule::kPageSize <=
            std::numeric_limits<uint32_t>::max());
     new_size = old_size + pages * WasmModule::kPageSize;
   }
 
-  if (new_size <= old_size ||
-      WasmModule::kMaxMemPages * WasmModule::kPageSize <= new_size) {
+  if (new_size <= old_size || max_pages * WasmModule::kPageSize < new_size) {
     return -1;
   }
   Handle<JSArrayBuffer> buffer = NewArrayBuffer(isolate, new_size);

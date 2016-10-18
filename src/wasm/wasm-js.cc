@@ -27,10 +27,19 @@ using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
 
-static const int kWasmMemoryBufferFieldIndex = 0;
-static const int kWasmMemoryMaximumFieldIndex = 1;
 static const int kWasmTableArrayFieldIndex = 0;
 static const int kWasmTableMaximumFieldIndex = 1;
+
+enum WasmMemoryObjectData {
+  kWasmMemoryBuffer,
+  kWasmMemoryMaximum,
+  kWasmMemoryInstanceObject
+};
+
+enum WasmInternalFieldCountData {
+  kWasmTableInternalFieldCount = 2,
+  kWasmMemoryInternalFieldCount
+};
 
 namespace {
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
@@ -636,11 +645,42 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Memory")) {
     return;
   }
+  if (args.Length() < 1) {
+    v8::Local<v8::Value> e = v8::Exception::TypeError(
+        v8_str(isolate, "Argument 0 required, must be numeric value of pages"));
+    isolate->ThrowException(e);
+    return;
+  }
 
-  // TODO(rossberg): grow memory.
-  v8::Local<v8::Value> e =
-      v8::Exception::TypeError(v8_str(isolate, "Memory#grow unimplemented"));
-  isolate->ThrowException(e);
+  uint32_t delta = args[0]->Uint32Value(context).FromJust();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::Object> instance_object(
+      receiver->GetInternalField(kWasmMemoryInstanceObject), i_isolate);
+  i::Handle<i::JSObject> instance(
+      i::Handle<i::JSObject>::cast(instance_object));
+
+  // TODO(gdeepti) Implement growing memory when shared by different
+  // instances.
+  int32_t ret = internal::wasm::GrowInstanceMemory(i_isolate, instance, delta);
+  if (ret == -1) {
+    v8::Local<v8::Value> e = v8::Exception::Error(
+        v8_str(isolate, "Unable to grow instance memory."));
+    isolate->ThrowException(e);
+    return;
+  }
+  i::MaybeHandle<i::JSArrayBuffer> buffer =
+      internal::wasm::GetInstanceMemory(i_isolate, instance);
+  if (buffer.is_null()) {
+    v8::Local<v8::Value> e = v8::Exception::Error(
+        v8_str(isolate, "WebAssembly.Memory buffer object not set."));
+    isolate->ThrowException(e);
+    return;
+  }
+  receiver->SetInternalField(kWasmMemoryBuffer, *buffer.ToHandleChecked());
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(ret);
 }
 
 void WebAssemblyMemoryGetBuffer(
@@ -656,8 +696,8 @@ void WebAssemblyMemoryGetBuffer(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::JSObject> receiver =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(
-      receiver->GetInternalField(kWasmMemoryBufferFieldIndex), i_isolate);
+  i::Handle<i::Object> buffer(receiver->GetInternalField(kWasmMemoryBuffer),
+                              i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
@@ -671,9 +711,9 @@ i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
       i_isolate->native_context()->wasm_memory_constructor());
   i::Handle<i::JSObject> memory_obj =
       i_isolate->factory()->NewJSObject(memory_ctor);
-  memory_obj->SetInternalField(kWasmMemoryBufferFieldIndex, *buffer);
+  memory_obj->SetInternalField(kWasmMemoryBuffer, *buffer);
   memory_obj->SetInternalField(
-      kWasmMemoryMaximumFieldIndex,
+      kWasmMemoryMaximum,
       has_maximum
           ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
           : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
@@ -788,7 +828,8 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
   map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + 2 * i::kPointerSize);
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+                             kWasmTableInternalFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(table_constructor, map, table_proto);
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
                         table_constructor, DONT_ENUM);
@@ -804,7 +845,8 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
   map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + 2 * i::kPointerSize);
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+                             kWasmMemoryInternalFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(memory_constructor, map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
                         memory_constructor, DONT_ENUM);
@@ -912,9 +954,30 @@ Handle<JSArrayBuffer> WasmJs::GetWasmMemoryArrayBuffer(Isolate* isolate,
                                                        Handle<Object> value) {
   DCHECK(IsWasmMemoryObject(isolate, value));
   Handle<Object> buf(
-      JSObject::cast(*value)->GetInternalField(kWasmMemoryBufferFieldIndex),
-      isolate);
+      JSObject::cast(*value)->GetInternalField(kWasmMemoryBuffer), isolate);
   return Handle<JSArrayBuffer>::cast(buf);
+}
+
+uint32_t WasmJs::GetWasmMemoryMaximumSize(Isolate* isolate,
+                                          Handle<Object> value) {
+  DCHECK(IsWasmMemoryObject(isolate, value));
+  Object* max_mem =
+      JSObject::cast(*value)->GetInternalField(kWasmMemoryMaximum);
+  if (max_mem->IsUndefined(isolate)) return wasm::WasmModule::kMaxMemPages;
+  uint32_t max_pages = Smi::cast(max_mem)->value();
+  return max_pages;
+}
+
+void WasmJs::SetWasmMemoryInstance(Isolate* isolate,
+                                   Handle<Object> memory_object,
+                                   Handle<JSObject> instance) {
+  if (!memory_object->IsUndefined(isolate)) {
+    DCHECK(IsWasmMemoryObject(isolate, memory_object));
+    // TODO(gdeepti): This should be a weak list of instance objects
+    // for instances that share memory.
+    JSObject::cast(*memory_object)
+        ->SetInternalField(kWasmMemoryInstanceObject, *instance);
+  }
 }
 }  // namespace internal
 }  // namespace v8

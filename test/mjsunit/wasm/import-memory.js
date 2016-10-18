@@ -82,7 +82,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function ValidateBoundsCheck() {
-  print("Validate bounds check");
+  print("ValidateBoundsCheck");
   let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
   assertEquals(kPageSize, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
@@ -101,7 +101,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   function load() { return instance.exports.load(offset); }
   function store(value) { return instance.exports.store(offset, value); }
 
-  for (offset = 0; offset < kPageSize -3; offset+=4) {
+  for (offset = 0; offset < kPageSize - 3; offset+=4) {
     store(offset);
   }
   for (offset = 0; offset < kPageSize - 3; offset+=4) {
@@ -110,4 +110,74 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   for (offset = kPageSize - 3; offset < kPageSize + 4; offset++) {
     assertTraps(kTrapMemOutOfBounds, load);
   }
+})();
+
+(function TestGrowMemoryMaxDesc() {
+  print("MaximumDescriptor");
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
+  assertEquals(kPageSize, memory.buffer.byteLength);
+  let i32 = new Int32Array(memory.buffer);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("mine", "", 0, 20);
+  builder.addFunction("load", kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .exportFunc();
+  builder.addFunction("store", kSig_i_ii)
+      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
+                kExprGetLocal, 1])
+      .exportFunc();
+  var offset;
+  let instance = builder.instantiate({mine: memory});
+  function load() { return instance.exports.load(offset); }
+  function store(value) { return instance.exports.store(offset, value); }
+
+  for (var i = 1; i < 5; i++) {
+    for (offset = (i - 1) * kPageSize; offset < i * kPageSize - 3; offset+=4) {
+      store(offset * 2);
+    }
+    assertEquals(i, memory.grow(1));
+    assertEquals((i + 1) * kPageSize, memory.buffer.byteLength);
+  }
+  for (offset = 4 * kPageSize; offset < 5 * kPageSize - 3; offset+=4) {
+    store(offset * 2);
+  }
+  for (offset = 0; offset < 5 * kPageSize - 3; offset+=4) {
+    assertEquals(offset * 2, load());
+  }
+  for (offset = 5 * kPageSize; offset < 5 * kPageSize + 4; offset++) {
+    assertThrows(load);
+  }
+  assertThrows(() => memory.grow(1));
+})();
+
+(function TestGrowMemoryZeroInitialMemory() {
+  print("ZeroInitialMemory");
+  let memory = new WebAssembly.Memory({initial: 0});
+  assertEquals(0, memory.buffer.byteLength);
+  let i32 = new Int32Array(memory.buffer);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("mine");
+  builder.addFunction("load", kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .exportFunc();
+  builder.addFunction("store", kSig_i_ii)
+      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
+                kExprGetLocal, 1])
+      .exportFunc();
+  var offset;
+  let instance = builder.instantiate({mine: memory});
+  function load() { return instance.exports.load(offset); }
+  function store(value) { return instance.exports.store(offset, value); }
+
+  for (var i = 1; i < 5; i++) {
+    assertEquals(i - 1, memory.grow(1));
+    assertEquals(i * kPageSize, memory.buffer.byteLength);
+    for (offset = (i - 1) * kPageSize; offset < i * kPageSize - 3; offset++) {
+      store(offset * 2);
+    }
+  }
+  for (offset = 5 * kPageSize; offset < 5 * kPageSize + 4; offset++) {
+    assertThrows(load);
+  }
+  assertThrows(() => memory.grow(16381));
 })();
