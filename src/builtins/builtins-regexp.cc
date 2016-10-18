@@ -750,6 +750,20 @@ BUILTIN(RegExpPrototypeSpeciesGetter) {
 
 namespace {
 
+// Fast-path implementation for flag checks on an unmodified JSRegExp instance.
+compiler::Node* FastFlagGetter(CodeStubAssembler* a,
+                               compiler::Node* const regexp,
+                               JSRegExp::Flag flag) {
+  typedef compiler::Node Node;
+
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
+  Node* const flags = a->LoadObjectField(regexp, JSRegExp::kFlagsOffset);
+  Node* const mask = a->SmiConstant(Smi::FromInt(flag));
+  Node* const is_flag_set = a->WordNotEqual(a->WordAnd(flags, mask), smi_zero);
+
+  return is_flag_set;
+}
+
 void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
                          v8::Isolate::UseCounterFeature counter,
                          const char* method_name) {
@@ -760,7 +774,6 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
   Node* const context = a->Parameter(3);
 
   Isolate* isolate = a->isolate();
-  Node* const int_zero = a->IntPtrConstant(0);
 
   // Check whether we have an unmodified regexp instance.
   Label if_isunmodifiedjsregexp(a),
@@ -777,13 +790,8 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
   a->Bind(&if_isunmodifiedjsregexp);
   {
     // Refer to JSRegExp's flag property on the fast-path.
-    Node* const flags_smi =
-        a->LoadObjectField(receiver, JSRegExp::kFlagsOffset);
-    Node* const flags_intptr = a->SmiUntag(flags_smi);
-    Node* const mask = a->IntPtrConstant(flag);
-    Node* const is_global =
-        a->WordNotEqual(a->WordAnd(flags_intptr, mask), int_zero);
-    a->Return(a->Select(is_global, a->TrueConstant(), a->FalseConstant()));
+    Node* const is_flag_set = FastFlagGetter(a, receiver, flag);
+    a->Return(a->Select(is_flag_set, a->TrueConstant(), a->FalseConstant()));
   }
 
   a->Bind(&if_isnotunmodifiedjsregexp);
@@ -1572,6 +1580,7 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   Node* const context = a->Parameter(5);
 
   Node* const int_zero = a->IntPtrConstant(0);
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
   // Ensure {receiver} is a JSReceiver.
   Node* const map =
@@ -1592,7 +1601,7 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   Node* const regexp = receiver;
 
   // 2. Is {replace_value} callable?
-  Label checkreplacestring(a);
+  Label checkreplacestring(a), if_iscallable(a, Label::kDeferred);
   a->GotoIf(a->TaggedIsSmi(replace_value), &checkreplacestring);
 
   Node* const replace_value_map = a->LoadMap(replace_value);
@@ -1600,7 +1609,7 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
       a->Word32Equal(a->Word32And(a->LoadMapBitField(replace_value_map),
                                   a->Int32Constant(1 << Map::kIsCallable)),
                      a->Int32Constant(0)),
-      &checkreplacestring, &runtime);
+      &checkreplacestring, &if_iscallable);
 
   // 3. Does ToString({replace_value}) contain '$'?
   a->Bind(&checkreplacestring);
@@ -1616,6 +1625,34 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
                   &runtime);
 
     a->Return(ReplaceFastPath(a, context, regexp, string, replace_string));
+  }
+
+  // {regexp} is unmodified and {replace_value} is callable.
+  a->Bind(&if_iscallable);
+  {
+    Node* const replace_callable = replace_value;
+
+    // Check if the {regexp} is global.
+    Label if_isglobal(a), if_isnotglobal(a);
+    Node* const is_global = FastFlagGetter(a, regexp, JSRegExp::kGlobal);
+    a->Branch(is_global, &if_isglobal, &if_isnotglobal);
+
+    a->Bind(&if_isglobal);
+    {
+      FastStoreLastIndex(a, context, regexp, smi_zero);
+      Node* const result =
+          a->CallRuntime(Runtime::kStringReplaceGlobalRegExpWithFunction,
+                         context, string, regexp, replace_callable);
+      a->Return(result);
+    }
+
+    a->Bind(&if_isnotglobal);
+    {
+      Node* const result =
+          a->CallRuntime(Runtime::kStringReplaceNonGlobalRegExpWithFunction,
+                         context, string, regexp, replace_callable);
+      a->Return(result);
+    }
   }
 
   a->Bind(&runtime);
