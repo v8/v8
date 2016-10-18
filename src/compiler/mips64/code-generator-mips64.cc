@@ -1866,6 +1866,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
       break;
+    case kMips64AssertEqual:
+      __ Assert(eq, static_cast<BailoutReason>(i.InputOperand(2).immediate()),
+                i.InputRegister(0), Operand(i.InputRegister(1)));
+      break;
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

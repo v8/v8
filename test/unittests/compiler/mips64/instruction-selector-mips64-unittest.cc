@@ -320,10 +320,40 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
   StreamBuilder m(this, type, type, type);
   m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
-  ASSERT_EQ(cmp.expected_size, s.size());
-  EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
-  EXPECT_EQ(2U, s[0]->InputCount());
-  EXPECT_EQ(1U, s[0]->OutputCount());
+
+  if (FLAG_debug_code &&
+      type.representation() == MachineRepresentation::kWord32) {
+    ASSERT_EQ(6, s.size());
+
+    EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+
+    EXPECT_EQ(kMips64Dshl, s[1]->arch_opcode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+
+    EXPECT_EQ(kMips64Dshl, s[2]->arch_opcode());
+    EXPECT_EQ(2U, s[2]->InputCount());
+    EXPECT_EQ(1U, s[2]->OutputCount());
+
+    EXPECT_EQ(cmp.mi.arch_opcode, s[3]->arch_opcode());
+    EXPECT_EQ(2U, s[3]->InputCount());
+    EXPECT_EQ(1U, s[3]->OutputCount());
+
+    EXPECT_EQ(kMips64AssertEqual, s[4]->arch_opcode());
+    EXPECT_EQ(3U, s[4]->InputCount());
+    EXPECT_EQ(0U, s[4]->OutputCount());
+
+    EXPECT_EQ(cmp.mi.arch_opcode, s[5]->arch_opcode());
+    EXPECT_EQ(2U, s[5]->InputCount());
+    EXPECT_EQ(1U, s[5]->OutputCount());
+  } else {
+    ASSERT_EQ(cmp.expected_size, s.size());
+    EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
 }
 
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorCmpTest,

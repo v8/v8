@@ -1840,10 +1840,89 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 }
 
+bool IsNodeUnsigned(Node* n) {
+  NodeMatcher m(n);
+
+  if (m.IsLoad()) {
+    LoadRepresentation load_rep = LoadRepresentationOf(n->op());
+    return load_rep.IsUnsigned();
+  } else if (m.IsUnalignedLoad()) {
+    UnalignedLoadRepresentation load_rep =
+        UnalignedLoadRepresentationOf(n->op());
+    return load_rep.IsUnsigned();
+  } else {
+    return m.IsUint32Div() || m.IsUint32LessThan() ||
+           m.IsUint32LessThanOrEqual() || m.IsUint32Mod() ||
+           m.IsUint32MulHigh() || m.IsChangeFloat64ToUint32() ||
+           m.IsTruncateFloat64ToUint32() || m.IsTruncateFloat32ToUint32();
+  }
+}
+
+// Shared routine for multiple word compare operations.
+void VisitFullWord32Compare(InstructionSelector* selector, Node* node,
+                            InstructionCode opcode, FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
+  InstructionOperand leftOp = g.TempRegister();
+  InstructionOperand rightOp = g.TempRegister();
+
+  selector->Emit(kMips64Dshl, leftOp, g.UseRegister(node->InputAt(0)),
+                 g.TempImmediate(32));
+  selector->Emit(kMips64Dshl, rightOp, g.UseRegister(node->InputAt(1)),
+                 g.TempImmediate(32));
+
+  VisitCompare(selector, opcode, leftOp, rightOp, cont);
+}
+
+void VisitOptimizedWord32Compare(InstructionSelector* selector, Node* node,
+                                 InstructionCode opcode,
+                                 FlagsContinuation* cont) {
+  if (FLAG_debug_code) {
+    Mips64OperandGenerator g(selector);
+    InstructionOperand leftOp = g.TempRegister();
+    InstructionOperand rightOp = g.TempRegister();
+    InstructionOperand optimizedResult = g.TempRegister();
+    InstructionOperand fullResult = g.TempRegister();
+    FlagsCondition condition = cont->condition();
+    InstructionCode testOpcode = opcode |
+                                 FlagsConditionField::encode(condition) |
+                                 FlagsModeField::encode(kFlags_set);
+
+    selector->Emit(testOpcode, optimizedResult, g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)));
+
+    selector->Emit(kMips64Dshl, leftOp, g.UseRegister(node->InputAt(0)),
+                   g.TempImmediate(32));
+    selector->Emit(kMips64Dshl, rightOp, g.UseRegister(node->InputAt(1)),
+                   g.TempImmediate(32));
+    selector->Emit(testOpcode, fullResult, leftOp, rightOp);
+
+    selector->Emit(
+        kMips64AssertEqual, g.NoOutput(), optimizedResult, fullResult,
+        g.TempImmediate(BailoutReason::kUnsupportedNonPrimitiveCompare));
+  }
+
+  VisitWordCompare(selector, node, opcode, cont, false);
+}
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
-  VisitWordCompare(selector, node, kMips64Cmp, cont, false);
+  // MIPS64 doesn't support Word32 compare instructions. Instead it relies
+  // that the values in registers are correctly sign-extended and uses
+  // Word64 comparison instead. This behavior is correct in most cases,
+  // but doesn't work when comparing signed with unsigned operands.
+  // We could simulate full Word32 compare in all cases but this would
+  // create an unnecessary overhead since unsigned integers are rarely
+  // used in JavaScript.
+  // The solution proposed here tries to match a comparison of signed
+  // with unsigned operand, and perform full Word32Compare only
+  // in those cases. Unfortunately, the solution is not complete because
+  // it might skip cases where Word32 full compare is needed, so
+  // basically it is a hack.
+  if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1))) {
+    VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
+  } else {
+    VisitOptimizedWord32Compare(selector, node, kMips64Cmp, cont);
+  }
 }
 
 
