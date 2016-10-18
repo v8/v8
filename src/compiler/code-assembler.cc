@@ -328,15 +328,6 @@ Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler_->Projection(index, value);
 }
 
-void CodeAssembler::BranchIf(Node* condition, Label* if_true, Label* if_false) {
-  Label if_condition_is_true(this), if_condition_is_false(this);
-  Branch(condition, &if_condition_is_true, &if_condition_is_false);
-  Bind(&if_condition_is_true);
-  Goto(if_true);
-  Bind(&if_condition_is_false);
-  Goto(if_false);
-}
-
 void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
                                     Variable* exception_var) {
   Label success(this), exception(this, Label::kDeferred);

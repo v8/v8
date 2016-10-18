@@ -1222,7 +1222,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
-  __ BranchIf(__ TaggedIsSmi(left), &fastpath, &slowpath);
+  __ Branch(__ TaggedIsSmi(left), &fastpath, &slowpath);
   __ Bind(&fastpath);
   {
     // Try fast Smi addition first.
@@ -1232,7 +1232,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
 
     // Check if the Smi additon overflowed.
     Label if_notoverflow(assembler);
-    __ BranchIf(overflow, &slowpath, &if_notoverflow);
+    __ Branch(overflow, &slowpath, &if_notoverflow);
     __ Bind(&if_notoverflow);
     {
       __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
@@ -1276,7 +1276,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
-  __ BranchIf(__ TaggedIsSmi(left), &fastpath, &slowpath);
+  __ Branch(__ TaggedIsSmi(left), &fastpath, &slowpath);
   __ Bind(&fastpath);
   {
     // Try fast Smi subtraction first.
@@ -1286,7 +1286,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
 
     // Check if the Smi subtraction overflowed.
     Label if_notoverflow(assembler);
-    __ BranchIf(overflow, &slowpath, &if_notoverflow);
+    __ Branch(overflow, &slowpath, &if_notoverflow);
     __ Bind(&if_notoverflow);
     {
       __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
@@ -1530,7 +1530,7 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
   Label if_true(assembler), if_false(assembler), end(assembler);
   Node* true_value = __ BooleanConstant(true);
   Node* false_value = __ BooleanConstant(false);
-  __ BranchIfWordEqual(value, true_value, &if_true, &if_false);
+  __ Branch(__ WordEqual(value, true_value), &if_true, &if_false);
   __ Bind(&if_true);
   {
     result.Bind(false_value);
@@ -2064,7 +2064,7 @@ void Interpreter::DoCreateArrayLiteral(InterpreterAssembler* assembler) {
   Node* use_fast_shallow_clone = __ Word32And(
       bytecode_flags,
       __ Int32Constant(CreateArrayLiteralFlags::FastShallowCloneBit::kMask));
-  __ BranchIf(use_fast_shallow_clone, &fast_shallow_clone, &call_runtime);
+  __ Branch(use_fast_shallow_clone, &fast_shallow_clone, &call_runtime);
 
   __ Bind(&fast_shallow_clone);
   {
@@ -2109,7 +2109,7 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   Node* fast_clone_properties_count =
       __ BitFieldDecode<CreateObjectLiteralFlags::FastClonePropertiesCountBits>(
           bytecode_flags);
-  __ BranchIf(fast_clone_properties_count, &if_fast_clone, &if_not_fast_clone);
+  __ Branch(fast_clone_properties_count, &if_fast_clone, &if_not_fast_clone);
 
   __ Bind(&if_fast_clone);
   {
@@ -2256,7 +2256,7 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
   Node* duplicate_parameters_bit = __ Int32Constant(
       1 << SharedFunctionInfo::kHasDuplicateParametersBitWithinByte);
   Node* compare = __ Word32And(compiler_hints, duplicate_parameters_bit);
-  __ BranchIf(compare, &if_duplicate_parameters, &if_not_duplicate_parameters);
+  __ Branch(compare, &if_duplicate_parameters, &if_not_duplicate_parameters);
 
   __ Bind(&if_not_duplicate_parameters);
   {
@@ -2312,7 +2312,7 @@ void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
   Label ok(assembler), stack_check_interrupt(assembler, Label::kDeferred);
 
   Node* interrupt = __ StackCheckTriggeredInterrupt();
-  __ BranchIf(interrupt, &stack_check_interrupt, &ok);
+  __ Branch(interrupt, &stack_check_interrupt, &ok);
 
   __ Bind(&ok);
   __ Dispatch();
@@ -2485,7 +2485,7 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
   Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
-  __ BranchIfWordEqual(receiver_map, cache_type, &if_fast, &if_slow);
+  __ Branch(__ WordEqual(receiver_map, cache_type), &if_fast, &if_slow);
   __ Bind(&if_fast);
   {
     // Enum cache in use for {receiver}, the {key} is definitely valid.
@@ -2522,7 +2522,7 @@ void Interpreter::DoForInContinue(InterpreterAssembler* assembler) {
 
   // Check if {index} is at {cache_length} already.
   Label if_true(assembler), if_false(assembler), end(assembler);
-  __ BranchIfWordEqual(index, cache_length, &if_true, &if_false);
+  __ Branch(__ WordEqual(index, cache_length), &if_true, &if_false);
   __ Bind(&if_true);
   {
     __ SetAccumulator(__ BooleanConstant(false));
@@ -2593,7 +2593,7 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   STATIC_ASSERT(StepFrame > StepNext);
   STATIC_ASSERT(LastStepAction == StepFrame);
   Node* step_next = __ Int32Constant(StepNext);
-  __ BranchIfInt32LessThanOrEqual(step_next, step_action, &if_stepping, &ok);
+  __ Branch(__ Int32LessThanOrEqual(step_next, step_action), &if_stepping, &ok);
   __ Bind(&ok);
 
   Node* array =

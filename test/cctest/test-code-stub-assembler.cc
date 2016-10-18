@@ -1257,12 +1257,12 @@ TEST(TryProbeStubCache) {
     m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
                         &if_miss);
     m.Bind(&if_handler);
-    m.BranchIfWordEqual(expected_handler, var_handler.value(), &passed,
-                        &failed);
+    m.Branch(m.WordEqual(expected_handler, var_handler.value()), &passed,
+             &failed);
 
     m.Bind(&if_miss);
-    m.BranchIfWordEqual(expected_handler, m.IntPtrConstant(0), &passed,
-                        &failed);
+    m.Branch(m.WordEqual(expected_handler, m.IntPtrConstant(0)), &passed,
+             &failed);
 
     m.Bind(&passed);
     m.Return(m.BooleanConstant(true));

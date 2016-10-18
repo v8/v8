@@ -836,7 +836,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
       // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
       Node* zero = Float64Constant(0.0);
       GotoIf(Float64LessThan(zero, value_value), if_true);
-      BranchIfFloat64LessThan(value_value, zero, if_true, if_false);
+      Branch(Float64LessThan(value_value, zero), if_true, if_false);
     }
 
     Bind(&if_valueisother);
@@ -851,8 +851,8 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
           value_map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
 
       // Check if the {value} is undetectable.
-      BranchIfWord32Equal(value_map_undetectable, Int32Constant(0), if_true,
-                          if_false);
+      Branch(Word32Equal(value_map_undetectable, Int32Constant(0)), if_true,
+             if_false);
     }
   }
 }
@@ -2180,8 +2180,8 @@ Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
   Bind(&if_valueisequal);
   {
     GotoUnless(Word32Equal(value32, Int32Constant(0)), &if_valueisint32);
-    BranchIfInt32LessThan(Float64ExtractHighWord32(value), Int32Constant(0),
-                          &if_valueisheapnumber, &if_valueisint32);
+    Branch(Int32LessThan(Float64ExtractHighWord32(value), Int32Constant(0)),
+           &if_valueisheapnumber, &if_valueisint32);
   }
   Bind(&if_valueisnotequal);
   Goto(&if_valueisheapnumber);
@@ -3670,7 +3670,7 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   Goto(if_keyisunique);
 
   Bind(&if_hascachedindex);
-  var_index->Bind(BitFieldDecode<Name::ArrayIndexValueBits>(hash));
+  var_index->Bind(BitFieldDecodeWord<Name::ArrayIndexValueBits>(hash));
   Goto(if_keyisindex);
 }
 
@@ -3994,8 +3994,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     Label if_inobject(this), if_backing_store(this);
     Variable var_double_value(this, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
-    BranchIfUintPtrLessThan(field_index, inobject_properties, &if_inobject,
-                            &if_backing_store);
+    Branch(UintPtrLessThan(field_index, inobject_properties), &if_inobject,
+           &if_backing_store);
     Bind(&if_inobject);
     {
       Comment("if_inobject");
@@ -4005,9 +4005,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
                     IntPtrConstant(kPointerSize));
 
       Label if_double(this), if_tagged(this);
-      BranchIfWord32NotEqual(representation,
-                             Int32Constant(Representation::kDouble), &if_tagged,
-                             &if_double);
+      Branch(Word32NotEqual(representation,
+                            Int32Constant(Representation::kDouble)),
+             &if_tagged, &if_double);
       Bind(&if_tagged);
       {
         var_value->Bind(LoadObjectField(object, field_offset));
@@ -4033,9 +4033,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       Node* value = LoadFixedArrayElement(properties, field_index);
 
       Label if_double(this), if_tagged(this);
-      BranchIfWord32NotEqual(representation,
-                             Int32Constant(Representation::kDouble), &if_tagged,
-                             &if_double);
+      Branch(Word32NotEqual(representation,
+                            Int32Constant(Representation::kDouble)),
+             &if_tagged, &if_double);
       Bind(&if_tagged);
       {
         var_value->Bind(value);
@@ -6199,8 +6199,8 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
     Node* invalid_enum_cache_sentinel =
         SmiConstant(Smi::FromInt(kInvalidEnumCacheSentinel));
     Node* enum_length = EnumLength(current_map.value());
-    BranchIfWordEqual(enum_length, invalid_enum_cache_sentinel, use_runtime,
-                      &loop);
+    Branch(WordEqual(enum_length, invalid_enum_cache_sentinel), use_runtime,
+           &loop);
   }
 
   // Check that there are no elements. |current_js_object| contains
@@ -6211,24 +6211,24 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
     Node* elements = LoadElements(current_js_object.value());
     Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
     // Check that there are no elements.
-    BranchIfWordEqual(elements, empty_fixed_array, &if_no_elements,
-                      &if_elements);
+    Branch(WordEqual(elements, empty_fixed_array), &if_no_elements,
+           &if_elements);
     Bind(&if_elements);
     {
       // Second chance, the object may be using the empty slow element
       // dictionary.
       Node* slow_empty_dictionary =
           LoadRoot(Heap::kEmptySlowElementDictionaryRootIndex);
-      BranchIfWordNotEqual(elements, slow_empty_dictionary, use_runtime,
-                           &if_no_elements);
+      Branch(WordNotEqual(elements, slow_empty_dictionary), use_runtime,
+             &if_no_elements);
     }
 
     Bind(&if_no_elements);
     {
       // Update map prototype.
       current_js_object.Bind(LoadMapPrototype(current_map.value()));
-      BranchIfWordEqual(current_js_object.value(), NullConstant(), use_cache,
-                        &next);
+      Branch(WordEqual(current_js_object.value(), NullConstant()), use_cache,
+             &next);
     }
   }
 
@@ -6238,7 +6238,7 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
     current_map.Bind(LoadMap(current_js_object.value()));
     Node* enum_length = EnumLength(current_map.value());
     Node* zero_constant = SmiConstant(Smi::kZero);
-    BranchIf(WordEqual(enum_length, zero_constant), &loop, use_runtime);
+    Branch(WordEqual(enum_length, zero_constant), &loop, use_runtime);
   }
 }
 
@@ -6321,7 +6321,7 @@ void CodeStubAssembler::BuildFastLoop(
   // to force the loop header check at the end of the loop and branch forward to
   // it from the pre-header). The extra branch is slower in the case that the
   // loop actually iterates.
-  BranchIf(WordEqual(var.value(), end_index), &after_loop, &loop);
+  Branch(WordEqual(var.value(), end_index), &after_loop, &loop);
   Bind(&loop);
   {
     if (mode == IndexAdvanceMode::kPre) {
@@ -6331,7 +6331,7 @@ void CodeStubAssembler::BuildFastLoop(
     if (mode == IndexAdvanceMode::kPost) {
       var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
     }
-    BranchIf(WordNotEqual(var.value(), end_index), &loop, &after_loop);
+    Branch(WordNotEqual(var.value(), end_index), &loop, &after_loop);
   }
   Bind(&after_loop);
 }
@@ -6484,16 +6484,16 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
     // Perform a fast floating point comparison.
     switch (mode) {
       case kLessThan:
-        BranchIfFloat64LessThan(lhs, rhs, if_true, if_false);
+        Branch(Float64LessThan(lhs, rhs), if_true, if_false);
         break;
       case kLessThanOrEqual:
-        BranchIfFloat64LessThanOrEqual(lhs, rhs, if_true, if_false);
+        Branch(Float64LessThanOrEqual(lhs, rhs), if_true, if_false);
         break;
       case kGreaterThan:
-        BranchIfFloat64GreaterThan(lhs, rhs, if_true, if_false);
+        Branch(Float64GreaterThan(lhs, rhs), if_true, if_false);
         break;
       case kGreaterThanOrEqual:
-        BranchIfFloat64GreaterThanOrEqual(lhs, rhs, if_true, if_false);
+        Branch(Float64GreaterThanOrEqual(lhs, rhs), if_true, if_false);
         break;
     }
   }
@@ -6799,17 +6799,17 @@ compiler::Node* CodeStubAssembler::RelationalComparison(
     // Perform a fast floating point comparison.
     switch (mode) {
       case kLessThan:
-        BranchIfFloat64LessThan(lhs, rhs, &return_true, &return_false);
+        Branch(Float64LessThan(lhs, rhs), &return_true, &return_false);
         break;
       case kLessThanOrEqual:
-        BranchIfFloat64LessThanOrEqual(lhs, rhs, &return_true, &return_false);
+        Branch(Float64LessThanOrEqual(lhs, rhs), &return_true, &return_false);
         break;
       case kGreaterThan:
-        BranchIfFloat64GreaterThan(lhs, rhs, &return_true, &return_false);
+        Branch(Float64GreaterThan(lhs, rhs), &return_true, &return_false);
         break;
       case kGreaterThanOrEqual:
-        BranchIfFloat64GreaterThanOrEqual(lhs, rhs, &return_true,
-                                          &return_false);
+        Branch(Float64GreaterThanOrEqual(lhs, rhs), &return_true,
+               &return_false);
         break;
     }
   }
@@ -7223,10 +7223,11 @@ compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
               // undetectable (i.e. either also Null or Undefined or some
               // undetectable JSReceiver).
               Node* rhs_bitfield = LoadMapBitField(rhs_map);
-              BranchIfWord32Equal(
-                  Word32And(rhs_bitfield,
-                            Int32Constant(1 << Map::kIsUndetectable)),
-                  Int32Constant(0), &if_notequal, &if_equal);
+              Branch(Word32Equal(
+                         Word32And(rhs_bitfield,
+                                   Int32Constant(1 << Map::kIsUndetectable)),
+                         Int32Constant(0)),
+                     &if_notequal, &if_equal);
             }
           }
 
@@ -7321,20 +7322,21 @@ compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
               Label if_rhsisundetectable(this),
                   if_rhsisnotundetectable(this, Label::kDeferred);
               Node* rhs_bitfield = LoadMapBitField(rhs_map);
-              BranchIfWord32Equal(
-                  Word32And(rhs_bitfield,
-                            Int32Constant(1 << Map::kIsUndetectable)),
-                  Int32Constant(0), &if_rhsisnotundetectable,
-                  &if_rhsisundetectable);
+              Branch(Word32Equal(
+                         Word32And(rhs_bitfield,
+                                   Int32Constant(1 << Map::kIsUndetectable)),
+                         Int32Constant(0)),
+                     &if_rhsisnotundetectable, &if_rhsisundetectable);
 
               Bind(&if_rhsisundetectable);
               {
                 // Check if {lhs} is an undetectable JSReceiver.
                 Node* lhs_bitfield = LoadMapBitField(lhs_map);
-                BranchIfWord32Equal(
-                    Word32And(lhs_bitfield,
-                              Int32Constant(1 << Map::kIsUndetectable)),
-                    Int32Constant(0), &if_notequal, &if_equal);
+                Branch(Word32Equal(
+                           Word32And(lhs_bitfield,
+                                     Int32Constant(1 << Map::kIsUndetectable)),
+                           Int32Constant(0)),
+                       &if_notequal, &if_equal);
               }
 
               Bind(&if_rhsisnotundetectable);
@@ -7367,7 +7369,7 @@ compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
     Node* rhs = var_fcmp_rhs.value();
 
     // Perform a fast floating point comparison.
-    BranchIfFloat64Equal(lhs, rhs, &if_equal, &if_notequal);
+    Branch(Float64Equal(lhs, rhs), &if_equal, &if_notequal);
   }
 
   Bind(&if_equal);
@@ -7487,7 +7489,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
           Node* rhs_value = SmiToFloat64(rhs);
 
           // Perform a floating point comparison of {lhs} and {rhs}.
-          BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal, &if_notequal);
+          Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
         }
 
         Bind(&if_rhsisnotsmi);
@@ -7507,7 +7509,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
             Node* rhs_value = LoadHeapNumberValue(rhs);
 
             // Perform a floating point comparison of {lhs} and {rhs}.
-            BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal, &if_notequal);
+            Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
           }
 
           Bind(&if_rhsisnotnumber);
@@ -7613,7 +7615,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
           Node* rhs_value = LoadHeapNumberValue(rhs);
 
           // Perform a floating point comparison of {lhs} and {rhs}.
-          BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal, &if_notequal);
+          Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
         }
 
         Bind(&if_rhsisnotnumber);

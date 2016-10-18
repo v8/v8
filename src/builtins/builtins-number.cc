@@ -68,9 +68,10 @@ void Builtins::Generate_NumberIsInteger(CodeStubAssembler* assembler) {
   Node* integer = assembler->Float64Trunc(number_value);
 
   // Check if {number}s value matches the integer (ruling out the infinities).
-  assembler->BranchIfFloat64Equal(assembler->Float64Sub(number_value, integer),
-                                  assembler->Float64Constant(0.0), &return_true,
-                                  &return_false);
+  assembler->Branch(
+      assembler->Float64Equal(assembler->Float64Sub(number_value, integer),
+                              assembler->Float64Constant(0.0)),
+      &return_true, &return_false);
 
   assembler->Bind(&return_true);
   assembler->Return(assembler->BooleanConstant(true));
@@ -139,9 +140,10 @@ void Builtins::Generate_NumberIsSafeInteger(CodeStubAssembler* assembler) {
       &return_false);
 
   // Check if the {integer} value is in safe integer range.
-  assembler->BranchIfFloat64LessThanOrEqual(
-      assembler->Float64Abs(integer),
-      assembler->Float64Constant(kMaxSafeInteger), &return_true, &return_false);
+  assembler->Branch(assembler->Float64LessThanOrEqual(
+                        assembler->Float64Abs(integer),
+                        assembler->Float64Constant(kMaxSafeInteger)),
+                    &return_true, &return_false);
 
   assembler->Bind(&return_true);
   assembler->Return(assembler->BooleanConstant(true));

@@ -444,16 +444,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);
 
-  // Branching helpers.
-  void BranchIf(Node* condition, Label* if_true, Label* if_false);
-
-#define BRANCH_HELPER(name)                                                \
-  void BranchIf##name(Node* a, Node* b, Label* if_true, Label* if_false) { \
-    BranchIf(name(a, b), if_true, if_false);                               \
-  }
-  CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(BRANCH_HELPER)
-#undef BRANCH_HELPER
-
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
   Isolate* isolate() const;

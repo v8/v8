@@ -1475,8 +1475,9 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
                                                   heap_number_map),
                           &continue_loop);
-        assembler->BranchIfFloat64Equal(
-            search_num.value(), assembler->LoadHeapNumberValue(element_k),
+        assembler->Branch(
+            assembler->Float64Equal(search_num.value(),
+                                    assembler->LoadHeapNumberValue(element_k)),
             &return_true, &continue_loop);
 
         assembler->Bind(&continue_loop);
@@ -1590,8 +1591,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_true, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_true, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -1650,8 +1651,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
 
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_true, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_true, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -1916,8 +1917,9 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
                                                   heap_number_map),
                           &continue_loop);
-        assembler->BranchIfFloat64Equal(
-            search_num.value(), assembler->LoadHeapNumberValue(element_k),
+        assembler->Branch(
+            assembler->Float64Equal(search_num.value(),
+                                    assembler->LoadHeapNumberValue(element_k)),
             &return_found, &continue_loop);
 
         assembler->Bind(&continue_loop);
@@ -2008,8 +2010,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_found, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_found, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -2049,8 +2051,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
 
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_found, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_found, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);

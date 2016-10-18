@@ -292,8 +292,8 @@ void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
           assembler->Goto(&loop);
 
           assembler->Bind(&if_valueisnotsame);
-          assembler->BranchIf(assembler->Uint32LessThan(lhs_value, rhs_value),
-                              &if_less, &if_greater);
+          assembler->Branch(assembler->Uint32LessThan(lhs_value, rhs_value),
+                            &if_less, &if_greater);
         }
 
         assembler->Bind(&if_done);

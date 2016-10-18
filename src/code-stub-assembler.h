@@ -167,22 +167,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
                         Label* if_false) {
-    BranchIf(SmiEqual(a, b), if_true, if_false);
+    Branch(SmiEqual(a, b), if_true, if_false);
   }
 
   void BranchIfSmiLessThan(compiler::Node* a, compiler::Node* b, Label* if_true,
                            Label* if_false) {
-    BranchIf(SmiLessThan(a, b), if_true, if_false);
+    Branch(SmiLessThan(a, b), if_true, if_false);
   }
 
   void BranchIfSmiLessThanOrEqual(compiler::Node* a, compiler::Node* b,
                                   Label* if_true, Label* if_false) {
-    BranchIf(SmiLessThanOrEqual(a, b), if_true, if_false);
+    Branch(SmiLessThanOrEqual(a, b), if_true, if_false);
   }
 
   void BranchIfFloat64IsNaN(compiler::Node* value, Label* if_true,
                             Label* if_false) {
-    BranchIfFloat64Equal(value, value, if_false, if_true);
+    Branch(Float64Equal(value, value), if_false, if_true);
   }
 
   // Branches to {if_true} if ToBoolean applied to {value} yields true,

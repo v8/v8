@@ -2629,8 +2629,8 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
     assembler->Comment("fast double elements path");
     if (FLAG_debug_code) {
       Label correct_elements_map(assembler), abort(assembler, Label::kDeferred);
-      assembler->BranchIf(assembler->IsFixedDoubleArrayMap(elements_map),
-                          &correct_elements_map, &abort);
+      assembler->Branch(assembler->IsFixedDoubleArrayMap(elements_map),
+                        &correct_elements_map, &abort);
 
       assembler->Bind(&abort);
       {
