@@ -547,14 +547,14 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   GenerateTailCallToSharedCode(masm);
 }
 
-static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool create_implicit_receiver,
-                                           bool check_derived_construct) {
+namespace {
+
+void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
+                                    bool create_implicit_receiver,
+                                    bool check_derived_construct) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments
   //  -- r1     : constructor function
-  //  -- r2     : allocation site or undefined
   //  -- r3     : new target
   //  -- cp     : context
   //  -- lr     : return address
@@ -568,10 +568,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-    __ AssertUndefinedOrAllocationSite(r2, r4);
-    __ Push(cp);
     __ SmiTag(r0);
-    __ Push(r2, r0);
+    __ Push(cp, r0);
 
     if (create_implicit_receiver) {
       // Allocate the new receiver object.
@@ -700,6 +698,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   }
   __ Jump(lr);
 }
+
+}  // namespace
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, false, true, false);

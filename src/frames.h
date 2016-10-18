@@ -308,10 +308,9 @@ class ConstructFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
   static const int kContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static const int kAllocationSiteOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  static const int kImplicitReceiverOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
-  DEFINE_TYPED_FRAME_SIZES(4);
+  static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static const int kImplicitReceiverOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  DEFINE_TYPED_FRAME_SIZES(3);
 };
 
 class StubFailureTrampolineFrameConstants : public InternalFrameConstants {
