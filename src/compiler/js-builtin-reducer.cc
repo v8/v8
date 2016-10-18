@@ -313,6 +313,10 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
             AccessBuilder::ForFixedArrayElement(receiver_map->elements_kind())),
         elements, length, value, effect, control);
 
+    // Return the new length of the {receiver}.
+    value = graph()->NewNode(simplified()->NumberAdd(), length,
+                             jsgraph()->OneConstant());
+
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
