@@ -287,7 +287,7 @@ void Builtins::Generate_NumberParseInt(CodeStubAssembler* assembler) {
     assembler->GotoIf(assembler->TaggedIsSmi(input), &if_inputissmi);
     Node* input_map = assembler->LoadMap(input);
     assembler->GotoIf(
-        assembler->WordEqual(input_map, assembler->UndefinedConstant()),
+        assembler->WordEqual(input_map, assembler->HeapNumberMapConstant()),
         &if_inputisheapnumber);
     Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
     assembler->Branch(assembler->IsStringInstanceType(input_instance_type),
@@ -305,12 +305,14 @@ void Builtins::Generate_NumberParseInt(CodeStubAssembler* assembler) {
       Node* input_value = assembler->LoadHeapNumberValue(input);
       Node* input_value_abs = assembler->Float64Abs(input_value);
 
-      assembler->GotoIf(assembler->Float64LessThan(
-                            input_value_abs, assembler->Float64Constant(0.01)),
-                        &if_generic);
-      assembler->GotoIf(assembler->Float64LessThan(
-                            assembler->Float64Constant(1e9), input_value_abs),
-                        &if_generic);
+      assembler->GotoUnless(
+          assembler->Float64LessThan(input_value_abs,
+                                     assembler->Float64Constant(1e9)),
+          &if_generic);
+      assembler->GotoUnless(
+          assembler->Float64LessThan(assembler->Float64Constant(0.01),
+                                     input_value_abs),
+          &if_generic);
 
       // Return the truncated int32 value, and return the tagged result.
       Node* input_value32 = assembler->TruncateFloat64ToWord32(input_value);
