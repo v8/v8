@@ -1052,6 +1052,44 @@ Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
   return Load(MachineType::AnyTagged(), object, offset);
 }
 
+Node* CodeStubAssembler::LoadFixedTypedArrayElement(
+    Node* data_pointer, Node* index_node, ElementsKind elements_kind,
+    ParameterMode parameter_mode) {
+  Node* offset =
+      ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
+  MachineType type;
+  switch (elements_kind) {
+    case UINT8_ELEMENTS: /* fall through */
+    case UINT8_CLAMPED_ELEMENTS:
+      type = MachineType::Uint8();
+      break;
+    case INT8_ELEMENTS:
+      type = MachineType::Int8();
+      break;
+    case UINT16_ELEMENTS:
+      type = MachineType::Uint16();
+      break;
+    case INT16_ELEMENTS:
+      type = MachineType::Int16();
+      break;
+    case UINT32_ELEMENTS:
+      type = MachineType::Uint32();
+      break;
+    case INT32_ELEMENTS:
+      type = MachineType::Int32();
+      break;
+    case FLOAT32_ELEMENTS:
+      type = MachineType::Float32();
+      break;
+    case FLOAT64_ELEMENTS:
+      type = MachineType::Float64();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return Load(type, data_pointer, offset);
+}
+
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     Node* object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
@@ -6146,6 +6184,120 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
                                               : IndexAdvanceMode::kPost);
 }
 
+void CodeStubAssembler::BranchIfNumericRelationalComparison(
+    RelationalComparisonMode mode, compiler::Node* lhs, compiler::Node* rhs,
+    Label* if_true, Label* if_false) {
+  typedef compiler::Node Node;
+
+  Label end(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  // Shared entry for floating point comparison.
+  Label do_fcmp(this);
+  Variable var_fcmp_lhs(this, MachineRepresentation::kFloat64),
+      var_fcmp_rhs(this, MachineRepresentation::kFloat64);
+
+  // Check if the {lhs} is a Smi or a HeapObject.
+  Label if_lhsissmi(this), if_lhsisnotsmi(this);
+  Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+  Bind(&if_lhsissmi);
+  {
+    // Check if {rhs} is a Smi or a HeapObject.
+    Label if_rhsissmi(this), if_rhsisnotsmi(this);
+    Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+    Bind(&if_rhsissmi);
+    {
+      // Both {lhs} and {rhs} are Smi, so just perform a fast Smi comparison.
+      switch (mode) {
+        case kLessThan:
+          BranchIfSmiLessThan(lhs, rhs, if_true, if_false);
+          break;
+        case kLessThanOrEqual:
+          BranchIfSmiLessThanOrEqual(lhs, rhs, if_true, if_false);
+          break;
+        case kGreaterThan:
+          BranchIfSmiLessThan(rhs, lhs, if_true, if_false);
+          break;
+        case kGreaterThanOrEqual:
+          BranchIfSmiLessThanOrEqual(rhs, lhs, if_true, if_false);
+          break;
+      }
+    }
+
+    Bind(&if_rhsisnotsmi);
+    {
+      Assert(WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
+      // Convert the {lhs} and {rhs} to floating point values, and
+      // perform a floating point comparison.
+      var_fcmp_lhs.Bind(SmiToFloat64(lhs));
+      var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+      Goto(&do_fcmp);
+    }
+  }
+
+  Bind(&if_lhsisnotsmi);
+  {
+    Assert(WordEqual(LoadMap(lhs), HeapNumberMapConstant()));
+
+    // Check if {rhs} is a Smi or a HeapObject.
+    Label if_rhsissmi(this), if_rhsisnotsmi(this);
+    Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+    Bind(&if_rhsissmi);
+    {
+      // Convert the {lhs} and {rhs} to floating point values, and
+      // perform a floating point comparison.
+      var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
+      var_fcmp_rhs.Bind(SmiToFloat64(rhs));
+      Goto(&do_fcmp);
+    }
+
+    Bind(&if_rhsisnotsmi);
+    {
+      Assert(WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
+
+      // Convert the {lhs} and {rhs} to floating point values, and
+      // perform a floating point comparison.
+      var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
+      var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+      Goto(&do_fcmp);
+    }
+  }
+
+  Bind(&do_fcmp);
+  {
+    // Load the {lhs} and {rhs} floating point values.
+    Node* lhs = var_fcmp_lhs.value();
+    Node* rhs = var_fcmp_rhs.value();
+
+    // Perform a fast floating point comparison.
+    switch (mode) {
+      case kLessThan:
+        BranchIfFloat64LessThan(lhs, rhs, if_true, if_false);
+        break;
+      case kLessThanOrEqual:
+        BranchIfFloat64LessThanOrEqual(lhs, rhs, if_true, if_false);
+        break;
+      case kGreaterThan:
+        BranchIfFloat64GreaterThan(lhs, rhs, if_true, if_false);
+        break;
+      case kGreaterThanOrEqual:
+        BranchIfFloat64GreaterThanOrEqual(lhs, rhs, if_true, if_false);
+        break;
+    }
+  }
+}
+
+void CodeStubAssembler::GotoUnlessNumberLessThan(compiler::Node* lhs,
+                                                 compiler::Node* rhs,
+                                                 Label* if_false) {
+  Label if_true(this);
+  BranchIfNumericRelationalComparison(kLessThan, lhs, rhs, &if_true, if_false);
+  Bind(&if_true);
+}
+
 compiler::Node* CodeStubAssembler::RelationalComparison(
     RelationalComparisonMode mode, compiler::Node* lhs, compiler::Node* rhs,
     compiler::Node* context) {
@@ -7488,6 +7640,228 @@ compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
 
   Bind(&end);
   return result.value();
+}
+
+compiler::Node* CodeStubAssembler::NumberInc(compiler::Node* value) {
+  Variable var_result(this, MachineRepresentation::kTagged),
+      var_finc_value(this, MachineRepresentation::kFloat64);
+  Label if_issmi(this), if_isnotsmi(this), do_finc(this), end(this);
+  Branch(TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
+
+  Bind(&if_issmi);
+  {
+    // Try fast Smi addition first.
+    Node* one = SmiConstant(Smi::FromInt(1));
+    Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(value),
+                                       BitcastTaggedToWord(one));
+    Node* overflow = Projection(1, pair);
+
+    // Check if the Smi addition overflowed.
+    Label if_overflow(this), if_notoverflow(this);
+    Branch(overflow, &if_overflow, &if_notoverflow);
+
+    Bind(&if_notoverflow);
+    var_result.Bind(Projection(0, pair));
+    Goto(&end);
+
+    Bind(&if_overflow);
+    {
+      var_finc_value.Bind(SmiToFloat64(value));
+      Goto(&do_finc);
+    }
+  }
+
+  Bind(&if_isnotsmi);
+  {
+    // Check if the value is a HeapNumber.
+    Assert(IsHeapNumberMap(LoadMap(value)));
+
+    // Load the HeapNumber value.
+    var_finc_value.Bind(LoadHeapNumberValue(value));
+    Goto(&do_finc);
+  }
+
+  Bind(&do_finc);
+  {
+    Node* finc_value = var_finc_value.value();
+    Node* one = Float64Constant(1.0);
+    Node* finc_result = Float64Add(finc_value, one);
+    var_result.Bind(ChangeFloat64ToTagged(finc_result));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
+compiler::Node* CodeStubAssembler::CreateArrayIterator(
+    compiler::Node* array, compiler::Node* array_map,
+    compiler::Node* array_type, compiler::Node* context, IterationKind mode) {
+  int kBaseMapIndex;
+  switch (mode) {
+    case IterationKind::kKeys:
+      kBaseMapIndex = Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX;
+      break;
+    case IterationKind::kValues:
+      kBaseMapIndex = Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX;
+      break;
+    case IterationKind::kEntries:
+      kBaseMapIndex = Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX;
+      break;
+  }
+
+  // Fast Array iterator map index:
+  // (kBaseIndex + kFastIteratorOffset) + ElementsKind (for JSArrays)
+  // kBaseIndex + (ElementsKind - UINT8_ELEMENTS) (for JSTypedArrays)
+  const int kFastIteratorOffset =
+      Context::FAST_SMI_ARRAY_VALUE_ITERATOR_MAP_INDEX -
+      Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX;
+  STATIC_ASSERT(kFastIteratorOffset ==
+                (Context::FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX -
+                 Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX));
+
+  // Slow Array iterator map index: (kBaseIndex + kSlowIteratorOffset)
+  const int kSlowIteratorOffset =
+      Context::GENERIC_ARRAY_VALUE_ITERATOR_MAP_INDEX -
+      Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX;
+  STATIC_ASSERT(kSlowIteratorOffset ==
+                (Context::GENERIC_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX -
+                 Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX));
+
+  // Assert: Type(array) is Object
+  Assert(IsJSReceiverInstanceType(array_type));
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Variable var_map_index(this, MachineType::PointerRepresentation());
+  Variable var_array_map(this, MachineRepresentation::kTagged);
+
+  Label return_result(this);
+  Label allocate_iterator(this);
+
+  if (mode == IterationKind::kKeys) {
+    // There are only two key iterator maps, branch depending on whether or not
+    // the receiver is a TypedArray or not.
+
+    Label if_isarray(this), if_istypedarray(this), if_isgeneric(this);
+    Label* kInstanceTypeHandlers[] = {&if_isarray, &if_istypedarray};
+
+    static int32_t kInstanceType[] = {JS_ARRAY_TYPE, JS_TYPED_ARRAY_TYPE};
+
+    Switch(array_type, &if_isgeneric, kInstanceType, kInstanceTypeHandlers,
+           arraysize(kInstanceType));
+
+    Bind(&if_isarray);
+    {
+      var_map_index.Bind(
+          IntPtrConstant(Context::FAST_ARRAY_KEY_ITERATOR_MAP_INDEX));
+      var_array_map.Bind(array_map);
+      Goto(&allocate_iterator);
+    }
+
+    Bind(&if_istypedarray);
+    {
+      var_map_index.Bind(
+          IntPtrConstant(Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX));
+      var_array_map.Bind(UndefinedConstant());
+      Goto(&allocate_iterator);
+    }
+
+    Bind(&if_isgeneric);
+    {
+      var_map_index.Bind(
+          IntPtrConstant(Context::GENERIC_ARRAY_KEY_ITERATOR_MAP_INDEX));
+      var_array_map.Bind(UndefinedConstant());
+      Goto(&allocate_iterator);
+    }
+  } else {
+    Label if_istypedarray(this), if_isgeneric(this);
+    Branch(Word32Equal(array_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
+           &if_istypedarray, &if_isgeneric);
+
+    Bind(&if_isgeneric);
+    {
+      Label if_isfast(this), if_isslow(this);
+      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
+
+      Bind(&if_isfast);
+      {
+        Node* map_index =
+            IntPtrAdd(IntPtrConstant(kBaseMapIndex + kFastIteratorOffset),
+                      LoadMapElementsKind(array_map));
+        Assert(IntPtrGreaterThanOrEqual(
+            map_index, IntPtrConstant(kBaseMapIndex + kFastIteratorOffset)));
+        Assert(IntPtrLessThan(
+            map_index, IntPtrConstant(kBaseMapIndex + kSlowIteratorOffset)));
+
+        var_map_index.Bind(map_index);
+        var_array_map.Bind(array_map);
+        Goto(&allocate_iterator);
+      }
+
+      Bind(&if_isslow);
+      {
+        Node* map_index = IntPtrAdd(IntPtrConstant(kBaseMapIndex),
+                                    IntPtrConstant(kSlowIteratorOffset));
+        var_map_index.Bind(map_index);
+        var_array_map.Bind(UndefinedConstant());
+        Goto(&allocate_iterator);
+      }
+    }
+
+    Bind(&if_istypedarray);
+    {
+      Node* map_index =
+          IntPtrAdd(IntPtrConstant(kBaseMapIndex - UINT8_ELEMENTS),
+                    LoadMapElementsKind(array_map));
+      Assert(IntPtrLessThan(
+          map_index, IntPtrConstant(kBaseMapIndex + kFastIteratorOffset)));
+      Assert(
+          IntPtrGreaterThanOrEqual(map_index, IntPtrConstant(kBaseMapIndex)));
+      var_map_index.Bind(map_index);
+      var_array_map.Bind(UndefinedConstant());
+      Goto(&allocate_iterator);
+    }
+  }
+
+  Bind(&allocate_iterator);
+  {
+    Node* map =
+        LoadFixedArrayElement(LoadNativeContext(context), var_map_index.value(),
+                              0, CodeStubAssembler::INTPTR_PARAMETERS);
+    var_result.Bind(AllocateJSArrayIterator(array, var_array_map.value(), map));
+    Goto(&return_result);
+  }
+
+  Bind(&return_result);
+  return var_result.value();
+}
+
+compiler::Node* CodeStubAssembler::AllocateJSArrayIterator(
+    compiler::Node* array, compiler::Node* array_map, compiler::Node* map) {
+  Node* iterator = Allocate(JSArrayIterator::kSize);
+  StoreMapNoWriteBarrier(iterator, map);
+  StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldRoot(iterator, JSArrayIterator::kElementsOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldNoWriteBarrier(iterator,
+                                 JSArrayIterator::kIteratedObjectOffset, array);
+  StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
+                                 SmiConstant(Smi::FromInt(0)));
+  StoreObjectFieldNoWriteBarrier(
+      iterator, JSArrayIterator::kIteratedObjectMapOffset, array_map);
+  return iterator;
+}
+
+compiler::Node* CodeStubAssembler::IsDetachedBuffer(compiler::Node* buffer) {
+  AssertInstanceType(buffer, JS_ARRAY_BUFFER_TYPE);
+
+  Node* buffer_bit_field = LoadObjectField(
+      buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32());
+  Node* was_neutered_mask = Int32Constant(JSArrayBuffer::WasNeutered::kMask);
+
+  return Word32NotEqual(Word32And(buffer_bit_field, was_neutered_mask),
+                        Int32Constant(0));
 }
 
 }  // namespace internal

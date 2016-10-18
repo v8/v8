@@ -444,6 +444,46 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_ERROR_TYPE)                                              \
   V(JS_STRING_ITERATOR_TYPE)                                    \
                                                                 \
+  V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                           \
+  V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                            \
+  V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                         \
+                                                                \
+  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
+  V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
+  V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
+  V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
+                                                                \
+  V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)                  \
+  V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
+  V(JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
+  V(JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE)                \
+  V(JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)               \
+  V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)         \
+  V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
+                                                                \
+  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                          \
+  V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                        \
+  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                        \
+  V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)                       \
+  V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)                       \
+  V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)                 \
+                                                                \
+  V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)                      \
+  V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)                \
+  V(JS_FAST_ARRAY_VALUE_ITERATOR_TYPE)                          \
+  V(JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)                   \
+  V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)             \
+  V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)                       \
+                                                                \
   V(JS_BOUND_FUNCTION_TYPE)                                     \
   V(JS_FUNCTION_TYPE)                                           \
   V(DEBUG_INFO_TYPE)                                            \
@@ -747,6 +787,47 @@ enum InstanceType {
   JS_REGEXP_TYPE,
   JS_ERROR_TYPE,
   JS_STRING_ITERATOR_TYPE,
+
+  JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
+  JS_FAST_ARRAY_KEY_ITERATOR_TYPE,
+  JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE,
+
+  JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+
+  JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+
+  JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_INT8_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_INT16_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_INT32_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE,
+
+  JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FAST_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
+  JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE,
+
   JS_BOUND_FUNCTION_TYPE,
   JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
 
@@ -783,6 +864,18 @@ enum InstanceType {
   // an empty fixed array as elements backing store. This is true for string
   // wrappers.
   LAST_CUSTOM_ELEMENTS_RECEIVER = JS_VALUE_TYPE,
+
+  FIRST_ARRAY_KEY_ITERATOR_TYPE = JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
+  LAST_ARRAY_KEY_ITERATOR_TYPE = JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE,
+
+  FIRST_ARRAY_KEY_VALUE_ITERATOR_TYPE = JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+  LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE = JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+
+  FIRST_ARRAY_VALUE_ITERATOR_TYPE = JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE,
+  LAST_ARRAY_VALUE_ITERATOR_TYPE = JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE,
+
+  FIRST_ARRAY_ITERATOR_TYPE = FIRST_ARRAY_KEY_ITERATOR_TYPE,
+  LAST_ARRAY_ITERATOR_TYPE = LAST_ARRAY_VALUE_ITERATOR_TYPE,
 };
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
@@ -1028,6 +1121,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSArrayBufferView)           \
   V(JSCollection)                \
   V(JSTypedArray)                \
+  V(JSArrayIterator)             \
   V(JSDataView)                  \
   V(JSProxy)                     \
   V(JSError)                     \
@@ -10513,6 +10607,32 @@ class JSMap : public JSCollection {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
+};
+
+class JSArrayIterator : public JSObject {
+ public:
+  DECLARE_PRINTER(JSArrayIterator)
+  DECLARE_VERIFIER(JSArrayIterator)
+
+  DECLARE_CAST(JSArrayIterator)
+
+  // [object]: the [[IteratedObject]] internal field.
+  DECL_ACCESSORS(object, Object)
+
+  // [index]: The [[ArrayIteratorNextIndex]] internal field.
+  DECL_ACCESSORS(index, Object)
+
+  // [map]: The Map of the [[IteratedObject]] field at the time the iterator is
+  // allocated.
+  DECL_ACCESSORS(object_map, Object)
+
+  static const int kIteratedObjectOffset = JSObject::kHeaderSize;
+  static const int kNextIndexOffset = kIteratedObjectOffset + kPointerSize;
+  static const int kIteratedObjectMapOffset = kNextIndexOffset + kPointerSize;
+  static const int kSize = kIteratedObjectMapOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayIterator);
 };
 
 class JSStringIterator : public JSObject {

@@ -20,6 +20,8 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
+enum class IterationKind { kKeys, kValues, kEntries };
+
 #define HEAP_CONSTANT_LIST(V)                 \
   V(BooleanMap, BooleanMap)                   \
   V(empty_string, EmptyString)                \
@@ -139,6 +141,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return BitcastWordToTaggedSigned(
         WordOr(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
   }
+
+  // Smi | HeapNumber operations.
+  compiler::Node* NumberInc(compiler::Node* value);
 
   // Allocate an object of the given size.
   compiler::Node* Allocate(compiler::Node* size, AllocationFlags flags = kNone);
@@ -296,6 +301,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadDoubleWithHoleCheck(
       compiler::Node* base, compiler::Node* offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
+  compiler::Node* LoadFixedTypedArrayElement(
+      compiler::Node* data_pointer, compiler::Node* index_node,
+      ElementsKind elements_kind,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Context manipulation
   compiler::Node* LoadContextElement(compiler::Node* context, int slot_index);
@@ -406,6 +415,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                      compiler::Node* capacity,
                                      ParameterMode mode = INTEGER_PARAMETERS,
                                      AllocationFlags flags = kNone);
+
+  // Perform CreateArrayIterator (ES6 #sec-createarrayiterator).
+  compiler::Node* CreateArrayIterator(compiler::Node* array,
+                                      compiler::Node* array_map,
+                                      compiler::Node* array_type,
+                                      compiler::Node* context,
+                                      IterationKind mode);
+
+  compiler::Node* AllocateJSArrayIterator(compiler::Node* array,
+                                          compiler::Node* array_map,
+                                          compiler::Node* map);
 
   void FillFixedArrayWithValue(ElementsKind kind, compiler::Node* array,
                                compiler::Node* from_index,
@@ -908,6 +928,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        compiler::Node* lhs, compiler::Node* rhs,
                                        compiler::Node* context);
 
+  void BranchIfNumericRelationalComparison(RelationalComparisonMode mode,
+                                           compiler::Node* lhs,
+                                           compiler::Node* rhs, Label* if_true,
+                                           Label* if_false);
+
+  void GotoUnlessNumberLessThan(compiler::Node* lhs, compiler::Node* rhs,
+                                Label* if_false);
+
   enum ResultMode { kDontNegateResult, kNegateResult };
 
   compiler::Node* Equal(ResultMode mode, compiler::Node* lhs,
@@ -926,6 +954,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* InstanceOf(compiler::Node* object, compiler::Node* callable,
                              compiler::Node* context);
+
+  // TypedArray/ArrayBuffer helpers
+  compiler::Node* IsDetachedBuffer(compiler::Node* buffer);
 
  private:
   enum ElementSupport { kOnlyProperties, kSupportElements };

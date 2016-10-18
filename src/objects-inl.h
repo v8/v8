@@ -690,6 +690,12 @@ bool HeapObject::IsJSObject() const {
 
 bool HeapObject::IsJSProxy() const { return map()->IsJSProxyMap(); }
 
+bool HeapObject::IsJSArrayIterator() const {
+  InstanceType instance_type = map()->instance_type();
+  return (instance_type >= FIRST_ARRAY_ITERATOR_TYPE &&
+          instance_type <= LAST_ARRAY_ITERATOR_TYPE);
+}
+
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
@@ -3338,6 +3344,7 @@ CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSStringIterator)
+CAST_ACCESSOR(JSArrayIterator)
 CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakCollection)
@@ -8356,6 +8363,10 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
+
+ACCESSORS(JSArrayIterator, object, Object, kIteratedObjectOffset)
+ACCESSORS(JSArrayIterator, index, Object, kNextIndexOffset)
+ACCESSORS(JSArrayIterator, object_map, Object, kIteratedObjectMapOffset)
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)

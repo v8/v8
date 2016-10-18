@@ -223,6 +223,14 @@ namespace internal {
   CPP(ArraySlice)                                                             \
   CPP(ArraySplice)                                                            \
   CPP(ArrayUnshift)                                                           \
+  /* ES6 #sec-array.prototype.entries */                                      \
+  TFJ(ArrayPrototypeEntries, 1)                                               \
+  /* ES6 #sec-array.prototype.keys */                                         \
+  TFJ(ArrayPrototypeKeys, 1)                                                  \
+  /* ES6 #sec-array.prototype.values */                                       \
+  TFJ(ArrayPrototypeValues, 1)                                                \
+  /* ES6 #sec-%arrayiteratorprototype%.next */                                \
+  TFJ(ArrayIteratorPrototypeNext, 1)                                          \
                                                                               \
   /* ArrayBuffer */                                                           \
   CPP(ArrayBufferConstructor)                                                 \
@@ -670,6 +678,12 @@ namespace internal {
   TFJ(TypedArrayPrototypeByteOffset, 1)                                       \
   /* ES6 section 22.2.3.18 get %TypedArray%.prototype.length */               \
   TFJ(TypedArrayPrototypeLength, 1)                                           \
+  /* ES6 #sec-%typedarray%.prototype.entries */                               \
+  TFJ(TypedArrayPrototypeEntries, 1)                                          \
+  /* ES6 #sec-%typedarray%.prototype.keys */                                  \
+  TFJ(TypedArrayPrototypeKeys, 1)                                             \
+  /* ES6 #sec-%typedarray%.prototype.values */                                \
+  TFJ(TypedArrayPrototypeValues, 1)                                           \
                                                                               \
   CPP(ModuleNamespaceIterator)                                                \
   CPP(FixedArrayIteratorNext)

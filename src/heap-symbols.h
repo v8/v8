@@ -12,6 +12,7 @@
   V(Arguments_string, "Arguments")                                 \
   V(arguments_to_string, "[object Arguments]")                     \
   V(Array_string, "Array")                                         \
+  V(ArrayIterator_string, "Array Iterator")                        \
   V(assign_string, "assign")                                       \
   V(array_to_string, "[object Array]")                             \
   V(boolean_to_string, "[object Boolean]")                         \
@@ -96,6 +97,7 @@
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
+  V(keys_string, "keys")                                           \
   V(lastIndex_string, "lastIndex")                                 \
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \

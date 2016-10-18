@@ -193,7 +193,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4648
   'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/entries/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/every/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/fill/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/filter/detached-buffer': [FAIL],
@@ -203,7 +202,6 @@
   'built-ins/TypedArray/prototype/includes/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/indexOf/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/join/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/keys/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/lastIndexOf/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/map/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/reverse/detached-buffer': [FAIL],
@@ -213,7 +211,6 @@
   'built-ins/TypedArray/prototype/subarray/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/toLocaleString/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/values/detached-buffer': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
