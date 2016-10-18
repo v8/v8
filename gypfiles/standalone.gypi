@@ -503,10 +503,7 @@
     },
     'conditions':[
       ['clang==0', {
-        'cflags+': [
-          '-Wno-sign-compare',
-          '-Wno-maybe-uninitialized',
-        ],
+        'cflags+': ['-Wno-sign-compare',],
       }],
       ['clang==1 or host_clang==1', {
         # This is here so that all files get recompiled after a clang roll and
