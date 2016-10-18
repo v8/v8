@@ -7906,7 +7906,7 @@ compiler::Node* CodeStubAssembler::NumberInc(compiler::Node* value) {
 compiler::Node* CodeStubAssembler::CreateArrayIterator(
     compiler::Node* array, compiler::Node* array_map,
     compiler::Node* array_type, compiler::Node* context, IterationKind mode) {
-  int kBaseMapIndex;
+  int kBaseMapIndex = 0;
   switch (mode) {
     case IterationKind::kKeys:
       kBaseMapIndex = Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX;
