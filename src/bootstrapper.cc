@@ -1447,6 +1447,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(global_object,
                           factory->NewStringFromAsciiChecked("parseFloat"),
                           parse_float_fun, DONT_ENUM);
+
+    // Install Number.parseInt and Global.parseInt.
+    Handle<JSFunction> parse_int_fun = SimpleInstallFunction(
+        number_fun, "parseInt", Builtins::kNumberParseInt, 2, true);
+    JSObject::AddProperty(global_object,
+                          factory->NewStringFromAsciiChecked("parseInt"),
+                          parse_int_fun, DONT_ENUM);
   }
 
   {  // --- B o o l e a n ---

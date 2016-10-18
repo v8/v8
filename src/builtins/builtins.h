@@ -491,6 +491,8 @@ namespace internal {
   TFJ(NumberIsSafeInteger, 2)                                                 \
   /* ES6 section 20.1.2.12 Number.parseFloat ( string ) */                    \
   TFJ(NumberParseFloat, 2)                                                    \
+  /* ES6 section 20.1.2.13 Number.parseInt ( string, radix ) */               \
+  TFJ(NumberParseInt, 3)                                                      \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \

@@ -815,7 +815,7 @@ TEST(SnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("Math.abs"));
-    CHECK(!IsCompiled("Number.parseInt"));
+    CHECK(!IsCompiled("String.raw"));
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
@@ -825,7 +825,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
       "function f() { return Math.abs(1); }\n"
-      "function g() { return Number.parseInt(1); }\n"
+      "function g() { return String.raw(1); }\n"
       "Object.valueOf(1);"
       "var a = 5";
   const char* warmup = "a = f()";
@@ -850,7 +850,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("f"));
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Number.parseInt"));
+    CHECK(!IsCompiled("String.raw"));
     CHECK(!IsCompiled("Object.valueOf"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }

@@ -256,6 +256,93 @@ void Builtins::Generate_NumberParseFloat(CodeStubAssembler* assembler) {
   }
 }
 
+// ES6 section 20.1.2.13 Number.parseInt ( string, radix )
+void Builtins::Generate_NumberParseInt(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* input = assembler->Parameter(1);
+  Node* radix = assembler->Parameter(2);
+  Node* context = assembler->Parameter(5);
+
+  // Check if {radix} is treated as 10 (i.e. undefined, 0 or 10).
+  Label if_radix10(assembler), if_generic(assembler, Label::kDeferred);
+  assembler->GotoIf(assembler->WordEqual(radix, assembler->UndefinedConstant()),
+                    &if_radix10);
+  assembler->GotoIf(
+      assembler->WordEqual(radix, assembler->SmiConstant(Smi::FromInt(10))),
+      &if_radix10);
+  assembler->GotoIf(
+      assembler->WordEqual(radix, assembler->SmiConstant(Smi::FromInt(0))),
+      &if_radix10);
+  assembler->Goto(&if_generic);
+
+  assembler->Bind(&if_radix10);
+  {
+    // Check if we can avoid the ToString conversion on {input}.
+    Label if_inputissmi(assembler), if_inputisheapnumber(assembler),
+        if_inputisstring(assembler);
+    assembler->GotoIf(assembler->TaggedIsSmi(input), &if_inputissmi);
+    Node* input_map = assembler->LoadMap(input);
+    assembler->GotoIf(
+        assembler->WordEqual(input_map, assembler->UndefinedConstant()),
+        &if_inputisheapnumber);
+    Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
+    assembler->Branch(assembler->IsStringInstanceType(input_instance_type),
+                      &if_inputisstring, &if_generic);
+
+    assembler->Bind(&if_inputissmi);
+    {
+      // Just return the {input}.
+      assembler->Return(input);
+    }
+
+    assembler->Bind(&if_inputisheapnumber);
+    {
+      // Check if the absolute {input} value is in the ]0.01,1e9[ range.
+      Node* input_value = assembler->LoadHeapNumberValue(input);
+      Node* input_value_abs = assembler->Float64Abs(input_value);
+
+      assembler->GotoIf(assembler->Float64LessThan(
+                            input_value_abs, assembler->Float64Constant(0.01)),
+                        &if_generic);
+      assembler->GotoIf(assembler->Float64LessThan(
+                            assembler->Float64Constant(1e9), input_value_abs),
+                        &if_generic);
+
+      // Return the truncated int32 value, and return the tagged result.
+      Node* input_value32 = assembler->TruncateFloat64ToWord32(input_value);
+      Node* result = assembler->SmiFromWord32(input_value32);
+      assembler->Return(result);
+    }
+
+    assembler->Bind(&if_inputisstring);
+    {
+      // Check if the String {input} has a cached array index.
+      Node* input_hash = assembler->LoadNameHashField(input);
+      Node* input_bit = assembler->Word32And(
+          input_hash,
+          assembler->Int32Constant(String::kContainsCachedArrayIndexMask));
+      assembler->GotoIf(
+          assembler->Word32NotEqual(input_bit, assembler->Int32Constant(0)),
+          &if_generic);
+
+      // Return the cached array index as result.
+      Node* input_index =
+          assembler->BitFieldDecode<String::ArrayIndexValueBits>(input_hash);
+      Node* result = assembler->SmiTag(input_index);
+      assembler->Return(result);
+    }
+  }
+
+  assembler->Bind(&if_generic);
+  {
+    Node* result =
+        assembler->CallRuntime(Runtime::kStringParseInt, context, input, radix);
+    assembler->Return(result);
+  }
+}
+
 // ES6 section 20.1.3.2 Number.prototype.toExponential ( fractionDigits )
 BUILTIN(NumberPrototypeToExponential) {
   HandleScope scope(isolate);

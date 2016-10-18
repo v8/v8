@@ -18,42 +18,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 // ----------------------------------------------------------------------------
 
 
-// ES6 18.2.5 parseInt(string, radix)
-function GlobalParseInt(string, radix) {
-  if (IS_UNDEFINED(radix) || radix === 10 || radix === 0) {
-    // Some people use parseInt instead of Math.floor.  This
-    // optimization makes parseInt on a Smi 12 times faster (60ns
-    // vs 800ns).  The following optimization makes parseInt on a
-    // non-Smi number 9 times faster (230ns vs 2070ns).  Together
-    // they make parseInt on a string 1.4% slower (274ns vs 270ns).
-    if (%_IsSmi(string)) return string;
-    if (IS_NUMBER(string) &&
-        ((0.01 < string && string < 1e9) ||
-            (-1e9 < string && string < -0.01))) {
-      // Truncate number.
-      return string | 0;
-    }
-    string = TO_STRING(string);
-    radix = radix | 0;
-  } else {
-    // The spec says ToString should be evaluated before ToInt32.
-    string = TO_STRING(string);
-    radix = TO_INT32(radix);
-    if (!(radix == 0 || (2 <= radix && radix <= 36))) {
-      return NaN;
-    }
-  }
-
-  if (%_HasCachedArrayIndex(string) &&
-      (radix == 0 || radix == 10)) {
-    return %_GetCachedArrayIndex(string);
-  }
-  return %StringParseInt(string, radix);
-}
-
-
-// ----------------------------------------------------------------------------
-
 // Set up global object.
 var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
 
@@ -64,11 +28,6 @@ utils.InstallConstants(global, [
   "NaN", NaN,
   // ES6 18.1.3
   "undefined", UNDEFINED,
-]);
-
-// Set up non-enumerable function on the global object.
-utils.InstallFunctions(global, DONT_ENUM, [
-  "parseInt", GlobalParseInt,
 ]);
 
 
@@ -158,12 +117,6 @@ utils.InstallConstants(GlobalNumber, [
   "MIN_SAFE_INTEGER", -9007199254740991,
   "EPSILON", 2.220446049250313e-16,
 ]);
-
-// Harmony Number constructor additions
-utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
-  "parseInt", GlobalParseInt,
-]);
-
 
 
 // ----------------------------------------------------------------------------
