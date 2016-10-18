@@ -1839,8 +1839,6 @@ class Call final : public Expression {
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
-  FeedbackVectorSlot CallFeedbackSlot() const { return stub_slot_; }
-
   FeedbackVectorSlot CallFeedbackICSlot() const { return ic_slot_; }
 
   SmallMapList* GetReceiverTypes() {
@@ -1912,8 +1910,6 @@ class Call final : public Expression {
 
   // Helpers to determine how to handle the call.
   CallType GetCallType() const;
-  bool IsUsingCallFeedbackSlot() const;
-  bool IsUsingCallFeedbackICSlot() const;
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
@@ -1946,7 +1942,6 @@ class Call final : public Expression {
   class IsPossiblyEvalField : public BitField<bool, IsTailField::kNext, 1> {};
 
   FeedbackVectorSlot ic_slot_;
-  FeedbackVectorSlot stub_slot_;
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   Handle<JSFunction> target_;

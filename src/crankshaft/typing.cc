@@ -517,16 +517,12 @@ void AstTyper::VisitProperty(Property* expr) {
 void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
-  bool is_uninitialized = true;
-  if (expr->IsUsingCallFeedbackICSlot()) {
-    FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
-    is_uninitialized = oracle()->CallIsUninitialized(slot);
-    if (!expr->expression()->IsProperty() &&
-        oracle()->CallIsMonomorphic(slot)) {
-      expr->set_target(oracle()->GetCallTarget(slot));
-      Handle<AllocationSite> site = oracle()->GetCallAllocationSite(slot);
-      expr->set_allocation_site(site);
-    }
+  FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
+  bool is_uninitialized = oracle()->CallIsUninitialized(slot);
+  if (!expr->expression()->IsProperty() && oracle()->CallIsMonomorphic(slot)) {
+    expr->set_target(oracle()->GetCallTarget(slot));
+    Handle<AllocationSite> site = oracle()->GetCallAllocationSite(slot);
+    expr->set_allocation_site(site);
   }
 
   expr->set_is_uninitialized(is_uninitialized);

@@ -889,25 +889,9 @@ bool Expression::IsMonomorphic() const {
   }
 }
 
-bool Call::IsUsingCallFeedbackICSlot() const {
-  return GetCallType() != POSSIBLY_EVAL_CALL;
-}
-
-bool Call::IsUsingCallFeedbackSlot() const {
-  // SuperConstructorCall uses a CallConstructStub, which wants
-  // a Slot, in addition to any IC slots requested elsewhere.
-  return GetCallType() == SUPER_CALL;
-}
-
-
 void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                      FeedbackVectorSlotCache* cache) {
-  if (IsUsingCallFeedbackICSlot()) {
-    ic_slot_ = spec->AddCallICSlot();
-  }
-  if (IsUsingCallFeedbackSlot()) {
-    stub_slot_ = spec->AddGeneralSlot();
-  }
+  ic_slot_ = spec->AddCallICSlot();
 }
 
 Call::CallType Call::GetCallType() const {

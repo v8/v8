@@ -2466,17 +2466,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
 
-  int feedback_slot_index;
-  if (expr->CallFeedbackICSlot().IsInvalid()) {
-    DCHECK(call_type == Call::POSSIBLY_EVAL_CALL);
-    // Valid type feedback slots can only be greater than kReservedIndexCount.
-    // We use 0 to indicate an invalid slot id. Statically assert that 0 cannot
-    // be a valid slot id.
-    STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
-    feedback_slot_index = 0;
-  } else {
-    feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-  }
+  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
   builder()->Call(callee, args, feedback_slot_index, expr->tail_call_mode());
 }
 

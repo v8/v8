@@ -9605,7 +9605,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
                                      syntactic_tail_call_mode, tail_call_mode);
     } else {
       PushArgumentsFromEnvironment(argument_count);
-      if (expr->is_uninitialized() && expr->IsUsingCallFeedbackICSlot()) {
+      if (expr->is_uninitialized()) {
         // We've never seen this call before, so let's have Crankshaft learn
         // through the type vector.
         call = NewCallFunctionViaIC(function, argument_count,

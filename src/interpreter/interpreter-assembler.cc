@@ -567,13 +567,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   Variable return_value(this, MachineRepresentation::kTagged);
   Label handle_monomorphic(this), extra_checks(this), end(this), call(this),
-      call_function(this), call_without_feedback(this);
-
-  // Slot id of 0 is used to indicate no typefeedback is available. Call using
-  // call builtin.
-  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
-  Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
-  GotoIf(is_feedback_unavailable, &call_without_feedback);
+      call_function(this);
 
   // The checks. First, does function match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
@@ -723,18 +717,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     // Increment the call count.
     IncrementCallCount(type_feedback_vector, slot_id);
 
-    // Call using call builtin.
-    Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
-        isolate(), tail_call_mode, CallableType::kAny);
-    Node* code_target_call = HeapConstant(callable_call.code());
-    Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
-                               context, arg_count, first_arg, function);
-    return_value.Bind(ret_value);
-    Goto(&end);
-  }
-
-  Bind(&call_without_feedback);
-  {
     // Call using call builtin.
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
         isolate(), tail_call_mode, CallableType::kAny);

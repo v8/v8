@@ -1527,11 +1527,8 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
 }
 
 float BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
-  if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
-    CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
-    return nexus.ComputeCallFrequency() * invocation_frequency_;
-  }
-  return 0.0f;
+  CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
+  return nexus.ComputeCallFrequency() * invocation_frequency_;
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
