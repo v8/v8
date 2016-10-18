@@ -698,7 +698,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value cond = Pop(0, kAstI32);
             TFNode* if_true = nullptr;
             TFNode* if_false = nullptr;
-            BUILD(Branch, cond.node, &if_true, &if_false);
+            BUILD(BranchNoHint, cond.node, &if_true, &if_false);
             SsaEnv* end_env = ssa_env_;
             SsaEnv* false_env = Split(ssa_env_);
             false_env->control = if_false;
@@ -816,7 +816,7 @@ class WasmFullDecoder : public WasmDecoder {
               DCHECK(fval.type != kAstEnd);
               DCHECK(cond.type != kAstEnd);
               TFNode* controls[2];
-              builder_->Branch(cond.node, &controls[0], &controls[1]);
+              builder_->BranchNoHint(cond.node, &controls[0], &controls[1]);
               TFNode* merge = builder_->Merge(2, controls);
               TFNode* vals[2] = {tval.node, fval.node};
               TFNode* phi = builder_->Phi(tval.type, 2, vals, merge);
@@ -843,7 +843,7 @@ class WasmFullDecoder : public WasmDecoder {
               SsaEnv* fenv = ssa_env_;
               SsaEnv* tenv = Split(fenv);
               fenv->SetNotMerged();
-              BUILD(Branch, cond.node, &tenv->control, &fenv->control);
+              BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
               ssa_env_ = tenv;
               BreakTo(operand.depth);
               ssa_env_ = fenv;

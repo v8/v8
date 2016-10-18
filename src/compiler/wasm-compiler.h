@@ -148,7 +148,10 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
-  Node* Branch(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchNoHint(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
+
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
