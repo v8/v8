@@ -48,12 +48,6 @@ const kPending = 0;
 const kFulfilled = +1;
 const kRejected = -1;
 
-var lastMicrotaskId = 0;
-
-function PromiseNextMicrotaskID() {
-  return ++lastMicrotaskId;
-}
-
 // ES#sec-createresolvingfunctions
 // CreateResolvingFunctions ( promise )
 function CreateResolvingFunctions(promise, debugEvent) {
@@ -202,7 +196,7 @@ function PromiseEnqueue(value, tasks, deferreds, status) {
                        promiseAsyncStackIDSymbol);
       name = "async function";
     } else {
-      id = PromiseNextMicrotaskID();
+      id = %DebugNextMicrotaskId();
       name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
       %DebugAsyncTaskEvent("enqueue", id, name);
     }
@@ -307,7 +301,7 @@ function ResolvePromise(promise, resolution) {
           // Mark the dependency of the new promise on the resolution
           SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
         }
-        id = PromiseNextMicrotaskID();
+        id = %DebugNextMicrotaskId();
         name = "PromiseResolveThenableJob";
         %DebugAsyncTaskEvent("enqueue", id, name);
       }
@@ -687,7 +681,6 @@ utils.Export(function(to) {
   to.IsPromise = IsPromise;
   to.PromiseCreate = PromiseCreate;
   to.PromiseThen = PromiseThen;
-  to.PromiseNextMicrotaskID = PromiseNextMicrotaskID;
 
   to.GlobalPromise = GlobalPromise;
   to.NewPromiseCapability = NewPromiseCapability;

@@ -1822,6 +1822,11 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugNextMicrotaskId) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return Smi::FromInt(isolate->GetNextDebugMicrotaskId());
+}
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
   DCHECK(args.length() == 3);

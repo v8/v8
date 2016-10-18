@@ -194,6 +194,7 @@ namespace internal {
   F(DebugRecordAsyncFunction, 1, 1)             \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
+  F(DebugNextMicrotaskId, 0, 1)                 \
   F(DebugAsyncTaskEvent, 3, 1)                  \
   F(DebugIsActive, 0, 1)                        \
   F(DebugBreakInOptimizedCode, 0, 1)            \

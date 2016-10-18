@@ -30,7 +30,6 @@ utils.Import(function(from) {
   NewPromiseCapability = from.NewPromiseCapability;
   PerformPromiseThen = from.PerformPromiseThen;
   PromiseCreate = from.PromiseCreate;
-  PromiseNextMicrotaskID = from.PromiseNextMicrotaskID;
   RejectPromise = from.RejectPromise;
   ResolvePromise = from.ResolvePromise;
 });
@@ -143,7 +142,7 @@ function AsyncFunctionPromiseCreate() {
     %DebugPushPromise(promise);
     // Assign ID and create a recurring task to save stack for future
     // resumptions from await.
-    var id = PromiseNextMicrotaskID();
+    var id = %DebugNextMicrotaskId();
     SET_PRIVATE(promise, promiseAsyncStackIDSymbol, id);
     %DebugAsyncTaskEvent("enqueueRecurring", id, "async function");
   }
