@@ -1150,9 +1150,9 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 // Simple support to read a file into a 0-terminated C-string.
 // The returned buffer must be freed by the caller.
 // On return, *exits tells whether the file existed.
-Vector<const char> ReadFile(const char* filename,
-                            bool* exists,
-                            bool verbose = true);
+V8_EXPORT_PRIVATE Vector<const char> ReadFile(const char* filename,
+                                              bool* exists,
+                                              bool verbose = true);
 Vector<const char> ReadFile(FILE* file,
                             bool* exists,
                             bool verbose = true);
