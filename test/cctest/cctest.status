@@ -29,7 +29,6 @@
 [ALWAYS, {
   # All tests prefixed with 'Bug' are expected to fail.
   'test-api/Bug*': [FAIL],
-  'test-serialize/Bug*': [FAIL],
 
   ##############################################################################
 
@@ -89,6 +88,9 @@
 
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
+
+  # Test that serialization with unknown external reference fails.
+  'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
 
   ############################################################################
   # Slow tests.

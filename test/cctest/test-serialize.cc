@@ -2010,12 +2010,11 @@ TEST(SnapshotCreatorMultipleContexts) {
   delete[] blob.data;
 }
 
-static void SerializedCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(42));
 }
 
-static void SerializedCallbackReplacement(
+void SerializedCallbackReplacement(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(1337));
 }
@@ -2083,6 +2082,30 @@ TEST(SnapshotCreatorExternalReferences) {
     }
     isolate->Dispose();
   }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorUnknownExternalReferences) {
+  DisableTurbofan();
+  v8::SnapshotCreator creator;
+  v8::Isolate* isolate = creator.GetIsolate();
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::FunctionTemplate> callback =
+        v8::FunctionTemplate::New(isolate, SerializedCallback);
+    v8::Local<v8::Value> function =
+        callback->GetFunction(context).ToLocalChecked();
+    CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
+    ExpectInt32("f()", 42);
+
+    CHECK_EQ(0, creator.AddContext(context));
+  }
+  v8::StartupData blob =
+      creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+
   delete[] blob.data;
 }
 

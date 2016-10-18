@@ -8,6 +8,10 @@
 #include "src/ic/stub-cache.h"
 #include "src/list-inl.h"
 
+#if defined(DEBUG) && defined(V8_OS_LINUX)
+#include <execinfo.h>
+#endif  // DEBUG && V8_OS_LINUX
+
 namespace v8 {
 namespace internal {
 
@@ -33,7 +37,14 @@ uint32_t ExternalReferenceEncoder::Encode(Address address) const {
   DCHECK_NOT_NULL(address);
   base::HashMap::Entry* entry =
       const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
-  DCHECK_NOT_NULL(entry);
+  if (entry == nullptr) {
+    void* function_addr = address;
+    v8::base::OS::PrintError("Unknown external reference %p.\n", function_addr);
+#if defined(DEBUG) && defined(V8_OS_LINUX)
+    v8::base::OS::PrintError("%s\n", backtrace_symbols(&function_addr, 1)[0]);
+#endif  // DEBUG && V8_OS_LINUX
+    v8::base::OS::Abort();
+  }
   return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
 }
 
