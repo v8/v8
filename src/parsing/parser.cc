@@ -2696,11 +2696,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       expected_property_count = function_state.expected_property_count();
     }
 
-    if (use_temp_zone || is_lazy_top_level_function) {
+    DCHECK(use_temp_zone || !is_lazy_top_level_function);
+    if (use_temp_zone) {
       // If the preconditions are correct the function body should never be
       // accessed, but do this anyway for better behaviour if they're wrong.
       body = nullptr;
       scope->AnalyzePartially(&previous_zone_ast_node_factory);
+    }
+
+    if (FLAG_trace_preparse) {
+      PrintF("  [%s]: %i-%i %.*s\n",
+             is_lazy_top_level_function
+                 ? "Preparse no-resolution"
+                 : (use_temp_zone ? "Preparse resolution" : "Full parse"),
+             scope->start_position(), scope->end_position(),
+             function_name->byte_length(), function_name->raw_data());
     }
 
     // Parsing the body may change the language mode in our scope.

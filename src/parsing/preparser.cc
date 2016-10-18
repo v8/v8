@@ -177,10 +177,18 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       is_sloppy(language_mode) && formals.is_simple && !IsConciseMethod(kind);
   ValidateFormalParameters(language_mode, allow_duplicate_parameters, CHECK_OK);
 
+  int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
-    int end_position = scanner()->location().end_pos;
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
     CheckDecimalLiteralWithLeadingZero(start_position, end_position);
+  }
+  function_scope->set_end_position(end_position);
+
+  if (FLAG_trace_preparse) {
+    PrintF("  [%s]: %i-%i\n",
+           track_unresolved_variables_ ? "Preparse resolution"
+                                       : "Preparse no-resolution",
+           function_scope->start_position(), function_scope->end_position());
   }
 
   return Expression::Default();
