@@ -48,9 +48,11 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
   v8::Local<v8::Object> global = info.context->Global();
   v8::Local<v8::Object> console =
       V8Console::createConsole(this, info.hasMemoryOnConsole);
-  if (!global
-           ->Set(info.context, toV8StringInternalized(isolate, "console"),
-                 console)
+  v8::PropertyDescriptor descriptor(console, /* writable */ true);
+  descriptor.set_enumerable(false);
+  descriptor.set_configurable(true);
+  v8::Local<v8::String> consoleKey = toV8StringInternalized(isolate, "console");
+  if (!global->DefineProperty(info.context, consoleKey, descriptor)
            .FromMaybe(false))
     return;
   m_console.Reset(isolate, console);

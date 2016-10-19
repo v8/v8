@@ -1,0 +1,16 @@
+Running test: consoleExistsOnGlobal
+true
+
+Running test: consoleHasRightPropertyDescriptor
+{
+    configurable : true
+    enumerable : false
+    value : <value>
+    writable : true
+}
+
+Running test: ConsoleNotExistsOnGlobal
+false
+
+Running test: prototypeChainMustBeCorrect
+true
