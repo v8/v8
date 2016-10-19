@@ -1459,7 +1459,7 @@ class WasmInstanceBuilder {
           TRACE("init [globals+%u] = [globals+%d]\n", global.offset,
                 old_offset);
           size_t size = (global.type == kAstI64 || global.type == kAstF64)
-                            ? size = sizeof(double)
+                            ? sizeof(double)
                             : sizeof(int32_t);
           memcpy(raw_buffer_ptr(globals, new_offset),
                  raw_buffer_ptr(globals, old_offset), size);
