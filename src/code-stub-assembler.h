@@ -804,6 +804,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              compiler::Node* feedback, Label* if_handler,
                              Variable* var_handler, Label* if_miss,
                              int unroll_count);
+  void HandleKeyedStorePolymorphicCase(compiler::Node* receiver_map,
+                                       compiler::Node* feedback,
+                                       Label* if_handler, Variable* var_handler,
+                                       Label* if_transition_handler,
+                                       Variable* var_transition_map_cell,
+                                       Label* if_miss);
 
   compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
                                          compiler::Node* map);
@@ -886,6 +892,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
   void StoreIC(const StoreICParameters* p);
+  void KeyedStoreIC(const StoreICParameters* p, LanguageMode language_mode);
 
   void TransitionElementsKind(compiler::Node* object, compiler::Node* map,
                               ElementsKind from_kind, ElementsKind to_kind,

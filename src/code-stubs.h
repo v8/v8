@@ -126,6 +126,7 @@ class ObjectLiteral;
   V(StoreField)                               \
   V(StoreGlobal)                              \
   V(StoreIC)                                  \
+  V(KeyedStoreICTF)                           \
   V(StoreInterceptor)                         \
   V(StoreMap)                                 \
   V(StoreTransition)                          \
@@ -138,7 +139,8 @@ class ObjectLiteral;
   V(LoadICTrampoline)                         \
   V(LoadGlobalICTrampoline)                   \
   V(KeyedLoadICTrampolineTF)                  \
-  V(StoreICTrampoline)
+  V(StoreICTrampoline)                        \
+  V(KeyedStoreICTrampolineTF)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -2077,6 +2079,17 @@ class KeyedStoreICTrampolineStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(KeyedStoreICTrampoline, PlatformCodeStub);
 };
 
+class KeyedStoreICTrampolineTFStub : public StoreICTrampolineStub {
+ public:
+  KeyedStoreICTrampolineTFStub(Isolate* isolate, const StoreICState& state)
+      : StoreICTrampolineStub(isolate, state) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
+
+  DEFINE_CODE_STUB(KeyedStoreICTrampolineTF, StoreICTrampolineStub);
+};
 
 class CallICTrampolineStub : public PlatformCodeStub {
  public:
@@ -2182,6 +2195,17 @@ class KeyedStoreICStub : public PlatformCodeStub {
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
+class KeyedStoreICTFStub : public StoreICStub {
+ public:
+  KeyedStoreICTFStub(Isolate* isolate, const StoreICState& state)
+      : StoreICStub(isolate, state) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
+
+  DEFINE_CODE_STUB(KeyedStoreICTF, StoreICStub);
+};
 
 class DoubleToIStub : public PlatformCodeStub {
  public:

@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreICInOptimizedCode(Isolate* isolate,
                                               LanguageMode mode);
+  static Callable KeyedStoreIC_Megamorphic(Isolate* isolate, LanguageMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
 

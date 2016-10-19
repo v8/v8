@@ -4728,6 +4728,48 @@ void CodeStubAssembler::HandlePolymorphicCase(
   }
 }
 
+void CodeStubAssembler::HandleKeyedStorePolymorphicCase(
+    compiler::Node* receiver_map, compiler::Node* feedback, Label* if_handler,
+    Variable* var_handler, Label* if_transition_handler,
+    Variable* var_transition_map_cell, Label* if_miss) {
+  DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
+  DCHECK_EQ(MachineRepresentation::kTagged, var_transition_map_cell->rep());
+
+  const int kEntrySize = 3;
+
+  Variable var_index(this, MachineType::PointerRepresentation());
+  Label loop(this, &var_index);
+  var_index.Bind(IntPtrConstant(0));
+  Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* index = var_index.value();
+    GotoIf(UintPtrGreaterThanOrEqual(index, length), if_miss);
+
+    Node* cached_map = LoadWeakCellValue(
+        LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
+
+    Label next_entry(this);
+    GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
+
+    Node* maybe_transition_map_cell =
+        LoadFixedArrayElement(feedback, index, kPointerSize, INTPTR_PARAMETERS);
+
+    var_handler->Bind(LoadFixedArrayElement(feedback, index, 2 * kPointerSize,
+                                            INTPTR_PARAMETERS));
+    GotoIf(WordEqual(maybe_transition_map_cell,
+                     LoadRoot(Heap::kUndefinedValueRootIndex)),
+           if_handler);
+    var_transition_map_cell->Bind(maybe_transition_map_cell);
+    Goto(if_transition_handler);
+
+    Bind(&next_entry);
+    var_index.Bind(IntPtrAdd(index, IntPtrConstant(kEntrySize)));
+    Goto(&loop);
+  }
+}
+
 compiler::Node* CodeStubAssembler::StubCachePrimaryOffset(compiler::Node* name,
                                                           compiler::Node* map) {
   // See v8::internal::StubCache::PrimaryOffset().
@@ -5565,6 +5607,85 @@ void CodeStubAssembler::StoreIC(const StoreICParameters* p) {
   Bind(&miss);
   {
     TailCallRuntime(Runtime::kStoreIC_Miss, p->context, p->value, p->slot,
+                    p->vector, p->receiver, p->name);
+  }
+}
+
+void CodeStubAssembler::KeyedStoreIC(const StoreICParameters* p,
+                                     LanguageMode language_mode) {
+  Variable var_handler(this, MachineRepresentation::kTagged);
+  // TODO(ishell): defer blocks when it works.
+  Label if_handler(this, &var_handler), try_polymorphic(this),
+      try_megamorphic(this /*, Label::kDeferred*/),
+      try_polymorphic_name(this /*, Label::kDeferred*/),
+      miss(this /*, Label::kDeferred*/);
+
+  Node* receiver_map = LoadReceiverMap(p->receiver);
+
+  // Check monomorphic case.
+  Node* feedback =
+      TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
+                         &var_handler, &try_polymorphic);
+  Bind(&if_handler);
+  {
+    Comment("KeyedStoreIC_if_handler");
+    StoreWithVectorDescriptor descriptor(isolate());
+    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
+                 p->name, p->value, p->slot, p->vector);
+  }
+
+  Bind(&try_polymorphic);
+  {
+    // CheckPolymorphic case.
+    Comment("KeyedStoreIC_try_polymorphic");
+    GotoUnless(
+        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
+        &try_megamorphic);
+    Label if_transition_handler(this);
+    Variable var_transition_map_cell(this, MachineRepresentation::kTagged);
+    HandleKeyedStorePolymorphicCase(receiver_map, feedback, &if_handler,
+                                    &var_handler, &if_transition_handler,
+                                    &var_transition_map_cell, &miss);
+    Bind(&if_transition_handler);
+    Comment("KeyedStoreIC_polymorphic_transition");
+    Node* transition_map =
+        LoadWeakCellValue(var_transition_map_cell.value(), &miss);
+    StoreTransitionDescriptor descriptor(isolate());
+    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
+                 p->name, transition_map, p->value, p->slot, p->vector);
+  }
+
+  Bind(&try_megamorphic);
+  {
+    // Check megamorphic case.
+    Comment("KeyedStoreIC_try_megamorphic");
+    GotoUnless(
+        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+        &try_polymorphic_name);
+    TailCallStub(
+        CodeFactory::KeyedStoreIC_Megamorphic(isolate(), language_mode),
+        p->context, p->receiver, p->name, p->value, p->slot, p->vector);
+  }
+
+  Bind(&try_polymorphic_name);
+  {
+    // We might have a name in feedback, and a fixed array in the next slot.
+    Comment("KeyedStoreIC_try_polymorphic_name");
+    GotoUnless(WordEqual(feedback, p->name), &miss);
+    // If the name comparison succeeded, we know we have a FixedArray with
+    // at least one map/handler pair.
+    Node* offset = ElementOffsetFromIndex(
+        p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
+        FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
+    Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
+    HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
+                          1);
+  }
+
+  Bind(&miss);
+  {
+    Comment("KeyedStoreIC_miss");
+    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value, p->slot,
                     p->vector, p->receiver, p->name);
   }
 }
