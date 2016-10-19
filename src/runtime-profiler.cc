@@ -54,6 +54,8 @@ static const int kOSRCodeSizeAllowancePerTickIgnition =
 // the very first time it is seen on the stack.
 static const int kMaxSizeEarlyOpt =
     5 * FullCodeGenerator::kCodeSizeMultiplier;
+static const int kMaxSizeEarlyOptIgnition =
+    5 * interpreter::Interpreter::kCodeSizeMultiplier;
 
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
@@ -422,9 +424,18 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
       }
       return OptimizationReason::kDoNotOptimize;
     }
+  } else if (!any_ic_changed_ &&
+             shared->bytecode_array()->Size() < kMaxSizeEarlyOptIgnition) {
+    // If no IC was patched since the last tick and this function is very
+    // small, optimistically optimize it now.
+    int typeinfo, generic, total, type_percentage, generic_percentage;
+    GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
+                &generic_percentage);
+    if (type_percentage >= FLAG_type_info_threshold &&
+        generic_percentage <= FLAG_generic_ic_threshold) {
+      return OptimizationReason::kSmallFunction;
+    }
   }
-  // TODO(rmcilroy): Consider whether we should optimize small functions when
-  // they are first seen on the stack (e.g., kMaxSizeEarlyOpt).
   return OptimizationReason::kDoNotOptimize;
 }
 
