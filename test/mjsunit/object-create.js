@@ -248,3 +248,14 @@ for (x in sonOfTricky) {
   sum += sonOfTricky[x];
 }
 assertEquals(16, sum);
+
+
+(function createWithEmptyProtoInfoCreateMap() {
+  var proto = {a:1};
+  var instance = {__proto__: proto };
+  // Try force creation of prototype info on proto by loading a proto property.
+  assertEquals(instance.a, 1);
+  var result = Object.create(proto, {});
+  assertEquals(result.a, 1);
+  assertEquals(result.__proto__, proto);
+})()

@@ -58,6 +58,7 @@ class RawMachineLabel;
   V(Uint32LessThanOrEqual)                       \
   V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
+  V(UintPtrLessThanOrEqual)                      \
   V(UintPtrGreaterThan)                          \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \

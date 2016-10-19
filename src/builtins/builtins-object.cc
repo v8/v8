@@ -459,57 +459,96 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
   }
 }
 
-// ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
-// TODO(verwaest): Support the common cases with precached map directly in
-// an Object.create stub.
-BUILTIN(ObjectCreate) {
-  HandleScope scope(isolate);
-  Handle<Object> prototype = args.atOrUndefined(isolate, 1);
-  if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
+void Builtins::Generate_ObjectCreate(CodeStubAssembler* a) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* prototype = a->Parameter(1);
+  Node* properties = a->Parameter(2);
+  Node* context = a->Parameter(3 + 2);
+
+  Label call_runtime(a, Label::kDeferred), prototype_valid(a), no_properties(a);
+  {
+    a->Comment("Argument 1 check: prototype");
+    a->GotoIf(a->WordEqual(prototype, a->NullConstant()), &prototype_valid);
+    a->BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
   }
 
-  // Generate the map with the specified {prototype} based on the Object
-  // function's initial map from the current native context.
-  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
-  // slack tracking for Object.create.
-  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
-                  isolate);
-  if (map->prototype() != *prototype) {
-    if (prototype->IsNull(isolate)) {
-      map = isolate->object_with_null_prototype_map();
-    } else if (prototype->IsJSObject()) {
-      Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
-      if (!js_prototype->map()->is_prototype_map()) {
-        JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
-      }
-      Handle<PrototypeInfo> info =
-          Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
-      // TODO(verwaest): Use inobject slack tracking for this map.
-      if (info->HasObjectCreateMap()) {
-        map = handle(info->ObjectCreateMap(), isolate);
-      } else {
-        map = Map::CopyInitialMap(map);
-        Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
-        PrototypeInfo::SetObjectCreateMap(info, map);
-      }
-    } else {
-      map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+  a->Bind(&prototype_valid);
+  {
+    a->Comment("Argument 2 check: properties");
+    // Check that we have a simple object
+    a->GotoIf(a->TaggedIsSmi(properties), &call_runtime);
+    // Undefined implies no properties.
+    a->GotoIf(a->WordEqual(properties, a->UndefinedConstant()), &no_properties);
+    Node* properties_map = a->LoadMap(properties);
+    a->GotoIf(a->IsSpecialReceiverMap(properties_map), &call_runtime);
+    // Stay on the fast path only if there are no elements.
+    a->GotoUnless(a->WordEqual(a->LoadElements(properties),
+                               a->LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+                  &call_runtime);
+    // Jump to the runtime for slow objects.
+    Node* bit_field3 = a->LoadMapBitField3(properties_map);
+    Node* is_fast_map = a->Word32Equal(
+        a->BitFieldDecode<Map::DictionaryMap>(bit_field3), a->Int32Constant(0));
+    a->GotoUnless(is_fast_map, &call_runtime);
+
+    a->Branch(
+        a->WordEqual(
+            a->BitFieldDecodeWord<Map::NumberOfOwnDescriptorsBits>(bit_field3),
+            a->IntPtrConstant(0)),
+        &no_properties, &call_runtime);
+  }
+
+  // Create a new object with the given prototype.
+  a->Bind(&no_properties);
+  {
+    Variable map(a, MachineRepresentation::kTagged);
+    Label non_null_proto(a), instantiate_map(a), good(a);
+
+    a->Branch(a->WordEqual(prototype, a->NullConstant()), &good,
+              &non_null_proto);
+
+    a->Bind(&good);
+    {
+      map.Bind(a->LoadContextElement(context,
+                                     Context::OBJECT_WITH_NULL_PROTOTYPE_MAP));
+      a->Goto(&instantiate_map);
+    }
+
+    a->Bind(&non_null_proto);
+    {
+      Node* object_function =
+          a->LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX);
+      Node* object_function_map = a->LoadObjectField(
+          object_function, JSFunction::kPrototypeOrInitialMapOffset);
+      map.Bind(object_function_map);
+      a->GotoIf(a->WordEqual(prototype, a->LoadMapPrototype(map.value())),
+                &instantiate_map);
+      // Try loading the prototype info.
+      Node* prototype_info =
+          a->LoadMapPrototypeInfo(a->LoadMap(prototype), &call_runtime);
+      a->Comment("Load ObjectCreateMap from PrototypeInfo");
+      Node* weak_cell =
+          a->LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
+      a->GotoIf(a->WordEqual(weak_cell, a->UndefinedConstant()), &call_runtime);
+      map.Bind(a->LoadWeakCellValue(weak_cell, &call_runtime));
+      a->Goto(&instantiate_map);
+    }
+
+    a->Bind(&instantiate_map);
+    {
+      Node* instance = a->AllocateJSObjectFromMap(map.value());
+      a->Return(instance);
     }
   }
 
-  // Actually allocate the object.
-  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(map);
-
-  // Define the properties if properties was specified and is not undefined.
-  Handle<Object> properties = args.atOrUndefined(isolate, 2);
-  if (!properties->IsUndefined(isolate)) {
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSReceiver::DefineProperties(isolate, object, properties));
+  a->Bind(&call_runtime);
+  {
+    a->Return(
+        a->CallRuntime(Runtime::kObjectCreate, context, prototype, properties));
   }
-
-  return *object;
 }
 
 // ES6 section 19.1.2.3 Object.defineProperties

@@ -522,7 +522,7 @@ namespace internal {
                                                                               \
   /* Object */                                                                \
   CPP(ObjectAssign)                                                           \
-  CPP(ObjectCreate)                                                           \
+  TFJ(ObjectCreate, 3)                                                        \
   CPP(ObjectDefineGetter)                                                     \
   CPP(ObjectDefineProperties)                                                 \
   CPP(ObjectDefineProperty)                                                   \

@@ -1206,6 +1206,7 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
   os << "\n - validity cell: " << Brief(validity_cell());
+  os << "\n - object create map: " << Brief(object_create_map());
   os << "\n";
 }
 

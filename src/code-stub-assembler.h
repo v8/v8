@@ -156,6 +156,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* InnerAllocate(compiler::Node* previous, int offset);
   compiler::Node* InnerAllocate(compiler::Node* previous,
                                 compiler::Node* offset);
+  compiler::Node* IsRegularHeapObjectSize(compiler::Node* size);
 
   void Assert(compiler::Node* condition, const char* string = nullptr,
               const char* file = nullptr, int line = 0);
@@ -164,6 +165,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* TaggedIsSmi(compiler::Node* a);
   // Check that the value is a non-negative smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
+  // Check that a word has a word-aligned address.
+  compiler::Node* WordIsWordAligned(compiler::Node* word);
 
   void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
                         Label* if_false) {
@@ -198,6 +201,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     BranchIfSimd128Equal(lhs, LoadMap(lhs), rhs, LoadMap(rhs), if_equal,
                          if_notequal);
   }
+
+  void BranchIfJSReceiver(compiler::Node* object, Label* if_true,
+                          Label* if_false);
+  void BranchIfJSObject(compiler::Node* object, Label* if_true,
+                        Label* if_false);
 
   void BranchIfFastJSArray(compiler::Node* object, compiler::Node* context,
                            Label* if_true, Label* if_false);
@@ -234,6 +242,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMap(compiler::Node* object);
   // Load the instance type of an HeapObject.
   compiler::Node* LoadInstanceType(compiler::Node* object);
+  // Compare the instance the type of the object against the provided one.
+  compiler::Node* HasInstanceType(compiler::Node* object, InstanceType type);
   // Checks that given heap object has given instance type.
   void AssertInstanceType(compiler::Node* object, InstanceType instance_type);
   // Load the properties backing store of a JSObject.
@@ -260,6 +270,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
   // Load the prototype of a map.
   compiler::Node* LoadMapPrototype(compiler::Node* map);
+  // Load the prototype info of a map. The result has to be checked if it is a
+  // prototype info object or not.
+  compiler::Node* LoadMapPrototypeInfo(compiler::Node* map,
+                                       Label* if_has_no_proto_info);
   // Load the instance size of a Map.
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
   // Load the inobject properties count of a Map (valid only for JSObjects).
@@ -268,6 +282,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapConstructorFunctionIndex(compiler::Node* map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   compiler::Node* LoadMapConstructor(compiler::Node* map);
+  // Check whether the map is for an object with special properties, such as a
+  // JSProxy or an object with interceptors.
+  compiler::Node* IsSpecialReceiverMap(compiler::Node* map);
+  compiler::Node* IsSpecialReceiverInstanceType(compiler::Node* instance_type);
 
   // Load the hash field of a name as an uint32 value.
   compiler::Node* LoadNameHashField(compiler::Node* name);
@@ -350,6 +368,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       compiler::Node* object, compiler::Node* index, compiler::Node* value,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
+  void StoreFieldsNoWriteBarrier(compiler::Node* start_address,
+                                 compiler::Node* end_address,
+                                 compiler::Node* value);
+
   // Allocate a HeapNumber without initializing its value.
   compiler::Node* AllocateHeapNumber(MutableMode mode = IMMUTABLE);
   // Allocate a HeapNumber with a specific value.
@@ -408,6 +430,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        compiler::Node* length,
                                        compiler::Node* index,
                                        compiler::Node* input);
+
+  compiler::Node* AllocateJSObjectFromMap(compiler::Node* map,
+                                          compiler::Node* properties = nullptr,
+                                          compiler::Node* elements = nullptr);
+
+  void InitializeJSObjectFromMap(compiler::Node* object, compiler::Node* map,
+                                 compiler::Node* size,
+                                 compiler::Node* properties = nullptr,
+                                 compiler::Node* elements = nullptr);
+
+  void InitializeJSObjectBody(compiler::Node* object, compiler::Node* map,
+                              compiler::Node* size,
+                              int start_offset = JSObject::kHeaderSize);
 
   // Allocate a JSArray without elements and initialize the header fields.
   compiler::Node* AllocateUninitializedJSArrayWithoutElements(

@@ -1509,5 +1509,67 @@ TEST(GotoIfExceptionMultiple) {
   CHECK(constructor->SameValue(*isolate->type_error_function()));
 }
 
+TEST(AllocateJSObjectFromMap) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 3;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  {
+    Node* map = m.Parameter(0);
+    Node* properties = m.Parameter(1);
+    Node* elements = m.Parameter(2);
+
+    Node* result = m.AllocateJSObjectFromMap(map, properties, elements);
+
+    m.Return(result);
+  }
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<Map> maps[] = {
+      isolate->object_with_null_prototype_map(),
+      handle(isolate->object_function()->initial_map(), isolate),
+      handle(isolate->array_function()->initial_map(), isolate),
+  };
+
+#define VERIFY(result, map_value, properties_value, elements_value) \
+  CHECK_EQ(result->map(), map_value);                               \
+  CHECK_EQ(result->properties(), properties_value);                 \
+  CHECK_EQ(result->elements(), elements_value);
+
+  {
+    Handle<Object> empty_fixed_array = factory->empty_fixed_array();
+    for (int i = 0; i < arraysize(maps); i++) {
+      Handle<Map> map = maps[i];
+      Handle<JSObject> result = Handle<JSObject>::cast(
+          ft.Call(map, empty_fixed_array, empty_fixed_array).ToHandleChecked());
+      VERIFY(result, *map, *empty_fixed_array, *empty_fixed_array);
+#ifdef VERIFY_HEAP
+      isolate->heap()->Verify();
+#endif
+    }
+  }
+
+  {
+    // TODO(cbruni): handle in-object properties
+    Handle<JSObject> object = Handle<JSObject>::cast(
+        v8::Utils::OpenHandle(*CompileRun("var object = {a:1,b:2, 1:1, 2:2}; "
+                                          "object")));
+    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
+                                  "Normalize");
+    Handle<JSObject> result = Handle<JSObject>::cast(
+        ft.Call(handle(object->map()), handle(object->properties()),
+                handle(object->elements()))
+            .ToHandleChecked());
+    VERIFY(result, object->map(), object->properties(), object->elements());
+#ifdef VERIFY_HEAP
+    isolate->heap()->Verify();
+#endif
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1,7 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "src/code-stub-assembler.h"
 #include "src/code-factory.h"
 #include "src/frames-inl.h"
@@ -525,6 +524,11 @@ Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
+Node* CodeStubAssembler::WordIsWordAligned(Node* word) {
+  return WordEqual(IntPtrConstant(0),
+                   WordAnd(word, IntPtrConstant((1 << kPointerSizeLog2) - 1)));
+}
+
 void CodeStubAssembler::BranchIfSimd128Equal(Node* lhs, Node* lhs_map,
                                              Node* rhs, Node* rhs_map,
                                              Label* if_equal,
@@ -623,6 +627,24 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     var_map.Bind(prototype_map);
     Goto(&loop_body);
   }
+}
+
+void CodeStubAssembler::BranchIfJSReceiver(Node* object, Label* if_true,
+                                           Label* if_false) {
+  GotoIf(TaggedIsSmi(object), if_false);
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  Branch(Int32GreaterThanOrEqual(LoadInstanceType(object),
+                                 Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+         if_true, if_false);
+}
+
+void CodeStubAssembler::BranchIfJSObject(Node* object, Label* if_true,
+                                         Label* if_false) {
+  GotoIf(TaggedIsSmi(object), if_false);
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  Branch(Int32GreaterThanOrEqual(LoadInstanceType(object),
+                                 Int32Constant(FIRST_JS_OBJECT_TYPE)),
+         if_true, if_false);
 }
 
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
@@ -783,6 +805,11 @@ Node* CodeStubAssembler::InnerAllocate(Node* previous, Node* offset) {
 
 Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
   return InnerAllocate(previous, IntPtrConstant(offset));
+}
+
+Node* CodeStubAssembler::IsRegularHeapObjectSize(Node* size) {
+  return UintPtrLessThanOrEqual(size,
+                                IntPtrConstant(kMaxRegularHeapObjectSize));
 }
 
 void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
@@ -950,10 +977,14 @@ Node* CodeStubAssembler::LoadInstanceType(Node* object) {
   return LoadMapInstanceType(LoadMap(object));
 }
 
+Node* CodeStubAssembler::HasInstanceType(Node* object,
+                                         InstanceType instance_type) {
+  return Word32Equal(LoadInstanceType(object), Int32Constant(instance_type));
+}
+
 void CodeStubAssembler::AssertInstanceType(Node* object,
                                            InstanceType instance_type) {
-  CSA_ASSERT(
-      Word32Equal(LoadInstanceType(object), Int32Constant(instance_type)));
+  CSA_ASSERT(HasInstanceType(object, instance_type));
 }
 
 Node* CodeStubAssembler::LoadProperties(Node* object) {
@@ -1005,6 +1036,17 @@ Node* CodeStubAssembler::LoadMapPrototype(Node* map) {
   return LoadObjectField(map, Map::kPrototypeOffset);
 }
 
+Node* CodeStubAssembler::LoadMapPrototypeInfo(Node* map,
+                                              Label* if_no_proto_info) {
+  Node* prototype_info =
+      LoadObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
+  GotoIf(TaggedIsSmi(prototype_info), if_no_proto_info);
+  GotoUnless(WordEqual(LoadMap(prototype_info),
+                       LoadRoot(Heap::kPrototypeInfoMapRootIndex)),
+             if_no_proto_info);
+  return prototype_info;
+}
+
 Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
   return ChangeUint32ToWord(
       LoadObjectField(map, Map::kInstanceSizeOffset, MachineType::Uint8()));
@@ -1048,6 +1090,20 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
   }
   Bind(&done);
   return result.value();
+}
+
+Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
+  Node* bit_field = LoadMapBitField(map);
+  Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
+                             1 << Map::kIsAccessCheckNeeded);
+  Assert(Word32Equal(Word32And(bit_field, mask), Int32Constant(0)));
+  return IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+}
+
+Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
+  STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
+  return Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE));
 }
 
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
@@ -1602,6 +1658,66 @@ Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
                           Heap::kUndefinedValueRootIndex, parameter_mode);
 
   return result;
+}
+
+Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
+                                                 Node* elements) {
+  Node* size =
+      IntPtrMul(LoadMapInstanceSize(map), IntPtrConstant(kPointerSize));
+  CSA_ASSERT(IsRegularHeapObjectSize(size));
+  Node* object = Allocate(size);
+  StoreMapNoWriteBarrier(object, map);
+  InitializeJSObjectFromMap(object, map, size, properties, elements);
+  return object;
+}
+
+void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
+                                                  Node* size, Node* properties,
+                                                  Node* elements) {
+  // This helper assumes that the object is in new-space, as guarded by the
+  // check in AllocatedJSObjectFromMap.
+  if (properties == nullptr) {
+    StoreObjectFieldRoot(object, JSObject::kPropertiesOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+  } else {
+    StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOffset,
+                                   properties);
+  }
+  if (elements == nullptr) {
+    StoreObjectFieldRoot(object, JSObject::kElementsOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+  } else {
+    StoreObjectFieldNoWriteBarrier(object, JSObject::kElementsOffset, elements);
+  }
+  InitializeJSObjectBody(object, map, size, JSObject::kHeaderSize);
+}
+
+void CodeStubAssembler::InitializeJSObjectBody(Node* object, Node* map,
+                                               Node* size, int start_offset) {
+  // TODO(cbruni): activate in-object slack tracking machinery.
+  Comment("InitializeJSObjectBody");
+  Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
+  // Calculate the untagged field addresses.
+  Node* start_address =
+      IntPtrAdd(object, IntPtrConstant(start_offset - kHeapObjectTag));
+  Node* end_address =
+      IntPtrSub(IntPtrAdd(object, size), IntPtrConstant(kHeapObjectTag));
+  StoreFieldsNoWriteBarrier(start_address, end_address, filler);
+}
+
+void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
+                                                  Node* end_address,
+                                                  Node* value) {
+  Comment("StoreFieldsNoWriteBarrier");
+  CSA_ASSERT(WordIsWordAligned(start_address));
+  CSA_ASSERT(WordIsWordAligned(end_address));
+  BuildFastLoop(MachineType::PointerRepresentation(), start_address,
+                end_address,
+                [value](CodeStubAssembler* a, Node* current) {
+                  a->StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                                         current, value);
+                },
+                kPointerSize, IndexAdvanceMode::kPost);
 }
 
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
