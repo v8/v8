@@ -825,7 +825,7 @@ std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& pair) {
 
 Handle<JSFunction> wasm::WrapExportCodeAsJSFunction(
     Isolate* isolate, Handle<Code> export_code, Handle<String> name, int arity,
-    MaybeHandle<ByteArray> maybe_signature, Handle<JSObject> module_instance) {
+    MaybeHandle<ByteArray> maybe_signature, Handle<JSObject> instance) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name, export_code, false);
   shared->set_length(arity);
@@ -834,7 +834,7 @@ Handle<JSFunction> wasm::WrapExportCodeAsJSFunction(
       isolate->wasm_function_map(), name, export_code);
   function->set_shared(*shared);
 
-  function->SetInternalField(kInternalModuleInstance, *module_instance);
+  function->SetInternalField(kInternalModuleInstance, *instance);
   // add another Internal Field as the function arity
   function->SetInternalField(kInternalArity, Smi::FromInt(arity));
   // add another Internal Field as the signature of the foreign function
@@ -857,10 +857,10 @@ Object* wasm::GetOwningWasmInstance(Code* code) {
   return cell->value();
 }
 
-int wasm::GetNumImportedFunctions(Handle<JSObject> wasm_object) {
+int wasm::GetNumImportedFunctions(Handle<JSObject> instance) {
   // TODO(wasm): Cache this number if it ever becomes a performance problem.
-  DCHECK(IsWasmObject(*wasm_object));
-  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm_object);
+  DCHECK(IsWasmInstance(*instance));
+  WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   Handle<FixedArray> imports =
       WasmCompiledModule::cast(compiled_module)->imports();
   int num_imports = imports->length();
@@ -1425,7 +1425,7 @@ class WasmInstanceBuilder {
       }
     }
 
-    DCHECK(wasm::IsWasmObject(*instance));
+    DCHECK(wasm::IsWasmInstance(*instance));
     Handle<Object> memory_object(instance->GetInternalField(kWasmMemObject),
                                  isolate_);
     WasmJs::SetWasmMemoryInstance(isolate_, memory_object, instance);
@@ -1975,7 +1975,7 @@ Handle<Object> wasm::GetWasmFunctionNameOrNull(Isolate* isolate,
                                                Handle<Object> wasm,
                                                uint32_t func_index) {
   if (!wasm->IsUndefined(isolate)) {
-    DCHECK(IsWasmObject(*wasm));
+    DCHECK(IsWasmInstance(*wasm));
     WasmCompiledModule* compiled_module =
         GetCompiledModule(JSObject::cast(*wasm));
     Handle<ByteArray> func_names = compiled_module->function_names();
@@ -1999,7 +1999,7 @@ Handle<String> wasm::GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
   return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
 }
 
-bool wasm::IsWasmObject(Object* object) {
+bool wasm::IsWasmInstance(Object* object) {
   if (!object->IsJSObject()) return false;
 
   JSObject* obj = JSObject::cast(object);
@@ -2026,13 +2026,13 @@ WasmCompiledModule* wasm::GetCompiledModule(JSObject* wasm) {
 
 bool wasm::WasmIsAsmJs(Object* wasm, Isolate* isolate) {
   if (wasm->IsUndefined(isolate)) return false;
-  DCHECK(IsWasmObject(wasm));
+  DCHECK(IsWasmInstance(wasm));
   WasmCompiledModule* compiled_module = GetCompiledModule(JSObject::cast(wasm));
   return compiled_module->has_asm_js_script();
 }
 
 Handle<Script> wasm::GetAsmWasmScript(Handle<JSObject> wasm) {
-  DCHECK(IsWasmObject(*wasm));
+  DCHECK(IsWasmInstance(*wasm));
   WasmCompiledModule* compiled_module = GetCompiledModule(*wasm);
   return compiled_module->asm_js_script();
 }
@@ -2043,19 +2043,19 @@ int wasm::GetAsmWasmSourcePosition(Handle<JSObject> wasm, int func_index,
                                                byte_offset);
 }
 
-Handle<SeqOneByteString> wasm::GetWasmBytes(Handle<JSObject> wasm) {
-  DCHECK(IsWasmObject(*wasm));
-  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm);
+Handle<SeqOneByteString> wasm::GetWasmBytes(Handle<JSObject> instance) {
+  DCHECK(IsWasmInstance(*instance));
+  WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   return compiled_module->module_bytes();
 }
 
-Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> wasm) {
-  Handle<Object> info(wasm->GetInternalField(kWasmDebugInfo),
-                      wasm->GetIsolate());
-  if (!info->IsUndefined(wasm->GetIsolate()))
+Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> instance) {
+  Handle<Object> info(instance->GetInternalField(kWasmDebugInfo),
+                      instance->GetIsolate());
+  if (!info->IsUndefined(instance->GetIsolate()))
     return Handle<WasmDebugInfo>::cast(info);
-  Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(wasm);
-  wasm->SetInternalField(kWasmDebugInfo, *new_info);
+  Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(instance);
+  instance->SetInternalField(kWasmDebugInfo, *new_info);
   return new_info;
 }
 
@@ -2095,9 +2095,9 @@ void wasm::PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
   }
 }
 
-int wasm::GetNumberOfFunctions(Handle<JSObject> wasm) {
-  DCHECK(IsWasmObject(*wasm));
-  WasmCompiledModule* compiled_module = GetCompiledModule(*wasm);
+int wasm::GetNumberOfFunctions(Handle<JSObject> instance) {
+  DCHECK(IsWasmInstance(*instance));
+  WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   ByteArray* func_names_arr = compiled_module->ptr_to_function_names();
   // TODO(clemensh): this looks inside an array constructed elsewhere. Refactor.
   return func_names_arr->get_int(0);
@@ -2183,14 +2183,14 @@ bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
 MaybeHandle<JSArrayBuffer> wasm::GetInstanceMemory(Isolate* isolate,
                                                    Handle<JSObject> instance) {
   Object* mem = instance->GetInternalField(kWasmMemArrayBuffer);
-  DCHECK(IsWasmObject(*instance));
+  DCHECK(IsWasmInstance(*instance));
   if (mem->IsUndefined(isolate)) return MaybeHandle<JSArrayBuffer>();
   return Handle<JSArrayBuffer>(JSArrayBuffer::cast(mem));
 }
 
 void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
   DisallowHeapAllocation no_gc;
-  DCHECK(IsWasmObject(*instance));
+  DCHECK(IsWasmInstance(*instance));
   instance->SetInternalField(kWasmMemArrayBuffer, buffer);
   WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   compiled_module->set_ptr_to_heap(buffer);
@@ -2218,7 +2218,7 @@ uint32_t GetMaxInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance) {
 
 int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                                  uint32_t pages) {
-  if (!IsWasmObject(*instance)) return -1;
+  if (!IsWasmInstance(*instance)) return -1;
   if (pages == 0) return GetInstanceMemorySize(isolate, instance);
   uint32_t max_pages = GetMaxInstanceMemorySize(isolate, instance);
   if (WasmModule::kMaxMemPages < max_pages) return -1;
@@ -2280,8 +2280,8 @@ void testing::ValidateInstancesChain(Isolate* isolate,
           current_instance->ptr_to_weak_prev_instance()->value() == prev);
     CHECK_EQ(current_instance->ptr_to_weak_module_object()->value(),
              *module_obj);
-    CHECK(
-        IsWasmObject(current_instance->ptr_to_weak_owning_instance()->value()));
+    CHECK(IsWasmInstance(
+        current_instance->ptr_to_weak_owning_instance()->value()));
     prev = current_instance;
     current_instance = WasmCompiledModule::cast(
         current_instance->ptr_to_weak_next_instance()->value());
@@ -2306,7 +2306,7 @@ void testing::ValidateModuleState(Isolate* isolate,
 void testing::ValidateOrphanedInstance(Isolate* isolate,
                                        Handle<JSObject> instance) {
   DisallowHeapAllocation no_gc;
-  CHECK(IsWasmObject(*instance));
+  CHECK(IsWasmInstance(*instance));
   WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   CHECK(compiled_module->has_weak_module_object());
   CHECK(compiled_module->ptr_to_weak_module_object()->cleared());

@@ -510,7 +510,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
       case StackFrame::WASM: {
         WasmFrame* wasm_frame = WasmFrame::cast(frame);
-        Handle<Object> wasm_object(wasm_frame->wasm_obj(), this);
+        Handle<Object> instance(wasm_frame->wasm_instance(), this);
         const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
         Handle<AbstractCode> abstract_code(AbstractCode::cast(code), this);
@@ -519,16 +519,15 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         // TODO(wasm): The wasm object returned by the WasmFrame should always
         //             be a wasm object.
-        DCHECK(wasm::IsWasmObject(*wasm_object) ||
-               wasm_object->IsUndefined(this));
+        DCHECK(wasm::IsWasmInstance(*instance) || instance->IsUndefined(this));
 
-        int flags = wasm::WasmIsAsmJs(*wasm_object, this)
+        int flags = wasm::WasmIsAsmJs(*instance, this)
                         ? FrameArray::kIsAsmJsWasmFrame
                         : FrameArray::kIsWasmFrame;
 
-        elements = FrameArray::AppendWasmFrame(elements, wasm_object,
-                                               wasm_function_index,
-                                               abstract_code, offset, flags);
+        elements =
+            FrameArray::AppendWasmFrame(elements, instance, wasm_function_index,
+                                        abstract_code, offset, flags);
       } break;
 
       default:
@@ -702,7 +701,7 @@ class CaptureStackTraceHelper {
 
     if (!function_key_.is_null()) {
       Handle<String> name = wasm::GetWasmFunctionName(
-          isolate_, handle(frame->wasm_obj(), isolate_),
+          isolate_, handle(frame->wasm_instance(), isolate_),
           frame->function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }

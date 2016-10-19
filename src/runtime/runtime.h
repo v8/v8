@@ -299,7 +299,7 @@ namespace internal {
   F(InstallToContext, 1, 1)                         \
   F(Interrupt, 0, 1)                                \
   F(IS_VAR, 1, 1)                                   \
-  F(IsWasmObject, 1, 1)                             \
+  F(IsWasmInstance, 1, 1)                           \
   F(NewReferenceError, 2, 1)                        \
   F(NewSyntaxError, 2, 1)                           \
   F(NewTypeError, 2, 1)                             \

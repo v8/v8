@@ -32,10 +32,10 @@ ByteArray *GetOrCreateFunctionOffsetTable(Handle<WasmDebugInfo> debug_info) {
 
   FunctionOffsetsResult function_offsets;
   {
-    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
+    Handle<JSObject> wasm_instance(debug_info->wasm_instance(), isolate);
     uint32_t num_imported_functions =
-        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_object));
-    Handle<SeqOneByteString> wasm_bytes = wasm::GetWasmBytes(wasm_object);
+        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_instance));
+    Handle<SeqOneByteString> wasm_bytes = wasm::GetWasmBytes(wasm_instance);
     DisallowHeapAllocation no_gc;
     const byte *bytes_start = wasm_bytes->GetChars();
     const byte *bytes_end = bytes_start + wasm_bytes->length();
@@ -72,8 +72,8 @@ std::pair<int, int> GetFunctionOffsetAndLength(Handle<WasmDebugInfo> debug_info,
 
 Vector<const uint8_t> GetFunctionBytes(Handle<WasmDebugInfo> debug_info,
                                        int func_index) {
-  Handle<JSObject> wasm_object(debug_info->wasm_object());
-  Handle<SeqOneByteString> module_bytes = wasm::GetWasmBytes(wasm_object);
+  Handle<JSObject> wasm_instance(debug_info->wasm_instance());
+  Handle<SeqOneByteString> module_bytes = wasm::GetWasmBytes(wasm_instance);
   std::pair<int, int> offset_and_length =
       GetFunctionOffsetAndLength(debug_info, func_index);
   return Vector<const uint8_t>(
@@ -90,14 +90,14 @@ FixedArray *GetOffsetTables(Handle<WasmDebugInfo> debug_info,
 
   AsmJsOffsetsResult asm_offsets;
   {
-    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
+    Handle<JSObject> wasm_instance(debug_info->wasm_instance(), isolate);
     Handle<WasmCompiledModule> compiled_module =
-        handle(GetCompiledModule(*wasm_object), isolate);
+        handle(GetCompiledModule(*wasm_instance), isolate);
     DCHECK(compiled_module->has_asm_js_offset_tables());
     Handle<ByteArray> asm_offset_tables =
         compiled_module->asm_js_offset_tables();
     uint32_t num_imported_functions =
-        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_object));
+        static_cast<uint32_t>(wasm::GetNumImportedFunctions(wasm_instance));
     DisallowHeapAllocation no_gc;
     const byte *bytes_start = asm_offset_tables->GetDataStartAddress();
     const byte *bytes_end = bytes_start + asm_offset_tables->length();
@@ -108,7 +108,7 @@ FixedArray *GetOffsetTables(Handle<WasmDebugInfo> debug_info,
   DCHECK(asm_offsets.ok());
   DCHECK_GE(static_cast<size_t>(kMaxInt), asm_offsets.val.size());
   int num_functions = static_cast<int>(asm_offsets.val.size());
-  DCHECK_EQ(wasm::GetNumberOfFunctions(handle(debug_info->wasm_object())),
+  DCHECK_EQ(wasm::GetNumberOfFunctions(handle(debug_info->wasm_instance())),
             num_functions);
   Handle<FixedArray> all_tables =
       isolate->factory()->NewFixedArray(num_functions);
@@ -158,7 +158,7 @@ bool WasmDebugInfo::IsDebugInfo(Object *object) {
   FixedArray *arr = FixedArray::cast(object);
   Isolate *isolate = arr->GetIsolate();
   return arr->length() == kWasmDebugInfoNumEntries &&
-         IsWasmObject(arr->get(kWasmDebugInfoWasmObj)) &&
+         IsWasmInstance(arr->get(kWasmDebugInfoWasmObj)) &&
          arr->get(kWasmDebugInfoWasmBytesHash)->IsNumber() &&
          (arr->get(kWasmDebugInfoFunctionByteOffsets)->IsUndefined(isolate) ||
           arr->get(kWasmDebugInfoFunctionByteOffsets)->IsByteArray()) &&
@@ -171,7 +171,7 @@ WasmDebugInfo *WasmDebugInfo::cast(Object *object) {
   return reinterpret_cast<WasmDebugInfo *>(object);
 }
 
-JSObject *WasmDebugInfo::wasm_object() {
+JSObject *WasmDebugInfo::wasm_instance() {
   return JSObject::cast(get(kWasmDebugInfoWasmObj));
 }
 
@@ -181,8 +181,8 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   Object *scripts_obj = debug_info->get(kWasmDebugInfoFunctionScripts);
   Handle<FixedArray> scripts;
   if (scripts_obj->IsUndefined(isolate)) {
-    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
-    int num_functions = wasm::GetNumberOfFunctions(wasm_object);
+    Handle<JSObject> wasm_instance(debug_info->wasm_instance(), isolate);
+    int num_functions = wasm::GetNumberOfFunctions(wasm_instance);
     scripts = isolate->factory()->NewFixedArray(num_functions, TENURED);
     debug_info->set(kWasmDebugInfoFunctionScripts, *scripts);
   } else {
@@ -200,7 +200,7 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   scripts->set(func_index, *script);
 
   script->set_type(Script::TYPE_WASM);
-  script->set_wasm_object(debug_info->wasm_object());
+  script->set_wasm_instance(debug_info->wasm_instance());
   script->set_wasm_function_index(func_index);
 
   int hash = 0;

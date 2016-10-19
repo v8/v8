@@ -19,7 +19,7 @@ class WasmDebugInfo : public FixedArray {
   static bool IsDebugInfo(Object* object);
   static WasmDebugInfo* cast(Object* object);
 
-  JSObject* wasm_object();
+  JSObject* wasm_instance();
 
   bool SetBreakPoint(int byte_offset);
 

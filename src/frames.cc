@@ -1492,7 +1492,7 @@ Address WasmFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-Object* WasmFrame::wasm_obj() const {
+Object* WasmFrame::wasm_instance() const {
   Object* ret = wasm::GetOwningWasmInstance(LookupCode());
   if (ret == nullptr) ret = *(isolate()->factory()->undefined_value());
   return ret;
@@ -1505,19 +1505,20 @@ uint32_t WasmFrame::function_index() const {
 }
 
 Script* WasmFrame::script() const {
-  Handle<JSObject> wasm(JSObject::cast(wasm_obj()), isolate());
-  if (wasm::WasmIsAsmJs(*wasm, isolate())) {
-    return *wasm::GetAsmWasmScript(wasm);
+  Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
+  if (wasm::WasmIsAsmJs(*instance, isolate())) {
+    return *wasm::GetAsmWasmScript(instance);
   }
-  Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(wasm);
+  Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
   return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
 }
 
 int WasmFrame::position() const {
   int position = StandardFrame::position();
-  if (wasm::WasmIsAsmJs(wasm_obj(), isolate())) {
-    Handle<JSObject> wasm(JSObject::cast(wasm_obj()), isolate());
-    position = wasm::GetAsmWasmSourcePosition(wasm, function_index(), position);
+  if (wasm::WasmIsAsmJs(wasm_instance(), isolate())) {
+    Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
+    position =
+        wasm::GetAsmWasmSourcePosition(instance, function_index(), position);
   }
   return position;
 }

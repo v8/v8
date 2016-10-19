@@ -623,7 +623,7 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   // This function is called for both wasm and asm.js->wasm frames.
   DCHECK(array->IsWasmFrame(frame_ix) || array->IsAsmJsWasmFrame(frame_ix));
   isolate_ = isolate;
-  wasm_obj_ = handle(array->WasmObject(frame_ix), isolate);
+  wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
   code_ = handle(array->Code(frame_ix), isolate);
   offset_ = array->Offset(frame_ix)->value();
@@ -635,7 +635,8 @@ Handle<Object> WasmStackFrame::GetFunction() const {
 }
 
 Handle<Object> WasmStackFrame::GetFunctionName() {
-  return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_obj_, wasm_func_index_);
+  return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_instance_,
+                                         wasm_func_index_);
 }
 
 MaybeHandle<String> WasmStackFrame::ToString() {
@@ -682,38 +683,39 @@ Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
 
 Handle<Object> AsmJsWasmStackFrame::GetFileName() {
   Handle<Script> script =
-      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_instance_));
   return handle(script->name(), isolate_);
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetFunctionName() {
-  return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_obj_, wasm_func_index_);
+  return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_instance_,
+                                         wasm_func_index_);
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
   Handle<Script> script =
-      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_instance_));
   return ScriptNameOrSourceUrl(script, isolate_);
 }
 
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
   int byte_offset = code_->SourcePosition(offset_);
-  return wasm::GetAsmWasmSourcePosition(Handle<JSObject>::cast(wasm_obj_),
+  return wasm::GetAsmWasmSourcePosition(Handle<JSObject>::cast(wasm_instance_),
                                         wasm_func_index_, byte_offset);
 }
 
 int AsmJsWasmStackFrame::GetLineNumber() {
   DCHECK_LE(0, GetPosition());
   Handle<Script> script =
-      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_instance_));
   return Script::GetLineNumber(script, GetPosition()) + 1;
 }
 
 int AsmJsWasmStackFrame::GetColumnNumber() {
   DCHECK_LE(0, GetPosition());
   Handle<Script> script =
-      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_obj_));
+      wasm::GetAsmWasmScript(Handle<JSObject>::cast(wasm_instance_));
   return Script::GetColumnNumber(script, GetPosition()) + 1;
 }
 

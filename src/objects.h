@@ -3109,7 +3109,7 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
 };
 
 #define FRAME_ARRAY_FIELD_LIST(V) \
-  V(WasmObject, Object)           \
+  V(WasmInstance, Object)         \
   V(WasmFunctionIndex, Smi)       \
   V(Receiver, Object)             \
   V(Function, JSFunction)         \
@@ -3144,7 +3144,7 @@ class FrameArray : public FixedArray {
                                           Handle<AbstractCode> code, int offset,
                                           int flags);
   static Handle<FrameArray> AppendWasmFrame(Handle<FrameArray> in,
-                                            Handle<Object> wasm_object,
+                                            Handle<Object> wasm_instance,
                                             int wasm_function_index,
                                             Handle<AbstractCode> code,
                                             int offset, int flags);
@@ -3159,7 +3159,7 @@ class FrameArray : public FixedArray {
   //
   // with internal offsets as below:
 
-  static const int kWasmObjectOffset = 0;
+  static const int kWasmInstanceOffset = 0;
   static const int kWasmFunctionIndexOffset = 1;
 
   static const int kReceiverOffset = 0;
@@ -7092,9 +7092,9 @@ class Script: public Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   DECL_ACCESSORS(source_mapping_url, Object)
 
-  // [wasm_object]: the wasm object this script belongs to.
+  // [wasm_instance]: the wasm instance this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_object, JSObject)
+  DECL_ACCESSORS(wasm_instance, JSObject)
 
   // [wasm_function_index]: the wasm function index this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.

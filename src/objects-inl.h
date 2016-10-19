@@ -5929,7 +5929,7 @@ ACCESSORS(Script, shared_function_infos, Object, kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
-ACCESSORS_CHECKED(Script, wasm_object, JSObject, kEvalFromSharedOffset,
+ACCESSORS_CHECKED(Script, wasm_instance, JSObject, kEvalFromSharedOffset,
                   this->type() == TYPE_WASM)
 SMI_ACCESSORS_CHECKED(Script, wasm_function_index, kEvalFromPositionOffset,
                       this->type() == TYPE_WASM)

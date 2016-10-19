@@ -551,10 +551,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<Object> wasm_obj(it.wasm_frame()->wasm_obj(), isolate);
+    Handle<Object> wasm_instance(it.wasm_frame()->wasm_instance(), isolate);
     int func_index = it.wasm_frame()->function_index();
     Handle<String> func_name =
-        wasm::GetWasmFunctionName(isolate, wasm_obj, func_index);
+        wasm::GetWasmFunctionName(isolate, wasm_instance, func_index);
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -1859,7 +1859,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmFunctionOffsetTable) {
   Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
 
   Handle<wasm::WasmDebugInfo> debug_info =
-      wasm::GetDebugInfo(handle(script->wasm_object(), isolate));
+      wasm::GetDebugInfo(handle(script->wasm_instance(), isolate));
   Handle<FixedArray> elements = wasm::WasmDebugInfo::GetFunctionOffsetTable(
       debug_info, script->wasm_function_index());
   return *isolate->factory()->NewJSArrayWithElements(elements);
@@ -1874,7 +1874,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleWasmFunction) {
   Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
 
   Handle<wasm::WasmDebugInfo> debug_info =
-      wasm::GetDebugInfo(handle(script->wasm_object(), isolate));
+      wasm::GetDebugInfo(handle(script->wasm_instance(), isolate));
   return *wasm::WasmDebugInfo::DisassembleFunction(
       debug_info, script->wasm_function_index());
 }

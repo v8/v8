@@ -1069,7 +1069,7 @@ class WasmFrame : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  Object* wasm_obj() const;
+  Object* wasm_instance() const;
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;

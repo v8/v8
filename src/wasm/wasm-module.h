@@ -495,27 +495,27 @@ Handle<JSFunction> WrapExportCodeAsJSFunction(Isolate* isolate,
                                               Handle<Code> export_code,
                                               Handle<String> name, int arity,
                                               MaybeHandle<ByteArray> signature,
-                                              Handle<JSObject> module_instance);
+                                              Handle<JSObject> instance);
 
 // Check whether the given object is a wasm object.
 // This checks the number and type of internal fields, so it's not 100 percent
 // secure. If it turns out that we need more complete checks, we could add a
 // special marker as internal field, which will definitely never occur anywhere
 // else.
-bool IsWasmObject(Object* object);
+bool IsWasmInstance(Object* object);
 
 // Return the compiled module object for this wasm object.
-WasmCompiledModule* GetCompiledModule(JSObject* wasm);
+WasmCompiledModule* GetCompiledModule(JSObject* instance);
 
 // Check whether the wasm module was generated from asm.js code.
-bool WasmIsAsmJs(Object* wasm, Isolate* isolate);
+bool WasmIsAsmJs(Object* instance, Isolate* isolate);
 
 // Get the script for the asm.js origin of the wasm module.
-Handle<Script> GetAsmWasmScript(Handle<JSObject> wasm);
+Handle<Script> GetAsmWasmScript(Handle<JSObject> instance);
 
 // Get the asm.js source position for the given byte offset in the given
 // function.
-int GetAsmWasmSourcePosition(Handle<JSObject> wasm, int func_index,
+int GetAsmWasmSourcePosition(Handle<JSObject> instance, int func_index,
                              int byte_offset);
 
 // Constructs a single function table as a FixedArray of double size,
@@ -543,7 +543,7 @@ V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            ModuleOrigin origin);
 
 // Get the number of imported functions for a WASM instance.
-int GetNumImportedFunctions(Handle<JSObject> wasm_object);
+int GetNumImportedFunctions(Handle<JSObject> instance);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.
