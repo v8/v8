@@ -158,7 +158,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   void changeJavaScriptRecursionLevel(int step);
 
-  void setPauseOnExceptionsImpl(ErrorString*, int);
+  void setPauseOnExceptionsImpl(int);
 
   std::unique_ptr<protocol::Debugger::Location> resolveBreakpoint(
       const String16& breakpointId, const String16& scriptId,

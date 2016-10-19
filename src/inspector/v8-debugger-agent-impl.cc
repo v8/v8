@@ -199,12 +199,10 @@ void V8DebuggerAgentImpl::restore() {
     return;
 
   enable();
-  ErrorString error;
 
   int pauseState = v8::DebugInterface::NoBreakOnException;
   m_state->getInteger(DebuggerAgentState::pauseOnExceptionsState, &pauseState);
-  setPauseOnExceptionsImpl(&error, pauseState);
-  DCHECK(error.isEmpty());
+  setPauseOnExceptionsImpl(pauseState);
 
   m_skipAllPauses =
       m_state->booleanProperty(DebuggerAgentState::skipAllPauses, false);
@@ -217,6 +215,7 @@ void V8DebuggerAgentImpl::restore() {
   String16 blackboxPattern;
   if (m_state->getString(DebuggerAgentState::blackboxPattern,
                          &blackboxPattern)) {
+    ErrorString error;
     if (!setBlackboxPattern(&error, blackboxPattern)) UNREACHABLE();
   }
 }
@@ -699,11 +698,10 @@ void V8DebuggerAgentImpl::setPauseOnExceptions(
     *errorString = "Unknown pause on exceptions mode: " + stringPauseState;
     return;
   }
-  setPauseOnExceptionsImpl(errorString, pauseState);
+  setPauseOnExceptionsImpl(pauseState);
 }
 
-void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(ErrorString* errorString,
-                                                   int pauseState) {
+void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(int pauseState) {
   m_debugger->setPauseOnExceptionsState(
       static_cast<v8::DebugInterface::ExceptionBreakState>(pauseState));
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState, pauseState);
