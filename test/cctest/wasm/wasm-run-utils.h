@@ -300,10 +300,6 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
-  if (FLAG_trace_turbo_graph) {
-    OFStream os(stdout);
-    os << AsRPO(*jsgraph->graph());
-  }
 }
 
 template <typename ReturnType>

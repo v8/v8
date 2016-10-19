@@ -976,32 +976,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kMipsShlPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
-        __ ShlPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShlPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputRegister(2));
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
-        __ ShlPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShlPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), imm);
       }
     } break;
     case kMipsShrPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
-        __ ShrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputRegister(2));
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
-        __ ShrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), imm);
       }
     } break;
     case kMipsSarPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
-        __ SarPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ SarPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputRegister(2));
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
-        __ SarPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ SarPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), imm);
       }
     } break;

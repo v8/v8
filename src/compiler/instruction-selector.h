@@ -347,6 +347,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   }
   bool instruction_selection_failed() { return instruction_selection_failed_; }
 
+  void MarkPairProjectionsAsWord32(Node* node);
+
   // ===========================================================================
 
   Zone* const zone_;

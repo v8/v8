@@ -933,6 +933,16 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
   }
 }
 
+void InstructionSelector::MarkPairProjectionsAsWord32(Node* node) {
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  if (projection0) {
+    MarkAsWord32(projection0);
+  }
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    MarkAsWord32(projection1);
+  }
+}
 
 void InstructionSelector::VisitNode(Node* node) {
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
@@ -1340,28 +1350,28 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kCheckedStore:
       return VisitCheckedStore(node);
     case IrOpcode::kInt32PairAdd:
-      MarkAsWord32(NodeProperties::FindProjection(node, 0));
-      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
       return VisitInt32PairAdd(node);
     case IrOpcode::kInt32PairSub:
-      MarkAsWord32(NodeProperties::FindProjection(node, 0));
-      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
       return VisitInt32PairSub(node);
     case IrOpcode::kInt32PairMul:
-      MarkAsWord32(NodeProperties::FindProjection(node, 0));
-      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
       return VisitInt32PairMul(node);
     case IrOpcode::kWord32PairShl:
-      MarkAsWord32(NodeProperties::FindProjection(node, 0));
-      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
       return VisitWord32PairShl(node);
     case IrOpcode::kWord32PairShr:
-      MarkAsWord32(NodeProperties::FindProjection(node, 0));
-      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
       return VisitWord32PairShr(node);
     case IrOpcode::kWord32PairSar:
-      MarkAsWord32(NodeProperties::FindProjection(node, 0));
-      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
       return VisitWord32PairSar(node);
     case IrOpcode::kAtomicLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());

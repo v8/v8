@@ -389,7 +389,7 @@ class PipelineImpl final {
   // Perform the actual code generation and return handle to a code object.
   Handle<Code> GenerateCode(Linkage* linkage);
 
-  bool ScheduleAndSelectInstructions(Linkage* linkage);
+  bool ScheduleAndSelectInstructions(Linkage* linkage, bool trim_graph);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
@@ -692,7 +692,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
 
   pipeline_.RunPrintAndVerify("Machine", true);
 
-  if (!pipeline_.ScheduleAndSelectInstructions(&linkage_)) return FAILED;
+  if (!pipeline_.ScheduleAndSelectInstructions(&linkage_, true)) return FAILED;
   return SUCCEEDED;
 }
 
@@ -1206,7 +1206,9 @@ struct LateGraphTrimmingPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
+    if (data->jsgraph()) {
+      data->jsgraph()->GetCachedNodes(&roots);
+    }
     trimmer.TrimGraph(roots.begin(), roots.end());
   }
 };
@@ -1650,13 +1652,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
   RunPrintAndVerify("Late optimized", true);
 
-  Run<LateGraphTrimmingPhase>();
-  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify("Late trimmed", true);
-
   data->source_positions()->RemoveDecorator();
 
-  return ScheduleAndSelectInstructions(linkage);
+  return ScheduleAndSelectInstructions(linkage, true);
 }
 
 Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
@@ -1769,12 +1767,17 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   return !data.compilation_failed();
 }
 
-bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
+bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
+                                                 bool trim_graph) {
   CallDescriptor* call_descriptor = linkage->GetIncomingDescriptor();
   PipelineData* data = this->data_;
 
   DCHECK_NOT_NULL(data->graph());
 
+  if (trim_graph) {
+    Run<LateGraphTrimmingPhase>();
+    RunPrintAndVerify("Late trimmed", true);
+  }
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
   TraceSchedule(data->info(), data->schedule());
 
@@ -1897,7 +1900,7 @@ Handle<Code> PipelineImpl::ScheduleAndGenerateCode(
   Linkage linkage(call_descriptor);
 
   // Schedule the graph, perform instruction selection and register allocation.
-  if (!ScheduleAndSelectInstructions(&linkage)) return Handle<Code>();
+  if (!ScheduleAndSelectInstructions(&linkage, false)) return Handle<Code>();
 
   // Generate the final machine code.
   return GenerateCode(&linkage);

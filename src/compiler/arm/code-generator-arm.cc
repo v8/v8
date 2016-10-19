@@ -1084,33 +1084,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mla(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(1),
              i.OutputRegister(1));
       break;
-    case kArmLslPair:
+    case kArmLslPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
-    case kArmLsrPair:
+    }
+    case kArmLsrPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
-    case kArmAsrPair:
+    }
+    case kArmAsrPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ AsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ AsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
+    }
     case kArmVcmpF32:
       if (instr->InputAt(1)->IsFPRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat32Register(0),
