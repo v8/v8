@@ -60,6 +60,7 @@
   V(dot_result_string, ".result")                                  \
   V(dot_string, ".")                                               \
   V(entries_string, "entries")                                     \
+  V(enqueue_string, "enqueue")                                     \
   V(enumerable_string, "enumerable")                               \
   V(era_string, "era")                                             \
   V(Error_string, "Error")                                         \
@@ -125,6 +126,7 @@
   V(preventExtensions_string, "preventExtensions")                 \
   V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
+  V(PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
   V(proto_string, "__proto__")                                     \
   V(prototype_string, "prototype")                                 \
   V(Proxy_string, "Proxy")                                         \

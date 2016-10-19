@@ -295,18 +295,12 @@ function ResolvePromise(promise, resolution) {
 
     if (IS_CALLABLE(then)) {
       var callbacks = CreateResolvingFunctions(promise, false);
-      var id, name, instrumenting = DEBUG_IS_ACTIVE;
-      if (instrumenting) {
-        if (IsPromise(resolution)) {
+      if (DEBUG_IS_ACTIVE && IsPromise(resolution)) {
           // Mark the dependency of the new promise on the resolution
-          SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
-        }
-        id = %DebugNextMicrotaskId();
-        name = "PromiseResolveThenableJob";
-        %DebugAsyncTaskEvent("enqueue", id, name);
+        SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
       }
       %EnqueuePromiseResolveThenableJob(
-          resolution, then, callbacks.resolve, callbacks.reject, id, name);
+          resolution, then, callbacks.resolve, callbacks.reject);
       return;
     }
   }

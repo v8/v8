@@ -589,13 +589,24 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, resolve, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, debug_id, 4);
-  CONVERT_ARG_HANDLE_CHECKED(Object, debug_name, 5);
+  Handle<Object> debug_id;
+  Handle<Object> debug_name;
+  if (isolate->debug()->is_active()) {
+    debug_id =
+        handle(Smi::FromInt(isolate->GetNextDebugMicrotaskId()), isolate);
+    debug_name = isolate->factory()->PromiseResolveThenableJob_string();
+    isolate->debug()->OnAsyncTaskEvent(isolate->factory()->enqueue_string(),
+                                       debug_id,
+                                       Handle<String>::cast(debug_name));
+  } else {
+    debug_id = isolate->factory()->undefined_value();
+    debug_name = isolate->factory()->undefined_value();
+  }
   Handle<PromiseResolveThenableJobInfo> info =
       isolate->factory()->NewPromiseResolveThenableJobInfo(
           resolution, then, resolve, reject, debug_id, debug_name);
