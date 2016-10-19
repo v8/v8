@@ -840,7 +840,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value =
         assembler->Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&end);
   }
@@ -1051,7 +1051,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
 
@@ -1226,7 +1226,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&end);
   }
@@ -1449,7 +1449,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value = assembler->Float64Div(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
 
@@ -1612,7 +1612,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
 
@@ -1770,7 +1770,7 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
     var_type_feedback.Bind(assembler->Word32Or(
         var_type_feedback.value(),
         assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
-    result_var.Bind(assembler->ChangeFloat64ToTagged(finc_result));
+    result_var.Bind(assembler->AllocateHeapNumberWithValue(finc_result));
     assembler->Goto(&end);
   }
 
@@ -1883,7 +1883,7 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
     var_type_feedback.Bind(assembler->Word32Or(
         var_type_feedback.value(),
         assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
-    result_var.Bind(assembler->ChangeFloat64ToTagged(fdec_result));
+    result_var.Bind(assembler->AllocateHeapNumberWithValue(fdec_result));
     assembler->Goto(&end);
   }
 
