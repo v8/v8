@@ -525,7 +525,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
   NumberOperationHint hint;
   if (r.GetBinaryNumberOperationHint(&hint)) {
     if (hint == NumberOperationHint::kNumberOrOddball &&
-        r.BothInputsAre(Type::PlainPrimitive())) {
+        r.BothInputsAre(Type::NumberOrOddball())) {
       r.ConvertInputsToNumber();
       return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
     }
