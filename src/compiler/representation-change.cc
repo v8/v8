@@ -291,17 +291,9 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     case IrOpcode::kHeapConstant:
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
-      if (output_type->Is(Type::Boolean())) {
-        return OpParameter<int32_t>(node) == 0 ? jsgraph()->FalseConstant()
-                                               : jsgraph()->TrueConstant();
-      } else {
-        return TypeError(node, output_rep, output_type,
-                         MachineRepresentation::kTaggedPointer);
-      }
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kFloat32Constant:
-      return TypeError(node, output_rep, output_type,
-                       MachineRepresentation::kTaggedPointer);
+      UNREACHABLE();
     default:
       break;
   }
@@ -324,23 +316,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
     case IrOpcode::kHeapConstant:
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
-      if (output_type->Is(Type::Signed32())) {
-        int32_t value = OpParameter<int32_t>(node);
-        return jsgraph()->Constant(value);
-      } else if (output_type->Is(Type::Unsigned32())) {
-        uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
-        return jsgraph()->Constant(static_cast<double>(value));
-      } else if (output_type->Is(Type::Boolean())) {
-        return OpParameter<int32_t>(node) == 0 ? jsgraph()->FalseConstant()
-                                               : jsgraph()->TrueConstant();
-      } else {
-        return TypeError(node, output_rep, output_type,
-                         MachineRepresentation::kTagged);
-      }
     case IrOpcode::kFloat64Constant:
-      return jsgraph()->Constant(OpParameter<double>(node));
     case IrOpcode::kFloat32Constant:
-      return jsgraph()->Constant(OpParameter<float>(node));
+      UNREACHABLE();
+      break;
     default:
       break;
   }
@@ -408,20 +387,14 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
     Truncation truncation) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
-    case IrOpcode::kFloat64Constant:
     case IrOpcode::kNumberConstant:
       return jsgraph()->Float32Constant(
           DoubleToFloat32(OpParameter<double>(node)));
     case IrOpcode::kInt32Constant:
-      if (output_type->Is(Type::Unsigned32())) {
-        uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
-        return jsgraph()->Float32Constant(static_cast<float>(value));
-      } else {
-        int32_t value = OpParameter<int32_t>(node);
-        return jsgraph()->Float32Constant(static_cast<float>(value));
-      }
+    case IrOpcode::kFloat64Constant:
     case IrOpcode::kFloat32Constant:
-      return node;  // No change necessary.
+      UNREACHABLE();
+      break;
     default:
       break;
   }
@@ -479,18 +452,10 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       case IrOpcode::kNumberConstant:
         return jsgraph()->Float64Constant(OpParameter<double>(node));
       case IrOpcode::kInt32Constant:
-        if (output_type->Is(Type::Signed32())) {
-          int32_t value = OpParameter<int32_t>(node);
-          return jsgraph()->Float64Constant(value);
-        } else {
-          DCHECK(output_type->Is(Type::Unsigned32()));
-          uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
-          return jsgraph()->Float64Constant(static_cast<double>(value));
-        }
       case IrOpcode::kFloat64Constant:
-        return node;  // No change necessary.
       case IrOpcode::kFloat32Constant:
-        return jsgraph()->Float64Constant(OpParameter<float>(node));
+        UNREACHABLE();
+        break;
       default:
         break;
     }
@@ -555,19 +520,11 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kInt32Constant:
-      return node;  // No change necessary.
-    case IrOpcode::kFloat32Constant: {
-      float const fv = OpParameter<float>(node);
-      if (use_info.type_check() == TypeCheckKind::kNone ||
-          ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
-            use_info.type_check() == TypeCheckKind::kSigned32) &&
-           IsInt32Double(fv))) {
-        return MakeTruncatedInt32Constant(fv);
-      }
+    case IrOpcode::kFloat32Constant:
+    case IrOpcode::kFloat64Constant:
+      UNREACHABLE();
       break;
-    }
-    case IrOpcode::kNumberConstant:
-    case IrOpcode::kFloat64Constant: {
+    case IrOpcode::kNumberConstant: {
       double const fv = OpParameter<double>(node);
       if (use_info.type_check() == TypeCheckKind::kNone ||
           ((use_info.type_check() == TypeCheckKind::kSignedSmall ||

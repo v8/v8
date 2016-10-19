@@ -1707,7 +1707,7 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   }
 
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
-  Node* argc_node = jsgraph->Int32Constant(argc);
+  Node* argc_node = jsgraph->Constant(argc);
 
   static const int kStubAndReceiver = 2;
   int cursor = arity + kStubAndReceiver;
