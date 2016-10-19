@@ -2196,6 +2196,7 @@ DebugCommandProcessor.prototype.suspendRequest_ = function(request, response) {
 };
 
 
+// TODO(5510): remove this.
 DebugCommandProcessor.prototype.versionRequest_ = function(request, response) {
   response.body = {
     V8Version: %GetV8Version()

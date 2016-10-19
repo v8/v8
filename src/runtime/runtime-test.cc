@@ -546,8 +546,7 @@ RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
   return Smi::FromInt(Natives::GetBuiltinsCount());
 }
 
-
-// Returns V8 version as a string.
+// TODO(5510): remove this.
 RUNTIME_FUNCTION(Runtime_GetV8Version) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
