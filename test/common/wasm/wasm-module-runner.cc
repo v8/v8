@@ -23,7 +23,7 @@ uint32_t GetMinModuleMemSize(const WasmModule* module) {
   return WasmModule::kPageSize * module->min_mem_pages;
 }
 
-const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
+const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate,
                                              ErrorThrower* thrower,
                                              const byte* module_start,
                                              const byte* module_end,
@@ -31,18 +31,19 @@ const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
   ModuleResult decoding_result =
-      DecodeWasmModule(isolate, zone, module_start, module_end, false, origin);
+      DecodeWasmModule(isolate, module_start, module_end, false, origin);
 
-  std::unique_ptr<const WasmModule> module(decoding_result.val);
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower->CompileError("WASM.compileRun() failed: %s",
                           decoding_result.error_msg.get());
-    return nullptr;
   }
 
-  if (thrower->error()) return nullptr;
-  return module.release();
+  if (thrower->error()) {
+    if (decoding_result.val) delete decoding_result.val;
+    return nullptr;
+  }
+  return decoding_result.val;
 }
 
 const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
@@ -78,16 +79,16 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 }
 
 const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, Zone* zone,
-    const byte* module_start, const byte* module_end, ModuleOrigin origin) {
-  std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, zone, thrower, module_start, module_end, origin));
+    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin) {
+  const WasmModule* module = DecodeWasmModuleForTesting(
+      isolate, thrower, module_start, module_end, origin);
 
   if (module == nullptr) {
     thrower->CompileError("Wasm module decoding failed");
     return Handle<JSObject>::null();
   }
-  return InstantiateModuleForTesting(isolate, thrower, module.get());
+  return InstantiateModuleForTesting(isolate, thrower, module);
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
@@ -102,10 +103,9 @@ int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, ModuleOrigin origin) {
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator(), ZONE_NAME);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   Handle<JSObject> instance = CompileInstantiateWasmModuleForTesting(
-      isolate, &thrower, &zone, module_start, module_end, origin);
+      isolate, &thrower, module_start, module_end, origin);
   if (instance.is_null()) {
     return -1;
   }

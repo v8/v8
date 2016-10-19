@@ -183,6 +183,10 @@ class V8_EXPORT_PRIVATE Factory final {
   MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
       Vector<const char> str, PretenureFlag pretenure = NOT_TENURED);
 
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
+      Handle<SeqOneByteString> str, int begin, int end,
+      PretenureFlag pretenure = NOT_TENURED);
+
   MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
       Vector<const uc16> str, PretenureFlag pretenure = NOT_TENURED);
 

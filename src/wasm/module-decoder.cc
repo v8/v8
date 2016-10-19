@@ -1077,10 +1077,9 @@ Vector<const byte> FindSection(const byte* module_start, const byte* module_end,
 
 }  // namespace
 
-ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
-                              const byte* module_start, const byte* module_end,
-                              bool verify_functions, ModuleOrigin origin) {
-  size_t decode_memory_start = zone->allocation_size();
+ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
+                              const byte* module_end, bool verify_functions,
+                              ModuleOrigin origin) {
   HistogramTimerScope wasm_decode_module_time_scope(
       isolate->counters()->wasm_decode_module_time());
   size_t size = module_end - module_start;
@@ -1089,12 +1088,18 @@ ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
   // TODO(bradnelson): Improve histogram handling of size_t.
   isolate->counters()->wasm_module_size_bytes()->AddSample(
       static_cast<int>(size));
-  WasmModule* module = new WasmModule();
+  // Signatures are stored in zone memory, which have the same lifetime
+  // as the {module}.
+  Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
+  WasmModule* module = new WasmModule(zone, module_start);
   ModuleDecoder decoder(zone, module_start, module_end, origin);
   ModuleResult result = decoder.DecodeModule(module, verify_functions);
   // TODO(bradnelson): Improve histogram handling of size_t.
+  // TODO(titzer): this isn't accurate, since it doesn't count the data
+  // allocated on the C++ heap.
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=657320
   isolate->counters()->wasm_decode_module_peak_memory_bytes()->AddSample(
-      static_cast<int>(zone->allocation_size() - decode_memory_start));
+      static_cast<int>(zone->allocation_size()));
   return result;
 }
 

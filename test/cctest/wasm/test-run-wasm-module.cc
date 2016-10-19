@@ -277,15 +277,18 @@ class WasmSerializationTest {
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
       ModuleResult decoding_result =
-          DecodeWasmModule(serialization_isolate, zone(), buffer.begin(),
-                           buffer.end(), false, kWasmOrigin);
-      std::unique_ptr<const WasmModule> module(decoding_result.val);
+          DecodeWasmModule(serialization_isolate, buffer.begin(), buffer.end(),
+                           false, kWasmOrigin);
       CHECK(!decoding_result.failed());
 
+      Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(
+          serialization_isolate, const_cast<WasmModule*>(decoding_result.val));
+
       MaybeHandle<WasmCompiledModule> compiled_module =
-          module->CompileFunctions(serialization_isolate, &thrower);
+          decoding_result.val->CompileFunctions(serialization_isolate,
+                                                module_wrapper, &thrower);
       CHECK(!compiled_module.is_null());
-      Handle<JSObject> module_obj = CreateCompiledModuleObject(
+      Handle<JSObject> module_obj = CreateWasmModuleObject(
           serialization_isolate, compiled_module.ToHandleChecked(),
           ModuleOrigin::kWasmOrigin);
       v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
@@ -470,7 +473,7 @@ TEST(TestInterruptLoop) {
   ErrorThrower thrower(isolate, "Test");
   const Handle<JSObject> instance =
       testing::CompileInstantiateWasmModuleForTesting(
-          isolate, &thrower, &zone, buffer.begin(), buffer.end(),
+          isolate, &thrower, buffer.begin(), buffer.end(),
           ModuleOrigin::kWasmOrigin);
   CHECK(!instance.is_null());
 
@@ -544,7 +547,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
 
   ErrorThrower thrower(isolate, "Test");
   Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
-      isolate, &thrower, &zone, buffer.begin(), buffer.end(),
+      isolate, &thrower, buffer.begin(), buffer.end(),
       ModuleOrigin::kWasmOrigin);
   CHECK(!instance.is_null());
 
@@ -589,7 +592,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
 
   ErrorThrower thrower(isolate, "Test");
   Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
-      isolate, &thrower, &zone, buffer.begin(), buffer.end(),
+      isolate, &thrower, buffer.begin(), buffer.end(),
       ModuleOrigin::kWasmOrigin);
 
   CHECK(!instance.is_null());

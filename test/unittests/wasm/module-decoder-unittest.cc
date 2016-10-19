@@ -143,14 +143,14 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
     auto temp = new byte[total];
     memcpy(temp, header, sizeof(header));
     memcpy(temp + sizeof(header), module_start, size);
-    ModuleResult result = DecodeWasmModule(isolate(), zone(), temp,
-                                           temp + total, false, kWasmOrigin);
+    ModuleResult result =
+        DecodeWasmModule(isolate(), temp, temp + total, false, kWasmOrigin);
     delete[] temp;
     return result;
   }
   ModuleResult DecodeModuleNoHeader(const byte* module_start,
                                     const byte* module_end) {
-    return DecodeWasmModule(isolate(), zone(), module_start, module_end, false,
+    return DecodeWasmModule(isolate(), module_start, module_end, false,
                             kWasmOrigin);
   }
 };

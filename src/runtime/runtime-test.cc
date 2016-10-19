@@ -767,7 +767,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
   }
-  return *wasm::CreateCompiledModuleObject(
+  return *wasm::CreateWasmModuleObject(
       isolate, Handle<wasm::WasmCompiledModule>::cast(compiled_module),
       wasm::kWasmOrigin);
 }

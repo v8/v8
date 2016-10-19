@@ -74,7 +74,9 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
     }
   }
 
-  bool ElideObject(Object* obj) override { return obj->IsWeakCell(); };
+  bool ElideObject(Object* obj) override {
+    return obj->IsWeakCell() || obj->IsForeign();
+  };
 
  private:
   WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)

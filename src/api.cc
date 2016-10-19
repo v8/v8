@@ -7204,12 +7204,9 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::wasm::WasmCompiledModule> compiled_part =
       i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
 
-  i::Handle<i::SeqOneByteString> wire_bytes = compiled_part->module_bytes();
-  compiled_part->reset_module_bytes();
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
                                                            compiled_part);
-  compiled_part->set_module_bytes(wire_bytes);
   script_data->ReleaseDataOwnership();
 
   size_t size = static_cast<size_t>(script_data->length());
@@ -7238,7 +7235,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   i::Handle<i::wasm::WasmCompiledModule> compiled_module =
       handle(i::wasm::WasmCompiledModule::cast(*compiled_part));
   return Local<WasmCompiledModule>::Cast(
-      Utils::ToLocal(i::wasm::CreateCompiledModuleObject(
+      Utils::ToLocal(i::wasm::CreateWasmModuleObject(
           i_isolate, compiled_module, i::wasm::ModuleOrigin::kWasmOrigin)));
 }
 

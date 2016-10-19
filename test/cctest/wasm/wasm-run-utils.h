@@ -209,16 +209,9 @@ class TestingModule : public ModuleEnv {
     WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
-    FunctionSig* funcSig = this->module->functions[index].sig;
-    Handle<ByteArray> exportedSig = isolate_->factory()->NewByteArray(
-        static_cast<int>(funcSig->parameter_count() + funcSig->return_count()),
-        TENURED);
-    exportedSig->copy_in(0, reinterpret_cast<const byte*>(funcSig->raw_data()),
-                         exportedSig->length());
     Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
-        isolate_, ret_code, name,
-        static_cast<int>(this->module->functions[index].sig->parameter_count()),
-        exportedSig, module_object);
+        isolate_, ret_code, name, this->module->functions[index].sig,
+        static_cast<int>(index), module_object);
     return ret;
   }
 
@@ -226,27 +219,33 @@ class TestingModule : public ModuleEnv {
     instance->function_code[index] = code;
   }
 
-  void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
+  void AddIndirectFunctionTable(uint16_t* function_indexes,
+                                uint32_t table_size) {
     module_.function_tables.push_back({table_size, table_size,
                                        std::vector<int32_t>(), false, false,
                                        SignatureMap()});
     WasmIndirectFunctionTable& table = module_.function_tables.back();
     for (uint32_t i = 0; i < table_size; ++i) {
-      table.values.push_back(functions[i]);
-      table.map.FindOrInsert(module_.functions[functions[i]].sig);
+      table.values.push_back(function_indexes[i]);
+      table.map.FindOrInsert(module_.functions[function_indexes[i]].sig);
     }
 
-    Handle<FixedArray> values = BuildFunctionTable(
-        isolate_, static_cast<int>(module_.function_tables.size() - 1),
-        &module_);
-    instance->function_tables.push_back(values);
+    instance->function_tables.push_back(
+        isolate_->factory()->NewFixedArray(table_size * 2));
   }
 
   void PopulateIndirectFunctionTable() {
+    // Initialize the fixed arrays in instance->function_tables.
     for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
-      PopulateFunctionTable(instance->function_tables[i],
-                            module_.function_tables[i].size,
-                            &instance->function_code);
+      WasmIndirectFunctionTable& table = module_.function_tables[i];
+      Handle<FixedArray> array = instance->function_tables[i];
+      int table_size = static_cast<int>(table.values.size());
+      for (int j = 0; j < table_size; j++) {
+        WasmFunction& function = module_.functions[table.values[j]];
+        array->set(j, Smi::FromInt(table.map.Find(function.sig)));
+        array->set(j + table_size,
+                   *instance->function_code[function.func_index]);
+      }
     }
   }
 

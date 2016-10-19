@@ -22,7 +22,7 @@ typedef std::vector<std::vector<std::pair<int, int>>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate,
                                                 const byte* module_start,
                                                 const byte* module_end,
                                                 bool verify_functions,

@@ -12,6 +12,7 @@
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -217,7 +218,9 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 }
 
 std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
-    Isolate* isolate, Handle<FixedArray> compiled_module) {
+    Isolate* isolate, Handle<FixedArray> input) {
+  Handle<wasm::WasmCompiledModule> compiled_module =
+      Handle<wasm::WasmCompiledModule>::cast(input);
   WasmCompiledModuleSerializer wasm_cs(isolate, 0);
   wasm_cs.reference_map()->AddAttachedReference(*isolate->native_context());
   ScriptData* data = wasm_cs.Serialize(compiled_module);
@@ -247,7 +250,10 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
 
   MaybeHandle<HeapObject> obj = deserializer.DeserializeObject(isolate);
   if (obj.is_null() || !obj.ToHandleChecked()->IsFixedArray()) return nothing;
-  return Handle<FixedArray>::cast(obj.ToHandleChecked());
+  Handle<FixedArray> compiled_module =
+      Handle<FixedArray>::cast(obj.ToHandleChecked());
+  wasm::WasmCompiledModule::RecreateModuleWrapper(isolate, compiled_module);
+  return compiled_module;
 }
 
 class Checksum {

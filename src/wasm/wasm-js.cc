@@ -104,10 +104,8 @@ void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   RawBuffer buffer = GetRawBufferSource(args[0], &thrower);
   if (thrower.error()) return;
 
-  i::Zone zone(isolate->allocator(), ZONE_NAME);
-  internal::wasm::ModuleResult result =
-      internal::wasm::DecodeWasmModule(isolate, &zone, buffer.start, buffer.end,
-                                       true, internal::wasm::kWasmOrigin);
+  internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
+      isolate, buffer.start, buffer.end, true, internal::wasm::kWasmOrigin);
 
   if (result.failed()) {
     thrower.CompileFailed("", result);
