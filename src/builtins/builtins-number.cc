@@ -301,22 +301,29 @@ void Builtins::Generate_NumberParseInt(CodeStubAssembler* assembler) {
 
     assembler->Bind(&if_inputisheapnumber);
     {
-      // Check if the absolute {input} value is in the ]0.01,1e9[ range.
+      // Check if the {input} value is in Signed32 range.
+      Label if_inputissigned32(assembler);
       Node* input_value = assembler->LoadHeapNumberValue(input);
+      Node* input_value32 = assembler->TruncateFloat64ToWord32(input_value);
+      assembler->GotoIf(
+          assembler->Float64Equal(
+              input_value, assembler->ChangeInt32ToFloat64(input_value32)),
+          &if_inputissigned32);
+
+      // Check if the absolute {input} value is in the ]0.01,1e9[ range.
       Node* input_value_abs = assembler->Float64Abs(input_value);
 
       assembler->GotoUnless(
           assembler->Float64LessThan(input_value_abs,
                                      assembler->Float64Constant(1e9)),
           &if_generic);
-      assembler->GotoUnless(
-          assembler->Float64LessThan(assembler->Float64Constant(0.01),
-                                     input_value_abs),
-          &if_generic);
+      assembler->Branch(assembler->Float64LessThan(
+                            assembler->Float64Constant(0.01), input_value_abs),
+                        &if_inputissigned32, &if_generic);
 
       // Return the truncated int32 value, and return the tagged result.
-      Node* input_value32 = assembler->TruncateFloat64ToWord32(input_value);
-      Node* result = assembler->SmiFromWord32(input_value32);
+      assembler->Bind(&if_inputissigned32);
+      Node* result = assembler->ChangeInt32ToTagged(input_value32);
       assembler->Return(result);
     }
 
