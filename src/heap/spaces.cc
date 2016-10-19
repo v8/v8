@@ -394,12 +394,14 @@ void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
 }
 
 bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
-  MarkCompactCollector* mc = isolate_->heap()->mark_compact_collector();
   // We cannot free memory chunks in new space while the sweeper is running
   // since a sweeper thread might be stuck right before trying to lock the
   // corresponding page.
-  return !chunk->InNewSpace() || (mc == nullptr) || !FLAG_concurrent_sweeping ||
-         mc->sweeper().IsSweepingCompleted();
+
+  // Chunks in old generation are unmapped if they are empty.
+  DCHECK(chunk->InNewSpace() || chunk->SweepingDone());
+  return !chunk->InNewSpace() || !FLAG_concurrent_sweeping ||
+         chunk->SweepingDone();
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,

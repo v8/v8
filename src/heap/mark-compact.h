@@ -299,24 +299,25 @@ class MarkCompactCollector {
         : heap_(heap),
           pending_sweeper_tasks_semaphore_(0),
           sweeping_in_progress_(false),
-          late_pages_(false),
           num_sweeping_tasks_(0) {}
 
     bool sweeping_in_progress() { return sweeping_in_progress_; }
-    bool contains_late_pages() { return late_pages_; }
 
     void AddPage(AllocationSpace space, Page* page);
-    void AddLatePage(AllocationSpace space, Page* page);
 
     int ParallelSweepSpace(AllocationSpace identity, int required_freed_bytes,
                            int max_pages = 0);
     int ParallelSweepPage(Page* page, AllocationSpace identity);
 
+    // After calling this function sweeping is considered to be in progress
+    // and the main thread can sweep lazily, but the background sweeper tasks
+    // are not running yet.
     void StartSweeping();
-    void StartSweepingHelper(AllocationSpace space_to_start);
+    void StartSweeperTasks();
     void EnsureCompleted();
     void EnsureNewSpaceCompleted();
-    bool IsSweepingCompleted();
+    bool AreSweeperTasksRunning();
+    bool IsSweepingCompleted(AllocationSpace space);
     void SweepOrWaitUntilSweepingCompleted(Page* page);
 
     void AddSweptPageSafe(PagedSpace* space, Page* page);
@@ -343,7 +344,6 @@ class MarkCompactCollector {
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
     bool sweeping_in_progress_;
-    bool late_pages_;
     base::AtomicNumber<intptr_t> num_sweeping_tasks_;
   };
 
@@ -643,21 +643,10 @@ class MarkCompactCollector {
 
   void AbortTransitionArrays();
 
-  // -----------------------------------------------------------------------
-  // Phase 2: Sweeping to clear mark bits and free non-live objects for
-  // a non-compacting collection.
-  //
-  //  Before: Live objects are marked and non-live objects are unmarked.
-  //
-  //   After: Live objects are unmarked, non-live regions have been added to
-  //          their space's free list. Active eden semispace is compacted by
-  //          evacuation.
-  //
-
-  // If we are not compacting the heap, we simply sweep the spaces except
-  // for the large object space, clearing mark bits and adding unmarked
-  // regions to each space's free list.
-  void SweepSpaces();
+  // Starts sweeping of spaces by contributing on the main thread and setting
+  // up other pages for sweeping. Does not start sweeper tasks.
+  void StartSweepSpaces();
+  void StartSweepSpace(PagedSpace* space);
 
   void EvacuateNewSpacePrologue();
 
@@ -680,9 +669,6 @@ class MarkCompactCollector {
 
   void ReleaseEvacuationCandidates();
 
-  // Starts sweeping of a space by contributing on the main thread and setting
-  // up other pages for sweeping.
-  void StartSweepSpace(PagedSpace* space);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;
