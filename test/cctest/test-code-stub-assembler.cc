@@ -119,6 +119,62 @@ TEST(ComputeIntegerHash) {
   }
 }
 
+TEST(ToString) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+  m.Return(m.ToString(m.Parameter(kNumParams + 2), m.Parameter(0)));
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
+  Handle<FixedArray> smi_test = isolate->factory()->NewFixedArray(2);
+  smi_test->set(0, Smi::FromInt(42));
+  Handle<String> str(isolate->factory()->InternalizeUtf8String("42"));
+  smi_test->set(1, *str);
+  test_cases->set(0, *smi_test);
+
+  Handle<FixedArray> number_test = isolate->factory()->NewFixedArray(2);
+  Handle<HeapNumber> num(isolate->factory()->NewHeapNumber(3.14));
+  number_test->set(0, *num);
+  str = isolate->factory()->InternalizeUtf8String("3.14");
+  number_test->set(1, *str);
+  test_cases->set(1, *number_test);
+
+  Handle<FixedArray> string_test = isolate->factory()->NewFixedArray(2);
+  str = isolate->factory()->InternalizeUtf8String("test");
+  string_test->set(0, *str);
+  string_test->set(1, *str);
+  test_cases->set(2, *string_test);
+
+  Handle<FixedArray> oddball_test = isolate->factory()->NewFixedArray(2);
+  oddball_test->set(0, isolate->heap()->undefined_value());
+  str = isolate->factory()->InternalizeUtf8String("undefined");
+  oddball_test->set(1, *str);
+  test_cases->set(3, *oddball_test);
+
+  Handle<FixedArray> tostring_test = isolate->factory()->NewFixedArray(2);
+  Handle<FixedArray> js_array_storage = isolate->factory()->NewFixedArray(2);
+  js_array_storage->set(0, Smi::FromInt(1));
+  js_array_storage->set(1, Smi::FromInt(2));
+  Handle<JSArray> js_array = isolate->factory()->NewJSArray(2);
+  JSArray::SetContent(js_array, js_array_storage);
+  tostring_test->set(0, *js_array);
+  str = isolate->factory()->InternalizeUtf8String("1,2");
+  tostring_test->set(1, *str);
+  test_cases->set(4, *tostring_test);
+
+  for (int i = 0; i < 5; ++i) {
+    Handle<FixedArray> test = handle(FixedArray::cast(test_cases->get(i)));
+    Handle<Object> obj = handle(test->get(0), isolate);
+    Handle<String> expected = handle(String::cast(test->get(1)));
+    Handle<Object> result = ft.Call(obj).ToHandleChecked();
+    CHECK(result->IsString());
+    CHECK(String::Equals(Handle<String>::cast(result), expected));
+  }
+}
+
 TEST(TryToName) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
