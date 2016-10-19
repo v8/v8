@@ -21,10 +21,21 @@
 
 namespace {
 
+std::vector<TaskRunner*> task_runners;
+
+void Terminate() {
+  for (size_t i = 0; i < task_runners.size(); ++i) {
+    task_runners[i]->Terminate();
+    task_runners[i]->Join();
+  }
+  std::vector<TaskRunner*> empty;
+  task_runners.swap(empty);
+}
+
 void Exit() {
   fflush(stdout);
   fflush(stderr);
-  _exit(0);
+  Terminate();
 }
 
 class UtilsExtension : public v8::Extension {
@@ -282,6 +293,9 @@ int main(int argc, char* argv[]) {
                                        &ready_semaphore);
   ready_semaphore.Wait();
 
+  task_runners.push_back(&frontend_runner);
+  task_runners.push_back(&backend_runner);
+
   for (int i = 1; i < argc; ++i) {
     if (argv[i][0] == '-') break;
 
@@ -297,5 +311,6 @@ int main(int argc, char* argv[]) {
   }
 
   frontend_runner.Join();
+  backend_runner.Join();
   return 0;
 }

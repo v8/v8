@@ -63,8 +63,9 @@ void TaskRunner::Run() {
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
-  while (nested_loop_count_ == loop_number) {
+  while (nested_loop_count_ == loop_number && !is_terminated_.Value()) {
     TaskRunner::Task* task = GetNext(only_protocol);
+    if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate_);
     if (catch_exceptions_) {
       v8::TryCatch try_catch(isolate_);
@@ -93,8 +94,14 @@ void TaskRunner::Append(Task* task) {
   process_queue_semaphore_.Signal();
 }
 
+void TaskRunner::Terminate() {
+  is_terminated_.Increment(1);
+  process_queue_semaphore_.Signal();
+}
+
 TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
+    if (is_terminated_.Value()) return nullptr;
     if (only_protocol) {
       Task* task = nullptr;
       if (queue_.Dequeue(&task)) {
@@ -108,7 +115,6 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
     }
     process_queue_semaphore_.Wait();
   }
-  UNREACHABLE();
   return nullptr;
 }
 
