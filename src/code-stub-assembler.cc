@@ -3213,33 +3213,24 @@ Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
   Node* const cursor = IntPtrAdd(begin, SmiUntag(from));
   Node* const end = IntPtrAdd(cursor, search_range_length);
 
-  Variable var_cursor(this, MachineType::PointerRepresentation());
-  Variable* vars[] = {&var_cursor};
-  Label loop(this, 1, vars), loop_tail(this);
-
-  var_cursor.Bind(cursor);
   var_result.Bind(SmiConstant(Smi::FromInt(-1)));
 
-  Goto(&loop);
-  Bind(&loop);
-  {
-    Node* const cursor = var_cursor.value();
+  BuildFastLoop(MachineType::PointerRepresentation(), cursor, end,
+                [string, needle_char, begin, &var_result, &out](
+                    CodeStubAssembler* csa, Node* cursor) {
+                  Label next(csa);
+                  Node* value = csa->Load(MachineType::Uint8(), string, cursor);
+                  csa->GotoUnless(csa->WordEqual(value, needle_char), &next);
 
-    Node* value = Load(MachineType::Uint8(), string, cursor);
-    GotoUnless(WordEqual(value, needle_char), &loop_tail);
+                  // Found a match.
+                  Node* index = csa->SmiTag(csa->IntPtrSub(cursor, begin));
+                  var_result.Bind(index);
+                  csa->Goto(&out);
 
-    // Found a match.
-    Node* index = SmiTag(IntPtrSub(cursor, begin));
-    var_result.Bind(index);
-    Goto(&out);
-
-    Bind(&loop_tail);
-    {
-      Node* const new_cursor = IntPtrAdd(cursor, IntPtrConstant(1));
-      var_cursor.Bind(new_cursor);
-      Branch(IntPtrLessThan(new_cursor, end), &loop, &out);
-    }
-  }
+                  csa->Bind(&next);
+                },
+                1, IndexAdvanceMode::kPost);
+  Goto(&out);
 
   Bind(&runtime);
   {
@@ -3247,7 +3238,6 @@ Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
     Node* const result =
         CallRuntime(Runtime::kStringIndexOf, context, string, pattern, from);
     var_result.Bind(result);
-    var_cursor.Bind(IntPtrConstant(0));
     Goto(&out);
   }
 
@@ -4814,34 +4804,31 @@ void CodeStubAssembler::HandlePolymorphicCase(
 
     Bind(&next_entry);
   }
-  Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
 
   // Loop from {unroll_count}*kEntrySize to {length}.
-  Variable var_index(this, MachineType::PointerRepresentation());
-  Label loop(this, &var_index);
-  var_index.Bind(IntPtrConstant(unroll_count * kEntrySize));
-  Goto(&loop);
-  Bind(&loop);
-  {
-    Node* index = var_index.value();
-    GotoIf(UintPtrGreaterThanOrEqual(index, length), if_miss);
+  Node* init = IntPtrConstant(unroll_count * kEntrySize);
+  Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), init, length,
+      [receiver_map, feedback, if_handler, var_handler](CodeStubAssembler* csa,
+                                                        Node* index) {
+        Node* cached_map = csa->LoadWeakCellValue(
+            csa->LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
 
-    Node* cached_map = LoadWeakCellValue(
-        LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
+        Label next_entry(csa);
+        csa->GotoIf(csa->WordNotEqual(receiver_map, cached_map), &next_entry);
 
-    Label next_entry(this);
-    GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
+        // Found, now call handler.
+        Node* handler = csa->LoadFixedArrayElement(
+            feedback, index, kPointerSize, INTPTR_PARAMETERS);
+        var_handler->Bind(handler);
+        csa->Goto(if_handler);
 
-    // Found, now call handler.
-    Node* handler =
-        LoadFixedArrayElement(feedback, index, kPointerSize, INTPTR_PARAMETERS);
-    var_handler->Bind(handler);
-    Goto(if_handler);
-
-    Bind(&next_entry);
-    var_index.Bind(IntPtrAdd(index, IntPtrConstant(kEntrySize)));
-    Goto(&loop);
-  }
+        csa->Bind(&next_entry);
+      },
+      kEntrySize, IndexAdvanceMode::kPost);
+  // The loop falls through if no handler was found.
+  Goto(if_miss);
 }
 
 void CodeStubAssembler::HandleKeyedStorePolymorphicCase(
@@ -4853,37 +4840,34 @@ void CodeStubAssembler::HandleKeyedStorePolymorphicCase(
 
   const int kEntrySize = 3;
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  Label loop(this, &var_index);
-  var_index.Bind(IntPtrConstant(0));
+  Node* init = IntPtrConstant(0);
   Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
-  Goto(&loop);
-  Bind(&loop);
-  {
-    Node* index = var_index.value();
-    GotoIf(UintPtrGreaterThanOrEqual(index, length), if_miss);
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), init, length,
+      [receiver_map, feedback, if_handler, var_handler, if_transition_handler,
+       var_transition_map_cell](CodeStubAssembler* csa, Node* index) {
+        Node* cached_map = csa->LoadWeakCellValue(
+            csa->LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
+        Label next_entry(csa);
+        csa->GotoIf(csa->WordNotEqual(receiver_map, cached_map), &next_entry);
 
-    Node* cached_map = LoadWeakCellValue(
-        LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
+        Node* maybe_transition_map_cell = csa->LoadFixedArrayElement(
+            feedback, index, kPointerSize, INTPTR_PARAMETERS);
 
-    Label next_entry(this);
-    GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
+        var_handler->Bind(csa->LoadFixedArrayElement(
+            feedback, index, 2 * kPointerSize, INTPTR_PARAMETERS));
+        csa->GotoIf(
+            csa->WordEqual(maybe_transition_map_cell,
+                           csa->LoadRoot(Heap::kUndefinedValueRootIndex)),
+            if_handler);
+        var_transition_map_cell->Bind(maybe_transition_map_cell);
+        csa->Goto(if_transition_handler);
 
-    Node* maybe_transition_map_cell =
-        LoadFixedArrayElement(feedback, index, kPointerSize, INTPTR_PARAMETERS);
-
-    var_handler->Bind(LoadFixedArrayElement(feedback, index, 2 * kPointerSize,
-                                            INTPTR_PARAMETERS));
-    GotoIf(WordEqual(maybe_transition_map_cell,
-                     LoadRoot(Heap::kUndefinedValueRootIndex)),
-           if_handler);
-    var_transition_map_cell->Bind(maybe_transition_map_cell);
-    Goto(if_transition_handler);
-
-    Bind(&next_entry);
-    var_index.Bind(IntPtrAdd(index, IntPtrConstant(kEntrySize)));
-    Goto(&loop);
-  }
+        csa->Bind(&next_entry);
+      },
+      kEntrySize, IndexAdvanceMode::kPost);
+  // The loop falls through if no handler was found.
+  Goto(if_miss);
 }
 
 compiler::Node* CodeStubAssembler::StubCachePrimaryOffset(compiler::Node* name,
