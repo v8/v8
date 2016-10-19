@@ -1149,12 +1149,12 @@ class RepresentationSelector {
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
       UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
-      // For subtraction, the right hand side can be minus zero without
-      // resulting in minus zero, so we skip the check for it.
+      // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
+      // a minus zero check for the right hand side, since we already
+      // know that the left hand side is a proper Signed32 value,
+      // potentially guarded by a check.
       UseInfo right_use = CheckedUseInfoAsWord32FromHint(
-          hint, node->opcode() == IrOpcode::kSpeculativeNumberSubtract
-                    ? CheckForMinusZeroMode::kDontCheckForMinusZero
-                    : CheckForMinusZeroMode::kCheckForMinusZero);
+          hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
       VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
                  Type::Signed32());
       if (lower()) ChangeToInt32OverflowOp(node);
