@@ -55,7 +55,8 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_breakpointsActivated(true),
       m_runningNestedMessageLoop(false),
       m_ignoreScriptParsedEventsCounter(0),
-      m_maxAsyncCallStackDepth(0) {}
+      m_maxAsyncCallStackDepth(0),
+      m_pauseOnExceptionsState(v8::DebugInterface::NoBreakOnException) {}
 
 V8Debugger::~V8Debugger() {}
 
@@ -68,6 +69,9 @@ void V8Debugger::enable() {
                                             v8::External::New(m_isolate, this));
   m_debuggerContext.Reset(m_isolate,
                           v8::DebugInterface::GetDebugContext(m_isolate));
+  v8::DebugInterface::ChangeBreakOnException(
+      m_isolate, v8::DebugInterface::NoBreakOnException);
+  m_pauseOnExceptionsState = v8::DebugInterface::NoBreakOnException;
   compileDebuggerScript();
 }
 
@@ -252,28 +256,18 @@ void V8Debugger::setBreakpointsActivated(bool activated) {
   m_breakpointsActivated = activated;
 }
 
-V8Debugger::PauseOnExceptionsState V8Debugger::getPauseOnExceptionsState() {
+v8::DebugInterface::ExceptionBreakState
+V8Debugger::getPauseOnExceptionsState() {
   DCHECK(enabled());
-  v8::HandleScope scope(m_isolate);
-  v8::Local<v8::Context> context = debuggerContext();
-  v8::Context::Scope contextScope(context);
-
-  v8::Local<v8::Value> argv[] = {v8::Undefined(m_isolate)};
-  v8::Local<v8::Value> result =
-      callDebuggerMethod("pauseOnExceptionsState", 0, argv).ToLocalChecked();
-  return static_cast<V8Debugger::PauseOnExceptionsState>(
-      result->Int32Value(context).FromJust());
+  return m_pauseOnExceptionsState;
 }
 
 void V8Debugger::setPauseOnExceptionsState(
-    PauseOnExceptionsState pauseOnExceptionsState) {
+    v8::DebugInterface::ExceptionBreakState pauseOnExceptionsState) {
   DCHECK(enabled());
-  v8::HandleScope scope(m_isolate);
-  v8::Context::Scope contextScope(debuggerContext());
-
-  v8::Local<v8::Value> argv[] = {
-      v8::Int32::New(m_isolate, pauseOnExceptionsState)};
-  callDebuggerMethod("setPauseOnExceptionsState", 1, argv);
+  if (m_pauseOnExceptionsState == pauseOnExceptionsState) return;
+  v8::DebugInterface::ChangeBreakOnException(m_isolate, pauseOnExceptionsState);
+  m_pauseOnExceptionsState = pauseOnExceptionsState;
 }
 
 void V8Debugger::setPauseOnNextStatement(bool pause) {

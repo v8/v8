@@ -42,13 +42,8 @@ class V8Debugger {
   void setBreakpointsActivated(bool);
   bool breakpointsActivated() const { return m_breakpointsActivated; }
 
-  enum PauseOnExceptionsState {
-    DontPauseOnExceptions,
-    PauseOnAllExceptions,
-    PauseOnUncaughtExceptions
-  };
-  PauseOnExceptionsState getPauseOnExceptionsState();
-  void setPauseOnExceptionsState(PauseOnExceptionsState);
+  v8::DebugInterface::ExceptionBreakState getPauseOnExceptionsState();
+  void setPauseOnExceptionsState(v8::DebugInterface::ExceptionBreakState);
   void setPauseOnNextStatement(bool);
   bool canBreakProgram();
   void breakProgram();
@@ -151,6 +146,8 @@ class V8Debugger {
   std::vector<void*> m_currentTasks;
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+
+  v8::DebugInterface::ExceptionBreakState m_pauseOnExceptionsState;
 
   DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 };

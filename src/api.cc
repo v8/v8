@@ -8805,6 +8805,15 @@ MaybeLocal<Array> DebugInterface::GetInternalProperties(Isolate* isolate,
   return Debug::GetInternalProperties(isolate, value);
 }
 
+void DebugInterface::ChangeBreakOnException(Isolate* isolate,
+                                            ExceptionBreakState type) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debug()->ChangeBreakOnException(
+      i::BreakException, type == BreakOnAnyException);
+  internal_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
+                                                    type != NoBreakOnException);
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();

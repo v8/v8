@@ -33,18 +33,6 @@
 
 var DebuggerScript = {};
 
-/** @enum */
-const PauseOnExceptionsState = {
-    DontPauseOnExceptions: 0,
-    PauseOnAllExceptions: 1,
-    PauseOnUncaughtExceptions: 2
-};
-DebuggerScript.PauseOnExceptionsState = PauseOnExceptionsState;
-
-DebuggerScript._pauseOnExceptionsState = DebuggerScript.PauseOnExceptionsState.DontPauseOnExceptions;
-Debug.clearBreakOnException();
-Debug.clearBreakOnUncaughtException();
-
 /**
  * @param {?CompileEvent} eventData
  */
@@ -250,32 +238,6 @@ DebuggerScript.setBreakpoint = function(execState, info)
 DebuggerScript.removeBreakpoint = function(execState, info)
 {
     Debug.findBreakPoint(info.breakpointId, true);
-}
-
-/**
- * @return {number}
- */
-DebuggerScript.pauseOnExceptionsState = function()
-{
-    return DebuggerScript._pauseOnExceptionsState;
-}
-
-/**
- * @param {number} newState
- */
-DebuggerScript.setPauseOnExceptionsState = function(newState)
-{
-    DebuggerScript._pauseOnExceptionsState = newState;
-
-    if (DebuggerScript.PauseOnExceptionsState.PauseOnAllExceptions === newState)
-        Debug.setBreakOnException();
-    else
-        Debug.clearBreakOnException();
-
-    if (DebuggerScript.PauseOnExceptionsState.PauseOnUncaughtExceptions === newState)
-        Debug.setBreakOnUncaughtException();
-    else
-        Debug.clearBreakOnUncaughtException();
 }
 
 /**

@@ -112,6 +112,21 @@ class DebugInterface {
    */
   static MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
                                                  Local<Value> value);
+
+  enum ExceptionBreakState {
+    NoBreakOnException = 0,
+    BreakOnUncaughtException = 1,
+    BreakOnAnyException = 2
+  };
+
+  /**
+   * Defines if VM will pause on exceptions or not.
+   * If BreakOnAnyExceptions is set then VM will pause on caught and uncaught
+   * exception, if BreakOnUncaughtException is set then VM will pause only on
+   * uncaught exception, otherwise VM won't stop on any exception.
+   */
+  static void ChangeBreakOnException(Isolate* isolate,
+                                     ExceptionBreakState state);
 };
 
 }  // namespace v8

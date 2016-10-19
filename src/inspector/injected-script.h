@@ -126,15 +126,15 @@ class InjectedScript final {
 
    private:
     void cleanup();
-    V8Debugger::PauseOnExceptionsState setPauseOnExceptionsState(
-        V8Debugger::PauseOnExceptionsState);
+    v8::DebugInterface::ExceptionBreakState setPauseOnExceptionsState(
+        v8::DebugInterface::ExceptionBreakState);
 
     v8::HandleScope m_handleScope;
     v8::TryCatch m_tryCatch;
     v8::Local<v8::Context> m_context;
     std::unique_ptr<V8Console::CommandLineAPIScope> m_commandLineAPIScope;
     bool m_ignoreExceptionsAndMuteConsole;
-    V8Debugger::PauseOnExceptionsState m_previousPauseOnExceptionsState;
+    v8::DebugInterface::ExceptionBreakState m_previousPauseOnExceptionsState;
     bool m_userGesture;
   };
 
