@@ -144,7 +144,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   uint16_t control_in_;
   uint16_t value_out_;
   uint8_t effect_out_;
-  uint16_t control_out_;
+  uint32_t control_out_;
 
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };
