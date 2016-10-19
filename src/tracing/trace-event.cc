@@ -8,6 +8,7 @@
 
 #include "src/counters.h"
 #include "src/isolate.h"
+#include "src/tracing/traced-value.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -24,14 +25,13 @@ v8::Platform* TraceEventHelper::GetCurrentPlatform() {
 
 void CallStatsScopedTracer::AddEndTraceEvent() {
   if (!has_parent_scope_ && p_data_->isolate) {
+    auto value = v8::tracing::TracedValue::Create();
+    p_data_->isolate->counters()->runtime_call_stats()->Dump(value.get());
     v8::internal::tracing::AddTraceEvent(
         TRACE_EVENT_PHASE_END, p_data_->category_group_enabled, p_data_->name,
         v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId,
         v8::internal::tracing::kNoId, TRACE_EVENT_FLAG_NONE,
-        "runtime-call-stats", TRACE_STR_COPY(p_data_->isolate->counters()
-                                                 ->runtime_call_stats()
-                                                 ->Dump()
-                                                 .c_str()));
+        "runtime-call-stats", std::move(value));
   } else {
     v8::internal::tracing::AddTraceEvent(
         TRACE_EVENT_PHASE_END, p_data_->category_group_enabled, p_data_->name,
