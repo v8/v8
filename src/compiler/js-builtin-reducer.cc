@@ -887,11 +887,10 @@ Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
       r.InputsMatchTwo(type_cache_.kSafeInteger,
                        type_cache_.kZeroOrUndefined) ||
       r.InputsMatchTwo(type_cache_.kSafeInteger, type_cache_.kTenOrUndefined)) {
-    // Number.parseInt(a:safe-integer) -> NumberToInt32(a)
-    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> NumberToInt32(a)
-    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> NumberToInt32(a)
-    Node* input = r.GetJSCallInput(0);
-    Node* value = graph()->NewNode(simplified()->NumberToInt32(), input);
+    // Number.parseInt(a:safe-integer) -> a
+    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
+    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a
+    Node* value = r.GetJSCallInput(0);
     return Replace(value);
   }
   return NoChange();
