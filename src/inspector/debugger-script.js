@@ -253,43 +253,6 @@ DebuggerScript.currentCallFrames = function(execState, limit)
     return frames;
 }
 
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepIntoStatement = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepIn);
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepFrameStatement = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepFrame);
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepOverStatement = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepNext);
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepOutOfFunction = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepOut);
-}
-
-DebuggerScript.clearStepping = function()
-{
-    Debug.clearStepping();
-}
-
 // Returns array in form:
 //      [ 0, <v8_result_report> ] in case of success
 //   or [ 1, <general_error_message>, <compiler_message>, <line_number>, <column_number> ] in case of compile error, numbers are 1-based.

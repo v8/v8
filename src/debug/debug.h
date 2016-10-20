@@ -501,8 +501,11 @@ class Debug {
   void Iterate(ObjectVisitor* v);
 
   bool CheckExecutionState(int id) {
-    return is_active() && !debug_context().is_null() && break_id() != 0 &&
-           break_id() == id;
+    return CheckExecutionState() && break_id() == id;
+  }
+
+  bool CheckExecutionState() {
+    return is_active() && !debug_context().is_null() && break_id() != 0;
   }
 
   // Flags and states.
