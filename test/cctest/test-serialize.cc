@@ -1678,7 +1678,7 @@ TEST(CodeSerializerInternalReference) {
   // In ignition there are only relative jumps, so the following code
   // would not have any internal references. This test is not relevant
   // for ignition.
-  if (FLAG_ignition || FLAG_turbo) {
+  if (FLAG_ignition) {
     return;
   }
   // Disable experimental natives that are loaded after deserialization.
@@ -1762,7 +1762,7 @@ TEST(CodeSerializerInternalReference) {
 }
 
 TEST(CodeSerializerEagerCompilationAndPreAge) {
-  if (FLAG_ignition || FLAG_turbo) return;
+  if (FLAG_ignition) return;
 
   FLAG_lazy = true;
   FLAG_serialize_toplevel = true;

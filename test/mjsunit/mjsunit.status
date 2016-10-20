@@ -59,10 +59,6 @@
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
 
-  # Issue 4680: The eval'ed code is piped through Ignition and fails when being
-  # live edited. This needs investigation.
-  'debug-liveedit-double-call': [PASS, FAIL],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
@@ -619,6 +615,14 @@
 }],  # variant == stress
 
 ##############################################################################
+['variant == turbofan', {
+
+  # Assumptions about optimization need investigation in TurboFan.
+  'regress-sync-optimized-lists': [FAIL],
+
+}],  # variant == turbofan
+
+##############################################################################
 ['variant == turbofan_opt', {
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
@@ -629,7 +633,6 @@
   'debug-evaluate-locals-optimized-double': [FAIL],
   'debug-liveedit-double-call': [FAIL],
   'es6/debug-evaluate-blockscopes': [FAIL],
-  'ignition/debug-break-on-stack': [FAIL],
 
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],

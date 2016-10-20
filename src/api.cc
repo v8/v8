@@ -2258,10 +2258,11 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   source->info->set_script(script);
 
   {
-    // Create a canonical handle scope for compiling Ignition bytecode. This is
+    // Create a canonical handle scope if compiling ignition bytecode. This is
     // required by the constant array builder to de-duplicate objects without
     // dereferencing handles.
-    i::CanonicalHandleScope canonical(isolate);
+    std::unique_ptr<i::CanonicalHandleScope> canonical;
+    if (i::FLAG_ignition) canonical.reset(new i::CanonicalHandleScope(isolate));
 
     // Do the parsing tasks which need to be done on the main thread. This will
     // also handle parse errors.

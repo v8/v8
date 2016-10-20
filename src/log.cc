@@ -1484,6 +1484,8 @@ void Logger::LogCodeObjects() {
 }
 
 void Logger::LogBytecodeHandlers() {
+  if (!FLAG_ignition) return;
+
   const interpreter::OperandScale kOperandScales[] = {
 #define VALUE(Name, _) interpreter::OperandScale::k##Name,
       OPERAND_SCALE_LIST(VALUE)
