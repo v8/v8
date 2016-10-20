@@ -333,6 +333,8 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
                                                          FunctionSig* sig);
   static compiler::CallDescriptor* GetI32WasmCallDescriptor(
       Zone* zone, compiler::CallDescriptor* descriptor);
+  static compiler::CallDescriptor* GetI32WasmCallDescriptorForSimd(
+      Zone* zone, compiler::CallDescriptor* descriptor);
 };
 
 // A helper for printing out the names of functions.

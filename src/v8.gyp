@@ -701,6 +701,8 @@
         'compiler/scheduler.h',
         'compiler/select-lowering.cc',
         'compiler/select-lowering.h',
+        'compiler/simd-scalar-lowering.cc',
+        'compiler/simd-scalar-lowering.h',
         'compiler/simplified-lowering.cc',
         'compiler/simplified-lowering.h',
         'compiler/simplified-operator-reducer.cc',

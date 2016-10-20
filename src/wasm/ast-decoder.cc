@@ -150,6 +150,16 @@ struct Control {
   (build() ? CheckForException(builder_->func(__VA_ARGS__)) : nullptr)
 #define BUILD0(func) (build() ? CheckForException(builder_->func()) : nullptr)
 
+struct LaneOperand {
+  uint8_t lane;
+  unsigned length;
+
+  inline LaneOperand(Decoder* decoder, const byte* pc) {
+    lane = decoder->checked_read_u8(pc, 2, "lane");
+    length = 1;
+  }
+};
+
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
 class WasmDecoder : public Decoder {
@@ -240,8 +250,17 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  inline bool Validate(const byte* pc, LaneOperand& operand) {
+    if (operand.lane < 0 || operand.lane > 3) {
+      error(pc_, pc_ + 2, "invalid extract lane value");
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   unsigned OpcodeLength(const byte* pc) {
-    switch (static_cast<WasmOpcode>(*pc)) {
+    switch (static_cast<byte>(*pc)) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -304,6 +323,27 @@ class WasmDecoder : public Decoder {
         return 5;
       case kExprF64Const:
         return 9;
+      case kSimdPrefix: {
+        byte simd_index = *(pc + 1);
+        WasmOpcode opcode =
+            static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
+        switch (opcode) {
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+          {
+            return 2;
+          }
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+          {
+            return 3;
+          }
+          default:
+            UNREACHABLE();
+        }
+      }
       default:
         return 1;
     }
@@ -1249,18 +1289,25 @@ class WasmFullDecoder : public WasmDecoder {
     return 1 + operand.length;
   }
 
+  unsigned ExtractLane(WasmOpcode opcode, LocalType type) {
+    LaneOperand operand(this, pc_);
+    if (Validate(pc_, operand)) {
+      TFNode* input = Pop(0, LocalType::kSimd128).node;
+      TFNode* node = BUILD(SimdExtractLane, opcode, operand.lane, input);
+      Push(type, node);
+    }
+    return operand.length;
+  }
+
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
     unsigned len = 0;
     switch (opcode) {
       case kExprI32x4ExtractLane: {
-        uint8_t lane = this->checked_read_u8(pc_, 2, "lane number");
-        if (lane < 0 || lane > 3) {
-          error(pc_, pc_ + 2, "invalid extract lane value");
-        }
-        TFNode* input = Pop(0, LocalType::kSimd128).node;
-        TFNode* node = BUILD(SimdExtractLane, opcode, lane, input);
-        Push(LocalType::kWord32, node);
-        len++;
+        len = ExtractLane(opcode, LocalType::kWord32);
+        break;
+      }
+      case kExprF32x4ExtractLane: {
+        len = ExtractLane(opcode, LocalType::kFloat32);
         break;
       }
       default: {

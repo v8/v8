@@ -24,6 +24,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/source-position.h"
 #include "src/compiler/zone-stats.h"
 
@@ -3046,6 +3047,13 @@ void WasmGraphBuilder::Int64LoweringForTesting() {
   }
 }
 
+void WasmGraphBuilder::SimdScalarLoweringForTesting() {
+  SimdScalarLowering(jsgraph()->graph(), jsgraph()->machine(),
+                     jsgraph()->common(), jsgraph()->zone(),
+                     function_signature_)
+      .LowerGraph();
+}
+
 void WasmGraphBuilder::SetSourcePosition(Node* node,
                                          wasm::WasmCodePosition position) {
   DCHECK_NE(position, wasm::kNoCodePosition);
@@ -3068,6 +3076,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
                               inputs[0], inputs[0], inputs[0]);
+    case wasm::kExprI32x4Add:
+      return graph()->NewNode(jsgraph()->machine()->Int32x4Add(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF32x4ExtractLane:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4ExtractLane(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF32x4Splat:
+      return graph()->NewNode(jsgraph()->machine()->CreateFloat32x4(),
+                              inputs[0], inputs[0], inputs[0], inputs[0]);
+    case wasm::kExprF32x4Add:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Add(), inputs[0],
+                              inputs[1]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
@@ -3079,6 +3099,9 @@ Node* WasmGraphBuilder::SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane,
     case wasm::kExprI32x4ExtractLane:
       return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(), input,
                               Int32Constant(lane));
+    case wasm::kExprF32x4ExtractLane:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4ExtractLane(),
+                              input, Int32Constant(lane));
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
@@ -3293,6 +3316,9 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     Int64Lowering r(graph, machine, common, jsgraph_->zone(), function_->sig);
     r.LowerGraph();
   }
+
+  SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
+      .LowerGraph();
 
   int index = static_cast<int>(function_->func_index);
 

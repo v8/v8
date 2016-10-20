@@ -200,6 +200,8 @@ class WasmGraphBuilder {
 
   void Int64LoweringForTesting();
 
+  void SimdScalarLoweringForTesting();
+
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
   Node* CreateS128Value(int32_t value);
