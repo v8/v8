@@ -8814,6 +8814,23 @@ void DebugInterface::ChangeBreakOnException(Isolate* isolate,
                                                     type != NoBreakOnException);
 }
 
+void DebugInterface::PrepareStep(Isolate* v8_isolate, StepAction action) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  CHECK(isolate->debug()->CheckExecutionState());
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+  // Prepare step.
+  isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
+}
+
+void DebugInterface::ClearStepping(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();
