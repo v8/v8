@@ -764,11 +764,6 @@ class MacroAssembler : public Assembler {
                        Register scratch1, Register scratch2,
                        Label* gc_required);
 
-  // Copies a number of bytes from src to dst. All registers are clobbered. On
-  // exit src and dst will point to the place just after where the last byte was
-  // read or written and length will be zero.
-  void CopyBytes(Register src, Register dst, Register length, Register scratch);
-
   // Initialize fields with filler values.  |count| fields starting at
   // |current_address| are overwritten with the value in |filler|.  At the end
   // the loop, |current_address| points at the next uninitialized field.

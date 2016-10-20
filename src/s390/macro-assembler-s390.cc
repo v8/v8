@@ -2921,51 +2921,6 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
 }
 
-void MacroAssembler::CopyBytes(Register src, Register dst, Register length,
-                               Register scratch) {
-  Label big_loop, left_bytes, done, fake_call;
-
-  DCHECK(!scratch.is(r0));
-
-  // big loop moves 256 bytes at a time
-  bind(&big_loop);
-  CmpP(length, Operand(static_cast<intptr_t>(0x100)));
-  blt(&left_bytes);
-
-  mvc(MemOperand(dst), MemOperand(src), 0x100);
-
-  AddP(src, Operand(static_cast<intptr_t>(0x100)));
-  AddP(dst, Operand(static_cast<intptr_t>(0x100)));
-  SubP(length, Operand(static_cast<intptr_t>(0x100)));
-  b(&big_loop);
-
-  bind(&left_bytes);
-  CmpP(length, Operand::Zero());
-  beq(&done);
-
-  // TODO(john.yan): More optimal version is to use MVC
-  // Sequence below has some undiagnosed issue.
-  /*
-  b(scratch, &fake_call);  // use brasl to Save mvc addr to scratch
-  mvc(MemOperand(dst), MemOperand(src), 1);
-  bind(&fake_call);
-  SubP(length, Operand(static_cast<intptr_t>(-1)));
-  ex(length, MemOperand(scratch));  // execute mvc instr above
-  AddP(src, length);
-  AddP(dst, length);
-  AddP(src, Operand(static_cast<intptr_t>(0x1)));
-  AddP(dst, Operand(static_cast<intptr_t>(0x1)));
-  */
-
-  mvc(MemOperand(dst), MemOperand(src), 1);
-  AddP(src, Operand(static_cast<intptr_t>(0x1)));
-  AddP(dst, Operand(static_cast<intptr_t>(0x1)));
-  SubP(length, Operand(static_cast<intptr_t>(0x1)));
-
-  b(&left_bytes);
-  bind(&done);
-}
-
 void MacroAssembler::InitializeNFieldsWithFiller(Register current_address,
                                                  Register count,
                                                  Register filler) {

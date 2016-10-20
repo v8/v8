@@ -2169,62 +2169,6 @@ void MacroAssembler::ClampDoubleToUint8(Register output,
   Fcvtnu(output, dbl_scratch);
 }
 
-
-void MacroAssembler::CopyBytes(Register dst,
-                               Register src,
-                               Register length,
-                               Register scratch,
-                               CopyHint hint) {
-  UseScratchRegisterScope temps(this);
-  Register tmp1 = temps.AcquireX();
-  Register tmp2 = temps.AcquireX();
-  DCHECK(!AreAliased(src, dst, length, scratch, tmp1, tmp2));
-  DCHECK(!AreAliased(src, dst, csp));
-
-  if (emit_debug_code()) {
-    // Check copy length.
-    Cmp(length, 0);
-    Assert(ge, kUnexpectedNegativeValue);
-
-    // Check src and dst buffers don't overlap.
-    Add(scratch, src, length);  // Calculate end of src buffer.
-    Cmp(scratch, dst);
-    Add(scratch, dst, length);  // Calculate end of dst buffer.
-    Ccmp(scratch, src, ZFlag, gt);
-    Assert(le, kCopyBuffersOverlap);
-  }
-
-  Label short_copy, short_loop, bulk_loop, done;
-
-  if ((hint == kCopyLong || hint == kCopyUnknown) && !FLAG_optimize_for_size) {
-    Register bulk_length = scratch;
-    int pair_size = 2 * kXRegSize;
-    int pair_mask = pair_size - 1;
-
-    Bic(bulk_length, length, pair_mask);
-    Cbz(bulk_length, &short_copy);
-    Bind(&bulk_loop);
-    Sub(bulk_length, bulk_length, pair_size);
-    Ldp(tmp1, tmp2, MemOperand(src, pair_size, PostIndex));
-    Stp(tmp1, tmp2, MemOperand(dst, pair_size, PostIndex));
-    Cbnz(bulk_length, &bulk_loop);
-
-    And(length, length, pair_mask);
-  }
-
-  Bind(&short_copy);
-  Cbz(length, &done);
-  Bind(&short_loop);
-  Sub(length, length, 1);
-  Ldrb(tmp1, MemOperand(src, 1, PostIndex));
-  Strb(tmp1, MemOperand(dst, 1, PostIndex));
-  Cbnz(length, &short_loop);
-
-
-  Bind(&done);
-}
-
-
 void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
                                                 Register end_address,
                                                 Register filler) {

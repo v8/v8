@@ -75,7 +75,6 @@ namespace internal {
   V(kExpectedPositiveZero, "Expected +0.0")                                    \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
-  V(kExpectingAlignmentForCopyBytes, "Expecting alignment for CopyBytes")      \
   V(kExternalStringExpectedButNotFound,                                        \
     "External string expected, but not found")                                 \
   V(kForInStatementWithNonLocalEachVariable,                                   \

@@ -1099,16 +1099,6 @@ class MacroAssembler : public Assembler {
   void InitializeFieldsWithFiller(Register current_address,
                                   Register end_address, Register filler);
 
-  // Copies a number of bytes from src to dst. All passed registers are
-  // clobbered. On exit src and dst will point to the place just after where the
-  // last byte was read or written and length will be zero. Hint may be used to
-  // determine which is the most efficient algorithm to use for copying.
-  void CopyBytes(Register dst,
-                 Register src,
-                 Register length,
-                 Register scratch,
-                 CopyHint hint = kCopyUnknown);
-
   // ---- String Utilities ----
 
 

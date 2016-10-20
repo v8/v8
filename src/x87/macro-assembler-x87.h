@@ -665,12 +665,6 @@ class MacroAssembler: public Assembler {
   void AllocateJSValue(Register result, Register constructor, Register value,
                        Register scratch, Label* gc_required);
 
-  // Copy memory, byte-by-byte, from source to destination.  Not optimized for
-  // long or aligned copies.
-  // The contents of index and scratch are destroyed.
-  void CopyBytes(Register source, Register destination, Register length,
-                 Register scratch);
-
   // Initialize fields with filler values.  Fields starting at |current_address|
   // not including |end_address| are overwritten with the value in |filler|.  At
   // the end the loop, |current_address| takes the value of |end_address|.
