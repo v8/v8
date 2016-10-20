@@ -1247,7 +1247,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_RotLeftAndClear64:
-      UNIMPLEMENTED();  // Find correct instruction
+      if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+        int shiftAmount = i.InputInt32(1);
+        int endBit = 63 - shiftAmount;
+        int startBit = 63 - i.InputInt32(2);
+        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
+                 Operand(endBit), Operand(shiftAmount), true);
+      } else {
+        int shiftAmount = i.InputInt32(1);
+        int clearBit = 63 - i.InputInt32(2);
+        __ rllg(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
+        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBit));
+        __ srlg(i.OutputRegister(), i.OutputRegister(),
+                Operand(clearBit + shiftAmount));
+        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(shiftAmount));
+      }
       break;
     case kS390_RotLeftAndClearLeft64:
       if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
