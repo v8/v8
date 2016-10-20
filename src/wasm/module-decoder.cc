@@ -31,6 +31,8 @@ namespace {
 const char* kNameString = "name";
 const size_t kNameStringLength = 4;
 
+static const uint32_t kMaxTableSize = 1 << 28;
+
 LocalType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
   switch (expr.kind) {
     case WasmInitExpr::kNone:
@@ -313,7 +315,7 @@ class ModuleDecoder : public Decoder {
                 {0, 0, std::vector<int32_t>(), true, false, SignatureMap()});
             expect_u8("element type", 0x20);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
-            consume_resizable_limits("element count", "elements", kMaxUInt32,
+            consume_resizable_limits("element count", "elements", kMaxTableSize,
                                      &table->size, &table->max_size);
             break;
           }

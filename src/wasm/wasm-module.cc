@@ -1042,7 +1042,7 @@ class WasmInstanceBuilder {
           factory->NewFixedArray(function_table_count);
       for (int index = 0; index < function_table_count; ++index) {
         WasmIndirectFunctionTable& table = module_->function_tables[index];
-        uint32_t size = table.max_size;
+        uint32_t size = table.max_size > 0 ? table.max_size : table.size;
         Handle<FixedArray> new_table = factory->NewFixedArray(size * 2);
         for (int i = 0; i < new_table->length(); ++i) {
           static const int kInvalidSigIndex = -1;
