@@ -2657,8 +2657,8 @@ TEST(InstanceOfStubWriteBarrier) {
 namespace {
 
 int GetProfilerTicks(SharedFunctionInfo* shared) {
-  return FLAG_ignition ? shared->profiler_ticks()
-                       : shared->code()->profiler_ticks();
+  return FLAG_ignition || FLAG_turbo ? shared->profiler_ticks()
+                                     : shared->code()->profiler_ticks();
 }
 
 }  // namespace

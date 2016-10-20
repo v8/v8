@@ -1632,7 +1632,7 @@ class MarkCompactCollector::EvacuateVisitorBase
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kPointerSize));
       heap_->CopyBlock(dst_addr, src_addr, size);
-      if ((mode == kProfiled) && FLAG_ignition && dst->IsBytecodeArray()) {
+      if ((mode == kProfiled) && dst->IsBytecodeArray()) {
         PROFILE(heap_->isolate(),
                 CodeMoveEvent(AbstractCode::cast(src), dst_addr));
       }

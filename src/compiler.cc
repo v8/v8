@@ -252,11 +252,10 @@ void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 namespace {
 
 bool Parse(ParseInfo* info) {
-  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // Create a canonical handle scope for compiling Ignition bytecode. This is
   // required by the constant array builder to de-duplicate objects without
   // dereferencing handles.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
+  CanonicalHandleScope canonical(info->isolate());
 
   return Parser::ParseStatic(info);
 }
@@ -314,10 +313,34 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
       info->literal()->feedback_vector_spec()));
 }
 
-bool ShouldUseIgnition(CompilationInfo* info) {
-  if (!FLAG_ignition) return false;
+bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
+  bool optimization_disabled = shared->optimization_disabled();
+  bool dont_crankshaft = shared->dont_crankshaft();
 
+  // Check the enabling conditions for Turbofan.
+  // 1. "use asm" code.
+  bool is_turbofanable_asm =
+      FLAG_turbo_asm && shared->asm_function() && !optimization_disabled;
+
+  // 2. Fallback for features unsupported by Crankshaft.
+  bool is_unsupported_by_crankshaft_but_turbofanable =
+      dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0 &&
+      !optimization_disabled;
+
+  // 3. Explicitly enabled by the command-line filter.
+  bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);
+
+  return is_turbofanable_asm || is_unsupported_by_crankshaft_but_turbofanable ||
+         passes_turbo_filter;
+}
+
+bool ShouldUseIgnition(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
+
+  // Skip Ignition for asm.js functions.
+  if (info->shared_info()->asm_function()) {
+    return false;
+  }
 
   // When requesting debug code as a replacement for existing code, we provide
   // the same kind as the existing code (to prevent implicit tier-change).
@@ -325,10 +348,11 @@ bool ShouldUseIgnition(CompilationInfo* info) {
     return !info->shared_info()->HasBaselineCode();
   }
 
-  // Since we can't OSR from Ignition, skip Ignition for asm.js functions.
-  if (info->shared_info()->asm_function()) {
-    return false;
-  }
+  // Code destined for TurboFan should be compiled with Ignition first.
+  if (UseTurboFan(info->shared_info())) return true;
+
+  // Only use Ignition for any other function if FLAG_ignition is true.
+  if (!FLAG_ignition) return false;
 
   // Checks whether top level functions should be passed by the filter.
   if (info->shared_info()->is_toplevel()) {
@@ -492,13 +516,10 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 }
 
 bool Renumber(ParseInfo* parse_info) {
-  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // Create a canonical handle scope for compiling Ignition bytecode. This is
   // required by the constant array builder to de-duplicate objects without
   // dereferencing handles.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) {
-    canonical.reset(new CanonicalHandleScope(parse_info->isolate()));
-  }
+  CanonicalHandleScope canonical(parse_info->isolate());
 
   if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
                               parse_info->literal())) {
@@ -516,27 +537,6 @@ bool Renumber(ParseInfo* parse_info) {
     }
   }
   return true;
-}
-
-bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
-  bool optimization_disabled = shared->optimization_disabled();
-  bool dont_crankshaft = shared->dont_crankshaft();
-
-  // Check the enabling conditions for Turbofan.
-  // 1. "use asm" code.
-  bool is_turbofanable_asm =
-      FLAG_turbo_asm && shared->asm_function() && !optimization_disabled;
-
-  // 2. Fallback for features unsupported by Crankshaft.
-  bool is_unsupported_by_crankshaft_but_turbofanable =
-      dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0 &&
-      !optimization_disabled;
-
-  // 3. Explicitly enabled by the command-line filter.
-  bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);
-
-  return is_turbofanable_asm || is_unsupported_by_crankshaft_but_turbofanable ||
-         passes_turbo_filter;
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
