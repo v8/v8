@@ -1160,7 +1160,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       // Check if {value} is a HeapNumber.
       Label if_valueisheapnumber(this),
           if_valueisnotheapnumber(this, Label::kDeferred);
-      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+      Node* value_map = LoadMap(value);
+      Branch(WordEqual(value_map, HeapNumberMapConstant()),
              &if_valueisheapnumber, &if_valueisnotheapnumber);
 
       Bind(&if_valueisheapnumber);
@@ -1175,11 +1176,35 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
 
       Bind(&if_valueisnotheapnumber);
       {
-        // Convert the {value} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
-        var_value.Bind(CallStub(callable, context, value));
-        var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kAny));
-        Goto(&loop);
+        // We do not require an Or with earlier feedback here because once we
+        // convert the value to a number, we cannot reach this path. We can
+        // only reach this path on the first pass when the feedback is kNone.
+        Assert(Word32Equal(var_type_feedback->value(),
+                           Int32Constant(BinaryOperationFeedback::kNone)));
+
+        Label if_valueisoddball(this),
+            if_valueisnotoddball(this, Label::kDeferred);
+        Node* is_oddball = Word32Equal(LoadMapInstanceType(value_map),
+                                       Int32Constant(ODDBALL_TYPE));
+        Branch(is_oddball, &if_valueisoddball, &if_valueisnotoddball);
+
+        Bind(&if_valueisoddball);
+        {
+          // Convert Oddball to a Number and perform checks again.
+          var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
+          var_type_feedback->Bind(
+              Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+          Goto(&loop);
+        }
+
+        Bind(&if_valueisnotoddball);
+        {
+          // Convert the {value} to a Number first.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_value.Bind(CallStub(callable, context, value));
+          var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kAny));
+          Goto(&loop);
+        }
       }
     }
   }

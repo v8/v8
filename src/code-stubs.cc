@@ -1751,13 +1751,39 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&if_valuenotnumber);
       {
-        // Convert to a Number first and try again.
-        Callable callable =
-            CodeFactory::NonNumberToNumber(assembler->isolate());
-        var_type_feedback.Bind(
-            assembler->Int32Constant(BinaryOperationFeedback::kAny));
-        value_var.Bind(assembler->CallStub(callable, context, value));
-        assembler->Goto(&start);
+        // We do not require an Or with earlier feedback here because once we
+        // convert the value to a number, we cannot reach this path. We can
+        // only reach this path on the first pass when the feedback is kNone.
+        assembler->Assert(assembler->Word32Equal(
+            var_type_feedback.value(),
+            assembler->Int32Constant(BinaryOperationFeedback::kNone)));
+
+        Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
+        Node* instance_type = assembler->LoadMapInstanceType(value_map);
+        Node* is_oddball = assembler->Word32Equal(
+            instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+        assembler->Branch(is_oddball, &if_valueisoddball, &if_valuenotoddball);
+
+        assembler->Bind(&if_valueisoddball);
+        {
+          // Convert Oddball to Number and check again.
+          value_var.Bind(
+              assembler->LoadObjectField(value, Oddball::kToNumberOffset));
+          var_type_feedback.Bind(assembler->Int32Constant(
+              BinaryOperationFeedback::kNumberOrOddball));
+          assembler->Goto(&start);
+        }
+
+        assembler->Bind(&if_valuenotoddball);
+        {
+          // Convert to a Number first and try again.
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
+          var_type_feedback.Bind(
+              assembler->Int32Constant(BinaryOperationFeedback::kAny));
+          value_var.Bind(assembler->CallStub(callable, context, value));
+          assembler->Goto(&start);
+        }
       }
     }
   }
@@ -1864,13 +1890,39 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&if_valuenotnumber);
       {
-        // Convert to a Number first and try again.
-        Callable callable =
-            CodeFactory::NonNumberToNumber(assembler->isolate());
-        var_type_feedback.Bind(
-            assembler->Int32Constant(BinaryOperationFeedback::kAny));
-        value_var.Bind(assembler->CallStub(callable, context, value));
-        assembler->Goto(&start);
+        // We do not require an Or with earlier feedback here because once we
+        // convert the value to a number, we cannot reach this path. We can
+        // only reach this path on the first pass when the feedback is kNone.
+        assembler->Assert(assembler->Word32Equal(
+            var_type_feedback.value(),
+            assembler->Int32Constant(BinaryOperationFeedback::kNone)));
+
+        Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
+        Node* instance_type = assembler->LoadMapInstanceType(value_map);
+        Node* is_oddball = assembler->Word32Equal(
+            instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+        assembler->Branch(is_oddball, &if_valueisoddball, &if_valuenotoddball);
+
+        assembler->Bind(&if_valueisoddball);
+        {
+          // Convert Oddball to Number and check again.
+          value_var.Bind(
+              assembler->LoadObjectField(value, Oddball::kToNumberOffset));
+          var_type_feedback.Bind(assembler->Int32Constant(
+              BinaryOperationFeedback::kNumberOrOddball));
+          assembler->Goto(&start);
+        }
+
+        assembler->Bind(&if_valuenotoddball);
+        {
+          // Convert to a Number first and try again.
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
+          var_type_feedback.Bind(
+              assembler->Int32Constant(BinaryOperationFeedback::kAny));
+          value_var.Bind(assembler->CallStub(callable, context, value));
+          assembler->Goto(&start);
+        }
       }
     }
   }
