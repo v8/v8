@@ -644,6 +644,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* JSReceiverToPrimitive(compiler::Node* context,
                                         compiler::Node* input);
 
+  // Convert a String to a flat String.
+  compiler::Node* FlattenString(compiler::Node* string);
+
   enum ToIntegerTruncationMode {
     kNoTruncation,
     kTruncateMinusZero,

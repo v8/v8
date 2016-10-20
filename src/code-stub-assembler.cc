@@ -3609,6 +3609,44 @@ Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   return result.value();
 }
 
+Node* CodeStubAssembler::FlattenString(Node* string) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  var_result.Bind(string);
+
+  Node* instance_type = LoadInstanceType(string);
+
+  // Check if the {string} is not a ConsString (i.e. already flat).
+  Label is_cons(this, Label::kDeferred), is_flat_in_cons(this), end(this);
+  {
+    GotoUnless(Word32Equal(Word32And(instance_type,
+                                     Int32Constant(kStringRepresentationMask)),
+                           Int32Constant(kConsStringTag)),
+               &end);
+
+    // Check whether the right hand side is the empty string (i.e. if
+    // this is really a flat string in a cons string).
+    Node* rhs = LoadObjectField(string, ConsString::kSecondOffset);
+    Branch(WordEqual(rhs, EmptyStringConstant()), &is_flat_in_cons, &is_cons);
+  }
+
+  // Bail out to the runtime.
+  Bind(&is_cons);
+  {
+    var_result.Bind(
+        CallRuntime(Runtime::kFlattenString, NoContextConstant(), string));
+    Goto(&end);
+  }
+
+  Bind(&is_flat_in_cons);
+  {
+    var_result.Bind(LoadObjectField(string, ConsString::kFirstOffset));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   Label if_isreceiver(this, Label::kDeferred), if_isnotreceiver(this);
