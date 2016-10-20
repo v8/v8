@@ -187,10 +187,6 @@
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
-
-  # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
-  # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
-  'harmony/generators-turbo': [PASS, FAST_VARIANTS],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -729,11 +725,6 @@
   # TODO(rmcilroy,titzer): Times out after
   # https://codereview.chromium.org/1951013002 .
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
-
-  # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
-  # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
-  'harmony/generators-turbo': [PASS, FAST_VARIANTS],
-  'regress/regress-crbug-352058': [SKIP],
 
   # TODO(jarin): No truncations on CheckFloat64Hole.
   'getters-on-elements': [SKIP],
