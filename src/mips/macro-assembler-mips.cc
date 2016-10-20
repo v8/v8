@@ -1136,26 +1136,18 @@ void MacroAssembler::Bnvc(Register rs, Register rt, Label* L) {
 void MacroAssembler::ByteSwapSigned(Register dest, Register src,
                                     int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-    if (operand_size == 2) {
-      seh(src, src);
-    } else if (operand_size == 1) {
-      seb(src, src);
-    }
-    // No need to do any preparation if operand_size is 4
 
+  if (operand_size == 2) {
+    Seh(src, src);
+  } else if (operand_size == 1) {
+    Seb(src, src);
+  }
+  // No need to do any preparation if operand_size is 4
+
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
     wsbh(dest, src);
     rotr(dest, dest, 16);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
-    if (operand_size == 1) {
-      sll(src, src, 24);
-      sra(src, src, 24);
-    } else if (operand_size == 2) {
-      sll(src, src, 16);
-      sra(src, src, 16);
-    }
-    // No need to do any preparation if operand_size is 4
-
     Register tmp = t0;
     Register tmp2 = t1;
 
@@ -1833,6 +1825,26 @@ void MacroAssembler::Ins(Register rt,
     nor(at, at, zero_reg);
     and_(at, rt, at);
     or_(rt, t8, at);
+  }
+}
+
+void MacroAssembler::Seb(Register rd, Register rt) {
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    seb(rd, rt);
+  } else {
+    DCHECK(IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson));
+    sll(rd, rt, 24);
+    sra(rd, rd, 24);
+  }
+}
+
+void MacroAssembler::Seh(Register rd, Register rt) {
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    seh(rd, rt);
+  } else {
+    DCHECK(IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson));
+    sll(rd, rt, 16);
+    sra(rd, rd, 16);
   }
 }
 

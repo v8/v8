@@ -833,6 +833,8 @@ class MacroAssembler: public Assembler {
   // MIPS32 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Seb(Register rd, Register rt);
+  void Seh(Register rd, Register rt);
   void Neg_s(FPURegister fd, FPURegister fs);
   void Neg_d(FPURegister fd, FPURegister fs);
 
