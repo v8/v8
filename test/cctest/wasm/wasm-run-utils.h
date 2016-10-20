@@ -626,7 +626,8 @@ class WasmRunner {
         compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
-        compiler_(&signature_, module) {
+        compiler_(&signature_, module),
+        possible_nondeterminism_(false) {
     DCHECK(module);
     InitSigStorage(p0, p1, p2, p3);
   }
@@ -736,6 +737,7 @@ class WasmRunner {
     thread->PushFrame(compiler_.function_, args.start());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmVal val = thread->GetReturnValue();
+      possible_nondeterminism_ |= thread->PossibleNondeterminism();
       return val.to<ReturnType>();
     } else if (thread->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
@@ -752,6 +754,7 @@ class WasmRunner {
 
   WasmFunction* function() { return compiler_.function_; }
   WasmInterpreter* interpreter() { return compiler_.interpreter_; }
+  bool possible_nondeterminism() { return possible_nondeterminism_; }
 
  protected:
   v8::internal::AccountingAllocator allocator_;
@@ -761,6 +764,7 @@ class WasmRunner {
   FunctionSig signature_;
   WasmFunctionCompiler compiler_;
   WasmFunctionWrapper<ReturnType> wrapper_;
+  bool possible_nondeterminism_;
 
   bool interpret() { return compiler_.execution_mode_ == kExecuteInterpreted; }
 

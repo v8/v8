@@ -114,7 +114,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const WasmModule* module, int function_index,
-                            WasmVal* args) {
+                            WasmVal* args, bool* possible_nondeterminism) {
   CHECK(module != nullptr);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -165,6 +165,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   if (instance.mem_start) {
     free(instance.mem_start);
   }
+  *possible_nondeterminism = thread->PossibleNondeterminism();
   if (interpreter_result == WasmInterpreter::FINISHED) {
     WasmVal val = thread->GetReturnValue();
     return val.to<int32_t>();

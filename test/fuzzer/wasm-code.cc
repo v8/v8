@@ -63,10 +63,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     return 0;
   }
   int32_t result_interpreted;
+  bool possible_nondeterminism = false;
   {
     WasmVal args[] = {WasmVal(1), WasmVal(2), WasmVal(3)};
     result_interpreted = testing::InterpretWasmModule(
-        i_isolate, &interpreter_thrower, module.get(), 0, args);
+        i_isolate, &interpreter_thrower, module.get(), 0, args,
+        &possible_nondeterminism);
   }
 
   ErrorThrower compiler_thrower(i_isolate, "Compiler");
@@ -93,7 +95,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     CHECK(i_isolate->has_pending_exception());
     i_isolate->clear_pending_exception();
   } else {
-    if (result_interpreted != result_compiled) {
+    // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
+    // This sign bit may cause result_interpreted to be different than
+    // result_compiled. Therefore we do not check the equality of the results
+    // if the execution may have produced a NaN at some point.
+    if (!possible_nondeterminism && (result_interpreted != result_compiled)) {
       V8_Fatal(__FILE__, __LINE__, "WasmCodeFuzzerHash=%x",
                v8::internal::StringHasher::HashSequentialString(
                    data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED));

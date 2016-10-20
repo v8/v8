@@ -45,7 +45,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // should not have any imports or exports
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const WasmModule* module, int function_index,
-                            WasmVal* args);
+                            WasmVal* args, bool* may_produced_nan);
 
 // Compiles WasmModule bytes and return an instance of the compiled module.
 const Handle<JSObject> CompileInstantiateWasmModuleForTesting(

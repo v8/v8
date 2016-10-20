@@ -62,8 +62,6 @@ namespace wasm {
   V(I64GtS, int64_t, >)         \
   V(I64GeS, int64_t, >=)        \
   V(F32Add, float, +)           \
-  V(F32Mul, float, *)           \
-  V(F32Div, float, /)           \
   V(F32Eq, float, ==)           \
   V(F32Ne, float, !=)           \
   V(F32Lt, float, <)            \
@@ -71,14 +69,18 @@ namespace wasm {
   V(F32Gt, float, >)            \
   V(F32Ge, float, >=)           \
   V(F64Add, double, +)          \
-  V(F64Mul, double, *)          \
-  V(F64Div, double, /)          \
   V(F64Eq, double, ==)          \
   V(F64Ne, double, !=)          \
   V(F64Lt, double, <)           \
   V(F64Le, double, <=)          \
   V(F64Gt, double, >)           \
   V(F64Ge, double, >=)
+
+#define FOREACH_SIMPLE_BINOP_NAN(V) \
+  V(F32Mul, float, *)               \
+  V(F64Mul, double, *)              \
+  V(F32Div, float, /)               \
+  V(F64Div, double, /)
 
 #define FOREACH_OTHER_BINOP(V) \
   V(I32DivS, int32_t)          \
@@ -127,14 +129,12 @@ namespace wasm {
   V(F32Floor, float)             \
   V(F32Trunc, float)             \
   V(F32NearestInt, float)        \
-  V(F32Sqrt, float)              \
   V(F64Abs, double)              \
   V(F64Neg, double)              \
   V(F64Ceil, double)             \
   V(F64Floor, double)            \
   V(F64Trunc, double)            \
   V(F64NearestInt, double)       \
-  V(F64Sqrt, double)             \
   V(I32SConvertF32, float)       \
   V(I32SConvertF64, double)      \
   V(I32UConvertF32, float)       \
@@ -164,6 +164,10 @@ namespace wasm {
   V(I32AsmjsUConvertF32, float)  \
   V(I32AsmjsSConvertF64, double) \
   V(I32AsmjsUConvertF64, double)
+
+#define FOREACH_OTHER_UNOP_NAN(V) \
+  V(F32Sqrt, float)               \
+  V(F64Sqrt, double)
 
 static inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
@@ -460,7 +464,8 @@ static inline float ExecuteF32NearestInt(float a, TrapReason* trap) {
 }
 
 static inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
-  return sqrtf(a);
+  float result = sqrtf(a);
+  return result;
 }
 
 static inline double ExecuteF64Abs(double a, TrapReason* trap) {
@@ -975,7 +980,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
         blocks_(zone),
         state_(WasmInterpreter::STOPPED),
         break_pc_(kInvalidPc),
-        trap_reason_(kTrapCount) {}
+        trap_reason_(kTrapCount),
+        possible_nondeterminism_(false) {}
 
   virtual ~ThreadImpl() {}
 
@@ -1030,6 +1036,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     frames_.clear();
     state_ = WasmInterpreter::STOPPED;
     trap_reason_ = kTrapCount;
+    possible_nondeterminism_ = false;
   }
 
   virtual int GetFrameCount() { return static_cast<int>(frames_.size()); }
@@ -1052,6 +1059,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   virtual pc_t GetBreakpointPc() { return break_pc_; }
+
+  virtual bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
   bool Terminated() {
     return state_ == WasmInterpreter::TRAPPED ||
@@ -1087,6 +1096,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   WasmInterpreter::State state_;
   pc_t break_pc_;
   TrapReason trap_reason_;
+  bool possible_nondeterminism_;
 
   CodeMap* codemap() { return codemap_; }
   WasmInstance* instance() { return instance_; }
@@ -1602,6 +1612,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           FOREACH_SIMPLE_BINOP(EXECUTE_SIMPLE_BINOP)
 #undef EXECUTE_SIMPLE_BINOP
 
+#define EXECUTE_SIMPLE_BINOP_NAN(name, ctype, op)        \
+  case kExpr##name: {                                    \
+    WasmVal rval = Pop();                                \
+    WasmVal lval = Pop();                                \
+    ctype result = lval.to<ctype>() op rval.to<ctype>(); \
+    possible_nondeterminism_ |= std::isnan(result);      \
+    WasmVal result_val(result);                          \
+    Push(pc, result_val);                                \
+    break;                                               \
+  }
+          FOREACH_SIMPLE_BINOP_NAN(EXECUTE_SIMPLE_BINOP_NAN)
+#undef EXECUTE_SIMPLE_BINOP_NAN
+
 #define EXECUTE_OTHER_BINOP(name, ctype)              \
   case kExpr##name: {                                 \
     TrapReason trap = kTrapCount;                     \
@@ -1626,6 +1649,20 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
           FOREACH_OTHER_UNOP(EXECUTE_OTHER_UNOP)
 #undef EXECUTE_OTHER_UNOP
+
+#define EXECUTE_OTHER_UNOP_NAN(name, ctype)          \
+  case kExpr##name: {                                \
+    TrapReason trap = kTrapCount;                    \
+    volatile ctype val = Pop().to<ctype>();          \
+    ctype result = Execute##name(val, &trap);        \
+    possible_nondeterminism_ |= std::isnan(result);  \
+    WasmVal result_val(result);                      \
+    if (trap != kTrapCount) return DoTrap(trap, pc); \
+    Push(pc, result_val);                            \
+    break;                                           \
+  }
+          FOREACH_OTHER_UNOP_NAN(EXECUTE_OTHER_UNOP_NAN)
+#undef EXECUTE_OTHER_UNOP_NAN
 
         default:
           V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
