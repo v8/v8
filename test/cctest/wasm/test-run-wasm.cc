@@ -2640,6 +2640,29 @@ WASM_EXEC_TEST(CallIndirect_NoTable) {
   CHECK_TRAP(r.Call(2));
 }
 
+WASM_EXEC_TEST(CallIndirect_EmptyTable) {
+  TestSignatures sigs;
+  TestingModule module(execution_mode);
+
+  // One function.
+  WasmFunctionCompiler t1(sigs.i_ii(), &module);
+  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t1.CompileAndAdd(/*sig_index*/ 1);
+
+  // Signature table.
+  module.AddSignature(sigs.f_ff());
+  module.AddSignature(sigs.i_ii());
+  module.AddIndirectFunctionTable(nullptr, 0);
+
+  // Builder the caller function.
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
+  BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I8(66), WASM_I8(22)));
+
+  CHECK_TRAP(r.Call(0));
+  CHECK_TRAP(r.Call(1));
+  CHECK_TRAP(r.Call(2));
+}
+
 WASM_EXEC_TEST(CallIndirect_canonical) {
   TestSignatures sigs;
   TestingModule module(execution_mode);

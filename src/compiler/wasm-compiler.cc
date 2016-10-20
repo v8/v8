@@ -2176,10 +2176,11 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args, Node*** rets,
                                           Int32Constant(kPointerSizeLog2)),
                          Int32Constant(fixed_offset)),
         *effect_, *control_);
-    int32_t key = module_->module->function_tables[0].map.Find(sig);
-    DCHECK_GE(key, 0);
-    Node* sig_match = graph()->NewNode(machine->WordEqual(), load_sig,
-                                       jsgraph()->SmiConstant(key));
+    auto map = const_cast<wasm::SignatureMap&>(
+        module_->module->function_tables[0].map);
+    Node* sig_match = graph()->NewNode(
+        machine->WordEqual(), load_sig,
+        jsgraph()->SmiConstant(static_cast<int>(map.FindOrInsert(sig))));
     trap_->AddTrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
   }
 
