@@ -127,17 +127,6 @@ class DebugInterface {
    */
   static void ChangeBreakOnException(Isolate* isolate,
                                      ExceptionBreakState state);
-
-  enum StepAction {
-    StepOut = 0,   // Step out of the current function.
-    StepNext = 1,  // Step to the next statement in the current function.
-    StepIn = 2,    // Step into new functions invoked or the next statement
-                   // in the current function.
-    StepFrame = 3  // Step into a new frame or return to previous frame.
-  };
-
-  static void PrepareStep(Isolate* isolate, StepAction action);
-  static void ClearStepping(Isolate* isolate);
 };
 
 }  // namespace v8

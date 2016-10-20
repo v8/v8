@@ -17,6 +17,8 @@
 namespace v8_inspector {
 
 namespace {
+const char stepIntoV8MethodName[] = "stepIntoStatement";
+const char stepOutV8MethodName[] = "stepOutOfFunction";
 static const char v8AsyncTaskEventEnqueue[] = "enqueue";
 static const char v8AsyncTaskEventEnqueueRecurring[] = "enqueueRecurring";
 static const char v8AsyncTaskEventWillHandle[] = "willHandle";
@@ -313,27 +315,37 @@ void V8Debugger::continueProgram() {
 void V8Debugger::stepIntoStatement() {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
-  v8::DebugInterface::PrepareStep(m_isolate, v8::DebugInterface::StepIn);
+  v8::HandleScope handleScope(m_isolate);
+  v8::Local<v8::Value> argv[] = {m_executionState};
+  callDebuggerMethod(stepIntoV8MethodName, 1, argv);
   continueProgram();
 }
 
 void V8Debugger::stepOverStatement() {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
-  v8::DebugInterface::PrepareStep(m_isolate, v8::DebugInterface::StepNext);
+  v8::HandleScope handleScope(m_isolate);
+  v8::Local<v8::Value> argv[] = {m_executionState};
+  callDebuggerMethod("stepOverStatement", 1, argv);
   continueProgram();
 }
 
 void V8Debugger::stepOutOfFunction() {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
-  v8::DebugInterface::PrepareStep(m_isolate, v8::DebugInterface::StepOut);
+  v8::HandleScope handleScope(m_isolate);
+  v8::Local<v8::Value> argv[] = {m_executionState};
+  callDebuggerMethod(stepOutV8MethodName, 1, argv);
   continueProgram();
 }
 
 void V8Debugger::clearStepping() {
   DCHECK(enabled());
-  v8::DebugInterface::ClearStepping(m_isolate);
+  v8::HandleScope scope(m_isolate);
+  v8::Context::Scope contextScope(debuggerContext());
+
+  v8::Local<v8::Value> argv[] = {v8::Undefined(m_isolate)};
+  callDebuggerMethod("clearStepping", 0, argv);
 }
 
 bool V8Debugger::setScriptSource(
@@ -532,11 +544,14 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_executionState.Clear();
 
   if (result == V8DebuggerAgentImpl::RequestStepFrame) {
-    v8::DebugInterface::PrepareStep(m_isolate, v8::DebugInterface::StepFrame);
+    v8::Local<v8::Value> argv[] = {executionState};
+    callDebuggerMethod("stepFrameStatement", 1, argv);
   } else if (result == V8DebuggerAgentImpl::RequestStepInto) {
-    v8::DebugInterface::PrepareStep(m_isolate, v8::DebugInterface::StepIn);
+    v8::Local<v8::Value> argv[] = {executionState};
+    callDebuggerMethod(stepIntoV8MethodName, 1, argv);
   } else if (result == V8DebuggerAgentImpl::RequestStepOut) {
-    v8::DebugInterface::PrepareStep(m_isolate, v8::DebugInterface::StepOut);
+    v8::Local<v8::Value> argv[] = {executionState};
+    callDebuggerMethod(stepOutV8MethodName, 1, argv);
   }
 }
 

@@ -61,6 +61,8 @@ var JavaScriptCallFrame;
  */
 var Debug = {};
 
+Debug.clearStepping = function() {}
+
 Debug.clearAllBreakPoints = function() {}
 
 /** @return {!Array<!Script>} */
@@ -189,6 +191,9 @@ BreakEvent.prototype.breakPointsHit = function() {}
 
 /** @interface */
 function ExecutionState() {}
+
+/** @param {!Debug.StepAction} action */
+ExecutionState.prototype.prepareStep = function(action) {}
 
 /**
  * @param {string} source
