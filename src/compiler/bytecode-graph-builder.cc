@@ -58,10 +58,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine,
                    bool owner_has_exception);
 
-  // Returns true if the state values are up to date with the current
-  // environment.
-  bool StateValuesAreUpToDate(int output_poke_offset, int output_poke_count);
-
   // Control dependency tracked by this environment.
   Node* GetControlDependency() const { return control_dependency_; }
   void UpdateControlDependency(Node* dependency) {
@@ -83,11 +79,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Environment(const Environment* copy, LivenessAnalyzerBlock* liveness_block);
   void PrepareForLoop();
 
-  enum { kNotCached, kCached };
-
-  bool StateValuesAreUpToDate(Node** state_values, int offset, int count,
-                              int output_poke_start, int output_poke_end,
-                              int cached = kNotCached);
   bool StateValuesRequireUpdate(Node** state_values, int offset, int count);
   void UpdateStateValues(Node** state_values, int offset, int count);
   void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
@@ -496,47 +487,6 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
   }
 
   return result;
-}
-
-bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
-    Node** state_values, int offset, int count, int output_poke_start,
-    int output_poke_end, int cached) {
-  DCHECK_LE(static_cast<size_t>(offset + count), values()->size());
-  if (cached == kNotCached) {
-    for (int i = 0; i < count; i++, offset++) {
-      if (offset < output_poke_start || offset >= output_poke_end) {
-        if ((*state_values)->InputAt(i) != values()->at(offset)) {
-          return false;
-        }
-      }
-    }
-  } else {
-    for (StateValuesAccess::TypedNode state_value :
-         StateValuesAccess(*state_values)) {
-      if (offset < output_poke_start || offset >= output_poke_end) {
-        if (state_value.node != values()->at(offset)) {
-          return false;
-        }
-      }
-      ++offset;
-    }
-  }
-  return true;
-}
-
-
-bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
-    int output_poke_offset, int output_poke_count) {
-  // Poke offset is relative to the top of the stack (i.e., the accumulator).
-  int output_poke_start = accumulator_base() - output_poke_offset;
-  int output_poke_end = output_poke_start + output_poke_count;
-  return StateValuesAreUpToDate(&parameters_state_values_, 0, parameter_count(),
-                                output_poke_start, output_poke_end) &&
-         StateValuesAreUpToDate(&registers_state_values_, register_base(),
-                                register_count(), output_poke_start,
-                                output_poke_end, kCached) &&
-         StateValuesAreUpToDate(&accumulator_state_values_, accumulator_base(),
-                                1, output_poke_start, output_poke_end);
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
