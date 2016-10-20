@@ -2661,14 +2661,16 @@ void LinearScanAllocator::AllocateRegisters() {
 
 bool LinearScanAllocator::TrySplitAndSpillSplinter(LiveRange* range) {
   DCHECK(range->TopLevel()->IsSplinter());
-  // If there was no hint, apply regular (hot path) heuristics.
-  if (range->FirstHintPosition() == nullptr) return false;
   // If we can spill the whole range, great. Otherwise, split above the
   // first use needing a register and spill the top part.
   const UsePosition* next_reg = range->NextRegisterPosition(range->Start());
   if (next_reg == nullptr) {
     Spill(range);
     return true;
+  } else if (range->FirstHintPosition() == nullptr) {
+    // If there was no hint, but we have a use position requiring a
+    // register, apply the hot path heuristics.
+    return false;
   } else if (next_reg->pos().PrevStart() > range->Start()) {
     LiveRange* tail = SplitRangeAt(range, next_reg->pos().PrevStart());
     AddToUnhandledSorted(tail);
