@@ -61,13 +61,14 @@ TEST(LoadInstanceType) {
            Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
-TEST(BitFieldDecode) {
+TEST(DecodeWordFromWord32) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   VoidDescriptor descriptor(isolate);
   CodeStubAssemblerTester m(isolate, descriptor);
 
   class TestBitField : public BitField<unsigned, 3, 3> {};
-  m.Return(m.SmiTag(m.BitFieldDecode<TestBitField>(m.Int32Constant(0x2f))));
+  m.Return(
+      m.SmiTag(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2f))));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();

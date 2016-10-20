@@ -2107,7 +2107,7 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   Label if_fast_clone(assembler),
       if_not_fast_clone(assembler, Label::kDeferred);
   Node* fast_clone_properties_count =
-      __ BitFieldDecode<CreateObjectLiteralFlags::FastClonePropertiesCountBits>(
+      __ DecodeWord32<CreateObjectLiteralFlags::FastClonePropertiesCountBits>(
           bytecode_flags);
   __ Branch(fast_clone_properties_count, &if_fast_clone, &if_not_fast_clone);
 

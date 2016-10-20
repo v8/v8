@@ -207,7 +207,7 @@ void Builtins::Generate_NumberParseFloat(CodeStubAssembler* assembler) {
         {
           // Just return the {input}s cached array index.
           Node* input_array_index =
-              assembler->BitFieldDecodeWord<String::ArrayIndexValueBits>(
+              assembler->DecodeWordFromWord32<String::ArrayIndexValueBits>(
                   input_hash);
           assembler->Return(assembler->SmiTag(input_array_index));
         }
@@ -340,7 +340,8 @@ void Builtins::Generate_NumberParseInt(CodeStubAssembler* assembler) {
 
       // Return the cached array index as result.
       Node* input_index =
-          assembler->BitFieldDecode<String::ArrayIndexValueBits>(input_hash);
+          assembler->DecodeWordFromWord32<String::ArrayIndexValueBits>(
+              input_hash);
       Node* result = assembler->SmiTag(input_index);
       assembler->Return(result);
     }

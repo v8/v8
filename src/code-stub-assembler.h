@@ -659,20 +659,45 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |T| in |word32|. Returns result as an uint32 node.
   template <typename T>
-  compiler::Node* BitFieldDecode(compiler::Node* word32) {
-    return BitFieldDecode(word32, T::kShift, T::kMask);
+  compiler::Node* DecodeWord32(compiler::Node* word32) {
+    return DecodeWord32(word32, T::kShift, T::kMask);
+  }
+
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word|. Returns result as a word-size node.
+  template <typename T>
+  compiler::Node* DecodeWord(compiler::Node* word) {
+    return DecodeWord(word, T::kShift, T::kMask);
   }
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |T| in |word32|. Returns result as a word-size node.
   template <typename T>
-  compiler::Node* BitFieldDecodeWord(compiler::Node* word32) {
-    return ChangeUint32ToWord(BitFieldDecode<T>(word32));
+  compiler::Node* DecodeWordFromWord32(compiler::Node* word32) {
+    return DecodeWord<T>(ChangeUint32ToWord(word32));
   }
 
   // Decodes an unsigned (!) value from |word32| to an uint32 node.
-  compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
-                                 uint32_t mask);
+  compiler::Node* DecodeWord32(compiler::Node* word32, uint32_t shift,
+                               uint32_t mask);
+
+  // Decodes an unsigned (!) value from |word| to a word-size node.
+  compiler::Node* DecodeWord(compiler::Node* word, uint32_t shift,
+                             uint32_t mask);
+
+  // Returns true if any of the |T|'s bits in given |word32| are set.
+  template <typename T>
+  compiler::Node* IsSetWord32(compiler::Node* word32) {
+    return Word32NotEqual(Word32And(word32, Int32Constant(T::kMask)),
+                          Int32Constant(0));
+  }
+
+  // Returns true if any of the |T|'s bits in given |word| are set.
+  template <typename T>
+  compiler::Node* IsSetWord(compiler::Node* word) {
+    return WordNotEqual(WordAnd(word, IntPtrConstant(T::kMask)),
+                        IntPtrConstant(0));
+  }
 
   void SetCounter(StatsCounter* counter, int value);
   void IncrementCounter(StatsCounter* counter, int delta);

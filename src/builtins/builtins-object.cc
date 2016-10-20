@@ -488,17 +488,11 @@ void Builtins::Generate_ObjectCreate(CodeStubAssembler* a) {
     a->GotoUnless(a->WordEqual(a->LoadElements(properties),
                                a->LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
                   &call_runtime);
-    // Jump to the runtime for slow objects.
+    // Handle dictionary objects or fast objects with properties in runtime.
     Node* bit_field3 = a->LoadMapBitField3(properties_map);
-    Node* is_fast_map = a->Word32Equal(
-        a->BitFieldDecode<Map::DictionaryMap>(bit_field3), a->Int32Constant(0));
-    a->GotoUnless(is_fast_map, &call_runtime);
-
-    a->Branch(
-        a->WordEqual(
-            a->BitFieldDecodeWord<Map::NumberOfOwnDescriptorsBits>(bit_field3),
-            a->IntPtrConstant(0)),
-        &no_properties, &call_runtime);
+    a->GotoIf(a->IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
+    a->Branch(a->IsSetWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3),
+              &call_runtime, &no_properties);
   }
 
   // Create a new object with the given prototype.
