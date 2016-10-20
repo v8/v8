@@ -836,7 +836,7 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   if (FLAG_tf_load_ic_stub) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-    return SmiHandler::MakeLoadFieldHandler(isolate(), index);
+    return LoadHandler::LoadField(isolate(), index);
   }
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
   LoadFieldStub stub(isolate(), index);
@@ -1200,8 +1200,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
       if (FLAG_tf_load_ic_stub) {
-        Handle<Object> smi_handler = SmiHandler::MakeLoadConstantHandler(
-            isolate(), lookup->GetConstantIndex());
+        Handle<Object> smi_handler =
+            LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
         if (receiver_is_holder) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
           return smi_handler;

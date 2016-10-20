@@ -13,57 +13,57 @@
 namespace v8 {
 namespace internal {
 
-enum LoadHandlerType {
-  kLoadICHandlerForElements = 0,
-  kLoadICHandlerForFields = 1,
-  kLoadICHandlerForConstants = 2
-};
-
-class LoadHandlerTypeBits : public BitField<LoadHandlerType, 0, 2> {};
-
-// Encoding for configuration Smis for constants loads (when LoadHandlerTypeBits
-// contain LoadICHandlerForConstants):
-class ValueIndexInDescriptorArray
-    : public BitField<int, LoadHandlerTypeBits::kNext,
-                      kDescriptorIndexBitCount + 2> {};
-// Make sure we don't overflow into the sign bit.
-STATIC_ASSERT(ValueIndexInDescriptorArray::kNext <= kSmiValueSize - 1);
-
-// Encoding for configuration Smis for field loads (when LoadHandlerTypeBits
-// contain LoadICHandlerForFields):
-class FieldOffsetIsInobject
-    : public BitField<bool, LoadHandlerTypeBits::kNext, 1> {};
-class FieldOffsetIsDouble
-    : public BitField<bool, FieldOffsetIsInobject::kNext, 1> {};
-class FieldOffsetOffset : public BitField<int, FieldOffsetIsDouble::kNext, 26> {
-};
-// Make sure we don't overflow into the sign bit.
-STATIC_ASSERT(FieldOffsetOffset::kNext <= kSmiValueSize - 1);
-
-// Encoding for configuration Smis for elements loads (when LoadHandlerTypeBits
-// contain LoadICHandlerForElements)
-class KeyedLoadIsJsArray
-    : public BitField<bool, LoadHandlerTypeBits::kNext, 1> {};
-class KeyedLoadConvertHole
-    : public BitField<bool, KeyedLoadIsJsArray::kNext, 1> {};
-class KeyedLoadElementsKind
-    : public BitField<ElementsKind, KeyedLoadConvertHole::kNext, 8> {};
-// Make sure we don't overflow into the sign bit.
-STATIC_ASSERT(KeyedLoadElementsKind::kNext <= kSmiValueSize - 1);
-
-// This class is a collection of factory methods for various Smi-encoded
-// IC handlers consumed by respective IC dispatchers.
-class SmiHandler {
+// A set of bit fields representing Smi handlers for loads.
+class LoadHandler {
  public:
-  static inline Handle<Object> MakeLoadFieldHandler(Isolate* isolate,
-                                                    FieldIndex field_index);
+  enum Kind { kForElements, kForFields, kForConstants };
+  class KindBits : public BitField<Kind, 0, 2> {};
 
-  static inline Handle<Object> MakeLoadConstantHandler(Isolate* isolate,
-                                                       int descriptor);
+  //
+  // Encoding when KindBits contains kForConstants.
+  //
 
-  static inline Handle<Object> MakeKeyedLoadHandler(
-      Isolate* isolate, ElementsKind elements_kind,
-      bool convert_hole_to_undefined, bool is_js_array);
+  // +2 here is because each descriptor entry occupies 3 slots in array.
+  class DescriptorValueIndexBits
+      : public BitField<unsigned, KindBits::kNext,
+                        kDescriptorIndexBitCount + 2> {};
+  // Make sure we don't overflow the smi.
+  STATIC_ASSERT(DescriptorValueIndexBits::kNext <= kSmiValueSize);
+
+  //
+  // Encoding when KindBits contains kForFields.
+  //
+  class IsInobjectBits : public BitField<bool, KindBits::kNext, 1> {};
+  class IsDoubleBits : public BitField<bool, IsInobjectBits::kNext, 1> {};
+  // +1 here is to cover all possible JSObject header sizes.
+  class FieldOffsetBits
+      : public BitField<unsigned, IsDoubleBits::kNext,
+                        kDescriptorIndexBitCount + 1 + kPointerSizeLog2> {};
+  // Make sure we don't overflow the smi.
+  STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
+
+  //
+  // Encoding when KindBits contains kForElements.
+  //
+  class IsJsArrayBits : public BitField<bool, KindBits::kNext, 1> {};
+  class ConvertHoleBits : public BitField<bool, IsJsArrayBits::kNext, 1> {};
+  class ElementsKindBits
+      : public BitField<ElementsKind, ConvertHoleBits::kNext, 8> {};
+  // Make sure we don't overflow the smi.
+  STATIC_ASSERT(ElementsKindBits::kNext <= kSmiValueSize);
+
+  // Creates a Smi-handler for loading a field from fast object.
+  static inline Handle<Object> LoadField(Isolate* isolate,
+                                         FieldIndex field_index);
+
+  // Creates a Smi-handler for loading a constant from fast object.
+  static inline Handle<Object> LoadConstant(Isolate* isolate, int descriptor);
+
+  // Creates a Smi-handler for loading an element.
+  static inline Handle<Object> LoadElement(Isolate* isolate,
+                                           ElementsKind elements_kind,
+                                           bool convert_hole_to_undefined,
+                                           bool is_js_array);
 };
 
 }  // namespace internal

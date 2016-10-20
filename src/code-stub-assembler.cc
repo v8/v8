@@ -5296,18 +5296,20 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
 
     Node* holder = var_holder.value();
     Node* handler_word = SmiUntag(var_smi_handler.value());
-    Node* handler_type = DecodeWord<LoadHandlerTypeBits>(handler_word);
+    Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
     if (support_elements == kSupportElements) {
       Label property(this);
       GotoUnless(
-          WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForElements)),
+          WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForElements)),
           &property);
 
       Comment("element_load");
       Node* intptr_index = TryToIntptr(p->name, miss);
       Node* elements = LoadElements(holder);
-      Node* is_jsarray_condition = IsSetWord<KeyedLoadIsJsArray>(handler_word);
-      Node* elements_kind = DecodeWord<KeyedLoadElementsKind>(handler_word);
+      Node* is_jsarray_condition =
+          IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
+      Node* elements_kind =
+          DecodeWord<LoadHandler::ElementsKindBits>(handler_word);
       Label if_hole(this), unimplemented_elements_kind(this);
       Label* out_of_bounds = miss;
       EmitElementLoad(holder, elements, elements_kind, intptr_index,
@@ -5326,7 +5328,7 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
       Bind(&if_hole);
       {
         Comment("convert hole");
-        GotoUnless(IsSetWord<KeyedLoadConvertHole>(handler_word), miss);
+        GotoUnless(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
         Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
         DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
         GotoUnless(
@@ -5342,22 +5344,22 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     }
 
     Label constant(this), field(this);
-    Branch(WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForFields)),
+    Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
            &field, &constant);
 
     Bind(&field);
     {
       Comment("field_load");
-      Node* offset = DecodeWord<FieldOffsetOffset>(handler_word);
+      Node* offset = DecodeWord<LoadHandler::FieldOffsetBits>(handler_word);
 
       Label inobject(this), out_of_object(this);
-      Branch(IsSetWord<FieldOffsetIsInobject>(handler_word), &inobject,
+      Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
              &out_of_object);
 
       Bind(&inobject);
       {
         Label is_double(this);
-        GotoIf(IsSetWord<FieldOffsetIsDouble>(handler_word), &is_double);
+        GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
         Return(LoadObjectField(holder, offset));
 
         Bind(&is_double);
@@ -5376,7 +5378,7 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
         Label is_double(this);
         Node* properties = LoadProperties(holder);
         Node* value = LoadObjectField(properties, offset);
-        GotoIf(IsSetWord<FieldOffsetIsDouble>(handler_word), &is_double);
+        GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
         Return(value);
 
         Bind(&is_double);
@@ -5392,7 +5394,8 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     {
       Comment("constant_load");
       Node* descriptors = LoadMapDescriptors(LoadMap(holder));
-      Node* descriptor = DecodeWord<ValueIndexInDescriptorArray>(handler_word);
+      Node* descriptor =
+          DecodeWord<LoadHandler::DescriptorValueIndexBits>(handler_word);
 #if defined(DEBUG)
       CSA_ASSERT(UintPtrLessThan(
           descriptor, LoadAndUntagFixedArrayBaseLength(descriptors)));

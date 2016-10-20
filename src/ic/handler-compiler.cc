@@ -634,8 +634,8 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
   if (elements_kind == DICTIONARY_ELEMENTS) {
     if (FLAG_tf_load_ic_stub) {
       TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
-      return SmiHandler::MakeKeyedLoadHandler(isolate, elements_kind, false,
-                                              is_js_array);
+      return LoadHandler::LoadElement(isolate, elements_kind, false,
+                                      is_js_array);
     }
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
     return LoadDictionaryElementStub(isolate).GetCode();
@@ -648,8 +648,8 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
       *receiver_map == isolate->get_initial_js_array_map(elements_kind);
   if (FLAG_tf_load_ic_stub) {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
-    return SmiHandler::MakeKeyedLoadHandler(
-        isolate, elements_kind, convert_hole_to_undefined, is_js_array);
+    return LoadHandler::LoadElement(isolate, elements_kind,
+                                    convert_hole_to_undefined, is_js_array);
   } else {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadFastElementStub);
     return LoadFastElementStub(isolate, is_js_array, elements_kind,
