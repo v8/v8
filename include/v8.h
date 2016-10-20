@@ -3906,10 +3906,6 @@ class V8_EXPORT WasmCompiledModule : public Object {
   // uncompiled bytes.
   SerializedModule Serialize();
 
-  // TODO(mtrofin): Back-compat. Move to private once change lands in Chrome.
-  // The resulting wasm setup won't have its uncompiled bytes available.
-  static MaybeLocal<WasmCompiledModule> Deserialize(
-      Isolate* isolate, const SerializedModule& serialized_module);
   // If possible, deserialize the module, otherwise compile it from the provided
   // uncompiled bytes.
   static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(

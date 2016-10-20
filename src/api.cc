@@ -7215,13 +7215,6 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
     Isolate* isolate,
-    const WasmCompiledModule::SerializedModule& serialized_module) {
-  return Deserialize(isolate,
-                     {serialized_module.first.get(), serialized_module.second});
-}
-
-MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
-    Isolate* isolate,
     const WasmCompiledModule::CallerOwnedBuffer& serialized_module) {
   int size = static_cast<int>(serialized_module.second);
   i::ScriptData sc(serialized_module.first, size);
