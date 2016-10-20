@@ -1159,39 +1159,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lr(i.OutputRegister(0), r1);
       __ srag(i.OutputRegister(1), r1, Operand(32));
       break;
-    case kS390_ShiftLeftPair:
+    case kS390_ShiftLeftPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),
-                         i.InputRegister(0), i.InputRegister(1),
-                         i.InputInt32(2));
+        __ ShiftLeftPair(i.OutputRegister(0), second_output, i.InputRegister(0),
+                         i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),
-                         i.InputRegister(0), i.InputRegister(1), kScratchReg,
-                         i.InputRegister(2));
+        __ ShiftLeftPair(i.OutputRegister(0), second_output, i.InputRegister(0),
+                         i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
-    case kS390_ShiftRightPair:
+    }
+    case kS390_ShiftRightPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ ShiftRightPair(i.OutputRegister(0), i.OutputRegister(1),
+        __ ShiftRightPair(i.OutputRegister(0), second_output,
                           i.InputRegister(0), i.InputRegister(1),
                           i.InputInt32(2));
       } else {
-        __ ShiftRightPair(i.OutputRegister(0), i.OutputRegister(1),
+        __ ShiftRightPair(i.OutputRegister(0), second_output,
                           i.InputRegister(0), i.InputRegister(1), kScratchReg,
                           i.InputRegister(2));
       }
       break;
-    case kS390_ShiftRightArithPair:
+    }
+    case kS390_ShiftRightArithPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ ShiftRightArithPair(i.OutputRegister(0), i.OutputRegister(1),
+        __ ShiftRightArithPair(i.OutputRegister(0), second_output,
                                i.InputRegister(0), i.InputRegister(1),
                                i.InputInt32(2));
       } else {
-        __ ShiftRightArithPair(i.OutputRegister(0), i.OutputRegister(1),
+        __ ShiftRightArithPair(i.OutputRegister(0), second_output,
                                i.InputRegister(0), i.InputRegister(1),
                                kScratchReg, i.InputRegister(2));
       }
       break;
+    }
 #endif
     case kS390_RotRight32:
       if (HasRegisterInput(instr, 1)) {
