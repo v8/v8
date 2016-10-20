@@ -762,9 +762,15 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
   bool global_variable = false;
   if (value->IsLiteral() || value->IsCall()) {
     AsmType* type = nullptr;
-    RECURSE(type = VariableTypeAnnotations(value, true));
+    VariableInfo::Mutability mutability;
+    if (target_variable->mode() == CONST) {
+      mutability = VariableInfo::kConstGlobal;
+    } else {
+      mutability = VariableInfo::kMutableGlobal;
+    }
+    RECURSE(type = VariableTypeAnnotations(value, mutability));
     target_info = new (zone_) VariableInfo(type);
-    target_info->set_mutability(VariableInfo::kMutableGlobal);
+    target_info->set_mutability(mutability);
     global_variable = true;
   } else if (value->IsProperty()) {
     target_info = ImportLookup(value->AsProperty());
@@ -828,6 +834,23 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
     RECURSE(type = NewHeapView(value->AsCallNew()));
     target_info = new (zone_) VariableInfo(type);
     target_info->set_mutability(VariableInfo::kImmutableGlobal);
+  } else if (auto* proxy = value->AsVariableProxy()) {
+    auto* var_info = Lookup(proxy->var());
+
+    if (var_info == nullptr) {
+      FAIL(value, "Undeclared identifier in global initializer");
+    }
+
+    if (var_info->mutability() != VariableInfo::kConstGlobal) {
+      FAIL(value, "Identifier used to initialize a global must be a const");
+    }
+
+    target_info = new (zone_) VariableInfo(var_info->type());
+    if (target_variable->mode() == CONST) {
+      target_info->set_mutability(VariableInfo::kConstGlobal);
+    } else {
+      target_info->set_mutability(VariableInfo::kMutableGlobal);
+    }
   }
 
   if (target_info == nullptr) {
@@ -2684,13 +2707,27 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
     FAIL(statement, "Invalid literal in return statement.");
   }
 
+  if (auto* proxy = ret_expr->AsVariableProxy()) {
+    auto* var_info = Lookup(proxy->var());
+
+    if (var_info == nullptr) {
+      FAIL(statement, "Undeclared identifier in return statement.");
+    }
+
+    if (var_info->mutability() != VariableInfo::kConstGlobal) {
+      FAIL(statement, "Identifier in return statement is not const.");
+    }
+
+    return var_info->type();
+  }
+
   FAIL(statement, "Invalid return type expression.");
 }
 
 // 5.4 VariableTypeAnnotations
 // Also used for 5.5 GlobalVariableTypeAnnotations
-AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer,
-                                           bool global) {
+AsmType* AsmTyper::VariableTypeAnnotations(
+    Expression* initializer, VariableInfo::Mutability mutability_type) {
   if (auto* literal = initializer->AsLiteral()) {
     if (literal->raw_value()->ContainsDot()) {
       SetTypeOf(initializer, AsmType::Double());
@@ -2698,24 +2735,50 @@ AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer,
     }
     int32_t i32;
     uint32_t u32;
+
+    AsmType* initializer_type = nullptr;
     if (literal->value()->ToUint32(&u32)) {
       if (u32 > LargestFixNum) {
-        SetTypeOf(initializer, AsmType::Unsigned());
+        initializer_type = AsmType::Unsigned();
+        SetTypeOf(initializer, initializer_type);
       } else {
-        SetTypeOf(initializer, AsmType::FixNum());
+        initializer_type = AsmType::FixNum();
+        SetTypeOf(initializer, initializer_type);
+        initializer_type = AsmType::Signed();
       }
     } else if (literal->value()->ToInt32(&i32)) {
-      SetTypeOf(initializer, AsmType::Signed());
+      initializer_type = AsmType::Signed();
+      SetTypeOf(initializer, initializer_type);
     } else {
       FAIL(initializer, "Invalid type annotation - forbidden literal.");
     }
-    return AsmType::Int();
+    if (mutability_type != VariableInfo::kConstGlobal) {
+      return AsmType::Int();
+    }
+    return initializer_type;
+  }
+
+  if (auto* proxy = initializer->AsVariableProxy()) {
+    auto* var_info = Lookup(proxy->var());
+
+    if (var_info == nullptr) {
+      FAIL(initializer,
+           "Undeclared identifier in variable declaration initializer.");
+    }
+
+    if (var_info->mutability() != VariableInfo::kConstGlobal) {
+      FAIL(initializer,
+           "Identifier in variable declaration initializer must be const.");
+    }
+
+    SetTypeOf(initializer, var_info->type());
+    return var_info->type();
   }
 
   auto* call = initializer->AsCall();
   if (call == nullptr) {
     FAIL(initializer,
-         "Invalid variable initialization - it should be a literal, or "
+         "Invalid variable initialization - it should be a literal, const, or "
          "fround(literal).");
   }
 
@@ -2732,7 +2795,7 @@ AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer,
   }
 
   // Float constants must contain dots in local, but not in globals.
-  if (!global) {
+  if (mutability_type == VariableInfo::kLocal) {
     if (!src_expr->raw_value()->ContainsDot()) {
       FAIL(initializer,
            "Invalid float type annotation - expected literal argument to be a "
