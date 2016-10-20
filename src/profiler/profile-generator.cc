@@ -412,7 +412,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
   value->SetDouble("startTime",
                    (start_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "Profile", this, "data", std::move(value));
+                              "CpuProfile", this, "data", std::move(value));
 }
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
@@ -466,27 +466,22 @@ void CpuProfile::StreamPendingTraceEvents() {
   if (pending_nodes.empty() && !samples_.length()) return;
   auto value = TracedValue::Create();
 
-  if (!pending_nodes.empty() || streaming_next_sample_ != samples_.length()) {
-    value->BeginDictionary("cpuProfile");
-    if (!pending_nodes.empty()) {
-      value->BeginArray("nodes");
-      for (auto node : pending_nodes) {
-        value->BeginDictionary();
-        BuildNodeValue(node, value.get());
-        value->EndDictionary();
-      }
-      value->EndArray();
+  if (!pending_nodes.empty()) {
+    value->BeginArray("nodes");
+    for (auto node : pending_nodes) {
+      value->BeginDictionary();
+      BuildNodeValue(node, value.get());
+      value->EndDictionary();
     }
-    if (streaming_next_sample_ != samples_.length()) {
-      value->BeginArray("samples");
-      for (int i = streaming_next_sample_; i < samples_.length(); ++i) {
-        value->AppendInteger(samples_[i]->id());
-      }
-      value->EndArray();
-    }
-    value->EndDictionary();
+    value->EndArray();
   }
+
   if (streaming_next_sample_ != samples_.length()) {
+    value->BeginArray("samples");
+    for (int i = streaming_next_sample_; i < samples_.length(); ++i) {
+      value->AppendInteger(samples_[i]->id());
+    }
+    value->EndArray();
     value->BeginArray("timeDeltas");
     base::TimeTicks lastTimestamp =
         streaming_next_sample_ ? timestamps_[streaming_next_sample_ - 1]
@@ -502,7 +497,8 @@ void CpuProfile::StreamPendingTraceEvents() {
   }
 
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", this, "data", std::move(value));
+                              "CpuProfileChunk", this, "data",
+                              std::move(value));
 }
 
 void CpuProfile::FinishProfile() {
@@ -511,7 +507,8 @@ void CpuProfile::FinishProfile() {
   auto value = TracedValue::Create();
   value->SetDouble("endTime", (end_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", this, "data", std::move(value));
+                              "CpuProfileChunk", this, "data",
+                              std::move(value));
 }
 
 void CpuProfile::Print() {

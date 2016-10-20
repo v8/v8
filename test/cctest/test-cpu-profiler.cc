@@ -2111,8 +2111,8 @@ namespace {
 class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
  public:
   void AppendTraceEvent(TraceObject* trace_event) override {
-    if (trace_event->name() != std::string("Profile") &&
-        trace_event->name() != std::string("ProfileChunk"))
+    if (trace_event->name() != std::string("CpuProfile") &&
+        trace_event->name() != std::string("CpuProfileChunk"))
       return;
     CHECK(!profile_id_ || trace_event->id() == profile_id_);
     CHECK_EQ(1, trace_event->num_args());
