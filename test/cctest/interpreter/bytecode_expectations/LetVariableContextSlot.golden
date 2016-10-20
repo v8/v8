@@ -35,9 +35,9 @@ handlers: [
 snippet: "
   let x = 10; function f1() {return x;} return x;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 26
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
@@ -49,15 +49,10 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), U8(10),
   /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
   /*   72 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(2),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
   /*   82 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -101,9 +96,9 @@ handlers: [
 snippet: "
   let x = 10; x = 20; function f1() {return x;}
 "
-frame size: 4
+frame size: 2
 parameter count: 1
-bytecode array length: 48
+bytecode array length: 29
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
@@ -115,20 +110,12 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), U8(10),
   /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
   /*   46 S> */ B(LdaSmi), U8(20),
-                B(Star), R(2),
-  /*   48 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
-                B(Ldar), R(2),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+  /*   48 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

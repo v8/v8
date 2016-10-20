@@ -829,8 +829,8 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::MODULE:
       if (variable->IsExport() && variable->binding_needs_init()) {
         builder()->LoadTheHole();
-        VisitVariableAssignment(variable, Token::INIT,
-                                FeedbackVectorSlot::Invalid());
+        BuildVariableAssignment(variable, Token::INIT,
+                                FeedbackVectorSlot::Invalid(), false);
       }
       // Nothing to do for imports.
       break;
@@ -849,8 +849,8 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
       VisitForAccumulatorValue(decl->fun());
-      VisitVariableAssignment(variable, Token::INIT,
-                              FeedbackVectorSlot::Invalid());
+      BuildVariableAssignment(variable, Token::INIT,
+                              FeedbackVectorSlot::Invalid(), false);
       break;
     }
     case VariableLocation::CONTEXT: {
@@ -874,8 +874,8 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       DCHECK_EQ(variable->mode(), LET);
       DCHECK(variable->IsExport());
       VisitForAccumulatorValue(decl->fun());
-      VisitVariableAssignment(variable, Token::INIT,
-                              FeedbackVectorSlot::Invalid());
+      BuildVariableAssignment(variable, Token::INIT,
+                              FeedbackVectorSlot::Invalid(), false);
       break;
   }
 }
@@ -894,7 +894,8 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
     Variable* var = scope()->LookupLocal(entry->local_name);
     DCHECK_NOT_NULL(var);
-    VisitVariableAssignment(var, Token::INIT, FeedbackVectorSlot::Invalid());
+    BuildVariableAssignment(var, Token::INIT, FeedbackVectorSlot::Invalid(),
+                            false);
   }
 }
 
@@ -1147,8 +1148,9 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
   LhsKind assign_type = Property::GetAssignType(property);
   switch (assign_type) {
     case VARIABLE: {
-      Variable* variable = expr->AsVariableProxy()->var();
-      VisitVariableAssignment(variable, Token::ASSIGN, slot);
+      VariableProxy* proxy = expr->AsVariableProxy();
+      BuildVariableAssignment(proxy->var(), Token::ASSIGN, slot,
+                              proxy->needs_hole_check());
       break;
     }
     case NAMED_PROPERTY: {
@@ -1395,11 +1397,11 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
   builder()->CallRuntime(Runtime::kToFastProperties, literal);
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
-    Variable* var = expr->class_variable_proxy()->var();
+    VariableProxy* proxy = expr->class_variable_proxy();
     FeedbackVectorSlot slot = expr->NeedsProxySlot()
                                   ? expr->ProxySlot()
                                   : FeedbackVectorSlot::Invalid();
-    VisitVariableAssignment(var, Token::INIT, slot);
+    BuildVariableAssignment(proxy->var(), Token::INIT, slot, false);
   }
 }
 
@@ -1773,17 +1775,13 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
   builder()->SetExpressionPosition(proxy);
-  VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
+  BuildVariableLoad(proxy->var(), proxy->VariableFeedbackSlot(),
+                    proxy->needs_hole_check());
 }
 
-void BytecodeGenerator::BuildHoleCheckForVariableLoad(Variable* variable) {
-  if (variable->binding_needs_init()) {
-    BuildThrowIfHole(variable->name());
-  }
-}
-
-void BytecodeGenerator::VisitVariableLoad(Variable* variable,
+void BytecodeGenerator::BuildVariableLoad(Variable* variable,
                                           FeedbackVectorSlot slot,
+                                          bool needs_hole_check,
                                           TypeofMode typeof_mode) {
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
@@ -1792,7 +1790,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // VisitForRegisterScope, in order to avoid register aliasing if
       // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
-      BuildHoleCheckForVariableLoad(variable);
+      if (needs_hole_check) BuildThrowIfHole(variable->name());
       break;
     }
     case VariableLocation::PARAMETER: {
@@ -1803,7 +1801,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // VisitForRegisterScope, in order to avoid register aliasing if
       // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
-      BuildHoleCheckForVariableLoad(variable);
+      if (needs_hole_check) BuildThrowIfHole(variable->name());
       break;
     }
     case VariableLocation::UNALLOCATED: {
@@ -1822,7 +1820,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       }
 
       builder()->LoadContextSlot(context_reg, variable->index(), depth);
-      BuildHoleCheckForVariableLoad(variable);
+      if (needs_hole_check) BuildThrowIfHole(variable->name());
       break;
     }
     case VariableLocation::LOOKUP: {
@@ -1833,7 +1831,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
               execution_context()->ContextChainDepth(local_variable->scope());
           builder()->LoadLookupContextSlot(variable->name(), typeof_mode,
                                            local_variable->index(), depth);
-          BuildHoleCheckForVariableLoad(variable);
+          if (needs_hole_check) BuildThrowIfHole(variable->name());
           break;
         }
         case DYNAMIC_GLOBAL: {
@@ -1868,16 +1866,17 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
             .StoreAccumulatorInRegister(args[1])
             .CallRuntime(Runtime::kLoadModuleImport, args);
       }
-      BuildHoleCheckForVariableLoad(variable);
+      if (needs_hole_check) BuildThrowIfHole(variable->name());
       break;
     }
   }
 }
 
-void BytecodeGenerator::VisitVariableLoadForAccumulatorValue(
-    Variable* variable, FeedbackVectorSlot slot, TypeofMode typeof_mode) {
+void BytecodeGenerator::BuildVariableLoadForAccumulatorValue(
+    Variable* variable, FeedbackVectorSlot slot, bool needs_hole_check,
+    TypeofMode typeof_mode) {
   ValueResultScope accumulator_result(this);
-  VisitVariableLoad(variable, slot, typeof_mode);
+  BuildVariableLoad(variable, slot, needs_hole_check, typeof_mode);
 }
 
 void BytecodeGenerator::BuildReturn() {
@@ -1946,15 +1945,13 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
   }
 }
 
-void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
+void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
                                                 Token::Value op,
-                                                FeedbackVectorSlot slot) {
+                                                FeedbackVectorSlot slot,
+                                                bool needs_hole_check) {
   VariableMode mode = variable->mode();
   RegisterAllocationScope assignment_register_scope(this);
   BytecodeLabel end_label;
-  bool hole_check_required =
-      variable->binding_needs_init() &&
-      (op != Token::INIT || (mode == CONST && variable->is_this()));
   switch (variable->location()) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
@@ -1965,7 +1962,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         destination = Register(variable->index());
       }
 
-      if (hole_check_required) {
+      if (needs_hole_check) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
         builder()
@@ -2000,7 +1997,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         context_reg = execution_context()->reg();
       }
 
-      if (hole_check_required) {
+      if (needs_hole_check) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
         builder()
@@ -2108,7 +2105,8 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
     switch (assign_type) {
       case VARIABLE: {
         VariableProxy* proxy = expr->target()->AsVariableProxy();
-        VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
+        BuildVariableLoad(proxy->var(), proxy->VariableFeedbackSlot(),
+                          proxy->needs_hole_check());
         builder()->StoreAccumulatorInRegister(old_value);
         break;
       }
@@ -2157,10 +2155,11 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   FeedbackVectorSlot slot = expr->AssignmentSlot();
   switch (assign_type) {
     case VARIABLE: {
-      // TODO(oth): The VisitVariableAssignment() call is hard to reason about.
+      // TODO(oth): The BuildVariableAssignment() call is hard to reason about.
       // Is the value in the accumulator safe? Yes, but scary.
-      Variable* variable = expr->target()->AsVariableProxy()->var();
-      VisitVariableAssignment(variable, expr->op(), slot);
+      VariableProxy* proxy = expr->target()->AsVariableProxy();
+      BuildVariableAssignment(proxy->var(), expr->op(), slot,
+                              proxy->needs_hole_check());
       break;
     }
     case NAMED_PROPERTY:
@@ -2386,8 +2385,9 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
       // Load callee as a global variable.
       VariableProxy* proxy = callee_expr->AsVariableProxy();
-      VisitVariableLoadForAccumulatorValue(proxy->var(),
-                                           proxy->VariableFeedbackSlot());
+      BuildVariableLoadForAccumulatorValue(proxy->var(),
+                                           proxy->VariableFeedbackSlot(),
+                                           proxy->needs_hole_check());
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
@@ -2544,8 +2544,9 @@ void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
     // Typeof does not throw a reference error on global variables, hence we
     // perform a non-contextual load in case the operand is a variable proxy.
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    VisitVariableLoadForAccumulatorValue(
-        proxy->var(), proxy->VariableFeedbackSlot(), INSIDE_TYPEOF);
+    BuildVariableLoadForAccumulatorValue(
+        proxy->var(), proxy->VariableFeedbackSlot(), proxy->needs_hole_check(),
+        INSIDE_TYPEOF);
   } else {
     VisitForAccumulatorValue(expr->expression());
   }
@@ -2669,8 +2670,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   switch (assign_type) {
     case VARIABLE: {
       VariableProxy* proxy = expr->expression()->AsVariableProxy();
-      VisitVariableLoadForAccumulatorValue(proxy->var(),
-                                           proxy->VariableFeedbackSlot());
+      BuildVariableLoadForAccumulatorValue(proxy->var(),
+                                           proxy->VariableFeedbackSlot(),
+                                           proxy->needs_hole_check());
       break;
     }
     case NAMED_PROPERTY: {
@@ -2733,8 +2735,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   FeedbackVectorSlot feedback_slot = expr->CountSlot();
   switch (assign_type) {
     case VARIABLE: {
-      Variable* variable = expr->expression()->AsVariableProxy()->var();
-      VisitVariableAssignment(variable, expr->op(), feedback_slot);
+      VariableProxy* proxy = expr->expression()->AsVariableProxy();
+      BuildVariableAssignment(proxy->var(), expr->op(), feedback_slot,
+                              proxy->needs_hole_check());
       break;
     }
     case NAMED_PROPERTY: {
@@ -3026,8 +3029,8 @@ void BytecodeGenerator::VisitArgumentsObject(Variable* variable) {
           ? CreateArgumentsType::kUnmappedArguments
           : CreateArgumentsType::kMappedArguments;
   builder()->CreateArguments(type);
-  VisitVariableAssignment(variable, Token::ASSIGN,
-                          FeedbackVectorSlot::Invalid());
+  BuildVariableAssignment(variable, Token::ASSIGN,
+                          FeedbackVectorSlot::Invalid(), false);
 }
 
 void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
@@ -3037,7 +3040,8 @@ void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
   // variable.
   builder()->CreateArguments(CreateArgumentsType::kRestParameter);
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
-  VisitVariableAssignment(rest, Token::ASSIGN, FeedbackVectorSlot::Invalid());
+  BuildVariableAssignment(rest, Token::ASSIGN, FeedbackVectorSlot::Invalid(),
+                          false);
 }
 
 void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
@@ -3045,7 +3049,8 @@ void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
 
   // Store the closure we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::function_closure());
-  VisitVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid());
+  BuildVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid(),
+                          false);
 }
 
 void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
@@ -3053,7 +3058,8 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
 
   // Store the new target we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::new_target());
-  VisitVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid());
+  BuildVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid(),
+                          false);
 
   // TODO(mstarzinger): The <new.target> register is not set by the deoptimizer
   // and we need to make sure {BytecodeRegisterOptimizer} flushes its state

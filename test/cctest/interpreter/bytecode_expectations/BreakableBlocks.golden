@@ -140,9 +140,9 @@ snippet: "
   }
   x = 4;
 "
-frame size: 6
+frame size: 4
 parameter count: 1
-bytecode array length: 116
+bytecode array length: 67
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(2),
@@ -162,40 +162,20 @@ bytecodes: [
   /*   76 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(Mov), R(0), R(1),
   /*  118 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(JumpIfToBooleanFalse), U8(6),
   /*  125 S> */ B(PopContext), R(3),
-                B(Jump), U8(29),
+                B(Jump), U8(10),
   /*  142 S> */ B(LdaSmi), U8(3),
-                B(Star), R(4),
-  /*  144 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
-                B(Ldar), R(4),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+  /*  144 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(PopContext), R(3),
   /*  155 S> */ B(LdaSmi), U8(4),
-                B(Star), R(4),
-  /*  157 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(3),
-                B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
-                B(Ldar), R(4),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+  /*  157 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(LdaUndefined),
   /*  162 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

@@ -1635,6 +1635,59 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   }
 }
 
+namespace {
+
+bool AccessNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
+  if (!var->binding_needs_init()) {
+    return false;
+  }
+
+  // It's impossible to eliminate module import hole checks here, because it's
+  // unknown at compilation time whether the binding referred to in the
+  // exporting module itself requires hole checks.
+  if (var->location() == VariableLocation::MODULE && !var->IsExport()) {
+    return true;
+  }
+
+  // Check if the binding really needs an initialization check. The check
+  // can be skipped in the following situation: we have a LET or CONST
+  // binding, both the Variable and the VariableProxy have the same
+  // declaration scope (i.e. they are both in global code, in the
+  // same function or in the same eval code), the VariableProxy is in
+  // the source physically located after the initializer of the variable,
+  // and that the initializer cannot be skipped due to a nonlinear scope.
+  //
+  // The condition on the declaration scopes is a conservative check for
+  // nested functions that access a binding and are called before the
+  // binding is initialized:
+  //   function() { f(); let x = 1; function f() { x = 2; } }
+  //
+  // The check cannot be skipped on non-linear scopes, namely switch
+  // scopes, to ensure tests are done in cases like the following:
+  //   switch (1) { case 0: let x = 2; case 1: f(x); }
+  // The scope of the variable needs to be checked, in case the use is
+  // in a sub-block which may be linear.
+  if (var->scope()->GetDeclarationScope() != scope->GetDeclarationScope()) {
+    return true;
+  }
+
+  if (var->is_this()) {
+    DCHECK(
+        IsSubclassConstructor(scope->GetDeclarationScope()->function_kind()));
+    // TODO(littledan): implement 'this' hole check elimination.
+    return true;
+  }
+
+  // We should always have valid source positions.
+  DCHECK(var->initializer_position() != kNoSourcePosition);
+  DCHECK(proxy->position() != kNoSourcePosition);
+
+  return var->scope()->is_nonlinear() ||
+         var->initializer_position() >= proxy->position();
+}
+
+}  // anonymous namespace
+
 void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 #ifdef DEBUG
   if (info->script_is_native()) {
@@ -1659,6 +1712,7 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 
   DCHECK_NOT_NULL(var);
   if (proxy->is_assigned()) var->set_maybe_assigned();
+  if (AccessNeedsHoleCheck(var, proxy, this)) proxy->set_needs_hole_check();
   proxy->BindTo(var);
 }
 
@@ -1866,16 +1920,10 @@ void DeclarationScope::AllocateLocals() {
   }
 }
 
-void ModuleScope::AllocateModuleVariables() {
-  for (const auto& it : module()->regular_imports()) {
-    Variable* var = LookupLocal(it.first);
-    // TODO(neis): Use a meaningful index.
-    var->AllocateTo(VariableLocation::MODULE, 42);
-  }
-
+void ModuleScope::AllocateModuleExports() {
   for (const auto& it : module()->regular_exports()) {
     Variable* var = LookupLocal(it.first);
-    var->AllocateTo(VariableLocation::MODULE, 0);
+    var->AllocateTo(VariableLocation::MODULE, Variable::kModuleExportIndex);
   }
 }
 
@@ -1899,7 +1947,7 @@ void Scope::AllocateVariablesRecursively() {
   // Parameters must be allocated first, if any.
   if (is_declaration_scope()) {
     if (is_module_scope()) {
-      AsModuleScope()->AllocateModuleVariables();
+      AsModuleScope()->AllocateModuleExports();
     } else if (is_function_scope()) {
       AsDeclarationScope()->AllocateParameterLocals();
     }

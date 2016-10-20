@@ -94,16 +94,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoad(Register obj, Property* expr);
   void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
 
-  void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+  void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+                         bool needs_hole_check,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableLoadForAccumulatorValue(
-      Variable* variable, FeedbackVectorSlot slot,
+  void BuildVariableLoadForAccumulatorValue(
+      Variable* variable, FeedbackVectorSlot slot, bool needs_hole_check,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  MUST_USE_RESULT Register
-  VisitVariableLoadForRegisterValue(Variable* variable, FeedbackVectorSlot slot,
-                                    TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackVectorSlot slot);
+  void BuildVariableAssignment(Variable* variable, Token::Value op,
+                               FeedbackVectorSlot slot, bool needs_hole_check);
 
   void BuildReturn();
   void BuildReThrow();
@@ -111,7 +109,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
-  void BuildHoleCheckForVariableLoad(Variable* variable);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   // Build jump to targets[value], where

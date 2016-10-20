@@ -1239,7 +1239,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_mode);
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context slot"
                                                : "[ Stack slot");
-      if (NeedsHoleCheckForLoad(proxy)) {
+      if (proxy->needs_hole_check()) {
         // Throw a reference error when using an uninitialized let/const
         // binding in harmony mode.
         DCHECK(IsLexicalVariableMode(var->mode()));

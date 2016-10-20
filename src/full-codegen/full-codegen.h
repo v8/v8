@@ -518,8 +518,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   void EmitAccessor(ObjectLiteralProperty* property);
 
-  bool NeedsHoleCheckForLoad(VariableProxy* proxy);
-
   // Expects the arguments and the function already pushed.
   void EmitResolvePossiblyDirectEval(Call* expr);
 

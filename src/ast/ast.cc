@@ -165,8 +165,9 @@ VariableProxy::VariableProxy(Variable* var, int start_position,
       end_position_(end_position),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
-  bit_field_ |= IsThisField::encode(var->is_this()) |
-                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+  bit_field_ |=
+      IsThisField::encode(var->is_this()) | IsAssignedField::encode(false) |
+      IsResolvedField::encode(false) | NeedsHoleCheckField::encode(false);
   BindTo(var);
 }
 
@@ -178,7 +179,9 @@ VariableProxy::VariableProxy(const AstRawString* name,
       raw_name_(name),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+                IsAssignedField::encode(false) |
+                IsResolvedField::encode(false) |
+                NeedsHoleCheckField::encode(false);
 }
 
 VariableProxy::VariableProxy(const VariableProxy* copy_from)

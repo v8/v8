@@ -365,7 +365,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 242
+bytecode array length: 220
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -432,10 +432,6 @@ bytecodes: [
   /*   21 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kLoadModuleExport), R(3), U8(1),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(Inc), U8(2),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
@@ -451,10 +447,6 @@ bytecodes: [
   /*   39 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kLoadModuleExport), R(3), U8(1),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(Inc), U8(3),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
@@ -480,7 +472,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 230
+bytecode array length: 208
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -547,10 +539,6 @@ bytecodes: [
   /*   23 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kLoadModuleExport), R(3), U8(1),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(Inc), U8(2),
   /*   26 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(Ldar), R(closure),
@@ -563,10 +551,6 @@ bytecodes: [
   /*   41 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kLoadModuleExport), R(3), U8(1),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(Inc), U8(3),
   /*   44 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(PopContext), R(1),

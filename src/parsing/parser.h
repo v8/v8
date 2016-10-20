@@ -474,6 +474,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                int pos, bool* ok);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
                                InitializationFlag init, int pos, bool* ok);
+  Declaration* DeclareModuleImport(const AstRawString* name, int pos, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);

@@ -1154,8 +1154,7 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
       return nullptr;
     }
 
-    DeclareVariable(local_name, CONST, kNeedsInitialization, position(),
-                    CHECK_OK);
+    DeclareModuleImport(local_name, position(), CHECK_OK);
 
     NamedImport* import = new (zone()) NamedImport(
         import_name, local_name, scanner()->location());
@@ -1205,8 +1204,7 @@ void Parser::ParseImportDeclaration(bool* ok) {
     import_default_binding =
         ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
     import_default_binding_loc = scanner()->location();
-    DeclareVariable(import_default_binding, CONST, kNeedsInitialization, pos,
-                    CHECK_OK_VOID);
+    DeclareModuleImport(import_default_binding, pos, CHECK_OK_VOID);
   }
 
   // Parse NameSpaceImport or NamedImports if present.
@@ -1479,6 +1477,21 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
       factory()->NewVariableDeclaration(proxy, this->scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
   return declaration;
+}
+
+Declaration* Parser::DeclareModuleImport(const AstRawString* name, int pos,
+                                         bool* ok) {
+  DCHECK_EQ(MODULE_SCOPE, scope()->scope_type());
+  Declaration* decl =
+      DeclareVariable(name, CONST, kNeedsInitialization, pos, CHECK_OK);
+  // Allocate imports eagerly as hole check elimination logic in scope
+  // analisys depends on identifying imports.
+  // TODO(adamk): It's weird to allocate imports long before everything
+  // else. We should find a different way of filtering out imports
+  // during hole check elimination.
+  decl->proxy()->var()->AllocateTo(VariableLocation::MODULE,
+                                   Variable::kModuleImportIndex);
+  return decl;
 }
 
 Variable* Parser::Declare(Declaration* declaration,

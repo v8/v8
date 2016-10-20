@@ -1210,7 +1210,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context variable"
                                                : "[ Stack variable");
 
-      if (NeedsHoleCheckForLoad(proxy)) {
+      if (proxy->needs_hole_check()) {
         // Throw a reference error when using an uninitialized let/const
         // binding in harmony mode.
         Label done;
