@@ -117,6 +117,7 @@
       'test-utils.h',
       'test-utils.cc',
       'value-serializer-unittest.cc',
+      'zone/segmentpool-unittest.cc',
       'wasm/asm-types-unittest.cc',
       'wasm/ast-decoder-unittest.cc',
       'wasm/control-transfer-unittest.cc',

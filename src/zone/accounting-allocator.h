@@ -13,12 +13,18 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
 #include "src/zone/zone-segment.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
 namespace internal {
 
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
+  static const size_t kMaxPoolSizeLowMemoryDevice = 8ul * KB;
+  static const size_t kMaxPoolSizeMediumMemoryDevice = 1ul * MB;
+  static const size_t kMaxPoolSizeHighMemoryDevice = 2ul * MB;
+  static const size_t kMaxPoolSizeHugeMemoryDevice = 3ul * MB;
+
   AccountingAllocator();
   virtual ~AccountingAllocator();
 
@@ -34,16 +40,25 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   size_t GetCurrentPoolSize() const;
 
   void MemoryPressureNotification(MemoryPressureLevel level);
+  // Configures the zone segment pool size limits so the pool does not
+  // grow bigger than max_pool_size.
+  // TODO(heimbuef): Do not accept segments to pool that are larger than
+  // their size class requires. Sometimes the zones generate weird segments.
+  void ConfigureSegmentPool(const size_t max_pool_size);
 
   virtual void ZoneCreation(const Zone* zone) {}
   virtual void ZoneDestruction(const Zone* zone) {}
 
  private:
-  static const uint8_t kMinSegmentSizePower = 13;
-  static const uint8_t kMaxSegmentSizePower = 18;
-  static const uint8_t kMaxSegmentsPerBucket = 5;
+  FRIEND_TEST(Zone, SegmentPoolConstraints);
+
+  static const size_t kMinSegmentSizePower = 13;
+  static const size_t kMaxSegmentSizePower = 18;
 
   STATIC_ASSERT(kMinSegmentSizePower <= kMaxSegmentSizePower);
+
+  static const size_t kNumberBuckets =
+      1 + kMaxSegmentSizePower - kMinSegmentSizePower;
 
   // Allocates a new segment. Returns nullptr on failed allocation.
   Segment* AllocateSegment(size_t bytes);
@@ -57,10 +72,10 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   // Empties the pool and puts all its contents onto the garbage stack.
   void ClearPool();
 
-  Segment*
-      unused_segments_heads_[1 + kMaxSegmentSizePower - kMinSegmentSizePower];
+  Segment* unused_segments_heads_[kNumberBuckets];
 
-  size_t unused_segments_sizes[1 + kMaxSegmentSizePower - kMinSegmentSizePower];
+  size_t unused_segments_sizes_[kNumberBuckets];
+  size_t unused_segments_max_sizes_[kNumberBuckets];
 
   base::Mutex unused_segments_mutex_;
 

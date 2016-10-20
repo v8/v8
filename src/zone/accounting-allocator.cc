@@ -14,15 +14,14 @@ namespace v8 {
 namespace internal {
 
 AccountingAllocator::AccountingAllocator() : unused_segments_mutex_() {
+  static const size_t kDefaultBucketMaxSize = 5;
+
   memory_pressure_level_.SetValue(MemoryPressureLevel::kNone);
-  std::fill(unused_segments_heads_,
-            unused_segments_heads_ +
-                (1 + kMaxSegmentSizePower - kMinSegmentSizePower),
+  std::fill(unused_segments_heads_, unused_segments_heads_ + kNumberBuckets,
             nullptr);
-  std::fill(
-      unused_segments_sizes,
-      unused_segments_sizes + (1 + kMaxSegmentSizePower - kMinSegmentSizePower),
-      0);
+  std::fill(unused_segments_sizes_, unused_segments_sizes_ + kNumberBuckets, 0);
+  std::fill(unused_segments_max_sizes_,
+            unused_segments_max_sizes_ + kNumberBuckets, kDefaultBucketMaxSize);
 }
 
 AccountingAllocator::~AccountingAllocator() { ClearPool(); }
@@ -33,6 +32,39 @@ void AccountingAllocator::MemoryPressureNotification(
 
   if (level != MemoryPressureLevel::kNone) {
     ClearPool();
+  }
+}
+
+void AccountingAllocator::ConfigureSegmentPool(const size_t max_pool_size) {
+  // The sum of the bytes of one segment of each size.
+  static const size_t full_size = (size_t(1) << (kMaxSegmentSizePower + 1)) -
+                                  (size_t(1) << kMinSegmentSizePower);
+  size_t fits_fully = max_pool_size / full_size;
+
+  base::LockGuard<base::Mutex> lock_guard(&unused_segments_mutex_);
+
+  // We assume few zones (less than 'fits_fully' many) to be active at the same
+  // time. When zones grow regularly, they will keep requesting segments of
+  // increasing size each time. Therefore we try to get as many segments with an
+  // equal number of segments of each size as possible.
+  // The remaining space is used to make more room for an 'incomplete set' of
+  // segments beginning with the smaller ones.
+  // This code will work best if the max_pool_size is a multiple of the
+  // full_size. If max_pool_size is no sum of segment sizes the actual pool
+  // size might be smaller then max_pool_size. Note that no actual memory gets
+  // wasted though.
+  // TODO(heimbuef): Determine better strategy generating a segment sizes
+  // distribution that is closer to real/benchmark usecases and uses the given
+  // max_pool_size more efficiently.
+  size_t total_size = fits_fully * full_size;
+
+  for (size_t power = 0; power < kNumberBuckets; ++power) {
+    if (total_size + (size_t(1) << power) <= max_pool_size) {
+      unused_segments_max_sizes_[power] = fits_fully + 1;
+      total_size += size_t(1) << power;
+    } else {
+      unused_segments_max_sizes_[power] = fits_fully;
+    }
   }
 }
 
@@ -93,7 +125,7 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
     return nullptr;
   }
 
-  uint8_t power = kMinSegmentSizePower;
+  size_t power = kMinSegmentSizePower;
   while (requested_size > (static_cast<size_t>(1) << power)) power++;
 
   DCHECK_GE(power, kMinSegmentSizePower + 0);
@@ -109,7 +141,7 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
       unused_segments_heads_[power] = segment->next();
       segment->set_next(nullptr);
 
-      unused_segments_sizes[power]--;
+      unused_segments_sizes_[power]--;
       base::NoBarrier_AtomicIncrement(
           &current_pool_size_, -static_cast<base::AtomicWord>(segment->size()));
     }
@@ -128,7 +160,7 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
 
   if (size < (1 << kMinSegmentSizePower)) return false;
 
-  uint8_t power = kMaxSegmentSizePower;
+  size_t power = kMaxSegmentSizePower;
 
   while (size < (static_cast<size_t>(1) << power)) power--;
 
@@ -138,14 +170,14 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
   {
     base::LockGuard<base::Mutex> lock_guard(&unused_segments_mutex_);
 
-    if (unused_segments_sizes[power] >= kMaxSegmentsPerBucket) {
+    if (unused_segments_sizes_[power] >= unused_segments_max_sizes_[power]) {
       return false;
     }
 
     segment->set_next(unused_segments_heads_[power]);
     unused_segments_heads_[power] = segment;
     base::NoBarrier_AtomicIncrement(&current_pool_size_, size);
-    unused_segments_sizes[power]++;
+    unused_segments_sizes_[power]++;
   }
 
   return true;
@@ -154,7 +186,7 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
 void AccountingAllocator::ClearPool() {
   base::LockGuard<base::Mutex> lock_guard(&unused_segments_mutex_);
 
-  for (uint8_t power = 0; power <= kMaxSegmentSizePower - kMinSegmentSizePower;
+  for (size_t power = 0; power <= kMaxSegmentSizePower - kMinSegmentSizePower;
        power++) {
     Segment* current = unused_segments_heads_[power];
     while (current) {
