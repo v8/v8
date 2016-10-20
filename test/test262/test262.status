@@ -105,20 +105,11 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5123
   'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/coerce-unicode': [FAIL],
 
   ###### END REGEXP SUBCLASSING SECTION ######
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
-  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-lastindex-err': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
@@ -460,11 +451,14 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5334
-  'built-ins/Proxy/setPrototypeOf/internals-call-order': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5336
   'language/expressions/super/call-proto-not-ctor': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5546
+  'language/expressions/tagged-template/invalid-escape-sequences': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5537
+  'built-ins/global/*': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
