@@ -1015,8 +1015,13 @@ void Module::ModuleVerify() {
 
   CHECK(module_namespace()->IsUndefined(GetIsolate()) ||
         module_namespace()->IsJSModuleNamespace());
+  if (module_namespace()->IsJSModuleNamespace()) {
+    CHECK_EQ(JSModuleNamespace::cast(module_namespace())->module(), this);
+  }
 
-  // TODO(neis): Check more.
+  CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
+
+  CHECK_NE(hash(), 0);
 }
 
 void PrototypeInfo::PrototypeInfoVerify() {
