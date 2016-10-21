@@ -34,9 +34,8 @@ class RegExpUtils : public AllStatic {
   // Includes checking of the match property.
   static Maybe<bool> IsRegExp(Isolate* isolate, Handle<Object> object);
 
-  // Checks whether the given object is an unmodified JSRegExp instance.
-  // Neither the object's map, nor its prototype's map may be modified.
-  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj);
+  // Checks whether exec is identical to the initial RegExp.prototype.exec.
+  static bool IsBuiltinExec(Handle<Object> exec);
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )

@@ -105,6 +105,10 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5123
+  'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/coerce-unicode': [FAIL],
+
   ###### END REGEXP SUBCLASSING SECTION ######
 
   # https://code.google.com/p/v8/issues/detail?id=4360

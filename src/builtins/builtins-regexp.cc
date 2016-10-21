@@ -1290,16 +1290,22 @@ BUILTIN(RegExpPrototypeSplit) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
                                      Object::ToString(isolate, string_obj));
 
-  if (RegExpUtils::IsUnmodifiedRegExp(isolate, recv)) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate,
-        RegExpSplit(isolate, Handle<JSRegExp>::cast(recv), string, limit_obj));
-  }
-
   Handle<JSFunction> regexp_fun = isolate->regexp_function();
   Handle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, ctor, SpeciesConstructor(isolate, recv, regexp_fun));
+
+  if (recv->IsJSRegExp() && *ctor == *regexp_fun) {
+    Handle<Object> exec;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, exec, JSObject::GetProperty(
+                           recv, factory->NewStringFromAsciiChecked("exec")));
+    if (RegExpUtils::IsBuiltinExec(exec)) {
+      RETURN_RESULT_OR_FAILURE(
+          isolate, RegExpSplit(isolate, Handle<JSRegExp>::cast(recv), string,
+                               limit_obj));
+    }
+  }
 
   Handle<Object> flags_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
