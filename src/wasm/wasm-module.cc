@@ -1906,6 +1906,12 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
   Handle<FixedArray> code_table = GetCompiledModule(*instance)->code_table();
   RelocateMemoryReferencesInCode(code_table, old_mem_start, new_mem_start,
                                  old_size, new_size);
+  Handle<Object> memory_object(instance->GetInternalField(kWasmMemObject),
+                               isolate);
+  if (!memory_object->IsUndefined(isolate)) {
+    WasmJs::SetWasmMemoryArrayBuffer(isolate, memory_object, buffer);
+  }
+
   DCHECK(old_size % WasmModule::kPageSize == 0);
   return (old_size / WasmModule::kPageSize);
 }

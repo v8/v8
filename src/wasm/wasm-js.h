@@ -33,6 +33,9 @@ class WasmJs {
   static Handle<JSArrayBuffer> GetWasmMemoryArrayBuffer(Isolate* isolate,
                                                         Handle<Object> value);
 
+  static void SetWasmMemoryArrayBuffer(Isolate* isolate, Handle<Object> value,
+                                       Handle<JSArrayBuffer> buffer);
+
   static uint32_t GetWasmMemoryMaximumSize(Isolate* isolate,
                                            Handle<Object> value);
 

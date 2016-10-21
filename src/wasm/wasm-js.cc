@@ -956,6 +956,12 @@ Handle<JSArrayBuffer> WasmJs::GetWasmMemoryArrayBuffer(Isolate* isolate,
   return Handle<JSArrayBuffer>::cast(buf);
 }
 
+void WasmJs::SetWasmMemoryArrayBuffer(Isolate* isolate, Handle<Object> value,
+                                      Handle<JSArrayBuffer> buffer) {
+  DCHECK(IsWasmMemoryObject(isolate, value));
+  JSObject::cast(*value)->SetInternalField(kWasmMemoryBuffer, *buffer);
+}
+
 uint32_t WasmJs::GetWasmMemoryMaximumSize(Isolate* isolate,
                                           Handle<Object> value) {
   DCHECK(IsWasmMemoryObject(isolate, value));

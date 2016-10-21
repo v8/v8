@@ -181,3 +181,21 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
   assertThrows(() => memory.grow(16381));
 })();
+
+(function ImportedMemoryBufferLength() {
+  print("ImportedMemoryBufferLength");
+  let memory = new WebAssembly.Memory({initial: 2, maximum: 10});
+  assertEquals(2*kPageSize, memory.buffer.byteLength);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("grow", kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprGrowMemory])
+      .exportFunc();
+  builder.addImportedMemory("mine");
+  let instance = builder.instantiate({mine: memory});
+  function grow(pages) { return instance.exports.grow(pages); }
+  assertEquals(2, grow(3));
+  assertEquals(5*kPageSize, memory.buffer.byteLength);
+  assertEquals(5, grow(5));
+  assertEquals(10*kPageSize, memory.buffer.byteLength);
+  assertThrows(() => memory.grow(1));
+})();
