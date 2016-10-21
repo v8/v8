@@ -443,6 +443,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                Node* receiver, Node* arg1, size_t result_size = 1);
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
+  Node* CallJS(Callable const& callable, Node* context, Node* function,
+               Node* receiver, Node* arg1, Node* arg2, Node* arg3,
+               size_t result_size = 1);
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,

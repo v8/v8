@@ -930,6 +930,24 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
+Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
+                            Node* function, Node* receiver, Node* arg1,
+                            Node* arg2, Node* arg3, size_t result_size) {
+  const int argc = 3;
+  Node* target = HeapConstant(callable.code());
+
+  Node** args = zone()->NewArray<Node*>(argc + 4);
+  args[0] = function;
+  args[1] = Int32Constant(argc);
+  args[2] = receiver;
+  args[3] = arg1;
+  args[4] = arg2;
+  args[5] = arg3;
+  args[6] = context;
+
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
+}
+
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,

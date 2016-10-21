@@ -1440,10 +1440,233 @@ BUILTIN(RegExpPrototypeSplit) {
 
 namespace {
 
-compiler::Node* ReplaceFastPath(CodeStubAssembler* a, compiler::Node* context,
-                                compiler::Node* regexp,
-                                compiler::Node* subject_string,
-                                compiler::Node* replace_string) {
+compiler::Node* ReplaceGlobalCallableFastPath(
+    CodeStubAssembler* a, compiler::Node* context, compiler::Node* regexp,
+    compiler::Node* subject_string, compiler::Node* replace_callable) {
+  // The fast path is reached only if {receiver} is a global unmodified
+  // JSRegExp instance and {replace_callable} is callable.
+
+  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Isolate* const isolate = a->isolate();
+
+  Node* const null = a->NullConstant();
+  Node* const undefined = a->UndefinedConstant();
+  Node* const int_zero = a->IntPtrConstant(0);
+  Node* const int_one = a->IntPtrConstant(1);
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
+
+  Node* const native_context = a->LoadNativeContext(context);
+
+  Label out(a);
+  Variable var_result(a, MachineRepresentation::kTagged);
+
+  // Set last index to 0.
+  FastStoreLastIndex(a, context, regexp, smi_zero);
+
+  // Allocate {result_array}.
+  Node* result_array;
+  {
+    ElementsKind kind = FAST_ELEMENTS;
+    Node* const array_map = a->LoadJSArrayElementsMap(kind, native_context);
+    Node* const capacity = a->IntPtrConstant(16);
+    Node* const length = smi_zero;
+    Node* const allocation_site = nullptr;
+    CodeStubAssembler::ParameterMode capacity_mode =
+        CodeStubAssembler::INTPTR_PARAMETERS;
+
+    result_array = a->AllocateJSArray(kind, array_map, capacity, length,
+                                      allocation_site, capacity_mode);
+  }
+
+  // Call into runtime for RegExpExecMultiple.
+  Node* last_match_info = a->LoadContextElement(
+      native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
+  Node* const res =
+      a->CallRuntime(Runtime::kRegExpExecMultiple, context, regexp,
+                     subject_string, last_match_info, result_array);
+
+  // Reset last index to 0.
+  FastStoreLastIndex(a, context, regexp, smi_zero);
+
+  // If no matches, return the subject string.
+  var_result.Bind(subject_string);
+  a->GotoIf(a->WordEqual(res, null), &out);
+
+  // Reload last match info since it might have changed.
+  last_match_info = a->LoadContextElement(
+      native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
+
+  Node* const res_length = a->LoadJSArrayLength(res);
+  Node* const res_elems = a->LoadElements(res);
+  a->AssertInstanceType(res_elems, FIXED_ARRAY_TYPE);
+
+  CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
+  Node* const num_capture_registers = a->LoadFixedArrayElement(
+      last_match_info,
+      a->IntPtrConstant(RegExpMatchInfo::kNumberOfCapturesIndex), 0, mode);
+
+  Label if_hasexplicitcaptures(a), if_noexplicitcaptures(a), create_result(a);
+  a->Branch(a->SmiEqual(num_capture_registers, a->SmiConstant(Smi::FromInt(2))),
+            &if_noexplicitcaptures, &if_hasexplicitcaptures);
+
+  a->Bind(&if_noexplicitcaptures);
+  {
+    // If the number of captures is two then there are no explicit captures in
+    // the regexp, just the implicit capture that captures the whole match. In
+    // this case we can simplify quite a bit and end up with something faster.
+    // The builder will consist of some integers that indicate slices of the
+    // input string and some replacements that were returned from the replace
+    // function.
+
+    Variable var_match_start(a, MachineRepresentation::kTagged);
+    var_match_start.Bind(smi_zero);
+
+    Node* const end = a->SmiUntag(res_length);
+    Variable var_i(a, MachineType::PointerRepresentation());
+    var_i.Bind(int_zero);
+
+    Variable* vars[] = {&var_i, &var_match_start};
+    Label loop(a, 2, vars);
+    a->Goto(&loop);
+    a->Bind(&loop);
+    {
+      Node* const i = var_i.value();
+      a->GotoUnless(a->IntPtrLessThan(i, end), &create_result);
+
+      CodeStubAssembler::ParameterMode mode =
+          CodeStubAssembler::INTPTR_PARAMETERS;
+      Node* const elem = a->LoadFixedArrayElement(res_elems, i, 0, mode);
+
+      Label if_issmi(a), if_isstring(a), loop_epilogue(a);
+      a->Branch(a->TaggedIsSmi(elem), &if_issmi, &if_isstring);
+
+      a->Bind(&if_issmi);
+      {
+        // Integers represent slices of the original string.
+        Label if_isnegativeorzero(a), if_ispositive(a);
+        a->BranchIfSmiLessThanOrEqual(elem, smi_zero, &if_isnegativeorzero,
+                                      &if_ispositive);
+
+        a->Bind(&if_ispositive);
+        {
+          Node* const int_elem = a->SmiUntag(elem);
+          Node* const new_match_start =
+              a->IntPtrAdd(a->WordShr(int_elem, a->IntPtrConstant(11)),
+                           a->WordAnd(int_elem, a->IntPtrConstant(0x7ff)));
+          var_match_start.Bind(a->SmiTag(new_match_start));
+          a->Goto(&loop_epilogue);
+        }
+
+        a->Bind(&if_isnegativeorzero);
+        {
+          Node* const next_i = a->IntPtrAdd(i, int_one);
+          var_i.Bind(next_i);
+
+          Node* const next_elem =
+              a->LoadFixedArrayElement(res_elems, next_i, 0, mode);
+
+          Node* const new_match_start = a->SmiSub(next_elem, elem);
+          var_match_start.Bind(new_match_start);
+          a->Goto(&loop_epilogue);
+        }
+      }
+
+      a->Bind(&if_isstring);
+      {
+        a->Assert(a->IsStringInstanceType(a->LoadInstanceType(elem)));
+
+        Callable call_callable = CodeFactory::Call(isolate);
+        Node* const replacement_obj =
+            a->CallJS(call_callable, context, replace_callable, undefined, elem,
+                      var_match_start.value(), subject_string);
+
+        Node* const replacement_str = a->ToString(context, replacement_obj);
+        a->StoreFixedArrayElement(res_elems, i, replacement_str);
+
+        Node* const elem_length = a->LoadStringLength(elem);
+        Node* const new_match_start =
+            a->SmiAdd(var_match_start.value(), elem_length);
+        var_match_start.Bind(new_match_start);
+
+        a->Goto(&loop_epilogue);
+      }
+
+      a->Bind(&loop_epilogue);
+      {
+        var_i.Bind(a->IntPtrAdd(var_i.value(), int_one));
+        a->Goto(&loop);
+      }
+    }
+  }
+
+  a->Bind(&if_hasexplicitcaptures);
+  {
+    CodeStubAssembler::ParameterMode mode =
+        CodeStubAssembler::INTPTR_PARAMETERS;
+
+    Node* const from = int_zero;
+    Node* const to = a->SmiUntag(res_length);
+    const int increment = 1;
+
+    a->BuildFastLoop(
+        MachineType::PointerRepresentation(), from, to,
+        [res_elems, isolate, native_context, context, undefined,
+         replace_callable, mode](CodeStubAssembler* a, Node* index) {
+          Node* const elem =
+              a->LoadFixedArrayElement(res_elems, index, 0, mode);
+
+          Label do_continue(a);
+          a->GotoIf(a->TaggedIsSmi(elem), &do_continue);
+
+          // elem must be an Array.
+          // Use the apply argument as backing for global RegExp properties.
+
+          a->AssertInstanceType(elem, JS_ARRAY_TYPE);
+
+          // TODO(jgruber): Remove indirection through Call->ReflectApply.
+          Callable call_callable = CodeFactory::Call(isolate);
+          Node* const reflect_apply = a->LoadContextElement(
+              native_context, Context::REFLECT_APPLY_INDEX);
+
+          Node* const replacement_obj =
+              a->CallJS(call_callable, context, reflect_apply, undefined,
+                        replace_callable, undefined, elem);
+
+          // Overwrite the i'th element in the results with the string we got
+          // back from the callback function.
+
+          Node* const replacement_str = a->ToString(context, replacement_obj);
+          a->StoreFixedArrayElement(res_elems, index, replacement_str,
+                                    UPDATE_WRITE_BARRIER, mode);
+
+          a->Goto(&do_continue);
+          a->Bind(&do_continue);
+        },
+        increment, CodeStubAssembler::IndexAdvanceMode::kPost);
+
+    a->Goto(&create_result);
+  }
+
+  a->Bind(&create_result);
+  {
+    Node* const result = a->CallRuntime(Runtime::kStringBuilderConcat, context,
+                                        res, res_length, subject_string);
+    var_result.Bind(result);
+    a->Goto(&out);
+  }
+
+  a->Bind(&out);
+  return var_result.value();
+}
+
+compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
+                                            compiler::Node* context,
+                                            compiler::Node* regexp,
+                                            compiler::Node* subject_string,
+                                            compiler::Node* replace_string) {
   // The fast path is reached only if {receiver} is an unmodified
   // JSRegExp instance, {replace_value} is non-callable, and
   // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
@@ -1574,7 +1797,6 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   Node* const context = a->Parameter(5);
 
   Node* const int_zero = a->IntPtrConstant(0);
-  Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
   // Ensure {receiver} is a JSReceiver.
   Node* const map =
@@ -1595,7 +1817,7 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   Node* const regexp = receiver;
 
   // 2. Is {replace_value} callable?
-  Label checkreplacestring(a), if_iscallable(a, Label::kDeferred);
+  Label checkreplacestring(a), if_iscallable(a);
   a->GotoIf(a->TaggedIsSmi(replace_value), &checkreplacestring);
 
   Node* const replace_value_map = a->LoadMap(replace_value);
@@ -1615,7 +1837,8 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
                               smi_minusone),
                   &runtime);
 
-    a->Return(ReplaceFastPath(a, context, regexp, string, replace_string));
+    a->Return(ReplaceSimpleStringFastPath(a, context, regexp, string,
+                                          replace_string));
   }
 
   // {regexp} is unmodified and {replace_value} is callable.
@@ -1630,10 +1853,8 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
 
     a->Bind(&if_isglobal);
     {
-      FastStoreLastIndex(a, context, regexp, smi_zero);
-      Node* const result =
-          a->CallRuntime(Runtime::kStringReplaceGlobalRegExpWithFunction,
-                         context, string, regexp, replace_callable);
+      Node* const result = ReplaceGlobalCallableFastPath(
+          a, context, regexp, string, replace_callable);
       a->Return(result);
     }
 
