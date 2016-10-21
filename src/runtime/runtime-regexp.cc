@@ -1500,6 +1500,13 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   string = String::Flatten(string);
 
+  // Fast-path for unmodified JSRegExps.
+  if (RegExpUtils::IsUnmodifiedRegExp(isolate, recv)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, RegExpReplace(isolate, Handle<JSRegExp>::cast(recv), string,
+                               replace_obj));
+  }
+
   const int length = string->length();
   const bool functional_replace = replace_obj->IsCallable();
 
@@ -1527,35 +1534,14 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));
   }
 
-  // TODO(jgruber): Here and at all other fast path checks, rely on map checks
-  // instead.
-  // TODO(jgruber): We could speed up the fast path by checking flags
-  // afterwards, but that would violate the spec (which states that exec is
-  // accessed after global and unicode).
-  // TODO(adamk): this fast path is wrong as we doesn't ensure that 'exec'
-  // is actually a data property on RegExp.prototype.
-  Handle<Object> exec = factory->undefined_value();
-  if (recv->IsJSRegExp()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, exec, JSObject::GetProperty(
-                           recv, factory->NewStringFromAsciiChecked("exec")));
-    if (RegExpUtils::IsBuiltinExec(exec)) {
-      RETURN_RESULT_OR_FAILURE(
-          isolate, RegExpReplace(isolate, Handle<JSRegExp>::cast(recv), string,
-                                 replace_obj));
-    }
-  }
-
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneVector<Handle<Object>> results(&zone);
 
   while (true) {
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, RegExpUtils::RegExpExec(isolate, recv, string, exec));
-
-    // Ensure exec will be read again on the next loop through.
-    exec = factory->undefined_value();
+        isolate, result, RegExpUtils::RegExpExec(isolate, recv, string,
+                                                 factory->undefined_value()));
 
     if (result->IsNull(isolate)) break;
 

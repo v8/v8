@@ -136,13 +136,24 @@ Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
   return Just(object->IsJSRegExp());
 }
 
-bool RegExpUtils::IsBuiltinExec(Handle<Object> exec) {
-  if (!exec->IsJSFunction()) return false;
+bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
+  // TODO(ishell): Update this check once map changes for constant field
+  // tracking are landing.
 
-  Code* code = Handle<JSFunction>::cast(exec)->code();
-  if (code == nullptr) return false;
+  if (!obj->IsJSReceiver()) return false;
 
-  return (code->builtin_index() == Builtins::kRegExpPrototypeExec);
+  JSReceiver* recv = JSReceiver::cast(*obj);
+
+  // Check the receiver's map.
+  Handle<JSFunction> regexp_function = isolate->regexp_function();
+  if (recv->map() != regexp_function->initial_map()) return false;
+
+  // Check the receiver's prototype's map.
+  Object* proto = recv->map()->prototype();
+  if (!proto->IsJSReceiver()) return false;
+
+  Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
+  return (JSReceiver::cast(proto)->map() == *initial_proto_initial_map);
 }
 
 int RegExpUtils::AdvanceStringIndex(Isolate* isolate, Handle<String> string,
