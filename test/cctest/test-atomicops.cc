@@ -193,6 +193,11 @@ static void TestStore() {
   NoBarrier_Store(&value, kVal2);
   CHECK_EQU(kVal2, value);
 
+  Acquire_Store(&value, kVal1);
+  CHECK_EQU(kVal1, value);
+  Acquire_Store(&value, kVal2);
+  CHECK_EQU(kVal2, value);
+
   Release_Store(&value, kVal1);
   CHECK_EQU(kVal1, value);
   Release_Store(&value, kVal2);
@@ -233,6 +238,11 @@ static void TestLoad() {
   CHECK_EQU(kVal1, Acquire_Load(&value));
   value = kVal2;
   CHECK_EQU(kVal2, Acquire_Load(&value));
+
+  value = kVal1;
+  CHECK_EQU(kVal1, Release_Load(&value));
+  value = kVal2;
+  CHECK_EQU(kVal2, Release_Load(&value));
 }
 
 
