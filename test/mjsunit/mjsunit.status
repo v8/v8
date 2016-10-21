@@ -157,19 +157,6 @@
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
 
-  # TODO(titzer): ASM->WASM tests on these platforms
-  'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  # TODO(branelson): Figure out why ignition + asm-wasm-stdlib fails.
-  # TODO(branelson): The old status entry was misconfigured as it added
-  # "or ignition == True". This was deprecated at some point and was never
-  # true. Essentially the next lines skip the tests for a bunch of
-  # architectures.
-  'wasm/asm-wasm-stdlib': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-literals': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-copy': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-deopt': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-switch': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'es6/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
