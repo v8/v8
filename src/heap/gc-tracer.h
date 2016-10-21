@@ -49,6 +49,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_CLEAR_WEAK_CELLS)                      \
   F(MC_CLEAR_WEAK_COLLECTIONS)                \
   F(MC_CLEAR_WEAK_LISTS)                      \
+  F(MC_EPILOGUE)                              \
   F(MC_EVACUATE)                              \
   F(MC_EVACUATE_CANDIDATES)                   \
   F(MC_EVACUATE_CLEAN_UP)                     \
@@ -73,6 +74,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_MARK_WRAPPER_PROLOGUE)                 \
   F(MC_MARK_WRAPPER_TRACING)                  \
   F(MC_MARK_OBJECT_GROUPING)                  \
+  F(MC_PROLOGUE)                              \
   F(MC_SWEEP)                                 \
   F(MC_SWEEP_CODE)                            \
   F(MC_SWEEP_MAP)                             \

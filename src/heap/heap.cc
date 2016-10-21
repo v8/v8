@@ -1447,6 +1447,7 @@ void Heap::MarkCompact() {
 
 
 void Heap::MarkCompactEpilogue() {
+  TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
   gc_state_ = NOT_IN_GC;
 
   isolate_->counters()->objs_since_last_full()->Set(0);
@@ -1465,6 +1466,7 @@ void Heap::MarkCompactEpilogue() {
 
 
 void Heap::MarkCompactPrologue() {
+  TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
   RegExpResultsCache::Clear(string_split_cache());
