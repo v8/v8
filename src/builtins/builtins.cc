@@ -84,7 +84,8 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate,
                                    Code::Flags flags, const char* name) {
   HandleScope scope(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
-  CodeStubAssembler assembler(isolate, &zone, argc, flags, name);
+  const int argc_with_recv = argc + 1;
+  CodeStubAssembler assembler(isolate, &zone, argc_with_recv, flags, name);
   generator(&assembler);
   Handle<Code> code = assembler.GenerateCode();
   PostBuildProfileAndTracing(isolate, *code, name);

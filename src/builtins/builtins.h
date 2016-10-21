@@ -213,10 +213,10 @@ namespace internal {
   ASM(InternalArrayCode)                                                      \
   CPP(ArrayConcat)                                                            \
   /* ES6 section 22.1.2.2 Array.isArray */                                    \
-  TFJ(ArrayIsArray, 2)                                                        \
+  TFJ(ArrayIsArray, 1)                                                        \
   /* ES7 #sec-array.prototype.includes */                                     \
-  TFJ(ArrayIncludes, 3)                                                       \
-  TFJ(ArrayIndexOf, 3)                                                        \
+  TFJ(ArrayIncludes, 2)                                                       \
+  TFJ(ArrayIndexOf, 2)                                                        \
   CPP(ArrayPop)                                                               \
   CPP(ArrayPush)                                                              \
   CPP(ArrayShift)                                                             \
@@ -224,13 +224,13 @@ namespace internal {
   CPP(ArraySplice)                                                            \
   CPP(ArrayUnshift)                                                           \
   /* ES6 #sec-array.prototype.entries */                                      \
-  TFJ(ArrayPrototypeEntries, 1)                                               \
+  TFJ(ArrayPrototypeEntries, 0)                                               \
   /* ES6 #sec-array.prototype.keys */                                         \
-  TFJ(ArrayPrototypeKeys, 1)                                                  \
+  TFJ(ArrayPrototypeKeys, 0)                                                  \
   /* ES6 #sec-array.prototype.values */                                       \
-  TFJ(ArrayPrototypeValues, 1)                                                \
+  TFJ(ArrayPrototypeValues, 0)                                                \
   /* ES6 #sec-%arrayiteratorprototype%.next */                                \
-  TFJ(ArrayIteratorPrototypeNext, 1)                                          \
+  TFJ(ArrayIteratorPrototypeNext, 0)                                          \
                                                                               \
   /* ArrayBuffer */                                                           \
   CPP(ArrayBufferConstructor)                                                 \
@@ -242,9 +242,9 @@ namespace internal {
   CPP(BooleanConstructor)                                                     \
   CPP(BooleanConstructor_ConstructStub)                                       \
   /* ES6 section 19.3.3.2 Boolean.prototype.toString ( ) */                   \
-  TFJ(BooleanPrototypeToString, 1)                                            \
+  TFJ(BooleanPrototypeToString, 0)                                            \
   /* ES6 section 19.3.3.3 Boolean.prototype.valueOf ( ) */                    \
-  TFJ(BooleanPrototypeValueOf, 1)                                             \
+  TFJ(BooleanPrototypeValueOf, 0)                                             \
                                                                               \
   /* CallSite */                                                              \
   CPP(CallSitePrototypeGetColumnNumber)                                       \
@@ -291,41 +291,41 @@ namespace internal {
   CPP(DateConstructor)                                                        \
   CPP(DateConstructor_ConstructStub)                                          \
   /* ES6 section 20.3.4.2 Date.prototype.getDate ( ) */                       \
-  TFJ(DatePrototypeGetDate, 1)                                                \
+  TFJ(DatePrototypeGetDate, 0)                                                \
   /* ES6 section 20.3.4.3 Date.prototype.getDay ( ) */                        \
-  TFJ(DatePrototypeGetDay, 1)                                                 \
+  TFJ(DatePrototypeGetDay, 0)                                                 \
   /* ES6 section 20.3.4.4 Date.prototype.getFullYear ( ) */                   \
-  TFJ(DatePrototypeGetFullYear, 1)                                            \
+  TFJ(DatePrototypeGetFullYear, 0)                                            \
   /* ES6 section 20.3.4.5 Date.prototype.getHours ( ) */                      \
-  TFJ(DatePrototypeGetHours, 1)                                               \
+  TFJ(DatePrototypeGetHours, 0)                                               \
   /* ES6 section 20.3.4.6 Date.prototype.getMilliseconds ( ) */               \
-  TFJ(DatePrototypeGetMilliseconds, 1)                                        \
+  TFJ(DatePrototypeGetMilliseconds, 0)                                        \
   /* ES6 section 20.3.4.7 Date.prototype.getMinutes ( ) */                    \
-  TFJ(DatePrototypeGetMinutes, 1)                                             \
+  TFJ(DatePrototypeGetMinutes, 0)                                             \
   /* ES6 section 20.3.4.8 Date.prototype.getMonth */                          \
-  TFJ(DatePrototypeGetMonth, 1)                                               \
+  TFJ(DatePrototypeGetMonth, 0)                                               \
   /* ES6 section 20.3.4.9 Date.prototype.getSeconds ( ) */                    \
-  TFJ(DatePrototypeGetSeconds, 1)                                             \
+  TFJ(DatePrototypeGetSeconds, 0)                                             \
   /* ES6 section 20.3.4.10 Date.prototype.getTime ( ) */                      \
-  TFJ(DatePrototypeGetTime, 1)                                                \
+  TFJ(DatePrototypeGetTime, 0)                                                \
   /* ES6 section 20.3.4.11 Date.prototype.getTimezoneOffset ( ) */            \
-  TFJ(DatePrototypeGetTimezoneOffset, 1)                                      \
+  TFJ(DatePrototypeGetTimezoneOffset, 0)                                      \
   /* ES6 section 20.3.4.12 Date.prototype.getUTCDate ( ) */                   \
-  TFJ(DatePrototypeGetUTCDate, 1)                                             \
+  TFJ(DatePrototypeGetUTCDate, 0)                                             \
   /* ES6 section 20.3.4.13 Date.prototype.getUTCDay ( ) */                    \
-  TFJ(DatePrototypeGetUTCDay, 1)                                              \
+  TFJ(DatePrototypeGetUTCDay, 0)                                              \
   /* ES6 section 20.3.4.14 Date.prototype.getUTCFullYear ( ) */               \
-  TFJ(DatePrototypeGetUTCFullYear, 1)                                         \
+  TFJ(DatePrototypeGetUTCFullYear, 0)                                         \
   /* ES6 section 20.3.4.15 Date.prototype.getUTCHours ( ) */                  \
-  TFJ(DatePrototypeGetUTCHours, 1)                                            \
+  TFJ(DatePrototypeGetUTCHours, 0)                                            \
   /* ES6 section 20.3.4.16 Date.prototype.getUTCMilliseconds ( ) */           \
-  TFJ(DatePrototypeGetUTCMilliseconds, 1)                                     \
+  TFJ(DatePrototypeGetUTCMilliseconds, 0)                                     \
   /* ES6 section 20.3.4.17 Date.prototype.getUTCMinutes ( ) */                \
-  TFJ(DatePrototypeGetUTCMinutes, 1)                                          \
+  TFJ(DatePrototypeGetUTCMinutes, 0)                                          \
   /* ES6 section 20.3.4.18 Date.prototype.getUTCMonth ( ) */                  \
-  TFJ(DatePrototypeGetUTCMonth, 1)                                            \
+  TFJ(DatePrototypeGetUTCMonth, 0)                                            \
   /* ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( ) */                \
-  TFJ(DatePrototypeGetUTCSeconds, 1)                                          \
+  TFJ(DatePrototypeGetUTCSeconds, 0)                                          \
   CPP(DatePrototypeGetYear)                                                   \
   CPP(DatePrototypeSetYear)                                                   \
   CPP(DateNow)                                                                \
@@ -371,17 +371,17 @@ namespace internal {
   CPP(FunctionPrototypeBind)                                                  \
   ASM(FunctionPrototypeCall)                                                  \
   /* ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V ) */       \
-  TFJ(FunctionPrototypeHasInstance, 2)                                        \
+  TFJ(FunctionPrototypeHasInstance, 1)                                        \
   CPP(FunctionPrototypeToString)                                              \
                                                                               \
   /* Generator and Async */                                                   \
   CPP(GeneratorFunctionConstructor)                                           \
   /* ES6 section 25.3.1.2 Generator.prototype.next ( value ) */               \
-  TFJ(GeneratorPrototypeNext, 2)                                              \
+  TFJ(GeneratorPrototypeNext, 1)                                              \
   /* ES6 section 25.3.1.3 Generator.prototype.return ( value ) */             \
-  TFJ(GeneratorPrototypeReturn, 2)                                            \
+  TFJ(GeneratorPrototypeReturn, 1)                                            \
   /* ES6 section 25.3.1.4 Generator.prototype.throw ( exception ) */          \
-  TFJ(GeneratorPrototypeThrow, 2)                                             \
+  TFJ(GeneratorPrototypeThrow, 1)                                             \
   CPP(AsyncFunctionConstructor)                                               \
                                                                               \
   /* Global object */                                                         \
@@ -393,12 +393,12 @@ namespace internal {
   CPP(GlobalUnescape)                                                         \
   CPP(GlobalEval)                                                             \
   /* ES6 section 18.2.2 isFinite ( number ) */                                \
-  TFJ(GlobalIsFinite, 2)                                                      \
+  TFJ(GlobalIsFinite, 1)                                                      \
   /* ES6 section 18.2.3 isNaN ( number ) */                                   \
-  TFJ(GlobalIsNaN, 2)                                                         \
+  TFJ(GlobalIsNaN, 1)                                                         \
                                                                               \
   /* ES6 #sec-%iteratorprototype%-@@iterator */                               \
-  TFJ(IteratorPrototypeIterator, 1)                                           \
+  TFJ(IteratorPrototypeIterator, 0)                                           \
                                                                               \
   /* JSON */                                                                  \
   CPP(JsonParse)                                                              \
@@ -406,75 +406,75 @@ namespace internal {
                                                                               \
   /* Math */                                                                  \
   /* ES6 section 20.2.2.1 Math.abs ( x ) */                                   \
-  TFJ(MathAbs, 2)                                                             \
+  TFJ(MathAbs, 1)                                                             \
   /* ES6 section 20.2.2.2 Math.acos ( x ) */                                  \
-  TFJ(MathAcos, 2)                                                            \
+  TFJ(MathAcos, 1)                                                            \
   /* ES6 section 20.2.2.3 Math.acosh ( x ) */                                 \
-  TFJ(MathAcosh, 2)                                                           \
+  TFJ(MathAcosh, 1)                                                           \
   /* ES6 section 20.2.2.4 Math.asin ( x ) */                                  \
-  TFJ(MathAsin, 2)                                                            \
+  TFJ(MathAsin, 1)                                                            \
   /* ES6 section 20.2.2.5 Math.asinh ( x ) */                                 \
-  TFJ(MathAsinh, 2)                                                           \
+  TFJ(MathAsinh, 1)                                                           \
   /* ES6 section 20.2.2.6 Math.atan ( x ) */                                  \
-  TFJ(MathAtan, 2)                                                            \
+  TFJ(MathAtan, 1)                                                            \
   /* ES6 section 20.2.2.7 Math.atanh ( x ) */                                 \
-  TFJ(MathAtanh, 2)                                                           \
+  TFJ(MathAtanh, 1)                                                           \
   /* ES6 section 20.2.2.8 Math.atan2 ( y, x ) */                              \
-  TFJ(MathAtan2, 3)                                                           \
+  TFJ(MathAtan2, 2)                                                           \
   /* ES6 section 20.2.2.9 Math.cbrt ( x ) */                                  \
-  TFJ(MathCbrt, 2)                                                            \
+  TFJ(MathCbrt, 1)                                                            \
   /* ES6 section 20.2.2.10 Math.ceil ( x ) */                                 \
-  TFJ(MathCeil, 2)                                                            \
+  TFJ(MathCeil, 1)                                                            \
   /* ES6 section 20.2.2.11 Math.clz32 ( x ) */                                \
-  TFJ(MathClz32, 2)                                                           \
+  TFJ(MathClz32, 1)                                                           \
   /* ES6 section 20.2.2.12 Math.cos ( x ) */                                  \
-  TFJ(MathCos, 2)                                                             \
+  TFJ(MathCos, 1)                                                             \
   /* ES6 section 20.2.2.13 Math.cosh ( x ) */                                 \
-  TFJ(MathCosh, 2)                                                            \
+  TFJ(MathCosh, 1)                                                            \
   /* ES6 section 20.2.2.14 Math.exp ( x ) */                                  \
-  TFJ(MathExp, 2)                                                             \
+  TFJ(MathExp, 1)                                                             \
   /* ES6 section 20.2.2.15 Math.expm1 ( x ) */                                \
-  TFJ(MathExpm1, 2)                                                           \
+  TFJ(MathExpm1, 1)                                                           \
   /* ES6 section 20.2.2.16 Math.floor ( x ) */                                \
-  TFJ(MathFloor, 2)                                                           \
+  TFJ(MathFloor, 1)                                                           \
   /* ES6 section 20.2.2.17 Math.fround ( x ) */                               \
-  TFJ(MathFround, 2)                                                          \
+  TFJ(MathFround, 1)                                                          \
   /* ES6 section 20.2.2.18 Math.hypot ( value1, value2, ...values ) */        \
   CPP(MathHypot)                                                              \
   /* ES6 section 20.2.2.19 Math.imul ( x, y ) */                              \
-  TFJ(MathImul, 3)                                                            \
+  TFJ(MathImul, 2)                                                            \
   /* ES6 section 20.2.2.20 Math.log ( x ) */                                  \
-  TFJ(MathLog, 2)                                                             \
+  TFJ(MathLog, 1)                                                             \
   /* ES6 section 20.2.2.21 Math.log1p ( x ) */                                \
-  TFJ(MathLog1p, 2)                                                           \
+  TFJ(MathLog1p, 1)                                                           \
   /* ES6 section 20.2.2.22 Math.log10 ( x ) */                                \
-  TFJ(MathLog10, 2)                                                           \
+  TFJ(MathLog10, 1)                                                           \
   /* ES6 section 20.2.2.23 Math.log2 ( x ) */                                 \
-  TFJ(MathLog2, 2)                                                            \
+  TFJ(MathLog2, 1)                                                            \
   /* ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values ) */         \
   ASM(MathMax)                                                                \
   /* ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values ) */         \
   ASM(MathMin)                                                                \
   /* ES6 section 20.2.2.26 Math.pow ( x, y ) */                               \
-  TFJ(MathPow, 3)                                                             \
+  TFJ(MathPow, 2)                                                             \
   /* ES6 section 20.2.2.27 Math.random */                                     \
-  TFJ(MathRandom, 1)                                                          \
+  TFJ(MathRandom, 0)                                                          \
   /* ES6 section 20.2.2.28 Math.round ( x ) */                                \
-  TFJ(MathRound, 2)                                                           \
+  TFJ(MathRound, 1)                                                           \
   /* ES6 section 20.2.2.29 Math.sign ( x ) */                                 \
-  TFJ(MathSign, 2)                                                            \
+  TFJ(MathSign, 1)                                                            \
   /* ES6 section 20.2.2.30 Math.sin ( x ) */                                  \
-  TFJ(MathSin, 2)                                                             \
+  TFJ(MathSin, 1)                                                             \
   /* ES6 section 20.2.2.31 Math.sinh ( x ) */                                 \
-  TFJ(MathSinh, 2)                                                            \
+  TFJ(MathSinh, 1)                                                            \
   /* ES6 section 20.2.2.32 Math.sqrt ( x ) */                                 \
-  TFJ(MathTan, 2)                                                             \
+  TFJ(MathTan, 1)                                                             \
   /* ES6 section 20.2.2.33 Math.tan ( x ) */                                  \
-  TFJ(MathTanh, 2)                                                            \
+  TFJ(MathTanh, 1)                                                            \
   /* ES6 section 20.2.2.34 Math.tanh ( x ) */                                 \
-  TFJ(MathSqrt, 2)                                                            \
+  TFJ(MathSqrt, 1)                                                            \
   /* ES6 section 20.2.2.35 Math.trunc ( x ) */                                \
-  TFJ(MathTrunc, 2)                                                           \
+  TFJ(MathTrunc, 1)                                                           \
                                                                               \
   /* Number */                                                                \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case */       \
@@ -482,24 +482,24 @@ namespace internal {
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */  \
   ASM(NumberConstructor_ConstructStub)                                        \
   /* ES6 section 20.1.2.2 Number.isFinite ( number ) */                       \
-  TFJ(NumberIsFinite, 2)                                                      \
+  TFJ(NumberIsFinite, 1)                                                      \
   /* ES6 section 20.1.2.3 Number.isInteger ( number ) */                      \
-  TFJ(NumberIsInteger, 2)                                                     \
+  TFJ(NumberIsInteger, 1)                                                     \
   /* ES6 section 20.1.2.4 Number.isNaN ( number ) */                          \
-  TFJ(NumberIsNaN, 2)                                                         \
+  TFJ(NumberIsNaN, 1)                                                         \
   /* ES6 section 20.1.2.5 Number.isSafeInteger ( number ) */                  \
-  TFJ(NumberIsSafeInteger, 2)                                                 \
+  TFJ(NumberIsSafeInteger, 1)                                                 \
   /* ES6 section 20.1.2.12 Number.parseFloat ( string ) */                    \
-  TFJ(NumberParseFloat, 2)                                                    \
+  TFJ(NumberParseFloat, 1)                                                    \
   /* ES6 section 20.1.2.13 Number.parseInt ( string, radix ) */               \
-  TFJ(NumberParseInt, 3)                                                      \
+  TFJ(NumberParseInt, 2)                                                      \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \
   CPP(NumberPrototypeToPrecision)                                             \
   CPP(NumberPrototypeToString)                                                \
   /* ES6 section 20.1.3.7 Number.prototype.valueOf ( ) */                     \
-  TFJ(NumberPrototypeValueOf, 1)                                              \
+  TFJ(NumberPrototypeValueOf, 0)                                              \
   TFS(Add, BUILTIN, kNoExtraICState, BinaryOp)                                \
   TFS(Subtract, BUILTIN, kNoExtraICState, BinaryOp)                           \
   TFS(Multiply, BUILTIN, kNoExtraICState, BinaryOp)                           \
@@ -522,7 +522,7 @@ namespace internal {
                                                                               \
   /* Object */                                                                \
   CPP(ObjectAssign)                                                           \
-  TFJ(ObjectCreate, 3)                                                        \
+  TFJ(ObjectCreate, 2)                                                        \
   CPP(ObjectDefineGetter)                                                     \
   CPP(ObjectDefineProperties)                                                 \
   CPP(ObjectDefineProperty)                                                   \
@@ -536,7 +536,7 @@ namespace internal {
   CPP(ObjectGetPrototypeOf)                                                   \
   CPP(ObjectSetPrototypeOf)                                                   \
   /* ES6 section 19.1.3.2 Object.prototype.hasOwnProperty */                  \
-  TFJ(ObjectHasOwnProperty, 2)                                                \
+  TFJ(ObjectHasOwnProperty, 1)                                                \
   CPP(ObjectIs)                                                               \
   CPP(ObjectIsExtensible)                                                     \
   CPP(ObjectIsFrozen)                                                         \
@@ -546,7 +546,7 @@ namespace internal {
   CPP(ObjectLookupSetter)                                                     \
   CPP(ObjectPreventExtensions)                                                \
   /* ES6 section 19.1.3.6 Object.prototype.toString () */                     \
-  TFJ(ObjectProtoToString, 1)                                                 \
+  TFJ(ObjectProtoToString, 0)                                                 \
   CPP(ObjectPrototypePropertyIsEnumerable)                                    \
   CPP(ObjectPrototypeGetProto)                                                \
   CPP(ObjectPrototypeSetProto)                                                \
@@ -587,45 +587,45 @@ namespace internal {
   CPP(RegExpCapture8Getter)                                                   \
   CPP(RegExpCapture9Getter)                                                   \
   CPP(RegExpConstructor)                                                      \
-  TFJ(RegExpInternalMatch, 3)                                                 \
+  TFJ(RegExpInternalMatch, 2)                                                 \
   CPP(RegExpInputGetter)                                                      \
   CPP(RegExpInputSetter)                                                      \
   CPP(RegExpLastMatchGetter)                                                  \
   CPP(RegExpLastParenGetter)                                                  \
   CPP(RegExpLeftContextGetter)                                                \
   CPP(RegExpPrototypeCompile)                                                 \
-  TFJ(RegExpPrototypeExec, 2)                                                 \
-  TFJ(RegExpPrototypeFlagsGetter, 1)                                          \
-  TFJ(RegExpPrototypeGlobalGetter, 1)                                         \
-  TFJ(RegExpPrototypeIgnoreCaseGetter, 1)                                     \
+  TFJ(RegExpPrototypeExec, 1)                                                 \
+  TFJ(RegExpPrototypeFlagsGetter, 0)                                          \
+  TFJ(RegExpPrototypeGlobalGetter, 0)                                         \
+  TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                     \
   CPP(RegExpPrototypeMatch)                                                   \
-  TFJ(RegExpPrototypeMultilineGetter, 1)                                      \
-  TFJ(RegExpPrototypeReplace, 3)                                              \
+  TFJ(RegExpPrototypeMultilineGetter, 0)                                      \
+  TFJ(RegExpPrototypeReplace, 2)                                              \
   CPP(RegExpPrototypeSearch)                                                  \
   CPP(RegExpPrototypeSourceGetter)                                            \
   CPP(RegExpPrototypeSpeciesGetter)                                           \
   CPP(RegExpPrototypeSplit)                                                   \
-  TFJ(RegExpPrototypeStickyGetter, 1)                                         \
+  TFJ(RegExpPrototypeStickyGetter, 0)                                         \
   CPP(RegExpPrototypeTest)                                                    \
   CPP(RegExpPrototypeToString)                                                \
-  TFJ(RegExpPrototypeUnicodeGetter, 1)                                        \
+  TFJ(RegExpPrototypeUnicodeGetter, 0)                                        \
   CPP(RegExpRightContextGetter)                                               \
                                                                               \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
-  TFJ(AtomicsLoad, 3)                                                         \
-  TFJ(AtomicsStore, 4)                                                        \
+  TFJ(AtomicsLoad, 2)                                                         \
+  TFJ(AtomicsStore, 3)                                                        \
                                                                               \
   /* String */                                                                \
   ASM(StringConstructor)                                                      \
   ASM(StringConstructor_ConstructStub)                                        \
   CPP(StringFromCodePoint)                                                    \
   /* ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits ) */             \
-  TFJ(StringFromCharCode, 2)                                                  \
+  TFJ(StringFromCharCode, 1)                                                  \
   /* ES6 section 21.1.3.1 String.prototype.charAt ( pos ) */                  \
-  TFJ(StringPrototypeCharAt, 2)                                               \
+  TFJ(StringPrototypeCharAt, 1)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \
-  TFJ(StringPrototypeCharCodeAt, 2)                                           \
+  TFJ(StringPrototypeCharCodeAt, 1)                                           \
   /* ES6 section 21.1.3.6 */                                                  \
   /* String.prototype.endsWith ( searchString [ , endPosition ] ) */          \
   CPP(StringPrototypeEndsWith)                                                \
@@ -643,49 +643,49 @@ namespace internal {
   /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */           \
   CPP(StringPrototypeNormalize)                                               \
   /* ES6 section B.2.3.1 String.prototype.substr ( start, length ) */         \
-  TFJ(StringPrototypeSubstr, 3)                                               \
+  TFJ(StringPrototypeSubstr, 2)                                               \
   /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */       \
-  TFJ(StringPrototypeSubstring, 3)                                            \
+  TFJ(StringPrototypeSubstring, 2)                                            \
   /* ES6 section 21.1.3.20 */                                                 \
   /* String.prototype.startsWith ( searchString [ , position ] ) */           \
   CPP(StringPrototypeStartsWith)                                              \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                    \
-  TFJ(StringPrototypeToString, 1)                                             \
+  TFJ(StringPrototypeToString, 0)                                             \
   CPP(StringPrototypeTrim)                                                    \
   CPP(StringPrototypeTrimLeft)                                                \
   CPP(StringPrototypeTrimRight)                                               \
   /* ES6 section 21.1.3.28 String.prototype.valueOf () */                     \
-  TFJ(StringPrototypeValueOf, 1)                                              \
+  TFJ(StringPrototypeValueOf, 0)                                              \
   /* ES6 #sec-string.prototype-@@iterator */                                  \
-  TFJ(StringPrototypeIterator, 1)                                             \
+  TFJ(StringPrototypeIterator, 0)                                             \
                                                                               \
   /* StringIterator */                                                        \
-  TFJ(StringIteratorPrototypeNext, 1)                                         \
+  TFJ(StringIteratorPrototypeNext, 0)                                         \
                                                                               \
   /* Symbol */                                                                \
   CPP(SymbolConstructor)                                                      \
   CPP(SymbolConstructor_ConstructStub)                                        \
   /* ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint ) */      \
-  TFJ(SymbolPrototypeToPrimitive, 2)                                          \
+  TFJ(SymbolPrototypeToPrimitive, 1)                                          \
   /* ES6 section 19.4.3.2 Symbol.prototype.toString ( ) */                    \
-  TFJ(SymbolPrototypeToString, 1)                                             \
+  TFJ(SymbolPrototypeToString, 0)                                             \
   /* ES6 section 19.4.3.3 Symbol.prototype.valueOf ( ) */                     \
-  TFJ(SymbolPrototypeValueOf, 1)                                              \
+  TFJ(SymbolPrototypeValueOf, 0)                                              \
                                                                               \
   /* TypedArray */                                                            \
   CPP(TypedArrayPrototypeBuffer)                                              \
   /* ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength */            \
-  TFJ(TypedArrayPrototypeByteLength, 1)                                       \
+  TFJ(TypedArrayPrototypeByteLength, 0)                                       \
   /* ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset */            \
-  TFJ(TypedArrayPrototypeByteOffset, 1)                                       \
+  TFJ(TypedArrayPrototypeByteOffset, 0)                                       \
   /* ES6 section 22.2.3.18 get %TypedArray%.prototype.length */               \
-  TFJ(TypedArrayPrototypeLength, 1)                                           \
+  TFJ(TypedArrayPrototypeLength, 0)                                           \
   /* ES6 #sec-%typedarray%.prototype.entries */                               \
-  TFJ(TypedArrayPrototypeEntries, 1)                                          \
+  TFJ(TypedArrayPrototypeEntries, 0)                                          \
   /* ES6 #sec-%typedarray%.prototype.keys */                                  \
-  TFJ(TypedArrayPrototypeKeys, 1)                                             \
+  TFJ(TypedArrayPrototypeKeys, 0)                                             \
   /* ES6 #sec-%typedarray%.prototype.values */                                \
-  TFJ(TypedArrayPrototypeValues, 1)                                           \
+  TFJ(TypedArrayPrototypeValues, 0)                                           \
                                                                               \
   CPP(ModuleNamespaceIterator)                                                \
   CPP(FixedArrayIteratorNext)
