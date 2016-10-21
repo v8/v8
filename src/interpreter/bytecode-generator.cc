@@ -2042,8 +2042,14 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
       builder()
           ->StoreAccumulatorInRegister(args[1])
           .LoadLiteral(it->second->export_name->string())
-          .StoreAccumulatorInRegister(args[0])
-          .CallRuntime(Runtime::kStoreModuleExport, args);
+          .StoreAccumulatorInRegister(args[0]);
+      if (needs_hole_check) {
+        builder()->CallRuntime(Runtime::kLoadModuleExport, args[0]);
+        BuildHoleCheckForVariableAssignment(variable, op);
+      }
+      builder()
+          ->CallRuntime(Runtime::kStoreModuleExport, args)
+          .LoadAccumulatorWithRegister(args[1]);
       break;
     }
   }
