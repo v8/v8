@@ -20,6 +20,7 @@ class Processor final : public AstVisitor<Processor> {
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
         factory_(ast_value_factory) {
@@ -33,6 +34,7 @@ class Processor final : public AstVisitor<Processor> {
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
         factory_(ast_value_factory) {
@@ -77,6 +79,22 @@ class Processor final : public AstVisitor<Processor> {
   // was hoping for.
   bool is_set_;
 
+  bool breakable_;
+
+  class BreakableScope final {
+   public:
+    explicit BreakableScope(Processor* processor, bool breakable = true)
+        : processor_(processor), previous_(processor->breakable_) {
+      processor->breakable_ = processor->breakable_ || breakable;
+    }
+
+    ~BreakableScope() { processor_->breakable_ = previous_; }
+
+   private:
+    Processor* processor_;
+    bool previous_;
+  };
+
   Zone* zone_;
   DeclarationScope* closure_scope_;
   AstNodeFactory factory_;
@@ -106,7 +124,13 @@ Statement* Processor::AssignUndefinedBefore(Statement* s) {
 
 
 void Processor::Process(ZoneList<Statement*>* statements) {
-  for (int i = statements->length() - 1; i >= 0; --i) {
+  // If we're in a breakable scope (named block, iteration, or switch), we walk
+  // all statements. The last value producing statement before the break needs
+  // to assign to .result. If we're not in a breakable scope, only the last
+  // value producing statement in the block assigns to .result, so we can stop
+  // early.
+  for (int i = statements->length() - 1; i >= 0 && (breakable_ || !is_set_);
+       --i) {
     Visit(statements->at(i));
     statements->Set(i, replacement_);
   }
@@ -122,7 +146,10 @@ void Processor::VisitBlock(Block* node) {
   // with some JS VMs: For instance, using smjs, print(eval('var x = 7'))
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
-  if (!node->ignore_completion_value()) Process(node->statements());
+  if (!node->ignore_completion_value()) {
+    BreakableScope scope(this, node->labels() != nullptr);
+    Process(node->statements());
+  }
   replacement_ = node;
 }
 
@@ -157,6 +184,7 @@ void Processor::VisitIfStatement(IfStatement* node) {
 
 
 void Processor::VisitIterationStatement(IterationStatement* node) {
+  BreakableScope scope(this);
   // Rewrite the body.
   bool set_after = is_set_;
   is_set_ = false;  // We are in a loop, so we can't rely on [set_after].
@@ -253,6 +281,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
 
 void Processor::VisitSwitchStatement(SwitchStatement* node) {
+  BreakableScope scope(this);
   // Rewrite statements in all case clauses (in reverse order).
   ZoneList<CaseClause*>* clauses = node->cases();
   bool set_after = is_set_;
