@@ -909,12 +909,6 @@ DEFINE_STRING(startup_blob, NULL,
 DEFINE_BOOL(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
 
-DEFINE_BOOL(predictable, false, "enable predictable mode")
-DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
-DEFINE_NEG_IMPLICATION(predictable, parallel_compaction)
-DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
-
 // mark-compact.cc
 DEFINE_BOOL(force_marking_deque_overflows, false,
             "force overflows of marking deque by reducing it's size "
@@ -1158,10 +1152,26 @@ DEFINE_IMPLICATION(print_all_code, trace_codegen)
 #endif
 #endif
 
+#undef FLAG
+#define FLAG FLAG_FULL
 
 //
-// VERIFY_PREDICTABLE related flags
+// Threading related flags.
 //
+
+DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
+DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
+DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
+
+//
+// Predictable mode related flags.
+//
+
+DEFINE_BOOL(predictable, false, "enable predictable mode")
+DEFINE_IMPLICATION(predictable, single_threaded)
+DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
+
 #undef FLAG
 
 #ifdef VERIFY_PREDICTABLE
@@ -1174,7 +1184,6 @@ DEFINE_BOOL(verify_predictable, false,
             "this mode is used for checking that V8 behaves predictably")
 DEFINE_INT(dump_allocations_digest_at_alloc, -1,
            "dump allocations digest each n-th allocation")
-
 
 //
 // Read-only flags
@@ -1189,7 +1198,6 @@ DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
 DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
             "enable in-object double fields unboxing (64-bit only)")
 DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
-
 
 // Cleanup...
 #undef FLAG_FULL
