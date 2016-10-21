@@ -4784,8 +4784,7 @@ void CodeStubAssembler::UpdateFeedback(compiler::Node* feedback,
 
 compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
   Variable var_receiver_map(this, MachineRepresentation::kTagged);
-  // TODO(ishell): defer blocks when it works.
-  Label load_smi_map(this /*, Label::kDeferred*/), load_receiver_map(this),
+  Label load_smi_map(this, Label::kDeferred), load_receiver_map(this),
       if_result(this);
 
   Branch(TaggedIsSmi(receiver), &load_smi_map, &load_receiver_map);
@@ -4811,17 +4810,22 @@ compiler::Node* CodeStubAssembler::TryMonomorphicCase(
   // TODO(ishell): add helper class that hides offset computations for a series
   // of loads.
   int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(slot, FAST_HOLEY_ELEMENTS,
-                                        SMI_PARAMETERS, header_size);
-  Node* feedback = Load(MachineType::AnyTagged(), vector, offset);
+  // Adding |header_size| with a separate IntPtrAdd rather than passing it
+  // into ElementOffsetFromIndex() allows it to be folded into a single
+  // [base, index, offset] indirect memory access on x64.
+  Node* offset =
+      ElementOffsetFromIndex(slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS);
+  Node* feedback = Load(MachineType::AnyTagged(), vector,
+                        IntPtrAdd(offset, IntPtrConstant(header_size)));
 
   // Try to quickly handle the monomorphic case without knowing for sure
   // if we have a weak cell in feedback. We do know it's safe to look
   // at WeakCell::kValueOffset.
-  GotoUnless(WordEqual(receiver_map, LoadWeakCellValue(feedback)), if_miss);
+  GotoIf(WordNotEqual(receiver_map, LoadWeakCellValue(feedback)), if_miss);
 
-  Node* handler = Load(MachineType::AnyTagged(), vector,
-                       IntPtrAdd(offset, IntPtrConstant(kPointerSize)));
+  Node* handler =
+      Load(MachineType::AnyTagged(), vector,
+           IntPtrAdd(offset, IntPtrConstant(header_size + kPointerSize)));
 
   var_handler->Bind(handler);
   Goto(if_handler);
