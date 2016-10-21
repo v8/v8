@@ -5707,6 +5707,125 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   }
 }
 
+void CodeStubAssembler::HandleStoreFieldAndReturn(
+    Node* handler_word, Node* holder, Representation representation,
+    Node* value, bool transition_to_field, Label* miss) {
+  Node* prepared_value = PrepareValueForWrite(value, representation, miss);
+
+  Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
+  Label if_inobject(this), if_out_of_object(this);
+  Branch(IsSetWord<StoreHandler::IsInobjectBits>(handler_word), &if_inobject,
+         &if_out_of_object);
+
+  Bind(&if_inobject);
+  {
+    StoreNamedField(holder, offset, true, representation, prepared_value,
+                    transition_to_field);
+    Return(value);
+  }
+
+  Bind(&if_out_of_object);
+  {
+    StoreNamedField(holder, offset, false, representation, prepared_value,
+                    transition_to_field);
+    Return(value);
+  }
+}
+
+void CodeStubAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
+                                                    Node* holder, Node* value,
+                                                    bool transition_to_field,
+                                                    Label* miss) {
+  Comment(transition_to_field ? "transitioning field store" : "field store");
+
+  Node* field_representation =
+      DecodeWord<StoreHandler::FieldRepresentationBits>(handler_word);
+
+  Label if_smi_field(this), if_double_field(this), if_heap_object_field(this),
+      if_tagged_field(this);
+
+  GotoIf(WordEqual(field_representation, IntPtrConstant(StoreHandler::kTagged)),
+         &if_tagged_field);
+  GotoIf(WordEqual(field_representation,
+                   IntPtrConstant(StoreHandler::kHeapObject)),
+         &if_heap_object_field);
+  GotoIf(WordEqual(field_representation, IntPtrConstant(StoreHandler::kDouble)),
+         &if_double_field);
+  CSA_ASSERT(
+      WordEqual(field_representation, IntPtrConstant(StoreHandler::kSmi)));
+  Goto(&if_smi_field);
+
+  Bind(&if_tagged_field);
+  {
+    Comment("store tagged field");
+    HandleStoreFieldAndReturn(handler_word, holder, Representation::Tagged(),
+                              value, transition_to_field, miss);
+  }
+
+  Bind(&if_double_field);
+  {
+    Comment("store double field");
+    HandleStoreFieldAndReturn(handler_word, holder, Representation::Double(),
+                              value, transition_to_field, miss);
+  }
+
+  Bind(&if_heap_object_field);
+  {
+    Comment("store heap object field");
+    // Generate full field type check here and then store value as Tagged.
+    Node* prepared_value =
+        PrepareValueForWrite(value, Representation::HeapObject(), miss);
+    Node* value_index_in_descriptor =
+        DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
+    Node* descriptors = LoadMapDescriptors(LoadMap(holder));
+    Node* maybe_field_type = LoadFixedArrayElement(
+        descriptors, value_index_in_descriptor, 0, INTPTR_PARAMETERS);
+    Label do_store(this);
+    GotoIf(TaggedIsSmi(maybe_field_type), &do_store);
+    // Check that value type matches the field type.
+    {
+      Node* field_type = LoadWeakCellValue(maybe_field_type, miss);
+      Branch(WordEqual(LoadMap(prepared_value), field_type), &do_store, miss);
+    }
+    Bind(&do_store);
+    HandleStoreFieldAndReturn(handler_word, holder, Representation::Tagged(),
+                              prepared_value, transition_to_field, miss);
+  }
+
+  Bind(&if_smi_field);
+  {
+    Comment("store smi field");
+    HandleStoreFieldAndReturn(handler_word, holder, Representation::Smi(),
+                              value, transition_to_field, miss);
+  }
+}
+
+void CodeStubAssembler::HandleStoreICHandlerCase(const StoreICParameters* p,
+                                                 Node* handler, Label* miss) {
+  Label if_smi_handler(this), call_handler(this);
+
+  Branch(TaggedIsSmi(handler), &if_smi_handler, &call_handler);
+
+  // |handler| is a Smi, encoding what to do. See SmiHandler methods
+  // for the encoding format.
+  Bind(&if_smi_handler);
+  {
+    Node* holder = p->receiver;
+    Node* handler_word = SmiUntag(handler);
+
+    // Handle non-transitioning stores.
+    HandleStoreICSmiHandlerCase(handler_word, holder, p->value, false, miss);
+  }
+
+  // |handler| is a heap object. Must be code, call it.
+  Bind(&call_handler);
+  {
+    StoreWithVectorDescriptor descriptor(isolate());
+    TailCallStub(descriptor, handler, p->context, p->receiver, p->name,
+                 p->value, p->slot, p->vector);
+  }
+}
+
 void CodeStubAssembler::StoreIC(const StoreICParameters* p) {
   Variable var_handler(this, MachineRepresentation::kTagged);
   // TODO(ishell): defer blocks when it works.
@@ -5723,9 +5842,7 @@ void CodeStubAssembler::StoreIC(const StoreICParameters* p) {
   Bind(&if_handler);
   {
     Comment("StoreIC_if_handler");
-    StoreWithVectorDescriptor descriptor(isolate());
-    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
-                 p->name, p->value, p->slot, p->vector);
+    HandleStoreICHandlerCase(p, var_handler.value(), &miss);
   }
 
   Bind(&try_polymorphic);
@@ -5759,6 +5876,9 @@ void CodeStubAssembler::StoreIC(const StoreICParameters* p) {
 void CodeStubAssembler::KeyedStoreIC(const StoreICParameters* p,
                                      LanguageMode language_mode) {
   Variable var_handler(this, MachineRepresentation::kTagged);
+  // This is to make |miss| label see the var_handler bound on all paths.
+  var_handler.Bind(IntPtrConstant(0));
+
   // TODO(ishell): defer blocks when it works.
   Label if_handler(this, &var_handler), try_polymorphic(this),
       try_megamorphic(this /*, Label::kDeferred*/),
@@ -5774,9 +5894,7 @@ void CodeStubAssembler::KeyedStoreIC(const StoreICParameters* p,
   Bind(&if_handler);
   {
     Comment("KeyedStoreIC_if_handler");
-    StoreWithVectorDescriptor descriptor(isolate());
-    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
-                 p->name, p->value, p->slot, p->vector);
+    HandleStoreICHandlerCase(p, var_handler.value(), &miss);
   }
 
   Bind(&try_polymorphic);
