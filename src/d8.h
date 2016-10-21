@@ -274,6 +274,7 @@ class ShellOptions {
         dump_heap_constants(false),
         expected_to_throw(false),
         mock_arraybuffer_allocator(false),
+        enable_inspector(false),
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
         isolate_sources(NULL),
@@ -303,6 +304,7 @@ class ShellOptions {
   bool dump_heap_constants;
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
+  bool enable_inspector;
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;
   SourceGroup* isolate_sources;

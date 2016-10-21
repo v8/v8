@@ -27,6 +27,7 @@
         }],
         ['v8_enable_inspector==1', {
           'dependencies': [
+            '../test/debugger/debugger.gyp:*',
             '../test/inspector/inspector.gyp:*',
           ],
         }],

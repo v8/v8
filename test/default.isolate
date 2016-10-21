@@ -9,6 +9,7 @@
   },
   'includes': [
     'cctest/cctest.isolate',
+    'debugger/debugger.isolate',
     'fuzzer/fuzzer.isolate',
     'intl/intl.isolate',
     'message/message.isolate',

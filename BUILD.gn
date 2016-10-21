@@ -2560,6 +2560,11 @@ v8_executable("d8") {
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
   }
+
+  defines = []
+  if (v8_enable_inspector_override) {
+    defines += [ "V8_INSPECTOR_ENABLED" ]
+  }
 }
 
 v8_isolate_run("d8") {
