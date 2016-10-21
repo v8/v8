@@ -6,6 +6,8 @@
 #include <unistd.h>  // NOLINT
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
+#include <locale.h>
+
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
@@ -29,7 +31,9 @@ class UtilsExtension : public v8::Extension {
  public:
   UtilsExtension()
       : v8::Extension("v8_inspector/utils",
-                      "native function print(); native function quit();") {}
+                      "native function print();"
+                      "native function quit();"
+                      "native function setlocale();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -44,6 +48,12 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::Quit);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "setlocale",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::SetLocale);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -83,6 +93,15 @@ class UtilsExtension : public v8::Extension {
   }
 
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) { Exit(); }
+
+  static void SetLocale(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr, "Internal error: setlocale get one string argument.");
+      Exit();
+    }
+    v8::String::Utf8Value str(args[0]);
+    setlocale(LC_NUMERIC, *str);
+  }
 };
 
 class SetTimeoutTask : public TaskRunner::Task {
