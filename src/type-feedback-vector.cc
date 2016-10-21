@@ -733,16 +733,18 @@ void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
   }
 }
 
+
 void StoreICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
-                                        Handle<Object> handler) {
+                                        Handle<Code> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   SetFeedback(*cell);
   SetFeedbackExtra(*handler);
 }
 
+
 void KeyedStoreICNexus::ConfigureMonomorphic(Handle<Name> name,
                                              Handle<Map> receiver_map,
-                                             Handle<Object> handler) {
+                                             Handle<Code> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   if (name.is_null()) {
     SetFeedback(*cell);

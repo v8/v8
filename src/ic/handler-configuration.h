@@ -66,37 +66,6 @@ class LoadHandler {
                                            bool is_js_array);
 };
 
-// A set of bit fields representing Smi handlers for stores.
-class StoreHandler {
- public:
-  enum Kind { kForElements, kForFields };
-  class KindBits : public BitField<Kind, 0, 1> {};
-
-  enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
-
-  //
-  // Encoding when KindBits contains kForFields.
-  //
-  class IsInobjectBits : public BitField<bool, KindBits::kNext, 1> {};
-  class FieldRepresentationBits
-      : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
-  // +2 here is because each descriptor entry occupies 3 slots in array.
-  class DescriptorValueIndexBits
-      : public BitField<unsigned, FieldRepresentationBits::kNext,
-                        kDescriptorIndexBitCount + 2> {};
-  // +1 here is to cover all possible JSObject header sizes.
-  class FieldOffsetBits
-      : public BitField<unsigned, DescriptorValueIndexBits::kNext,
-                        kDescriptorIndexBitCount + 1 + kPointerSizeLog2> {};
-  // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
-
-  // Creates a Smi-handler for storing a field to fast object.
-  static inline Handle<Object> StoreField(Isolate* isolate, int descriptor,
-                                          FieldIndex field_index,
-                                          Representation representation);
-};
-
 }  // namespace internal
 }  // namespace v8
 

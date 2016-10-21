@@ -238,7 +238,6 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   }
   FieldIndex GetFieldIndex() const;
   Handle<FieldType> GetFieldType() const;
-  int GetFieldDescriptorIndex() const;
   int GetAccessorIndex() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;

@@ -40,37 +40,6 @@ Handle<Object> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> StoreHandler::StoreField(Isolate* isolate, int descriptor,
-                                        FieldIndex field_index,
-                                        Representation representation) {
-  StoreHandler::FieldRepresentation field_rep;
-  switch (representation.kind()) {
-    case Representation::kSmi:
-      field_rep = StoreHandler::kSmi;
-      break;
-    case Representation::kDouble:
-      field_rep = StoreHandler::kDouble;
-      break;
-    case Representation::kHeapObject:
-      field_rep = StoreHandler::kHeapObject;
-      break;
-    case Representation::kTagged:
-      field_rep = StoreHandler::kTagged;
-      break;
-    default:
-      UNREACHABLE();
-      return Handle<Object>::null();
-  }
-  int value_index = DescriptorArray::ToValueIndex(descriptor);
-
-  int config = StoreHandler::KindBits::encode(StoreHandler::kForFields) |
-               StoreHandler::IsInobjectBits::encode(field_index.is_inobject()) |
-               StoreHandler::FieldRepresentationBits::encode(field_rep) |
-               StoreHandler::DescriptorValueIndexBits::encode(value_index) |
-               StoreHandler::FieldOffsetBits::encode(field_index.offset());
-  return handle(Smi::FromInt(config), isolate);
-}
-
 }  // namespace internal
 }  // namespace v8
 
