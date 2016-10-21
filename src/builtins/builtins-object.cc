@@ -443,13 +443,8 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
       Node* map = assembler->LoadMap(receiver);
 
       // Return object if the proxy {receiver} is not callable.
-      assembler->Branch(
-          assembler->Word32Equal(
-              assembler->Word32And(
-                  assembler->LoadMapBitField(map),
-                  assembler->Int32Constant(1 << Map::kIsCallable)),
-              assembler->Int32Constant(0)),
-          &return_object, &return_function);
+      assembler->Branch(assembler->IsCallableMap(map), &return_function,
+                        &return_object);
     }
 
     // Default

@@ -595,6 +595,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* IsStringInstanceType(compiler::Node* instance_type);
   compiler::Node* IsJSReceiverInstanceType(compiler::Node* instance_type);
 
+  compiler::Node* IsCallableMap(compiler::Node* map);
+
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
   compiler::Node* StringCharCodeAt(compiler::Node* string,

@@ -2569,6 +2569,12 @@ Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
+Node* CodeStubAssembler::IsCallableMap(Node* map) {
+  return Word32NotEqual(
+      Word32And(LoadMapBitField(map), Int32Constant(1 << Map::kIsCallable)),
+      Int32Constant(0));
+}
+
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
   // Translate the {index} into a Word.
   index = SmiToWord(index);
@@ -4295,10 +4301,7 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
 
     // Return undefined if the {getter} is not callable.
     var_value.Bind(UndefinedConstant());
-    GotoIf(Word32Equal(Word32And(LoadMapBitField(getter_map),
-                                 Int32Constant(1 << Map::kIsCallable)),
-                       Int32Constant(0)),
-           &done);
+    GotoUnless(IsCallableMap(getter_map), &done);
 
     // Call the accessor.
     Callable callable = CodeFactory::Call(isolate());
@@ -8096,10 +8099,7 @@ compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
 
   // Check if {callable} is a valid receiver.
   GotoIf(TaggedIsSmi(callable), &return_runtime);
-  GotoIf(Word32Equal(Word32And(LoadMapBitField(LoadMap(callable)),
-                               Int32Constant(1 << Map::kIsCallable)),
-                     Int32Constant(0)),
-         &return_runtime);
+  GotoUnless(IsCallableMap(LoadMap(callable)), &return_runtime);
 
   // Use the inline OrdinaryHasInstance directly.
   result.Bind(OrdinaryHasInstance(context, callable, object));

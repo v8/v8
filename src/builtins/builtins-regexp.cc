@@ -1599,11 +1599,8 @@ void Builtins::Generate_RegExpPrototypeReplace(CodeStubAssembler* a) {
   a->GotoIf(a->TaggedIsSmi(replace_value), &checkreplacestring);
 
   Node* const replace_value_map = a->LoadMap(replace_value);
-  a->Branch(
-      a->Word32Equal(a->Word32And(a->LoadMapBitField(replace_value_map),
-                                  a->Int32Constant(1 << Map::kIsCallable)),
-                     a->Int32Constant(0)),
-      &checkreplacestring, &if_iscallable);
+  a->Branch(a->IsCallableMap(replace_value_map), &if_iscallable,
+            &checkreplacestring);
 
   // 3. Does ToString({replace_value}) contain '$'?
   a->Bind(&checkreplacestring);

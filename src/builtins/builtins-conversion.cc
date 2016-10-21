@@ -250,13 +250,8 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
         if_methodisnotcallable(assembler, Label::kDeferred);
     assembler->GotoIf(assembler->TaggedIsSmi(method), &if_methodisnotcallable);
     Node* method_map = assembler->LoadMap(method);
-    Node* method_bit_field = assembler->LoadMapBitField(method_map);
-    assembler->Branch(
-        assembler->Word32Equal(
-            assembler->Word32And(method_bit_field, assembler->Int32Constant(
-                                                       1 << Map::kIsCallable)),
-            assembler->Int32Constant(0)),
-        &if_methodisnotcallable, &if_methodiscallable);
+    assembler->Branch(assembler->IsCallableMap(method_map),
+                      &if_methodiscallable, &if_methodisnotcallable);
 
     assembler->Bind(&if_methodiscallable);
     {
