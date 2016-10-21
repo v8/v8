@@ -7655,6 +7655,9 @@ class SharedFunctionInfo: public HeapObject {
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
+  // Whether this function was marked to be optimized.
+  DECL_BOOLEAN_ACCESSORS(was_marked_for_optimization)
+
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
 
@@ -7904,7 +7907,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     // byte 0
     kAllowLazyCompilation,
-    kIsDeclaration,
+    kWasMarkedForOptimization,
     kOptimizationDisabled,
     kNeverCompiled,
     kNative,
@@ -7925,6 +7928,7 @@ class SharedFunctionInfo: public HeapObject {
     // rest of byte 2 and first two bits of byte 3 are used by FunctionKind
     // byte 3
     kDeserialized = kFunctionKind + 10,
+    kIsDeclaration,
     kIsAsmWasmBroken,
     kRequiresClassFieldInit,
     kIsClassFieldInitializer,
@@ -7953,7 +7957,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCompilerHintsSize = kIntSize;
 #endif
 
-  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount <=
+  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount +
+                    SharedFunctionInfo::kCompilerHintsSmiTagSize <=
                 SharedFunctionInfo::kCompilerHintsSize * kBitsPerByte);
 
  public:
@@ -7970,6 +7975,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kAllFunctionKindBitsMask = FunctionKindBits::kMask
                                               << kCompilerHintsSmiTagSize;
 
+  static const int kWasMarkedForOptimizationBit =
+      kWasMarkedForOptimization + kCompilerHintsSmiTagSize;
+
   // Constants for optimizing codegen for strict mode function and
   // native tests.
   // Allows to use byte-width instructions.
@@ -7981,6 +7989,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kClassConstructorBitsWithinByte =
       FunctionKind::kClassConstructor << kCompilerHintsSmiTagSize;
   STATIC_ASSERT(kClassConstructorBitsWithinByte < (1 << kBitsPerByte));
+
+  static const int kWasMarkedForOptimizationBitWithinByte =
+      kWasMarkedForOptimizationBit % kBitsPerByte;
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 #define BYTE_OFFSET(compiler_hint) \
@@ -7998,6 +8009,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kFunctionKindByteOffset = BYTE_OFFSET(kFunctionKind);
   static const int kHasDuplicateParametersByteOffset =
       BYTE_OFFSET(kHasDuplicateParameters);
+  static const int kWasMarkedForOptimizationByteOffset =
+      BYTE_OFFSET(kWasMarkedForOptimization);
 #undef BYTE_OFFSET
 
  private:

@@ -977,6 +977,22 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return cached_code;
   }
 
+  if (function->shared()->was_marked_for_optimization()) {
+    function->shared()->set_was_marked_for_optimization(false);
+
+    if (FLAG_trace_opt) {
+      PrintF("[optimizing function ");
+      function->PrintName();
+      PrintF(" eagerly because shared function was previously marked]\n");
+    }
+
+    Handle<Code> opt_code;
+    if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
+            .ToHandle(&opt_code)) {
+      return opt_code;
+    }
+  }
+
   if (function->shared()->is_compiled()) {
     return Handle<Code>(function->shared()->code());
   }

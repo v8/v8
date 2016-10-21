@@ -12211,6 +12211,10 @@ void JSFunction::MarkForOptimization() {
 
 
 void JSFunction::AttemptConcurrentOptimization() {
+  // Mark the shared function for optimization regardless of whether the
+  // optimization is concurrent or not.
+  shared()->set_was_marked_for_optimization(true);
+
   Isolate* isolate = GetIsolate();
   if (!isolate->concurrent_recompilation_enabled() ||
       isolate->bootstrapper()->IsActive()) {
@@ -12227,6 +12231,7 @@ void JSFunction::AttemptConcurrentOptimization() {
     ShortPrint();
     PrintF(" for concurrent recompilation.\n");
   }
+
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
   // No write barrier required, since the builtin is part of the root set.

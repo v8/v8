@@ -1500,9 +1500,16 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ b(&gotta_call_runtime);
 
   __ bind(&try_shared);
-  // Is the full code valid?
   __ LoadP(entry,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  // Is the shared function marked for optimization?
+  __ lbz(r8,
+         FieldMemOperand(
+             entry, SharedFunctionInfo::kWasMarkedForOptimizationByteOffset));
+  __ TestBit(r8, SharedFunctionInfo::kWasMarkedForOptimizationBitWithinByte,
+             r0);
+  __ beq(&gotta_call_runtime);
+  // Is the full code valid?
   __ LoadP(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ lwz(r8, FieldMemOperand(entry, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(r8);
