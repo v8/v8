@@ -1077,21 +1077,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, compiler::Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);
-
-  void HandleStoreFieldAndReturn(compiler::Node* handler_word,
-                                 compiler::Node* holder,
-                                 Representation representation,
-                                 compiler::Node* value,
-                                 bool transition_to_field, Label* miss);
-
-  void HandleStoreICSmiHandlerCase(compiler::Node* handler_word,
-                                   compiler::Node* holder,
-                                   compiler::Node* value,
-                                   bool transition_to_field, Label* miss);
-
-  void HandleStoreICHandlerCase(const StoreICParameters* p,
-                                compiler::Node* handler, Label* miss);
-
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
   void EmitFastElementsBoundsCheck(compiler::Node* object,
                                    compiler::Node* elements,

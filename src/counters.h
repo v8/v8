@@ -749,7 +749,6 @@ class RuntimeCallTimer {
   V(StoreIC_SlowStub)                           \
   V(StoreIC_StoreCallback)                      \
   V(StoreIC_StoreField)                         \
-  V(StoreIC_StoreFieldDH)                       \
   V(StoreIC_StoreFieldStub)                     \
   V(StoreIC_StoreGlobal)                        \
   V(StoreIC_StoreGlobalTransition)              \
