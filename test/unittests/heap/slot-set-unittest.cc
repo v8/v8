@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <limits>
+#include <map>
 
 #include "src/globals.h"
 #include "src/heap/slot-set.h"
@@ -184,6 +185,36 @@ TEST(TypedSlotSet, Iterate) {
       },
       TypedSlotSet::KEEP_EMPTY_CHUNKS);
   EXPECT_EQ(added / 2, iterated);
+}
+
+TEST(TypedSlotSet, RemoveInvalidSlots) {
+  TypedSlotSet set(0);
+  const int kHostDelta = 100;
+  uint32_t entries = 10;
+  for (uint32_t i = 0; i < entries; i++) {
+    SlotType type = static_cast<SlotType>(i % CLEARED_SLOT);
+    set.Insert(type, i * kHostDelta, i * kHostDelta);
+  }
+
+  std::map<uint32_t, uint32_t> invalid_ranges;
+  for (uint32_t i = 1; i < entries; i += 2) {
+    invalid_ranges.insert(
+        std::pair<uint32_t, uint32_t>(i * kHostDelta, i * kHostDelta + 1));
+  }
+
+  set.RemoveInvaldSlots(invalid_ranges);
+  for (std::map<uint32_t, uint32_t>::iterator it = invalid_ranges.begin();
+       it != invalid_ranges.end(); ++it) {
+    uint32_t start = it->first;
+    uint32_t end = it->second;
+    set.Iterate(
+        [start, end](SlotType slot_type, Address host_addr, Address slot_addr) {
+          CHECK(reinterpret_cast<uintptr_t>(host_addr) < start ||
+                reinterpret_cast<uintptr_t>(host_addr) >= end);
+          return KEEP_SLOT;
+        },
+        TypedSlotSet::KEEP_EMPTY_CHUNKS);
+  }
 }
 
 }  // namespace internal

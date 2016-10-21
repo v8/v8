@@ -343,9 +343,7 @@ class MemoryChunk {
       + kPointerSize            // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
       + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize  // LocalArrayBufferTracker* local_tracker_
-      // std::unordered_set<Address>* black_area_end_marker_map_
-      + kPointerSize;
+      kPointerSize;  // LocalArrayBufferTracker* local_tracker_
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -576,33 +574,6 @@ class MemoryChunk {
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
-  void ReleaseBlackAreaEndMarkerMap() {
-    if (black_area_end_marker_map_) {
-      delete black_area_end_marker_map_;
-      black_area_end_marker_map_ = nullptr;
-    }
-  }
-
-  bool IsBlackAreaEndMarker(Address address) {
-    if (black_area_end_marker_map_) {
-      return black_area_end_marker_map_->find(address) !=
-             black_area_end_marker_map_->end();
-    }
-    return false;
-  }
-
-  void AddBlackAreaEndMarker(Address address) {
-    if (!black_area_end_marker_map_) {
-      black_area_end_marker_map_ = new std::unordered_set<Address>();
-    }
-    auto ret = black_area_end_marker_map_->insert(address);
-    USE(ret);
-    // Check that we inserted a new black area end marker.
-    DCHECK(ret.second);
-  }
-
-  bool HasBlackAreas() { return black_area_end_marker_map_ != nullptr; }
-
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -668,9 +639,6 @@ class MemoryChunk {
   FreeListCategory categories_[kNumberOfCategories];
 
   LocalArrayBufferTracker* local_tracker_;
-
-  // Stores the end addresses of black areas.
-  std::unordered_set<Address>* black_area_end_marker_map_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }

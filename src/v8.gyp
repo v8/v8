@@ -930,7 +930,6 @@
         'heap/objects-visiting.cc',
         'heap/objects-visiting.h',
         'heap/page-parallel-job.h',
-        'heap/remembered-set.cc',
         'heap/remembered-set.h',
         'heap/scavenge-job.h',
         'heap/scavenge-job.cc',

@@ -2872,128 +2872,6 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
   return String::cast(*p);
 }
 
-bool MarkCompactCollector::IsSlotInBlackObject(MemoryChunk* p, Address slot) {
-  Space* owner = p->owner();
-  DCHECK(owner != heap_->lo_space() && owner != nullptr);
-  USE(owner);
-
-  // We may be part of a black area.
-  if (Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(slot))) {
-    return true;
-  }
-
-  uint32_t mark_bit_index = p->AddressToMarkbitIndex(slot);
-  unsigned int cell_index = mark_bit_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType index_mask = 1u << Bitmap::IndexInCell(mark_bit_index);
-  MarkBit::CellType* cells = p->markbits()->cells();
-  Address base_address = p->area_start();
-  unsigned int base_address_cell_index = Bitmap::IndexToCell(
-      Bitmap::CellAlignIndex(p->AddressToMarkbitIndex(base_address)));
-
-  // Check if the slot points to the start of an object. This can happen e.g.
-  // when we left trim a fixed array. Such slots are invalid and we can remove
-  // them.
-  if (index_mask > 1) {
-    if ((cells[cell_index] & index_mask) != 0 &&
-        (cells[cell_index] & (index_mask >> 1)) == 0) {
-      return false;
-    }
-  } else {
-    // Left trimming moves the mark bits so we cannot be in the very first cell.
-    DCHECK(cell_index != base_address_cell_index);
-    if ((cells[cell_index] & index_mask) != 0 &&
-        (cells[cell_index - 1] & (1u << Bitmap::kBitIndexMask)) == 0) {
-      return false;
-    }
-  }
-
-  // Check if the object is in the current cell.
-  MarkBit::CellType slot_mask;
-  if ((cells[cell_index] == 0) ||
-      (base::bits::CountTrailingZeros32(cells[cell_index]) >
-       base::bits::CountTrailingZeros32(cells[cell_index] | index_mask))) {
-    // If we are already in the first cell, there is no live object.
-    if (cell_index == base_address_cell_index) return false;
-
-    // If not, find a cell in a preceding cell slot that has a mark bit set.
-    do {
-      cell_index--;
-    } while (cell_index > base_address_cell_index && cells[cell_index] == 0);
-
-    // The slot must be in a dead object if there are no preceding cells that
-    // have mark bits set.
-    if (cells[cell_index] == 0) {
-      return false;
-    }
-
-    // The object is in a preceding cell. Set the mask to find any object.
-    slot_mask = ~0u;
-  } else {
-    // We are interested in object mark bits right before the slot.
-    slot_mask = index_mask + (index_mask - 1);
-  }
-
-  MarkBit::CellType current_cell = cells[cell_index];
-  CHECK(current_cell != 0);
-
-  // Find the last live object in the cell.
-  unsigned int leading_zeros =
-      base::bits::CountLeadingZeros32(current_cell & slot_mask);
-  CHECK(leading_zeros != Bitmap::kBitsPerCell);
-  int offset = static_cast<int>(Bitmap::kBitIndexMask - leading_zeros) - 1;
-
-  base_address += (cell_index - base_address_cell_index) *
-                  Bitmap::kBitsPerCell * kPointerSize;
-  Address address = base_address + offset * kPointerSize;
-
-  // If the found mark bit is part of a black area, the slot cannot be part
-  // of a live object since it is not marked.
-  if (p->IsBlackAreaEndMarker(address + kPointerSize)) return false;
-
-  HeapObject* object = HeapObject::FromAddress(address);
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
-  CHECK(object->address() < reinterpret_cast<Address>(slot));
-  if ((object->address() + kPointerSize) <= slot &&
-      (object->address() + object->Size()) > slot) {
-    // If the slot is within the last found object in the cell, the slot is
-    // in a live object.
-    // Slots pointing to the first word of an object are invalid and removed.
-    // This can happen when we move the object header while left trimming.
-    return true;
-  }
-  return false;
-}
-
-HeapObject* MarkCompactCollector::FindBlackObjectBySlotSlow(Address slot) {
-  Page* p = Page::FromAddress(slot);
-  Space* owner = p->owner();
-  if (owner == heap_->lo_space() || owner == nullptr) {
-    Object* large_object = heap_->lo_space()->FindObject(slot);
-    // This object has to exist, otherwise we would not have recorded a slot
-    // for it.
-    CHECK(large_object->IsHeapObject());
-    HeapObject* large_heap_object = HeapObject::cast(large_object);
-
-    if (IsMarked(large_heap_object)) {
-      return large_heap_object;
-    }
-    return nullptr;
-  }
-
-  LiveObjectIterator<kBlackObjects> it(p);
-  HeapObject* object = nullptr;
-  while ((object = it.Next()) != nullptr) {
-    int size = object->Size();
-    if (object->address() > slot) return nullptr;
-    if (object->address() <= slot && slot < (object->address() + size)) {
-      return object;
-    }
-  }
-
-  return nullptr;
-}
-
-
 void MarkCompactCollector::EvacuateNewSpacePrologue() {
   NewSpace* new_space = heap()->new_space();
   // Append the list of new space pages to be processed.
@@ -3316,22 +3194,37 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
   }
 };
 
+MarkCompactCollector::Sweeper::ClearOldToNewSlotsMode
+MarkCompactCollector::Sweeper::GetClearOldToNewSlotsMode(Page* p) {
+  AllocationSpace identity = p->owner()->identity();
+  if (p->old_to_new_slots() &&
+      (identity == OLD_SPACE || identity == MAP_SPACE)) {
+    return MarkCompactCollector::Sweeper::CLEAR_REGULAR_SLOTS;
+  } else if (p->typed_old_to_new_slots() && identity == CODE_SPACE) {
+    return MarkCompactCollector::Sweeper::CLEAR_TYPED_SLOTS;
+  }
+  return MarkCompactCollector::Sweeper::DO_NOT_CLEAR;
+}
+
 int MarkCompactCollector::Sweeper::RawSweep(
     Page* p, FreeListRebuildingMode free_list_mode,
     FreeSpaceTreatmentMode free_space_mode) {
   Space* space = p->owner();
-  AllocationSpace identity = space->identity();
   DCHECK_NOT_NULL(space);
-  DCHECK(free_list_mode == IGNORE_FREE_LIST || identity == OLD_SPACE ||
-         identity == CODE_SPACE || identity == MAP_SPACE);
+  DCHECK(free_list_mode == IGNORE_FREE_LIST || space->identity() == OLD_SPACE ||
+         space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
+
+  // If there are old-to-new slots in that page, we have to filter out slots
+  // that are in dead memory which is freed by the sweeper.
+  ClearOldToNewSlotsMode slots_clearing_mode = GetClearOldToNewSlotsMode(p);
+
+  // The free ranges map is used for filtering typed slots.
+  std::map<uint32_t, uint32_t> free_ranges;
 
   // Before we sweep objects on the page, we free dead array buffers which
   // requires valid mark bits.
   ArrayBufferTracker::FreeDead(p);
-
-  // We also release the black area markers here.
-  p->ReleaseBlackAreaEndMarkerMap();
 
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
@@ -3352,8 +3245,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   LiveObjectIterator<kBlackObjects> it(p);
   HeapObject* object = NULL;
-  bool clear_slots =
-      p->old_to_new_slots() && (identity == OLD_SPACE || identity == MAP_SPACE);
+
   while ((object = it.Next()) != NULL) {
     DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
     Address free_end = object->address();
@@ -3372,9 +3264,13 @@ int MarkCompactCollector::Sweeper::RawSweep(
                                         ClearRecordedSlots::kNo);
       }
 
-      if (clear_slots) {
+      if (slots_clearing_mode == CLEAR_REGULAR_SLOTS) {
         RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
                                                SlotSet::KEEP_EMPTY_BUCKETS);
+      } else if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
+        free_ranges.insert(std::pair<uint32_t, uint32_t>(
+            static_cast<uint32_t>(free_start - p->address()),
+            static_cast<uint32_t>(free_end - p->address())));
       }
     }
     Map* map = object->synchronized_map();
@@ -3406,10 +3302,19 @@ int MarkCompactCollector::Sweeper::RawSweep(
                                       ClearRecordedSlots::kNo);
     }
 
-    if (clear_slots) {
+    if (slots_clearing_mode == CLEAR_REGULAR_SLOTS) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
                                              SlotSet::KEEP_EMPTY_BUCKETS);
+    } else if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
+      free_ranges.insert(std::pair<uint32_t, uint32_t>(
+          static_cast<uint32_t>(free_start - p->address()),
+          static_cast<uint32_t>(p->area_end() - p->address())));
     }
+  }
+
+  // Clear invalid typed slots after collection all free ranges.
+  if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
+    p->typed_old_to_new_slots()->RemoveInvaldSlots(free_ranges);
   }
 
   // Clear the mark bits of that page and reset live bytes count.
@@ -3837,9 +3742,6 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     if (identity == NEW_SPACE) {
       RawSweep(page, IGNORE_FREE_LIST, free_space_mode);
     } else {
-      if (identity == CODE_SPACE) {
-        RememberedSet<OLD_TO_NEW>::ClearInvalidTypedSlots(heap_, page);
-      }
       max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     }
 
@@ -3907,7 +3809,6 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     if (p->IsEvacuationCandidate()) {
       // Will be processed in EvacuateNewSpaceAndCandidates.
       DCHECK(evacuation_candidates_.length() > 0);
-      DCHECK(!p->HasBlackAreas());
       continue;
     }
 

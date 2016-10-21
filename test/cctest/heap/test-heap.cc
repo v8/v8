@@ -6923,49 +6923,6 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   heap::GcAndSweep(heap, OLD_SPACE);
 }
 
-TEST(SlotFilteringAfterBlackAreas) {
-  FLAG_black_allocation = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Heap* heap = CcTest::heap();
-  Isolate* isolate = heap->isolate();
-  MarkCompactCollector* mark_compact_collector = heap->mark_compact_collector();
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
-  i::IncrementalMarking* marking = heap->incremental_marking();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
-  }
-  CHECK(marking->IsMarking() || marking->IsStopped());
-  if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                  i::GarbageCollectionReason::kTesting);
-  }
-  CHECK(marking->IsMarking());
-  marking->StartBlackAllocationForTesting();
-
-  // Ensure that we allocate a new page, set up a bump pointer area, and
-  // perform the allocation in a black area.
-  heap::SimulateFullSpace(heap->old_space());
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(10, TENURED);
-  Page* page = Page::FromAddress(array->address());
-
-  // After allocation we empty the allocation info to limit the black area
-  // only on the allocated array.
-  heap->old_space()->EmptyAllocationInfo();
-
-  // Slots in the black area are part of the black object.
-  CHECK(mark_compact_collector->IsSlotInBlackObject(page, array->address()));
-  CHECK(mark_compact_collector->IsSlotInBlackObject(
-      page, array->address() + array->Size() - kPointerSize));
-
-  // Slots after the black area are not part of the black object and have to
-  // be filtered out.
-  CHECK(!mark_compact_collector->IsSlotInBlackObject(
-      page, array->address() + array->Size()));
-}
-
 TEST(Regress618958) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

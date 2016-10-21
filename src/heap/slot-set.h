@@ -5,6 +5,7 @@
 #ifndef V8_SLOT_SET_H
 #define V8_SLOT_SET_H
 
+#include <map>
 #include <stack>
 
 #include "src/allocation.h"
@@ -457,6 +458,28 @@ class TypedSlotSet {
       Chunk* top = to_be_freed_chunks_.top();
       to_be_freed_chunks_.pop();
       delete top;
+    }
+  }
+
+  void RemoveInvaldSlots(std::map<uint32_t, uint32_t>& invalid_ranges) {
+    Chunk* chunk = chunk_.Value();
+    while (chunk != nullptr) {
+      TypedSlot* buffer = chunk->buffer.Value();
+      int count = chunk->count.Value();
+      for (int i = 0; i < count; i++) {
+        uint32_t host_offset = buffer[i].host_offset();
+        std::map<uint32_t, uint32_t>::iterator upper_bound =
+            invalid_ranges.upper_bound(host_offset);
+        if (upper_bound == invalid_ranges.begin()) continue;
+        // upper_bounds points to the invalid range after the given slot. Hence,
+        // we have to go to the previous element.
+        upper_bound--;
+        DCHECK_LE(upper_bound->first, host_offset);
+        if (upper_bound->second > host_offset) {
+          buffer[i].Clear();
+        }
+      }
+      chunk = chunk->next.Value();
     }
   }
 

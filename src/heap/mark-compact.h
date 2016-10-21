@@ -288,6 +288,11 @@ class MarkCompactCollector {
 
     enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
     enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
+    enum ClearOldToNewSlotsMode {
+      DO_NOT_CLEAR,
+      CLEAR_REGULAR_SLOTS,
+      CLEAR_TYPED_SLOTS
+    };
 
     typedef std::deque<Page*> SweepingList;
     typedef List<Page*> SweptList;
@@ -325,6 +330,8 @@ class MarkCompactCollector {
 
    private:
     static const int kAllocationSpaces = LAST_PAGED_SPACE + 1;
+
+    static ClearOldToNewSlotsMode GetClearOldToNewSlotsMode(Page* p);
 
     template <typename Callback>
     void ForAllSweepingSpaces(Callback callback) {
@@ -477,16 +484,6 @@ class MarkCompactCollector {
   void EnsureMarkingDequeIsReserved();
 
   void InitializeMarkingDeque();
-
-  // The following two methods can just be called after marking, when the
-  // whole transitive closure is known. They must be called before sweeping
-  // when mark bits are still intact.
-  bool IsSlotInBlackObject(MemoryChunk* p, Address slot);
-  HeapObject* FindBlackObjectBySlotSlow(Address slot);
-
-  // Removes all the slots in the slot buffers that are within the given
-  // address range.
-  void RemoveObjectSlots(Address start_slot, Address end_slot);
 
   Sweeper& sweeper() { return sweeper_; }
 

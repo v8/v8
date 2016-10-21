@@ -1391,7 +1391,6 @@ v8_source_set("v8_base") {
     "src/heap/objects-visiting.cc",
     "src/heap/objects-visiting.h",
     "src/heap/page-parallel-job.h",
-    "src/heap/remembered-set.cc",
     "src/heap/remembered-set.h",
     "src/heap/scavenge-job.cc",
     "src/heap/scavenge-job.h",
