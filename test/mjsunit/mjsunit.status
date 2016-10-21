@@ -794,6 +794,12 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
+['variant == stress or variant == turbofan_opt', {
+  # BUG(v8:5553).
+  'wasm/grow-memory': [SKIP],
+}],  # variant == stress or variant == turbofan_opt
+
+##############################################################################
 ['variant == asm_wasm', {
   # Skip stuff uninteresting for asm.js
   'bugs/*': [SKIP],
