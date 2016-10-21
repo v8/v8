@@ -2164,33 +2164,112 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
     // block.
     int phi_vreg = phi->virtual_register();
     live->Remove(phi_vreg);
-    // Select the hint from the first predecessor block that preceeds this block
-    // in the rpo ordering. Prefer non-deferred blocks. The enforcement of
-    // hinting in rpo order is required because hint resolution that happens
-    // later in the compiler pipeline visits instructions in reverse rpo,
-    // relying on the fact that phis are encountered before their hints.
-    const Instruction* instr = nullptr;
-    const InstructionBlock::Predecessors& predecessors = block->predecessors();
-    for (size_t i = 0; i < predecessors.size(); ++i) {
-      const InstructionBlock* predecessor_block =
-          code()->InstructionBlockAt(predecessors[i]);
-      if (predecessor_block->rpo_number() < block->rpo_number()) {
-        instr = GetLastInstruction(code(), predecessor_block);
-        if (!predecessor_block->IsDeferred()) break;
-      }
-    }
-    DCHECK_NOT_NULL(instr);
-
+    // Select a hint from a predecessor block that preceeds this block in the
+    // rpo order. In order of priority:
+    // - Avoid hints from deferred blocks.
+    // - Prefer hints from allocated (or explicit) operands.
+    // - Prefer hints from empty blocks (containing just parallel moves and a
+    //   jump). In these cases, if we can elide the moves, the jump threader
+    //   is likely to be able to elide the jump.
+    // The enforcement of hinting in rpo order is required because hint
+    // resolution that happens later in the compiler pipeline visits
+    // instructions in reverse rpo order, relying on the fact that phis are
+    // encountered before their hints.
     InstructionOperand* hint = nullptr;
-    for (MoveOperands* move : *instr->GetParallelMove(Instruction::END)) {
-      InstructionOperand& to = move->destination();
-      if (to.IsUnallocated() &&
-          UnallocatedOperand::cast(to).virtual_register() == phi_vreg) {
-        hint = &move->source();
-        break;
+    int hint_preference = 0;
+
+    // The cost of hinting increases with the number of predecessors. At the
+    // same time, the typical benefit decreases, since this hinting only
+    // optimises the execution path through one predecessor. A limit of 2 is
+    // sufficient to hit the common if/else pattern.
+    int predecessor_limit = 2;
+
+    for (RpoNumber predecessor : block->predecessors()) {
+      const InstructionBlock* predecessor_block =
+          code()->InstructionBlockAt(predecessor);
+      DCHECK_EQ(predecessor_block->rpo_number(), predecessor);
+
+      // Only take hints from earlier rpo numbers.
+      if (predecessor >= block->rpo_number()) continue;
+
+      // Look up the predecessor instruction.
+      const Instruction* predecessor_instr =
+          GetLastInstruction(code(), predecessor_block);
+      InstructionOperand* predecessor_hint = nullptr;
+      // Phis are assigned in the END position of the last instruction in each
+      // predecessor block.
+      for (MoveOperands* move :
+           *predecessor_instr->GetParallelMove(Instruction::END)) {
+        InstructionOperand& to = move->destination();
+        if (to.IsUnallocated() &&
+            UnallocatedOperand::cast(to).virtual_register() == phi_vreg) {
+          predecessor_hint = &move->source();
+          break;
+        }
       }
+      DCHECK_NOT_NULL(predecessor_hint);
+
+      // For each predecessor, generate a score according to the priorities
+      // described above, and pick the best one. Flags in higher-order bits have
+      // a higher priority than those in lower-order bits.
+      int predecessor_hint_preference = 0;
+      const int kNotDeferredBlockPreference = (1 << 2);
+      const int kMoveIsAllocatedPreference = (1 << 1);
+      const int kBlockIsEmptyPreference = (1 << 0);
+
+      // - Avoid hints from deferred blocks.
+      if (!predecessor_block->IsDeferred()) {
+        predecessor_hint_preference |= kNotDeferredBlockPreference;
+      }
+
+      // - Prefer hints from allocated (or explicit) operands.
+      //
+      // Already-allocated or explicit operands are typically assigned using
+      // the parallel moves on the last instruction. For example:
+      //
+      //      gap (v101 = [x0|R|w32]) (v100 = v101)
+      //      ArchJmp
+      //    ...
+      //    phi: v100 = v101 v102
+      //
+      // We have already found the END move, so look for a matching START move
+      // from an allocated (or explicit) operand.
+      //
+      // Note that we cannot simply look up data()->live_ranges()[vreg] here
+      // because the live ranges are still being built when this function is
+      // called.
+      // TODO(v8): Find a way to separate hinting from live range analysis in
+      // BuildLiveRanges so that we can use the O(1) live-range look-up.
+      auto moves = predecessor_instr->GetParallelMove(Instruction::START);
+      if (moves != nullptr) {
+        for (MoveOperands* move : *moves) {
+          InstructionOperand& to = move->destination();
+          if (predecessor_hint->Equals(to)) {
+            if (move->source().IsAllocated() || move->source().IsExplicit()) {
+              predecessor_hint_preference |= kMoveIsAllocatedPreference;
+            }
+            break;
+          }
+        }
+      }
+
+      // - Prefer hints from empty blocks.
+      if (predecessor_block->last_instruction_index() ==
+          predecessor_block->first_instruction_index()) {
+        predecessor_hint_preference |= kBlockIsEmptyPreference;
+      }
+
+      if ((hint == nullptr) ||
+          (predecessor_hint_preference > hint_preference)) {
+        // Take the hint from this predecessor.
+        hint = predecessor_hint;
+        hint_preference = predecessor_hint_preference;
+      }
+
+      if (--predecessor_limit <= 0) break;
     }
-    DCHECK(hint != nullptr);
+    DCHECK_NOT_NULL(hint);
+
     LifetimePosition block_start = LifetimePosition::GapFromInstructionIndex(
         block->first_instruction_index());
     UsePosition* use_pos = Define(block_start, &phi->output(), hint,
