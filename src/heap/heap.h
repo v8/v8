@@ -1442,6 +1442,10 @@ class Heap {
   // ArrayBuffer tracking. =====================================================
   // ===========================================================================
 
+  // TODO(gc): API usability: encapsulate mutation of JSArrayBuffer::is_external
+  // in the registration/unregistration APIs. Consider dropping the "New" from
+  // "RegisterNewArrayBuffer" because one can re-register a previously
+  // unregistered buffer, too, and the name is confusing.
   void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
   void UnregisterArrayBuffer(JSArrayBuffer* buffer);
 

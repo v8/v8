@@ -897,7 +897,7 @@ namespace internal {
   F(HasFixedUint8ClampedElements, 1, 1)       \
   F(SpeciesProtector, 0, 1)                   \
   F(SerializeWasmModule, 1, 1)                \
-  F(DeserializeWasmModule, 1, 1)              \
+  F(DeserializeWasmModule, 2, 1)              \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsNotAsmWasmCode, 1, 1)                   \
   F(ValidateWasmInstancesChain, 2, 1)         \

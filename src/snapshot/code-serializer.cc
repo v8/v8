@@ -223,12 +223,14 @@ std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
       Handle<wasm::WasmCompiledModule>::cast(input);
   WasmCompiledModuleSerializer wasm_cs(isolate, 0);
   wasm_cs.reference_map()->AddAttachedReference(*isolate->native_context());
+  wasm_cs.reference_map()->AddAttachedReference(
+      *compiled_module->module_bytes());
   ScriptData* data = wasm_cs.Serialize(compiled_module);
   return std::unique_ptr<ScriptData>(data);
 }
 
 MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
-    Isolate* isolate, ScriptData* data) {
+    Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
   MaybeHandle<FixedArray> nothing;
@@ -242,6 +244,15 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
   Deserializer deserializer(&scd, true);
   deserializer.AddAttachedObject(isolate->native_context());
 
+  MaybeHandle<String> maybe_wire_bytes_as_string =
+      isolate->factory()->NewStringFromOneByte(wire_bytes, TENURED);
+  Handle<String> wire_bytes_as_string;
+  if (!maybe_wire_bytes_as_string.ToHandle(&wire_bytes_as_string)) {
+    return nothing;
+  }
+  deserializer.AddAttachedObject(
+      handle(SeqOneByteString::cast(*wire_bytes_as_string)));
+
   Vector<const uint32_t> stub_keys = scd.CodeStubKeys();
   for (int i = 0; i < stub_keys.length(); ++i) {
     deserializer.AddAttachedObject(
@@ -250,8 +261,9 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
 
   MaybeHandle<HeapObject> obj = deserializer.DeserializeObject(isolate);
   if (obj.is_null() || !obj.ToHandleChecked()->IsFixedArray()) return nothing;
-  Handle<FixedArray> compiled_module =
-      Handle<FixedArray>::cast(obj.ToHandleChecked());
+  Handle<wasm::WasmCompiledModule> compiled_module =
+      Handle<wasm::WasmCompiledModule>::cast(obj.ToHandleChecked());
+
   wasm::WasmCompiledModule::RecreateModuleWrapper(isolate, compiled_module);
   return compiled_module;
 }

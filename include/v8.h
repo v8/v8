@@ -3915,7 +3915,8 @@ class V8_EXPORT WasmCompiledModule : public Object {
 
  private:
   static MaybeLocal<WasmCompiledModule> Deserialize(
-      Isolate* isolate, const CallerOwnedBuffer& serialized_module);
+      Isolate* isolate, const CallerOwnedBuffer& serialized_module,
+      const CallerOwnedBuffer& wire_bytes);
   static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
                                                 const uint8_t* start,
                                                 size_t length);

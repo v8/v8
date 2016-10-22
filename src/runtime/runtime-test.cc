@@ -754,15 +754,31 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
 // Return undefined if unsuccessful.
 RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   HandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, wire_bytes, 1);
 
   Address mem_start = static_cast<Address>(buffer->backing_store());
   int mem_size = static_cast<int>(buffer->byte_length()->Number());
 
+  // DeserializeWasmModule will allocate. We assume JSArrayBuffer doesn't
+  // get relocated.
   ScriptData sc(mem_start, mem_size);
+  bool already_external = wire_bytes->is_external();
+  if (!already_external) {
+    wire_bytes->set_is_external(true);
+    isolate->heap()->UnregisterArrayBuffer(*wire_bytes);
+  }
   MaybeHandle<FixedArray> maybe_compiled_module =
-      WasmCompiledModuleSerializer::DeserializeWasmModule(isolate, &sc);
+      WasmCompiledModuleSerializer::DeserializeWasmModule(
+          isolate, &sc,
+          Vector<const uint8_t>(
+              reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
+              static_cast<int>(wire_bytes->byte_length()->Number())));
+  if (!already_external) {
+    wire_bytes->set_is_external(false);
+    isolate->heap()->RegisterNewArrayBuffer(*wire_bytes);
+  }
   Handle<FixedArray> compiled_module;
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
