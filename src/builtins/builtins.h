@@ -606,7 +606,7 @@ namespace internal {
   CPP(RegExpPrototypeSpeciesGetter)                                           \
   CPP(RegExpPrototypeSplit)                                                   \
   TFJ(RegExpPrototypeStickyGetter, 0)                                         \
-  CPP(RegExpPrototypeTest)                                                    \
+  TFJ(RegExpPrototypeTest, 1)                                                 \
   CPP(RegExpPrototypeToString)                                                \
   TFJ(RegExpPrototypeUnicodeGetter, 0)                                        \
   CPP(RegExpRightContextGetter)                                               \

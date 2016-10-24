@@ -72,9 +72,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   if (exec->IsUndefined(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
-        Object::GetProperty(
-            regexp, isolate->factory()->NewStringFromAsciiChecked("exec")),
-        Object);
+        Object::GetProperty(regexp, isolate->factory()->exec_string()), Object);
   }
 
   if (exec->IsCallable()) {

@@ -1809,8 +1809,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       {
         Handle<JSFunction> fun = SimpleInstallFunction(
-            prototype, "exec", Builtins::kRegExpPrototypeExec, 1, true,
-            DONT_ENUM);
+            prototype, factory->exec_string(), Builtins::kRegExpPrototypeExec,
+            1, true, DONT_ENUM);
         native_context()->set_regexp_exec_function(*fun);
       }
 
@@ -1836,7 +1836,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kRegExpPrototypeToString, 0, false,
                             DONT_ENUM);
       SimpleInstallFunction(prototype, "test", Builtins::kRegExpPrototypeTest,
-                            1, false, DONT_ENUM);
+                            1, true, DONT_ENUM);
 
       {
         Handle<JSFunction> fun = SimpleCreateFunction(

@@ -59,6 +59,7 @@
   V(done_string, "done")                                           \
   V(dot_result_string, ".result")                                  \
   V(dot_string, ".")                                               \
+  V(exec_string, "exec")                                           \
   V(entries_string, "entries")                                     \
   V(enqueue_string, "enqueue")                                     \
   V(enumerable_string, "enumerable")                               \
