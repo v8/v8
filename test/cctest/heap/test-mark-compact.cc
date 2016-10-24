@@ -51,13 +51,9 @@ using v8::Just;
 
 TEST(MarkingDeque) {
   CcTest::InitializeVM();
-  int mem_size = 20 * kPointerSize;
-  byte* mem = NewArray<byte>(20*kPointerSize);
-  Address low = reinterpret_cast<Address>(mem);
-  Address high = low + mem_size;
   MarkingDeque s;
-  s.Initialize(low, high);
-
+  s.SetUp();
+  s.StartUsing();
   Address original_address = reinterpret_cast<Address>(&s);
   Address current_address = original_address;
   while (!s.IsFull()) {
@@ -72,7 +68,8 @@ TEST(MarkingDeque) {
   }
 
   CHECK_EQ(original_address, current_address);
-  DeleteArray(mem);
+  s.StopUsing();
+  s.TearDown();
 }
 
 TEST(Promotion) {

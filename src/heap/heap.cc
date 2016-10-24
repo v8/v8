@@ -1457,11 +1457,7 @@ void Heap::MarkCompactEpilogue() {
   PreprocessStackTraces();
   DCHECK(incremental_marking()->IsStopped());
 
-  // We finished a marking cycle. We can uncommit the marking deque until
-  // we start marking again.
-  mark_compact_collector()->marking_deque()->Uninitialize();
-  mark_compact_collector()->EnsureMarkingDequeIsCommitted(
-      MarkCompactCollector::kMinMarkingDequeSize);
+  mark_compact_collector()->marking_deque()->StopUsing();
 }
 
 

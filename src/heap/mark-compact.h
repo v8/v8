@@ -53,23 +53,27 @@ class ObjectMarking : public AllStatic {
 class MarkingDeque {
  public:
   MarkingDeque()
-      : array_(NULL),
+      : backing_store_(nullptr),
+        backing_store_committed_size_(0),
+        array_(nullptr),
         top_(0),
         bottom_(0),
         mask_(0),
         overflowed_(false),
         in_use_(false) {}
 
-  void Initialize(Address low, Address high);
-  void Uninitialize(bool aborting = false);
+  void SetUp();
+  void TearDown();
+
+  void StartUsing();
+  void StopUsing();
+  void Clear();
 
   inline bool IsFull() { return ((top_ + 1) & mask_) == bottom_; }
 
   inline bool IsEmpty() { return top_ == bottom_; }
 
   bool overflowed() const { return overflowed_; }
-
-  bool in_use() const { return in_use_; }
 
   void ClearOverflowed() { overflowed_ = false; }
 
@@ -118,6 +122,14 @@ class MarkingDeque {
   void set_top(int top) { top_ = top; }
 
  private:
+  static const size_t kMaxSize = 4 * MB;
+  static const size_t kMinSize = 256 * KB;
+
+  void EnsureCommitted();
+  void Uncommit();
+
+  base::VirtualMemory* backing_store_;
+  size_t backing_store_committed_size_;
   HeapObject** array_;
   // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
   // empty when top_ == bottom_.  It is full when top_ + 1 == bottom
@@ -470,21 +482,6 @@ class MarkCompactCollector {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
-  static const size_t kMaxMarkingDequeSize = 4 * MB;
-  static const size_t kMinMarkingDequeSize = 256 * KB;
-
-  void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size) {
-    if (!marking_deque()->in_use()) {
-      EnsureMarkingDequeIsCommitted(max_size);
-      InitializeMarkingDeque();
-    }
-  }
-
-  void EnsureMarkingDequeIsCommitted(size_t max_size);
-  void EnsureMarkingDequeIsReserved();
-
-  void InitializeMarkingDeque();
-
   Sweeper& sweeper() { return sweeper_; }
 
  private:
@@ -708,8 +705,6 @@ class MarkCompactCollector {
 
   bool have_code_to_deoptimize_;
 
-  base::VirtualMemory* marking_deque_memory_;
-  size_t marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
 
   CodeFlusher* code_flusher_;

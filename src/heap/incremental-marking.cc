@@ -538,8 +538,7 @@ void IncrementalMarking::StartMarking() {
 
   PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
-  heap_->mark_compact_collector()->EnsureMarkingDequeIsCommittedAndInitialize(
-      MarkCompactCollector::kMaxMarkingDequeSize);
+  heap_->mark_compact_collector()->marking_deque()->StartUsing();
 
   ActivateIncrementalWriteBarrier();
 
