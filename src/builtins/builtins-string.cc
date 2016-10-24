@@ -1380,7 +1380,12 @@ compiler::Node* LoadSurrogatePairInternal(CodeStubAssembler* assembler,
     switch (encoding) {
       case UnicodeEncoding::UTF16:
         var_result.Bind(assembler->WordOr(
+// Need to swap the order for big-endian platforms
+#if V8_TARGET_BIG_ENDIAN
+            assembler->WordShl(lead, assembler->Int32Constant(16)), trail));
+#else
             assembler->WordShl(trail, assembler->Int32Constant(16)), lead));
+#endif
         break;
 
       case UnicodeEncoding::UTF32: {

@@ -1141,9 +1141,16 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
           {
             vtrue3 = graph()->NewNode(
                 simplified()->NumberBitwiseOr(),
+// Need to swap the order for big-endian platforms
+#if V8_TARGET_BIG_ENDIAN
+                graph()->NewNode(simplified()->NumberShiftLeft(), lead,
+                                 jsgraph()->Int32Constant(16)),
+                trail);
+#else
                 graph()->NewNode(simplified()->NumberShiftLeft(), trail,
                                  jsgraph()->Int32Constant(16)),
                 lead);
+#endif
           }
 
           Node* if_false3 = graph()->NewNode(common()->IfFalse(), branch3);
