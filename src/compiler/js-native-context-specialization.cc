@@ -360,9 +360,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   // Check if we have a constant receiver.
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
-    // Optimize "prototype" property of functions.
     if (m.Value()->IsJSFunction() &&
         p.name().is_identical_to(factory()->prototype_string())) {
+      // Optimize "prototype" property of functions.
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
       if (function->has_initial_map()) {
         // We need to add a code dependency on the initial map of the
@@ -378,6 +378,13 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
           return Replace(value);
         }
       }
+    } else if (m.Value()->IsString() &&
+               p.name().is_identical_to(factory()->length_string())) {
+      // Constant-fold "length" property on constant strings.
+      Handle<String> string = Handle<String>::cast(m.Value());
+      Node* value = jsgraph()->Constant(string->length());
+      ReplaceWithValue(node, value);
+      return Replace(value);
     }
   }
 
