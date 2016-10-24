@@ -593,6 +593,12 @@ Handle<Object> LookupIterator::FetchValue() const {
   return handle(result, isolate_);
 }
 
+int LookupIterator::GetFieldDescriptorIndex() const {
+  DCHECK(has_property_);
+  DCHECK(holder_->HasFastProperties());
+  DCHECK_EQ(v8::internal::DATA, property_details_.type());
+  return descriptor_number();
+}
 
 int LookupIterator::GetAccessorIndex() const {
   DCHECK(has_property_);

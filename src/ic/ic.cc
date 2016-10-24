@@ -566,11 +566,11 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
     nexus->ConfigureMonomorphic(name, map, handler);
   } else if (kind() == Code::STORE_IC) {
     StoreICNexus* nexus = casted_nexus<StoreICNexus>();
-    nexus->ConfigureMonomorphic(map, Handle<Code>::cast(handler));
+    nexus->ConfigureMonomorphic(map, handler);
   } else {
     DCHECK(kind() == Code::KEYED_STORE_IC);
     KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-    nexus->ConfigureMonomorphic(name, map, Handle<Code>::cast(handler));
+    nexus->ConfigureMonomorphic(name, map, handler);
   }
 
   vector_set_ = true;
@@ -789,8 +789,10 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
 void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   DCHECK(IsHandler(*handler));
   // Currently only LoadIC and KeyedLoadIC support non-code handlers.
-  DCHECK_IMPLIES(!handler->IsCode(),
-                 kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
+  DCHECK_IMPLIES(!handler->IsCode(), kind() == Code::LOAD_IC ||
+                                         kind() == Code::KEYED_LOAD_IC ||
+                                         kind() == Code::STORE_IC ||
+                                         kind() == Code::KEYED_STORE_IC);
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
@@ -1009,6 +1011,37 @@ StubCache* IC::stub_cache() {
 }
 
 void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* handler) {
+  if (FLAG_store_ic_smi_handlers && handler->IsSmi() &&
+      (kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC)) {
+    // TODO(ishell, jkummerow): Implement data handlers support in
+    // KeyedStoreIC_Megamorphic.
+    Handle<Map> map_handle(map, isolate());
+    Handle<Name> name_handle(name, isolate());
+    int config = Smi::cast(handler)->value();
+    int value_index = StoreHandler::DescriptorValueIndexBits::decode(config);
+    int descriptor = (value_index - DescriptorArray::kDescriptorValue -
+                      DescriptorArray::kFirstIndex) /
+                     DescriptorArray::kDescriptorSize;
+    if (map->instance_descriptors()->length()) {
+      PropertyDetails details =
+          map->instance_descriptors()->GetDetails(descriptor);
+      DCHECK_EQ(DATA, details.type());
+      DCHECK_EQ(name, map->instance_descriptors()->GetKey(descriptor));
+      Representation representation = details.representation();
+      FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
+      StoreFieldStub stub(isolate(), index, representation);
+      handler = *stub.GetCode();
+    } else {
+      // It must be a prototype map that some prototype used to have. This map
+      // check will never succeed so write a dummy smi to the cache.
+      DCHECK(!map->is_dictionary_map());
+      DCHECK(map->is_prototype_map());
+      handler = Smi::FromInt(1);
+    }
+    stub_cache()->Set(*name_handle, *map_handle, handler);
+    return;
+  }
   stub_cache()->Set(name, map, handler);
 }
 
@@ -1640,10 +1673,10 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (!use_ic) {
     TRACE_GENERIC_IC(isolate(), "StoreIC", "LookupForWrite said 'false'");
   }
-  Handle<Code> code =
-      use_ic ? Handle<Code>::cast(ComputeHandler(lookup, value)) : slow_stub();
+  Handle<Object> handler = use_ic ? ComputeHandler(lookup, value)
+                                  : Handle<Object>::cast(slow_stub());
 
-  PatchCache(lookup->name(), code);
+  PatchCache(lookup->name(), handler);
   TRACE_IC("StoreIC", lookup->name());
 }
 
@@ -1769,10 +1802,18 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
           use_stub = !field_type->IsClass();
         }
         if (use_stub) {
-          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
-          StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
-                              lookup->representation());
-          return stub.GetCode();
+          if (FLAG_store_ic_smi_handlers) {
+            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
+            int descriptor = lookup->GetFieldDescriptorIndex();
+            FieldIndex index = lookup->GetFieldIndex();
+            return StoreHandler::StoreField(isolate(), descriptor, index,
+                                            lookup->representation());
+          } else {
+            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
+            StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
+                                lookup->representation());
+            return stub.GetCode();
+          }
         }
         break;  // Custom-compiled handler.
       }
