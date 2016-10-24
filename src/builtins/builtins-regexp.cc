@@ -323,29 +323,29 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
   return result;
 }
 
-}  // namespace
-
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
+compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
+                                            compiler::Node* context,
+                                            compiler::Node* maybe_receiver,
+                                            compiler::Node* maybe_string) {
   typedef CodeStubAssembler::Variable Variable;
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   Isolate* const isolate = a->isolate();
 
-  Node* const receiver = a->Parameter(0);
-  Node* const maybe_string = a->Parameter(1);
-  Node* const context = a->Parameter(4);
-
   Node* const null = a->NullConstant();
   Node* const int_zero = a->IntPtrConstant(0);
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
-  // Ensure {receiver} is a JSRegExp.
+  Variable var_result(a, MachineRepresentation::kTagged);
+  Label out(a);
+
+  // Ensure {maybe_receiver} is a JSRegExp.
   Node* const regexp_map = a->ThrowIfNotInstanceType(
-      context, receiver, JS_REGEXP_TYPE, "RegExp.prototype.exec");
-  Node* const regexp = receiver;
+      context, maybe_receiver, JS_REGEXP_TYPE, "RegExp.prototype.exec");
+  Node* const regexp = maybe_receiver;
 
   // Check whether the regexp instance is unmodified.
   Node* const native_context = a->LoadNativeContext(context);
@@ -394,7 +394,8 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
       a->Bind(&if_isoob);
       {
         StoreLastIndex(a, context, has_initialmap, regexp, smi_zero);
-        a->Return(null);
+        var_result.Bind(null);
+        a->Goto(&out);
       }
     }
 
@@ -429,7 +430,8 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
     a->Goto(&return_null);
 
     a->Bind(&return_null);
-    a->Return(null);
+    var_result.Bind(null);
+    a->Goto(&out);
   }
 
   Label construct_result(a);
@@ -449,9 +451,29 @@ void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
     {
       Node* result = ConstructNewResultFromMatchInfo(isolate, a, context,
                                                      match_indices, string);
-      a->Return(result);
+      var_result.Bind(result);
+      a->Goto(&out);
     }
   }
+
+  a->Bind(&out);
+  return var_result.value();
+}
+
+}  // namespace
+
+// ES#sec-regexp.prototype.exec
+// RegExp.prototype.exec ( string )
+void Builtins::Generate_RegExpPrototypeExec(CodeStubAssembler* a) {
+  typedef compiler::Node Node;
+
+  Node* const maybe_receiver = a->Parameter(0);
+  Node* const maybe_string = a->Parameter(1);
+  Node* const context = a->Parameter(4);
+
+  Node* const result =
+      RegExpPrototypeExecInternal(a, context, maybe_receiver, maybe_string);
+  a->Return(result);
 }
 
 namespace {
