@@ -596,7 +596,6 @@ Parser::Parser(ParseInfo* info)
       compile_options_(info->compile_options()),
       cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
-      pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -677,7 +676,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
 
-  HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
   RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   Handle<String> source(String::cast(info->script()->source()));
@@ -843,7 +841,6 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
   RuntimeCallTimerScope runtime_timer(isolate,
                                       &RuntimeCallStats::ParseFunction);
-  HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
@@ -3274,11 +3271,6 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
 PreParser::PreParseResult Parser::ParseFunctionBodyWithPreParser(
     SingletonLogger* logger, bool is_inner_function, bool may_abort) {
-  // This function may be called on a background thread too; record only the
-  // main thread preparse times.
-  if (pre_parse_timer_ != NULL) {
-    pre_parse_timer_->Start();
-  }
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
@@ -3305,9 +3297,6 @@ PreParser::PreParseResult Parser::ParseFunctionBodyWithPreParser(
   PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
       function_scope, parsing_module_, logger, is_inner_function, may_abort,
       use_counts_);
-  if (pre_parse_timer_ != NULL) {
-    pre_parse_timer_->Stop();
-  }
   return result;
 }
 
@@ -3788,7 +3777,6 @@ bool Parser::Parse(ParseInfo* info) {
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parsing_on_main_thread_);
   Isolate* isolate = info->isolate();
-  pre_parse_timer_ = isolate->counters()->pre_parse();
 
   if (info->is_toplevel()) {
     SetCachedData(info);

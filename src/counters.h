@@ -864,10 +864,6 @@ class RuntimeCallStats {
      MILLISECOND)                                                              \
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
      MILLISECOND)                                                              \
-  /* Parsing timers. */                                                        \
-  HT(parse, V8.ParseMicroSeconds, 1000000, MICROSECOND)                        \
-  HT(parse_lazy, V8.ParseLazyMicroSeconds, 1000000, MICROSECOND)               \
-  HT(pre_parse, V8.PreParseMicroSeconds, 1000000, MICROSECOND)                 \
   /* Compilation times. */                                                     \
   HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
   HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \

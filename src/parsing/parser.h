@@ -1100,7 +1100,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // parsing.
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
-  HistogramTimer* pre_parse_timer_;
 
   bool parsing_on_main_thread_;
 };
