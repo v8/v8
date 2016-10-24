@@ -990,7 +990,10 @@ class WasmInstanceBuilder {
     isolate_->counters()->wasm_min_mem_pages_count()->AddSample(min_mem_pages);
     // TODO(wasm): re-enable counter for max_mem_pages when we use that field.
 
-    if (memory_.is_null() && min_mem_pages > 0) {
+    if (!memory_.is_null()) {
+      // Set externally passed ArrayBuffer non neuterable.
+      memory_->set_is_neuterable(false);
+    } else if (min_mem_pages > 0) {
       memory_ = AllocateMemory(min_mem_pages);
       if (memory_.is_null()) return nothing;  // failed to allocate memory
     }
