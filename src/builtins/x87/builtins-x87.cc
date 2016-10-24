@@ -1163,7 +1163,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ pop(argument_count);
   __ mov(entry, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Is the shared function marked for optimization?
-  __ testb(
+  __ test_b(
       FieldOperand(entry,
                    SharedFunctionInfo::kWasMarkedForOptimizationByteOffset),
       Immediate(
