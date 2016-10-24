@@ -95,13 +95,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
 
   void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
-                         bool needs_hole_check,
+                         HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableLoadForAccumulatorValue(
-      Variable* variable, FeedbackVectorSlot slot, bool needs_hole_check,
+      Variable* variable, FeedbackVectorSlot slot,
+      HoleCheckMode hole_check_mode,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackVectorSlot slot, bool needs_hole_check);
+                               FeedbackVectorSlot slot,
+                               HoleCheckMode hole_check_mode);
 
   void BuildReturn();
   void BuildReThrow();

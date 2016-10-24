@@ -1671,11 +1671,12 @@ class VariableProxy final : public Expression {
     bit_field_ = IsNewTargetField::update(bit_field_, true);
   }
 
-  bool needs_hole_check() const {
-    return NeedsHoleCheckField::decode(bit_field_);
+  HoleCheckMode hole_check_mode() const {
+    return HoleCheckModeField::decode(bit_field_);
   }
   void set_needs_hole_check() {
-    bit_field_ = NeedsHoleCheckField::update(bit_field_, true);
+    bit_field_ =
+        HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
   }
 
   int end_position() const { return end_position_; }
@@ -1713,8 +1714,8 @@ class VariableProxy final : public Expression {
   class IsAssignedField : public BitField<bool, IsThisField::kNext, 1> {};
   class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
   class IsNewTargetField : public BitField<bool, IsResolvedField::kNext, 1> {};
-  class NeedsHoleCheckField
-      : public BitField<bool, IsNewTargetField::kNext, 1> {};
+  class HoleCheckModeField
+      : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
 
   // Position is stored in the AstNode superclass, but VariableProxy needs to
   // know its end position too (for error messages). It cannot be inferred from

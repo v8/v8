@@ -1582,7 +1582,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
   if (lit->class_variable_proxy() != nullptr) {
     EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,
-                           lit->ProxySlot());
+                           lit->ProxySlot(), HoleCheckMode::kElided);
   }
 
   context()->Plug(result_register());

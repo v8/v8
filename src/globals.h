@@ -1049,6 +1049,8 @@ enum VariableLocation : uint8_t {
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
+enum class HoleCheckMode { kRequired, kElided };
+
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 // Serialized in PreparseData, so numeric values should not be changed.
