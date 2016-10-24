@@ -197,6 +197,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
     return FAILED;
   }
 
+  CodeGenerator::MakeCodePrologue(info(), "interpreter");
+
   if (FLAG_print_bytecode) {
     OFStream os(stdout);
     bytecodes->Print(os);
