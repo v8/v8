@@ -983,23 +983,12 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
       input = jsgraph()->Constant(kMaxSafeInteger);
     } else {
       if (input_type->Min() <= 0.0) {
-        input = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(), input,
-                             jsgraph()->ZeroConstant()),
-            jsgraph()->ZeroConstant(), input);
-        input_type = Type::Range(0.0, input_type->Max(), graph()->zone());
-        NodeProperties::SetType(input, input_type);
+        input = graph()->NewNode(simplified()->NumberMax(),
+                                 jsgraph()->ZeroConstant(), input);
       }
       if (input_type->Max() > kMaxSafeInteger) {
-        input = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                             jsgraph()->Constant(kMaxSafeInteger), input),
-            jsgraph()->Constant(kMaxSafeInteger), input);
-        input_type =
-            Type::Range(input_type->Min(), kMaxSafeInteger, graph()->zone());
-        NodeProperties::SetType(input, input_type);
+        input = graph()->NewNode(simplified()->NumberMin(),
+                                 jsgraph()->Constant(kMaxSafeInteger), input);
       }
     }
     ReplaceWithValue(node, input);
