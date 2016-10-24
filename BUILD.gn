@@ -2816,6 +2816,26 @@ v8_source_set("wasm_code_fuzzer") {
 v8_fuzzer("wasm_code_fuzzer") {
 }
 
+v8_source_set("wasm_call_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-call.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":wasm_module_runner",
+    ":wasm_test_signatures",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("wasm_call_fuzzer") {
+}
+
 v8_source_set("lib_wasm_section_fuzzer") {
   sources = [
     "test/fuzzer/wasm-section-fuzzers.cc",
