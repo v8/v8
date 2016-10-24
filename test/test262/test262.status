@@ -629,9 +629,6 @@
   # v8:5401
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],
-
-  # https://github.com/tc39/test262/issues/773
-  'language/module-code/namespace/Symbol.iterator/values-binding-types_': [SKIP],
 }],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]
