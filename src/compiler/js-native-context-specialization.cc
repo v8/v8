@@ -682,9 +682,9 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     Handle<String> string = Handle<String>::cast(mreceiver.Value());
 
     // We can only assume that the {index} is a valid array index if the IC
-    // is in element access mode, otherwise there's no guard for the bounds
-    // check below.
-    if (nexus.GetKeyType() == ELEMENT) {
+    // is in element access mode and not MEGAMORPHIC, otherwise there's no
+    // guard for the bounds check below.
+    if (nexus.ic_state() != MEGAMORPHIC && nexus.GetKeyType() == ELEMENT) {
       // Strings are immutable in JavaScript.
       if (access_mode == AccessMode::kStore) return NoChange();
 
@@ -759,6 +759,12 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
     // that the {index} is a valid array index, thus we just let the IC continue
     // to deal with this load/store.
+    return NoChange();
+  } else if (nexus.ic_state() == MEGAMORPHIC) {
+    // The KeyedLoad/StoreIC uses the MEGAMORPHIC state to guard the assumption
+    // that a numeric {index} is within the valid bounds for {receiver}, i.e.
+    // it transitions to MEGAMORPHIC once it sees an out-of-bounds access. Thus
+    // we cannot continue here if the IC state is MEGAMORPHIC.
     return NoChange();
   }
 
