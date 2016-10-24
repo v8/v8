@@ -672,8 +672,37 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
-  Node* const receiver = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Optimize access for constant {receiver}.
+  HeapObjectMatcher mreceiver(receiver);
+  if (mreceiver.HasValue() && mreceiver.Value()->IsString()) {
+    Handle<String> string = Handle<String>::cast(mreceiver.Value());
+
+    // We can only assume that the {index} is a valid array index if the IC
+    // is in element access mode, otherwise there's no guard for the bounds
+    // check below.
+    if (nexus.GetKeyType() == ELEMENT) {
+      // Strings are immutable in JavaScript.
+      if (access_mode == AccessMode::kStore) return NoChange();
+
+      // Ensure that {index} is less than {receiver} length.
+      Node* length = jsgraph()->Constant(string->length());
+      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                        length, effect, control);
+
+      // Load the character from the {receiver}.
+      value = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                               index, control);
+
+      // Return it as a single character string.
+      value = graph()->NewNode(simplified()->StringFromCharCode(), value);
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
+    }
+  }
 
   // Check if the {nexus} reports type feedback for the IC.
   if (nexus.IsUninitialized()) {
