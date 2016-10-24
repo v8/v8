@@ -863,6 +863,8 @@ class FastNewClosureStub : public TurboFanCodeStub {
 
 class FastNewFunctionContextStub final : public TurboFanCodeStub {
  public:
+  static const int kMaximumSlots = 0x8000;
+
   explicit FastNewFunctionContextStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
@@ -872,6 +874,11 @@ class FastNewFunctionContextStub final : public TurboFanCodeStub {
                                   compiler::Node* context);
 
  private:
+  // FastNewFunctionContextStub can only allocate closures which fit in the
+  // new space.
+  STATIC_ASSERT(((kMaximumSlots + Context::MIN_CONTEXT_SLOTS) * kPointerSize +
+                 FixedArray::kHeaderSize) < kMaxRegularHeapObjectSize);
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
   DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
 };

@@ -2952,7 +2952,12 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
         .CallRuntime(Runtime::kPushModuleContext, args);
   } else {
     int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    builder()->CreateFunctionContext(slot_count);
+    if (slot_count <= FastNewFunctionContextStub::kMaximumSlots) {
+      builder()->CreateFunctionContext(slot_count);
+    } else {
+      builder()->CallRuntime(Runtime::kNewFunctionContext,
+                             Register::function_closure());
+    }
   }
 }
 
