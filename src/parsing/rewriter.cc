@@ -167,36 +167,33 @@ void Processor::VisitExpressionStatement(ExpressionStatement* node) {
 void Processor::VisitIfStatement(IfStatement* node) {
   // Rewrite both branches.
   bool set_after = is_set_;
+
   Visit(node->then_statement());
   node->set_then_statement(replacement_);
   bool set_in_then = is_set_;
+
   is_set_ = set_after;
   Visit(node->else_statement());
   node->set_else_statement(replacement_);
-  is_set_ = is_set_ && set_in_then;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = set_in_then && is_set_ ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
 void Processor::VisitIterationStatement(IterationStatement* node) {
+  // The statement may have to produce a value, so always assign undefined
+  // before.
+  // TODO(verwaest): Omit it if we know that there's no break/continue leaving
+  // it early.
+  DCHECK(breakable_ || !is_set_);
   BreakableScope scope(this);
-  // Rewrite the body.
-  bool set_after = is_set_;
-  is_set_ = false;  // We are in a loop, so we can't rely on [set_after].
+
   Visit(node->body());
   node->set_body(replacement_);
-  is_set_ = is_set_ && set_after;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
@@ -228,74 +225,72 @@ void Processor::VisitForOfStatement(ForOfStatement* node) {
 void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   // Rewrite both try and catch block.
   bool set_after = is_set_;
+
   Visit(node->try_block());
   node->set_try_block(static_cast<Block*>(replacement_));
   bool set_in_try = is_set_;
+
   is_set_ = set_after;
   Visit(node->catch_block());
   node->set_catch_block(static_cast<Block*>(replacement_));
-  is_set_ = is_set_ && set_in_try;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = is_set_ && set_in_try ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
 void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  // Rewrite both try and finally block (in reverse order).
-  bool set_after = is_set_;
-  is_set_ = true;  // Don't normally need to assign in finally block.
-  Visit(node->finally_block());
-  node->set_finally_block(replacement_->AsBlock());
-  {  // Save .result value at the beginning of the finally block and restore it
-     // at the end again: ".backup = .result; ...; .result = .backup"
-     // This is necessary because the finally block does not normally contribute
-     // to the completion value.
-     CHECK_NOT_NULL(closure_scope());
-     Variable* backup = closure_scope()->NewTemporary(
-         factory()->ast_value_factory()->dot_result_string());
-     Expression* backup_proxy = factory()->NewVariableProxy(backup);
-     Expression* result_proxy = factory()->NewVariableProxy(result_);
-     Expression* save = factory()->NewAssignment(
-         Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
-     Expression* restore = factory()->NewAssignment(
-         Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
-     node->finally_block()->statements()->InsertAt(
-         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
-     node->finally_block()->statements()->Add(
-         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+  // Only rewrite finally if it could contain 'break' or 'continue'. Always
+  // rewrite try.
+  if (breakable_) {
+    bool set_after = is_set_;
+    // Only set result before a 'break' or 'continue'.
+    is_set_ = true;
+    Visit(node->finally_block());
+    node->set_finally_block(replacement_->AsBlock());
+    // Save .result value at the beginning of the finally block and restore it
+    // at the end again: ".backup = .result; ...; .result = .backup"
+    // This is necessary because the finally block does not normally contribute
+    // to the completion value.
+    CHECK_NOT_NULL(closure_scope());
+    Variable* backup = closure_scope()->NewTemporary(
+        factory()->ast_value_factory()->dot_result_string());
+    Expression* backup_proxy = factory()->NewVariableProxy(backup);
+    Expression* result_proxy = factory()->NewVariableProxy(result_);
+    Expression* save = factory()->NewAssignment(
+        Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
+    Expression* restore = factory()->NewAssignment(
+        Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
+    node->finally_block()->statements()->InsertAt(
+        0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
+    node->finally_block()->statements()->Add(
+        factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+    is_set_ = set_after;
   }
-  is_set_ = set_after;
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = is_set_ ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
 void Processor::VisitSwitchStatement(SwitchStatement* node) {
+  // The statement may have to produce a value, so always assign undefined
+  // before.
+  // TODO(verwaest): Omit it if we know that there's no break/continue leaving
+  // it early.
+  DCHECK(breakable_ || !is_set_);
   BreakableScope scope(this);
-  // Rewrite statements in all case clauses (in reverse order).
+  // Rewrite statements in all case clauses.
   ZoneList<CaseClause*>* clauses = node->cases();
-  bool set_after = is_set_;
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
   }
-  is_set_ = is_set_ && set_after;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
@@ -314,12 +309,9 @@ void Processor::VisitBreakStatement(BreakStatement* node) {
 void Processor::VisitWithStatement(WithStatement* node) {
   Visit(node->statement());
   node->set_statement(replacement_);
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = is_set_ ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
