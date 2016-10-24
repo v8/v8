@@ -252,10 +252,11 @@ void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 namespace {
 
 bool Parse(ParseInfo* info) {
-  // Create a canonical handle scope for compiling Ignition bytecode. This is
+  // Create a canonical handle scope if compiling ignition bytecode. This is
   // required by the constant array builder to de-duplicate objects without
   // dereferencing handles.
-  CanonicalHandleScope canonical(info->isolate());
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
 
   return Parser::ParseStatic(info);
 }
@@ -491,10 +492,13 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 }
 
 bool Renumber(ParseInfo* parse_info) {
-  // Create a canonical handle scope for compiling Ignition bytecode. This is
+  // Create a canonical handle scope if compiling ignition bytecode. This is
   // required by the constant array builder to de-duplicate objects without
   // dereferencing handles.
-  CanonicalHandleScope canonical(parse_info->isolate());
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) {
+    canonical.reset(new CanonicalHandleScope(parse_info->isolate()));
+  }
 
   if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
                               parse_info->literal())) {
