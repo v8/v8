@@ -95,14 +95,6 @@ class BytecodeSourceInfo final {
     source_position_ = source_position;
   }
 
-  // Clones a source position. The current instance is expected to be
-  // invalid.
-  void Clone(const BytecodeSourceInfo& other) {
-    DCHECK(!is_valid());
-    position_type_ = other.position_type_;
-    source_position_ = other.source_position_;
-  }
-
   int source_position() const {
     DCHECK(is_valid());
     return source_position_;
@@ -142,66 +134,62 @@ class BytecodeSourceInfo final {
 // These must be allocated by a BytecodeNodeAllocator instance.
 class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
  public:
-  INLINE(BytecodeNode(const Bytecode bytecode,
-                      BytecodeSourceInfo* source_info = nullptr))
+  INLINE(BytecodeNode(Bytecode bytecode,
+                      BytecodeSourceInfo source_info = BytecodeSourceInfo()))
       : bytecode_(bytecode),
         operand_count_(0),
-        operand_scale_(OperandScale::kSingle) {
+        operand_scale_(OperandScale::kSingle),
+        source_info_(source_info) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count());
-    AttachSourceInfo(source_info);
   }
 
-  INLINE(BytecodeNode(const Bytecode bytecode, uint32_t operand0,
-                      BytecodeSourceInfo* source_info = nullptr))
+  INLINE(BytecodeNode(Bytecode bytecode, uint32_t operand0,
+                      BytecodeSourceInfo source_info = BytecodeSourceInfo()))
       : bytecode_(bytecode),
         operand_count_(1),
-        operand_scale_(OperandScale::kSingle) {
+        operand_scale_(OperandScale::kSingle),
+        source_info_(source_info) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count());
     SetOperand(0, operand0);
-    AttachSourceInfo(source_info);
   }
 
-  INLINE(BytecodeNode(const Bytecode bytecode, uint32_t operand0,
-                      uint32_t operand1,
-                      BytecodeSourceInfo* source_info = nullptr))
+  INLINE(BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+                      BytecodeSourceInfo source_info = BytecodeSourceInfo()))
       : bytecode_(bytecode),
         operand_count_(2),
-        operand_scale_(OperandScale::kSingle) {
+        operand_scale_(OperandScale::kSingle),
+        source_info_(source_info) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count());
     SetOperand(0, operand0);
     SetOperand(1, operand1);
-    AttachSourceInfo(source_info);
   }
 
-  INLINE(BytecodeNode(const Bytecode bytecode, uint32_t operand0,
-                      uint32_t operand1, uint32_t operand2,
-                      BytecodeSourceInfo* source_info = nullptr))
+  INLINE(BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+                      uint32_t operand2,
+                      BytecodeSourceInfo source_info = BytecodeSourceInfo()))
       : bytecode_(bytecode),
         operand_count_(3),
-        operand_scale_(OperandScale::kSingle) {
+        operand_scale_(OperandScale::kSingle),
+        source_info_(source_info) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count());
     SetOperand(0, operand0);
     SetOperand(1, operand1);
     SetOperand(2, operand2);
-    AttachSourceInfo(source_info);
   }
 
-  INLINE(BytecodeNode(const Bytecode bytecode, uint32_t operand0,
-                      uint32_t operand1, uint32_t operand2, uint32_t operand3,
-                      BytecodeSourceInfo* source_info = nullptr))
+  INLINE(BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+                      uint32_t operand2, uint32_t operand3,
+                      BytecodeSourceInfo source_info = BytecodeSourceInfo()))
       : bytecode_(bytecode),
         operand_count_(4),
-        operand_scale_(OperandScale::kSingle) {
+        operand_scale_(OperandScale::kSingle),
+        source_info_(source_info) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count());
     SetOperand(0, operand0);
     SetOperand(1, operand1);
     SetOperand(2, operand2);
     SetOperand(3, operand3);
-    AttachSourceInfo(source_info);
   }
-
-  BytecodeNode(const BytecodeNode& other);
-  BytecodeNode& operator=(const BytecodeNode& other);
 
   // Replace the bytecode of this node with |bytecode| and keep the operands.
   void replace_bytecode(Bytecode bytecode) {
@@ -209,12 +197,14 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
               Bytecodes::NumberOfOperands(bytecode));
     bytecode_ = bytecode;
   }
+
   void set_bytecode(Bytecode bytecode) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
     bytecode_ = bytecode;
     operand_count_ = 0;
     operand_scale_ = OperandScale::kSingle;
   }
+
   void set_bytecode(Bytecode bytecode, uint32_t operand0) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
     bytecode_ = bytecode;
@@ -222,6 +212,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
     operand_scale_ = OperandScale::kSingle;
     SetOperand(0, operand0);
   }
+
   void set_bytecode(Bytecode bytecode, uint32_t operand0, uint32_t operand1) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 2);
     bytecode_ = bytecode;
@@ -230,6 +221,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
     SetOperand(0, operand0);
     SetOperand(1, operand1);
   }
+
   void set_bytecode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
                     uint32_t operand2) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 3);
@@ -240,9 +232,6 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
     SetOperand(1, operand1);
     SetOperand(2, operand2);
   }
-
-  // Clone |other|.
-  void Clone(const BytecodeNode* const other);
 
   // Print to stream |os|.
   void Print(std::ostream& os) const;
@@ -268,18 +257,6 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
     SetOperand(operand_count() - 1, extra_operand);
   }
 
-  // Updates the operand at |operand_index| to |operand|.
-  void UpdateOperand(int operand_index, uint32_t operand) {
-    DCHECK_LE(operand_index, Bytecodes::NumberOfOperands(bytecode()));
-    operands_[operand_index] = operand;
-    if ((Bytecodes::OperandIsScalableSignedByte(bytecode(), operand_index) &&
-         Bytecodes::ScaleForSignedOperand(operand) != operand_scale_) ||
-        (Bytecodes::OperandIsScalableUnsignedByte(bytecode(), operand_index) &&
-         Bytecodes::ScaleForUnsignedOperand(operand) != operand_scale_)) {
-      UpdateScale();
-    }
-  }
-
   Bytecode bytecode() const { return bytecode_; }
 
   uint32_t operand(int i) const {
@@ -292,27 +269,14 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
   OperandScale operand_scale() const { return operand_scale_; }
 
   const BytecodeSourceInfo& source_info() const { return source_info_; }
-  BytecodeSourceInfo* source_info_ptr() { return &source_info_; }
+  void set_source_info(BytecodeSourceInfo source_info) {
+    source_info_ = source_info;
+  }
 
   bool operator==(const BytecodeNode& other) const;
   bool operator!=(const BytecodeNode& other) const { return !(*this == other); }
 
  private:
-  INLINE(void AttachSourceInfo(BytecodeSourceInfo* source_info)) {
-    if (source_info && source_info->is_valid()) {
-      // Statement positions need to be emitted immediately.  Expression
-      // positions can be pushed back until a bytecode is found that can
-      // throw (if expression position filtering is turned on). We only
-      // invalidate the existing source position information if it is used.
-      if (source_info->is_statement() ||
-          !FLAG_ignition_filter_expression_positions ||
-          !Bytecodes::IsWithoutExternalSideEffects(bytecode())) {
-        source_info_.Clone(*source_info);
-        source_info->set_invalid();
-      }
-    }
-  }
-
   INLINE(void UpdateScaleForOperand(int operand_index, uint32_t operand)) {
     if (Bytecodes::OperandIsScalableSignedByte(bytecode(), operand_index)) {
       operand_scale_ =
@@ -327,13 +291,6 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
   INLINE(void SetOperand(int operand_index, uint32_t operand)) {
     operands_[operand_index] = operand;
     UpdateScaleForOperand(operand_index, operand);
-  }
-
-  void UpdateScale() {
-    operand_scale_ = OperandScale::kSingle;
-    for (int i = 0; i < operand_count(); i++) {
-      UpdateScaleForOperand(i, operands_[i]);
-    }
   }
 
   Bytecode bytecode_;
