@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/utils.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -19,11 +20,6 @@
 #define MAX_NUM_FUNCTIONS 3
 #define MAX_NUM_PARAMS 3
 
-#define FUZZER_TYPE_FLOAT32 0
-#define FUZZER_TYPE_FLOAT64 1
-#define FUZZER_TYPE_INT32 2
-#define FUZZER_TYPE_INT64 3
-
 using namespace v8::internal::wasm;
 
 template <typename V>
@@ -32,32 +28,32 @@ static inline V read_value(const uint8_t** data, size_t* size, bool* ok) {
   // that a value of type V can be read without problems.
   *ok &= (*size > sizeof(V));
   if (!(*ok)) return 0;
-  V result = *reinterpret_cast<const V*>(*data);
+  V result = v8::internal::ReadLittleEndianValue<V>(*data);
   *data += sizeof(V);
   *size -= sizeof(V);
   return result;
 }
 
 static void add_argument(
-    v8::internal::Isolate* isolate, uint8_t type, WasmVal* interpreter_args,
+    v8::internal::Isolate* isolate, LocalType type, WasmVal* interpreter_args,
     v8::internal::Handle<v8::internal::Object>* compiled_args, int* argc,
     const uint8_t** data, size_t* size, bool* ok) {
   if (!(*ok)) return;
   switch (type) {
-    case FUZZER_TYPE_FLOAT32: {
+    case kAstF32: {
       float value = read_value<float>(data, size, ok);
       interpreter_args[*argc] = WasmVal(value);
       compiled_args[*argc] =
           isolate->factory()->NewNumber(static_cast<double>(value));
       break;
     }
-    case FUZZER_TYPE_FLOAT64: {
+    case kAstF64: {
       double value = read_value<double>(data, size, ok);
       interpreter_args[*argc] = WasmVal(value);
       compiled_args[*argc] = isolate->factory()->NewNumber(value);
       break;
     }
-    case FUZZER_TYPE_INT32: {
+    case kAstI32: {
       int32_t value = read_value<int32_t>(data, size, ok);
       interpreter_args[*argc] = WasmVal(value);
       compiled_args[*argc] =
@@ -106,9 +102,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     sig_builder.AddReturn(kAstI32);
     for (size_t param = 0; param < num_params; param++) {
       // The main function cannot handle int64 parameters.
-      uint8_t param_type = (read_value<uint8_t>(&data, &size, &ok) %
-                            (arraysize(types) - (fun == 0 ? 1 : 0)));
-      sig_builder.AddParam(types[param_type]);
+      LocalType param_type = types[(read_value<uint8_t>(&data, &size, &ok) %
+                                    (arraysize(types) - (fun == 0 ? 1 : 0)))];
+      sig_builder.AddParam(param_type);
       if (fun == 0) {
         add_argument(i_isolate, param_type, interpreter_args, compiled_args,
                      &argc, &data, &size, &ok);
