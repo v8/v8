@@ -2447,104 +2447,63 @@ EffectControlLinearizer::LowerStringFromCharCode(Node* node, Node* effect,
   Node* branch0 =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
 
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0 = effect;
-  Node* vtrue0;
-  {
-    // Load the isolate wide single character string cache.
-    Node* cache =
-        jsgraph()->HeapConstant(factory()->single_character_string_cache());
-
-    // Compute the {cache} index for {code}.
-    Node* index =
-        machine()->Is32() ? code : graph()->NewNode(
-                                       machine()->ChangeUint32ToUint64(), code);
-
-    // Check if we have an entry for the {code} in the single character string
-    // cache already.
-    Node* entry = etrue0 = graph()->NewNode(
-        simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()), cache,
-        index, etrue0, if_true0);
-
-    Node* check1 = graph()->NewNode(machine()->WordEqual(), entry,
-                                    jsgraph()->UndefinedConstant());
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_true0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* etrue1 = etrue0;
-    Node* vtrue1;
-    {
-      // Allocate a new SeqOneByteString for {code}.
-      vtrue1 = etrue1 = graph()->NewNode(
-          simplified()->Allocate(NOT_TENURED),
-          jsgraph()->Int32Constant(SeqOneByteString::SizeFor(1)), etrue1,
-          if_true1);
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForMap()), vtrue1,
-          jsgraph()->HeapConstant(factory()->one_byte_string_map()), etrue1,
-          if_true1);
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForNameHashField()), vtrue1,
-          jsgraph()->IntPtrConstant(Name::kEmptyHashField), etrue1, if_true1);
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForStringLength()), vtrue1,
-          jsgraph()->SmiConstant(1), etrue1, if_true1);
-      etrue1 = graph()->NewNode(
-          machine()->Store(StoreRepresentation(MachineRepresentation::kWord8,
-                                               kNoWriteBarrier)),
-          vtrue1, jsgraph()->IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                            kHeapObjectTag),
-          code, etrue1, if_true1);
-
-      // Remember it in the {cache}.
-      etrue1 = graph()->NewNode(
-          simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()),
-          cache, index, vtrue1, etrue1, if_true1);
-    }
-
-    // Use the {entry} from the {cache}.
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* efalse1 = etrue0;
-    Node* vfalse1 = entry;
-
-    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    etrue0 =
-        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
-    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                              vtrue1, vfalse1, if_true0);
-  }
-
   Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
   Node* efalse0 = effect;
-  Node* vfalse0;
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+
+  // Load the isolate wide single character string cache.
+  Node* cache =
+      jsgraph()->HeapConstant(factory()->single_character_string_cache());
+
+  // Compute the {cache} index for {code}.
+  Node* index = machine()->Is32()
+                    ? code
+                    : graph()->NewNode(machine()->ChangeUint32ToUint64(), code);
+
+  // Check if we have an entry for the {code} in the single character string
+  // cache already.
+  Node* entry = etrue0 = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()), cache,
+      index, etrue0, if_true0);
+
+  Node* check1 = graph()->NewNode(machine()->WordEqual(), entry,
+                                  jsgraph()->UndefinedConstant());
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, if_true0);
+
+  // Use the {entry} from the {cache}.
+  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+  Node* efalse1 = etrue0;
+  Node* vfalse1 = entry;
+
+  // Let %StringFromCharCode handle this case.
+  // TODO(turbofan): At some point we may consider adding a stub for this
+  // deferred case, so that we don't need to call to C++ here.
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* etrue1 = etrue0;
+  Node* vtrue1;
   {
-    // Allocate a new SeqTwoByteString for {code}.
-    vfalse0 = efalse0 =
-        graph()->NewNode(simplified()->Allocate(NOT_TENURED),
-                         jsgraph()->Int32Constant(SeqTwoByteString::SizeFor(1)),
-                         efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForMap()), vfalse0,
-        jsgraph()->HeapConstant(factory()->string_map()), efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForNameHashField()), vfalse0,
-        jsgraph()->IntPtrConstant(Name::kEmptyHashField), efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForStringLength()), vfalse0,
-        jsgraph()->SmiConstant(1), efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        machine()->Store(StoreRepresentation(MachineRepresentation::kWord16,
-                                             kNoWriteBarrier)),
-        vfalse0, jsgraph()->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                           kHeapObjectTag),
-        code, efalse0, if_false0);
+    if_true1 = graph()->NewNode(common()->Merge(2), if_true1, if_false0);
+    etrue1 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse0, if_true1);
+    Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+    Runtime::FunctionId id = Runtime::kStringCharFromCode;
+    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+    vtrue1 = etrue1 = graph()->NewNode(
+        common()->Call(desc), jsgraph()->CEntryStubConstant(1),
+        ChangeInt32ToSmi(code),
+        jsgraph()->ExternalConstant(ExternalReference(id, isolate())),
+        jsgraph()->Int32Constant(1), jsgraph()->NoContextConstant(), etrue1,
+        if_true1);
   }
 
-  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  control = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vtrue0, vfalse0, control);
+                           vtrue1, vfalse1, control);
 
   return ValueEffectControl(value, effect, control);
 }
