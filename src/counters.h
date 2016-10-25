@@ -671,6 +671,11 @@ class RuntimeCallTimer {
 #define FOR_EACH_MANUAL_COUNTER(V)                  \
   V(AccessorGetterCallback)                         \
   V(AccessorNameGetterCallback)                     \
+  V(AccessorNameGetterCallback_ArrayLength)         \
+  V(AccessorNameGetterCallback_BoundFunctionLength) \
+  V(AccessorNameGetterCallback_BoundFunctionName)   \
+  V(AccessorNameGetterCallback_FunctionPrototype)   \
+  V(AccessorNameGetterCallback_StringLength)        \
   V(AccessorNameSetterCallback)                     \
   V(Compile)                                        \
   V(CompileCode)                                    \
