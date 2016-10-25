@@ -100,7 +100,10 @@ InspectorTest.logObject = function(object, title)
   InspectorTest.log(lines.join("\n"));
 }
 
-InspectorTest.completeTest = quit.bind(null);
+InspectorTest.completeTest = function()
+{
+  Protocol.Debugger.disable().then(() => quit());
+}
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {

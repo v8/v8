@@ -1867,7 +1867,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     v8_inspector::V8InspectorSession* session =
         InspectorClient::GetSession(context);
     int length = message->Length();
-    std::unique_ptr<uint16_t> buffer(new uint16_t[length]);
+    std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
     message->Write(buffer.get(), 0, length);
     v8_inspector::StringView message_view(buffer.get(), length);
     session->dispatchProtocolMessage(message_view);

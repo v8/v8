@@ -377,7 +377,11 @@ String16 String16::fromInteger(int number) {
 String16 String16::fromInteger(size_t number) {
   const size_t kBufferSize = 50;
   char buffer[kBufferSize];
+#if !defined(_WIN32) && !defined(_WIN64)
   v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
+#else
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
+#endif
   return String16(buffer);
 }
 
