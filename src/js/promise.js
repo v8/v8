@@ -143,14 +143,12 @@ function PromiseInit(promise) {
 }
 
 function FulfillPromise(promise, status, value, promiseQueue) {
-  if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
-    var tasks = GET_PRIVATE(promise, promiseQueue);
-    if (!IS_UNDEFINED(tasks)) {
-      var deferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
-      PromiseEnqueue(value, tasks, deferred, status);
-    }
-    PromiseSet(promise, status, value);
+  var tasks = GET_PRIVATE(promise, promiseQueue);
+  if (!IS_UNDEFINED(tasks)) {
+    var deferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
+    PromiseEnqueue(value, tasks, deferred, status);
   }
+  PromiseSet(promise, status, value);
 }
 
 function PromiseHandle(value, handler, deferred) {
