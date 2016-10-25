@@ -4686,14 +4686,6 @@ class ScopeInfo : public FixedArray {
              VariableLocation* location, InitializationFlag* init_flag,
              MaybeAssignedFlag* maybe_assigned_flag);
 
-  // Get metadata of i-th MODULE-allocated variable, where 0 <= i <
-  // ModuleVariableCount.  The metadata is returned via out-arguments, which may
-  // be nullptr if the corresponding information is not requested
-  void ModuleVariable(int i, String** name, int* index,
-                      VariableMode* mode = nullptr,
-                      InitializationFlag* init_flag = nullptr,
-                      MaybeAssignedFlag* maybe_assigned_flag = nullptr);
-
   // Used for the function name variable for named function expressions, and for
   // the receiver.
   enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
@@ -4761,18 +4753,13 @@ class ModuleInfoEntry : public FixedArray {
 class ModuleInfo : public FixedArray {
  public:
   DECLARE_CAST(ModuleInfo)
-
   static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
                                 ModuleDescriptor* descr);
-
   inline FixedArray* module_requests() const;
   inline FixedArray* special_exports() const;
   inline FixedArray* regular_exports() const;
   inline FixedArray* namespace_imports() const;
   inline FixedArray* regular_imports() const;
-
-  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
-                                                     Handle<String> local_name);
 
 #ifdef DEBUG
   inline bool Equals(ModuleInfo* other) const;

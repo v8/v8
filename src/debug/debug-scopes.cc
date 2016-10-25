@@ -101,8 +101,6 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       // Language mode may be inherited from the eval caller.
       // Retrieve it from shared function info.
       info->set_language_mode(shared_info->language_mode());
-    } else if (scope_info->scope_type() == MODULE_SCOPE) {
-      info->set_module();
     } else {
       DCHECK(scope_info->scope_type() == SCRIPT_SCOPE);
     }
@@ -610,10 +608,17 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
   Handle<Context> context = CurrentContext();
   DCHECK(context->IsModuleContext());
   Handle<ScopeInfo> scope_info(context->scope_info());
+
+  // Allocate and initialize a JSObject with all the members of the debugged
+  // module.
   Handle<JSObject> module_scope =
       isolate_->factory()->NewJSObjectWithNullProto();
+
+  // Fill all context locals.
   CopyContextLocalsToScopeObject(scope_info, context, module_scope);
-  CopyModuleVarsToScopeObject(scope_info, context, module_scope);
+
+  // TODO(neis): Also collect stack locals as well as imports and exports.
+
   return module_scope;
 }
 
@@ -780,51 +785,6 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
     // This should always succeed.
     // TODO(verwaest): Use AddDataProperty instead.
     JSObject::SetOwnPropertyIgnoreAttributes(scope_object, name, value, NONE)
-        .Check();
-  }
-}
-
-void ScopeIterator::CopyModuleVarsToScopeObject(Handle<ScopeInfo> scope_info,
-                                                Handle<Context> context,
-                                                Handle<JSObject> scope_object) {
-  Isolate* isolate = scope_info->GetIsolate();
-
-  int module_variable_count =
-      Smi::cast(scope_info->get(scope_info->ModuleVariableCountIndex()))
-          ->value();
-  for (int i = 0; i < module_variable_count; ++i) {
-    Handle<String> local_name;
-    bool is_export;
-    {
-      String* name;
-      int index;
-      scope_info->ModuleVariable(i, &name, &index);
-      CHECK(!ScopeInfo::VariableIsSynthetic(name));
-      local_name = handle(name, isolate);
-      is_export = index == Variable::kModuleExportIndex;
-    }
-
-    Handle<Object> value;
-    if (is_export) {
-      value =
-          Module::LoadExport(handle(context->module(), isolate), local_name);
-    } else {
-      Handle<ModuleInfo> module_info(scope_info->ModuleDescriptorInfo(),
-                                     isolate);
-      Handle<ModuleInfoEntry> entry =
-          ModuleInfo::LookupRegularImport(module_info, local_name);
-      Handle<String> import_name(String::cast(entry->import_name()), isolate);
-      int module_request = Smi::cast(entry->module_request())->value();
-      value = Module::LoadImport(handle(context->module(), isolate),
-                                 import_name, module_request);
-    }
-
-    // Reflect variables under TDZ as undefined in scope object.
-    if (value->IsTheHole(isolate)) continue;
-    // This should always succeed.
-    // TODO(verwaest): Use AddDataProperty instead.
-    JSObject::SetOwnPropertyIgnoreAttributes(scope_object, local_name, value,
-                                             NONE)
         .Check();
   }
 }

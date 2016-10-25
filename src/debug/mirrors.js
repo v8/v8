@@ -257,7 +257,6 @@ var ScopeType = { Global:  0,
                   Block:   5,
                   Script:  6,
                   Eval:    7,
-                  Module:  8,
                 };
 
 /**
