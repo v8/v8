@@ -67,7 +67,7 @@ class Interpreter {
   }
 
   // TODO(ignition): Tune code size multiplier.
-  static const int kCodeSizeMultiplier = 32;
+  static const int kCodeSizeMultiplier = 72;
 
  private:
 // Bytecode handler generator functions.
