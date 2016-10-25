@@ -120,7 +120,8 @@ class WasmGlobalBuilder {
   }
 
   exportAs(name) {
-    this.module.exports.push({name: name, kind: kExternalGlobal, index: this.index});
+    this.module.exports.push({name: name, kind: kExternalGlobal,
+                              index: this.index});
     return this;
   }
 }
@@ -197,13 +198,19 @@ class WasmModuleBuilder {
   }
 
   addImportedMemory(module, name, initial = 0, maximum) {
-    let o = {module: module, name: name, kind: kExternalMemory, initial: initial, maximum: maximum};
+    let o = {module: module, name: name, kind: kExternalMemory,
+             initial: initial, maximum: maximum};
     this.imports.push(o);
     return this;
   }
 
   addExport(name, index) {
     this.exports.push({name: name, kind: kExternalFunction, index: index});
+    return this;
+  }
+
+  addExportOfKind(name, kind, index) {
+    this.exports.push({name: name, kind: kind, index: index});
     return this;
   }
 
@@ -217,10 +224,13 @@ class WasmModuleBuilder {
   }
 
   addFunctionTableInit(base, is_global, array) {
-    this.function_table_inits.push({base: base, is_global: is_global, array: array});
+    this.function_table_inits.push({base: base, is_global: is_global,
+                                    array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length) this.function_table_length = length;
+      if (length > this.function_table_length) {
+        this.function_table_length = length;
+      }
     }
     return this;
   }

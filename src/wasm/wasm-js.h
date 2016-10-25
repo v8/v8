@@ -28,6 +28,12 @@ class WasmJs {
                                                  Handle<JSArrayBuffer> buffer,
                                                  bool has_maximum, int maximum);
 
+  static Handle<JSObject> CreateWasmTableObject(Isolate* isolate,
+                                                uint32_t initial,
+                                                bool has_maximum,
+                                                uint32_t maximum,
+                                                Handle<FixedArray>* array);
+
   static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
 
   static Handle<JSArrayBuffer> GetWasmMemoryArrayBuffer(Isolate* isolate,

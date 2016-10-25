@@ -425,22 +425,9 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSFunction> table_ctor(
-      i_isolate->native_context()->wasm_table_constructor());
-  i::Handle<i::JSObject> table_obj =
-      i_isolate->factory()->NewJSObject(table_ctor);
-  i::Handle<i::FixedArray> fixed_array =
-      i_isolate->factory()->NewFixedArray(initial);
-  i::Object* null = i_isolate->heap()->null_value();
-  for (int i = 0; i < initial; ++i) fixed_array->set(i, null);
-  table_obj->SetInternalField(kWasmTableArrayFieldIndex, *fixed_array);
-  table_obj->SetInternalField(
-      kWasmTableMaximumFieldIndex,
-      has_maximum.FromJust()
-          ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
-          : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
-  i::Handle<i::Symbol> table_sym(i_isolate->native_context()->wasm_table_sym());
-  i::Object::SetProperty(table_obj, table_sym, table_obj, i::STRICT).Check();
+  i::Handle<i::FixedArray> fixed_array;
+  i::Handle<i::JSObject> table_obj = i::WasmJs::CreateWasmTableObject(
+      i_isolate, initial, has_maximum.FromJust(), maximum, &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }
@@ -719,6 +706,28 @@ i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
       i_isolate->native_context()->wasm_memory_sym());
   i::Object::SetProperty(memory_obj, memory_sym, memory_obj, i::STRICT).Check();
   return memory_obj;
+}
+
+i::Handle<i::JSObject> i::WasmJs::CreateWasmTableObject(
+    i::Isolate* i_isolate, uint32_t initial, bool has_maximum, uint32_t maximum,
+    i::Handle<i::FixedArray>* array) {
+  i::Handle<i::JSFunction> table_ctor(
+      i_isolate->native_context()->wasm_table_constructor());
+  i::Handle<i::JSObject> table_obj =
+      i_isolate->factory()->NewJSObject(table_ctor);
+  *array = i_isolate->factory()->NewFixedArray(initial);
+  i::Object* null = i_isolate->heap()->null_value();
+  // TODO(titzer): consider moving FixedArray to size_t.
+  for (int i = 0; i < static_cast<int>(initial); ++i) (*array)->set(i, null);
+  table_obj->SetInternalField(kWasmTableArrayFieldIndex, *(*array));
+  table_obj->SetInternalField(
+      kWasmTableMaximumFieldIndex,
+      has_maximum
+          ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
+          : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
+  i::Handle<i::Symbol> table_sym(i_isolate->native_context()->wasm_table_sym());
+  i::Object::SetProperty(table_obj, table_sym, table_obj, i::STRICT).Check();
+  return table_obj;
 }
 
 // TODO(titzer): we use the API to create the function template because the
