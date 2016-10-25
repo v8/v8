@@ -2500,6 +2500,19 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprI64ReinterpretF64);
 }
 
+TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
+#define TEST_SIMD(name, opcode, sig) \
+  EXPECT_LENGTH_N(2, kSimdPrefix, static_cast<byte>(kExpr##name & 0xff));
+  FOREACH_SIMD_0_OPERAND_OPCODE(TEST_SIMD)
+#undef TEST_SIMD
+#define TEST_SIMD(name, opcode, sig) \
+  EXPECT_LENGTH_N(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xff));
+  FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
+#undef TEST_SIMD
+  // test for bad simd opcode
+  EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
+}
+
 typedef ZoneVector<LocalType> LocalTypeMap;
 
 class LocalDeclDecoderTest : public TestWithZone {

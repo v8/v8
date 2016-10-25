@@ -324,7 +324,7 @@ class WasmDecoder : public Decoder {
       case kExprF64Const:
         return 9;
       case kSimdPrefix: {
-        byte simd_index = *(pc + 1);
+        byte simd_index = checked_read_u8(pc, 1, "simd_index");
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
         switch (opcode) {
@@ -341,7 +341,8 @@ class WasmDecoder : public Decoder {
             return 3;
           }
           default:
-            UNREACHABLE();
+            error("invalid SIMD opcode");
+            return 2;
         }
       }
       default:
@@ -1139,7 +1140,7 @@ class WasmFullDecoder : public WasmDecoder {
           case kSimdPrefix: {
             CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
             len++;
-            byte simd_index = *(pc_ + 1);
+            byte simd_index = checked_read_u8(pc_, 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
             TRACE("  @%-4d #%02x #%02x:%-20s|", startrel(pc_), kSimdPrefix,
                   simd_index, WasmOpcodes::ShortOpcodeName(opcode));
