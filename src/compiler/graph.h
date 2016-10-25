@@ -121,6 +121,9 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
   void AddDecorator(GraphDecorator* decorator);
   void RemoveDecorator(GraphDecorator* decorator);
 
+  // Very simple print API usable in a debugger.
+  void Print() const;
+
  private:
   friend class NodeMarkerBase;
 
