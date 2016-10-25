@@ -11,6 +11,7 @@
 #include "src/bootstrapper.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
+#include "src/elements.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -573,12 +574,29 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, tasks, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, deferred, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, debug_id, 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, debug_name, 4);
+  CONVERT_ARG_HANDLE_CHECKED(Object, status, 3);
+  Handle<Object> debug_id = isolate->factory()->undefined_value();
+  Handle<Object> debug_name = isolate->factory()->undefined_value();
+  if (isolate->debug()->is_active()) {
+    Handle<Object> argv[] = {deferred, status};
+    MaybeHandle<Object> maybe_result = Execution::TryCall(
+        isolate, isolate->promise_debug_get_info(),
+        isolate->factory()->undefined_value(), arraysize(argv), argv);
+    Handle<Object> result;
+    if ((maybe_result).ToHandle(&result)) {
+      CHECK(result->IsJSArray());
+      Handle<JSArray> array = Handle<JSArray>::cast(result);
+      ElementsAccessor* accessor = array->GetElementsAccessor();
+      DCHECK(accessor->HasElement(array, 0));
+      DCHECK(accessor->HasElement(array, 1));
+      debug_id = accessor->Get(array, 0);
+      debug_name = accessor->Get(array, 1);
+    }
+  }
   Handle<PromiseReactionJobInfo> info =
       isolate->factory()->NewPromiseReactionJobInfo(value, tasks, deferred,
                                                     debug_id, debug_name,

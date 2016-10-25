@@ -290,7 +290,7 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(EnqueueMicrotask, 1, 1)                         \
-  F(EnqueuePromiseReactionJob, 5, 1)                \
+  F(EnqueuePromiseReactionJob, 4, 1)                \
   F(EnqueuePromiseResolveThenableJob, 4, 1)         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(ExportExperimentalFromRuntime, 1, 1)            \

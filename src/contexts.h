@@ -95,6 +95,7 @@ enum ContextLookupFlags {
   V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                     \
   V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,            \
     promise_has_user_defined_reject_handler)                              \
+  V(PROMISE_DEBUG_GET_INFO_INDEX, JSFunction, promise_debug_get_info)     \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                     \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                   \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                         \
