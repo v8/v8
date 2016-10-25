@@ -143,11 +143,7 @@ function PromiseInit(promise) {
 }
 
 function FulfillPromise(promise, status, value, promiseQueue) {
-  var tasks = GET_PRIVATE(promise, promiseQueue);
-  if (!IS_UNDEFINED(tasks)) {
-    var deferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
-    %EnqueuePromiseReactionJob(value, tasks, deferred, status);
-  }
+  %PromiseFulfill(promise, status, value, promiseQueue);
   PromiseSet(promise, status, value);
 }
 

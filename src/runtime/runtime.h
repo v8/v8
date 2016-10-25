@@ -304,6 +304,7 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                           \
   F(NewTypeError, 2, 1)                             \
   F(OrdinaryHasInstance, 2, 1)                      \
+  F(PromiseFulfill, 4, 1)                           \
   F(PromiseRejectEvent, 3, 1)                       \
   F(PromiseRejectEventFromStack, 2, 1)              \
   F(PromiseRevokeReject, 1, 1)                      \
