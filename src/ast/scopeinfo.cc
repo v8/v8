@@ -647,12 +647,8 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
     if (*name == get(entry + kModuleVariableNameOffset)) {
-      int index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
-      int properties =
-          Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
-      *mode = VariableModeField::decode(properties);
-      *init_flag = InitFlagField::decode(properties);
-      *maybe_assigned_flag = MaybeAssignedFlagField::decode(properties);
+      int index;
+      ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
       return index;
     }
     entry += kModuleVariableEntryLength;
@@ -794,6 +790,34 @@ int ScopeInfo::ModuleVariableCountIndex() { return ModuleInfoIndex() + 1; }
 
 int ScopeInfo::ModuleVariablesIndex() { return ModuleVariableCountIndex() + 1; }
 
+void ScopeInfo::ModuleVariable(int i, String** name, int* index,
+                               VariableMode* mode,
+                               InitializationFlag* init_flag,
+                               MaybeAssignedFlag* maybe_assigned_flag) {
+  DCHECK_LE(0, i);
+  DCHECK_LT(i, Smi::cast(get(ModuleVariableCountIndex()))->value());
+
+  int entry = ModuleVariablesIndex() + i * kModuleVariableEntryLength;
+  int properties =
+      Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
+
+  if (name != nullptr) {
+    *name = String::cast(get(entry + kModuleVariableNameOffset));
+  }
+  if (index != nullptr) {
+    *index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+  }
+  if (mode != nullptr) {
+    *mode = VariableModeField::decode(properties);
+  }
+  if (init_flag != nullptr) {
+    *init_flag = InitFlagField::decode(properties);
+  }
+  if (maybe_assigned_flag != nullptr) {
+    *maybe_assigned_flag = MaybeAssignedFlagField::decode(properties);
+  }
+}
+
 #ifdef DEBUG
 
 static void PrintList(const char* list_name,
@@ -902,6 +926,21 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
   return result;
+}
+
+Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(
+    Handle<ModuleInfo> info, Handle<String> local_name) {
+  Isolate* isolate = info->GetIsolate();
+  Handle<FixedArray> regular_imports(info->regular_imports(), isolate);
+  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> entry(
+        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
+    if (String::cast(entry->local_name())->Equals(*local_name)) {
+      return entry;
+    }
+  }
+  UNREACHABLE();
+  return Handle<ModuleInfoEntry>();
 }
 
 }  // namespace internal
