@@ -348,6 +348,37 @@ TEST(TryToName) {
 namespace {
 
 template <typename Dictionary>
+void TestEntryToIndex() {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+  {
+    Node* entry = m.SmiUntag(m.Parameter(0));
+    Node* result = m.EntryToIndex<Dictionary>(entry);
+    m.Return(m.SmiTag(result));
+  }
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  // Test a wide range of entries but staying linear in the first 100 entries.
+  for (int entry = 0; entry < Dictionary::kMaxCapacity;
+       entry = entry * 1.01 + 1) {
+    Handle<Object> result =
+        ft.Call(handle(Smi::FromInt(entry), isolate)).ToHandleChecked();
+    CHECK_EQ(Dictionary::EntryToIndex(entry), Smi::cast(*result)->value());
+  }
+}
+
+TEST(NameDictionaryEntryToIndex) { TestEntryToIndex<NameDictionary>(); }
+TEST(GlobalDictionaryEntryToIndex) { TestEntryToIndex<GlobalDictionary>(); }
+
+}  // namespace
+
+namespace {
+
+template <typename Dictionary>
 void TestNameDictionaryLookup() {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -1627,7 +1658,6 @@ TEST(AllocateJSObjectFromMap) {
   FunctionTester ft(code, kNumParams);
 
   Handle<Map> maps[] = {
-      isolate->object_with_null_prototype_map(),
       handle(isolate->object_function()->initial_map(), isolate),
       handle(isolate->array_function()->initial_map(), isolate),
   };
@@ -1644,6 +1674,7 @@ TEST(AllocateJSObjectFromMap) {
       Handle<JSObject> result = Handle<JSObject>::cast(
           ft.Call(map, empty_fixed_array, empty_fixed_array).ToHandleChecked());
       VERIFY(result, *map, *empty_fixed_array, *empty_fixed_array);
+      CHECK(result->HasFastProperties());
 #ifdef VERIFY_HEAP
       isolate->heap()->Verify();
 #endif
@@ -1662,9 +1693,39 @@ TEST(AllocateJSObjectFromMap) {
                 handle(object->elements()))
             .ToHandleChecked());
     VERIFY(result, object->map(), object->properties(), object->elements());
+    CHECK(!result->HasFastProperties());
 #ifdef VERIFY_HEAP
     isolate->heap()->Verify();
 #endif
+  }
+#undef VERIFY
+}
+
+TEST(AllocateNameDictionary) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  {
+    Node* capacity = m.Parameter(0);
+    Node* result = m.AllocateNameDictionary(m.SmiUntag(capacity));
+    m.Return(result);
+  }
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  {
+    for (int i = 0; i < 256; i = i * 1.1 + 1) {
+      Handle<Object> result =
+          ft.Call(handle(Smi::FromInt(i), isolate)).ToHandleChecked();
+      Handle<NameDictionary> dict = NameDictionary::New(isolate, i);
+      // Both dictionaries should be memory equal.
+      int size =
+          FixedArrayBase::kHeaderSize + (dict->length() - 1) * kPointerSize;
+      CHECK_EQ(0, memcmp(*dict, *result, size));
+    }
   }
 }
 

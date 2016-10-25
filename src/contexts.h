@@ -263,7 +263,8 @@ enum ContextLookupFlags {
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
-  V(OBJECT_WITH_NULL_PROTOTYPE_MAP, Map, object_with_null_prototype_map)       \
+  V(SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP, Map,                                  \
+    slow_object_with_null_prototype_map)                                       \
   V(OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX, Map, object_function_prototype_map)   \
   V(OPAQUE_REFERENCE_FUNCTION_INDEX, JSFunction, opaque_reference_function)    \
   V(PROXY_CALLABLE_MAP_INDEX, Map, proxy_callable_map)                         \

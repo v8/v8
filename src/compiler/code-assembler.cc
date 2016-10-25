@@ -110,6 +110,10 @@ Node* CodeAssembler::SmiConstant(Smi* value) {
   return BitcastWordToTaggedSigned(IntPtrConstant(bit_cast<intptr_t>(value)));
 }
 
+Node* CodeAssembler::SmiConstant(int value) {
+  return SmiConstant(Smi::FromInt(value));
+}
+
 Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
   return raw_assembler_->HeapConstant(object);
 }

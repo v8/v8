@@ -127,6 +127,24 @@ Node* CodeStubAssembler::IntPtrSubFoldConstants(Node* left, Node* right) {
   return IntPtrSub(left, right);
 }
 
+Node* CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(Node* value) {
+  Comment("IntPtrRoundUpToPowerOfTwo32");
+  CSA_ASSERT(UintPtrLessThanOrEqual(value, IntPtrConstant(0x80000000u)));
+  value = IntPtrSub(value, IntPtrConstant(1));
+  for (int i = 1; i <= 16; i *= 2) {
+    value = WordOr(value, WordShr(value, IntPtrConstant(i)));
+  }
+  return IntPtrAdd(value, IntPtrConstant(1));
+}
+
+Node* CodeStubAssembler::WordIsPowerOfTwo(Node* value) {
+  // value && !(value & (value - 1))
+  return WordEqual(
+      Select(WordEqual(value, IntPtrConstant(0)), IntPtrConstant(1),
+             WordAnd(value, IntPtrSub(value, IntPtrConstant(1)))),
+      IntPtrConstant(0));
+}
+
 Node* CodeStubAssembler::Float64Round(Node* x) {
   Node* one = Float64Constant(1.0);
   Node* one_half = Float64Constant(0.5);
@@ -775,6 +793,7 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
 }
 
 Node* CodeStubAssembler::Allocate(Node* size_in_bytes, AllocationFlags flags) {
+  Comment("Allocate");
   bool const new_space = !(flags & kPretenured);
   Node* top_address = ExternalConstant(
       new_space
@@ -1103,6 +1122,12 @@ Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
   STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
   return Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE));
+}
+
+Node* CodeStubAssembler::IsDictionaryMap(Node* map) {
+  Node* bit_field3 = LoadMapBitField3(map);
+  return Word32NotEqual(IsSetWord32<Map::DictionaryMap>(bit_field3),
+                        Int32Constant(0));
 }
 
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
@@ -1659,6 +1684,57 @@ Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
   return result;
 }
 
+Node* CodeStubAssembler::AllocateNameDictionary(int at_least_space_for) {
+  return AllocateNameDictionary(IntPtrConstant(at_least_space_for));
+}
+
+Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
+  CSA_ASSERT(UintPtrLessThanOrEqual(
+      at_least_space_for, IntPtrConstant(NameDictionary::kMaxCapacity)));
+
+  Node* capacity = HashTableComputeCapacity(at_least_space_for);
+  CSA_ASSERT(WordIsPowerOfTwo(capacity));
+
+  Node* length = EntryToIndex<NameDictionary>(capacity);
+  Node* store_size =
+      IntPtrAddFoldConstants(WordShl(length, IntPtrConstant(kPointerSizeLog2)),
+                             IntPtrConstant(NameDictionary::kHeaderSize));
+
+  Node* result = Allocate(store_size);
+  Comment("Initialize NameDictionary");
+  // Initialize FixedArray fields.
+  StoreObjectFieldRoot(result, FixedArray::kMapOffset,
+                       Heap::kHashTableMapRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
+                                 SmiFromWord(length));
+  // Initialized HashTable fields.
+  Node* zero = SmiConstant(0);
+  StoreFixedArrayElement(result, NameDictionary::kNumberOfElementsIndex, zero,
+                         SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(result, NameDictionary::kNumberOfDeletedElementsIndex,
+                         zero, SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(result, NameDictionary::kCapacityIndex,
+                         SmiTag(capacity), SKIP_WRITE_BARRIER);
+  // Initialize Dictionary fields.
+  Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
+  StoreFixedArrayElement(result, NameDictionary::kMaxNumberKeyIndex, filler,
+                         SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(result, NameDictionary::kNextEnumerationIndexIndex,
+                         SmiConstant(PropertyDetails::kInitialIndex),
+                         SKIP_WRITE_BARRIER);
+
+  // Initialize NameDictionary elements.
+  Node* start_address = IntPtrAdd(
+      result, IntPtrConstant(NameDictionary::OffsetOfElementAt(
+                                 NameDictionary::kElementsStartIndex) -
+                             kHeapObjectTag));
+  Node* end_address = IntPtrAdd(
+      result,
+      IntPtrSubFoldConstants(store_size, IntPtrConstant(kHeapObjectTag)));
+  StoreFieldsNoWriteBarrier(start_address, end_address, filler);
+  return result;
+}
+
 Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
                                                  Node* elements) {
   Node* size =
@@ -1676,6 +1752,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
   // This helper assumes that the object is in new-space, as guarded by the
   // check in AllocatedJSObjectFromMap.
   if (properties == nullptr) {
+    CSA_ASSERT(Word32BinaryNot(IsDictionaryMap((map))));
     StoreObjectFieldRoot(object, JSObject::kPropertiesOffset,
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
@@ -3833,6 +3910,19 @@ Node* CodeStubAssembler::EntryToIndex(Node* entry, int field_index) {
   Node* entry_index = IntPtrMul(entry, IntPtrConstant(Dictionary::kEntrySize));
   return IntPtrAdd(entry_index, IntPtrConstant(Dictionary::kElementsStartIndex +
                                                field_index));
+}
+
+template Node* CodeStubAssembler::EntryToIndex<NameDictionary>(Node*, int);
+template Node* CodeStubAssembler::EntryToIndex<GlobalDictionary>(Node*, int);
+
+Node* CodeStubAssembler::HashTableComputeCapacity(Node* at_least_space_for) {
+  Node* capacity = IntPtrRoundUpToPowerOfTwo32(
+      WordShl(at_least_space_for, IntPtrConstant(1)));
+  return IntPtrMax(capacity, IntPtrConstant(HashTableBase::kMinCapacity));
+}
+
+Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
+  return Select(IntPtrGreaterThanOrEqual(left, right), left, right);
 }
 
 template <typename Dictionary>

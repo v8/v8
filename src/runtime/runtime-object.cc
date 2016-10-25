@@ -226,7 +226,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
                   isolate);
   if (map->prototype() != *prototype) {
     if (prototype->IsNull(isolate)) {
-      map = isolate->object_with_null_prototype_map();
+      map = isolate->slow_object_with_null_prototype_map();
     } else if (prototype->IsJSObject()) {
       Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
       if (!js_prototype->map()->is_prototype_map()) {
@@ -249,6 +249,12 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
 
   // Actually allocate the object.
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(map);
+
+  if (map->is_dictionary_map()) {
+    Handle<NameDictionary> properties =
+        NameDictionary::New(isolate, NameDictionary::kInitialCapacity);
+    object->set_properties(*properties);
+  }
 
   // Define the properties if properties was specified and is not undefined.
   Handle<Object> properties = args.at<Object>(1);

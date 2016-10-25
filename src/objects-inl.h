@@ -3173,7 +3173,6 @@ void HashTableBase::ElementsRemoved(int n) {
 
 // static
 int HashTableBase::ComputeCapacity(int at_least_space_for) {
-  const int kMinCapacity = 4;
   int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
   return Max(capacity, kMinCapacity);
 }
@@ -7577,7 +7576,7 @@ void JSReceiver::initialize_properties() {
 
 
 bool JSReceiver::HasFastProperties() {
-  DCHECK(properties()->IsDictionary() == map()->is_dictionary_map());
+  DCHECK_EQ(properties()->IsDictionary(), map()->is_dictionary_map());
   return !properties()->IsDictionary();
 }
 

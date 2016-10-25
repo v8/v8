@@ -3432,7 +3432,8 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   if (expected_additional_properties > 0) {
     property_count += expected_additional_properties;
   } else {
-    property_count += 2;  // Make space for two more properties.
+    // Make space for two more properties.
+    property_count += NameDictionary::kInitialCapacity;
   }
   Handle<NameDictionary> dictionary =
       NameDictionary::New(isolate, property_count);
@@ -16774,7 +16775,8 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
     MinimumCapacity capacity_option,
     PretenureFlag pretenure) {
   DCHECK(0 <= at_least_space_for);
-  DCHECK(!capacity_option || base::bits::IsPowerOfTwo32(at_least_space_for));
+  DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
+                 base::bits::IsPowerOfTwo32(at_least_space_for));
 
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for

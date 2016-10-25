@@ -108,6 +108,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                          compiler::Node* right);
   compiler::Node* IntPtrSubFoldConstants(compiler::Node* left,
                                          compiler::Node* right);
+  // Round the 32bits payload of the provided word up to the next power of two.
+  compiler::Node* IntPtrRoundUpToPowerOfTwo32(compiler::Node* value);
+  compiler::Node* IntPtrMax(compiler::Node* left, compiler::Node* right);
 
   // Float64 operations.
   compiler::Node* Float64Ceil(compiler::Node* x);
@@ -167,6 +170,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
   // Check that a word has a word-aligned address.
   compiler::Node* WordIsWordAligned(compiler::Node* word);
+  compiler::Node* WordIsPowerOfTwo(compiler::Node* value);
 
   void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
                         Label* if_false) {
@@ -286,6 +290,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // JSProxy or an object with interceptors.
   compiler::Node* IsSpecialReceiverMap(compiler::Node* map);
   compiler::Node* IsSpecialReceiverInstanceType(compiler::Node* instance_type);
+  // Check if the map is set for slow properties.
+  compiler::Node* IsDictionaryMap(compiler::Node* map);
 
   // Load the hash field of a name as an uint32 value.
   compiler::Node* LoadNameHashField(compiler::Node* name);
@@ -360,6 +366,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        Heap::RootListIndex root);
   // Store an array element to a FixedArray.
   compiler::Node* StoreFixedArrayElement(
+      compiler::Node* object, int index, compiler::Node* value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS) {
+    return StoreFixedArrayElement(object, Int32Constant(index), value,
+                                  barrier_mode, parameter_mode);
+  }
+
+  compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, compiler::Node* index, compiler::Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
@@ -430,6 +444,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        compiler::Node* length,
                                        compiler::Node* index,
                                        compiler::Node* input);
+
+  compiler::Node* AllocateNameDictionary(int capacity);
+  compiler::Node* AllocateNameDictionary(compiler::Node* capacity);
 
   compiler::Node* AllocateJSObjectFromMap(compiler::Node* map,
                                           compiler::Node* properties = nullptr,
@@ -722,6 +739,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* EntryToIndex(compiler::Node* entry) {
     return EntryToIndex<Dictionary>(entry, Dictionary::kEntryKeyIndex);
   }
+  // Calculate a valid size for the a hash table.
+  compiler::Node* HashTableComputeCapacity(compiler::Node* at_least_space_for);
 
   // Looks up an entry in a NameDictionaryBase successor. If the entry is found
   // control goes to {if_found} and {var_name_index} contains an index of the
