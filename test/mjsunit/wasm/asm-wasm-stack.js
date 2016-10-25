@@ -49,8 +49,13 @@ function generateWasmFromAsmJs(stdlib, foreign, heap) {
   function callThrow() {
     throwFunc();
   }
-  function redirectFun() {
-    callThrow();
+  function redirectFun(i) {
+    i = i|0;
+    switch (i|0) {
+      case 0: callThrow(); break;
+      case 1: redirectFun(0); break;
+      case 2: redirectFun(1); break;
+    }
   }
   return redirectFun;
 }
@@ -59,7 +64,7 @@ function generateWasmFromAsmJs(stdlib, foreign, heap) {
   var fun = generateWasmFromAsmJs(this, {throwFunc: throwException}, undefined);
   var e = null;
   try {
-    fun();
+    fun(0);
   } catch (ex) {
     e = ex;
   }
@@ -68,9 +73,9 @@ function generateWasmFromAsmJs(stdlib, foreign, heap) {
     '^Error: exception from JS$',
     '^ *at throwException \\(' + filename + ':43:9\\)$',
     '^ *at callThrow \\(' + filename + ':50:5\\)$',
-    '^ *at redirectFun \\(' + filename + ':53:5\\)$',
-    '^ *at PreformattedStackTraceFromJS \\(' + filename + ':62:5\\)$',
-    '^ *at ' + filename + ':75:3$'
+    '^ *at redirectFun \\(' + filename + ':55:15\\)$',
+    '^ *at PreformattedStackTraceFromJS \\(' + filename + ':67:5\\)$',
+    '^ *at ' + filename + ':80:3$'
   ]);
 })();
 
@@ -83,7 +88,7 @@ Error.prepareStackTrace = function(error, frames) {
   var fun = generateWasmFromAsmJs(this, {throwFunc: throwException}, undefined);
   var e = null;
   try {
-    fun();
+    fun(2);
   } catch (ex) {
     e = ex;
   }
@@ -91,8 +96,10 @@ Error.prepareStackTrace = function(error, frames) {
   checkFunctionsOnCallsites(e, [
     ['throwException', 43, 9],         // --
     ['callThrow', 50, 5],              // --
-    ['redirectFun', 53, 5],            // --
-    ['CallsiteObjectsFromJS', 86, 5],  // --
-    [null, 98, 3]
+    ['redirectFun', 55, 15],            // --
+    ['redirectFun', 56, 15],            // --
+    ['redirectFun', 57, 15],            // --
+    ['CallsiteObjectsFromJS', 91, 5],  // --
+    [null, 105, 3]
   ]);
 })();

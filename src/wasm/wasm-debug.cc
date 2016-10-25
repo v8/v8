@@ -303,7 +303,7 @@ int WasmDebugInfo::GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
   DCHECK_LT(left, right);
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
-    if (offset_table->get_int(2 * mid) < byte_offset) {
+    if (offset_table->get_int(2 * mid) <= byte_offset) {
       left = mid;
     } else {
       right = mid;
