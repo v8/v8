@@ -1097,6 +1097,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       const LoadICParameters* p, compiler::Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);
 
+  void HandleLoadICProtoHandler(const LoadICParameters* p,
+                                compiler::Node* handler, Variable* var_holder,
+                                Variable* var_smi_handler,
+                                Label* if_smi_handler, Label* miss);
+
+  void NameDictionaryNegativeLookup(compiler::Node* object,
+                                    compiler::Node* name, Label* miss);
+
   void HandleStoreFieldAndReturn(compiler::Node* handler_word,
                                  compiler::Node* holder,
                                  Representation representation,

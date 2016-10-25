@@ -852,8 +852,7 @@ bool LoadIC::IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
 
   // The following kinds of receiver maps require custom handler compilation.
   if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap() ||
-      receiver_map->IsJSGlobalObjectMap() ||
-      receiver_map->is_dictionary_map()) {
+      receiver_map->IsJSGlobalObjectMap()) {
     return false;
   }
 
@@ -863,12 +862,12 @@ bool LoadIC::IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
     JSObject* current = iter.GetCurrent<JSObject>();
     if (current == *holder) break;
     Map* current_map = current->map();
-    if (current_map->IsJSGlobalObjectMap() ||
-        current_map->IsJSGlobalProxyMap() || current_map->is_dictionary_map()) {
+    if (current_map->IsJSGlobalObjectMap()) {
+      return false;
+    } else if (current_map->is_dictionary_map()) {
+      DCHECK(!current_map->IsJSGlobalProxyMap());  // Proxy maps are fast.
       return false;
     }
-    // Only objects that do not require access checks are allowed in stubs.
-    DCHECK(!current_map->is_access_check_needed());
   }
   return true;
 }
@@ -877,6 +876,14 @@ Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
                                                Handle<JSObject> holder,
                                                Handle<Object> smi_handler) {
   DCHECK(IsPrototypeValidityCellCheckEnough(receiver_map, holder));
+
+  if (receiver_map->IsJSGlobalProxyMap() ||
+      receiver_map->IsJSGlobalObjectMap()) {
+    UNREACHABLE();
+  } else if (receiver_map->is_dictionary_map()) {
+    smi_handler =
+        LoadHandler::EnableNegativeLookupOnReceiver(isolate(), smi_handler);
+  }
 
   Handle<Cell> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());

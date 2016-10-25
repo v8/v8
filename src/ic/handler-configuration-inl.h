@@ -29,6 +29,17 @@ Handle<Object> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Object> LoadHandler::EnableNegativeLookupOnReceiver(
+    Isolate* isolate, Handle<Object> smi_handler) {
+  int config = Smi::cast(*smi_handler)->value();
+#ifdef DEBUG
+  Kind kind = KindBits::decode(config);
+  DCHECK(kind == kForFields || kind == kForConstants);
+#endif
+  config = DoNegativeLookupOnReceiverBits::update(config, true);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Object> LoadHandler::LoadElement(Isolate* isolate,
                                         ElementsKind elements_kind,
                                         bool convert_hole_to_undefined,

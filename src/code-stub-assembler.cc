@@ -5380,9 +5380,9 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
 
   Variable* vars[] = {&var_holder, &var_smi_handler};
   Label if_smi_handler(this, 2, vars);
-  Label try_proto_cell_handler(this), call_handler(this);
+  Label try_proto_handler(this), call_handler(this);
 
-  Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_cell_handler);
+  Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_handler);
 
   // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
@@ -5502,31 +5502,14 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
     }
   }
 
-  Bind(&try_proto_cell_handler);
+  Bind(&try_proto_handler);
   {
-    GotoIf(WordNotEqual(LoadMap(handler), LoadRoot(Heap::kTuple3MapRootIndex)),
+    GotoIf(WordEqual(LoadMap(handler), LoadRoot(Heap::kCodeMapRootIndex)),
            &call_handler);
-    Node* validity_cell = LoadObjectField(handler, Tuple3::kValue1Offset);
-    Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-    GotoIf(WordNotEqual(cell_value,
-                        SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
-           miss);
-
-    Node* holder =
-        LoadWeakCellValue(LoadObjectField(handler, Tuple3::kValue2Offset));
-    // The |holder| is guaranteed to be alive at this point since we passed
-    // both the receiver map check and the validity cell check.
-    CSA_ASSERT(WordNotEqual(holder, IntPtrConstant(0)));
-
-    Node* smi_handler = LoadObjectField(handler, Tuple3::kValue3Offset);
-    CSA_ASSERT(TaggedIsSmi(smi_handler));
-
-    var_holder.Bind(holder);
-    var_smi_handler.Bind(smi_handler);
-    Goto(&if_smi_handler);
+    HandleLoadICProtoHandler(p, handler, &var_holder, &var_smi_handler,
+                             &if_smi_handler, miss);
   }
 
-  // |handler| is a heap object. Must be code, call it.
   Bind(&call_handler);
   {
     typedef LoadWithVectorDescriptor Descriptor;
@@ -5536,6 +5519,49 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
                  Arg(Descriptor::kSlot, p->slot),
                  Arg(Descriptor::kVector, p->vector));
   }
+}
+
+void CodeStubAssembler::HandleLoadICProtoHandler(
+    const LoadICParameters* p, Node* handler, Variable* var_holder,
+    Variable* var_smi_handler, Label* if_smi_handler, Label* miss) {
+  DCHECK_EQ(MachineRepresentation::kTagged, var_holder->rep());
+  DCHECK_EQ(MachineRepresentation::kTagged, var_smi_handler->rep());
+
+  Node* validity_cell = LoadObjectField(handler, Tuple3::kValue1Offset);
+  Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
+  GotoIf(WordNotEqual(cell_value,
+                      SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+         miss);
+
+  Node* holder =
+      LoadWeakCellValue(LoadObjectField(handler, Tuple3::kValue2Offset));
+  // The |holder| is guaranteed to be alive at this point since we passed
+  // both the receiver map check and the validity cell check.
+  CSA_ASSERT(WordNotEqual(holder, IntPtrConstant(0)));
+
+  Node* smi_handler = LoadObjectField(handler, Tuple3::kValue3Offset);
+  CSA_ASSERT(TaggedIsSmi(smi_handler));
+  var_holder->Bind(holder);
+  var_smi_handler->Bind(smi_handler);
+
+  GotoUnless(IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(
+                 SmiUntag(smi_handler)),
+             if_smi_handler);
+
+  NameDictionaryNegativeLookup(p->receiver, p->name, miss);
+  Goto(if_smi_handler);
+}
+
+void CodeStubAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
+                                                     Label* miss) {
+  CSA_ASSERT(IsDictionaryMap(LoadMap(object)));
+  Node* properties = LoadProperties(object);
+  // Ensure the property does not exist in a dictionary-mode object.
+  Variable var_name_index(this, MachineType::PointerRepresentation());
+  Label done(this);
+  NameDictionaryLookup<NameDictionary>(properties, name, miss, &var_name_index,
+                                       &done);
+  Bind(&done);
 }
 
 void CodeStubAssembler::LoadIC(const LoadICParameters* p) {

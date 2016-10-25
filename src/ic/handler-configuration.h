@@ -19,13 +19,19 @@ class LoadHandler {
   enum Kind { kForElements, kForFields, kForConstants };
   class KindBits : public BitField<Kind, 0, 2> {};
 
+  // Defines whether negative lookup check should be done on receiver object.
+  // Applicable to kForFields and kForConstants kinds only when loading value
+  // from prototype chain. Ignored when loading from holder.
+  class DoNegativeLookupOnReceiverBits
+      : public BitField<bool, KindBits::kNext, 1> {};
+
   //
   // Encoding when KindBits contains kForConstants.
   //
 
   // +2 here is because each descriptor entry occupies 3 slots in array.
   class DescriptorValueIndexBits
-      : public BitField<unsigned, KindBits::kNext,
+      : public BitField<unsigned, DoNegativeLookupOnReceiverBits::kNext,
                         kDescriptorIndexBitCount + 2> {};
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(DescriptorValueIndexBits::kNext <= kSmiValueSize);
@@ -33,7 +39,8 @@ class LoadHandler {
   //
   // Encoding when KindBits contains kForFields.
   //
-  class IsInobjectBits : public BitField<bool, KindBits::kNext, 1> {};
+  class IsInobjectBits
+      : public BitField<bool, DoNegativeLookupOnReceiverBits::kNext, 1> {};
   class IsDoubleBits : public BitField<bool, IsInobjectBits::kNext, 1> {};
   // +1 here is to cover all possible JSObject header sizes.
   class FieldOffsetBits
@@ -58,6 +65,11 @@ class LoadHandler {
 
   // Creates a Smi-handler for loading a constant from fast object.
   static inline Handle<Object> LoadConstant(Isolate* isolate, int descriptor);
+
+  // Sets DoNegativeLookupOnReceiverBits in given Smi-handler. The receiver
+  // check is a part of a prototype chain check.
+  static inline Handle<Object> EnableNegativeLookupOnReceiver(
+      Isolate* isolate, Handle<Object> smi_handler);
 
   // Creates a Smi-handler for loading an element.
   static inline Handle<Object> LoadElement(Isolate* isolate,
