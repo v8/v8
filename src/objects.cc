@@ -12212,9 +12212,11 @@ void JSFunction::MarkForOptimization() {
 
 
 void JSFunction::AttemptConcurrentOptimization() {
-  // Mark the shared function for optimization regardless of whether the
-  // optimization is concurrent or not.
-  shared()->set_was_marked_for_optimization(true);
+  if (FLAG_optimize_shared_functions) {
+    // Mark the shared function for optimization regardless of whether the
+    // optimization is concurrent or not.
+    shared()->set_was_marked_for_optimization(true);
+  }
 
   Isolate* isolate = GetIsolate();
   if (!isolate->concurrent_recompilation_enabled() ||

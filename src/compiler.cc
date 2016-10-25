@@ -978,6 +978,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   }
 
   if (function->shared()->was_marked_for_optimization()) {
+    DCHECK(FLAG_optimize_shared_functions);
+
     function->shared()->set_was_marked_for_optimization(false);
 
     if (FLAG_trace_opt) {
