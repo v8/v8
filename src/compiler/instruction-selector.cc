@@ -2017,6 +2017,18 @@ void InstructionSelector::VisitReturn(Node* ret) {
   }
 }
 
+Instruction* InstructionSelector::EmitDeoptimize(InstructionCode opcode,
+                                                 InstructionOperand output,
+                                                 InstructionOperand a,
+                                                 DeoptimizeReason reason,
+                                                 Node* frame_state) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a};
+  size_t input_count = arraysize(inputs);
+  return EmitDeoptimize(opcode, output_count, &output, input_count, inputs,
+                        reason, frame_state);
+}
+
 Instruction* InstructionSelector::EmitDeoptimize(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, DeoptimizeReason reason, Node* frame_state) {

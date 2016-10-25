@@ -111,6 +111,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // ===========================================================================
 
   Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
+                              InstructionOperand a, DeoptimizeReason reason,
+                              Node* frame_state);
+  Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
                               InstructionOperand a, InstructionOperand b,
                               DeoptimizeReason reason, Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
