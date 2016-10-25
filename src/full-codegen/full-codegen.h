@@ -484,7 +484,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(StringCharCodeAt)                   \
   F(SubString)                          \
   F(RegExpExec)                         \
-  F(RegExpConstructResult)              \
   F(ToInteger)                          \
   F(NumberToString)                     \
   F(ToString)                           \

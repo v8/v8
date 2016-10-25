@@ -198,12 +198,6 @@ Callable CodeFactory::NumberToString(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::RegExpConstructResult(Isolate* isolate) {
-  RegExpConstructResultStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::RegExpExec(Isolate* isolate) {
   RegExpExecStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

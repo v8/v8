@@ -1153,28 +1153,5 @@ Handle<Code> LoadDictionaryElementStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-template<>
-HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
-  // Determine the parameters.
-  HValue* length = GetParameter(Descriptor::kLength);
-  HValue* index = GetParameter(Descriptor::kIndex);
-  HValue* input = GetParameter(Descriptor::kInput);
-
-  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
-  // point and wasn't caught since it wasn't built in the snapshot. We should
-  // probably just replace with a TurboFan stub rather than fixing it.
-#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
-  info()->MarkMustNotHaveEagerFrame();
-#endif
-
-  return BuildRegExpConstructResult(length, index, input);
-}
-
-
-Handle<Code> RegExpConstructResultStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 }  // namespace internal
 }  // namespace v8

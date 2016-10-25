@@ -2413,15 +2413,6 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
   }
 }
 
-
-void RegExpConstructResultStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
-  descriptor->SetMissHandler(Runtime::kRegExpConstructResult);
-}
-
-
 void TransitionElementsKindStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(

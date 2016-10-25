@@ -49,7 +49,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                        \
   V(ConstructTrampoline)                  \
   V(RegExpExec)                           \
-  V(RegExpConstructResult)                \
   V(CopyFastSmiOrObjectElements)          \
   V(TransitionElementsKind)               \
   V(AllocateHeapNumber)                   \
@@ -569,12 +568,6 @@ class RegExpExecDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
   DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
                                      CallInterfaceDescriptor)
-};
-
-class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLength, kIndex, kInput)
-  DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
 };
 
 class CopyFastSmiOrObjectElementsDescriptor : public CallInterfaceDescriptor {

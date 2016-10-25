@@ -49,10 +49,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);
-  Reduction ReduceRegExpConstructResult(Node* node);
   Reduction ReduceRegExpExec(Node* node);
-  Reduction ReduceRegExpFlags(Node* node);
-  Reduction ReduceRegExpSource(Node* node);
   Reduction ReduceSubString(Node* node);
   Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);

@@ -1417,10 +1417,6 @@ class HGraphBuilder {
   // ES6 section 7.4.7 CreateIterResultObject ( value, done )
   HValue* BuildCreateIterResultObject(HValue* value, HValue* done);
 
-  HValue* BuildRegExpConstructResult(HValue* length,
-                                     HValue* index,
-                                     HValue* input);
-
   // Allocates a new object according with the given allocation properties.
   HAllocate* BuildAllocate(HValue* object_size,
                            HType type,
@@ -2202,9 +2198,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(StringCharCodeAt)                  \
   F(SubString)                         \
   F(RegExpExec)                        \
-  F(RegExpConstructResult)             \
-  F(RegExpFlags)                       \
-  F(RegExpSource)                      \
   F(NumberToString)                    \
   F(DebugIsActive)                     \
   /* Typed Arrays */                   \

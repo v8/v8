@@ -1402,7 +1402,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsRegExp:
       return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
-    case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();
     case Runtime::kInlineSubString:
     case Runtime::kInlineStringCharFromCode:

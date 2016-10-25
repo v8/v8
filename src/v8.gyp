@@ -2223,7 +2223,6 @@
           'js/symbol.js',
           'js/array.js',
           'js/string.js',
-          'js/regexp.js',
           'js/arraybuffer.js',
           'js/typedarray.js',
           'js/collection.js',

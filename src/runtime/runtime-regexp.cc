@@ -820,55 +820,6 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
       isolate, RegExpImpl::Exec(regexp, subject, index, last_match_info));
 }
 
-
-RUNTIME_FUNCTION(Runtime_RegExpFlags) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
-  return regexp->flags();
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpSource) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
-  return regexp->source();
-}
-
-// TODO(jgruber): Remove this once all uses in regexp.js have been removed.
-RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_SMI_ARG_CHECKED(size, 0);
-  CHECK(size >= 0 && size <= FixedArray::kMaxLength);
-  CONVERT_ARG_HANDLE_CHECKED(Object, index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 2);
-  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(size);
-  Handle<Map> regexp_map(isolate->native_context()->regexp_result_map());
-  Handle<JSObject> object =
-      isolate->factory()->NewJSObjectFromMap(regexp_map, NOT_TENURED);
-  Handle<JSArray> array = Handle<JSArray>::cast(object);
-  array->set_elements(*elements);
-  array->set_length(Smi::FromInt(size));
-  // Write in-object properties after the length of the array.
-  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, *index);
-  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, *input);
-  return *array;
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
-
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSRegExp::Initialize(regexp, source, flags));
-
-  return *regexp;
-}
-
 RUNTIME_FUNCTION(Runtime_RegExpInternalReplace) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);

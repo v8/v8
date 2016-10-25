@@ -168,8 +168,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
     case Runtime::kInlineIsTypedArray:
-    case Runtime::kInlineRegExpFlags:
-    case Runtime::kInlineRegExpSource:
       return false;
 
     default:

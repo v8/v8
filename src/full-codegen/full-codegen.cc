@@ -652,10 +652,6 @@ void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::RegExpConstructResult(isolate()));
-}
-
 void FullCodeGenerator::EmitHasProperty() {
   Callable callable = CodeFactory::HasProperty(isolate());
   PopOperand(callable.descriptor().GetRegisterParameter(1));

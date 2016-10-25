@@ -78,7 +78,6 @@ class ObjectLiteral;
   V(BinaryOpIC)                               \
   V(BinaryOpWithAllocationSite)               \
   V(ToBooleanIC)                              \
-  V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
@@ -1798,17 +1797,6 @@ class RegExpExecStub: public PlatformCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpExec);
   DEFINE_PLATFORM_CODE_STUB(RegExpExec, PlatformCodeStub);
 };
-
-// TODO(jgruber): Remove this once all uses in regexp.js have been removed.
-class RegExpConstructResultStub final : public HydrogenCodeStub {
- public:
-  explicit RegExpConstructResultStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpConstructResult);
-  DEFINE_HYDROGEN_CODE_STUB(RegExpConstructResult, HydrogenCodeStub);
-};
-
 
 // TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
 class CallConstructStub final : public PlatformCodeStub {
