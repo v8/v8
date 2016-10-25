@@ -97,6 +97,8 @@ void AstString::Internalize(Isolate* isolate) {
 }
 
 void AstRawString::Internalize(Isolate* isolate) {
+  // Skip over already internalized strings.
+  if (!string_.is_null()) return;
   if (literal_bytes_.length() == 0) {
     string_ = isolate->factory()->empty_string();
   } else {
@@ -256,7 +258,7 @@ const AstConsString* AstValueFactory::NewConsString(
   // the AstRawString will not be moved).
   AstConsString* new_string = new (zone_) AstConsString(left, right);
   CHECK(new_string != nullptr);
-  AddString(new_string);
+  AddConsString(new_string);
   return new_string;
 }
 
@@ -295,18 +297,25 @@ const AstRawString* AstValueFactory::ConcatStrings(const AstRawString* left,
 
 void AstValueFactory::Internalize(Isolate* isolate) {
   // Strings need to be internalized before values, because values refer to
-  // strings.
-  for (AstString* current = strings_; current != nullptr;) {
-    AstString* next = current->next();
+  // strings. Internalize flat strings before cons strings since cons strings
+  // may point to flat strings.
+  for (base::CustomMatcherHashMap::Entry* entry = string_table_.Start();
+       entry != nullptr; entry = string_table_.Next(entry)) {
+    reinterpret_cast<AstRawString*>(entry->key)->Internalize(isolate);
+  }
+
+  for (AstConsString* current = cons_strings_; current != nullptr;) {
+    AstConsString* next = current->next();
     current->Internalize(isolate);
     current = next;
   }
+
   for (AstValue* current = values_; current != nullptr;) {
     AstValue* next = current->next();
     current->Internalize(isolate);
     current = next;
   }
-  ResetStrings();
+  ResetConsStrings();
   values_ = nullptr;
 }
 
@@ -385,7 +394,6 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
         is_one_byte, Vector<const byte>(new_literal_bytes, length), hash);
     CHECK(new_string != nullptr);
     entry->key = new_string;
-    AddString(new_string);
     entry->value = reinterpret_cast<void*>(1);
   }
   return reinterpret_cast<AstRawString*>(entry->key);

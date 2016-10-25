@@ -44,7 +44,7 @@ namespace internal {
 class AstString : public ZoneObject {
  public:
   explicit AstString(bool is_raw)
-      : next_(nullptr), bit_field_(IsRawStringBits::encode(is_raw)) {}
+      : bit_field_(IsRawStringBits::encode(is_raw)) {}
 
   int length() const;
   bool IsEmpty() const { return length() == 0; }
@@ -58,13 +58,9 @@ class AstString : public ZoneObject {
     return string_;
   }
 
-  AstString** next_location() { return &next_; }
-  AstString* next() const { return next_; }
-
  protected:
   // Handle<String>::null() until internalized.
   Handle<String> string_;
-  AstString* next_;
   // Poor-man's virtual dispatch to AstRawString / AstConsString. Takes less
   // memory.
   class IsRawStringBits : public BitField<bool, 0, 1> {};
@@ -133,16 +129,21 @@ class AstConsString final : public AstString {
       : AstString(false),
         length_(left->length() + right->length()),
         left_(left),
-        right_(right) {}
+        right_(right),
+        next_(nullptr) {}
 
   int length() const { return length_; }
 
   void Internalize(Isolate* isolate);
 
+  AstConsString* next() { return next_; }
+  AstConsString** next_location() { return &next_; }
+
  private:
   const int length_;
   const AstString* left_;
   const AstString* right_;
+  AstConsString* next_;
 };
 
 
@@ -264,7 +265,6 @@ class AstValue : public ZoneObject {
     double number_;
     int smi_;
     bool bool_;
-    const AstRawString* strings_;
     const char* symbol_name_;
   };
 
@@ -325,10 +325,10 @@ class AstValueFactory {
   AstValueFactory(Zone* zone, uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
         values_(nullptr),
-        strings_end_(&strings_),
+        cons_strings_(nullptr),
+        cons_strings_end_(&cons_strings_),
         zone_(zone),
         hash_seed_(hash_seed) {
-    ResetStrings();
 #define F(name, str) name##_string_ = NULL;
     STRING_CONSTANTS(F)
 #undef F
@@ -387,14 +387,14 @@ class AstValueFactory {
     values_ = value;
     return value;
   }
-  AstString* AddString(AstString* string) {
-    *strings_end_ = string;
-    strings_end_ = string->next_location();
+  AstConsString* AddConsString(AstConsString* string) {
+    *cons_strings_end_ = string;
+    cons_strings_end_ = string->next_location();
     return string;
   }
-  void ResetStrings() {
-    strings_ = nullptr;
-    strings_end_ = &strings_;
+  void ResetConsStrings() {
+    cons_strings_ = nullptr;
+    cons_strings_end_ = &cons_strings_;
   }
   V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
       Vector<const uint8_t> literal);
@@ -409,10 +409,10 @@ class AstValueFactory {
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
   AstValue* values_;
-  // We need to keep track of strings_ in order, since cons strings require
-  // their members to be internalized first.
-  AstString* strings_;
-  AstString** strings_end_;
+  // We need to keep track of cons_strings_ in order since they require their
+  // members to be internalized first.
+  AstConsString* cons_strings_;
+  AstConsString** cons_strings_end_;
   Zone* zone_;
 
   uint32_t hash_seed_;
