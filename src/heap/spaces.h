@@ -411,6 +411,10 @@ class MemoryChunk {
     return concurrent_sweeping_;
   }
 
+  bool SweepingDone() {
+    return concurrent_sweeping_state().Value() == kSweepingDone;
+  }
+
   // Manage live byte count, i.e., count of bytes in black objects.
   inline void ResetLiveBytes();
   inline void IncrementLiveBytes(int by);
@@ -733,10 +737,6 @@ class Page : public MemoryChunk {
     mutex_->Lock();
     mutex_->Unlock();
     DCHECK(SweepingDone());
-  }
-
-  bool SweepingDone() {
-    return concurrent_sweeping_state().Value() == kSweepingDone;
   }
 
   void ResetFreeListStatistics();

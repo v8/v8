@@ -157,7 +157,8 @@ Heap::Heap()
       heap_iterator_depth_(0),
       embedder_heap_tracer_(nullptr),
       embedder_reference_reporter_(new TracePossibleWrapperReporter(this)),
-      force_oom_(false) {
+      force_oom_(false),
+      delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.

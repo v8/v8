@@ -2317,6 +2317,7 @@ class Heap {
 
   // Used for testing purposes.
   bool force_oom_;
+  bool delay_sweeper_tasks_for_testing_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
