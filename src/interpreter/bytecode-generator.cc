@@ -1945,17 +1945,16 @@ void BytecodeGenerator::BuildThrowIfNotHole(Handle<String> name) {
 
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
-  if (op != Token::INIT) {
-    // Perform an initialization check for let/const declared variables.
-    // E.g. let x = (x = 20); is not allowed.
-    BuildThrowIfHole(variable->name());
-  } else {
-    DCHECK(variable->is_this() && variable->mode() == CONST &&
-           op == Token::INIT);
+  if (variable->is_this() && variable->mode() == CONST && op == Token::INIT) {
     // Perform an initialization check for 'this'. 'this' variable is the
     // only variable able to trigger bind operations outside the TDZ
     // via 'super' calls.
     BuildThrowIfNotHole(variable->name());
+  } else {
+    // Perform an initialization check for let/const declared variables.
+    // E.g. let x = (x = 20); is not allowed.
+    DCHECK(IsLexicalVariableMode(variable->mode()));
+    BuildThrowIfHole(variable->name());
   }
 }
 
