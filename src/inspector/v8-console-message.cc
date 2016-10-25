@@ -229,9 +229,12 @@ void V8ConsoleMessage::reportToFrontend(
 std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>>
 V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
                                 bool generatePreview) const {
-  if (!m_arguments.size() || !m_contextId) return nullptr;
+  V8InspectorImpl* inspector = session->inspector();
+  int contextGroupId = session->contextGroupId();
+  int contextId = m_contextId;
+  if (!m_arguments.size() || !contextId) return nullptr;
   InspectedContext* inspectedContext =
-      session->inspector()->getContext(session->contextGroupId(), m_contextId);
+      inspector->getContext(contextGroupId, contextId);
   if (!inspectedContext) return nullptr;
 
   v8::Isolate* isolate = inspectedContext->isolate();
@@ -247,6 +250,8 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
                                        : v8::Local<v8::Value>();
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
         session->wrapTable(context, table, columns);
+    inspectedContext = inspector->getContext(contextGroupId, contextId);
+    if (!inspectedContext) return nullptr;
     if (wrapped)
       args->addItem(std::move(wrapped));
     else
@@ -256,6 +261,8 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
       std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
           session->wrapObject(context, m_arguments[i]->Get(isolate), "console",
                               generatePreview);
+      inspectedContext = inspector->getContext(contextGroupId, contextId);
+      if (!inspectedContext) return nullptr;
       if (!wrapped) {
         args = nullptr;
         break;
@@ -269,9 +276,13 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
 void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
                                         V8InspectorSessionImpl* session,
                                         bool generatePreview) const {
+  int contextGroupId = session->contextGroupId();
+  V8InspectorImpl* inspector = session->inspector();
+
   if (m_origin == V8MessageOrigin::kException) {
     std::unique_ptr<protocol::Runtime::RemoteObject> exception =
         wrapException(session, generatePreview);
+    if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_exceptionId)
@@ -296,6 +307,7 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
   if (m_origin == V8MessageOrigin::kConsole) {
     std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>>
         arguments = wrapArguments(session, generatePreview);
+    if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
     if (!arguments) {
       arguments = protocol::Array<protocol::Runtime::RemoteObject>::create();
       if (!m_message.isEmpty()) {
