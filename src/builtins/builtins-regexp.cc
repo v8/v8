@@ -39,10 +39,10 @@ Handle<String> PatternFlags(Isolate* isolate, Handle<JSRegExp> regexp) {
 
 // ES#sec-regexpinitialize
 // Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
-MaybeHandle<JSRegExp> RegExpInitialize(Isolate* isolate,
-                                       Handle<JSRegExp> regexp,
-                                       Handle<Object> pattern,
-                                       Handle<Object> flags) {
+MUST_USE_RESULT MaybeHandle<JSRegExp> RegExpInitialize(Isolate* isolate,
+                                                       Handle<JSRegExp> regexp,
+                                                       Handle<Object> pattern,
+                                                       Handle<Object> flags) {
   Handle<String> pattern_string;
   if (pattern->IsUndefined(isolate)) {
     pattern_string = isolate->factory()->empty_string();
@@ -1341,9 +1341,9 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
 
 // ES##sec-speciesconstructor
 // SpeciesConstructor ( O, defaultConstructor )
-MaybeHandle<Object> SpeciesConstructor(Isolate* isolate,
-                                       Handle<JSReceiver> recv,
-                                       Handle<JSFunction> default_ctor) {
+MUST_USE_RESULT MaybeHandle<Object> SpeciesConstructor(
+    Isolate* isolate, Handle<JSReceiver> recv,
+    Handle<JSFunction> default_ctor) {
   Handle<Object> ctor_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ctor_obj,

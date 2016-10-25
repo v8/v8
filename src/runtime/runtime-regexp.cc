@@ -1124,7 +1124,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   }
 }
 
-MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
+MUST_USE_RESULT MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
     Handle<Object> replace_obj) {
   Factory* factory = isolate->factory();
@@ -1193,9 +1193,10 @@ MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
 
 // Legacy implementation of RegExp.prototype[Symbol.replace] which
 // doesn't properly call the underlying exec method.
-MaybeHandle<String> RegExpReplace(Isolate* isolate, Handle<JSRegExp> regexp,
-                                  Handle<String> string,
-                                  Handle<Object> replace_obj) {
+MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
+                                                  Handle<JSRegExp> regexp,
+                                                  Handle<String> string,
+                                                  Handle<Object> replace_obj) {
   Factory* factory = isolate->factory();
 
   // TODO(jgruber): We need the even stricter guarantee of an unmodified

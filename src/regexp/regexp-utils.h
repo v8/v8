@@ -19,16 +19,15 @@ class RegExpUtils : public AllStatic {
                                              int capture, bool* ok = nullptr);
 
   // Last index (RegExp.lastIndex) accessors.
-  static MaybeHandle<Object> SetLastIndex(Isolate* isolate,
-                                          Handle<JSReceiver> regexp, int value);
-  static MaybeHandle<Object> GetLastIndex(Isolate* isolate,
-                                          Handle<JSReceiver> recv);
+  static MUST_USE_RESULT MaybeHandle<Object> SetLastIndex(
+      Isolate* isolate, Handle<JSReceiver> regexp, int value);
+  static MUST_USE_RESULT MaybeHandle<Object> GetLastIndex(
+      Isolate* isolate, Handle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-  static MaybeHandle<Object> RegExpExec(Isolate* isolate,
-                                        Handle<JSReceiver> regexp,
-                                        Handle<String> string,
-                                        Handle<Object> exec);
+  static MUST_USE_RESULT MaybeHandle<Object> RegExpExec(
+      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
+      Handle<Object> exec);
 
   // ES#sec-isregexp IsRegExp ( argument )
   // Includes checking of the match property.
@@ -42,10 +41,9 @@ class RegExpUtils : public AllStatic {
   // AdvanceStringIndex ( S, index, unicode )
   static int AdvanceStringIndex(Isolate* isolate, Handle<String> string,
                                 int index, bool unicode);
-  static MaybeHandle<Object> SetAdvancedStringIndex(Isolate* isolate,
-                                                    Handle<JSReceiver> regexp,
-                                                    Handle<String> string,
-                                                    bool unicode);
+  static MUST_USE_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
+      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
+      bool unicode);
 };
 
 }  // namespace internal
