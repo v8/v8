@@ -1722,8 +1722,6 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-debug.h",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
-    "src/wasm/wasm-function-name-table.cc",
-    "src/wasm/wasm-function-name-table.h",
     "src/wasm/wasm-interpreter.cc",
     "src/wasm/wasm-interpreter.h",
     "src/wasm/wasm-js.cc",

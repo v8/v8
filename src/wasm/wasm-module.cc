@@ -17,7 +17,6 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-debug.h"
-#include "src/wasm/wasm-function-name-table.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"

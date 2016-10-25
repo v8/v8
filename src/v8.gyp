@@ -1262,8 +1262,6 @@
         'wasm/wasm-debug.h',
         'wasm/wasm-external-refs.cc',
         'wasm/wasm-external-refs.h',
-        'wasm/wasm-function-name-table.cc',
-        'wasm/wasm-function-name-table.h',
         'wasm/wasm-js.cc',
         'wasm/wasm-js.h',
         'wasm/wasm-macro-gen.h',
