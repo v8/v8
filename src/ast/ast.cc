@@ -159,10 +159,8 @@ bool Statement::IsJump() const {
   }
 }
 
-VariableProxy::VariableProxy(Variable* var, int start_position,
-                             int end_position)
+VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
-      end_position_(end_position),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(var->is_this()) |
@@ -173,10 +171,8 @@ VariableProxy::VariableProxy(Variable* var, int start_position,
 }
 
 VariableProxy::VariableProxy(const AstRawString* name,
-                             VariableKind variable_kind, int start_position,
-                             int end_position)
+                             VariableKind variable_kind, int start_position)
     : Expression(start_position, kVariableProxy),
-      end_position_(end_position),
       raw_name_(name),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
@@ -187,7 +183,6 @@ VariableProxy::VariableProxy(const AstRawString* name,
 
 VariableProxy::VariableProxy(const VariableProxy* copy_from)
     : Expression(copy_from->position(), kVariableProxy),
-      end_position_(copy_from->end_position_),
       next_unresolved_(nullptr) {
   bit_field_ = copy_from->bit_field_;
   DCHECK(!copy_from->is_resolved());

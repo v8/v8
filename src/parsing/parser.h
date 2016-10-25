@@ -463,7 +463,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
-                               int end_pos = kNoSourcePosition,
                                VariableKind kind = NORMAL_VARIABLE);
   VariableProxy* NewUnresolved(const AstRawString* name);
   Variable* Declare(Declaration* declaration,
@@ -932,7 +931,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
-    return NewUnresolved(ast_value_factory()->this_string(), pos, pos + 4,
+    return NewUnresolved(ast_value_factory()->this_string(), pos,
                          THIS_VARIABLE);
   }
 
@@ -944,12 +943,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Literal* ExpressionFromLiteral(Token::Value token, int pos);
 
   V8_INLINE Expression* ExpressionFromIdentifier(
-      const AstRawString* name, int start_position, int end_position,
+      const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
     if (infer == InferName::kYes) {
       fni_->PushVariableName(name);
     }
-    return NewUnresolved(name, start_position, end_position);
+    return NewUnresolved(name, start_position);
   }
 
   V8_INLINE Expression* ExpressionFromString(int pos) {

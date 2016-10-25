@@ -673,11 +673,11 @@ class ParserBase {
     explicit ForInfo(ParserBase* parser)
         : bound_names(1, parser->zone()),
           mode(ForEachStatement::ENUMERATE),
-          each_loc(),
+          position(kNoSourcePosition),
           parsing_result() {}
     ZoneList<const AstRawString*> bound_names;
     ForEachStatement::VisitMode mode;
-    Scanner::Location each_loc;
+    int position;
     DeclarationParsingResult parsing_result;
   };
 
@@ -1770,8 +1770,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
-      return impl()->ExpressionFromIdentifier(name, beg_pos,
-                                              scanner()->location().end_pos);
+      return impl()->ExpressionFromIdentifier(name, beg_pos);
     }
 
     case Token::STRING: {
@@ -2392,8 +2391,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
             Scanner::Location(next_beg_pos, next_end_pos),
             MessageTemplate::kAwaitBindingIdentifier);
       }
-      ExpressionT lhs =
-          impl()->ExpressionFromIdentifier(name, next_beg_pos, next_end_pos);
+      ExpressionT lhs = impl()->ExpressionFromIdentifier(name, next_beg_pos);
       CheckDestructuringElement(lhs, next_beg_pos, next_end_pos);
 
       ExpressionT value;
@@ -2660,8 +2658,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       PeekAhead() == Token::ARROW) {
     // async Identifier => AsyncConciseBody
     IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
-    expression = impl()->ExpressionFromIdentifier(
-        name, position(), scanner()->location().end_pos, InferName::kNo);
+    expression =
+        impl()->ExpressionFromIdentifier(name, position(), InferName::kNo);
     if (fni_) {
       // Remove `async` keyword from inferred name stack.
       fni_->RemoveAsyncKeywordFromEnd();
@@ -5178,7 +5176,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
                                 nullptr, CHECK_OK);
       bound_names_are_lexical =
           IsLexicalVariableMode(for_info.parsing_result.descriptor.mode);
-      for_info.each_loc = scanner()->location();
+      for_info.position = scanner()->location().beg_pos;
 
       if (CheckInOrOf(&for_info.mode)) {
         // Just one declaration followed by in/of.

@@ -478,9 +478,7 @@ Expression* Parser::NewSuperCallReference(int pos) {
 }
 
 Expression* Parser::NewTargetExpression(int pos) {
-  static const int kNewTargetStringLength = 10;
-  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos,
-                             pos + kNewTargetStringLength);
+  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos);
   proxy->set_is_new_target();
   return proxy;
 }
@@ -1448,13 +1446,12 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 }
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name, int begin_pos,
-                                     int end_pos, VariableKind kind) {
-  return scope()->NewUnresolved(factory(), name, begin_pos, end_pos, kind);
+                                     VariableKind kind) {
+  return scope()->NewUnresolved(factory(), name, begin_pos, kind);
 }
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name) {
-  return scope()->NewUnresolved(factory(), name, scanner()->location().beg_pos,
-                                scanner()->location().end_pos);
+  return scope()->NewUnresolved(factory(), name, scanner()->location().beg_pos);
 }
 
 Declaration* Parser::DeclareVariable(const AstRawString* name,
@@ -1468,8 +1465,7 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
                                      int pos, bool* ok) {
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy = factory()->NewVariableProxy(
-      name, NORMAL_VARIABLE, scanner()->location().beg_pos,
-      scanner()->location().end_pos);
+      name, NORMAL_VARIABLE, scanner()->location().beg_pos);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, this->scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
@@ -2012,8 +2008,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
 
   *body_block = factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
   (*body_block)->statements()->Add(each_initialization_block, zone());
-  *each_variable = factory()->NewVariableProxy(temp, for_info->each_loc.beg_pos,
-                                               for_info->each_loc.end_pos);
+  *each_variable = factory()->NewVariableProxy(temp, for_info->position);
 }
 
 // Create a TDZ for any lexically-bound names in for in/of statements.
@@ -3415,7 +3410,7 @@ FunctionLiteral* Parser::InsertClassFieldInitializer(
           constructor->scope(),
           constructor->scope()->NewUnresolved(
               factory(), ast_value_factory()->this_string(), kNoSourcePosition,
-              kNoSourcePosition + 4, THIS_VARIABLE)),
+              THIS_VARIABLE)),
       kNoSourcePosition);
   constructor->body()->InsertAt(0, call_initializer, zone());
   return constructor;
@@ -4302,8 +4297,7 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
 
     Expression* result;
     DCHECK_NOT_NULL(lhs->raw_name());
-    result = ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
-                                      lhs->end_position());
+    result = ExpressionFromIdentifier(lhs->raw_name(), lhs->position());
     args->Add(left, zone());
     args->Add(right, zone());
     Expression* call =

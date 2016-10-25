@@ -161,7 +161,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
                                int start_position = kNoSourcePosition,
-                               int end_position = kNoSourcePosition,
                                VariableKind kind = NORMAL_VARIABLE);
 
   void AddUnresolved(VariableProxy* proxy);

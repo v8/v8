@@ -1383,7 +1383,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   PreParserExpression ExpressionFromIdentifier(
-      PreParserIdentifier name, int start_position, int end_position,
+      PreParserIdentifier name, int start_position,
       InferName infer = InferName::kYes);
 
   V8_INLINE PreParserExpression ExpressionFromString(int pos) {
