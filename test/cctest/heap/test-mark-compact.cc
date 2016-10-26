@@ -51,7 +51,7 @@ using v8::Just;
 
 TEST(MarkingDeque) {
   CcTest::InitializeVM();
-  MarkingDeque s(CcTest::i_isolate()->heap());
+  MarkingDeque s;
   s.SetUp();
   s.StartUsing();
   Address original_address = reinterpret_cast<Address>(&s);
