@@ -935,7 +935,7 @@ void Builtins::Generate_Add(CodeStubAssembler* assembler) {
     Node* lhs_value = var_fadd_lhs.value();
     Node* rhs_value = var_fadd_rhs.value();
     Node* value = assembler->Float64Add(lhs_value, rhs_value);
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&end);
   }
@@ -1114,7 +1114,7 @@ void Builtins::Generate_Subtract(CodeStubAssembler* assembler) {
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
   assembler->Bind(&end);
@@ -1266,7 +1266,7 @@ void Builtins::Generate_Multiply(CodeStubAssembler* assembler) {
   {
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&return_result);
   }
@@ -1486,7 +1486,7 @@ void Builtins::Generate_Divide(CodeStubAssembler* assembler) {
   {
     Node* value = assembler->Float64Div(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
   assembler->Bind(&end);
@@ -1644,7 +1644,7 @@ void Builtins::Generate_Modulus(CodeStubAssembler* assembler) {
   {
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&return_result);
   }
 

@@ -523,7 +523,7 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
     var_lhs_float64.Bind(SmiToFloat64(a));
     var_rhs_float64.Bind(SmiToFloat64(b));
     Node* value = Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
-    Node* result = ChangeFloat64ToTagged(value);
+    Node* result = AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     Goto(&return_result);
   }
@@ -8398,7 +8398,7 @@ compiler::Node* CodeStubAssembler::NumberInc(compiler::Node* value) {
     Node* finc_value = var_finc_value.value();
     Node* one = Float64Constant(1.0);
     Node* finc_result = Float64Add(finc_value, one);
-    var_result.Bind(ChangeFloat64ToTagged(finc_result));
+    var_result.Bind(AllocateHeapNumberWithValue(finc_result));
     Goto(&end);
   }
 
