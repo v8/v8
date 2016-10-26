@@ -1072,6 +1072,30 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   if (FLAG_print_all_exceptions) {
     printf("=========================================================\n");
     printf("Exception thrown:\n");
+    if (location) {
+      Handle<Script> script = location->script();
+      Handle<Object> name = Script::GetNameOrSourceURL(script);
+      printf("at ");
+      if (name->IsString() && String::cast(*name)->length() > 0)
+        String::cast(*name)->PrintOn(stdout);
+      else
+        printf("<anonymous>");
+// Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
+// initialize the line_ends array, so be careful when calling them.
+#ifdef DEBUG
+      if (AllowHeapAllocation::IsAllowed()) {
+#else
+      if (false) {
+#endif
+        printf(", %d:%d - %d:%d\n",
+               Script::GetLineNumber(script, location->start_pos()) + 1,
+               Script::GetColumnNumber(script, location->start_pos()),
+               Script::GetLineNumber(script, location->end_pos()) + 1,
+               Script::GetColumnNumber(script, location->end_pos()));
+      } else {
+        printf(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
+      }
+    }
     exception->Print();
     printf("Stack Trace:\n");
     PrintStack(stdout);
