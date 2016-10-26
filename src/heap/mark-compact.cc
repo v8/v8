@@ -58,6 +58,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       compacting_(false),
       black_allocation_(false),
       have_code_to_deoptimize_(false),
+      marking_deque_(heap),
       code_flusher_(nullptr),
       sweeper_(heap) {
 }
@@ -2117,9 +2118,13 @@ void MarkingDeque::SetUp() {
   }
 }
 
-void MarkingDeque::TearDown() { delete backing_store_; }
+void MarkingDeque::TearDown() {
+  CancelOrWaitForUncommitTask();
+  delete backing_store_;
+}
 
 void MarkingDeque::StartUsing() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (in_use_) {
     // This can happen in mark-compact GC if the incremental marker already
     // started using the marking deque.
@@ -2139,11 +2144,16 @@ void MarkingDeque::StartUsing() {
 }
 
 void MarkingDeque::StopUsing() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   DCHECK(IsEmpty());
   DCHECK(!overflowed_);
   top_ = bottom_ = mask_ = 0;
-  Uncommit();
   in_use_ = false;
+  if (FLAG_concurrent_sweeping) {
+    StartUncommitTask();
+  } else {
+    Uncommit();
+  }
 }
 
 void MarkingDeque::Clear() {
@@ -2153,7 +2163,7 @@ void MarkingDeque::Clear() {
 }
 
 void MarkingDeque::Uncommit() {
-  DCHECK(in_use_);
+  DCHECK(!in_use_);
   bool success = backing_store_->Uncommit(backing_store_->address(),
                                           backing_store_committed_size_);
   backing_store_committed_size_ = 0;
@@ -2172,6 +2182,28 @@ void MarkingDeque::EnsureCommitted() {
   }
   if (backing_store_committed_size_ == 0) {
     V8::FatalProcessOutOfMemory("MarkingDeque::EnsureCommitted");
+  }
+}
+
+void MarkingDeque::StartUncommitTask() {
+  if (!uncommit_task_pending_) {
+    UncommitTask* task = new UncommitTask(heap_->isolate(), this);
+    uncommit_task_id_ = task->id();
+    uncommit_task_pending_ = true;
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        task, v8::Platform::kShortRunningTask);
+  }
+}
+
+void MarkingDeque::CancelOrWaitForUncommitTask() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  if (!uncommit_task_pending_ ||
+      heap_->isolate()->cancelable_task_manager()->TryAbort(
+          uncommit_task_id_)) {
+    return;
+  }
+  while (uncommit_task_pending_) {
+    uncommit_task_barrier_.Wait(&mutex_);
   }
 }
 
