@@ -420,21 +420,23 @@ class LocalDeclEncoder {
 #define WASM_CALL_FUNCTION(index, ...) \
   __VA_ARGS__, kExprCallFunction, static_cast<byte>(index)
 
+#define TABLE_ZERO 0
+
 // TODO(titzer): change usages of these macros to put func last.
 #define WASM_CALL_INDIRECT0(index, func) \
-  func, kExprCallIndirect, static_cast<byte>(index)
+  func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 #define WASM_CALL_INDIRECT1(index, func, a) \
-  a, func, kExprCallIndirect, static_cast<byte>(index)
+  a, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 #define WASM_CALL_INDIRECT2(index, func, a, b) \
-  a, b, func, kExprCallIndirect, static_cast<byte>(index)
+  a, b, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 #define WASM_CALL_INDIRECT3(index, func, a, b, c) \
-  a, b, c, func, kExprCallIndirect, static_cast<byte>(index)
+  a, b, c, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 #define WASM_CALL_INDIRECT4(index, func, a, b, c, d) \
-  a, b, c, d, func, kExprCallIndirect, static_cast<byte>(index)
+  a, b, c, d, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 #define WASM_CALL_INDIRECT5(index, func, a, b, c, d, e) \
-  a, b, c, d, e, func, kExprCallIndirect, static_cast<byte>(index)
+  a, b, c, d, e, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 #define WASM_CALL_INDIRECTN(arity, index, func, ...) \
-  __VA_ARGS__, func, kExprCallIndirect, static_cast<byte>(index)
+  __VA_ARGS__, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
 
 #define WASM_NOT(x) x, kExprI32Eqz
 #define WASM_SEQ(...) __VA_ARGS__
@@ -605,8 +607,8 @@ class LocalDeclEncoder {
 //------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
-#define WASM_GROW_MEMORY(x) x, kExprGrowMemory
-#define WASM_MEMORY_SIZE kExprMemorySize
+#define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0
+#define WASM_MEMORY_SIZE kExprMemorySize, 0
 
 //------------------------------------------------------------------------------
 // Simd Operations.

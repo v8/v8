@@ -124,7 +124,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
       kExprGetLocal, 0,
       kExprI32LoadMem, 0, 0,
       kExprI32Const, 1,
-      kExprCallIndirect, signature,
+      kExprCallIndirect, signature, kTableZero,
       kExprGetLocal,0,
       kExprI32LoadMem,0, 0,
       kExprCallFunction, 0,

@@ -89,7 +89,7 @@ var debug = true;
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
     module.addFunction("main", kSig_i_iii)
         .addBody([kExprGetLocal,
-                  1, kExprGetLocal, 2, kExprGetLocal, 0, kExprCallIndirect, 0])
+                  1, kExprGetLocal, 2, kExprGetLocal, 0, kExprCallIndirect, 0, kTableZero])
         .exportAs("main");
     module.appendToTable([0]);
 

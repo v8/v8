@@ -42,7 +42,7 @@ function AddFunctions(builder) {
       kExprI32Const, 33,  // --
       kExprGetLocal, 0,   // --
       kExprGetLocal, 1,   // --
-      kExprCallIndirect, 0])  // --
+      kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
   f.add.exportAs("blarg");

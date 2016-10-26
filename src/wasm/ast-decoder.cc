@@ -317,6 +317,11 @@ class WasmDecoder : public Decoder {
         ImmI64Operand operand(this, pc);
         return 1 + operand.length;
       }
+      case kExprGrowMemory:
+      case kExprMemorySize: {
+        MemoryIndexOperand operand(this, pc);
+        return 1 + operand.length;
+      }
       case kExprI8Const:
         return 2;
       case kExprF32Const:
@@ -1102,17 +1107,23 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprF64StoreMem:
             len = DecodeStoreMem(kAstF64, MachineType::Float64());
             break;
-          case kExprGrowMemory:
+          case kExprGrowMemory: {
+            MemoryIndexOperand operand(this, pc_);
             if (module_->origin != kAsmJsOrigin) {
               Value val = Pop(0, kAstI32);
               Push(kAstI32, BUILD(GrowMemory, val.node));
             } else {
               error("grow_memory is not supported for asmjs modules");
             }
+            len = 1 + operand.length;
             break;
-          case kExprMemorySize:
+          }
+          case kExprMemorySize: {
+            MemoryIndexOperand operand(this, pc_);
             Push(kAstI32, BUILD(CurrentMemoryPages));
+            len = 1 + operand.length;
             break;
+          }
           case kExprCallFunction: {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {

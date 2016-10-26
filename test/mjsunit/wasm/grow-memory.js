@@ -12,7 +12,7 @@ var kPageSize = 0x10000;
 function genGrowMemoryBuilder() {
   var builder = new WasmModuleBuilder();
   builder.addFunction("grow_memory", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory])
+      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
       .exportFunc();
   builder.addFunction("load", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
@@ -325,7 +325,7 @@ function testGrowMemoryCurrentMemory() {
   var builder = genGrowMemoryBuilder();
   builder.addMemory(1, 1, false);
   builder.addFunction("memory_size", kSig_i_v)
-      .addBody([kExprMemorySize])
+      .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
@@ -449,7 +449,7 @@ function testGrowMemoryOutOfBoundsOffset2() {
       .addBody([
           kExprI32Const, 20,
           kExprI32Const, 29,
-          kExprGrowMemory,
+          kExprGrowMemory, kMemoryZero,
           kExprI32StoreMem, 0, 0xFF, 0xFF, 0xFF, 0x3a
           ])
       .exportAs("main");

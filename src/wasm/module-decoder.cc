@@ -313,7 +313,7 @@ class ModuleDecoder : public Decoder {
                 static_cast<uint32_t>(module->function_tables.size());
             module->function_tables.push_back(
                 {0, 0, std::vector<int32_t>(), true, false, SignatureMap()});
-            expect_u8("element type", 0x20);
+            expect_u8("element type", kWasmAnyFunctionTypeForm);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
             consume_resizable_limits("element count", "elements", kMaxTableSize,
                                      &table->size, &table->max_size);

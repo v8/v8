@@ -27,7 +27,7 @@ var module = (function () {
       kExprGetLocal, 1,
       kExprGetLocal, 2,
       kExprGetLocal, 0,
-      kExprCallIndirect, sig_index
+      kExprCallIndirect, sig_index, kTableZero
     ])
     .exportFunc()
   builder.appendToTable([1, 2, 3]);
@@ -71,7 +71,7 @@ module = (function () {
       kExprGetLocal, 1,
       kExprGetLocal, 2,
       kExprGetLocal, 0,
-      kExprCallIndirect, sig_i_ii
+      kExprCallIndirect, sig_i_ii, kTableZero
     ])
     .exportFunc();
   builder.appendToTable([mul.index, add.index, popcnt.index, main.index]);
@@ -117,7 +117,7 @@ module = (function () {
       kExprI32Const, 33,  // --
       kExprGetLocal, 0,   // --
       kExprGetLocal, 1,   // --
-      kExprCallIndirect, 0])  // --
+      kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
   builder.appendToTable([f.mul.index, f.add.index, f.sub.index]);
@@ -144,7 +144,7 @@ assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
         kExprI32Const, 33,  // --
         kExprGetLocal, 0,   // --
         kExprGetLocal, 1,   // --
-        kExprCallIndirect, 0])  // --
+        kExprCallIndirect, 0, kTableZero])  // --
       .exportAs("main");
 
     builder.setFunctionTableLength(length);
@@ -181,7 +181,7 @@ assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
       kExprI32Const, 33,  // --
       kExprGetLocal, 0,   // --
       kExprGetLocal, 1,   // --
-      kExprCallIndirect, 0])  // --
+      kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
   builder.setFunctionTableLength(10);

@@ -1570,7 +1570,7 @@ static void CompileCallIndirectMany(LocalType param) {
       ADD_CODE(code, kExprGetLocal, p);
     }
     ADD_CODE(code, kExprI8Const, 0);
-    ADD_CODE(code, kExprCallIndirect, 1);
+    ADD_CODE(code, kExprCallIndirect, 1, TABLE_ZERO);
 
     t.Build(&code[0], &code[0] + code.size());
     t.Compile();

@@ -1149,7 +1149,7 @@ TEST_F(AstDecoderTest, AllSimpleExpressions) {
 }
 
 TEST_F(AstDecoderTest, MemorySize) {
-  byte code[] = {kExprMemorySize};
+  byte code[] = {kExprMemorySize, 0};
   EXPECT_VERIFIES_C(i_i, code);
   EXPECT_FAILURE_C(f_ff, code);
 }
@@ -1632,7 +1632,7 @@ TEST_F(AstDecoderTest, WasmGrowMemory) {
   module = &module_env;
   module->origin = kWasmOrigin;
 
-  byte code[] = {WASM_UNOP(kExprGrowMemory, WASM_GET_LOCAL(0))};
+  byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
   EXPECT_VERIFIES_C(i_i, code);
   EXPECT_FAILURE_C(i_d, code);
 }
@@ -1642,7 +1642,7 @@ TEST_F(AstDecoderTest, AsmJsGrowMemory) {
   module = &module_env;
   module->origin = kAsmJsOrigin;
 
-  byte code[] = {WASM_UNOP(kExprGrowMemory, WASM_GET_LOCAL(0))};
+  byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
   EXPECT_FAILURE_C(i_i, code);
 }
 
@@ -2316,7 +2316,7 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(2, kExprGetGlobal);
   EXPECT_LENGTH(2, kExprSetGlobal);
   EXPECT_LENGTH(2, kExprCallFunction);
-  EXPECT_LENGTH(2, kExprCallIndirect);
+  EXPECT_LENGTH(3, kExprCallIndirect);
 }
 
 TEST_F(WasmOpcodeLengthTest, I32Const) {
@@ -2375,8 +2375,8 @@ TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
 }
 
 TEST_F(WasmOpcodeLengthTest, MiscMemExpressions) {
-  EXPECT_LENGTH(1, kExprMemorySize);
-  EXPECT_LENGTH(1, kExprGrowMemory);
+  EXPECT_LENGTH(2, kExprMemorySize);
+  EXPECT_LENGTH(2, kExprGrowMemory);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {

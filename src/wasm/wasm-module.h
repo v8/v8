@@ -31,10 +31,10 @@ const size_t kMaxModuleSize = 1024 * 1024 * 1024;
 const size_t kMaxFunctionSize = 128 * 1024;
 const size_t kMaxStringSize = 256;
 const uint32_t kWasmMagic = 0x6d736100;
-const uint32_t kWasmVersion = 0x0c;
+const uint32_t kWasmVersion = 0x0d;
 
-const uint8_t kWasmFunctionTypeForm = 0x40;
-const uint8_t kWasmAnyFunctionTypeForm = 0x20;
+const uint8_t kWasmFunctionTypeForm = 0x60;
+const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 
 enum WasmSectionCode {
   kUnknownSectionCode = 0,   // code for unknown sections

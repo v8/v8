@@ -186,14 +186,19 @@ struct BreakDepthOperand {
 };
 
 struct CallIndirectOperand {
+  uint32_t table_index;
   uint32_t index;
   FunctionSig* sig;
   unsigned length;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
-    unsigned len1 = 0;
-    unsigned len2 = 0;
-    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "signature index");
-    length = len1 + len2;
+    unsigned len = 0;
+    index = decoder->checked_read_u32v(pc, 1, &len, "signature index");
+    table_index = decoder->checked_read_u8(pc, 1 + len, "table index");
+    if (table_index != 0) {
+      decoder->error(pc, pc + 1 + len, "expected table index 0, found %u",
+                     table_index);
+    }
+    length = 1 + len;
     sig = nullptr;
   }
 };
@@ -208,6 +213,18 @@ struct CallFunctionOperand {
     index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "function index");
     length = len1 + len2;
     sig = nullptr;
+  }
+};
+
+struct MemoryIndexOperand {
+  uint32_t index;
+  unsigned length;
+  inline MemoryIndexOperand(Decoder* decoder, const byte* pc) {
+    index = decoder->checked_read_u8(pc, 1, "memory index");
+    if (index != 0) {
+      decoder->error(pc, pc + 1, "expected memory index 0, found %u", index);
+    }
+    length = 1;
   }
 };
 

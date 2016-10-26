@@ -1592,13 +1592,17 @@ class ThreadImpl : public WasmInterpreter::Thread {
           ASMJS_STORE_CASE(F64AsmjsStoreMem, double, double);
 #undef ASMJS_STORE_CASE
         case kExprGrowMemory: {
+          MemoryIndexOperand operand(&decoder, code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
           Push(pc, WasmVal(ExecuteGrowMemory(delta_pages, instance())));
+          len = 1 + operand.length;
           break;
         }
         case kExprMemorySize: {
+          MemoryIndexOperand operand(&decoder, code->at(pc));
           Push(pc, WasmVal(static_cast<uint32_t>(instance()->mem_size /
                                                  WasmModule::kPageSize)));
+          len = 1 + operand.length;
           break;
         }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)             \

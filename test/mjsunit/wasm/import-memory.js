@@ -188,7 +188,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(2*kPageSize, memory.buffer.byteLength);
   let builder = new WasmModuleBuilder();
   builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory])
+      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
       .exportFunc();
   builder.addImportedMemory("mine");
   let instance = builder.instantiate({mine: memory});
