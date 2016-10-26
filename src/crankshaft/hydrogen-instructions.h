@@ -411,7 +411,7 @@ class HValue : public ZoneObject {
     kLeftCanBeMinInt,
     kLeftCanBeNegative,
     kLeftCanBePositive,
-    kAllowUndefinedAsNaN,
+    kTruncatingToNumber,
     kIsArguments,
     kTruncatingToInt32,
     kAllUsesTruncatingToInt32,
@@ -1091,6 +1091,7 @@ class HInstruction : public HValue {
   bool Dominates(HInstruction* other);
   bool CanTruncateToSmi() const { return CheckFlag(kTruncatingToSmi); }
   bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
+  bool CanTruncateToNumber() const { return CheckFlag(kTruncatingToNumber); }
 
   virtual LInstruction* CompileToLithium(LChunkBuilder* builder) = 0;
 
@@ -1372,9 +1373,7 @@ class HBranch final : public HUnaryControlInstruction {
                              ToBooleanICStub::Types(),
           HBasicBlock* true_target = NULL, HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        expected_input_types_(expected_input_types) {
-    SetFlag(kAllowUndefinedAsNaN);
-  }
+        expected_input_types_(expected_input_types) {}
 
   ToBooleanICStub::Types expected_input_types_;
 };
@@ -1570,13 +1569,10 @@ class HForceRepresentation final : public HTemplateInstruction<1> {
   }
 };
 
-
 class HChange final : public HUnaryOperation {
  public:
-  HChange(HValue* value,
-          Representation to,
-          bool is_truncating_to_smi,
-          bool is_truncating_to_int32)
+  HChange(HValue* value, Representation to, bool is_truncating_to_smi,
+          bool is_truncating_to_int32, bool is_truncating_to_number)
       : HUnaryOperation(value) {
     DCHECK(!value->representation().IsNone());
     DCHECK(!to.IsNone());
@@ -1587,18 +1583,19 @@ class HChange final : public HUnaryOperation {
     if (is_truncating_to_smi && to.IsSmi()) {
       SetFlag(kTruncatingToSmi);
       SetFlag(kTruncatingToInt32);
+      SetFlag(kTruncatingToNumber);
+    } else if (is_truncating_to_int32) {
+      SetFlag(kTruncatingToInt32);
+      SetFlag(kTruncatingToNumber);
+    } else if (is_truncating_to_number) {
+      SetFlag(kTruncatingToNumber);
     }
-    if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
     } else {
       set_type(HType::TaggedNumber());
       if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
     }
-  }
-
-  bool can_convert_undefined_to_nan() {
-    return CheckUsesForFlag(kAllowUndefinedAsNaN);
   }
 
   HType CalculateInferredType() override;
@@ -1646,7 +1643,7 @@ class HClampToUint8 final : public HUnaryOperation {
   explicit HClampToUint8(HValue* value)
       : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
-    SetFlag(kAllowUndefinedAsNaN);
+    SetFlag(kTruncatingToNumber);
     SetFlag(kUseGVN);
   }
 
@@ -2500,7 +2497,7 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
         UNREACHABLE();
     }
     SetFlag(kUseGVN);
-    SetFlag(kAllowUndefinedAsNaN);
+    SetFlag(kTruncatingToNumber);
   }
 
   bool IsDeletable() const override {
@@ -2914,7 +2911,6 @@ class HPhi final : public HValue {
       : inputs_(2, zone), merged_index_(merged_index) {
     DCHECK(merged_index >= 0 || merged_index == kInvalidMergedIndex);
     SetFlag(kFlexibleRepresentation);
-    SetFlag(kAllowUndefinedAsNaN);
   }
 
   Representation RepresentationFromInputs() override;
@@ -3730,7 +3726,7 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
       : HBinaryOperation(context, left, right, type) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToInt32);
-    SetFlag(kAllowUndefinedAsNaN);
+    SetFlag(kTruncatingToNumber);
     SetAllSideEffects();
   }
 
@@ -3793,7 +3789,7 @@ class HMathFloorOfDiv final : public HBinaryOperation {
     SetFlag(kLeftCanBeMinInt);
     SetFlag(kLeftCanBeNegative);
     SetFlag(kLeftCanBePositive);
-    SetFlag(kAllowUndefinedAsNaN);
+    SetFlag(kTruncatingToNumber);
   }
 
   Range* InferRange(Zone* zone) override;
@@ -3808,7 +3804,7 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
       : HBinaryOperation(context, left, right, HType::TaggedNumber()) {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
-    SetFlag(kAllowUndefinedAsNaN);
+    SetFlag(kTruncatingToNumber);
   }
 
   void RepresentationChanged(Representation to) override {
@@ -3941,7 +3937,6 @@ class HCompareHoleAndBranch final : public HUnaryControlInstruction {
                         HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target) {
     SetFlag(kFlexibleRepresentation);
-    SetFlag(kAllowUndefinedAsNaN);
   }
 };
 
@@ -4298,12 +4293,12 @@ class HAdd final : public HArithmeticBinaryOperation {
     }
     if (to.IsTagged()) {
       SetChangesFlag(kNewSpacePromotion);
-      ClearFlag(kAllowUndefinedAsNaN);
+      ClearFlag(kTruncatingToNumber);
     }
     if (!right()->type().IsTaggedNumber() &&
         !right()->representation().IsDouble() &&
         !right()->representation().IsSmiOrInteger32()) {
-      ClearFlag(kAllowUndefinedAsNaN);
+      ClearFlag(kTruncatingToNumber);
     }
   }
 
@@ -6337,7 +6332,7 @@ class HStoreKeyed final : public HTemplateInstruction<4>,
     } else if (is_fixed_typed_array()) {
       SetChangesFlag(kTypedArrayElements);
       SetChangesFlag(kExternalMemory);
-      SetFlag(kAllowUndefinedAsNaN);
+      SetFlag(kTruncatingToNumber);
     } else {
       SetChangesFlag(kArrayElements);
     }

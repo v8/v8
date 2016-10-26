@@ -1478,8 +1478,8 @@ std::ostream& HChange::PrintDataTo(std::ostream& os) const {  // NOLINT
 
   if (CanTruncateToSmi()) os << " truncating-smi";
   if (CanTruncateToInt32()) os << " truncating-int32";
+  if (CanTruncateToNumber()) os << " truncating-number";
   if (CheckFlag(kBailoutOnMinusZero)) os << " -0?";
-  if (CheckFlag(kAllowUndefinedAsNaN)) os << " allow-undefined-as-nan";
   return os;
 }
 
@@ -1490,8 +1490,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
     if (val->IsChange()) val = HChange::cast(val)->value();
     if (val->representation().IsSmiOrInteger32()) {
       if (val->representation().Equals(representation())) return val;
-      return Prepend(new(block()->zone()) HChange(
-          val, representation(), false, false));
+      return Prepend(new (block()->zone())
+                         HChange(val, representation(), false, false, true));
     }
   }
   if (op() == kMathFloor && representation().IsSmiOrInteger32() &&
@@ -1506,8 +1506,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       // A change from an integer32 can be replaced by the integer32 value.
       left = HChange::cast(left)->value();
     } else if (hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
-      left = Prepend(new(block()->zone()) HChange(
-          left, Representation::Integer32(), false, false));
+      left = Prepend(new (block()->zone()) HChange(
+          left, Representation::Integer32(), false, false, true));
     } else {
       return this;
     }
@@ -1525,8 +1525,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       // A change from an integer32 can be replaced by the integer32 value.
       right = HChange::cast(right)->value();
     } else if (hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
-      right = Prepend(new(block()->zone()) HChange(
-          right, Representation::Integer32(), false, false));
+      right = Prepend(new (block()->zone()) HChange(
+          right, Representation::Integer32(), false, false, true));
     } else {
       return this;
     }
@@ -2866,7 +2866,7 @@ void HCompareNumericAndBranch::InferRepresentation(
     // comparisons must cause a deopt when one of their arguments is undefined.
     // See also v8:1434
     if (Token::IsOrderedRelationalCompareOp(token_)) {
-      SetFlag(kAllowUndefinedAsNaN);
+      SetFlag(kTruncatingToNumber);
     }
   }
   ChangeRepresentation(rep);
@@ -2965,7 +2965,7 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
 bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
   return IsFastDoubleElementsKind(elements_kind()) &&
-      CheckUsesForFlag(HValue::kAllowUndefinedAsNaN);
+         CheckUsesForFlag(HValue::kTruncatingToNumber);
 }
 
 

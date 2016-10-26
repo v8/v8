@@ -784,8 +784,6 @@
         'crankshaft/hydrogen-instructions.h',
         'crankshaft/hydrogen-load-elimination.cc',
         'crankshaft/hydrogen-load-elimination.h',
-        'crankshaft/hydrogen-mark-deoptimize.cc',
-        'crankshaft/hydrogen-mark-deoptimize.h',
         'crankshaft/hydrogen-mark-unreachable.cc',
         'crankshaft/hydrogen-mark-unreachable.h',
         'crankshaft/hydrogen-osr.cc',

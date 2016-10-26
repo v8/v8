@@ -4204,8 +4204,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input = ToRegister(instr->value());
   Register scratch = ToRegister(instr->temp());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  bool can_convert_undefined_to_nan =
-      instr->hydrogen()->can_convert_undefined_to_nan();
+  bool can_convert_undefined_to_nan = instr->truncating();
 
   Label done, load_smi;
 

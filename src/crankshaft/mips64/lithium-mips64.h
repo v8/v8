@@ -1879,6 +1879,8 @@ class LNumberUntagD final : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
   DECLARE_HYDROGEN_ACCESSOR(Change)
+
+  bool truncating() { return hydrogen()->CanTruncateToNumber(); }
 };
 
 

@@ -23,7 +23,6 @@
 #include "src/crankshaft/hydrogen-infer-representation.h"
 #include "src/crankshaft/hydrogen-infer-types.h"
 #include "src/crankshaft/hydrogen-load-elimination.h"
-#include "src/crankshaft/hydrogen-mark-deoptimize.h"
 #include "src/crankshaft/hydrogen-mark-unreachable.h"
 #include "src/crankshaft/hydrogen-osr.h"
 #include "src/crankshaft/hydrogen-range-analysis.h"
@@ -2970,12 +2969,12 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
       if_hole.Else();
       HStoreKeyed* store =
           Add<HStoreKeyed>(to_elements, key, element, nullptr, kind);
-      store->SetFlag(HValue::kAllowUndefinedAsNaN);
+      store->SetFlag(HValue::kTruncatingToNumber);
       if_hole.End();
     } else {
       HStoreKeyed* store =
           Add<HStoreKeyed>(to_elements, key, element, nullptr, kind);
-      store->SetFlag(HValue::kAllowUndefinedAsNaN);
+      store->SetFlag(HValue::kTruncatingToNumber);
     }
 
     builder.EndBody();
@@ -4131,7 +4130,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   // This must happen after inferring representations.
   Run<HMergeRemovableSimulatesPhase>();
 
-  Run<HMarkDeoptimizeOnUndefinedPhase>();
   Run<HRepresentationChangesPhase>();
 
   Run<HInferTypesPhase>();
@@ -4150,8 +4148,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_store_elimination) Run<HStoreEliminationPhase>();
 
   Run<HRangeAnalysisPhase>();
-
-  Run<HComputeChangeUndefinedToNaN>();
 
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();
@@ -8769,7 +8765,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                                           copy_kind, ALLOW_RETURN_HOLE);
               HStoreKeyed* store = Add<HStoreKeyed>(elements, new_key, element,
                                                     nullptr, copy_kind);
-              store->SetFlag(HValue::kAllowUndefinedAsNaN);
+              store->SetFlag(HValue::kTruncatingToNumber);
             }
             loop.EndBody();
 
@@ -11712,7 +11708,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedDoubleArray(
                         kind, ALLOW_RETURN_HOLE);
     HInstruction* store = Add<HStoreKeyed>(object_elements, key_constant,
                                            value_instruction, nullptr, kind);
-    store->SetFlag(HValue::kAllowUndefinedAsNaN);
+    store->SetFlag(HValue::kTruncatingToNumber);
   }
 }
 
