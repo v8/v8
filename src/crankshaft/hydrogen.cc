@@ -6518,19 +6518,11 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
           access = access.WithRepresentation(Representation::Smi());
           break;
         case PropertyCellConstantType::kStableMap: {
-          // First check that the previous value of the {cell} still has the
-          // map that we are about to check the new {value} for. If not, then
-          // the stable map assumption was invalidated and we cannot continue
-          // with the optimized code.
-          Handle<HeapObject> cell_value(HeapObject::cast(cell->value()));
-          Handle<Map> cell_value_map(cell_value->map());
-          HCheckMaps* cell_value_check = Add<HCheckMaps>(
-              Add<HConstant>(cell_value, Representation::HeapObject()),
-              cell_value_map);
-          cell_value_check->ClearDependsOnFlag(kElementsKind);
-          // Now check that the new {value} is a HeapObject with the same map.
+          // The map may no longer be stable, deopt if it's ever different from
+          // what is currently there, which will allow for restablization.
+          Handle<Map> map(HeapObject::cast(cell->value())->map());
           Add<HCheckHeapObject>(value);
-          value = Add<HCheckMaps>(value, cell_value_map);
+          value = Add<HCheckMaps>(value, map);
           access = access.WithRepresentation(Representation::HeapObject());
           break;
         }
