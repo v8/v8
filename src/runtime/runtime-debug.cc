@@ -948,7 +948,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   DCHECK(args.length() == 2);
 
   if (!args[0]->IsJSGeneratorObject()) {
-    return *isolate->factory()->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   // Check arguments.

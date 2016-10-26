@@ -247,7 +247,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
-  DCHECK_EQ(*factory->uninitialized_symbol(), *uninitialized_sentinel);
+  DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
   for (int i = 0; i < slot_count;) {
     FeedbackVectorSlot slot(i);
     FeedbackVectorSlotKind kind = metadata->GetKind(slot);
@@ -256,7 +256,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
     Object* value;
     if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
-      value = *factory->empty_weak_cell();
+      value = isolate->heap()->empty_weak_cell();
     } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
                kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
       value = Smi::kZero;

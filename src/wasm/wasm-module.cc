@@ -943,7 +943,8 @@ class WasmInstanceBuilder {
         JS_OBJECT_TYPE,
         JSObject::kHeaderSize + kWasmInstanceInternalFieldCount * kPointerSize);
     Handle<JSObject> instance = factory->NewJSObjectFromMap(map, TENURED);
-    instance->SetInternalField(kWasmMemObject, *factory->undefined_value());
+    instance->SetInternalField(kWasmMemObject,
+                               isolate_->heap()->undefined_value());
 
     //--------------------------------------------------------------------------
     // Set up the globals for the new instance.
@@ -962,7 +963,7 @@ class WasmInstanceBuilder {
       Address old_address = owner.is_null()
                                 ? nullptr
                                 : GetGlobalStartAddressFromCodeTemplate(
-                                      *factory->undefined_value(),
+                                      isolate_->heap()->undefined_value(),
                                       JSObject::cast(*owner.ToHandleChecked()));
       RelocateGlobals(code_table, old_address,
                       static_cast<Address>(global_buffer->backing_store()));

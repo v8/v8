@@ -7867,7 +7867,7 @@ uint32_t UnseededNumberDictionaryShape::HashForObject(uint32_t key,
 }
 
 Map* UnseededNumberDictionaryShape::GetMap(Isolate* isolate) {
-  return *isolate->factory()->unseeded_number_dictionary_map();
+  return isolate->heap()->unseeded_number_dictionary_map();
 }
 
 uint32_t SeededNumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {

@@ -373,7 +373,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
   // Here we add info for context-allocated "this".
   DCHECK_EQ(index, scope_info->ContextLocalNamesIndex());
-  scope_info->set(index++, *isolate->factory()->this_string());
+  scope_info->set(index++, isolate->heap()->this_string());
   DCHECK_EQ(index, scope_info->ContextLocalInfosIndex());
   const uint32_t value = VariableModeField::encode(CONST) |
                          InitFlagField::encode(kCreatedInitialized) |

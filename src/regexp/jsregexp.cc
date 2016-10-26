@@ -6866,7 +6866,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     }
   }
   // Convert backing store to a copy-on-write array.
-  value_array->set_map_no_write_barrier(*factory->fixed_cow_array_map());
+  value_array->set_map_no_write_barrier(isolate->heap()->fixed_cow_array_map());
 }
 
 

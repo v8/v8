@@ -2379,7 +2379,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
 
   } else if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
     Handle<Name> key(vector->GetName(vector_slot), isolate);
-    DCHECK_NE(*key, *isolate->factory()->empty_string());
+    DCHECK_NE(*key, isolate->heap()->empty_string());
     DCHECK_EQ(*isolate->global_object(), *receiver);
     LoadGlobalICNexus nexus(vector, vector_slot);
     LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2409,7 +2409,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             vector->GetKind(vector_slot));
   Handle<String> name(vector->GetName(vector_slot), isolate);
-  DCHECK_NE(*name, *isolate->factory()->empty_string());
+  DCHECK_NE(*name, isolate->heap()->empty_string());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
   LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2430,7 +2430,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             vector->GetKind(vector_slot));
   Handle<String> name(vector->GetName(vector_slot), isolate);
-  DCHECK_NE(*name, *isolate->factory()->empty_string());
+  DCHECK_NE(*name, isolate->heap()->empty_string());
 
   Handle<JSGlobalObject> global = isolate->global_object();
 
@@ -2443,7 +2443,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
         script_contexts, lookup_result.context_index);
     Handle<Object> result =
         FixedArray::get(*script_context, lookup_result.slot_index, isolate);
-    if (*result == *isolate->factory()->the_hole_value()) {
+    if (*result == isolate->heap()->the_hole_value()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
     }

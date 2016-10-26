@@ -820,17 +820,17 @@ BUILTIN(StringPrototypeEndsWith) {
   }
 
   int start = end - search_string->length();
-  if (start < 0) return *isolate->factory()->false_value();
+  if (start < 0) return isolate->heap()->false_value();
 
   FlatStringReader str_reader(isolate, String::Flatten(str));
   FlatStringReader search_reader(isolate, String::Flatten(search_string));
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return *isolate->factory()->false_value();
+      return isolate->heap()->false_value();
     }
   }
-  return *isolate->factory()->true_value();
+  return isolate->heap()->true_value();
 }
 
 // ES6 section 21.1.3.7
@@ -1239,7 +1239,7 @@ BUILTIN(StringPrototypeStartsWith) {
   }
 
   if (start + search_string->length() > str->length()) {
-    return *isolate->factory()->false_value();
+    return isolate->heap()->false_value();
   }
 
   FlatStringReader str_reader(isolate, String::Flatten(str));
@@ -1247,10 +1247,10 @@ BUILTIN(StringPrototypeStartsWith) {
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return *isolate->factory()->false_value();
+      return isolate->heap()->false_value();
     }
   }
-  return *isolate->factory()->true_value();
+  return isolate->heap()->true_value();
 }
 
 // ES6 section 21.1.3.25 String.prototype.toString ()

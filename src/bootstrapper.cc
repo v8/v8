@@ -4542,7 +4542,7 @@ Genesis::Genesis(Isolate* isolate,
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
   // HookUpGlobalProxy.
-  global_proxy->set_native_context(*factory()->null_value());
+  global_proxy->set_native_context(heap()->null_value());
 
   // DetachGlobal.
   JSObject::ForceSetPrototype(global_proxy, factory()->null_value());

@@ -370,7 +370,7 @@ BUILTIN(MathHypot) {
   }
 
   if (one_arg_is_nan) {
-    return *isolate->factory()->nan_value();
+    return isolate->heap()->nan_value();
   }
 
   if (max == 0) {
