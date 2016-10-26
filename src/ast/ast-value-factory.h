@@ -44,7 +44,7 @@ namespace internal {
 class AstString : public ZoneObject {
  public:
   explicit AstString(bool is_raw)
-      : bit_field_(IsRawStringBits::encode(is_raw)) {}
+      : next_(nullptr), bit_field_(IsRawStringBits::encode(is_raw)) {}
 
   int length() const;
   bool IsEmpty() const { return length() == 0; }
@@ -54,13 +54,21 @@ class AstString : public ZoneObject {
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {
-    DCHECK(!string_.is_null());
-    return string_;
+    DCHECK_NOT_NULL(string_);
+    return Handle<String>(string_);
   }
 
+  AstString* next() { return next_; }
+  AstString** next_location() { return &next_; }
+
  protected:
-  // Handle<String>::null() until internalized.
-  Handle<String> string_;
+  void set_string(Handle<String> string) { string_ = string.location(); }
+  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // stored in a union with {next_}.
+  union {
+    AstString* next_;
+    String** string_;
+  };
   // Poor-man's virtual dispatch to AstRawString / AstConsString. Takes less
   // memory.
   class IsRawStringBits : public BitField<bool, 0, 1> {};
@@ -129,21 +137,16 @@ class AstConsString final : public AstString {
       : AstString(false),
         length_(left->length() + right->length()),
         left_(left),
-        right_(right),
-        next_(nullptr) {}
+        right_(right) {}
 
   int length() const { return length_; }
 
   void Internalize(Isolate* isolate);
 
-  AstConsString* next() { return next_; }
-  AstConsString** next_location() { return &next_; }
-
  private:
   const int length_;
   const AstString* left_;
   const AstString* right_;
-  AstConsString* next_;
 };
 
 
@@ -205,13 +208,14 @@ class AstValue : public ZoneObject {
     if (type_ == STRING) {
       return string_->string();
     }
-    DCHECK(!value_.is_null());
-    return value_;
+    DCHECK_NOT_NULL(value_);
+    return Handle<Object>(value_);
   }
   AstValue* next() const { return next_; }
   void set_next(AstValue* next) { next_ = next; }
 
  private:
+  void set_value(Handle<Object> object) { value_ = object.location(); }
   friend class AstValueFactory;
 
   enum Type {
@@ -259,6 +263,13 @@ class AstValue : public ZoneObject {
 
   Type type_;
 
+  // {value_} is stored as Object** instead of a Handle<Object> so it can be
+  // stored in a union with {next_}.
+  union {
+    Object** value_;  // if internalized
+    AstValue* next_;  // if !internalized
+  };
+
   // Uninternalized value.
   union {
     const AstRawString* string_;
@@ -267,10 +278,6 @@ class AstValue : public ZoneObject {
     bool bool_;
     const char* symbol_name_;
   };
-
-  // Handle<String>::null() until internalized.
-  Handle<Object> value_;
-  AstValue* next_;
 };
 
 
@@ -325,8 +332,8 @@ class AstValueFactory {
   AstValueFactory(Zone* zone, uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
         values_(nullptr),
-        cons_strings_(nullptr),
-        cons_strings_end_(&cons_strings_),
+        strings_(nullptr),
+        strings_end_(&strings_),
         zone_(zone),
         hash_seed_(hash_seed) {
 #define F(name, str) name##_string_ = NULL;
@@ -387,14 +394,14 @@ class AstValueFactory {
     values_ = value;
     return value;
   }
-  AstConsString* AddConsString(AstConsString* string) {
-    *cons_strings_end_ = string;
-    cons_strings_end_ = string->next_location();
+  AstString* AddString(AstString* string) {
+    *strings_end_ = string;
+    strings_end_ = string->next_location();
     return string;
   }
-  void ResetConsStrings() {
-    cons_strings_ = nullptr;
-    cons_strings_end_ = &cons_strings_;
+  void ResetStrings() {
+    strings_ = nullptr;
+    strings_end_ = &strings_;
   }
   V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
       Vector<const uint8_t> literal);
@@ -409,10 +416,10 @@ class AstValueFactory {
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
   AstValue* values_;
-  // We need to keep track of cons_strings_ in order since they require their
+  // We need to keep track of strings_ in order since cons strings require their
   // members to be internalized first.
-  AstConsString* cons_strings_;
-  AstConsString** cons_strings_end_;
+  AstString* strings_;
+  AstString** strings_end_;
   Zone* zone_;
 
   uint32_t hash_seed_;
