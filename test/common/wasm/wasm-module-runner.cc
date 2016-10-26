@@ -61,6 +61,7 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 
   // Although we decoded the module for some pre-validation, run the bytes
   // again through the normal pipeline.
+  // TODO(wasm): Use {module} instead of decoding the module bytes again.
   MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
       isolate, module->module_start, module->module_end, thrower,
       ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr, nullptr);
@@ -81,14 +82,14 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin) {
-  const WasmModule* module = DecodeWasmModuleForTesting(
-      isolate, thrower, module_start, module_end, origin);
+  std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
+      isolate, thrower, module_start, module_end, origin));
 
   if (module == nullptr) {
     thrower->CompileError("Wasm module decoding failed");
     return Handle<JSObject>::null();
   }
-  return InstantiateModuleForTesting(isolate, thrower, module);
+  return InstantiateModuleForTesting(isolate, thrower, module.get());
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
