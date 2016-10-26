@@ -32,8 +32,8 @@ assertEquals(
     Reflect.getOwnPropertyDescriptor(foo, "yo"));
 assertFalse(Reflect.deleteProperty(foo, "yo"));
 assertTrue(Reflect.has(foo, "yo"));
-// TODO(neis): The next three should be False.
-assertTrue(Reflect.set(foo, "yo", true));
+assertFalse(Reflect.set(foo, "yo", true));
+// TODO(neis): The next two should be False.
 assertTrue(Reflect.defineProperty(foo, "yo",
     Reflect.getOwnPropertyDescriptor(foo, "yo")));
 assertTrue(Reflect.defineProperty(foo, "yo", {}));

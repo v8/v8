@@ -71,7 +71,7 @@ class Accessors : public AllStatic {
 
 #define ACCESSOR_SETTER_DECLARATION(name)                                \
   static void name(v8::Local<v8::Name> name, v8::Local<v8::Value> value, \
-                   const v8::PropertyCallbackInfo<void>& info);
+                   const v8::PropertyCallbackInfo<v8::Boolean>& info);
   ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_SETTER_DECLARATION
 
@@ -100,12 +100,21 @@ class Accessors : public AllStatic {
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
                                       int* object_offset);
 
+  // Create an AccessorInfo. The setter is optional (can be nullptr).
+  //
+  // Note that the type of setter is AccessorNameBooleanSetterCallback instead
+  // of v8::AccessorNameSetterCallback.  The difference is that the former can
+  // set a (boolean) return value. The setter should roughly follow the same
+  // conventions as many of the internal methods in objects.cc:
+  // - The return value is unset iff there was an exception.
+  // - If the ShouldThrow argument is true, the return value must not be false.
+  typedef void (*AccessorNameBooleanSetterCallback)(
+      Local<v8::Name> property, Local<v8::Value> value,
+      const PropertyCallbackInfo<v8::Boolean>& info);
+
   static Handle<AccessorInfo> MakeAccessor(
-      Isolate* isolate,
-      Handle<Name> name,
-      AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter,
-      PropertyAttributes attributes);
+      Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,
+      AccessorNameBooleanSetterCallback setter, PropertyAttributes attributes);
 };
 
 }  // namespace internal

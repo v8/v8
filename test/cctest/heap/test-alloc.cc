@@ -116,11 +116,8 @@ void TestGetter(
       v8::internal::HeapTester::TestAllocateAfterFailures()));
 }
 
-
-void TestSetter(
-    v8::Local<v8::Name> name,
-    v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
+                const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   UNREACHABLE();
 }
 
