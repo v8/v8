@@ -1194,24 +1194,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
 }
 
 bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  DCHECK(AllowCompilation::IsAllowed(isolate));
-
-  // Start a compilation.
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  ParseInfo parse_info(&zone, handle(function->shared()));
-  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  info.MarkAsDebug();
-  if (GetUnoptimizedCode(&info).is_null()) {
-    isolate->clear_pending_exception();
-    return false;
-  }
-
-  // Check postconditions on success.
-  DCHECK(!isolate->has_pending_exception());
-  DCHECK(function->shared()->is_compiled());
-  DCHECK(function->shared()->HasDebugCode());
-  return true;
+  return CompileDebugCode(handle(function->shared()));
 }
 
 bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
