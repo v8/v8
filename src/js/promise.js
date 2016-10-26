@@ -302,18 +302,15 @@ function ResolvePromise(promise, resolution) {
 // ES#sec-rejectpromise
 // RejectPromise ( promise, reason )
 function RejectPromise(promise, reason, debugEvent) {
-  // Check promise status to confirm that this reject has an effect.
   // Call runtime for callbacks to the debugger or for unhandled reject.
   // The debugEvent parameter sets whether a debug ExceptionEvent should
   // be triggered. It should be set to false when forwarding a rejection
   // rather than creating a new one.
-  if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
-    // This check is redundant with checks in the runtime, but it may help
-    // avoid unnecessary runtime calls.
-    if ((debugEvent && DEBUG_IS_ACTIVE) ||
-        !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
-      %PromiseRejectEvent(promise, reason, debugEvent);
-    }
+  // This check is redundant with checks in the runtime, but it may help
+  // avoid unnecessary runtime calls.
+  if ((debugEvent && DEBUG_IS_ACTIVE) ||
+      !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
+    %PromiseRejectEvent(promise, reason, debugEvent);
   }
   %PromiseFulfill(promise, kRejected, reason, promiseRejectReactionsSymbol)
   PromiseSet(promise, kRejected, reason);
