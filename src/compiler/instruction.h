@@ -901,7 +901,6 @@ class V8_EXPORT_PRIVATE Instruction final {
   bool IsTailCall() const {
     return arch_opcode() == ArchOpcode::kArchTailCallCodeObject ||
            arch_opcode() == ArchOpcode::kArchTailCallCodeObjectFromJSFunction ||
-           arch_opcode() == ArchOpcode::kArchTailCallJSFunction ||
            arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction ||
            arch_opcode() == ArchOpcode::kArchTailCallAddress;
   }
