@@ -1936,6 +1936,7 @@ TopLevelLiveRange* LiveRangeBuilder::FixedFPLiveRangeFor(
   }
 
   DCHECK(index < num_regs);
+  USE(num_regs);
   TopLevelLiveRange* result = (*live_ranges)[index];
   if (result == nullptr) {
     result = data()->NewLiveRange(FixedFPLiveRangeID(index, rep), rep);
