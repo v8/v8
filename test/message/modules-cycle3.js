@@ -4,7 +4,5 @@
 //
 // MODULE
 
-export * from "modules-skip-star-exports-conflict.js";
-export * from "modules-skip-6.js";
-
-import {a} from "modules-fail-star-exports-conflict.js";
+export {a as x} from "modules-skip-cycle3.js";
+export {b as y} from "modules-skip-cycle3.js";

@@ -19855,17 +19855,18 @@ Handle<Object> Module::LoadImport(Handle<Module> module, Handle<String> name,
 
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
                                         Handle<String> name, int module_request,
-                                        bool must_resolve,
+                                        MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
   Isolate* isolate = module->GetIsolate();
   Handle<Module> requested_module(
       Module::cast(module->requested_modules()->get(module_request)), isolate);
-  return Module::ResolveExport(requested_module, name, must_resolve,
+  return Module::ResolveExport(requested_module, name, loc, must_resolve,
                                resolve_set);
 }
 
 MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
-                                        Handle<String> name, bool must_resolve,
+                                        Handle<String> name,
+                                        MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
   Isolate* isolate = module->GetIsolate();
   Handle<Object> object(module->exports()->Lookup(name), isolate);
@@ -19887,10 +19888,10 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     } else if (name_set->count(name)) {
       // Cycle detected.
       if (must_resolve) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewSyntaxError(MessageTemplate::kCyclicModuleDependency, name),
-            Cell);
+        return isolate->Throw<Cell>(
+            isolate->factory()->NewSyntaxError(
+                MessageTemplate::kCyclicModuleDependency, name),
+            &loc);
       }
       return MaybeHandle<Cell>();
     }
@@ -19902,9 +19903,14 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     Handle<ModuleInfoEntry> entry = Handle<ModuleInfoEntry>::cast(object);
     int module_request = Smi::cast(entry->module_request())->value();
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
+    Handle<Script> script(
+        Script::cast(JSFunction::cast(module->code())->shared()->script()),
+        isolate);
+    MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
-    if (!ResolveImport(module, import_name, module_request, true, resolve_set)
+    if (!ResolveImport(module, import_name, module_request, new_loc, true,
+                       resolve_set)
              .ToHandle(&cell)) {
       DCHECK(isolate->has_pending_exception());
       return MaybeHandle<Cell>();
@@ -19921,13 +19927,13 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
   }
 
   DCHECK(object->IsTheHole(isolate));
-  return Module::ResolveExportUsingStarExports(module, name, must_resolve,
+  return Module::ResolveExportUsingStarExports(module, name, loc, must_resolve,
                                                resolve_set);
 }
 
 MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
-    Handle<Module> module, Handle<String> name, bool must_resolve,
-    Module::ResolveSet* resolve_set) {
+    Handle<Module> module, Handle<String> name, MessageLocation loc,
+    bool must_resolve, Module::ResolveSet* resolve_set) {
   Isolate* isolate = module->GetIsolate();
   if (!name->Equals(isolate->heap()->default_string())) {
     // Go through all star exports looking for the given name.  If multiple star
@@ -19943,14 +19949,21 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       }
       int module_request = Smi::cast(entry->module_request())->value();
 
+      Handle<Script> script(
+          Script::cast(JSFunction::cast(module->code())->shared()->script()),
+          isolate);
+      MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
+
       Handle<Cell> cell;
-      if (ResolveImport(module, name, module_request, false, resolve_set)
+      if (ResolveImport(module, name, module_request, new_loc, false,
+                        resolve_set)
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
         if (*unique_cell != *cell) {
-          THROW_NEW_ERROR(
-              isolate, NewSyntaxError(MessageTemplate::kAmbiguousExport, name),
-              Cell);
+          return isolate->Throw<Cell>(
+              isolate->factory()->NewSyntaxError(
+                  MessageTemplate::kAmbiguousExport, name),
+              &loc);
         }
       } else if (isolate->has_pending_exception()) {
         return MaybeHandle<Cell>();
@@ -19969,9 +19982,9 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
 
   // Unresolvable.
   if (must_resolve) {
-    THROW_NEW_ERROR(isolate,
-                    NewSyntaxError(MessageTemplate::kUnresolvableExport, name),
-                    Cell);
+    return isolate->Throw<Cell>(isolate->factory()->NewSyntaxError(
+                                    MessageTemplate::kUnresolvableExport, name),
+                                &loc);
   }
   return MaybeHandle<Cell>();
 }
@@ -20046,8 +20059,12 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
         ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
     Handle<String> name(String::cast(entry->import_name()), isolate);
     int module_request = Smi::cast(entry->module_request())->value();
+    Handle<Script> script(
+        Script::cast(JSFunction::cast(module->code())->shared()->script()),
+        isolate);
+    MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(&zone);
-    if (ResolveImport(module, name, module_request, true, &resolve_set)
+    if (ResolveImport(module, name, module_request, loc, true, &resolve_set)
             .is_null()) {
       return false;
     }
@@ -20059,8 +20076,13 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
         ModuleInfoEntry::cast(special_exports->get(i)), isolate);
     Handle<Object> name(entry->export_name(), isolate);
     if (name->IsUndefined(isolate)) continue;  // Star export.
+    Handle<Script> script(
+        Script::cast(JSFunction::cast(module->code())->shared()->script()),
+        isolate);
+    MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(&zone);
-    if (ResolveExport(module, Handle<String>::cast(name), true, &resolve_set)
+    if (ResolveExport(module, Handle<String>::cast(name), loc, true,
+                      &resolve_set)
             .is_null()) {
       return false;
     }

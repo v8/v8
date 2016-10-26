@@ -4,5 +4,7 @@
 //
 // MODULE
 
-import {a} from "modules-skip-cyclic.js";
-export {a as b};
+export * from "../mjsunit/modules-skip-star-exports-conflict.js";
+export * from "../mjsunit/modules-skip-6.js";
+
+import {a} from "modules-star-conflict2.js";

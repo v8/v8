@@ -4,5 +4,4 @@
 //
 // MODULE
 
-// Star exports do not propagate a default export.
-import a from "modules-skip-4.js";
+import {a} from "../mjsunit/modules-skip-7.js";

@@ -4,4 +4,5 @@
 //
 // MODULE
 
-import {a} from "modules-fail-1.js";
+export {x};
+export let x = 42;

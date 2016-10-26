@@ -867,12 +867,15 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              Handle<Object> export_name,
                                              Handle<Object> local_name,
                                              Handle<Object> import_name,
-                                             Handle<Object> module_request) {
+                                             Handle<Object> module_request,
+                                             int beg_pos, int end_pos) {
   Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
   result->set(kExportNameIndex, *export_name);
   result->set(kLocalNameIndex, *local_name);
   result->set(kImportNameIndex, *import_name);
   result->set(kModuleRequestIndex, *module_request);
+  result->set(kBegPosIndex, Smi::FromInt(beg_pos));
+  result->set(kEndPosIndex, Smi::FromInt(end_pos));
   return result;
 }
 

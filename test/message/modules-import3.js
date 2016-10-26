@@ -4,5 +4,4 @@
 //
 // MODULE
 
-import {a as b} from "modules-fail-4.js";
-export {c as a} from "modules-fail-4.js";
+import foo from "modules-import3.js";

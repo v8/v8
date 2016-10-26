@@ -8048,6 +8048,14 @@ Object* ModuleInfoEntry::module_request() const {
   return get(kModuleRequestIndex);
 }
 
+int ModuleInfoEntry::beg_pos() const {
+  return Smi::cast(get(kBegPosIndex))->value();
+}
+
+int ModuleInfoEntry::end_pos() const {
+  return Smi::cast(get(kEndPosIndex))->value();
+}
+
 FixedArray* ModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
 }

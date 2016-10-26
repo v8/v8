@@ -4,6 +4,5 @@
 //
 // MODULE
 
-import {a as b} from "modules-fail-5.js";
-export {c as a} from "modules-fail-5.js";
-import {c} from "modules-fail-5.js";
+import {a as b} from "modules-import4.js";
+export {c as a} from "modules-import4.js";

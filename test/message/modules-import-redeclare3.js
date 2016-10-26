@@ -4,4 +4,5 @@
 //
 // MODULE
 
-import {a as b} from "modules-fail-2.js";
+import {y, x, z} from "modules-import-redeclare1.js";
+export let x = 42;

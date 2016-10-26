@@ -4,5 +4,5 @@
 //
 // MODULE
 
-import {a} from "modules-fail-cyclic-1.js";
-export {a};
+import {a} from "modules-skip-cycle2.js";
+export {a as b};

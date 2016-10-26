@@ -4,4 +4,5 @@
 //
 // MODULE
 
-import {a} from "modules-skip-7.js";
+// Star exports do not propagate a default export.
+import a from "modules-import4.js";

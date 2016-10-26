@@ -1094,15 +1094,19 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
     }
     const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
     const AstRawString* export_name = NULL;
+    Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(CStrVector("as"))) {
       export_name = ParseIdentifierName(CHECK_OK_VOID);
+      // Set the location to the whole "a as b" string, so that it makes sense
+      // both for errors due to "a" and for errors due to "b".
+      location.end_pos = scanner()->location().end_pos;
     }
     if (export_name == NULL) {
       export_name = local_name;
     }
     export_names->Add(export_name, zone());
     local_names->Add(local_name, zone());
-    export_locations->Add(scanner()->location(), zone());
+    export_locations->Add(location, zone());
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA, CHECK_OK_VOID);
   }
@@ -1132,6 +1136,7 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* local_name = import_name;
+    Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
     // BindingIdentifier.
@@ -1151,8 +1156,8 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
 
     DeclareModuleImport(local_name, position(), CHECK_OK);
 
-    NamedImport* import = new (zone()) NamedImport(
-        import_name, local_name, scanner()->location());
+    NamedImport* import =
+        new (zone()) NamedImport(import_name, local_name, location);
     result->Add(import, zone());
 
     if (peek() == Token::RBRACE) break;
@@ -1339,21 +1344,23 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   //    'export' Declaration
   //    'export' 'default' ... (handled in ParseExportDefault)
 
-  int pos = peek_position();
   Expect(Token::EXPORT, CHECK_OK);
+  int pos = position();
 
   Statement* result = nullptr;
   ZoneList<const AstRawString*> names(1, zone());
+  Scanner::Location loc = scanner()->peek_location();
   switch (peek()) {
     case Token::DEFAULT:
       return ParseExportDefault(ok);
 
     case Token::MUL: {
       Consume(Token::MUL);
+      loc = scanner()->location();
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
       const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
       ExpectSemicolon(CHECK_OK);
-      module()->AddStarExport(module_specifier, scanner()->location(), zone());
+      module()->AddStarExport(module_specifier, loc, zone());
       return factory()->NewEmptyStatement(pos);
     }
 
@@ -1434,11 +1441,11 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       ReportUnexpectedToken(scanner()->current_token());
       return nullptr;
   }
+  loc.end_pos = scanner()->location().end_pos;
 
   ModuleDescriptor* descriptor = module();
   for (int i = 0; i < names.length(); ++i) {
-    // TODO(neis): Provide better location.
-    descriptor->AddExport(names[i], names[i], scanner()->location(), zone());
+    descriptor->AddExport(names[i], names[i], loc, zone());
   }
 
   DCHECK_NOT_NULL(result);

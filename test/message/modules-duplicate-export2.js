@@ -4,4 +4,5 @@
 //
 // MODULE
 
-import foo from "modules-fail-3.js";
+export let x = 42;
+export {x};

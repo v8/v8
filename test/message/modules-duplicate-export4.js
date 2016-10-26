@@ -4,5 +4,6 @@
 //
 // MODULE
 
-// Star exports do not propagate a default export.
-import a from "modules-skip-4.js";
+export let x = 42;
+let y;
+export {y as z, y as x, y};

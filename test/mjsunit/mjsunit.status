@@ -27,6 +27,10 @@
 
 [
 [ALWAYS, {
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
+
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
@@ -751,17 +755,6 @@
 }],  # variant == ignition_turbofan and msan
 
 ##############################################################################
-['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
-  # Modules for which execution must fail (e.g. because of unresolved imports).
-  # Eventually we should test for the precise error message, but for now we only
-  # ensure that there is an error.
-  'modules-fail*': [FAIL],
-
-  # Modules which are only meant to be imported from by other tests, not to be
-  # tested standalone.
-  'modules-skip*': [SKIP],
-}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
-
 ['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   # Ongoing implementation of modules.
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569

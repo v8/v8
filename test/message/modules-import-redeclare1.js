@@ -4,5 +4,5 @@
 //
 // MODULE
 
-export {a as x} from "modules-skip-cyclic-3.js";
-export {b as y} from "modules-skip-cyclic-3.js";
+export let x = 42;
+import {x} from "modules-import-redeclare1.js";

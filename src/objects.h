@@ -4740,11 +4740,14 @@ class ModuleInfoEntry : public FixedArray {
                                      Handle<Object> export_name,
                                      Handle<Object> local_name,
                                      Handle<Object> import_name,
-                                     Handle<Object> module_request);
+                                     Handle<Object> module_request, int beg_pos,
+                                     int end_pos);
   inline Object* export_name() const;
   inline Object* local_name() const;
   inline Object* import_name() const;
   inline Object* module_request() const;
+  inline int beg_pos() const;
+  inline int end_pos() const;
 
  private:
   friend class Factory;
@@ -4753,6 +4756,8 @@ class ModuleInfoEntry : public FixedArray {
     kLocalNameIndex,
     kImportNameIndex,
     kModuleRequestIndex,
+    kBegPosIndex,
+    kEndPosIndex,
     kLength
   };
 };
@@ -8223,16 +8228,16 @@ class Module : public Struct {
   // exception (so check manually!).
   class ResolveSet;
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(
-      Handle<Module> module, Handle<String> name, bool must_resolve,
-      ResolveSet* resolve_set);
+      Handle<Module> module, Handle<String> name, MessageLocation loc,
+      bool must_resolve, ResolveSet* resolve_set);
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(
       Handle<Module> module, Handle<String> name, int module_request,
-      bool must_resolve, ResolveSet* resolve_set);
+      MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
 
   // Helper for ResolveExport.
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Handle<Module> module, Handle<String> name, bool must_resolve,
-      ResolveSet* resolve_set);
+      Handle<Module> module, Handle<String> name, MessageLocation loc,
+      bool must_resolve, ResolveSet* resolve_set);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
 };
