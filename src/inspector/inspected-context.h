@@ -35,7 +35,7 @@ class InspectedContext {
   V8InspectorImpl* inspector() const { return m_inspector; }
 
   InjectedScript* getInjectedScript() { return m_injectedScript.get(); }
-  void createInjectedScript();
+  bool createInjectedScript();
   void discardInjectedScript();
 
  private:

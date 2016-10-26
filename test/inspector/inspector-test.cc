@@ -212,6 +212,59 @@ class SetTimeoutExtension : public v8::Extension {
   }
 };
 
+class InspectorExtension : public v8::Extension {
+ public:
+  InspectorExtension()
+      : v8::Extension("v8_inspector/inspector",
+                      "native function attachInspector();"
+                      "native function detachInspector();") {}
+
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    if (name->Equals(context,
+                     v8::String::NewFromUtf8(isolate, "attachInspector",
+                                             v8::NewStringType::kNormal)
+                         .ToLocalChecked())
+            .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, InspectorExtension::Attach);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "detachInspector",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, InspectorExtension::Detach);
+    }
+    return v8::Local<v8::FunctionTemplate>();
+  }
+
+ private:
+  static void Attach(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(context);
+    if (!inspector) {
+      fprintf(stderr, "Inspector client not found - cannot attach!");
+      Exit();
+    }
+    inspector->contextCreated(
+        v8_inspector::V8ContextInfo(context, 1, v8_inspector::StringView()));
+  }
+
+  static void Detach(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(context);
+    if (!inspector) {
+      fprintf(stderr, "Inspector client not found - cannot detach!");
+      Exit();
+    }
+    inspector->contextDestroyed(context);
+  }
+};
+
 v8::Local<v8::String> ToString(v8::Isolate* isolate,
                                const v8_inspector::StringView& string) {
   if (string.is8Bit())
@@ -267,6 +320,8 @@ int main(int argc, char* argv[]) {
 
   SetTimeoutExtension set_timeout_extension;
   v8::RegisterExtension(&set_timeout_extension);
+  InspectorExtension inspector_extension;
+  v8::RegisterExtension(&inspector_extension);
   UtilsExtension utils_extension;
   v8::RegisterExtension(&utils_extension);
   SendMessageToBackendExtension send_message_to_backend_extension;
@@ -274,7 +329,8 @@ int main(int argc, char* argv[]) {
 
   v8::base::Semaphore ready_semaphore(0);
 
-  const char* backend_extensions[] = {"v8_inspector/setTimeout"};
+  const char* backend_extensions[] = {"v8_inspector/setTimeout",
+                                      "v8_inspector/inspector"};
   v8::ExtensionConfiguration backend_configuration(
       arraysize(backend_extensions), backend_extensions);
   TaskRunner backend_runner(&backend_configuration, false, &ready_semaphore);
