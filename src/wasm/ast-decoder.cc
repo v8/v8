@@ -1158,6 +1158,24 @@ class WasmFullDecoder : public WasmDecoder {
             len += DecodeSimdOpcode(opcode);
             break;
           }
+          case kAtomicPrefix: {
+            if (!module_ || module_->origin != kAsmJsOrigin) {
+              error("Atomics are allowed only in AsmJs modules");
+              break;
+            }
+            if (!FLAG_wasm_atomics_prototype) {
+              error("Invalid opcode (enable with --wasm_atomics_prototype)");
+              break;
+            }
+            len = 2;
+            byte atomic_opcode = checked_read_u8(pc_, 1, "atomic index");
+            opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);
+            sig = WasmOpcodes::AtomicSignature(opcode);
+            if (sig) {
+              BuildAtomicOperator(opcode);
+            }
+            break;
+          }
           default: {
             // Deal with special asmjs opcodes.
             if (module_ && module_->origin == kAsmJsOrigin) {
@@ -1339,6 +1357,8 @@ class WasmFullDecoder : public WasmDecoder {
     }
     return len;
   }
+
+  void BuildAtomicOperator(WasmOpcode opcode) { UNIMPLEMENTED(); }
 
   void DoReturn() {
     int count = static_cast<int>(sig_->return_count());

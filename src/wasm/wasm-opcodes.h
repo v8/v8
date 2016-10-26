@@ -400,6 +400,43 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I16x8ExtractLane, 0xe539, _)         \
   V(I8x16ExtractLane, 0xe558, _)
 
+#define FOREACH_ATOMIC_OPCODE(V)               \
+  V(I32AtomicAdd8S, 0xe601, i_ii)              \
+  V(I32AtomicAdd8U, 0xe602, i_ii)              \
+  V(I32AtomicAdd16S, 0xe603, i_ii)             \
+  V(I32AtomicAdd16U, 0xe604, i_ii)             \
+  V(I32AtomicAdd32, 0xe605, i_ii)              \
+  V(I32AtomicAnd8S, 0xe606, i_ii)              \
+  V(I32AtomicAnd8U, 0xe607, i_ii)              \
+  V(I32AtomicAnd16S, 0xe608, i_ii)             \
+  V(I32AtomicAnd16U, 0xe609, i_ii)             \
+  V(I32AtomicAnd32, 0xe60a, i_ii)              \
+  V(I32AtomicCompareExchange8S, 0xe60b, i_ii)  \
+  V(I32AtomicCompareExchange8U, 0xe60c, i_ii)  \
+  V(I32AtomicCompareExchange16S, 0xe60d, i_ii) \
+  V(I32AtomicCompareExchange16U, 0xe60e, i_ii) \
+  V(I32AtomicCompareExchange32, 0xe60f, i_ii)  \
+  V(I32AtomicExchange8S, 0xe610, i_ii)         \
+  V(I32AtomicExchange8U, 0xe611, i_ii)         \
+  V(I32AtomicExchange16S, 0xe612, i_ii)        \
+  V(I32AtomicExchange16U, 0xe613, i_ii)        \
+  V(I32AtomicExchange32, 0xe614, i_ii)         \
+  V(I32AtomicOr8S, 0xe615, i_ii)               \
+  V(I32AtomicOr8U, 0xe616, i_ii)               \
+  V(I32AtomicOr16S, 0xe617, i_ii)              \
+  V(I32AtomicOr16U, 0xe618, i_ii)              \
+  V(I32AtomicOr32, 0xe619, i_ii)               \
+  V(I32AtomicSub8S, 0xe61a, i_ii)              \
+  V(I32AtomicSub8U, 0xe61b, i_ii)              \
+  V(I32AtomicSub16S, 0xe61c, i_ii)             \
+  V(I32AtomicSub16U, 0xe61d, i_ii)             \
+  V(I32AtomicSub32, 0xe61e, i_ii)              \
+  V(I32AtomicXor8S, 0xe61f, i_ii)              \
+  V(I32AtomicXor8U, 0xe620, i_ii)              \
+  V(I32AtomicXor16S, 0xe621, i_ii)             \
+  V(I32AtomicXor16U, 0xe622, i_ii)             \
+  V(I32AtomicXor32, 0xe623, i_ii)
+
 // All opcodes.
 #define FOREACH_OPCODE(V)          \
   FOREACH_CONTROL_OPCODE(V)        \
@@ -410,7 +447,8 @@ const WasmCodePosition kNoCodePosition = -1;
   FOREACH_MISC_MEM_OPCODE(V)       \
   FOREACH_ASMJS_COMPAT_OPCODE(V)   \
   FOREACH_SIMD_0_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V)
+  FOREACH_SIMD_1_OPERAND_OPCODE(V) \
+  FOREACH_ATOMIC_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \
@@ -453,7 +491,9 @@ const WasmCodePosition kNoCodePosition = -1;
   V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
   V(s_si, kAstS128, kAstS128, kAstI32)
 
-#define FOREACH_PREFIX(V) V(Simd, 0xe5)
+#define FOREACH_PREFIX(V) \
+  V(Simd, 0xe5)           \
+  V(Atomic, 0xe6)
 
 enum WasmOpcode {
 // Declare expression opcodes.
@@ -491,6 +531,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
   static FunctionSig* AsmjsSignature(WasmOpcode opcode);
+  static FunctionSig* AtomicSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);
