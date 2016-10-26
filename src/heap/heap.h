@@ -91,7 +91,6 @@ using v8::MemoryPressureLevel;
   V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, message_object_map, JSMessageObjectMap)                               \
-  V(Map, neander_map, NeanderMap)                                              \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   /* String maps */                                                            \
@@ -306,7 +305,6 @@ using v8::MemoryPressureLevel;
   V(ArgumentsMarkerMap)                 \
   V(JSMessageObjectMap)                 \
   V(ForeignMap)                         \
-  V(NeanderMap)                         \
   V(NanValue)                           \
   V(InfinityValue)                      \
   V(MinusZeroValue)                     \
