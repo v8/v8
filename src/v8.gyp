@@ -1279,6 +1279,7 @@
         'zone/zone-segment.h',
         'zone/zone.cc',
         'zone/zone.h',
+        'zone/zone-chunk-list.h',
         'zone/zone-segment.cc',
         'zone/zone-segment.h',
         'zone/zone-allocator.h',
