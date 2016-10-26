@@ -3092,6 +3092,7 @@ class HConstant final : public HTemplateInstruction<0> {
   DECLARE_INSTRUCTION_FACTORY_P2(HConstant, int32_t, Representation);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, double);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, Handle<Object>);
+  DECLARE_INSTRUCTION_FACTORY_P2(HConstant, Handle<Object>, Representation);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, ExternalReference);
 
   static HConstant* CreateAndInsertAfter(Isolate* isolate, Zone* zone,
