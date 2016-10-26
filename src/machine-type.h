@@ -239,7 +239,7 @@ inline bool IsAnyTagged(MachineRepresentation rep) {
 }
 
 // Gets the log2 of the element size in bytes of the machine type.
-inline int ElementSizeLog2Of(MachineRepresentation rep) {
+V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:

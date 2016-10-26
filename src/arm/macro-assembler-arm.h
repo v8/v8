@@ -549,6 +549,14 @@ class MacroAssembler: public Assembler {
   void VmovLow(Register dst, DwVfpRegister src);
   void VmovLow(DwVfpRegister dst, Register src);
 
+  // Simulate s-register moves for imaginary s32 - s63 registers.
+  void VmovExtended(Register dst, int src_code);
+  void VmovExtended(int dst_code, Register src);
+  // Move between s-registers and imaginary s-registers.
+  void VmovExtended(int dst_code, int src_code, Register scratch);
+  void VmovExtended(int dst_code, const MemOperand& src, Register scratch);
+  void VmovExtended(const MemOperand& dst, int src_code, Register scratch);
+
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register scratch, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,

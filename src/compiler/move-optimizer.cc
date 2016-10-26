@@ -25,11 +25,79 @@ struct MoveKeyCompare {
 };
 
 typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
-typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
-bool Blocks(const OperandSet& set, const InstructionOperand& operand) {
-  return set.find(operand) != set.end();
-}
+class OperandSet {
+ public:
+  explicit OperandSet(Zone* zone) : set_(zone), fp_reps_(0) {}
+
+  void InsertOp(const InstructionOperand& op) {
+    set_.insert(op);
+    if (!kSimpleFPAliasing && op.IsFPRegister())
+      fp_reps_ |= RepBit(LocationOperand::cast(op).representation());
+  }
+
+  bool ContainsOpOrAlias(const InstructionOperand& op) const {
+    if (set_.find(op) != set_.end()) return true;
+
+    if (!kSimpleFPAliasing && op.IsFPRegister()) {
+      // Platforms where FP registers have complex aliasing need extra checks.
+      const LocationOperand& loc = LocationOperand::cast(op);
+      MachineRepresentation rep = loc.representation();
+      // If haven't encountered mixed rep FP registers, skip the extra checks.
+      if (!HasMixedFPReps(fp_reps_ | RepBit(rep))) return false;
+
+      // Check register against aliasing registers of other FP representations.
+      MachineRepresentation other_rep1, other_rep2;
+      switch (rep) {
+        case MachineRepresentation::kFloat32:
+          other_rep1 = MachineRepresentation::kFloat64;
+          other_rep2 = MachineRepresentation::kSimd128;
+          break;
+        case MachineRepresentation::kFloat64:
+          other_rep1 = MachineRepresentation::kFloat32;
+          other_rep2 = MachineRepresentation::kSimd128;
+          break;
+        case MachineRepresentation::kSimd128:
+          other_rep1 = MachineRepresentation::kFloat32;
+          other_rep2 = MachineRepresentation::kFloat64;
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+      const RegisterConfiguration* config = RegisterConfiguration::Turbofan();
+      int base = -1;
+      int aliases =
+          config->GetAliases(rep, loc.register_code(), other_rep1, &base);
+      DCHECK(aliases > 0 || (aliases == 0 && base == -1));
+      while (aliases--) {
+        if (set_.find(AllocatedOperand(LocationOperand::REGISTER, other_rep1,
+                                       base + aliases)) != set_.end())
+          return true;
+      }
+      aliases = config->GetAliases(rep, loc.register_code(), other_rep2, &base);
+      DCHECK(aliases > 0 || (aliases == 0 && base == -1));
+      while (aliases--) {
+        if (set_.find(AllocatedOperand(LocationOperand::REGISTER, other_rep2,
+                                       base + aliases)) != set_.end())
+          return true;
+      }
+    }
+    return false;
+  }
+
+ private:
+  static int RepBit(MachineRepresentation rep) {
+    return 1 << static_cast<int>(rep);
+  }
+
+  static bool HasMixedFPReps(int reps) {
+    return reps && !base::bits::IsPowerOfTwo32(reps);
+  }
+
+  ZoneSet<InstructionOperand, CompareOperandModuloType> set_;
+  int fp_reps_;
+};
 
 int FindFirstNonEmptySlot(const Instruction* instr) {
   int i = Instruction::FIRST_GAP_POSITION;
@@ -98,21 +166,21 @@ void MoveOptimizer::RemoveClobberedDestinations(Instruction* instruction) {
   // Outputs and temps are treated together as potentially clobbering a
   // destination operand.
   for (size_t i = 0; i < instruction->OutputCount(); ++i) {
-    outputs.insert(*instruction->OutputAt(i));
+    outputs.InsertOp(*instruction->OutputAt(i));
   }
   for (size_t i = 0; i < instruction->TempCount(); ++i) {
-    outputs.insert(*instruction->TempAt(i));
+    outputs.InsertOp(*instruction->TempAt(i));
   }
 
   // Input operands block elisions.
   for (size_t i = 0; i < instruction->InputCount(); ++i) {
-    inputs.insert(*instruction->InputAt(i));
+    inputs.InsertOp(*instruction->InputAt(i));
   }
 
   // Elide moves made redundant by the instruction.
   for (MoveOperands* move : *moves) {
-    if (outputs.find(move->destination()) != outputs.end() &&
-        inputs.find(move->destination()) == inputs.end()) {
+    if (outputs.ContainsOpOrAlias(move->destination()) &&
+        !inputs.ContainsOpOrAlias(move->destination())) {
       move->Eliminate();
     }
   }
@@ -121,7 +189,7 @@ void MoveOptimizer::RemoveClobberedDestinations(Instruction* instruction) {
   // the one for its input.
   if (instruction->IsRet() || instruction->IsTailCall()) {
     for (MoveOperands* move : *moves) {
-      if (inputs.find(move->destination()) == inputs.end()) {
+      if (!inputs.ContainsOpOrAlias(move->destination())) {
         move->Eliminate();
       }
     }
@@ -140,7 +208,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   // If an operand is an input to the instruction, we cannot move assignments
   // where it appears on the LHS.
   for (size_t i = 0; i < from->InputCount(); ++i) {
-    dst_cant_be.insert(*from->InputAt(i));
+    dst_cant_be.InsertOp(*from->InputAt(i));
   }
   // If an operand is output to the instruction, we cannot move assignments
   // where it appears on the RHS, because we would lose its value before the
@@ -149,10 +217,10 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   // The output can't appear on the LHS because we performed
   // RemoveClobberedDestinations for the "from" instruction.
   for (size_t i = 0; i < from->OutputCount(); ++i) {
-    src_cant_be.insert(*from->OutputAt(i));
+    src_cant_be.InsertOp(*from->OutputAt(i));
   }
   for (size_t i = 0; i < from->TempCount(); ++i) {
-    src_cant_be.insert(*from->TempAt(i));
+    src_cant_be.InsertOp(*from->TempAt(i));
   }
   for (MoveOperands* move : *from_moves) {
     if (move->IsRedundant()) continue;
@@ -160,7 +228,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
     // move "z = dest", because z would become y rather than "V".
     // We assume CompressMoves has happened before this, which means we don't
     // have more than one assignment to dest.
-    src_cant_be.insert(move->destination());
+    src_cant_be.InsertOp(move->destination());
   }
 
   ZoneSet<MoveKey, MoveKeyCompare> move_candidates(local_zone());
@@ -168,7 +236,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   // destination operands are eligible for being moved down.
   for (MoveOperands* move : *from_moves) {
     if (move->IsRedundant()) continue;
-    if (!Blocks(dst_cant_be, move->destination())) {
+    if (!dst_cant_be.ContainsOpOrAlias(move->destination())) {
       MoveKey key = {move->source(), move->destination()};
       move_candidates.insert(key);
     }
@@ -183,8 +251,8 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
       auto current = iter;
       ++iter;
       InstructionOperand src = current->source;
-      if (Blocks(src_cant_be, src)) {
-        src_cant_be.insert(current->destination);
+      if (src_cant_be.ContainsOpOrAlias(src)) {
+        src_cant_be.InsertOp(current->destination);
         move_candidates.erase(current);
         changed = true;
       }
@@ -223,8 +291,7 @@ void MoveOptimizer::CompressMoves(ParallelMove* left, MoveOpVector* right) {
     // merging the two gaps.
     for (MoveOperands* move : *right) {
       if (move->IsRedundant()) continue;
-      MoveOperands* to_eliminate = left->PrepareInsertAfter(move);
-      if (to_eliminate != nullptr) eliminated.push_back(to_eliminate);
+      left->PrepareInsertAfter(move, &eliminated);
     }
     // Eliminate dead moves.
     for (MoveOperands* to_eliminate : eliminated) {
@@ -360,7 +427,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
         // there are such moves, we could move them, but the destination of the
         // moves staying behind can't appear as a source of a common move,
         // because the move staying behind will clobber this destination.
-        conflicting_srcs.insert(dest);
+        conflicting_srcs.InsertOp(dest);
         move_map.erase(current);
       }
     }
@@ -374,9 +441,8 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
         auto current = iter;
         ++iter;
         DCHECK_EQ(block->PredecessorCount(), current->second);
-        if (conflicting_srcs.find(current->first.source) !=
-            conflicting_srcs.end()) {
-          conflicting_srcs.insert(current->first.destination);
+        if (conflicting_srcs.ContainsOpOrAlias(current->first.source)) {
+          conflicting_srcs.InsertOp(current->first.destination);
           move_map.erase(current);
           changed = true;
         }

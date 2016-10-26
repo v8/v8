@@ -42,6 +42,7 @@
       'compiler/graph-trimmer-unittest.cc',
       'compiler/graph-unittest.cc',
       'compiler/graph-unittest.h',
+      'compiler/instruction-unittest.cc',
       'compiler/instruction-selector-unittest.cc',
       'compiler/instruction-selector-unittest.h',
       'compiler/instruction-sequence-unittest.cc',

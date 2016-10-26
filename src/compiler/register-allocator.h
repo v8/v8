@@ -357,6 +357,11 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   UsePosition* NextUsePositionRegisterIsBeneficial(
       LifetimePosition start) const;
 
+  // Returns lifetime position for which register is beneficial in this live
+  // range and which follows both start and last processed use position.
+  LifetimePosition NextLifetimePositionRegisterIsBeneficial(
+      const LifetimePosition& start) const;
+
   // Returns use position for which register is beneficial in this live
   // range and which precedes start.
   UsePosition* PreviousUsePositionRegisterIsBeneficial(
@@ -773,11 +778,23 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<TopLevelLiveRange*>& fixed_live_ranges() {
     return fixed_live_ranges_;
   }
+  ZoneVector<TopLevelLiveRange*>& fixed_float_live_ranges() {
+    return fixed_float_live_ranges_;
+  }
+  const ZoneVector<TopLevelLiveRange*>& fixed_float_live_ranges() const {
+    return fixed_float_live_ranges_;
+  }
   ZoneVector<TopLevelLiveRange*>& fixed_double_live_ranges() {
     return fixed_double_live_ranges_;
   }
   const ZoneVector<TopLevelLiveRange*>& fixed_double_live_ranges() const {
     return fixed_double_live_ranges_;
+  }
+  ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() {
+    return fixed_simd128_live_ranges_;
+  }
+  const ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() const {
+    return fixed_simd128_live_ranges_;
   }
   ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
   ZoneVector<BitVector*>& live_out_sets() { return live_out_sets_; }
@@ -840,7 +857,9 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<BitVector*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_live_ranges_;
+  ZoneVector<TopLevelLiveRange*> fixed_float_live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_double_live_ranges_;
+  ZoneVector<TopLevelLiveRange*> fixed_simd128_live_ranges_;
   ZoneVector<SpillRange*> spill_ranges_;
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
@@ -1058,6 +1077,8 @@ class LinearScanAllocator final : public RegisterAllocator {
                           const Vector<LifetimePosition>& free_until_pos);
   bool TryAllocatePreferredReg(LiveRange* range,
                                const Vector<LifetimePosition>& free_until_pos);
+  void GetFPRegisterSet(MachineRepresentation rep, int* num_regs,
+                        int* num_codes, const int** codes) const;
   void FindFreeRegistersForRange(LiveRange* range,
                                  Vector<LifetimePosition> free_until_pos);
   void ProcessCurrentRange(LiveRange* current);

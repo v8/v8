@@ -28,8 +28,7 @@ namespace compiler {
 // Forward declarations.
 class Schedule;
 
-
-class InstructionOperand {
+class V8_EXPORT_PRIVATE InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
@@ -119,7 +118,7 @@ class InstructionOperand {
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
-  bool InterferesWith(const InstructionOperand& that) const;
+  bool InterferesWith(const InstructionOperand& other) const;
 
   // APIs to aid debugging. For general-stream APIs, use operator<<
   void Print(const RegisterConfiguration* config) const;
@@ -641,8 +640,14 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAnyLocationOperand()) {
     MachineRepresentation canonical = MachineRepresentation::kNone;
     if (IsFPRegister()) {
-      // We treat all FP register operands the same for simple aliasing.
-      canonical = MachineRepresentation::kFloat64;
+      if (kSimpleFPAliasing) {
+        // We treat all FP register operands the same for simple aliasing.
+        canonical = MachineRepresentation::kFloat64;
+      } else {
+        // We need to distinguish FP register operands of different reps when
+        // aliasing is not simple (e.g. ARM).
+        canonical = LocationOperand::cast(this)->representation();
+      }
     }
     return InstructionOperand::KindField::update(
         LocationOperand::RepresentationField::update(this->value_, canonical),
@@ -659,8 +664,8 @@ struct CompareOperandModuloType {
   }
 };
 
-
-class MoveOperands final : public ZoneObject {
+class V8_EXPORT_PRIVATE MoveOperands final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   MoveOperands(const InstructionOperand& source,
                const InstructionOperand& destination)
@@ -684,11 +689,6 @@ class MoveOperands final : public ZoneObject {
     return destination_.IsInvalid() && !source_.IsInvalid();
   }
   void SetPending() { destination_ = InstructionOperand(); }
-
-  // True if this move is a move into the given destination operand.
-  bool Blocks(const InstructionOperand& destination) const {
-    return !IsEliminated() && source().InterferesWith(destination);
-  }
 
   // A move is redundant if it's been eliminated or if its source and
   // destination are the same.
@@ -724,8 +724,9 @@ struct PrintableMoveOperands {
 
 std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
 
-
-class ParallelMove final : public ZoneVector<MoveOperands*>, public ZoneObject {
+class V8_EXPORT_PRIVATE ParallelMove final
+    : public NON_EXPORTED_BASE(ZoneVector<MoveOperands *>),
+      public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit ParallelMove(Zone* zone) : ZoneVector<MoveOperands*>(zone) {
     reserve(4);
@@ -748,9 +749,10 @@ class ParallelMove final : public ZoneVector<MoveOperands*>, public ZoneObject {
   bool IsRedundant() const;
 
   // Prepare this ParallelMove to insert move as if it happened in a subsequent
-  // ParallelMove.  move->source() may be changed.  The MoveOperand returned
-  // must be Eliminated.
-  MoveOperands* PrepareInsertAfter(MoveOperands* move) const;
+  // ParallelMove.  move->source() may be changed.  Any MoveOperands added to
+  // to_eliminate must be Eliminated.
+  void PrepareInsertAfter(MoveOperands* move,
+                          ZoneVector<MoveOperands*>* to_eliminate) const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ParallelMove);

@@ -1051,6 +1051,69 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
   }
 }
 
+void MacroAssembler::VmovExtended(Register dst, int src_code) {
+  DCHECK_LE(32, src_code);
+  DCHECK_GT(64, src_code);
+  if (src_code & 0x1) {
+    VmovHigh(dst, DwVfpRegister::from_code(src_code / 2));
+  } else {
+    VmovLow(dst, DwVfpRegister::from_code(src_code / 2));
+  }
+}
+
+void MacroAssembler::VmovExtended(int dst_code, Register src) {
+  DCHECK_LE(32, dst_code);
+  DCHECK_GT(64, dst_code);
+  if (dst_code & 0x1) {
+    VmovHigh(DwVfpRegister::from_code(dst_code / 2), src);
+  } else {
+    VmovLow(DwVfpRegister::from_code(dst_code / 2), src);
+  }
+}
+
+void MacroAssembler::VmovExtended(int dst_code, int src_code,
+                                  Register scratch) {
+  if (src_code < 32 && dst_code < 32) {
+    // src and dst are both s-registers.
+    vmov(SwVfpRegister::from_code(dst_code),
+         SwVfpRegister::from_code(src_code));
+  } else if (src_code < 32) {
+    // src is an s-register.
+    vmov(scratch, SwVfpRegister::from_code(src_code));
+    VmovExtended(dst_code, scratch);
+  } else if (dst_code < 32) {
+    // dst is an s-register.
+    VmovExtended(scratch, src_code);
+    vmov(SwVfpRegister::from_code(dst_code), scratch);
+  } else {
+    // Neither src or dst are s-registers.
+    DCHECK_GT(64, src_code);
+    DCHECK_GT(64, dst_code);
+    VmovExtended(scratch, src_code);
+    VmovExtended(dst_code, scratch);
+  }
+}
+
+void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
+                                  Register scratch) {
+  if (dst_code >= 32) {
+    ldr(scratch, src);
+    VmovExtended(dst_code, scratch);
+  } else {
+    vldr(SwVfpRegister::from_code(dst_code), src);
+  }
+}
+
+void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
+                                  Register scratch) {
+  if (src_code >= 32) {
+    VmovExtended(scratch, src_code);
+    str(scratch, dst);
+  } else {
+    vstr(SwVfpRegister::from_code(src_code), dst);
+  }
+}
+
 void MacroAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register scratch, Register shift) {

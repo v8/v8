@@ -12,6 +12,14 @@ namespace compiler {
 
 class MoveOptimizerTest : public InstructionSequenceTest {
  public:
+  // FP register indices which don't interfere under simple or complex aliasing.
+  static const int kF64_1 = 0;
+  static const int kF64_2 = 1;
+  static const int kF32_1 = 4;
+  static const int kF32_2 = 5;
+  static const int kS128_1 = 2;
+  static const int kS128_2 = 3;
+
   Instruction* LastInstruction() { return sequence()->instructions().back(); }
 
   void AddMove(Instruction* instr, TestOperand from, TestOperand to,
@@ -99,8 +107,12 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
   AddMove(first_instr, Reg(0), Reg(1));
   AddMove(last_instr, Reg(1), Reg(0));
 
-  AddMove(first_instr, FPReg(0), FPReg(1));
-  AddMove(last_instr, FPReg(1), FPReg(0));
+  AddMove(first_instr, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128));
+  AddMove(last_instr, FPReg(kS128_2, kSimd128), FPReg(kS128_1, kSimd128));
+  AddMove(first_instr, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64));
+  AddMove(last_instr, FPReg(kF64_2, kFloat64), FPReg(kF64_1, kFloat64));
+  AddMove(first_instr, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32));
+  AddMove(last_instr, FPReg(kF32_2, kFloat32), FPReg(kF32_1, kFloat32));
 
   EndBlock(Last());
 
@@ -108,22 +120,38 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
 
   CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
   auto move = last_instr->parallel_moves()[0];
-  CHECK_EQ(2, NonRedundantSize(move));
+  CHECK_EQ(4, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
-  CHECK(Contains(move, FPReg(0), FPReg(1)));
+  CHECK(Contains(move, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128)));
+  CHECK(Contains(move, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64)));
+  CHECK(Contains(move, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32)));
 }
 
 
 TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
-  int first_reg_index = GetAllocatableCode(0);
-  int second_reg_index = GetAllocatableCode(1);
+  int index1 = GetAllocatableCode(0);
+  int index2 = GetAllocatableCode(1);
+  int s128_1 = GetAllocatableCode(kS128_1, kSimd128);
+  int s128_2 = GetAllocatableCode(kS128_2, kSimd128);
+  int f64_1 = GetAllocatableCode(kF64_1, kFloat64);
+  int f64_2 = GetAllocatableCode(kF64_2, kFloat64);
+  int f32_1 = GetAllocatableCode(kF32_1, kFloat32);
+  int f32_2 = GetAllocatableCode(kF32_2, kFloat32);
 
   StartBlock();
   auto first_instr = EmitNop();
   auto last_instr = EmitNop();
 
-  AddMove(first_instr, Reg(first_reg_index), ExplicitReg(second_reg_index));
-  AddMove(last_instr, Reg(second_reg_index), Reg(first_reg_index));
+  AddMove(first_instr, Reg(index1), ExplicitReg(index2));
+  AddMove(last_instr, Reg(index2), Reg(index1));
+
+  AddMove(first_instr, FPReg(s128_1, kSimd128),
+          ExplicitFPReg(s128_2, kSimd128));
+  AddMove(last_instr, FPReg(s128_2, kSimd128), FPReg(s128_1, kSimd128));
+  AddMove(first_instr, FPReg(f64_1, kFloat64), ExplicitFPReg(f64_2, kFloat64));
+  AddMove(last_instr, FPReg(f64_2, kFloat64), FPReg(f64_1, kFloat64));
+  AddMove(first_instr, FPReg(f32_1, kFloat32), ExplicitFPReg(f32_2, kFloat32));
+  AddMove(last_instr, FPReg(f32_2, kFloat32), FPReg(f32_1, kFloat32));
 
   EndBlock(Last());
 
@@ -131,8 +159,12 @@ TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
 
   CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
   auto move = last_instr->parallel_moves()[0];
-  CHECK_EQ(1, NonRedundantSize(move));
-  CHECK(Contains(move, Reg(first_reg_index), ExplicitReg(second_reg_index)));
+  CHECK_EQ(4, NonRedundantSize(move));
+  CHECK(Contains(move, Reg(index1), ExplicitReg(index2)));
+  CHECK(
+      Contains(move, FPReg(s128_1, kSimd128), ExplicitFPReg(s128_2, kSimd128)));
+  CHECK(Contains(move, FPReg(f64_1, kFloat64), ExplicitFPReg(f64_2, kFloat64)));
+  CHECK(Contains(move, FPReg(f32_1, kFloat32), ExplicitFPReg(f32_2, kFloat32)));
 }
 
 
@@ -167,10 +199,18 @@ TEST_F(MoveOptimizerTest, SimpleMerge) {
   StartBlock();
   EndBlock(Jump(2));
   AddMove(LastInstruction(), Reg(0), Reg(1));
+  AddMove(LastInstruction(), FPReg(kS128_1, kSimd128),
+          FPReg(kS128_2, kSimd128));
+  AddMove(LastInstruction(), FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64));
+  AddMove(LastInstruction(), FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32));
 
   StartBlock();
   EndBlock(Jump(1));
   AddMove(LastInstruction(), Reg(0), Reg(1));
+  AddMove(LastInstruction(), FPReg(kS128_1, kSimd128),
+          FPReg(kS128_2, kSimd128));
+  AddMove(LastInstruction(), FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64));
+  AddMove(LastInstruction(), FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32));
 
   StartBlock();
   EndBlock(Last());
@@ -180,8 +220,11 @@ TEST_F(MoveOptimizerTest, SimpleMerge) {
   Optimize();
 
   auto move = last->parallel_moves()[0];
-  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK_EQ(4, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
+  CHECK(Contains(move, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128)));
+  CHECK(Contains(move, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64)));
+  CHECK(Contains(move, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32)));
 }
 
 
@@ -195,16 +238,25 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   AddMove(gap_0, Reg(0), Reg(1));
   AddMove(LastInstruction(), Reg(1), Reg(0));
 
-  AddMove(gap_0, FPReg(0), FPReg(1));
-  AddMove(LastInstruction(), FPReg(1), FPReg(0));
+  AddMove(gap_0, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128));
+  AddMove(LastInstruction(), FPReg(kS128_2, kSimd128),
+          FPReg(kS128_1, kSimd128));
+  AddMove(gap_0, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64));
+  AddMove(LastInstruction(), FPReg(kF64_2, kFloat64), FPReg(kF64_1, kFloat64));
+  AddMove(gap_0, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32));
+  AddMove(LastInstruction(), FPReg(kF32_2, kFloat32), FPReg(kF32_1, kFloat32));
 
   StartBlock();
   EndBlock(Jump(1));
   auto gap_1 = LastInstruction();
   AddMove(gap_1, Reg(0), Reg(1));
   AddMove(gap_1, Reg(1), Reg(0));
-  AddMove(gap_1, FPReg(0), FPReg(1));
-  AddMove(gap_1, FPReg(1), FPReg(0));
+  AddMove(gap_1, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128));
+  AddMove(gap_1, FPReg(kS128_2, kSimd128), FPReg(kS128_1, kSimd128));
+  AddMove(gap_1, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64));
+  AddMove(gap_1, FPReg(kF64_2, kFloat64), FPReg(kF64_1, kFloat64));
+  AddMove(gap_1, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32));
+  AddMove(gap_1, FPReg(kF32_2, kFloat32), FPReg(kF32_1, kFloat32));
 
   StartBlock();
   EndBlock(Last());
@@ -216,11 +268,15 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   CHECK(gap_0->AreMovesRedundant());
   CHECK(gap_1->AreMovesRedundant());
   auto move = last->parallel_moves()[0];
-  CHECK_EQ(4, NonRedundantSize(move));
+  CHECK_EQ(8, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
   CHECK(Contains(move, Reg(1), Reg(0)));
-  CHECK(Contains(move, FPReg(0), FPReg(1)));
-  CHECK(Contains(move, FPReg(1), FPReg(0)));
+  CHECK(Contains(move, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128)));
+  CHECK(Contains(move, FPReg(kS128_2, kSimd128), FPReg(kS128_1, kSimd128)));
+  CHECK(Contains(move, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64)));
+  CHECK(Contains(move, FPReg(kF64_2, kFloat64), FPReg(kF64_1, kFloat64)));
+  CHECK(Contains(move, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32)));
+  CHECK(Contains(move, FPReg(kF32_2, kFloat32), FPReg(kF32_1, kFloat32)));
 }
 
 
@@ -342,8 +398,31 @@ TEST_F(MoveOptimizerTest, ClobberedDestinationsAreEliminated) {
   EmitNop();
   Instruction* first_instr = LastInstruction();
   AddMove(first_instr, Reg(0), Reg(1));
-  AddMove(first_instr, FPReg(0), FPReg(1));
-  EmitOOI(Reg(1), FPReg(1), 0, nullptr);
+  EmitOI(Reg(1), 0, nullptr);
+  Instruction* last_instr = LastInstruction();
+  EndBlock();
+  Optimize();
+
+  ParallelMove* first_move = first_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(first_move));
+
+  ParallelMove* last_move = last_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(last_move));
+}
+
+TEST_F(MoveOptimizerTest, ClobberedFPDestinationsAreEliminated) {
+  StartBlock();
+  EmitNop();
+  Instruction* first_instr = LastInstruction();
+  AddMove(first_instr, FPReg(4, kFloat64), FPReg(1, kFloat64));
+  if (!kSimpleFPAliasing) {
+    // We clobber q0 below. This is aliased by d0, d1, s0, s1, s2, and s3.
+    // Add moves to registers s2 and s3.
+    AddMove(first_instr, FPReg(10, kFloat32), FPReg(0, kFloat32));
+    AddMove(first_instr, FPReg(11, kFloat32), FPReg(1, kFloat32));
+  }
+  // Clobbers output register 0.
+  EmitOI(FPReg(0, kSimd128), 0, nullptr);
   Instruction* last_instr = LastInstruction();
   EndBlock();
   Optimize();
