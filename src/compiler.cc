@@ -251,16 +251,6 @@ void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 
 namespace {
 
-bool Parse(ParseInfo* info) {
-  // Create a canonical handle scope if compiling ignition bytecode. This is
-  // required by the constant array builder to de-duplicate objects without
-  // dereferencing handles.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
-
-  return Parser::ParseStatic(info);
-}
-
 void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                CompilationInfo* info) {
   // Log the code generation. If source information is available include
@@ -439,7 +429,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   PostponeInterruptsScope postpone(info->isolate());
 
   // Parse and update CompilationInfo with the results.
-  if (!Parse(info->parse_info())) return MaybeHandle<Code>();
+  if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -492,14 +482,6 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 }
 
 bool Renumber(ParseInfo* parse_info) {
-  // Create a canonical handle scope if compiling ignition bytecode. This is
-  // required by the constant array builder to de-duplicate objects without
-  // dereferencing handles.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) {
-    canonical.reset(new CanonicalHandleScope(parse_info->isolate()));
-  }
-
   if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
                               parse_info->literal())) {
     return false;
@@ -926,7 +908,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   }
 
   // Parse and update CompilationInfo with the results.
-  if (!Parse(info.parse_info())) return MaybeHandle<Code>();
+  if (!Parser::ParseStatic(info.parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info.shared_info();
   DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
 
@@ -1054,7 +1036,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
-    if (parse_info->literal() == nullptr && !Parse(parse_info)) {
+    if (parse_info->literal() == nullptr && !Parser::ParseStatic(parse_info)) {
       return Handle<SharedFunctionInfo>::null();
     }
 
@@ -1118,7 +1100,7 @@ bool Compiler::Analyze(ParseInfo* info) {
 }
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
-  if (!Parse(info)) return false;
+  if (!Parser::ParseStatic(info)) return false;
   if (!Compiler::Analyze(info)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1708,6 +1690,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   parse_info.set_literal(literal);
   parse_info.set_shared_info(result);
   parse_info.set_language_mode(literal->scope()->language_mode());
+  parse_info.set_ast_value_factory(
+      outer_info->parse_info()->ast_value_factory());
+  parse_info.set_ast_value_factory_owned(false);
+
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_debug()) info.MarkAsDebug();
 

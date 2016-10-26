@@ -150,17 +150,9 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
     }
     parse_info_->set_shared_info(shared_);
 
-    {
-      // Create a canonical handle scope if compiling ignition bytecode. This is
-      // required by the constant array builder to de-duplicate objects without
-      // dereferencing handles.
-      std::unique_ptr<CanonicalHandleScope> canonical;
-      if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate_));
-
-      // Do the parsing tasks which need to be done on the main thread. This
-      // will also handle parse errors.
-      parser_->Internalize(isolate_, script, parse_info_->literal() == nullptr);
-    }
+    // Do the parsing tasks which need to be done on the main thread. This
+    // will also handle parse errors.
+    parser_->Internalize(isolate_, script, parse_info_->literal() == nullptr);
     parser_->HandleSourceURLComments(isolate_, script);
 
     parse_info_->set_character_stream(nullptr);

@@ -14,6 +14,7 @@
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 
 namespace v8 {
@@ -571,7 +572,11 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       generator_state_(),
       loop_depth_(0),
       home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
-      prototype_string_(info->isolate()->factory()->prototype_string()) {
+      empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()) {
+  AstValueFactory* ast_value_factory = info->parse_info()->ast_value_factory();
+  const AstRawString* prototype_string = ast_value_factory->prototype_string();
+  ast_value_factory->Internalize(info->isolate());
+  prototype_string_ = prototype_string->string();
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
@@ -1568,11 +1573,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       FastCloneShallowObjectStub::IsSupported(expr),
       FastCloneShallowObjectStub::PropertiesCount(expr->properties_count()),
       expr->ComputeFlags());
-  // Allocate in the outer scope since this register is used to return the
-  // expression's results to the caller.
+  // If constant properties is an empty fixed array, use our cached
+  // empty_fixed_array to ensure it's only added to the constant pool once.
+  Handle<FixedArray> constant_properties = expr->properties_count() == 0
+                                               ? empty_fixed_array()
+                                               : expr->constant_properties();
   Register literal = register_allocator()->NewRegister();
-  builder()->CreateObjectLiteral(expr->constant_properties(),
-                                 expr->literal_index(), flags, literal);
+  builder()->CreateObjectLiteral(constant_properties, expr->literal_index(),
+                                 flags, literal);
 
   // Store computed values into the literal.
   int property_index = 0;
