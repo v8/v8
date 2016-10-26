@@ -49,6 +49,27 @@ try {
   assertTrue(/Object or null/.test(e));
 }
 
+try {
+  Object.create(null, this);
+  assertTrue(false);
+} catch(e) {
+  assertTrue(/Property description/.test(e))
+}
+
+try {
+  Object.create(null, [1, 2, 3]);
+  assertTrue(false);
+} catch(e) {
+  assertTrue(/Property description/.test(e))
+}
+
+try {
+  Object.create(null, new Proxy([1, 2, 3], {}));
+  assertTrue(false);
+} catch(e) {
+  assertTrue(/Property description/.test(e))
+}
+
 var ctr = 0;
 var ctr2 = 0;
 var ctr3 = 0;

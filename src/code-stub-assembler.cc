@@ -1111,11 +1111,14 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
+  Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   Node* bit_field = LoadMapBitField(map);
-  Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
-                             1 << Map::kIsAccessCheckNeeded);
-  Assert(Word32Equal(Word32And(bit_field, mask), Int32Constant(0)));
-  return IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+  uint32_t mask =
+      1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+  // Interceptors or access checks imply special receiver.
+  CSA_ASSERT(
+      Select(IsSetWord32(bit_field, mask), is_special, Int32Constant(1)));
+  return is_special;
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
@@ -6941,7 +6944,7 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 
     Bind(&if_rhsisnotsmi);
     {
-      Assert(WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
+      CSA_ASSERT(WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
       // Convert the {lhs} and {rhs} to floating point values, and
       // perform a floating point comparison.
       var_fcmp_lhs.Bind(SmiToFloat64(lhs));
@@ -6952,7 +6955,7 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 
   Bind(&if_lhsisnotsmi);
   {
-    Assert(WordEqual(LoadMap(lhs), HeapNumberMapConstant()));
+    CSA_ASSERT(WordEqual(LoadMap(lhs), HeapNumberMapConstant()));
 
     // Check if {rhs} is a Smi or a HeapObject.
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
@@ -6969,7 +6972,7 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 
     Bind(&if_rhsisnotsmi);
     {
-      Assert(WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
+      CSA_ASSERT(WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
 
       // Convert the {lhs} and {rhs} to floating point values, and
       // perform a floating point comparison.
@@ -8386,7 +8389,7 @@ compiler::Node* CodeStubAssembler::NumberInc(compiler::Node* value) {
   Bind(&if_isnotsmi);
   {
     // Check if the value is a HeapNumber.
-    Assert(IsHeapNumberMap(LoadMap(value)));
+    CSA_ASSERT(IsHeapNumberMap(LoadMap(value)));
 
     // Load the HeapNumber value.
     var_finc_value.Bind(LoadHeapNumberValue(value));
@@ -8441,7 +8444,7 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
                  Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX));
 
   // Assert: Type(array) is Object
-  Assert(IsJSReceiverInstanceType(array_type));
+  CSA_ASSERT(IsJSReceiverInstanceType(array_type));
 
   Variable var_result(this, MachineRepresentation::kTagged);
   Variable var_map_index(this, MachineType::PointerRepresentation());
@@ -8500,9 +8503,9 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
         Node* map_index =
             IntPtrAdd(IntPtrConstant(kBaseMapIndex + kFastIteratorOffset),
                       LoadMapElementsKind(array_map));
-        Assert(IntPtrGreaterThanOrEqual(
+        CSA_ASSERT(IntPtrGreaterThanOrEqual(
             map_index, IntPtrConstant(kBaseMapIndex + kFastIteratorOffset)));
-        Assert(IntPtrLessThan(
+        CSA_ASSERT(IntPtrLessThan(
             map_index, IntPtrConstant(kBaseMapIndex + kSlowIteratorOffset)));
 
         var_map_index.Bind(map_index);
@@ -8525,9 +8528,9 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
       Node* map_index =
           IntPtrAdd(IntPtrConstant(kBaseMapIndex - UINT8_ELEMENTS),
                     LoadMapElementsKind(array_map));
-      Assert(IntPtrLessThan(
+      CSA_ASSERT(IntPtrLessThan(
           map_index, IntPtrConstant(kBaseMapIndex + kFastIteratorOffset)));
-      Assert(
+      CSA_ASSERT(
           IntPtrGreaterThanOrEqual(map_index, IntPtrConstant(kBaseMapIndex)));
       var_map_index.Bind(map_index);
       var_array_map.Bind(UndefinedConstant());

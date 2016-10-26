@@ -707,7 +707,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>
   compiler::Node* IsSetWord32(compiler::Node* word32) {
-    return Word32NotEqual(Word32And(word32, Int32Constant(T::kMask)),
+    return IsSetWord32(word32, T::kMask);
+  }
+
+  // Returns true if any of the mask's bits in given |word32| are set.
+  compiler::Node* IsSetWord32(compiler::Node* word32, uint32_t mask) {
+    return Word32NotEqual(Word32And(word32, Int32Constant(mask)),
                           Int32Constant(0));
   }
 
