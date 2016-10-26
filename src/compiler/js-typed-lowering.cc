@@ -1672,6 +1672,7 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   const bool is_construct = (node->opcode() == IrOpcode::kJSCallConstruct);
 
   DCHECK(Builtins::HasCppImplementation(builtin_index));
+  DCHECK_EQ(0, flags & CallDescriptor::kSupportsTailCalls);
 
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = is_construct
@@ -1877,7 +1878,8 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
                     1 + arity, flags)));
-    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
+               ((flags & CallDescriptor::kSupportsTailCalls) == 0)) {
       // Patch {node} to a direct CEntryStub call.
       ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
     } else {
