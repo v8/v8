@@ -5086,7 +5086,7 @@ void CodeStubAssembler::TryProbeStubCacheTable(
 
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
-  Node* handler = Load(MachineType::Pointer(), key_base,
+  Node* handler = Load(MachineType::TaggedPointer(), key_base,
                        IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize)));
 
   // We found the handler.
@@ -5530,29 +5530,106 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
   DCHECK_EQ(MachineRepresentation::kTagged, var_holder->rep());
   DCHECK_EQ(MachineRepresentation::kTagged, var_smi_handler->rep());
 
-  Node* validity_cell = LoadObjectField(handler, Tuple3::kValue1Offset);
+  // IC dispatchers rely on these assumptions to be held.
+  STATIC_ASSERT(FixedArray::kLengthOffset == LoadHandler::kHolderCellOffset);
+  DCHECK_EQ(FixedArray::OffsetOfElementAt(LoadHandler::kSmiHandlerIndex),
+            LoadHandler::kSmiHandlerOffset);
+  DCHECK_EQ(FixedArray::OffsetOfElementAt(LoadHandler::kValidityCellIndex),
+            LoadHandler::kValidityCellOffset);
+
+  // Both FixedArray and Tuple3 handlers have validity cell at the same offset.
+  Node* validity_cell =
+      LoadObjectField(handler, LoadHandler::kValidityCellOffset);
   Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
   GotoIf(WordNotEqual(cell_value,
                       SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
          miss);
 
-  Node* holder =
-      LoadWeakCellValue(LoadObjectField(handler, Tuple3::kValue2Offset));
-  // The |holder| is guaranteed to be alive at this point since we passed
-  // both the receiver map check and the validity cell check.
-  CSA_ASSERT(WordNotEqual(holder, IntPtrConstant(0)));
-
-  Node* smi_handler = LoadObjectField(handler, Tuple3::kValue3Offset);
+  Node* smi_handler = LoadObjectField(handler, LoadHandler::kSmiHandlerOffset);
   CSA_ASSERT(TaggedIsSmi(smi_handler));
-  var_holder->Bind(holder);
-  var_smi_handler->Bind(smi_handler);
 
+  Label check_prototypes(this);
   GotoUnless(IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(
                  SmiUntag(smi_handler)),
-             if_smi_handler);
+             &check_prototypes);
+  {
+    // We have a dictionary receiver, do a negative lookup check.
+    NameDictionaryNegativeLookup(p->receiver, p->name, miss);
+    Goto(&check_prototypes);
+  }
 
-  NameDictionaryNegativeLookup(p->receiver, p->name, miss);
-  Goto(if_smi_handler);
+  Bind(&check_prototypes);
+  Node* maybe_holder_cell =
+      LoadObjectField(handler, LoadHandler::kHolderCellOffset);
+  Label array_handler(this), tuple_handler(this);
+  Branch(TaggedIsSmi(maybe_holder_cell), &array_handler, &tuple_handler);
+
+  Bind(&tuple_handler);
+  {
+    Node* holder = LoadWeakCellValue(maybe_holder_cell);
+    // The |holder| is guaranteed to be alive at this point since we passed
+    // both the receiver map check and the validity cell check.
+    CSA_ASSERT(WordNotEqual(holder, IntPtrConstant(0)));
+
+    var_holder->Bind(holder);
+    var_smi_handler->Bind(smi_handler);
+    Goto(if_smi_handler);
+  }
+
+  Bind(&array_handler);
+  {
+    Node* length = SmiUntag(maybe_holder_cell);
+    BuildFastLoop(MachineType::PointerRepresentation(),
+                  IntPtrConstant(LoadHandler::kFirstPrototypeIndex), length,
+                  [this, p, handler, miss](CodeStubAssembler*, Node* current) {
+                    Node* prototype_cell = LoadFixedArrayElement(
+                        handler, current, 0, INTPTR_PARAMETERS);
+                    CheckPrototype(prototype_cell, p->name, miss);
+                  },
+                  1, IndexAdvanceMode::kPost);
+
+    Node* holder_cell = LoadFixedArrayElement(
+        handler, IntPtrConstant(LoadHandler::kHolderCellIndex), 0,
+        INTPTR_PARAMETERS);
+    Node* holder = LoadWeakCellValue(holder_cell);
+    // The |holder| is guaranteed to be alive at this point since we passed
+    // the receiver map check, the validity cell check and the prototype chain
+    // check.
+    CSA_ASSERT(WordNotEqual(holder, IntPtrConstant(0)));
+
+    var_holder->Bind(holder);
+    var_smi_handler->Bind(smi_handler);
+    Goto(if_smi_handler);
+  }
+}
+
+void CodeStubAssembler::CheckPrototype(Node* prototype_cell, Node* name,
+                                       Label* miss) {
+  Node* maybe_prototype = LoadWeakCellValue(prototype_cell, miss);
+
+  Label done(this);
+  Label if_property_cell(this), if_dictionary_object(this);
+
+  // |maybe_prototype| is either a PropertyCell or a slow-mode prototype.
+  Branch(WordEqual(LoadMap(maybe_prototype),
+                   LoadRoot(Heap::kGlobalPropertyCellMapRootIndex)),
+         &if_property_cell, &if_dictionary_object);
+
+  Bind(&if_dictionary_object);
+  {
+    NameDictionaryNegativeLookup(maybe_prototype, name, miss);
+    Goto(&done);
+  }
+
+  Bind(&if_property_cell);
+  {
+    // Ensure the property cell still contains the hole.
+    Node* value = LoadObjectField(maybe_prototype, PropertyCell::kValueOffset);
+    GotoIf(WordNotEqual(value, LoadRoot(Heap::kTheHoleValueRootIndex)), miss);
+    Goto(&done);
+  }
+
+  Bind(&done);
 }
 
 void CodeStubAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,

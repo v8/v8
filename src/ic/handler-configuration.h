@@ -59,6 +59,21 @@ class LoadHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(ElementsKindBits::kNext <= kSmiValueSize);
 
+  // The layout of an Tuple3 handler representing a load of a field from
+  // prototype when prototype chain checks do not include non-existing lookups
+  // or access checks.
+  static const int kHolderCellOffset = Tuple3::kValue1Offset;
+  static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
+  static const int kValidityCellOffset = Tuple3::kValue3Offset;
+
+  // The layout of an array handler representing a load of a field from
+  // prototype when prototype chain checks include non-existing lookups and
+  // access checks.
+  static const int kSmiHandlerIndex = 0;
+  static const int kValidityCellIndex = 1;
+  static const int kHolderCellIndex = 2;
+  static const int kFirstPrototypeIndex = 3;
+
   // Creates a Smi-handler for loading a field from fast object.
   static inline Handle<Object> LoadField(Isolate* isolate,
                                          FieldIndex field_index);

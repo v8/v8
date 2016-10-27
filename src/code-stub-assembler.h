@@ -1107,6 +1107,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                 Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss);
 
+  void CheckPrototype(compiler::Node* prototype_cell, compiler::Node* name,
+                      Label* miss);
+
   void NameDictionaryNegativeLookup(compiler::Node* object,
                                     compiler::Node* name, Label* miss);
 

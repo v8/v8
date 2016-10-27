@@ -853,36 +853,77 @@ Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   return stub.GetCode();
 }
 
-bool LoadIC::IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
-                                                Handle<JSObject> holder) {
+namespace {
+
+template <bool fill_array>
+int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
+                        Handle<JSObject> holder, Handle<FixedArray> array,
+                        Handle<Name> name) {
   DCHECK(holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
   if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap() ||
       receiver_map->IsJSGlobalObjectMap()) {
-    return false;
+    return -1;
   }
+
+  HandleScope scope(isolate);
+  int checks_count = 0;
 
   // Switch to custom compiled handler if the prototype chain contains global
   // or dictionary objects.
-  for (PrototypeIterator iter(*receiver_map); !iter.IsAtEnd(); iter.Advance()) {
-    JSObject* current = iter.GetCurrent<JSObject>();
-    if (current == *holder) break;
-    Map* current_map = current->map();
+  for (PrototypeIterator iter(receiver_map); !iter.IsAtEnd(); iter.Advance()) {
+    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
+    if (*current == *holder) break;
+    Handle<Map> current_map(current->map(), isolate);
+
+    // Only global objects and objects that do not require access
+    // checks are allowed in stubs.
+    DCHECK(current_map->IsJSGlobalProxyMap() ||
+           !current_map->is_access_check_needed());
+
     if (current_map->IsJSGlobalObjectMap()) {
-      return false;
+      if (fill_array) {
+        Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(current);
+        Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
+            global, name, PropertyCellType::kInvalidated);
+        DCHECK(cell->value()->IsTheHole(isolate));
+        Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
+        array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
+                   *weak_cell);
+      }
+      checks_count++;
+
     } else if (current_map->is_dictionary_map()) {
       DCHECK(!current_map->IsJSGlobalProxyMap());  // Proxy maps are fast.
-      return false;
+      if (fill_array) {
+        DCHECK_EQ(NameDictionary::kNotFound,
+                  current->property_dictionary()->FindEntry(name));
+        Handle<WeakCell> weak_cell =
+            Map::GetOrCreatePrototypeWeakCell(current, isolate);
+        array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
+                   *weak_cell);
+      }
+      checks_count++;
     }
   }
-  return true;
+  return checks_count;
+}
+
+}  // namespace
+
+int LoadIC::GetPrototypeCheckCount(Handle<Map> receiver_map,
+                                   Handle<JSObject> holder) {
+  return InitPrototypeChecks<false>(isolate(), receiver_map, holder,
+                                    Handle<FixedArray>(), Handle<Name>());
 }
 
 Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
                                                Handle<JSObject> holder,
+                                               Handle<Name> name,
                                                Handle<Object> smi_handler) {
-  DCHECK(IsPrototypeValidityCellCheckEnough(receiver_map, holder));
+  int checks_count = GetPrototypeCheckCount(receiver_map, holder);
+  DCHECK_LE(0, checks_count);
 
   if (receiver_map->IsJSGlobalProxyMap() ||
       receiver_map->IsJSGlobalObjectMap()) {
@@ -898,8 +939,19 @@ Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
 
   Handle<WeakCell> holder_cell =
       Map::GetOrCreatePrototypeWeakCell(holder, isolate());
-  return isolate()->factory()->NewTuple3(validity_cell, holder_cell,
-                                         smi_handler);
+
+  if (checks_count == 0) {
+    return isolate()->factory()->NewTuple3(holder_cell, smi_handler,
+                                           validity_cell);
+  }
+  Handle<FixedArray> handler_array(isolate()->factory()->NewFixedArray(
+      LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
+  handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
+  handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
+  handler_array->set(LoadHandler::kHolderCellIndex, *holder_cell);
+  InitPrototypeChecks<true>(isolate(), receiver_map, holder, handler_array,
+                            name);
+  return handler_array;
 }
 
 bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
@@ -1237,10 +1289,10 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         if (receiver_is_holder) {
           return smi_handler;
         }
-        if (FLAG_tf_load_ic_stub &&
-            IsPrototypeValidityCellCheckEnough(map, holder)) {
+        if (FLAG_tf_load_ic_stub && GetPrototypeCheckCount(map, holder) >= 0) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
-          return SimpleLoadFromPrototype(map, holder, smi_handler);
+          return SimpleLoadFromPrototype(map, holder, lookup->name(),
+                                         smi_handler);
         }
         break;  // Custom-compiled handler.
       }
@@ -1254,9 +1306,10 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
           return smi_handler;
         }
-        if (IsPrototypeValidityCellCheckEnough(map, holder)) {
+        if (GetPrototypeCheckCount(map, holder) >= 0) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
-          return SimpleLoadFromPrototype(map, holder, smi_handler);
+          return SimpleLoadFromPrototype(map, holder, lookup->name(),
+                                         smi_handler);
         }
       } else {
         if (receiver_is_holder) {

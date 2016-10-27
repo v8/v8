@@ -464,10 +464,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
                                 name, scratch2, miss);
     } else if (current_map->is_dictionary_map()) {
       DCHECK(!current_map->IsJSGlobalProxyMap());  // Proxy maps are fast.
-      if (!name->IsUniqueName()) {
-        DCHECK(name->IsString());
-        name = factory()->InternalizeString(Handle<String>::cast(name));
-      }
+      DCHECK(name->IsUniqueName());
       DCHECK(current.is_null() ||
              current->property_dictionary()->FindEntry(name) ==
                  NameDictionary::kNotFound);
