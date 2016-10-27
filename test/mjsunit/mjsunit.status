@@ -603,14 +603,6 @@
 }],  # variant == stress
 
 ##############################################################################
-['variant == turbofan', {
-
-  # Assumptions about optimization need investigation in TurboFan.
-  'regress-sync-optimized-lists': [FAIL],
-
-}],  # variant == turbofan
-
-##############################################################################
 ['variant == turbofan_opt', {
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
@@ -635,7 +627,6 @@
 ##############################################################################
 ['variant == ignition', {
   'debug-liveedit-double-call': [FAIL],
-  'regress-sync-optimized-lists': [FAIL],
 
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
@@ -684,7 +675,6 @@
 ['variant == ignition_staging', {
   'assert-opt-and-deopt': [SKIP],
   'debug-liveedit-double-call': [FAIL],
-  'regress-sync-optimized-lists': [FAIL],
 
   # Fails because concurrent compilation is not triggered on bytecode.
   # Check in Runtime_OptimizeFunctionOnNextCall.
