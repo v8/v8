@@ -95,6 +95,8 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
+  void ChangeOriginToAsmjs() { origin = kAsmJsOrigin; }
+
   byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);

@@ -495,6 +495,14 @@ class LocalDeclEncoder {
 #define WASM_I32_EQZ(x) x, kExprI32Eqz
 
 //------------------------------------------------------------------------------
+// Asmjs Int32 operations
+//------------------------------------------------------------------------------
+#define WASM_I32_ASMJS_DIVS(x, y) x, y, kExprI32AsmjsDivS
+#define WASM_I32_ASMJS_REMS(x, y) x, y, kExprI32AsmjsRemS
+#define WASM_I32_ASMJS_DIVU(x, y) x, y, kExprI32AsmjsDivU
+#define WASM_I32_ASMJS_REMU(x, y) x, y, kExprI32AsmjsRemU
+
+//------------------------------------------------------------------------------
 // Int64 operations
 //------------------------------------------------------------------------------
 #define WASM_I64_ADD(x, y) x, y, kExprI64Add

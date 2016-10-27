@@ -1867,6 +1867,18 @@ Node* WasmGraphBuilder::BuildI32RemU(Node* left, Node* right,
 
 Node* WasmGraphBuilder::BuildI32AsmjsDivS(Node* left, Node* right) {
   MachineOperatorBuilder* m = jsgraph()->machine();
+
+  Int32Matcher mr(right);
+  if (mr.HasValue()) {
+    if (mr.Value() == 0) {
+      return jsgraph()->Int32Constant(0);
+    } else if (mr.Value() == -1) {
+      // The result is the negation of the left input.
+      return graph()->NewNode(m->Int32Sub(), jsgraph()->Int32Constant(0), left);
+    }
+    return graph()->NewNode(m->Int32Div(), left, right, *control_);
+  }
+
   // asm.js semantics return 0 on divide or mod by zero.
   if (m->Int32DivIsSafe()) {
     // The hardware instruction does the right thing (e.g. arm).
@@ -1896,6 +1908,17 @@ Node* WasmGraphBuilder::BuildI32AsmjsDivS(Node* left, Node* right) {
 
 Node* WasmGraphBuilder::BuildI32AsmjsRemS(Node* left, Node* right) {
   MachineOperatorBuilder* m = jsgraph()->machine();
+
+  Int32Matcher mr(right);
+  if (mr.HasValue()) {
+    if (mr.Value() == 0) {
+      return jsgraph()->Int32Constant(0);
+    } else if (mr.Value() == -1) {
+      return jsgraph()->Int32Constant(0);
+    }
+    return graph()->NewNode(m->Int32Mod(), left, right, *control_);
+  }
+
   // asm.js semantics return 0 on divide or mod by zero.
   // Explicit check for x % 0.
   Diamond z(
