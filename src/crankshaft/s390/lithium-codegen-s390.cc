@@ -4720,32 +4720,13 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   __ CompareRoot(scratch1, Heap::kHeapNumberMapRootIndex);
 
   if (instr->truncating()) {
-    // Performs a truncating conversion of a floating point number as used by
-    // the JS bitwise operations.
-    Label no_heap_number, check_bools, check_false;
-    __ bne(&no_heap_number, Label::kNear);
+    Label truncate;
+    __ beq(&truncate);
+    __ CompareInstanceType(scratch1, scratch1, ODDBALL_TYPE);
+    DeoptimizeIf(ne, instr, DeoptimizeReason::kNotANumberOrOddball);
+    __ bind(&truncate);
     __ LoadRR(scratch2, input_reg);
     __ TruncateHeapNumberToI(input_reg, scratch2);
-    __ b(&done, Label::kNear);
-
-    // Check for Oddballs. Undefined/False is converted to zero and True to one
-    // for truncating conversions.
-    __ bind(&no_heap_number);
-    __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-    __ bne(&check_bools);
-    __ LoadImmP(input_reg, Operand::Zero());
-    __ b(&done, Label::kNear);
-
-    __ bind(&check_bools);
-    __ CompareRoot(input_reg, Heap::kTrueValueRootIndex);
-    __ bne(&check_false, Label::kNear);
-    __ LoadImmP(input_reg, Operand(1));
-    __ b(&done, Label::kNear);
-
-    __ bind(&check_false);
-    __ CompareRoot(input_reg, Heap::kFalseValueRootIndex);
-    DeoptimizeIf(ne, instr, DeoptimizeReason::kNotAHeapNumberUndefinedBoolean);
-    __ LoadImmP(input_reg, Operand::Zero());
   } else {
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr, DeoptimizeReason::kNotAHeapNumber);
