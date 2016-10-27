@@ -6049,8 +6049,8 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, never_compiled,
                kNeverCompiled)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                kIsDeclaration)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, was_marked_for_optimization,
-               kWasMarkedForOptimization)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
+               kMarkedForTierUp)
 
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)

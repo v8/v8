@@ -7673,8 +7673,8 @@ class SharedFunctionInfo: public HeapObject {
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
-  // Whether this function was marked to be optimized.
-  DECL_BOOLEAN_ACCESSORS(was_marked_for_optimization)
+  // Whether this function was marked to be tiered up.
+  DECL_BOOLEAN_ACCESSORS(marked_for_tier_up)
 
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
@@ -7925,7 +7925,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     // byte 0
     kAllowLazyCompilation,
-    kWasMarkedForOptimization,
+    kMarkedForTierUp,
     kOptimizationDisabled,
     kNeverCompiled,
     kNative,
@@ -7993,8 +7993,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kAllFunctionKindBitsMask = FunctionKindBits::kMask
                                               << kCompilerHintsSmiTagSize;
 
-  static const int kWasMarkedForOptimizationBit =
-      kWasMarkedForOptimization + kCompilerHintsSmiTagSize;
+  static const int kMarkedForTierUpBit =
+      kMarkedForTierUp + kCompilerHintsSmiTagSize;
 
   // Constants for optimizing codegen for strict mode function and
   // native tests.
@@ -8008,8 +8008,8 @@ class SharedFunctionInfo: public HeapObject {
       FunctionKind::kClassConstructor << kCompilerHintsSmiTagSize;
   STATIC_ASSERT(kClassConstructorBitsWithinByte < (1 << kBitsPerByte));
 
-  static const int kWasMarkedForOptimizationBitWithinByte =
-      kWasMarkedForOptimizationBit % kBitsPerByte;
+  static const int kMarkedForTierUpBitWithinByte =
+      kMarkedForTierUpBit % kBitsPerByte;
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 #define BYTE_OFFSET(compiler_hint) \
@@ -8027,8 +8027,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kFunctionKindByteOffset = BYTE_OFFSET(kFunctionKind);
   static const int kHasDuplicateParametersByteOffset =
       BYTE_OFFSET(kHasDuplicateParameters);
-  static const int kWasMarkedForOptimizationByteOffset =
-      BYTE_OFFSET(kWasMarkedForOptimization);
+  static const int kMarkedForTierUpByteOffset = BYTE_OFFSET(kMarkedForTierUp);
 #undef BYTE_OFFSET
 
  private:

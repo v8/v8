@@ -12205,6 +12205,9 @@ void JSFunction::MarkForBaseline() {
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileBaseline));
   // No write barrier required, since the builtin is part of the root set.
+  if (FLAG_mark_shared_functions_for_tier_up) {
+    shared()->set_marked_for_tier_up(true);
+  }
 }
 
 void JSFunction::MarkForOptimization() {
@@ -12215,16 +12218,13 @@ void JSFunction::MarkForOptimization() {
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
+  if (FLAG_mark_shared_functions_for_tier_up) {
+    shared()->set_marked_for_tier_up(true);
+  }
 }
 
 
 void JSFunction::AttemptConcurrentOptimization() {
-  if (FLAG_optimize_shared_functions) {
-    // Mark the shared function for optimization regardless of whether the
-    // optimization is concurrent or not.
-    shared()->set_was_marked_for_optimization(true);
-  }
-
   Isolate* isolate = GetIsolate();
   if (!isolate->concurrent_recompilation_enabled() ||
       isolate->bootstrapper()->IsActive()) {
@@ -12245,6 +12245,11 @@ void JSFunction::AttemptConcurrentOptimization() {
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
   // No write barrier required, since the builtin is part of the root set.
+  if (FLAG_mark_shared_functions_for_tier_up) {
+    // TODO(leszeks): The compilation isn't concurrent if we trigger it using
+    // this bit.
+    shared()->set_marked_for_tier_up(true);
+  }
 }
 
 // static
