@@ -44,9 +44,10 @@ utils.Import(function(from) {
 // -------------------------------------------------------------------
 
 // [[PromiseState]] values:
+// These values should be kept in sync with PromiseStatus in globals.h
 const kPending = 0;
 const kFulfilled = +1;
-const kRejected = -1;
+const kRejected = +2;
 
 // ES#sec-createresolvingfunctions
 // CreateResolvingFunctions ( promise )
@@ -66,7 +67,8 @@ function CreateResolvingFunctions(promise, debugEvent) {
   var reject = reason => {
     if (alreadyResolved === true) return;
     alreadyResolved = true;
-    RejectPromise(promise, reason, debugEvent);
+    %PromiseReject(promise, reason, debugEvent);
+    PromiseSet(promise, kRejected, reason);
   };
 
   return {
@@ -157,7 +159,8 @@ function PromiseHandle(value, handler, deferred) {
       if (IS_UNDEFINED(deferred.reject)) {
         // Pass false for debugEvent so .then chaining does not trigger
         // redundant ExceptionEvents.
-        RejectPromise(deferred.promise, exception, false);
+        %PromiseReject(deferred.promise, exception, false);
+        PromiseSet(deferred.promise, kRejected, exception);
       } else {
         %_Call(deferred.reject, UNDEFINED, exception);
       }
@@ -243,16 +246,19 @@ function PromiseCreate() {
 // Promise Resolve Functions, steps 6-13
 function ResolvePromise(promise, resolution) {
   if (resolution === promise) {
-    return RejectPromise(promise,
-                         %make_type_error(kPromiseCyclic, resolution),
-                         true);
+    var exception = %make_type_error(kPromiseCyclic, resolution);
+    %PromiseReject(promise, exception, true);
+    PromiseSet(promise, kRejected, exception);
+    return;
   }
   if (IS_RECEIVER(resolution)) {
     // 25.4.1.3.2 steps 8-12
     try {
       var then = resolution.then;
     } catch (e) {
-      return RejectPromise(promise, e, true);
+      %PromiseReject(promise, e, true);
+      PromiseSet(promise, kRejected, e);
+      return;
     }
 
     // Resolution is a native promise and if it's already resolved or
@@ -277,7 +283,8 @@ function ResolvePromise(promise, resolution) {
           %PromiseRevokeReject(resolution);
         }
         // Don't cause a debug event as this case is forwarding a rejection
-        RejectPromise(promise, thenableValue, false);
+        %PromiseReject(promise, thenableValue, false);
+        PromiseSet(promise, kRejected, thenableValue);
         SET_PRIVATE(resolution, promiseHasHandlerSymbol, true);
         return;
       }
@@ -299,26 +306,16 @@ function ResolvePromise(promise, resolution) {
   PromiseSet(promise, kFulfilled, resolution);
 }
 
-// ES#sec-rejectpromise
-// RejectPromise ( promise, reason )
-function RejectPromise(promise, reason, debugEvent) {
-  // Call runtime for callbacks to the debugger or for unhandled reject.
-  // The debugEvent parameter sets whether a debug ExceptionEvent should
-  // be triggered. It should be set to false when forwarding a rejection
-  // rather than creating a new one.
-  // This check is redundant with checks in the runtime, but it may help
-  // avoid unnecessary runtime calls.
-  if ((debugEvent && DEBUG_IS_ACTIVE) ||
-      !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
-    %PromiseRejectEvent(promise, reason, debugEvent);
-  }
-  %PromiseFulfill(promise, kRejected, reason, promiseRejectReactionsSymbol)
+// Only used by async-await.js
+function RejectPromise(promise, reason) {
+  %PromiseReject(promise, reason, false);
   PromiseSet(promise, kRejected, reason);
 }
 
 // Export to bindings
 function DoRejectPromise(promise, reason) {
-  return RejectPromise(promise, reason, true);
+  %PromiseReject(promise, reason, true);
+  PromiseSet(promise, kRejected, reason);
 }
 
 // ES#sec-newpromisecapability

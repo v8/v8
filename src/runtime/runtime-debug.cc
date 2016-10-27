@@ -256,14 +256,14 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     const char* status = "rejected";
     int status_val = Handle<Smi>::cast(status_obj)->value();
     switch (status_val) {
-      case +1:
+      case kPromiseFulfilled:
         status = "resolved";
         break;
-      case 0:
+      case kPromisePending:
         status = "pending";
         break;
       default:
-        DCHECK_EQ(-1, status_val);
+        DCHECK_EQ(kPromiseRejected, status_val);
     }
 
     Handle<FixedArray> result = factory->NewFixedArray(2 * 2);

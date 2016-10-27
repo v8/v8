@@ -601,7 +601,34 @@ void EnqueuePromiseReactionJob(Isolate* isolate, Handle<Object> value,
                                                     isolate->native_context());
   isolate->EnqueueMicrotask(info);
 }
+
+void PromiseFulfill(Isolate* isolate, Handle<JSReceiver> promise,
+                    Handle<Smi> status, Handle<Object> value,
+                    Handle<Symbol> reaction) {
+  Handle<Object> tasks = JSReceiver::GetDataProperty(promise, reaction);
+  if (!tasks->IsUndefined(isolate)) {
+    Handle<Object> deferred = JSReceiver::GetDataProperty(
+        promise, isolate->factory()->promise_deferred_reaction_symbol());
+    EnqueuePromiseReactionJob(isolate, value, tasks, deferred, status);
+  }
+}
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_PromiseReject) {
+  DCHECK(args.length() == 3);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
+  CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
+
+  PromiseRejectEvent(isolate, promise, promise, reason, debug_event);
+
+  Handle<Smi> status = handle(Smi::FromInt(kPromiseRejected), isolate);
+  Handle<Symbol> reaction =
+      isolate->factory()->promise_reject_reactions_symbol();
+  PromiseFulfill(isolate, promise, status, reason, reaction);
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
   DCHECK(args.length() == 4);
@@ -610,12 +637,7 @@ RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
   CONVERT_ARG_HANDLE_CHECKED(Smi, status, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_ARG_HANDLE_CHECKED(Symbol, reaction, 3);
-  Handle<Object> tasks = JSReceiver::GetDataProperty(promise, reaction);
-  if (!tasks->IsUndefined(isolate)) {
-    Handle<Object> deferred = JSReceiver::GetDataProperty(
-        promise, isolate->factory()->promise_deferred_reaction_symbol());
-    EnqueuePromiseReactionJob(isolate, value, tasks, deferred, status);
-  }
+  PromiseFulfill(isolate, promise, status, value, reaction);
   return isolate->heap()->undefined_value();
 }
 
