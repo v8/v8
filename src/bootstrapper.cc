@@ -1874,14 +1874,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       // RegExp getters and setters.
 
-      // TODO(jgruber): This should really be DONT_ENUM | DONT_DELETE.
-      // However, that currently breaks layout test expectations. Note that
-      // Firefox sets a couple of these as enumerable.
-      // On the other hand, installing attributes as DONT_ENUM matches the draft
-      // specification at
-      // https://github.com/claudepache/es-regexp-legacy-static-properties.
-      const PropertyAttributes no_enum = DONT_ENUM;
-
       SimpleInstallGetter(regexp_fun,
                           factory->InternalizeUtf8String("[Symbol.species]"),
                           factory->species_symbol(),
@@ -1889,9 +1881,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       // Static properties set by a successful match.
 
+      const PropertyAttributes no_enum = DONT_ENUM;
       SimpleInstallGetterSetter(regexp_fun, factory->input_string(),
                                 Builtins::kRegExpInputGetter,
-                                Builtins::kRegExpInputSetter, DONT_DELETE);
+                                Builtins::kRegExpInputSetter, no_enum);
       SimpleInstallGetterSetter(
           regexp_fun, factory->InternalizeUtf8String("$_"),
           Builtins::kRegExpInputGetter, Builtins::kRegExpInputSetter, no_enum);
@@ -1928,11 +1921,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                 Builtins::kRegExpRightContextGetter,
                                 Builtins::kEmptyFunction, no_enum);
 
-#define INSTALL_CAPTURE_GETTER(i)                                   \
-  SimpleInstallGetterSetter(regexp_fun,                             \
-                            factory->InternalizeUtf8String("$" #i), \
-                            Builtins::kRegExpCapture##i##Getter,    \
-                            Builtins::kEmptyFunction, DONT_DELETE)
+#define INSTALL_CAPTURE_GETTER(i)                         \
+  SimpleInstallGetterSetter(                              \
+      regexp_fun, factory->InternalizeUtf8String("$" #i), \
+      Builtins::kRegExpCapture##i##Getter, Builtins::kEmptyFunction, no_enum)
       INSTALL_CAPTURE_GETTER(1);
       INSTALL_CAPTURE_GETTER(2);
       INSTALL_CAPTURE_GETTER(3);
