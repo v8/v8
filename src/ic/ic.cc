@@ -4,6 +4,8 @@
 
 #include "src/ic/ic.h"
 
+#include <iostream>
+
 #include "src/accessors.h"
 #include "src/api-arguments-inl.h"
 #include "src/api.h"
@@ -99,45 +101,51 @@ void IC::TraceIC(const char* type, Handle<Object> name) {
 
 void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
                  State new_state) {
-  if (FLAG_trace_ic) {
-    PrintF("[%s%s in ", is_keyed() ? "Keyed" : "", type);
+  if (!FLAG_trace_ic) return;
+  PrintF("[%s%s in ", is_keyed() ? "Keyed" : "", type);
 
-    // TODO(jkummerow): Add support for "apply". The logic is roughly:
-    // marker = [fp_ + kMarkerOffset];
-    // if marker is smi and marker.value == INTERNAL and
-    //     the frame's code == builtin(Builtins::kFunctionApply):
-    // then print "apply from" and advance one frame
+  // TODO(jkummerow): Add support for "apply". The logic is roughly:
+  // marker = [fp_ + kMarkerOffset];
+  // if marker is smi and marker.value == INTERNAL and
+  //     the frame's code == builtin(Builtins::kFunctionApply):
+  // then print "apply from" and advance one frame
 
-    Object* maybe_function =
-        Memory::Object_at(fp_ + JavaScriptFrameConstants::kFunctionOffset);
-    if (maybe_function->IsJSFunction()) {
-      JSFunction* function = JSFunction::cast(maybe_function);
-      int code_offset = 0;
-      if (function->code()->is_interpreter_trampoline_builtin()) {
-        code_offset = InterpretedFrame::GetBytecodeOffset(fp());
-      } else {
-        code_offset =
-            static_cast<int>(pc() - function->code()->instruction_start());
-      }
-      JavaScriptFrame::PrintFunctionAndOffset(
-          function, function->abstract_code(), code_offset, stdout, true);
+  Object* maybe_function =
+      Memory::Object_at(fp_ + JavaScriptFrameConstants::kFunctionOffset);
+  if (maybe_function->IsJSFunction()) {
+    JSFunction* function = JSFunction::cast(maybe_function);
+    int code_offset = 0;
+    if (function->code()->is_interpreter_trampoline_builtin()) {
+      code_offset = InterpretedFrame::GetBytecodeOffset(fp());
+    } else {
+      code_offset =
+          static_cast<int>(pc() - function->code()->instruction_start());
     }
-
-    const char* modifier = "";
-    if (kind() == Code::KEYED_STORE_IC) {
-      KeyedAccessStoreMode mode =
-          casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
-      modifier = GetTransitionMarkModifier(mode);
-    }
-    void* map = nullptr;
-    if (!receiver_map().is_null()) {
-      map = reinterpret_cast<void*>(*receiver_map());
-    }
-    PrintF(" (%c->%c%s) map=%p ", TransitionMarkFromState(old_state),
-           TransitionMarkFromState(new_state), modifier, map);
-    name->ShortPrint(stdout);
-    PrintF("]\n");
+    JavaScriptFrame::PrintFunctionAndOffset(function, function->abstract_code(),
+                                            code_offset, stdout, true);
   }
+
+  const char* modifier = "";
+  if (kind() == Code::KEYED_STORE_IC) {
+    KeyedAccessStoreMode mode =
+        casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
+    modifier = GetTransitionMarkModifier(mode);
+  }
+  Map* map = nullptr;
+  if (!receiver_map().is_null()) {
+    map = *receiver_map();
+  }
+  PrintF(" (%c->%c%s) map=(%p", TransitionMarkFromState(old_state),
+         TransitionMarkFromState(new_state), modifier,
+         reinterpret_cast<void*>(map));
+  if (map != nullptr) {
+    PrintF(" dict=%u own=%u type=", map->is_dictionary_map(),
+           map->NumberOfOwnDescriptors());
+    std::cout << map->instance_type();
+  }
+  PrintF(") ");
+  name->ShortPrint(stdout);
+  PrintF("]\n");
 }
 
 
