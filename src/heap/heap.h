@@ -48,8 +48,6 @@ using v8::MemoryPressureLevel;
   V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
-  V(Map, module_info_entry_map, ModuleInfoEntryMap)                            \
-  V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, function_context_map, FunctionContextMap)                             \
@@ -62,7 +60,6 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
   V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
-  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
   /* The roots above this line should be boring from a GC point of view.    */ \
@@ -93,6 +90,8 @@ using v8::MemoryPressureLevel;
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
+  V(Map, module_info_entry_map, ModuleInfoEntryMap)                            \
+  V(Map, module_info_map, ModuleInfoMap)                                       \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -141,6 +140,7 @@ using v8::MemoryPressureLevel;
   V(Map, uint8x16_map, Uint8x16Map)                                            \
   V(Map, bool8x16_map, Bool8x16Map)                                            \
   /* Canonical empty values */                                                 \
+  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
