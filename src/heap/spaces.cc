@@ -2563,6 +2563,13 @@ FreeSpace* FreeList::FindNodeFor(size_t size_in_bytes, size_t* node_size) {
 HeapObject* FreeList::Allocate(size_t size_in_bytes) {
   DCHECK(size_in_bytes <= kMaxBlockSize);
   DCHECK(IsAligned(size_in_bytes, kPointerSize));
+  DCHECK_LE(owner_->top(), owner_->limit());
+#ifdef DEBUG
+  if (owner_->top() != owner_->limit()) {
+    DCHECK_EQ(Page::FromAddress(owner_->top()),
+              Page::FromAddress(owner_->limit() - 1));
+  }
+#endif
   // Don't free list allocate if there is linear space available.
   DCHECK_LT(static_cast<size_t>(owner_->limit() - owner_->top()),
             size_in_bytes);
