@@ -1394,8 +1394,7 @@ class RepresentationSelector {
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
             NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
           } else {
-            DCHECK_EQ(input_info->representation(),
-                      MachineRepresentation::kTagged);
+            DCHECK(CanBeTaggedPointer(input_info->representation()));
             // BooleanNot(x: kRepTagged) => WordEqual(x, #false)
             node->AppendInput(jsgraph_->zone(), jsgraph_->FalseConstant());
             NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
