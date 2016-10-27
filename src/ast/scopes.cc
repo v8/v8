@@ -1080,6 +1080,10 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
 }
 
 void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
+  // Module variables must be allocated before variable resolution
+  // to ensure that AccessNeedsHoleCheck() can detect import variables.
+  if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
+
   ResolveVariablesRecursively(info);
   AllocateVariablesRecursively();
 
@@ -1918,7 +1922,12 @@ void DeclarationScope::AllocateLocals() {
   }
 }
 
-void ModuleScope::AllocateModuleExports() {
+void ModuleScope::AllocateModuleVariables() {
+  for (const auto& it : module()->regular_imports()) {
+    Variable* var = LookupLocal(it.first);
+    var->AllocateTo(VariableLocation::MODULE, Variable::kModuleImportIndex);
+  }
+
   for (const auto& it : module()->regular_exports()) {
     Variable* var = LookupLocal(it.first);
     var->AllocateTo(VariableLocation::MODULE, Variable::kModuleExportIndex);
@@ -1944,9 +1953,7 @@ void Scope::AllocateVariablesRecursively() {
   // Allocate variables for this scope.
   // Parameters must be allocated first, if any.
   if (is_declaration_scope()) {
-    if (is_module_scope()) {
-      AsModuleScope()->AllocateModuleExports();
-    } else if (is_function_scope()) {
+    if (is_function_scope()) {
       AsDeclarationScope()->AllocateParameterLocals();
     }
     AsDeclarationScope()->AllocateReceiver();

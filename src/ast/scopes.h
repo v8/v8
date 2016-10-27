@@ -862,9 +862,9 @@ class ModuleScope final : public DeclarationScope {
     return module_descriptor_;
   }
 
-  // Set MODULE as VariableLocation for all variables that will live in this
-  // module's export table. Imports are allocated by the parser.
-  void AllocateModuleExports();
+  // Set MODULE as VariableLocation for all variables that will live in a
+  // module's export table.
+  void AllocateModuleVariables();
 
  private:
   ModuleDescriptor* module_descriptor_;
