@@ -1818,8 +1818,7 @@ EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
           graph()->NewNode(machine()->Word32Equal(), instance_type,
                            jsgraph()->Int32Constant(ODDBALL_TYPE));
       if_false = efalse = graph()->NewNode(
-          common()->DeoptimizeUnless(
-              DeoptimizeReason::kNotAHeapNumberUndefinedBoolean),
+          common()->DeoptimizeUnless(DeoptimizeReason::kNotANumberOrOddball),
           check_oddball, frame_state, efalse, if_false);
       STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
 

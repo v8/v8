@@ -4594,34 +4594,17 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
   Register input_reg = ToRegister(instr->value());
 
   if (instr->truncating()) {
-    Label no_heap_number, check_bools, check_false;
-
-    // Heap number map check.
-    __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
-                   Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &no_heap_number, Label::kNear);
+    Register input_map_reg = kScratchRegister;
+    Label truncate;
+    Label::Distance truncate_distance =
+        DeoptEveryNTimes() ? Label::kFar : Label::kNear;
+    __ movp(input_map_reg, FieldOperand(input_reg, HeapObject::kMapOffset));
+    __ JumpIfRoot(input_map_reg, Heap::kHeapNumberMapRootIndex, &truncate,
+                  truncate_distance);
+    __ CmpInstanceType(input_map_reg, ODDBALL_TYPE);
+    DeoptimizeIf(not_equal, instr, DeoptimizeReason::kNotANumberOrOddball);
+    __ bind(&truncate);
     __ TruncateHeapNumberToI(input_reg, input_reg);
-    __ jmp(done);
-
-    __ bind(&no_heap_number);
-    // Check for Oddballs. Undefined/False is converted to zero and True to one
-    // for truncating conversions.
-    __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-    __ j(not_equal, &check_bools, Label::kNear);
-    __ Set(input_reg, 0);
-    __ jmp(done);
-
-    __ bind(&check_bools);
-    __ CompareRoot(input_reg, Heap::kTrueValueRootIndex);
-    __ j(not_equal, &check_false, Label::kNear);
-    __ Set(input_reg, 1);
-    __ jmp(done);
-
-    __ bind(&check_false);
-    __ CompareRoot(input_reg, Heap::kFalseValueRootIndex);
-    DeoptimizeIf(not_equal, instr,
-                 DeoptimizeReason::kNotAHeapNumberUndefinedBoolean);
-    __ Set(input_reg, 0);
   } else {
     XMMRegister scratch = ToDoubleRegister(instr->temp());
     DCHECK(!scratch.is(double_scratch0()));

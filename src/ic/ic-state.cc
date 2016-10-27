@@ -270,8 +270,8 @@ BinaryOpICState::Kind BinaryOpICState::UpdateKind(Handle<Object> object,
                                                   Kind kind) const {
   Kind new_kind = GENERIC;
   bool is_truncating = Token::IsTruncatingBinaryOp(op());
-  if (object->IsBoolean() && is_truncating) {
-    // Booleans will be automatically truncated by HChange.
+  if (object->IsOddball() && is_truncating) {
+    // Oddballs will be automatically truncated by HChange.
     new_kind = INT32;
   } else if (object->IsUndefined(isolate_)) {
     // Undefined will be automatically truncated by HChange.

@@ -318,7 +318,7 @@ OsrGuardType OsrGuardTypeOf(Operator const* op) {
   V(LostPrecisionOrNaN)                  \
   V(NoReason)                            \
   V(NotAHeapNumber)                      \
-  V(NotAHeapNumberUndefinedBoolean)      \
+  V(NotANumberOrOddball)                 \
   V(NotASmi)                             \
   V(OutOfBounds)                         \
   V(WrongInstanceType)                   \

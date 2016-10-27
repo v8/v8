@@ -5181,30 +5181,18 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
   Label done;
 
   if (instr->truncating()) {
+    UseScratchRegisterScope temps(masm());
     Register output = ToRegister(instr->result());
-    Label check_bools;
-
-    // If it's not a heap number, jump to undefined check.
-    __ JumpIfNotHeapNumber(input, &check_bools);
-
-    // A heap number: load value and convert to int32 using truncating function.
+    Register input_map = temps.AcquireX();
+    Register input_instance_type = input_map;
+    Label truncate;
+    __ CompareObjectType(input, input_map, input_instance_type,
+                         HEAP_NUMBER_TYPE);
+    __ B(eq, &truncate);
+    __ Cmp(input_instance_type, ODDBALL_TYPE);
+    DeoptimizeIf(ne, instr, DeoptimizeReason::kNotANumberOrOddball);
+    __ Bind(&truncate);
     __ TruncateHeapNumberToI(output, input);
-    __ B(&done);
-
-    __ Bind(&check_bools);
-
-    Register true_root = output;
-    Register false_root = scratch1;
-    __ LoadTrueFalseRoots(true_root, false_root);
-    __ Cmp(input, true_root);
-    __ Cset(output, eq);
-    __ Ccmp(input, false_root, ZFlag, ne);
-    __ B(eq, &done);
-
-    // Output contains zero, undefined is converted to zero for truncating
-    // conversions.
-    DeoptimizeIfNotRoot(input, Heap::kUndefinedValueRootIndex, instr,
-                        DeoptimizeReason::kNotAHeapNumberUndefinedBoolean);
   } else {
     Register output = ToRegister32(instr->result());
     DoubleRegister dbl_scratch2 = ToDoubleRegister(temp2);
