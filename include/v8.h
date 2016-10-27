@@ -6241,6 +6241,19 @@ class V8_EXPORT EmbedderHeapTracer {
 };
 
 /**
+ * Callback to the embedder used in SnapshotCreator to handle internal fields.
+ */
+typedef StartupData (*SerializeInternalFieldsCallback)(Local<Object> holder,
+                                                       int index);
+
+/**
+ * Callback to the embedder used to deserialize internal fields.
+ */
+typedef void (*DeserializeInternalFieldsCallback)(Local<Object> holder,
+                                                  int index,
+                                                  StartupData payload);
+
+/**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
  * completely separate states.  Objects from one isolate must not be used in
  * other isolates.  The embedder can create multiple isolates and use them in
@@ -6262,7 +6275,8 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          external_references(nullptr) {}
+          external_references(nullptr),
+          deserialize_internal_fields_callback(nullptr) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6318,6 +6332,12 @@ class V8_EXPORT Isolate {
      * entire lifetime of the isolate.
      */
     intptr_t* external_references;
+
+    /**
+     * Specifies an optional callback to deserialize internal fields. It
+     * should match the SerializeInternalFieldCallback used to serialize.
+     */
+    DeserializeInternalFieldsCallback deserialize_internal_fields_callback;
   };
 
 
@@ -7583,10 +7603,12 @@ class SnapshotCreator {
    * This must not be called from within a handle scope.
    * \param function_code_handling whether to include compiled function code
    *        in the snapshot.
+   * \param callback to serialize embedder-set internal fields.
    * \returns { nullptr, 0 } on failure, and a startup snapshot on success. The
    *        caller acquires ownership of the data array in the return value.
    */
-  StartupData CreateBlob(FunctionCodeHandling function_code_handling);
+  StartupData CreateBlob(FunctionCodeHandling function_code_handling,
+                         SerializeInternalFieldsCallback callback = nullptr);
 
   // Disallow copying and assigning.
   SnapshotCreator(const SnapshotCreator&) = delete;

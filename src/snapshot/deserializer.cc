@@ -128,6 +128,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   Object* root;
   VisitPointer(&root);
   DeserializeDeferredObjects();
+  DeserializeInternalFields();
 
   isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
 
@@ -209,6 +210,31 @@ void Deserializer::DeserializeDeferredObjects() {
         PostProcessNewObject(object, space);
       }
     }
+  }
+}
+
+void Deserializer::DeserializeInternalFields() {
+  if (!source_.HasMore() || source_.Get() != kInternalFieldsData) return;
+  DisallowHeapAllocation no_gc;
+  DisallowJavascriptExecution no_js(isolate_);
+  DisallowCompilation no_compile(isolate_);
+  v8::DeserializeInternalFieldsCallback callback =
+      isolate_->deserialize_internal_fields_callback();
+  DCHECK_NOT_NULL(callback);
+  for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
+    HandleScope scope(isolate_);
+    int space = code & kSpaceMask;
+    DCHECK(space <= kNumberOfSpaces);
+    DCHECK(code - space == kNewObject);
+    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
+                         isolate_);
+    int index = source_.GetInt();
+    int size = source_.GetInt();
+    byte* data = new byte[size];
+    source_.CopyRaw(data, size);
+    callback(v8::Utils::ToLocal(obj), index,
+             {reinterpret_cast<char*>(data), size});
+    delete[] data;
   }
 }
 

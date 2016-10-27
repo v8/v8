@@ -523,7 +523,8 @@ size_t SnapshotCreator::AddTemplate(Local<Template> template_obj) {
 }
 
 StartupData SnapshotCreator::CreateBlob(
-    SnapshotCreator::FunctionCodeHandling function_code_handling) {
+    SnapshotCreator::FunctionCodeHandling function_code_handling,
+    SerializeInternalFieldsCallback callback) {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
   DCHECK(!data->created_);
@@ -564,7 +565,8 @@ StartupData SnapshotCreator::CreateBlob(
   // Serialize each context with a new partial serializer.
   i::List<i::SnapshotData*> context_snapshots(num_contexts);
   for (int i = 0; i < num_contexts; i++) {
-    i::PartialSerializer partial_serializer(isolate, &startup_serializer);
+    i::PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                            callback);
     partial_serializer.Serialize(&contexts[i]);
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
@@ -7889,6 +7891,8 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   }
 
   isolate->set_api_external_references(params.external_references);
+  isolate->set_deserialize_internal_fields_callback(
+      params.deserialize_internal_fields_callback);
   SetResourceConstraints(isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);

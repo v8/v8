@@ -402,6 +402,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(intptr_t*, api_external_references, nullptr)                              \
   V(base::HashMap*, external_reference_map, nullptr)                          \
   V(base::HashMap*, root_index_map, nullptr)                                  \
+  V(v8::DeserializeInternalFieldsCallback,                                    \
+    deserialize_internal_fields_callback, nullptr)                            \
   V(int, pending_microtask_count, 0)                                          \
   V(int, debug_microtask_count, 0)                                            \
   V(HStatistics*, hstatistics, nullptr)                                       \
