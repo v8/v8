@@ -319,7 +319,8 @@ void WaitForCompilationTasks(Isolate* isolate, uint32_t* task_ids,
   for (size_t i = 0; i < num_tasks; ++i) {
     // If the task has not started yet, then we abort it. Otherwise we wait for
     // it to finish.
-    if (!isolate->cancelable_task_manager()->TryAbort(task_ids[i])) {
+    if (isolate->cancelable_task_manager()->TryAbort(task_ids[i]) !=
+        CancelableTaskManager::kTaskAborted) {
       pending_tasks->Wait();
     }
   }

@@ -48,8 +48,8 @@ void CancelableTaskManager::RemoveFinishedTask(uint32_t id) {
   cancelable_tasks_barrier_.NotifyOne();
 }
 
-
-bool CancelableTaskManager::TryAbort(uint32_t id) {
+CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
+    uint32_t id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   auto entry = cancelable_tasks_.find(id);
   if (entry != cancelable_tasks_.end()) {
@@ -58,10 +58,12 @@ bool CancelableTaskManager::TryAbort(uint32_t id) {
       // Cannot call RemoveFinishedTask here because of recursive locking.
       cancelable_tasks_.erase(entry);
       cancelable_tasks_barrier_.NotifyOne();
-      return true;
+      return kTaskAborted;
+    } else {
+      return kTaskRunning;
     }
   }
-  return false;
+  return kTaskRemoved;
 }
 
 

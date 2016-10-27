@@ -8,6 +8,8 @@
 #include <deque>
 
 #include "src/base/bits.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/cancelable-task.h"
 #include "src/heap/marking.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
@@ -52,7 +54,7 @@ class ObjectMarking : public AllStatic {
 // Marking deque for tracing live objects.
 class MarkingDeque {
  public:
-  MarkingDeque()
+  explicit MarkingDeque(Heap* heap)
       : backing_store_(nullptr),
         backing_store_committed_size_(0),
         array_(nullptr),
@@ -60,11 +62,16 @@ class MarkingDeque {
         bottom_(0),
         mask_(0),
         overflowed_(false),
-        in_use_(false) {}
+        in_use_(false),
+        uncommit_task_pending_(false),
+        uncommit_task_id_(0),
+        heap_(heap) {}
 
   void SetUp();
   void TearDown();
 
+  // Ensures that the marking deque is committed and will stay committed until
+  // StopUsing() is called.
   void StartUsing();
   void StopUsing();
   void Clear();
@@ -122,11 +129,44 @@ class MarkingDeque {
   void set_top(int top) { top_ = top; }
 
  private:
+  // This task uncommits the marking_deque backing store if
+  // markin_deque->in_use_ is false.
+  class UncommitTask : public CancelableTask {
+   public:
+    explicit UncommitTask(Isolate* isolate, MarkingDeque* marking_deque)
+        : CancelableTask(isolate), marking_deque_(marking_deque) {}
+
+   private:
+    // CancelableTask override.
+    void RunInternal() override {
+      base::LockGuard<base::Mutex> guard(&marking_deque_->mutex_);
+      if (!marking_deque_->in_use_) {
+        marking_deque_->Uncommit();
+      }
+      marking_deque_->uncommit_task_pending_ = false;
+      marking_deque_->uncommit_task_barrier_.NotifyOne();
+    }
+
+    MarkingDeque* marking_deque_;
+    DISALLOW_COPY_AND_ASSIGN(UncommitTask);
+  };
+
   static const size_t kMaxSize = 4 * MB;
   static const size_t kMinSize = 256 * KB;
 
+  // Must be called with mutex lock.
   void EnsureCommitted();
+
+  // Must be called with mutex lock.
   void Uncommit();
+
+  // Must be called with mutex lock.
+  void StartUncommitTask();
+
+  void CancelOrWaitForUncommitTask();
+
+  base::Mutex mutex_;
+  base::ConditionVariable uncommit_task_barrier_;
 
   base::VirtualMemory* backing_store_;
   size_t backing_store_committed_size_;
@@ -138,7 +178,12 @@ class MarkingDeque {
   int bottom_;
   int mask_;
   bool overflowed_;
+  // in_use_ == true after taking mutex lock implies that the marking deque is
+  // committed and will stay committed at least until in_use_ == false.
   bool in_use_;
+  bool uncommit_task_pending_;
+  uint32_t uncommit_task_id_;
+  Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(MarkingDeque);
 };
