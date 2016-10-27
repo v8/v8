@@ -2559,9 +2559,7 @@ bool Isolate::Init(Deserializer* des) {
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
-    if (FLAG_ignition || serializer_enabled()) {
-      interpreter_->Initialize();
-    }
+    interpreter_->Initialize();
 
     heap_.NotifyDeserializationComplete();
   }

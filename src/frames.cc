@@ -439,8 +439,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (!marker->IsSmi()) {
       if (maybe_function->IsSmi()) {
         return NONE;
-      } else if (FLAG_ignition && IsInterpreterFramePc(iterator->isolate(),
-                                                       *(state->pc_address))) {
+      } else if (IsInterpreterFramePc(iterator->isolate(),
+                                      *(state->pc_address))) {
         return INTERPRETED;
       } else {
         return JAVA_SCRIPT;
