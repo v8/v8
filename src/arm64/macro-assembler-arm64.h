@@ -1590,14 +1590,6 @@ class MacroAssembler : public Assembler {
                                  Register scratch,
                                  uint32_t encoding_mask);
 
-  // Generate code for checking access rights - used for security checks
-  // on access to global objects across environments. The holder register
-  // is left untouched, whereas both scratch registers are clobbered.
-  void CheckAccessGlobalProxy(Register holder_reg,
-                              Register scratch1,
-                              Register scratch2,
-                              Label* miss);
-
   // Hash the interger value in 'key' register.
   // It uses the same algorithm as ComputeIntegerHash in utils.h.
   void GetNumberHash(Register key, Register scratch);

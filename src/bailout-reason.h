@@ -116,10 +116,6 @@ namespace internal {
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \
   V(kInvalidMinLength, "Invalid min_length")                                   \
   V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
-  V(kJSGlobalObjectNativeContextShouldBeANativeContext,                        \
-    "JSGlobalObject::native_context should be a native context")               \
-  V(kJSGlobalProxyContextShouldNotBeNull,                                      \
-    "JSGlobalProxy::context() should not be null")                             \
   V(kJSObjectWithFastElementsMapHasSlowElements,                               \
     "JSObject with fast elements map has slow elements")                       \
   V(kLetBindingReInitialization, "Let binding re-initialization")              \
@@ -256,8 +252,6 @@ namespace internal {
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \
   V(kUnstableConstantTypeHeapObject, "Unstable constant-type heap object")     \
   V(kVariableResolvedToWithContext, "Variable resolved to with context")       \
-  V(kWeShouldNotHaveAnEmptyLexicalContext,                                     \
-    "We should not have an empty lexical context")                             \
   V(kWithStatement, "WithStatement")                                           \
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \

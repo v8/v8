@@ -443,15 +443,6 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   if (receiver_map->IsJSGlobalObjectMap()) {
     current = isolate()->global_object();
   }
-  // Check access rights to the global object.  This has to happen after
-  // the map check so that we know that the object is actually a global
-  // object.
-  // This allows us to install generated handlers for accesses to the
-  // global proxy (as opposed to using slow ICs). See corresponding code
-  // in LookupForRead().
-  if (receiver_map->IsJSGlobalProxyMap()) {
-    __ CheckAccessGlobalProxy(reg, scratch2, miss);
-  }
 
   Handle<JSObject> prototype = Handle<JSObject>::null();
   Handle<Map> current_map = receiver_map;

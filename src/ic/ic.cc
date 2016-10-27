@@ -862,10 +862,12 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
   DCHECK(holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
-  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap() ||
-      receiver_map->IsJSGlobalObjectMap()) {
+  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalObjectMap()) {
     return -1;
   }
+  // We don't encode the requirement to check access rights because we already
+  // passed the access check for current native context and the access
+  // can't be revoked.
 
   HandleScope scope(isolate);
   int checks_count = 0;
@@ -876,11 +878,6 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
     if (*current == *holder) break;
     Handle<Map> current_map(current->map(), isolate);
-
-    // Only global objects and objects that do not require access
-    // checks are allowed in stubs.
-    DCHECK(current_map->IsJSGlobalProxyMap() ||
-           !current_map->is_access_check_needed());
 
     if (current_map->IsJSGlobalObjectMap()) {
       if (fill_array) {
@@ -925,8 +922,7 @@ Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
   int checks_count = GetPrototypeCheckCount(receiver_map, holder);
   DCHECK_LE(0, checks_count);
 
-  if (receiver_map->IsJSGlobalProxyMap() ||
-      receiver_map->IsJSGlobalObjectMap()) {
+  if (receiver_map->IsJSGlobalObjectMap()) {
     UNREACHABLE();
   } else if (receiver_map->is_dictionary_map()) {
     smi_handler =

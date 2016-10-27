@@ -9704,15 +9704,6 @@ TEST(DetachGlobal) {
   result = CompileRun("other.p");
   CHECK(result->IsInt32());
   CHECK_EQ(24, result->Int32Value(env3).FromJust());
-
-  // Change security token for env3 to something different from env1 and env2.
-  env3->SetSecurityToken(v8_str("bar"));
-
-  // Check that we do not have access to other.p in env1. |other| is now
-  // the global object for env3 which has a different security token,
-  // so access should be blocked.
-  result = CompileRun("other.p");
-  CHECK(result.IsEmpty());
 }
 
 
