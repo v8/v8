@@ -1255,7 +1255,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .StoreAccumulatorInRegister(reg)
         .MoveRegister(builder.Parameter(0), args[0]);
 
-    builder.Call(reg, args, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1277,7 +1277,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(reg)
         .MoveRegister(builder.Parameter(0), args[0]);
-    builder.Call(reg, args, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1308,7 +1308,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .LoadLiteral(Smi::FromInt(11))
         .StoreAccumulatorInRegister(args[2]);
 
-    builder.Call(reg, args, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
     builder.Return();
 
@@ -1356,7 +1356,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
         .StoreAccumulatorInRegister(args[10]);
 
-    builder.Call(reg, args, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
     builder.Return();
 

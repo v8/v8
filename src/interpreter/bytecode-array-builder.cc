@@ -824,9 +824,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
                                                  RegisterList args,
                                                  int feedback_slot,
+                                                 Call::CallType call_type,
                                                  TailCallMode tail_call_mode) {
   if (tail_call_mode == TailCallMode::kDisallow) {
-    OutputCall(callable, args, args.register_count(), feedback_slot);
+    if (call_type == Call::NAMED_PROPERTY_CALL ||
+        call_type == Call::KEYED_PROPERTY_CALL) {
+      OutputCallProperty(callable, args, args.register_count(), feedback_slot);
+    } else {
+      OutputCall(callable, args, args.register_count(), feedback_slot);
+    }
   } else {
     DCHECK(tail_call_mode == TailCallMode::kAllow);
     OutputTailCall(callable, args, args.register_count(), feedback_slot);

@@ -1252,9 +1252,10 @@ Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
   return value;
 }
 
-void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
+void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
+                                     ConvertReceiverMode receiver_hint) {
   PrepareEagerCheckpoint();
-  ConvertReceiverMode receiver_hint = ConvertReceiverMode::kAny;
+
   Node* callee =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
@@ -1273,14 +1274,20 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitCall() { BuildCall(TailCallMode::kDisallow); }
+void BytecodeGraphBuilder::VisitCall() {
+  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kAny);
+}
+
+void BytecodeGraphBuilder::VisitCallProperty() {
+  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kNotNullOrUndefined);
+}
 
 void BytecodeGraphBuilder::VisitTailCall() {
   TailCallMode tail_call_mode =
       bytecode_array_->GetIsolate()->is_tail_call_elimination_enabled()
           ? TailCallMode::kAllow
           : TailCallMode::kDisallow;
-  BuildCall(tail_call_mode);
+  BuildCall(tail_call_mode, ConvertReceiverMode::kAny);
 }
 
 void BytecodeGraphBuilder::VisitCallJSRuntime() {

@@ -187,10 +187,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|. The arguments should be in |args|, with the receiver in
-  // |args[0]|. Type feedback is recorded in the |feedback_slot| in the type
-  // feedback vector.
+  // |args[0]|. The call type of the expression is in |call_type|. Type feedback
+  // is recorded in the |feedback_slot| in the type feedback vector.
   BytecodeArrayBuilder& Call(
       Register callable, RegisterList args, int feedback_slot,
+      Call::CallType call_type,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   // Call the new operator. The accumulator holds the |new_target|.

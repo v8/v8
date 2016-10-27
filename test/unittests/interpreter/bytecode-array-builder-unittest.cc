@@ -125,8 +125,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0, reg);
 
   // Call operations.
-  builder.Call(reg, reg_list, 1)
-      .Call(reg, reg_list, 1, TailCallMode::kAllow)
+  builder.Call(reg, reg_list, 1, Call::GLOBAL_CALL)
+      .Call(reg, reg_list, 1, Call::NAMED_PROPERTY_CALL,
+            TailCallMode::kDisallow)
+      .Call(reg, reg_list, 1, Call::GLOBAL_CALL, TailCallMode::kAllow)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list);

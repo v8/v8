@@ -145,6 +145,8 @@ namespace interpreter {
   /* Call operations */                                                        \
   V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kRegList,    \
     OperandType::kRegCount, OperandType::kIdx)                                 \
+  V(CallProperty, AccumulatorUse::kWrite, OperandType::kReg,                   \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
@@ -525,8 +527,8 @@ class V8_EXPORT_PRIVATE Bytecodes final {
 
   // Returns true if the bytecode is a call or a constructor call.
   static CONSTEXPR bool IsCallOrNew(Bytecode bytecode) {
-    return bytecode == Bytecode::kCall || bytecode == Bytecode::kTailCall ||
-           bytecode == Bytecode::kNew;
+    return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
+           bytecode == Bytecode::kTailCall || bytecode == Bytecode::kNew;
   }
 
   // Returns true if the bytecode is a call to the runtime.

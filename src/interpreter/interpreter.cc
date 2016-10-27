@@ -1626,6 +1626,17 @@ void Interpreter::DoCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kDisallow);
 }
 
+// CallProperty <callable> <receiver> <arg_count> <feedback_slot_id>
+//
+// Call a JSfunction or Callable in |callable| with the |receiver| and
+// |arg_count| arguments in subsequent registers. Collect type feedback into
+// |feedback_slot_id|. The callable is known to be a property of the receiver.
+void Interpreter::DoCallProperty(InterpreterAssembler* assembler) {
+  // TODO(leszeks): Look into making the interpreter use the fact that the
+  // receiver is non-null.
+  DoJSCall(assembler, TailCallMode::kDisallow);
+}
+
 // TailCall <callable> <receiver> <arg_count> <feedback_slot_id>
 //
 // Tail call a JSfunction or Callable in |callable| with the |receiver| and

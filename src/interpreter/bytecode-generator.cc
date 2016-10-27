@@ -2494,7 +2494,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   builder()->SetExpressionPosition(expr);
 
   int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-  builder()->Call(callee, args, feedback_slot_index, expr->tail_call_mode());
+  builder()->Call(callee, args, feedback_slot_index, call_type,
+                  expr->tail_call_mode());
 }
 
 void BytecodeGenerator::VisitCallSuper(Call* expr) {
