@@ -28,17 +28,6 @@ void PromiseRejectEvent(Isolate* isolate, Handle<JSReceiver> promise,
 
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
-  DCHECK(args.length() == 3);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
-
-  PromiseRejectEvent(isolate, promise, promise, value, debug_event);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   DCHECK(args.length() == 2);
   HandleScope scope(isolate);
