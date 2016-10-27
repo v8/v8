@@ -131,8 +131,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // an initial value in the declaration (because they are initialized upon
   // entering the function).
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = factory()->NewVariableProxy(
-      name, NORMAL_VARIABLE, parser_->scanner()->location().beg_pos);
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(name, NORMAL_VARIABLE, pattern->position());
   Declaration* declaration = factory()->NewVariableDeclaration(
       proxy, descriptor_->scope, descriptor_->declaration_pos);
   Variable* var = parser_->Declare(

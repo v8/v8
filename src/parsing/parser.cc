@@ -1475,7 +1475,9 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
       name, NORMAL_VARIABLE, scanner()->location().beg_pos);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, this->scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
+  Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, ok, nullptr,
+          scanner()->location().end_pos);
+  if (!*ok) return nullptr;
   return declaration;
 }
 
@@ -1497,7 +1499,7 @@ Declaration* Parser::DeclareModuleImport(const AstRawString* name, int pos,
 Variable* Parser::Declare(Declaration* declaration,
                           DeclarationDescriptor::Kind declaration_kind,
                           VariableMode mode, InitializationFlag init, bool* ok,
-                          Scope* scope) {
+                          Scope* scope, int var_end_pos) {
   if (scope == nullptr) {
     scope = this->scope();
   }
@@ -1506,11 +1508,18 @@ Variable* Parser::Declare(Declaration* declaration,
       declaration, mode, init, allow_harmony_restrictive_generators(),
       &sloppy_mode_block_scope_function_redefinition, ok);
   if (!*ok) {
+    // If we only have the start position of a proxy, we can't highlight the
+    // whole variable name.  Pretend its length is 1 so that we highlight at
+    // least the first character.
+    Scanner::Location loc(declaration->proxy()->position(),
+                          var_end_pos != kNoSourcePosition
+                              ? var_end_pos
+                              : declaration->proxy()->position() + 1);
     if (declaration_kind == DeclarationDescriptor::NORMAL) {
-      ReportMessage(MessageTemplate::kVarRedeclaration,
-                    declaration->proxy()->raw_name());
+      ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                      declaration->proxy()->raw_name());
     } else {
-      ReportMessage(MessageTemplate::kParamDupe);
+      ReportMessageAt(loc, MessageTemplate::kParamDupe);
     }
     return nullptr;
   }

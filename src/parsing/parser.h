@@ -468,7 +468,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
                     VariableMode mode, InitializationFlag init, bool* ok,
-                    Scope* declaration_scope = nullptr);
+                    Scope* declaration_scope = nullptr,
+                    int var_end_pos = kNoSourcePosition);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
                                int pos, bool* ok);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
