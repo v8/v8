@@ -638,7 +638,7 @@ class V8_EXPORT_PRIVATE Factory final {
   DECLARE_ERROR(TypeError)
   DECLARE_ERROR(WasmCompileError)
   DECLARE_ERROR(WasmRuntimeError)
-#undef DEFINE_ERROR
+#undef DECLARE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
