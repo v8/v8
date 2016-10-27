@@ -256,10 +256,10 @@ void BinaryOpICState::Update(Handle<Object> left, Handle<Object> right,
 
   if (old_extra_ic_state == GetExtraICState()) {
     // Tagged operations can lead to non-truncating HChanges
-    if (left->IsUndefined(isolate_) || left->IsBoolean()) {
+    if (left->IsOddball()) {
       left_kind_ = GENERIC;
     } else {
-      DCHECK(right->IsUndefined(isolate_) || right->IsBoolean());
+      DCHECK(right->IsOddball());
       right_kind_ = GENERIC;
     }
   }
