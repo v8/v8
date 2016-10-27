@@ -1158,6 +1158,7 @@
         'runtime/runtime-numbers.cc',
         'runtime/runtime-object.cc',
         'runtime/runtime-operators.cc',
+        'runtime/runtime-promise.cc',
         'runtime/runtime-proxy.cc',
         'runtime/runtime-regexp.cc',
         'runtime/runtime-scopes.cc',
