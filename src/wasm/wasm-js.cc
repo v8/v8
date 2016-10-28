@@ -229,10 +229,14 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  if (args.Length() > 2 && args[2]->IsArrayBuffer()) {
+  if (args.Length() > 2 && args[2]->IsObject()) {
     Local<Object> obj = Local<Object>::Cast(args[2]);
     i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-    memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
+    if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
+      memory = i::WasmJs::GetWasmMemoryArrayBuffer(i_isolate, mem_obj);
+    } else {
+      thrower.TypeError("Argument 2 must be a WebAssembly.Memory");
+    }
   }
   i::MaybeHandle<i::JSObject> instance =
       i::wasm::WasmModule::Instantiate(i_isolate, &thrower, i_obj, ffi, memory);

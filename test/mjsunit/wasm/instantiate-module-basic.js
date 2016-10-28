@@ -141,10 +141,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
 
   var module = new WebAssembly.Module(builder.toBuffer());
-  var mem_1 = new ArrayBuffer(4);
-  var mem_2 = new ArrayBuffer(4);
-  var view_1 = new Int32Array(mem_1);
-  var view_2 = new Int32Array(mem_2);
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var mem_2 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
+  var view_2 = new Int32Array(mem_2.buffer);
 
   view_1[0] = 42;
   view_2[0] = 1000;
@@ -199,10 +199,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
       kExprI32LoadMem, 0, 0
     ]).exportFunc();
 
-  var mem_1 = new ArrayBuffer(65536);
-  var mem_2 = new ArrayBuffer(65536);
-  var view_1 = new Int32Array(mem_1);
-  var view_2 = new Int32Array(mem_2);
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var mem_2 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
+  var view_2 = new Int32Array(mem_2.buffer);
   view_1[0] = 1;
   view_2[0] = 1000;
 
@@ -212,4 +212,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
   assertEquals(1, i1.exports.f());
   assertEquals(1000, i2.exports.f());
+})();
+
+(function MustBeMemory() {
+  var memory = new ArrayBuffer(65536);
+  var module = new WebAssembly.Module(buffer);
+  assertThrows(() => new WebAssembly.Instance(module, null, memory), TypeError);
 })();

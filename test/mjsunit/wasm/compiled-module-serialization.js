@@ -42,8 +42,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   gc();
   module = %DeserializeWasmModule(buff, wire_bytes);
 
-  var mem_1 = new ArrayBuffer(4);
-  var view_1 = new Int32Array(mem_1);
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
 
   view_1[0] = 42;
 
