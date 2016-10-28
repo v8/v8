@@ -37,20 +37,19 @@ class CompilationInfo final {
     kNonDeferredCalling = 1 << 1,
     kSavesCallerDoubles = 1 << 2,
     kRequiresFrame = 1 << 3,
-    kMustNotHaveEagerFrame = 1 << 4,
-    kDeoptimizationSupport = 1 << 5,
-    kAccessorInliningEnabled = 1 << 6,
-    kSerializing = 1 << 7,
-    kFunctionContextSpecializing = 1 << 8,
-    kFrameSpecializing = 1 << 9,
-    kInliningEnabled = 1 << 10,
-    kDisableFutureOptimization = 1 << 11,
-    kSplittingEnabled = 1 << 12,
-    kDeoptimizationEnabled = 1 << 13,
-    kSourcePositionsEnabled = 1 << 14,
-    kBailoutOnUninitialized = 1 << 15,
-    kOptimizeFromBytecode = 1 << 16,
-    kTypeFeedbackEnabled = 1 << 17,
+    kDeoptimizationSupport = 1 << 4,
+    kAccessorInliningEnabled = 1 << 5,
+    kSerializing = 1 << 6,
+    kFunctionContextSpecializing = 1 << 7,
+    kFrameSpecializing = 1 << 8,
+    kInliningEnabled = 1 << 9,
+    kDisableFutureOptimization = 1 << 10,
+    kSplittingEnabled = 1 << 11,
+    kDeoptimizationEnabled = 1 << 12,
+    kSourcePositionsEnabled = 1 << 13,
+    kBailoutOnUninitialized = 1 << 14,
+    kOptimizeFromBytecode = 1 << 15,
+    kTypeFeedbackEnabled = 1 << 16,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -109,12 +108,6 @@ class CompilationInfo final {
   void MarkAsRequiresFrame() { SetFlag(kRequiresFrame); }
 
   bool requires_frame() const { return GetFlag(kRequiresFrame); }
-
-  void MarkMustNotHaveEagerFrame() { SetFlag(kMustNotHaveEagerFrame); }
-
-  bool GetMustNotHaveEagerFrame() const {
-    return GetFlag(kMustNotHaveEagerFrame);
-  }
 
   // Compiles marked as debug produce unoptimized code with debug break slots.
   // Inner functions that cannot be compiled w/o context are compiled eagerly.
