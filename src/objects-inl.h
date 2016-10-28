@@ -6495,9 +6495,9 @@ bool SharedFunctionInfo::IsBuiltin() {
   return type != Script::TYPE_NORMAL;
 }
 
-
-bool SharedFunctionInfo::IsSubjectToDebugging() { return !IsBuiltin(); }
-
+bool SharedFunctionInfo::IsSubjectToDebugging() {
+  return !IsBuiltin() && !HasAsmWasmData();
+}
 
 bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
   return optimized_code_map() == GetHeap()->empty_fixed_array();

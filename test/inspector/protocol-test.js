@@ -96,7 +96,7 @@ InspectorTest.logObject = function(object, title)
     lines.push(prefix + "]");
   }
 
-  dumpValue(object, "", title);
+  dumpValue(object, "", title || "");
   InspectorTest.log(lines.join("\n"));
 }
 
