@@ -1158,8 +1158,7 @@ BUILTIN(RegExpPrototypeSearch) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, previous_last_index_obj,
                                      RegExpUtils::GetLastIndex(isolate, recv));
 
-  if (!previous_last_index_obj->IsSmi() ||
-      Smi::cast(*previous_last_index_obj)->value() != 0) {
+  if (!previous_last_index_obj->SameValue(Smi::kZero)) {
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));
   }
@@ -1174,10 +1173,9 @@ BUILTIN(RegExpPrototypeSearch) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, current_last_index_obj,
                                      RegExpUtils::GetLastIndex(isolate, recv));
 
-  Maybe<bool> is_last_index_unchanged =
-      Object::Equals(current_last_index_obj, previous_last_index_obj);
-  if (is_last_index_unchanged.IsNothing()) return isolate->pending_exception();
-  if (!is_last_index_unchanged.FromJust()) {
+  const bool is_last_index_unchanged =
+      current_last_index_obj->SameValue(*previous_last_index_obj);
+  if (!is_last_index_unchanged) {
     if (previous_last_index_obj->IsSmi()) {
       RETURN_FAILURE_ON_EXCEPTION(
           isolate,
