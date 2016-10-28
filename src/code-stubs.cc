@@ -2035,7 +2035,7 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* global = assembler->LoadObjectField(proxy_map, Map::kPrototypeOffset);
     Node* map_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
         StoreGlobalStub::global_map_placeholder(isolate())));
-    Node* expected_map = assembler->LoadWeakCellValue(map_cell);
+    Node* expected_map = assembler->LoadWeakCellValueUnchecked(map_cell);
     Node* map = assembler->LoadMap(global);
     assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
   }

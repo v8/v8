@@ -210,7 +210,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                           Label* if_false);
   void BranchIfJSObject(compiler::Node* object, Label* if_true,
                         Label* if_false);
-
   void BranchIfFastJSArray(compiler::Node* object, compiler::Node* context,
                            Label* if_true, Label* if_false);
 
@@ -286,10 +285,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapConstructorFunctionIndex(compiler::Node* map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   compiler::Node* LoadMapConstructor(compiler::Node* map);
-  // Check whether the map is for an object with special properties, such as a
-  // JSProxy or an object with interceptors.
-  compiler::Node* IsSpecialReceiverMap(compiler::Node* map);
-  compiler::Node* IsSpecialReceiverInstanceType(compiler::Node* instance_type);
   // Check if the map is set for slow properties.
   compiler::Node* IsDictionaryMap(compiler::Node* map);
 
@@ -306,6 +301,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a JSValue object.
   compiler::Node* LoadJSValueValue(compiler::Node* object);
   // Load value field of a WeakCell object.
+  compiler::Node* LoadWeakCellValueUnchecked(compiler::Node* weak_cell);
   compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell,
                                     Label* if_cleared = nullptr);
 
@@ -609,10 +605,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                          char const* method_name);
 
   // Type checks.
+  // Check whether the map is for an object with special properties, such as a
+  // JSProxy or an object with interceptors.
+  compiler::Node* IsSpecialReceiverMap(compiler::Node* map);
+  compiler::Node* IsSpecialReceiverInstanceType(compiler::Node* instance_type);
   compiler::Node* IsStringInstanceType(compiler::Node* instance_type);
+  compiler::Node* IsString(compiler::Node* object);
+  compiler::Node* IsJSObject(compiler::Node* object);
   compiler::Node* IsJSReceiverInstanceType(compiler::Node* instance_type);
-
+  compiler::Node* IsJSReceiver(compiler::Node* object);
+  compiler::Node* IsMap(compiler::Node* object);
   compiler::Node* IsCallableMap(compiler::Node* map);
+  compiler::Node* IsName(compiler::Node* object);
+  compiler::Node* IsJSValue(compiler::Node* object);
+  compiler::Node* IsJSArray(compiler::Node* object);
+  compiler::Node* IsNativeContext(compiler::Node* object);
+  compiler::Node* IsWeakCell(compiler::Node* object);
+  compiler::Node* IsFixedDoubleArray(compiler::Node* object);
+  compiler::Node* IsHashTable(compiler::Node* object);
+  compiler::Node* IsDictionary(compiler::Node* object);
+  compiler::Node* IsUnseededNumberDictionary(compiler::Node* object);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
@@ -1172,10 +1184,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                            compiler::Node* value,
                                            Label* bailout);
 
+  compiler::Node* AllocateSlicedString(Heap::RootListIndex map_root_index,
+                                       compiler::Node* length,
+                                       compiler::Node* parent,
+                                       compiler::Node* offset);
+
+  compiler::Node* AllocateConsString(Heap::RootListIndex map_root_index,
+                                     compiler::Node* length,
+                                     compiler::Node* first,
+                                     compiler::Node* second,
+                                     AllocationFlags flags);
+
   static const int kElementLoopUnrollThreshold = 8;
 };
 
 #define CSA_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
+#ifdef ENABLE_SLOW_DCHECKS
+#define CSA_SLOW_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
+#else
+#define CSA_SLOW_ASSERT(x)
+#endif
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 

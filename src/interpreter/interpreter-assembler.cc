@@ -571,7 +571,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   // The checks. First, does function match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
-  Node* feedback_value = LoadWeakCellValue(feedback_element);
+  Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(function, feedback_value);
   Branch(is_monomorphic, &handle_monomorphic, &extra_checks);
 
@@ -776,7 +776,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
     Node* feedback_element =
         LoadFixedArrayElement(type_feedback_vector, slot_id);
-    Node* feedback_value = LoadWeakCellValue(feedback_element);
+    Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
     Node* is_monomorphic = WordEqual(constructor, feedback_value);
     Branch(is_monomorphic, &call_construct_function, &extra_checks);
 
