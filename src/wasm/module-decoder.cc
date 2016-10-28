@@ -512,8 +512,10 @@ class ModuleDecoder : public Decoder {
       WasmFunction* func;
       const byte* pos = pc_;
       module->start_function_index = consume_func_index(module, &func);
-      if (func && func->sig->parameter_count() > 0) {
-        error(pos, "invalid start function: non-zero parameter count");
+      if (func &&
+          (func->sig->parameter_count() > 0 || func->sig->return_count() > 0)) {
+        error(pos,
+              "invalid start function: non-zero parameter or return count");
       }
       section_iter.advance();
     }
