@@ -440,7 +440,7 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
-  store_buffer()->MoveEntriesToRememberedSet();
+  store_buffer()->MoveAllEntriesToRememberedSet();
 }
 
 
@@ -5906,11 +5906,15 @@ void Heap::CheckHandleCount() {
 
 void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
   if (!InNewSpace(object)) {
-    store_buffer()->MoveEntriesToRememberedSet();
     Address slot_addr = reinterpret_cast<Address>(slot);
     Page* page = Page::FromAddress(slot_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
+    if (gc_state_ == NOT_IN_GC) {
+      store_buffer()->DeleteEntry(slot_addr);
+    } else {
+      DCHECK(store_buffer()->Empty());
+      RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
+    }
     RememberedSet<OLD_TO_OLD>::Remove(page, slot_addr);
   }
 }
@@ -5918,10 +5922,14 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
   Page* page = Page::FromAddress(start);
   if (!page->InNewSpace()) {
-    store_buffer()->MoveEntriesToRememberedSet();
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                           SlotSet::PREFREE_EMPTY_BUCKETS);
+    if (gc_state_ == NOT_IN_GC) {
+      store_buffer()->DeleteEntry(start, end);
+    } else {
+      DCHECK(store_buffer()->Empty());
+      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
+                                             SlotSet::PREFREE_EMPTY_BUCKETS);
+    }
     RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end,
                                            SlotSet::FREE_EMPTY_BUCKETS);
   }
