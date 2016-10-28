@@ -1161,6 +1161,14 @@ DEFINE_IMPLICATION(print_all_code, trace_codegen)
 #define FLAG FLAG_FULL
 
 //
+// Predictable mode related flags.
+//
+
+DEFINE_BOOL(predictable, false, "enable predictable mode")
+DEFINE_IMPLICATION(predictable, single_threaded)
+DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
+
+//
 // Threading related flags.
 //
 
@@ -1169,13 +1177,6 @@ DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
 
-//
-// Predictable mode related flags.
-//
-
-DEFINE_BOOL(predictable, false, "enable predictable mode")
-DEFINE_IMPLICATION(predictable, single_threaded)
-DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 
 #undef FLAG
 
