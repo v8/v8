@@ -809,8 +809,23 @@ Node* BytecodeGraphBuilder::BuildLoadContextSlot() {
   return NewNode(op, context);
 }
 
+Node* BytecodeGraphBuilder::BuildLoadCurrentContextSlot() {
+  // TODO(mythria): immutable flag is also set to false. This information is not
+  // available in bytecode array. update this code when the implementation
+  // changes.
+  const Operator* op = javascript()->LoadContext(
+      0, bytecode_iterator().GetIndexOperand(0), false);
+  Node* context = environment()->Context();
+  return NewNode(op, context);
+}
+
 void BytecodeGraphBuilder::VisitLdaContextSlot() {
   Node* node = BuildLoadContextSlot();
+  environment()->BindAccumulator(node);
+}
+
+void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
+  Node* node = BuildLoadCurrentContextSlot();
   environment()->BindAccumulator(node);
 }
 
@@ -819,12 +834,25 @@ void BytecodeGraphBuilder::VisitLdrContextSlot() {
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3), node);
 }
 
+void BytecodeGraphBuilder::VisitLdrCurrentContextSlot() {
+  Node* node = BuildLoadCurrentContextSlot();
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), node);
+}
+
 void BytecodeGraphBuilder::VisitStaContextSlot() {
   const Operator* op = javascript()->StoreContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
       bytecode_iterator().GetIndexOperand(1));
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* value = environment()->LookupAccumulator();
+  NewNode(op, context, value);
+}
+
+void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
+  const Operator* op =
+      javascript()->StoreContext(0, bytecode_iterator().GetIndexOperand(0));
+  Node* context = environment()->Context();
   Node* value = environment()->LookupAccumulator();
   NewNode(op, context, value);
 }

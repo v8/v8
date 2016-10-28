@@ -54,10 +54,14 @@ namespace interpreter {
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                      \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(LdaCurrentContextSlot, AccumulatorUse::kWrite, OperandType::kIdx)          \
   V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                  \
     OperandType::kIdx, OperandType::kUImm, OperandType::kRegOut)               \
+  V(LdrCurrentContextSlot, AccumulatorUse::kNone, OperandType::kIdx,           \
+    OperandType::kRegOut)                                                      \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                  \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(StaCurrentContextSlot, AccumulatorUse::kRead, OperandType::kIdx)           \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                  \

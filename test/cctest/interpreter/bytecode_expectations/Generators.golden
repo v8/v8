@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 212
+bytecode array length: 202
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -21,7 +21,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1), U8(0),
-                B(JumpIfTrue), U8(61),
+                B(JumpIfTrue), U8(53),
                 B(LdaSmi), U8(76),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
@@ -30,16 +30,16 @@ bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
   /*   11 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
-  /*   11 E> */ B(LdrContextSlot), R(context), U8(4), U8(0), R(6),
+  /*   11 E> */ B(LdrCurrentContextSlot), U8(4), R(6),
                 B(Ldar), R(6),
                 B(Mov), R(closure), R(5),
                 B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(5), U8(2),
-                B(StaContextSlot), R(context), U8(5), U8(0),
+                B(StaCurrentContextSlot), U8(5),
                 B(Star), R(5),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(6),
+                B(LdrCurrentContextSlot), U8(5), R(6),
                 B(LdaZero),
                 B(SuspendGenerator), R(6),
                 B(Ldar), R(5),
@@ -83,7 +83,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Star), R(4),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(5),
+                B(LdrCurrentContextSlot), U8(5), R(5),
                 B(CallRuntime), U16(Runtime::k_GeneratorClose), R(5), U8(1),
                 B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(4), U8(1),
                 B(LdaZero),
@@ -108,7 +108,7 @@ bytecodes: [
 constant pool: [
 ]
 handlers: [
-  [41, 145, 151],
+  [39, 137, 143],
 ]
 
 ---
@@ -118,7 +118,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 310
+bytecode array length: 298
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -126,7 +126,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1), U8(0),
-                B(JumpIfTrue), U8(68),
+                B(JumpIfTrue), U8(60),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrueConstant), U8(0),
@@ -138,16 +138,16 @@ bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
   /*   11 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
-  /*   11 E> */ B(LdrContextSlot), R(context), U8(4), U8(0), R(6),
+  /*   11 E> */ B(LdrCurrentContextSlot), U8(4), R(6),
                 B(Ldar), R(6),
                 B(Mov), R(closure), R(5),
                 B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(5), U8(2),
-                B(StaContextSlot), R(context), U8(5), U8(0),
+                B(StaCurrentContextSlot), U8(5),
                 B(Star), R(5),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(6),
+                B(LdrCurrentContextSlot), U8(5), R(6),
                 B(LdaZero),
                 B(SuspendGenerator), R(6),
                 B(Ldar), R(5),
@@ -172,7 +172,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(2),
-                B(Jump), U8(116),
+                B(Jump), U8(114),
                 B(Ldar), R(7),
   /*   11 E> */ B(Throw),
   /*   16 S> */ B(LdaSmi), U8(42),
@@ -181,7 +181,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(5), U8(2),
                 B(Star), R(5),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(6),
+                B(LdrCurrentContextSlot), U8(5), R(6),
                 B(LdaSmi), U8(1),
                 B(SuspendGenerator), R(6),
                 B(Ldar), R(5),
@@ -225,7 +225,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Star), R(4),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(5),
+                B(LdrCurrentContextSlot), U8(5), R(5),
                 B(CallRuntime), U16(Runtime::k_GeneratorClose), R(5), U8(1),
                 B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(4), U8(1),
                 B(LdaZero),
@@ -253,10 +253,10 @@ bytecodes: [
   /*   25 S> */ B(Return),
 ]
 constant pool: [
-  Smi [141],
+  Smi [131],
 ]
 handlers: [
-  [48, 233, 239],
+  [46, 223, 229],
 ]
 
 ---
@@ -266,7 +266,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 793
+bytecode array length: 773
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -274,7 +274,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(0),
-                B(JumpIfTrue), U8(68),
+                B(JumpIfTrue), U8(60),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(4), U8(0),
                 B(JumpIfTrueConstant), U8(3),
@@ -286,16 +286,16 @@ bytecodes: [
                 B(CreateFunctionContext), U8(9),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
   /*   11 E> */ B(StackCheck),
                 B(Mov), R(context), R(7),
-  /*   11 E> */ B(LdrContextSlot), R(context), U8(4), U8(0), R(9),
+  /*   11 E> */ B(LdrCurrentContextSlot), U8(4), R(9),
                 B(Ldar), R(9),
                 B(Mov), R(closure), R(8),
                 B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(8), U8(2),
-                B(StaContextSlot), R(context), U8(5), U8(0),
+                B(StaCurrentContextSlot), U8(5),
                 B(Star), R(8),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(9),
+                B(LdrCurrentContextSlot), U8(5), R(9),
                 B(LdaZero),
                 B(SuspendGenerator), R(9),
                 B(Ldar), R(8),
@@ -320,14 +320,14 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(5),
-                B(JumpConstant), U8(18),
+                B(JumpConstant), U8(19),
                 B(Ldar), R(10),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9), U8(0),
                 B(Mov), R(context), R(10),
@@ -372,10 +372,10 @@ bytecodes: [
                 B(CreateBlockContext), U8(7),
                 B(PushContext), R(2),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
                 B(LdaContextSlot), R(1), U8(6), U8(0),
-                B(StaContextSlot), R(context), U8(4), U8(0),
-  /*   36 S> */ B(LdrContextSlot), R(context), U8(4), U8(0), R(12),
+                B(StaCurrentContextSlot), U8(4),
+  /*   36 S> */ B(LdrCurrentContextSlot), U8(4), R(12),
                 B(LdaFalse),
                 B(Star), R(13),
                 B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(12), U8(2),
@@ -411,14 +411,14 @@ bytecodes: [
                 B(Star), R(9),
                 B(LdaZero),
                 B(Star), R(8),
-                B(Jump), U8(74),
+                B(Jump), U8(72),
                 B(Ldar), R(14),
   /*   36 E> */ B(Throw),
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9), U8(0),
-                B(Wide), B(JumpLoop), U16(-220), U16(0),
-                B(Jump), U8(44),
+                B(Wide), B(JumpLoop), U16(-214), U16(0),
+                B(Jump), U8(42),
                 B(Star), R(12),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(12), U8(10), U8(11),
@@ -430,7 +430,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(8),
                 B(LdaSmi), U8(1),
                 B(StaContextSlot), R(0), U8(9), U8(0),
-                B(LdrContextSlot), R(context), U8(4), U8(0), R(12),
+                B(LdrCurrentContextSlot), U8(4), R(12),
                 B(CallRuntime), U16(Runtime::kReThrow), R(12), U8(1),
                 B(PopContext), R(2),
                 B(LdaSmi), U8(-1),
@@ -448,7 +448,7 @@ bytecodes: [
                 B(LdrContextSlot), R(1), U8(7), U8(0), R(11),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(11), U8(16),
-                B(JumpIfTrueConstant), U8(9),
+                B(JumpIfTrueConstant), U8(18),
                 B(LdrContextSlot), R(1), U8(7), U8(0), R(11),
                 B(LdaNamedProperty), R(11), U8(12), U8(17),
                 B(StaContextSlot), R(1), U8(11), U8(0),
@@ -535,7 +535,7 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Star), R(7),
-                B(LdrContextSlot), R(context), U8(5), U8(0), R(8),
+                B(LdrCurrentContextSlot), U8(5), R(8),
                 B(CallRuntime), U16(Runtime::k_GeneratorClose), R(8), U8(1),
                 B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(7), U8(1),
                 B(LdaZero),
@@ -571,13 +571,13 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   FIXED_ARRAY_TYPE,
   SYMBOL_TYPE,
-  Smi [158],
+  Smi [148],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   FIXED_ARRAY_TYPE,
-  Smi [134],
-  Smi [155],
+  Smi [128],
+  Smi [149],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
@@ -586,12 +586,13 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   Smi [129],
   Smi [166],
-  Smi [589],
+  Smi [155],
+  Smi [579],
 ]
 handlers: [
-  [48, 706, 712],
-  [153, 446, 452],
-  [156, 402, 404],
-  [560, 574, 576],
+  [46, 688, 694],
+  [143, 428, 434],
+  [146, 386, 388],
+  [542, 556, 558],
 ]
 

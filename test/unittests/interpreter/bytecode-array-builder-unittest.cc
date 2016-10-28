@@ -88,6 +88,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadContextSlot(reg, 1, 0)
       .StoreContextSlot(reg, 1, 0);
 
+  // Emit context operations which operate on the local context.
+  builder.LoadContextSlot(Register::current_context(), 1, 0)
+      .StoreContextSlot(Register::current_context(), 1, 0);
+
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, 0)
       .LoadKeyedProperty(reg, 0)
@@ -312,6 +316,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadContextSlot(reg, 1, 0)
       .StoreAccumulatorInRegister(reg)
+      .LoadContextSlot(Register::current_context(), 1, 0)
+      .StoreAccumulatorInRegister(reg)
       .LoadGlobal(0, TypeofMode::NOT_INSIDE_TYPEOF)
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
@@ -386,6 +392,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     scorecard[Bytecodes::ToByte(Bytecode::kLdrKeyedProperty)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kLdrGlobal)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kLdrContextSlot)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kLdrCurrentContextSlot)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kLdrUndefined)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kLogicalNot)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJump)] = 1;

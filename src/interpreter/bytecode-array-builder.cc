@@ -461,14 +461,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
                                                             int slot_index,
                                                             int depth) {
-  OutputLdaContextSlot(context, slot_index, depth);
+  if (context.is_current_context() && depth == 0) {
+    OutputLdaCurrentContextSlot(slot_index);
+  } else {
+    OutputLdaContextSlot(context, slot_index, depth);
+  }
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
                                                              int slot_index,
                                                              int depth) {
-  OutputStaContextSlot(context, slot_index, depth);
+  if (context.is_current_context() && depth == 0) {
+    OutputStaCurrentContextSlot(slot_index);
+  } else {
+    OutputStaContextSlot(context, slot_index, depth);
+  }
   return *this;
 }
 
