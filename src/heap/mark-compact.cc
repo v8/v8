@@ -2119,7 +2119,6 @@ void MarkingDeque::SetUp() {
 }
 
 void MarkingDeque::TearDown() {
-  CancelOrWaitForUncommitTask();
   delete backing_store_;
 }
 
@@ -2187,23 +2186,10 @@ void MarkingDeque::EnsureCommitted() {
 
 void MarkingDeque::StartUncommitTask() {
   if (!uncommit_task_pending_) {
-    UncommitTask* task = new UncommitTask(heap_->isolate(), this);
-    uncommit_task_id_ = task->id();
     uncommit_task_pending_ = true;
+    UncommitTask* task = new UncommitTask(heap_->isolate(), this);
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         task, v8::Platform::kShortRunningTask);
-  }
-}
-
-void MarkingDeque::CancelOrWaitForUncommitTask() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  if (!uncommit_task_pending_ ||
-      heap_->isolate()->cancelable_task_manager()->TryAbort(
-          uncommit_task_id_) != CancelableTaskManager::kTaskRunning) {
-    return;
-  }
-  while (uncommit_task_pending_) {
-    uncommit_task_barrier_.Wait(&mutex_);
   }
 }
 

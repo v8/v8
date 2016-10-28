@@ -64,7 +64,6 @@ class MarkingDeque {
         overflowed_(false),
         in_use_(false),
         uncommit_task_pending_(false),
-        uncommit_task_id_(0),
         heap_(heap) {}
 
   void SetUp();
@@ -144,7 +143,6 @@ class MarkingDeque {
         marking_deque_->Uncommit();
       }
       marking_deque_->uncommit_task_pending_ = false;
-      marking_deque_->uncommit_task_barrier_.NotifyOne();
     }
 
     MarkingDeque* marking_deque_;
@@ -163,10 +161,7 @@ class MarkingDeque {
   // Must be called with mutex lock.
   void StartUncommitTask();
 
-  void CancelOrWaitForUncommitTask();
-
   base::Mutex mutex_;
-  base::ConditionVariable uncommit_task_barrier_;
 
   base::VirtualMemory* backing_store_;
   size_t backing_store_committed_size_;
@@ -182,7 +177,6 @@ class MarkingDeque {
   // committed and will stay committed at least until in_use_ == false.
   bool in_use_;
   bool uncommit_task_pending_;
-  uint32_t uncommit_task_id_;
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(MarkingDeque);
