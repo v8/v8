@@ -4,11 +4,11 @@
 
 {
   'variables': {
-    'protocol_path': '<(PRODUCT_DIR)/../../third_party/WebKit/Source/platform/inspector_protocol',
+    'protocol_path': '<(PRODUCT_DIR)/../../third_party/inspector_protocol',
   },
   'includes': [
     'inspector.gypi',
-    '<(PRODUCT_DIR)/../../../third_party/WebKit/Source/platform/inspector_protocol/inspector_protocol.gypi',
+    '<(PRODUCT_DIR)/../../../third_party/inspector_protocol/inspector_protocol.gypi',
   ],
   'targets': [
     { 'target_name': 'inspector_injected_script',

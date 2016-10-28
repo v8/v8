@@ -19,8 +19,6 @@ deps = {
     Var("chromium_url") + "/chromium/buildtools.git" + "@" + "39b1db2ab4aa4b2ccaa263c29bdf63e7c1ee28aa",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
-  "v8/third_party/WebKit/Source/platform/inspector_protocol":
-    Var("chromium_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "3280c57c4c575ce82ccd13e4a403492fb4ca624b",
   "v8/third_party/jinja2":
     Var("chromium_url") + "/chromium/src/third_party/jinja2.git" + "@" + "b61a2c009a579593a259c1b300e0ad02bf48fd78",
   "v8/third_party/markupsafe":
