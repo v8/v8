@@ -638,6 +638,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
 
+  DCHECK(!sweeping_in_progress());
+  DCHECK(!FLAG_concurrent_sweeping ||
+         sweeper().IsSweepingCompleted(space->identity()));
   for (Page* p : *space) {
     if (p->NeverEvacuate()) continue;
     // Invariant: Evacuation candidates are just created when marking is
