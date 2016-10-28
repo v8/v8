@@ -19848,11 +19848,6 @@ void Module::StoreExport(Handle<Module> module, Handle<String> name,
 Handle<Object> Module::LoadExport(Handle<Module> module, Handle<String> name) {
   Isolate* isolate = module->GetIsolate();
   Handle<Object> object(module->exports()->Lookup(name), isolate);
-
-  // TODO(neis): Namespace imports are not yet implemented.  Trying to use this
-  // feature may crash here.
-  if (!object->IsCell()) UNIMPLEMENTED();
-
   return handle(Handle<Cell>::cast(object)->value(), isolate);
 }
 
