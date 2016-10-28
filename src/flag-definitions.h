@@ -886,6 +886,9 @@ DEFINE_BOOL(print_all_exceptions, false,
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
+DEFINE_INT(runtime_stats, 0,
+           "internal usage only for controlling runtime statistics")
+DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 
 // snapshot-common.cc
 DEFINE_BOOL(profile_deserialization, false,

@@ -22,6 +22,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
+#include "include/v8-tracing.h"
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/debug/stack_trace.h"
@@ -152,7 +153,7 @@ class PredictablePlatform : public Platform {
 
 
 v8::Platform* g_platform = NULL;
-
+std::unique_ptr<tracing::TracingCategoryObserver> g_tracing_category_observer;
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
@@ -2878,10 +2879,14 @@ int Shell::Main(int argc, char* argv[]) {
             platform::tracing::TraceConfig::CreateDefaultTraceConfig();
       }
       tracing_controller->Initialize(trace_buffer);
-      tracing_controller->StartTracing(trace_config);
       if (!i::FLAG_verify_predictable) {
         platform::SetTracingController(g_platform, tracing_controller);
       }
+      g_tracing_category_observer = tracing::TracingCategoryObserver::Create();
+      g_platform->AddTraceStateObserver(
+          reinterpret_cast<Platform::TraceStateObserver*>(
+              g_tracing_category_observer.get()));
+      tracing_controller->StartTracing(trace_config);
     }
 
     if (options.dump_heap_constants) {
@@ -2942,6 +2947,9 @@ int Shell::Main(int argc, char* argv[]) {
   isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
+  g_platform->RemoveTraceStateObserver(
+      reinterpret_cast<Platform::TraceStateObserver*>(
+          g_tracing_category_observer.get()));
   delete g_platform;
 
   return result;
