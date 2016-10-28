@@ -7724,6 +7724,14 @@ void AccessorInfo::set_is_special_data_property(bool value) {
   set_flag(BooleanBit::set(flag(), kSpecialDataProperty, value));
 }
 
+bool AccessorInfo::replace_on_access() {
+  return BooleanBit::get(flag(), kReplaceOnAccess);
+}
+
+void AccessorInfo::set_replace_on_access(bool value) {
+  set_flag(BooleanBit::set(flag(), kReplaceOnAccess, value));
+}
+
 bool AccessorInfo::is_sloppy() { return BooleanBit::get(flag(), kIsSloppy); }
 
 void AccessorInfo::set_is_sloppy(bool value) {

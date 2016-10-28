@@ -4686,6 +4686,14 @@ class V8_EXPORT Template : public Data {
       AccessControl settings = DEFAULT);
 
   /**
+   * Like SetNativeDataProperty, but V8 will replace the native data property
+   * with a real data property on first access.
+   */
+  void SetLazyDataProperty(Local<Name> name, AccessorNameGetterCallback getter,
+                           Local<Value> data = Local<Value>(),
+                           PropertyAttribute attribute = None);
+
+  /**
    * During template instantiation, sets the value with the intrinsic property
    * from the correct context.
    */

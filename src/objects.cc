@@ -1352,8 +1352,14 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
     Handle<Object> result = args.Call(call_fun, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.is_null()) return isolate->factory()->undefined_value();
-    // Rebox handle before return.
-    return handle(*result, isolate);
+    Handle<Object> reboxed_result = handle(*result, isolate);
+    if (info->replace_on_access() && receiver->IsJSReceiver()) {
+      args.Call(reinterpret_cast<GenericNamedPropertySetterCallback>(
+                    &Accessors::ReconfigureToDataProperty),
+                name, result);
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    }
+    return reboxed_result;
   }
 
   // Regular accessor.

@@ -1297,10 +1297,13 @@ template <typename Getter, typename Setter>
 i::Handle<i::AccessorInfo> MakeAccessorInfo(
     v8::Local<Name> name, Getter getter, Setter setter, v8::Local<Value> data,
     v8::AccessControl settings, v8::PropertyAttribute attributes,
-    v8::Local<AccessorSignature> signature, bool is_special_data_property) {
+    v8::Local<AccessorSignature> signature, bool is_special_data_property,
+    bool replace_on_access) {
   i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
   i::Handle<i::AccessorInfo> obj = isolate->factory()->NewAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
+  DCHECK_IMPLIES(replace_on_access,
+                 is_special_data_property && setter == nullptr);
   if (is_special_data_property && setter == nullptr) {
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
@@ -1312,6 +1315,7 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
   }
   obj->set_data(*Utils::OpenHandle(*data));
   obj->set_is_special_data_property(is_special_data_property);
+  obj->set_replace_on_access(replace_on_access);
   return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
 
@@ -1463,20 +1467,21 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
   return constructor;
 }
 
-
 template <typename Getter, typename Setter, typename Data, typename Template>
 static bool TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                                 Getter getter, Setter setter, Data data,
                                 AccessControl settings,
                                 PropertyAttribute attribute,
                                 v8::Local<AccessorSignature> signature,
-                                bool is_special_data_property) {
+                                bool is_special_data_property,
+                                bool replace_on_access) {
   auto info = Utils::OpenHandle(template_obj);
   auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  auto obj = MakeAccessorInfo(name, getter, setter, data, settings, attribute,
-                              signature, is_special_data_property);
+  auto obj =
+      MakeAccessorInfo(name, getter, setter, data, settings, attribute,
+                       signature, is_special_data_property, replace_on_access);
   if (obj.is_null()) return false;
   i::ApiNatives::AddNativeDataProperty(isolate, info, obj);
   return true;
@@ -1491,7 +1496,7 @@ void Template::SetNativeDataProperty(v8::Local<String> name,
                                      v8::Local<AccessorSignature> signature,
                                      AccessControl settings) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, true);
+                      signature, true, false);
 }
 
 
@@ -1503,9 +1508,17 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      v8::Local<AccessorSignature> signature,
                                      AccessControl settings) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, true);
+                      signature, true, false);
 }
 
+void Template::SetLazyDataProperty(v8::Local<Name> name,
+                                   AccessorNameGetterCallback getter,
+                                   v8::Local<Value> data,
+                                   PropertyAttribute attribute) {
+  TemplateSetAccessor(
+      this, name, getter, static_cast<AccessorNameSetterCallback>(nullptr),
+      data, DEFAULT, attribute, Local<AccessorSignature>(), true, true);
+}
 
 void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
                                         PropertyAttribute attribute) {
@@ -1526,7 +1539,7 @@ void ObjectTemplate::SetAccessor(v8::Local<String> name,
                                  PropertyAttribute attribute,
                                  v8::Local<AccessorSignature> signature) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, i::FLAG_disable_old_api_accessors);
+                      signature, i::FLAG_disable_old_api_accessors, false);
 }
 
 
@@ -1537,7 +1550,7 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
                                  PropertyAttribute attribute,
                                  v8::Local<AccessorSignature> signature) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, i::FLAG_disable_old_api_accessors);
+                      signature, i::FLAG_disable_old_api_accessors, false);
 }
 
 template <typename Getter, typename Setter, typename Query, typename Descriptor,
@@ -4488,8 +4501,9 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
   v8::Local<AccessorSignature> signature;
-  auto info = MakeAccessorInfo(name, getter, setter, data, settings, attributes,
-                               signature, i::FLAG_disable_old_api_accessors);
+  auto info =
+      MakeAccessorInfo(name, getter, setter, data, settings, attributes,
+                       signature, i::FLAG_disable_old_api_accessors, false);
   if (info.is_null()) return Nothing<bool>();
   bool fast = obj->HasFastProperties();
   i::Handle<i::Object> result;
