@@ -7,7 +7,7 @@ let compileCount = 0;
 const Debug = new DebugWrapper();
 
 Debug.setListener(function(event, exec_state, event_data, data) {
-  if (event != DebugEvent.AfterCompile) return;
+  if (event != Debug.DebugEvent.AfterCompile) return;
   compileCount++;
 });
 

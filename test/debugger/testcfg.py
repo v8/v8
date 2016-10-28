@@ -33,7 +33,7 @@ class DebuggerTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    flags = ["--enable-inspector"] + context.mode_flags
+    flags = ["--enable-inspector", "--allow-natives-syntax"] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
