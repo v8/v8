@@ -29,6 +29,7 @@ namespace v8 {
 
 static const int kWasmTableArrayFieldIndex = 0;
 static const int kWasmTableMaximumFieldIndex = 1;
+static const int kWasmTableDispatchTablesFieldIndex = 2;
 
 enum WasmMemoryObjectData {
   kWasmMemoryBuffer,
@@ -37,8 +38,8 @@ enum WasmMemoryObjectData {
 };
 
 enum WasmInternalFieldCountData {
-  kWasmTableInternalFieldCount = 2,
-  kWasmMemoryInternalFieldCount
+  kWasmTableInternalFieldCount = 3,
+  kWasmMemoryInternalFieldCount = 3
 };
 
 namespace {
@@ -514,9 +515,19 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::FixedArray>::cast(array)->set(i, *value);
+  i::Handle<i::FixedArray> dispatch_tables(
+      i::FixedArray::cast(
+          receiver->GetInternalField(kWasmTableDispatchTablesFieldIndex)),
+      i_isolate);
+  if (value->IsNull(i_isolate)) {
+    i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
+                                  i::Handle<i::JSFunction>::null());
+  } else {
+    i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
+                                  i::Handle<i::JSFunction>::cast(value));
+  }
 
-  // TODO(titzer): update relevant instances.
+  i::Handle<i::FixedArray>::cast(array)->set(i, *value);
 }
 
 void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -608,24 +619,58 @@ i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
 
 i::Handle<i::JSObject> i::WasmJs::CreateWasmTableObject(
     i::Isolate* i_isolate, uint32_t initial, bool has_maximum, uint32_t maximum,
-    i::Handle<i::FixedArray>* array) {
+    i::Handle<i::FixedArray>* js_functions) {
   i::Handle<i::JSFunction> table_ctor(
       i_isolate->native_context()->wasm_table_constructor());
   i::Handle<i::JSObject> table_obj =
       i_isolate->factory()->NewJSObject(table_ctor);
-  *array = i_isolate->factory()->NewFixedArray(initial);
+  *js_functions = i_isolate->factory()->NewFixedArray(initial);
   i::Object* null = i_isolate->heap()->null_value();
   // TODO(titzer): consider moving FixedArray to size_t.
-  for (int i = 0; i < static_cast<int>(initial); ++i) (*array)->set(i, null);
-  table_obj->SetInternalField(kWasmTableArrayFieldIndex, *(*array));
+  for (int i = 0; i < static_cast<int>(initial); ++i) {
+    (*js_functions)->set(i, null);
+  }
+  table_obj->SetInternalField(kWasmTableArrayFieldIndex, *(*js_functions));
   table_obj->SetInternalField(
       kWasmTableMaximumFieldIndex,
       has_maximum
           ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
           : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
+  Handle<FixedArray> dispatch_tables = i_isolate->factory()->NewFixedArray(0);
+  table_obj->SetInternalField(kWasmTableDispatchTablesFieldIndex,
+                              *dispatch_tables);
   i::Handle<i::Symbol> table_sym(i_isolate->native_context()->wasm_table_sym());
   i::Object::SetProperty(table_obj, table_sym, table_obj, i::STRICT).Check();
   return table_obj;
+}
+
+i::Handle<i::FixedArray> i::WasmJs::AddWasmTableDispatchTable(
+    i::Isolate* i_isolate, i::Handle<i::JSObject> table_obj,
+    i::Handle<i::JSObject> instance, int table_index,
+    i::Handle<i::FixedArray> dispatch_table) {
+  DCHECK(IsWasmTableObject(i_isolate, table_obj));
+  i::Handle<i::FixedArray> dispatch_tables(
+      i::FixedArray::cast(
+          table_obj->GetInternalField(kWasmTableDispatchTablesFieldIndex)),
+      i_isolate);
+  DCHECK_EQ(0, dispatch_tables->length() % 3);
+
+  if (instance.is_null()) return dispatch_tables;
+  // TODO(titzer): use weak cells here to avoid leaking instances.
+
+  // Grow the dispatch table and add a new pair at the end.
+  i::Handle<i::FixedArray> new_dispatch_tables =
+      i_isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 3);
+
+  new_dispatch_tables->set(dispatch_tables->length() + 0, *instance);
+  new_dispatch_tables->set(dispatch_tables->length() + 1,
+                           Smi::FromInt(table_index));
+  new_dispatch_tables->set(dispatch_tables->length() + 2, *dispatch_table);
+
+  table_obj->SetInternalField(kWasmTableDispatchTablesFieldIndex,
+                              *new_dispatch_tables);
+
+  return new_dispatch_tables;
 }
 
 // TODO(titzer): we use the API to create the function template because the
@@ -813,15 +858,33 @@ void WasmJs::InstallWasmMapsIfNeeded(Isolate* isolate,
   }
 }
 
-bool WasmJs::IsWasmMemoryObject(Isolate* isolate, Handle<Object> value) {
+static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> symbol) {
   if (value->IsJSObject()) {
     i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
-    i::Handle<i::Symbol> sym(isolate->context()->wasm_memory_sym(), isolate);
-    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, sym);
+    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, symbol);
     if (has_brand.IsNothing()) return false;
     if (has_brand.ToChecked()) return true;
   }
   return false;
+}
+
+bool WasmJs::IsWasmMemoryObject(Isolate* isolate, Handle<Object> value) {
+  i::Handle<i::Symbol> symbol(isolate->context()->wasm_memory_sym(), isolate);
+  return HasBrand(value, symbol);
+}
+
+bool WasmJs::IsWasmTableObject(Isolate* isolate, Handle<Object> value) {
+  i::Handle<i::Symbol> symbol(isolate->context()->wasm_table_sym(), isolate);
+  return HasBrand(value, symbol);
+}
+
+Handle<FixedArray> WasmJs::GetWasmTableFunctions(Isolate* isolate,
+                                                 Handle<JSObject> value) {
+  DCHECK(IsWasmTableObject(isolate, value));
+  Handle<Object> arr(
+      JSObject::cast(*value)->GetInternalField(kWasmTableArrayFieldIndex),
+      isolate);
+  return Handle<FixedArray>::cast(arr);
 }
 
 Handle<JSArrayBuffer> WasmJs::GetWasmMemoryArrayBuffer(Isolate* isolate,
@@ -843,7 +906,7 @@ uint32_t WasmJs::GetWasmMemoryMaximumSize(Isolate* isolate,
   DCHECK(IsWasmMemoryObject(isolate, value));
   Object* max_mem =
       JSObject::cast(*value)->GetInternalField(kWasmMemoryMaximum);
-  if (max_mem->IsUndefined(isolate)) return wasm::WasmModule::kMaxMemPages;
+  if (max_mem->IsUndefined(isolate)) return wasm::WasmModule::kV8MaxPages;
   uint32_t max_pages = Smi::cast(max_mem)->value();
   return max_pages;
 }

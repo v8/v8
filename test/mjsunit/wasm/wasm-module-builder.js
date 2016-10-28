@@ -204,6 +204,12 @@ class WasmModuleBuilder {
     return this;
   }
 
+  addImportedTable(module, name, initial, maximum) {
+    let o = {module: module, name: name, kind: kExternalTable, initial: initial,
+             maximum: maximum};
+    this.imports.push(o);
+  }
+
   addExport(name, index) {
     this.exports.push({name: name, kind: kExternalFunction, index: index});
     return this;
@@ -285,6 +291,12 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.type);
             section.emit_u8(imp.mutable);
           } else if (imp.kind == kExternalMemory) {
+            var has_max = (typeof imp.maximum) != "undefined";
+            section.emit_u8(has_max ? 1 : 0); // flags
+            section.emit_u32v(imp.initial); // initial
+            if (has_max) section.emit_u32v(imp.maximum); // maximum
+          } else if (imp.kind == kExternalTable) {
+            section.emit_u8(kWasmAnyFunctionTypeForm);
             var has_max = (typeof imp.maximum) != "undefined";
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial
