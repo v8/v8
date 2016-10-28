@@ -499,6 +499,7 @@ class RuntimeCallTimer {
   RuntimeCallTimer() {}
   RuntimeCallCounter* counter() { return counter_; }
   base::ElapsedTimer timer() { return timer_; }
+  RuntimeCallTimer* parent() const { return parent_; }
 
  private:
   friend class RuntimeCallStats;

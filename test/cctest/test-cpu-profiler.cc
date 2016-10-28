@@ -71,10 +71,11 @@ static const char* reason(const i::DeoptimizeReason reason) {
 }
 
 TEST(StartStop) {
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  ProfileGenerator generator(&profiles);
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  ProfileGenerator generator(isolate, &profiles);
   std::unique_ptr<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(CcTest::i_isolate(), &generator,
+      new ProfilerEventsProcessor(isolate, &generator,
                                   v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   processor->StopSynchronously();
@@ -157,10 +158,9 @@ TEST(CodeEvents) {
   i::AbstractCode* args4_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(100));
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
@@ -226,7 +226,7 @@ TEST(TickEvents) {
   i::AbstractCode* frame3_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
   ProfilerEventsProcessor* processor =
       new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
@@ -299,7 +299,7 @@ TEST(Issue1398) {
   i::AbstractCode* code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
   ProfilerEventsProcessor* processor =
       new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
@@ -1073,7 +1073,7 @@ static void TickLines(bool optimize) {
   CHECK(code_address);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
   ProfilerEventsProcessor* processor =
       new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
