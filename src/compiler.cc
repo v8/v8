@@ -619,9 +619,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // Shared function no longer needs to be tiered up
   shared->set_marked_for_tier_up(false);
 
-  // Flag combination --ignition-osr --no-turbo-from-bytecode is unsupported.
-  if (ignition_osr && !FLAG_turbo_from_bytecode) return MaybeHandle<Code>();
-
   Handle<Code> cached_code;
   // TODO(4764): When compiling for OSR from bytecode, BailoutId might derive
   // from bytecode offset and overlap with actual BailoutId. No lookup!
@@ -675,7 +672,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
-  if (FLAG_turbo_from_bytecode && use_turbofan && ShouldUseIgnition(info)) {
+  if (use_turbofan && ShouldUseIgnition(info)) {
     if (info->is_osr() && !ignition_osr) return MaybeHandle<Code>();
     if (!Compiler::EnsureBytecode(info)) {
       if (isolate->has_pending_exception()) isolate->clear_pending_exception();
@@ -788,10 +785,9 @@ class InterpreterActivationsFinder : public ThreadVisitor,
     JavaScriptFrameIterator it(isolate, top);
     for (; !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
-      if (FLAG_turbo_from_bytecode && FLAG_ignition_osr &&
-          frame->is_optimized() && frame->function()->shared() == shared_) {
-        // If we are able to optimize functions directly from bytecode, then
-        // there might be optimized OSR code active on the stack that is not
+      if (FLAG_ignition_osr && frame->is_optimized() &&
+          frame->function()->shared() == shared_) {
+        // There might be optimized OSR code active on the stack that is not
         // reachable through a function. We count this as an activation.
         has_activations_ = true;
       }
@@ -838,12 +834,9 @@ bool HasInterpreterActivations(
     Isolate* isolate, InterpreterActivationsFinder* activations_finder) {
   activations_finder->VisitThread(isolate, isolate->thread_local_top());
   isolate->thread_manager()->IterateArchivedThreads(activations_finder);
-  if (FLAG_turbo_from_bytecode) {
-    // If we are able to optimize functions directly from bytecode, then there
-    // might be optimized functions that rely on bytecode being around. We need
-    // to prevent switching the given function to baseline code in those cases.
-    Deoptimizer::VisitAllOptimizedFunctions(isolate, activations_finder);
-  }
+  // There might be optimized functions that rely on bytecode being around. We
+  // need to prevent switching the given function to baseline code.
+  Deoptimizer::VisitAllOptimizedFunctions(isolate, activations_finder);
   return activations_finder->has_activations();
 }
 
@@ -1372,7 +1365,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
   if (shared->code()->is_interpreter_trampoline_builtin()) {
-    if (FLAG_turbo_from_bytecode && UseTurboFan(shared)) {
+    if (UseTurboFan(shared)) {
       return OPTIMIZED;
     } else {
       return BASELINE;
