@@ -8854,6 +8854,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 
 bool HOptimizedGraphBuilder::TryInlineApiFunctionCall(Call* expr,
                                                       HValue* receiver) {
+  if (FLAG_runtime_call_stats) return false;
   Handle<JSFunction> function = expr->target();
   int argc = expr->arguments()->length();
   SmallMapList receiver_maps;
@@ -8866,6 +8867,7 @@ bool HOptimizedGraphBuilder::TryInlineApiMethodCall(
     Call* expr,
     HValue* receiver,
     SmallMapList* receiver_maps) {
+  if (FLAG_runtime_call_stats) return false;
   Handle<JSFunction> function = expr->target();
   int argc = expr->arguments()->length();
   return TryInlineApiCall(function, receiver, receiver_maps, argc, expr->id(),
@@ -8875,6 +8877,7 @@ bool HOptimizedGraphBuilder::TryInlineApiMethodCall(
 bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<Object> function,
                                                 Handle<Map> receiver_map,
                                                 BailoutId ast_id) {
+  if (FLAG_runtime_call_stats) return false;
   SmallMapList receiver_maps(1, zone());
   receiver_maps.Add(receiver_map, zone());
   return TryInlineApiCall(function,
@@ -8898,6 +8901,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
     Handle<Object> function, HValue* receiver, SmallMapList* receiver_maps,
     int argc, BailoutId ast_id, ApiCallType call_type,
     TailCallMode syntactic_tail_call_mode) {
+  if (FLAG_runtime_call_stats) return false;
   if (function->IsJSFunction() &&
       Handle<JSFunction>::cast(function)->context()->native_context() !=
           top_info()->closure()->context()->native_context()) {
