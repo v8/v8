@@ -298,7 +298,6 @@ WasmGraphBuilder::WasmGraphBuilder(
       mem_buffer_(nullptr),
       mem_size_(nullptr),
       function_tables_(zone),
-      function_table_sizes_(zone),
       control_(nullptr),
       effect_(nullptr),
       cur_buffer_(def_buffer_),
@@ -1713,7 +1712,7 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
       graph(), jsgraph()->common(),
       graph()->NewNode(
           jsgraph()->machine()->Uint32LessThanOrEqual(), input,
-          jsgraph()->Uint32Constant(wasm::WasmModule::kV8MaxPages)),
+          jsgraph()->Uint32Constant(wasm::WasmModule::kMaxMemPages)),
       BranchHint::kTrue);
 
   check_input_range.Chain(*control_);
@@ -2155,17 +2154,28 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
   return BuildWasmCall(sig, args, rets, position);
 }
 
-Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
-                                     Node*** rets,
+Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args, Node*** rets,
                                      wasm::WasmCodePosition position) {
   DCHECK_NOT_NULL(args[0]);
   DCHECK(module_ && module_->instance);
 
-  // Assume only one table for now.
-  uint32_t table_index = 0;
-  wasm::FunctionSig* sig = module_->GetSignature(sig_index);
+  MachineOperatorBuilder* machine = jsgraph()->machine();
 
-  if (!module_->IsValidTable(table_index)) {
+  // Compute the code object by loading it from the function table.
+  Node* key = args[0];
+
+  // Assume only one table for now.
+  DCHECK_LE(module_->instance->function_tables.size(), 1u);
+  // Bounds check the index.
+  uint32_t table_size =
+      module_->IsValidTable(0) ? module_->GetTable(0)->max_size : 0;
+  wasm::FunctionSig* sig = module_->GetSignature(index);
+  if (table_size > 0) {
+    // Bounds check against the table size.
+    Node* size = Uint32Constant(table_size);
+    Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
+    trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
+  } else {
     // No function table. Generate a trap and return a constant.
     trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, Int32Constant(0), position);
     (*rets) = Buffer(sig->return_count());
@@ -2174,16 +2184,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
     }
     return trap_->GetTrapValue(sig);
   }
-
-  EnsureFunctionTableNodes();
-  MachineOperatorBuilder* machine = jsgraph()->machine();
-  Node* key = args[0];
-
-  // Bounds check against the table size.
-  Node* size = function_table_sizes_[table_index];
-  Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
-  trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
-  Node* table = function_tables_[table_index];
+  Node* table = FunctionTable(0);
 
   // Load signature from the table and check.
   // The table is a FixedArray; signatures are encoded as SMIs.
@@ -2207,7 +2208,6 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   }
 
   // Load code object from the table.
-  uint32_t table_size = module_->module->function_tables[table_index].min_size;
   uint32_t offset = fixed_offset + kPointerSize * table_size;
   Node* load_code = graph()->NewNode(
       machine->Load(MachineType::AnyTagged()), table,
@@ -2854,15 +2854,17 @@ Node* WasmGraphBuilder::MemSize(uint32_t offset) {
   }
 }
 
-void WasmGraphBuilder::EnsureFunctionTableNodes() {
-  if (function_tables_.size() > 0) return;
-  for (size_t i = 0; i < module_->instance->function_tables.size(); ++i) {
-    auto handle = module_->instance->function_tables[i];
-    DCHECK(!handle.is_null());
-    function_tables_.push_back(HeapConstant(handle));
-    uint32_t table_size = module_->module->function_tables[i].min_size;
-    function_table_sizes_.push_back(Uint32Constant(table_size));
+Node* WasmGraphBuilder::FunctionTable(uint32_t index) {
+  DCHECK(module_ && module_->instance &&
+         index < module_->instance->function_tables.size());
+  if (!function_tables_.size()) {
+    for (size_t i = 0; i < module_->instance->function_tables.size(); ++i) {
+      DCHECK(!module_->instance->function_tables[i].is_null());
+      function_tables_.push_back(
+          HeapConstant(module_->instance->function_tables[i]));
+    }
   }
+  return function_tables_[index];
 }
 
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {

@@ -24,24 +24,15 @@ class WasmJs {
                                       Handle<JSGlobalObject> global,
                                       Handle<Context> context);
 
-  // WebAssembly.Table.
-  static Handle<JSObject> CreateWasmTableObject(
-      Isolate* isolate, uint32_t initial, bool has_maximum, uint32_t maximum,
-      Handle<FixedArray>* js_functions);
-
-  static bool IsWasmTableObject(Isolate* isolate, Handle<Object> value);
-
-  static Handle<FixedArray> GetWasmTableFunctions(Isolate* isolate,
-                                                  Handle<JSObject> object);
-
-  static Handle<FixedArray> AddWasmTableDispatchTable(
-      Isolate* isolate, Handle<JSObject> table_obj, Handle<JSObject> instance,
-      int table_index, Handle<FixedArray> dispatch_table);
-
-  // WebAssembly.Memory
   static Handle<JSObject> CreateWasmMemoryObject(Isolate* isolate,
                                                  Handle<JSArrayBuffer> buffer,
                                                  bool has_maximum, int maximum);
+
+  static Handle<JSObject> CreateWasmTableObject(Isolate* isolate,
+                                                uint32_t initial,
+                                                bool has_maximum,
+                                                uint32_t maximum,
+                                                Handle<FixedArray>* array);
 
   static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
 

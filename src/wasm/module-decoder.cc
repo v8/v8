@@ -31,6 +31,8 @@ namespace {
 const char* kNameString = "name";
 const size_t kNameStringLength = 4;
 
+static const uint32_t kMaxTableSize = 1 << 28;
+
 LocalType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
   switch (expr.kind) {
     case WasmInitExpr::kNone:
@@ -309,22 +311,19 @@ class ModuleDecoder : public Decoder {
             // ===== Imported table ==========================================
             import->index =
                 static_cast<uint32_t>(module->function_tables.size());
-            module->function_tables.push_back({0, 0, false,
-                                               std::vector<int32_t>(), true,
-                                               false, SignatureMap()});
+            module->function_tables.push_back(
+                {0, 0, std::vector<int32_t>(), true, false, SignatureMap()});
             expect_u8("element type", kWasmAnyFunctionTypeForm);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
-            consume_resizable_limits(
-                "element count", "elements", WasmModule::kV8MaxTableSize,
-                &table->min_size, &table->has_max, &table->max_size);
+            consume_resizable_limits("element count", "elements", kMaxTableSize,
+                                     &table->size, &table->max_size);
             break;
           }
           case kExternalMemory: {
             // ===== Imported memory =========================================
-            bool has_max = false;
-            consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
-                                     &module->min_mem_pages, &has_max,
-                                     &module->max_mem_pages);
+            consume_resizable_limits(
+                "memory", "pages", WasmModule::kMaxLegalPages,
+                &module->min_mem_pages, &module->max_mem_pages);
             break;
           }
           case kExternalGlobal: {
@@ -376,16 +375,15 @@ class ModuleDecoder : public Decoder {
         error(pos, pos, "invalid table count %d, maximum 1", table_count);
       }
       if (module->function_tables.size() < 1) {
-        module->function_tables.push_back({0, 0, false, std::vector<int32_t>(),
-                                           false, false, SignatureMap()});
+        module->function_tables.push_back(
+            {0, 0, std::vector<int32_t>(), false, false, SignatureMap()});
       }
 
       for (uint32_t i = 0; ok() && i < table_count; i++) {
         WasmIndirectFunctionTable* table = &module->function_tables.back();
         expect_u8("table type", kWasmAnyFunctionTypeForm);
-        consume_resizable_limits("table elements", "elements",
-                                 WasmModule::kV8MaxTableSize, &table->min_size,
-                                 &table->has_max, &table->max_size);
+        consume_resizable_limits("table elements", "elements", kMaxUInt32,
+                                 &table->size, &table->max_size);
       }
       section_iter.advance();
     }
@@ -400,9 +398,8 @@ class ModuleDecoder : public Decoder {
       }
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
-        bool has_max = false;
-        consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
-                                 &module->min_mem_pages, &has_max,
+        consume_resizable_limits("memory", "pages", WasmModule::kMaxLegalPages,
+                                 &module->min_mem_pages,
                                  &module->max_mem_pages);
       }
       section_iter.advance();
@@ -626,6 +623,7 @@ class ModuleDecoder : public Decoder {
 
     if (ok()) {
       CalculateGlobalOffsets(module);
+      PreinitializeIndirectFunctionTables(module);
     }
     const WasmModule* finished_module = module;
     ModuleResult result = toResult(finished_module);
@@ -751,6 +749,30 @@ class ModuleDecoder : public Decoder {
     module->globals_size = offset;
   }
 
+  // TODO(titzer): this only works without overlapping initializations from
+  // global bases for entries
+  void PreinitializeIndirectFunctionTables(WasmModule* module) {
+    // Fill all tables with invalid entries first.
+    for (WasmIndirectFunctionTable& table : module->function_tables) {
+      table.values.resize(table.size);
+      for (size_t i = 0; i < table.size; i++) {
+        table.values[i] = kInvalidFunctionIndex;
+      }
+    }
+    for (WasmTableInit& init : module->table_inits) {
+      if (init.offset.kind != WasmInitExpr::kI32Const) continue;
+      if (init.table_index >= module->function_tables.size()) continue;
+      WasmIndirectFunctionTable& table =
+          module->function_tables[init.table_index];
+      for (size_t i = 0; i < init.entries.size(); i++) {
+        size_t index = i + init.offset.val.i32_const;
+        if (index < table.values.size()) {
+          table.values[index] = init.entries[i];
+        }
+      }
+    }
+  }
+
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(uint32_t func_num, ModuleEnv* menv,
                           WasmFunction* function) {
@@ -844,33 +866,29 @@ class ModuleDecoder : public Decoder {
 
   void consume_resizable_limits(const char* name, const char* units,
                                 uint32_t max_value, uint32_t* initial,
-                                bool* has_max, uint32_t* maximum) {
+                                uint32_t* maximum) {
     uint32_t flags = consume_u32v("resizable limits flags");
     const byte* pos = pc();
     *initial = consume_u32v("initial size");
-    *has_max = false;
     if (*initial > max_value) {
       error(pos, pos,
-            "initial %s size (%u %s) is larger than implementation limit (%u)",
+            "initial %s size (%u %s) is larger than maximum allowable (%u)",
             name, *initial, units, max_value);
     }
     if (flags & 1) {
-      *has_max = true;
       pos = pc();
       *maximum = consume_u32v("maximum size");
       if (*maximum > max_value) {
-        error(
-            pos, pos,
-            "maximum %s size (%u %s) is larger than implementation limit (%u)",
-            name, *maximum, units, max_value);
+        error(pos, pos,
+              "maximum %s size (%u %s) is larger than maximum allowable (%u)",
+              name, *maximum, units, max_value);
       }
       if (*maximum < *initial) {
         error(pos, pos, "maximum %s size (%u %s) is less than initial (%u %s)",
               name, *maximum, units, *initial, units);
       }
     } else {
-      *has_max = false;
-      *maximum = max_value;
+      *maximum = 0;
     }
   }
 

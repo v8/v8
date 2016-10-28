@@ -170,7 +170,7 @@ class WasmGraphBuilder {
   Node* ToJS(Node* node, wasm::LocalType type);
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
-  void EnsureFunctionTableNodes();
+  Node* FunctionTable(uint32_t index);
 
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -219,7 +219,6 @@ class WasmGraphBuilder {
   Node* mem_buffer_;
   Node* mem_size_;
   NodeVector function_tables_;
-  NodeVector function_table_sizes_;
   Node** control_;
   Node** effect_;
   Node** cur_buffer_;

@@ -510,7 +510,8 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
     EXPECT_EQ(1, result.val->signatures.size());
     EXPECT_EQ(1, result.val->functions.size());
     EXPECT_EQ(1, result.val->function_tables.size());
-    EXPECT_EQ(1, result.val->function_tables[0].min_size);
+    EXPECT_EQ(1, result.val->function_tables[0].values.size());
+    EXPECT_EQ(-1, result.val->function_tables[0].values[0]);
   }
   if (result.val) delete result.val;
 }
@@ -536,7 +537,8 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
     EXPECT_EQ(1, result.val->signatures.size());
     EXPECT_EQ(1, result.val->functions.size());
     EXPECT_EQ(1, result.val->function_tables.size());
-    EXPECT_EQ(1, result.val->function_tables[0].min_size);
+    EXPECT_EQ(1, result.val->function_tables[0].values.size());
+    EXPECT_EQ(0, result.val->function_tables[0].values[0]);
   }
   if (result.val) delete result.val;
 }
@@ -573,7 +575,10 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
     EXPECT_EQ(2, result.val->signatures.size());
     EXPECT_EQ(4, result.val->functions.size());
     EXPECT_EQ(1, result.val->function_tables.size());
-    EXPECT_EQ(8, result.val->function_tables[0].min_size);
+    EXPECT_EQ(8, result.val->function_tables[0].values.size());
+    for (int i = 0; i < 8; i++) {
+      EXPECT_EQ(i & 3, result.val->function_tables[0].values[i]);
+    }
   }
   if (result.val) delete result.val;
 }

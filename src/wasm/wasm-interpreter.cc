@@ -663,13 +663,16 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
                                         WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
-  if (delta_pages > wasm::WasmModule::kV8MaxPages) {
+  if (delta_pages > wasm::WasmModule::kMaxMemPages) {
     return -1;
   }
   uint32_t old_size = instance->mem_size;
   uint32_t new_size;
   byte* new_mem_start;
   if (instance->mem_size == 0) {
+    if (delta_pages > wasm::WasmModule::kMaxMemPages) {
+      return -1;
+    }
     // TODO(gdeepti): Fix bounds check to take into account size of memtype.
     new_size = delta_pages * wasm::WasmModule::kPageSize;
     new_mem_start = static_cast<byte*>(calloc(new_size, sizeof(byte)));
@@ -680,7 +683,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
     DCHECK_NOT_NULL(instance->mem_start);
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
     if (new_size >
-        wasm::WasmModule::kV8MaxPages * wasm::WasmModule::kPageSize) {
+        wasm::WasmModule::kMaxMemPages * wasm::WasmModule::kPageSize) {
       return -1;
     }
     new_mem_start = static_cast<byte*>(realloc(instance->mem_start, new_size));
@@ -692,6 +695,9 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   }
   instance->mem_start = new_mem_start;
   instance->mem_size = new_size;
+  // realloc
+  // update mem_start
+  // update mem_size
   return static_cast<int32_t>(old_size / WasmModule::kPageSize);
 }
 
