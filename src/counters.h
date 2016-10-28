@@ -521,6 +521,16 @@ class RuntimeCallTimer {
     return parent_;
   }
 
+  inline void Elapsed() {
+    base::TimeDelta delta = timer_.Elapsed();
+    counter_->time += delta;
+    if (parent_ != nullptr) {
+      parent_->counter_->time -= delta;
+      parent_->Elapsed();
+    }
+    timer_.Restart();
+  }
+
   RuntimeCallCounter* counter_ = nullptr;
   RuntimeCallTimer* parent_ = nullptr;
   base::ElapsedTimer timer_;

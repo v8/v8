@@ -316,6 +316,9 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
+  if (current_timer_ != NULL) {
+    current_timer_->Elapsed();
+  }
 
 #define PRINT_COUNTER(name) entries.Add(&this->name);
   FOR_EACH_MANUAL_COUNTER(PRINT_COUNTER)
@@ -368,6 +371,9 @@ void RuntimeCallStats::Reset() {
 }
 
 void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
+  if (current_timer_ != NULL) {
+    current_timer_->Elapsed();
+  }
 #define DUMP_COUNTER(name) \
   if (this->name.count > 0) this->name.Dump(value);
   FOR_EACH_MANUAL_COUNTER(DUMP_COUNTER)
