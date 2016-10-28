@@ -247,8 +247,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadInstanceType(compiler::Node* object);
   // Compare the instance the type of the object against the provided one.
   compiler::Node* HasInstanceType(compiler::Node* object, InstanceType type);
-  // Checks that given heap object has given instance type.
-  void AssertInstanceType(compiler::Node* object, InstanceType instance_type);
   // Load the properties backing store of a JSObject.
   compiler::Node* LoadProperties(compiler::Node* object);
   // Load the elements backing store of a JSObject.

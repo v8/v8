@@ -1000,11 +1000,6 @@ Node* CodeStubAssembler::HasInstanceType(Node* object,
   return Word32Equal(LoadInstanceType(object), Int32Constant(instance_type));
 }
 
-void CodeStubAssembler::AssertInstanceType(Node* object,
-                                           InstanceType instance_type) {
-  CSA_ASSERT(HasInstanceType(object, instance_type));
-}
-
 Node* CodeStubAssembler::LoadProperties(Node* object) {
   return LoadObjectField(object, JSObject::kPropertiesOffset);
 }
@@ -4455,7 +4450,7 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
     GotoIf(Word32Equal(LoadInstanceType(accessor_pair),
                        Int32Constant(ACCESSOR_INFO_TYPE)),
            if_bailout);
-    AssertInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE);
+    CSA_ASSERT(HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
     Node* getter = LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
     Node* getter_map = LoadMap(getter);
     Node* instance_type = LoadMapInstanceType(getter_map);
@@ -4610,7 +4605,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   Bind(&if_isfaststringwrapper);
   {
-    AssertInstanceType(object, JS_VALUE_TYPE);
+    CSA_ASSERT(HasInstanceType(object, JS_VALUE_TYPE));
     Node* string = LoadJSValueValue(object);
     CSA_ASSERT(IsStringInstanceType(LoadInstanceType(string)));
     Node* length = LoadStringLength(string);
@@ -4619,7 +4614,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   Bind(&if_isslowstringwrapper);
   {
-    AssertInstanceType(object, JS_VALUE_TYPE);
+    CSA_ASSERT(HasInstanceType(object, JS_VALUE_TYPE));
     Node* string = LoadJSValueValue(object);
     CSA_ASSERT(IsStringInstanceType(LoadInstanceType(string)));
     Node* length = LoadStringLength(string);
@@ -6232,11 +6227,11 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
   Label try_handler(this), miss(this);
   Node* weak_cell =
       LoadFixedArrayElement(p->vector, p->slot, 0, SMI_PARAMETERS);
-  AssertInstanceType(weak_cell, WEAK_CELL_TYPE);
+  CSA_ASSERT(HasInstanceType(weak_cell, WEAK_CELL_TYPE));
 
   // Load value or try handler case if the {weak_cell} is cleared.
   Node* property_cell = LoadWeakCellValue(weak_cell, &try_handler);
-  AssertInstanceType(property_cell, PROPERTY_CELL_TYPE);
+  CSA_ASSERT(HasInstanceType(property_cell, PROPERTY_CELL_TYPE));
 
   Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
   GotoIf(WordEqual(value, TheHoleConstant()), &miss);
@@ -6250,7 +6245,7 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
            &miss);
 
     // In this case {handler} must be a Code object.
-    AssertInstanceType(handler, CODE_TYPE);
+    CSA_ASSERT(HasInstanceType(handler, CODE_TYPE));
     LoadWithVectorDescriptor descriptor(isolate());
     Node* native_context = LoadNativeContext(p->context);
     Node* receiver =
@@ -8722,7 +8717,7 @@ compiler::Node* CodeStubAssembler::AllocateJSArrayIterator(
 }
 
 compiler::Node* CodeStubAssembler::IsDetachedBuffer(compiler::Node* buffer) {
-  AssertInstanceType(buffer, JS_ARRAY_BUFFER_TYPE);
+  CSA_ASSERT(HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
 
   Node* buffer_bit_field = LoadObjectField(
       buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32());
