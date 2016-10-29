@@ -133,8 +133,10 @@ struct WasmDataSegment {
 
 // Static representation of a wasm indirect call table.
 struct WasmIndirectFunctionTable {
-  uint32_t size;                // initial table size.
+  uint32_t min_size;            // minimum table size.
   uint32_t max_size;            // maximum table size.
+  bool has_max;                 // true if there is a maximum size.
+  // TODO(titzer): Move this to WasmInstance. Needed by interpreter only.
   std::vector<int32_t> values;  // function table, -1 indicating invalid.
   bool imported;                // true if imported.
   bool exported;                // true if exported.
@@ -173,9 +175,9 @@ class WasmCompiledModule;
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
-  static const uint32_t kMaxLegalPages = 65536;  // Maximum legal pages
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
-  static const uint32_t kMaxMemPages = 16384;   // Maximum memory size =  1gb
+  static const size_t kV8MaxPages = 16384;      // Maximum memory size = 1gb
+  static const size_t kV8MaxTableSize = 16 * 1024 * 1024;
 
   Zone* owned_zone;
   const byte* module_start = nullptr;  // starting address for the module bytes
@@ -556,6 +558,9 @@ int32_t GetInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance);
 
 int32_t GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                            uint32_t pages);
+
+void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
+                          int index, Handle<JSFunction> js_function);
 
 namespace testing {
 
