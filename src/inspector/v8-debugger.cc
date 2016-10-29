@@ -14,6 +14,8 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-copier.h"
 
+#include "include/v8-util.h"
+
 namespace v8_inspector {
 
 namespace {
@@ -116,29 +118,20 @@ void V8Debugger::getCompiledScripts(
     int contextGroupId,
     std::vector<std::unique_ptr<V8DebuggerScript>>& result) {
   v8::HandleScope scope(m_isolate);
-  v8::MicrotasksScope microtasks(m_isolate,
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::Local<v8::Context> context = debuggerContext();
-  v8::Local<v8::Object> debuggerScript = m_debuggerScript.Get(m_isolate);
-  DCHECK(!debuggerScript->IsUndefined());
-  v8::Local<v8::Function> getScriptsFunction = v8::Local<v8::Function>::Cast(
-      debuggerScript
-          ->Get(context, toV8StringInternalized(m_isolate, "getScripts"))
-          .ToLocalChecked());
-  v8::Local<v8::Value> argv[] = {v8::Integer::New(m_isolate, contextGroupId)};
-  v8::Local<v8::Value> value;
-  if (!getScriptsFunction->Call(context, debuggerScript, arraysize(argv), argv)
-           .ToLocal(&value))
-    return;
-  DCHECK(value->IsArray());
-  v8::Local<v8::Array> scriptsArray = v8::Local<v8::Array>::Cast(value);
-  result.reserve(scriptsArray->Length());
-  for (unsigned i = 0; i < scriptsArray->Length(); ++i) {
-    v8::Local<v8::Object> scriptObject = v8::Local<v8::Object>::Cast(
-        scriptsArray->Get(context, v8::Integer::New(m_isolate, i))
-            .ToLocalChecked());
-    result.push_back(wrapUnique(
-        new V8DebuggerScript(context, scriptObject, inLiveEditScope)));
+  v8::PersistentValueVector<v8::DebugInterface::Script> scripts(m_isolate);
+  v8::DebugInterface::GetLoadedScripts(m_isolate, scripts);
+  String16 contextPrefix = String16::fromInteger(contextGroupId) + ",";
+  for (size_t i = 0; i < scripts.Size(); ++i) {
+    v8::Local<v8::DebugInterface::Script> script = scripts.Get(i);
+    if (!script->WasCompiled()) continue;
+    v8::ScriptOriginOptions origin = script->OriginOptions();
+    if (origin.IsEmbedderDebugScript()) continue;
+    v8::Local<v8::String> v8ContextData;
+    if (!script->ContextData().ToLocal(&v8ContextData)) continue;
+    String16 contextData = toProtocolString(v8ContextData);
+    if (contextData.find(contextPrefix) != 0) continue;
+    result.push_back(
+        wrapUnique(new V8DebuggerScript(m_isolate, script, false)));
   }
 }
 
@@ -586,16 +579,20 @@ void V8Debugger::handleV8DebugEvent(
     v8::HandleScope scope(m_isolate);
     if (m_ignoreScriptParsedEventsCounter == 0 &&
         (event == v8::AfterCompile || event == v8::CompileError)) {
-      v8::Context::Scope contextScope(debuggerContext());
+      v8::Local<v8::Context> context = debuggerContext();
+      v8::Context::Scope contextScope(context);
       v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
       v8::Local<v8::Value> value =
           callDebuggerMethod("getAfterCompileScript", 1, argv).ToLocalChecked();
       if (value->IsNull()) return;
       DCHECK(value->IsObject());
       v8::Local<v8::Object> scriptObject = v8::Local<v8::Object>::Cast(value);
+      v8::Local<v8::DebugInterface::Script> script;
+      if (!v8::DebugInterface::Script::Wrap(m_isolate, scriptObject)
+               .ToLocal(&script))
+        return;
       agent->didParseSource(
-          wrapUnique(new V8DebuggerScript(debuggerContext(), scriptObject,
-                                          inLiveEditScope)),
+          wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
           event == v8::AfterCompile);
     } else if (event == v8::Exception) {
       v8::Local<v8::Object> eventData = eventDetails.GetEventData();

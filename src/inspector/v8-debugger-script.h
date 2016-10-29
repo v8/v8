@@ -34,12 +34,14 @@
 #include "src/inspector/string-16.h"
 
 #include "include/v8.h"
+#include "src/debug/debug-interface.h"
 
 namespace v8_inspector {
 
 class V8DebuggerScript {
  public:
-  V8DebuggerScript(v8::Local<v8::Context>, v8::Local<v8::Object>,
+  V8DebuggerScript(v8::Isolate* isolate,
+                   v8::Local<v8::DebugInterface::Script> script,
                    bool isLiveEdit);
   ~V8DebuggerScript();
 

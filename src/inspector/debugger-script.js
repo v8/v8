@@ -40,7 +40,7 @@ DebuggerScript.getAfterCompileScript = function(eventData)
 {
     var script = eventData.script().value();
     if (!script.is_debugger_script)
-        return DebuggerScript._formatScript(eventData.script().value());
+        return script;
     return null;
 }
 
@@ -137,82 +137,6 @@ DebuggerScript._executionContextId = function(contextData)
     if (!match)
         return 0;
     return parseInt(match[1], 10) || 0;
-}
-
-/**
- * @param {string|undefined} contextData
- * @return {string}
- */
-DebuggerScript._executionContextAuxData = function(contextData)
-{
-    if (!contextData)
-        return "";
-    var match = contextData.match(/^[^,]*,[^,]*,(.*)$/);
-    return match ? match[1] : "";
-}
-
-/**
- * @param {string} contextGroupId
- * @return {!Array<!FormattedScript>}
- */
-DebuggerScript.getScripts = function(contextGroupId)
-{
-    var result = [];
-    var scripts = Debug.scripts();
-    var contextDataPrefix = null;
-    if (contextGroupId)
-        contextDataPrefix = contextGroupId + ",";
-    for (var i = 0; i < scripts.length; ++i) {
-        var script = scripts[i];
-        if (contextDataPrefix) {
-            if (!script.context_data)
-                continue;
-            // Context data is a string in the following format:
-            // <contextGroupId>,<contextId>,<auxData>
-            if (script.context_data.indexOf(contextDataPrefix) !== 0)
-                continue;
-        }
-        if (script.is_debugger_script)
-            continue;
-        result.push(DebuggerScript._formatScript(script));
-    }
-    return result;
-}
-
-/**
- * @param {!Script} script
- * @return {!FormattedScript}
- */
-DebuggerScript._formatScript = function(script)
-{
-    var lineEnds = script.line_ends;
-    var lineCount = lineEnds.length;
-    var endLine = script.line_offset + lineCount - 1;
-    var endColumn;
-    // V8 will not count last line if script source ends with \n.
-    if (script.source[script.source.length - 1] === '\n') {
-        endLine += 1;
-        endColumn = 0;
-    } else {
-        if (lineCount === 1)
-            endColumn = script.source.length + script.column_offset;
-        else
-            endColumn = script.source.length - (lineEnds[lineCount - 2] + 1);
-    }
-    return {
-        id: script.id,
-        name: script.nameOrSourceURL(),
-        sourceURL: script.source_url,
-        sourceMappingURL: script.source_mapping_url,
-        source: script.source,
-        startLine: script.line_offset,
-        startColumn: script.column_offset,
-        endLine: endLine,
-        endColumn: endColumn,
-        executionContextId: DebuggerScript._executionContextId(script.context_data),
-        // Note that we cannot derive aux data from context id because of compilation cache.
-        executionContextAuxData: DebuggerScript._executionContextAuxData(script.context_data)
-    };
 }
 
 /**
