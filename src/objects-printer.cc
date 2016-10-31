@@ -66,11 +66,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberPrint(os);
+      os << "\n";
       break;
     case MUTABLE_HEAP_NUMBER_TYPE:
       os << "<mutable ";
       HeapNumber::cast(this)->HeapNumberPrint(os);
-      os << ">";
+      os << ">\n";
       break;
     case SIMD128_VALUE_TYPE:
       Simd128Value::cast(this)->Simd128ValuePrint(os);
