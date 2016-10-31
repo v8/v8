@@ -437,6 +437,9 @@ class InterruptThread : public v8::base::Thread {
 };
 
 TEST(TestInterruptLoop) {
+  // Do not dump the module of this test because it contains an infinite loop.
+  if (FLAG_dump_wasm_module) return;
+
   // This test tests that WebAssembly loops can be interrupted, i.e. that if an
   // InterruptCallback is registered by {Isolate::RequestInterrupt}, then the
   // InterruptCallback is eventually called even if a loop in WebAssembly code
