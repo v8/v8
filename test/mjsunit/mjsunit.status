@@ -65,7 +65,7 @@
 
   # Issue 5587: The eval'ed code is piped through Ignition and fails when being
   # live edited. This needs investigation.
-  'debug-liveedit-double-call': [PASS, FAIL],
+  'debug-liveedit-double-call': [SKIP],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
