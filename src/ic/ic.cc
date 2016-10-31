@@ -993,6 +993,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (state() == UNINITIALIZED && kind() != Code::LOAD_GLOBAL_IC) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
+    TRACE_HANDLER_STATS(isolate(), LoadIC_Premonomorphic);
     ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
     TRACE_IC("LoadIC", lookup->name());
     return;
@@ -1108,6 +1109,69 @@ void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* handler) {
   stub_cache()->Set(name, map, handler);
 }
 
+void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
+  if (!FLAG_runtime_call_stats) return;
+
+  if (kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC ||
+      kind() == Code::KEYED_LOAD_IC) {
+    switch (lookup->state()) {
+      case LookupIterator::ACCESS_CHECK:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_AccessCheck);
+        break;
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Exotic);
+        break;
+      case LookupIterator::INTERCEPTOR:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Interceptor);
+        break;
+      case LookupIterator::JSPROXY:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_JSProxy);
+        break;
+      case LookupIterator::NOT_FOUND:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_NonExistent);
+        break;
+      case LookupIterator::ACCESSOR:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Accessor);
+        break;
+      case LookupIterator::DATA:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Data);
+        break;
+      case LookupIterator::TRANSITION:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Transition);
+        break;
+    }
+  } else if (kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC) {
+    switch (lookup->state()) {
+      case LookupIterator::ACCESS_CHECK:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_AccessCheck);
+        break;
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Exotic);
+        break;
+      case LookupIterator::INTERCEPTOR:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Interceptor);
+        break;
+      case LookupIterator::JSPROXY:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_JSProxy);
+        break;
+      case LookupIterator::NOT_FOUND:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_NonExistent);
+        break;
+      case LookupIterator::ACCESSOR:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Accessor);
+        break;
+      case LookupIterator::DATA:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Data);
+        break;
+      case LookupIterator::TRANSITION:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Transition);
+        break;
+    }
+  } else {
+    TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
+  }
+}
+
 Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
                                   Handle<Object> value) {
   // Try to find a globally shared handler stub.
@@ -1142,7 +1206,7 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
     Handle<Object> handler;
     if (maybe_handler_.ToHandle(&handler)) {
       if (!handler.is_identical_to(code)) {
-        TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
+        TraceHandlerCacheHitStats(lookup);
         return code;
       }
     } else {
@@ -1154,11 +1218,11 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
         Object* megamorphic_cached_handler =
             stub_cache()->Get(*lookup->name(), map);
         if (megamorphic_cached_handler != *code) {
-          TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
+          TraceHandlerCacheHitStats(lookup);
           return code;
         }
       } else {
-        TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
+        TraceHandlerCacheHitStats(lookup);
         return code;
       }
     }
@@ -1728,6 +1792,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
+    TRACE_HANDLER_STATS(isolate(), StoreIC_Premonomorphic);
     ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
     TRACE_IC("StoreIC", lookup->name());
     return;

@@ -744,6 +744,14 @@ class RuntimeCallTimer {
   V(KeyedStoreIC_StoreElementStub)              \
   V(KeyedStoreIC_Polymorphic)                   \
   V(LoadIC_FunctionPrototypeStub)               \
+  V(LoadIC_HandlerCacheHit_AccessCheck)         \
+  V(LoadIC_HandlerCacheHit_Exotic)              \
+  V(LoadIC_HandlerCacheHit_Interceptor)         \
+  V(LoadIC_HandlerCacheHit_JSProxy)             \
+  V(LoadIC_HandlerCacheHit_NonExistent)         \
+  V(LoadIC_HandlerCacheHit_Accessor)            \
+  V(LoadIC_HandlerCacheHit_Data)                \
+  V(LoadIC_HandlerCacheHit_Transition)          \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
   V(LoadIC_LoadConstantDH)                      \
@@ -760,8 +768,18 @@ class RuntimeCallTimer {
   V(LoadIC_LoadNormal)                          \
   V(LoadIC_LoadScriptContextFieldStub)          \
   V(LoadIC_LoadViaGetter)                       \
+  V(LoadIC_Premonomorphic)                      \
   V(LoadIC_SlowStub)                            \
   V(LoadIC_StringLengthStub)                    \
+  V(StoreIC_HandlerCacheHit_AccessCheck)        \
+  V(StoreIC_HandlerCacheHit_Exotic)             \
+  V(StoreIC_HandlerCacheHit_Interceptor)        \
+  V(StoreIC_HandlerCacheHit_JSProxy)            \
+  V(StoreIC_HandlerCacheHit_NonExistent)        \
+  V(StoreIC_HandlerCacheHit_Accessor)           \
+  V(StoreIC_HandlerCacheHit_Data)               \
+  V(StoreIC_HandlerCacheHit_Transition)         \
+  V(StoreIC_Premonomorphic)                     \
   V(StoreIC_SlowStub)                           \
   V(StoreIC_StoreCallback)                      \
   V(StoreIC_StoreField)                         \

@@ -140,6 +140,8 @@ class IC {
   static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
+  void TraceHandlerCacheHitStats(LookupIterator* lookup);
+
   // Compute the handler either by compiling or by retrieving a cached version.
   Handle<Object> ComputeHandler(LookupIterator* lookup,
                                 Handle<Object> value = Handle<Code>::null());

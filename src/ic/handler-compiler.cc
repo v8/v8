@@ -65,7 +65,10 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   // name specific if there are global objects involved.
   Handle<Code> handler = PropertyHandlerCompiler::Find(
       cache_name, stub_holder_map, Code::LOAD_IC, flag);
-  if (!handler.is_null()) return handler;
+  if (!handler.is_null()) {
+    TRACE_HANDLER_STATS(isolate, LoadIC_HandlerCacheHit_NonExistent);
+    return handler;
+  }
 
   TRACE_HANDLER_STATS(isolate, LoadIC_LoadNonexistent);
   NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
