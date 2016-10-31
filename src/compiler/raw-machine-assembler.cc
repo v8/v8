@@ -120,23 +120,46 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
 }
 
 void RawMachineAssembler::Return(Node* value) {
-  Node* ret = MakeNode(common()->Return(), 1, &value);
+  Node* values[] = {Int32Constant(0), value};
+  Node* ret = MakeNode(common()->Return(1), 2, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
 
 
 void RawMachineAssembler::Return(Node* v1, Node* v2) {
-  Node* values[] = {v1, v2};
-  Node* ret = MakeNode(common()->Return(2), 2, values);
+  Node* values[] = {Int32Constant(0), v1, v2};
+  Node* ret = MakeNode(common()->Return(2), 3, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
 
 
 void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
-  Node* values[] = {v1, v2, v3};
-  Node* ret = MakeNode(common()->Return(3), 3, values);
+  Node* values[] = {Int32Constant(0), v1, v2, v3};
+  Node* ret = MakeNode(common()->Return(3), 4, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
+  Node* values[] = {pop, value};
+  Node* ret = MakeNode(common()->Return(1), 2, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2) {
+  Node* values[] = {pop, v1, v2};
+  Node* ret = MakeNode(common()->Return(2), 3, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
+                                       Node* v3) {
+  Node* values[] = {pop, v1, v2, v3};
+  Node* ret = MakeNode(common()->Return(3), 4, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }

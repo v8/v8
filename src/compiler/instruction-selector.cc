@@ -1889,106 +1889,63 @@ void InstructionSelector::VisitTailCall(Node* node) {
   DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
-  if (caller->CanTailCall(node)) {
-    const CallDescriptor* callee = CallDescriptorOf(node->op());
-    int stack_param_delta = callee->GetStackParameterDelta(caller);
-    CallBuffer buffer(zone(), descriptor, nullptr);
+  DCHECK(caller->CanTailCall(node));
+  const CallDescriptor* callee = CallDescriptorOf(node->op());
+  int stack_param_delta = callee->GetStackParameterDelta(caller);
+  CallBuffer buffer(zone(), descriptor, nullptr);
 
-    // Compute InstructionOperands for inputs and outputs.
-    CallBufferFlags flags(kCallCodeImmediate | kCallTail);
-    if (IsTailCallAddressImmediate()) {
-      flags |= kCallAddressImmediate;
-    }
-    InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
+  // Compute InstructionOperands for inputs and outputs.
+  CallBufferFlags flags(kCallCodeImmediate | kCallTail);
+  if (IsTailCallAddressImmediate()) {
+    flags |= kCallAddressImmediate;
+  }
+  InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
 
-    // Select the appropriate opcode based on the call type.
-    InstructionCode opcode;
-    InstructionOperandVector temps(zone());
-    if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-      switch (descriptor->kind()) {
-        case CallDescriptor::kCallCodeObject:
-          opcode = kArchTailCallCodeObjectFromJSFunction;
-          break;
-        case CallDescriptor::kCallJSFunction:
-          opcode = kArchTailCallJSFunctionFromJSFunction;
-          break;
-        default:
-          UNREACHABLE();
-          return;
-      }
-      int temps_count = GetTempsCountForTailCallFromJSFunction();
-      for (int i = 0; i < temps_count; i++) {
-        temps.push_back(g.TempRegister());
-      }
-    } else {
-      switch (descriptor->kind()) {
-        case CallDescriptor::kCallCodeObject:
-          opcode = kArchTailCallCodeObject;
-          break;
-        case CallDescriptor::kCallAddress:
-          opcode = kArchTailCallAddress;
-          break;
-        default:
-          UNREACHABLE();
-          return;
-      }
-    }
-    opcode |= MiscField::encode(descriptor->flags());
-
-    Emit(kArchPrepareTailCall, g.NoOutput());
-
-    int first_unused_stack_slot =
-        (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0) +
-        stack_param_delta;
-    buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
-
-    // Emit the tailcall instruction.
-    Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
-         &buffer.instruction_args.front(), temps.size(),
-         temps.empty() ? nullptr : &temps.front());
-  } else {
-    FrameStateDescriptor* frame_state_descriptor =
-        descriptor->NeedsFrameState()
-            ? GetFrameStateDescriptor(
-                  node->InputAt(static_cast<int>(descriptor->InputCount())))
-            : nullptr;
-
-    CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
-
-    // Compute InstructionOperands for inputs and outputs.
-    CallBufferFlags flags = kCallCodeImmediate;
-    if (IsTailCallAddressImmediate()) {
-      flags |= kCallAddressImmediate;
-    }
-    InitializeCallBuffer(node, &buffer, flags);
-
-    EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
-
-    // Select the appropriate opcode based on the call type.
-    InstructionCode opcode;
+  // Select the appropriate opcode based on the call type.
+  InstructionCode opcode;
+  InstructionOperandVector temps(zone());
+  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     switch (descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
-        opcode = kArchCallCodeObject;
+        opcode = kArchTailCallCodeObjectFromJSFunction;
         break;
       case CallDescriptor::kCallJSFunction:
-        opcode = kArchCallJSFunction;
+        opcode = kArchTailCallJSFunctionFromJSFunction;
         break;
       default:
         UNREACHABLE();
         return;
     }
-    opcode |= MiscField::encode(descriptor->flags());
-
-    // Emit the call instruction.
-    size_t output_count = buffer.outputs.size();
-    auto* outputs = &buffer.outputs.front();
-    Instruction* call_instr =
-        Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-             &buffer.instruction_args.front());
-    if (instruction_selection_failed()) return;
-    call_instr->MarkAsCall();
-    Emit(kArchRet, 0, nullptr, output_count, outputs);
+    int temps_count = GetTempsCountForTailCallFromJSFunction();
+    for (int i = 0; i < temps_count; i++) {
+      temps.push_back(g.TempRegister());
+    }
+  } else {
+    switch (descriptor->kind()) {
+      case CallDescriptor::kCallCodeObject:
+        opcode = kArchTailCallCodeObject;
+        break;
+      case CallDescriptor::kCallAddress:
+        opcode = kArchTailCallAddress;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
   }
+  opcode |= MiscField::encode(descriptor->flags());
+
+  Emit(kArchPrepareTailCall, g.NoOutput());
+
+  int first_unused_stack_slot =
+      (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0) +
+      stack_param_delta;
+  buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
+
+  // Emit the tailcall instruction.
+  Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
+       &buffer.instruction_args.front(), temps.size(),
+       temps.empty() ? nullptr : &temps.front());
 }
 
 
@@ -1998,20 +1955,22 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
   Emit(kArchJmp, g.NoOutput(), g.Label(target));
 }
 
-
 void InstructionSelector::VisitReturn(Node* ret) {
   OperandGenerator g(this);
-  if (linkage()->GetIncomingDescriptor()->ReturnCount() == 0) {
-    Emit(kArchRet, g.NoOutput());
-  } else {
-    const int ret_count = ret->op()->ValueInputCount();
-    auto value_locations = zone()->NewArray<InstructionOperand>(ret_count);
-    for (int i = 0; i < ret_count; ++i) {
-      value_locations[i] =
-          g.UseLocation(ret->InputAt(i), linkage()->GetReturnLocation(i));
-    }
-    Emit(kArchRet, 0, nullptr, ret_count, value_locations);
+  const int input_count = linkage()->GetIncomingDescriptor()->ReturnCount() == 0
+                              ? 1
+                              : ret->op()->ValueInputCount();
+  DCHECK_GE(input_count, 1);
+  auto value_locations = zone()->NewArray<InstructionOperand>(input_count);
+  Node* pop_count = ret->InputAt(0);
+  value_locations[0] = pop_count->opcode() == IrOpcode::kInt32Constant
+                           ? g.UseImmediate(pop_count)
+                           : g.UseRegister(pop_count);
+  for (int i = 1; i < input_count; ++i) {
+    value_locations[i] =
+        g.UseLocation(ret->InputAt(i), linkage()->GetReturnLocation(i - 1));
   }
+  Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
 
 Instruction* InstructionSelector::EmitDeoptimize(InstructionCode opcode,

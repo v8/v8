@@ -90,7 +90,8 @@ class LoopPeelingTest : public GraphTest {
   }
 
   Node* InsertReturn(Node* val, Node* effect, Node* control) {
-    Node* r = graph()->NewNode(common()->Return(), val, effect, control);
+    Node* zero = graph()->NewNode(common()->Int32Constant(0));
+    Node* r = graph()->NewNode(common()->Return(), zero, val, effect, control);
     graph()->SetEnd(r);
     return r;
   }

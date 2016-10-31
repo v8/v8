@@ -356,10 +356,10 @@ class IsReturnMatcher final : public NodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
                                  "value", value_matcher_, listener) &&
             (!has_second_return_value_ ||
-             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
                                   "value2", value2_matcher_, listener)) &&
             PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
                                  effect_matcher_, listener) &&

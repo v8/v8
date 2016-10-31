@@ -84,8 +84,8 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   }
 
   Node* Return(Node* input) {
-    Node* n = graph()->NewNode(common()->Return(), input, graph()->start(),
-                               graph()->start());
+    Node* n = graph()->NewNode(common()->Return(), jsgraph()->Int32Constant(0),
+                               input, graph()->start(), graph()->start());
     return n;
   }
 

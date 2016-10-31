@@ -1729,5 +1729,63 @@ TEST(AllocateNameDictionary) {
   }
 }
 
+TEST(PopAndReturnConstant) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  const int kNumProgramaticParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams - kNumProgramaticParams);
+
+  // Call a function that return |kNumProgramaticParams| parameters in addition
+  // to those specified by the static descriptor. |kNumProgramaticParams| is
+  // specified as a constant.
+  m.PopAndReturn(m.Int32Constant(kNumProgramaticParams),
+                 m.SmiConstant(Smi::FromInt(1234)));
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result;
+  for (int test_count = 0; test_count < 100; ++test_count) {
+    result = ft.Call(isolate->factory()->undefined_value(),
+                     Handle<Smi>(Smi::FromInt(1234), isolate),
+                     isolate->factory()->undefined_value(),
+                     isolate->factory()->undefined_value())
+                 .ToHandleChecked();
+    CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
+  }
+}
+
+TEST(PopAndReturnVariable) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  const int kNumProgramaticParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams - kNumProgramaticParams);
+
+  // Call a function that return |kNumProgramaticParams| parameters in addition
+  // to those specified by the static descriptor. |kNumProgramaticParams| is
+  // passed in as a parameter to the function so that it can't be recongized as
+  // a constant.
+  m.PopAndReturn(m.SmiUntag(m.Parameter(1)), m.SmiConstant(Smi::FromInt(1234)));
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result;
+  for (int test_count = 0; test_count < 100; ++test_count) {
+    result =
+        ft.Call(isolate->factory()->undefined_value(),
+                Handle<Smi>(Smi::FromInt(1234), isolate),
+                isolate->factory()->undefined_value(),
+                Handle<Smi>(Smi::FromInt(kNumProgramaticParams * kPointerSize),
+                            isolate))
+            .ToHandleChecked();
+    CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
