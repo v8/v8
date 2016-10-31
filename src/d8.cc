@@ -1808,11 +1808,9 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
     if (callback->IsFunction()) {
       v8::TryCatch try_catch(isolate_);
       Local<Value> args[] = {message};
-      if (Local<Function>::Cast(callback)
-              ->Call(context, Undefined(isolate_), 1, args)
-              .IsEmpty()) {
-        try_catch.ReThrow();
-      }
+      MaybeLocal<Value> result = Local<Function>::Cast(callback)->Call(
+          context, Undefined(isolate_), 1, args);
+      CHECK(!result.IsEmpty());  // Listeners may not throw.
     }
   }
 

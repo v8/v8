@@ -1850,7 +1850,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                                    event_listener_data_,
                                    client_data);
     callback(event_details);
-    DCHECK(!isolate_->has_scheduled_exception());
+    CHECK(!isolate_->has_scheduled_exception());
   } else {
     // Invoke the JavaScript debug event listener.
     DCHECK(event_listener_->IsJSFunction());
@@ -1859,8 +1859,10 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               event_data,
                               event_listener_data_ };
     Handle<JSReceiver> global = isolate_->global_proxy();
-    Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
-                       global, arraysize(argv), argv);
+    MaybeHandle<Object> result =
+        Execution::Call(isolate_, Handle<JSFunction>::cast(event_listener_),
+                        global, arraysize(argv), argv);
+    CHECK(!result.is_null());  // Listeners may not throw.
   }
   in_debug_event_listener_ = previous;
 }
