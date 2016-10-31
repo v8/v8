@@ -668,7 +668,6 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
 Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
   uint32_t* transfer_entry = array_buffer_transfer_map_.Find(array_buffer);
   if (transfer_entry) {
-    DCHECK(array_buffer->was_neutered() || array_buffer->is_shared());
     WriteTag(array_buffer->is_shared()
                  ? SerializationTag::kSharedArrayBufferTransfer
                  : SerializationTag::kArrayBufferTransfer);
