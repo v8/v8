@@ -1931,7 +1931,7 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
   }
 }
 
-Map* Object::GetRootMap(Isolate* isolate) {
+Map* Object::GetPrototypeChainRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
     Context* native_context = isolate->context()->native_context();
@@ -1941,11 +1941,15 @@ Map* Object::GetRootMap(Isolate* isolate) {
   // The object is either a number, a string, a symbol, a boolean, a SIMD value,
   // a real JS object, or a Harmony proxy.
   HeapObject* heap_object = HeapObject::cast(this);
-  if (heap_object->IsJSReceiver()) {
-    return heap_object->map();
+  return heap_object->map()->GetPrototypeChainRootMap(isolate);
+}
+
+Map* Map::GetPrototypeChainRootMap(Isolate* isolate) {
+  DisallowHeapAllocation no_alloc;
+  if (IsJSReceiverMap()) {
+    return this;
   }
-  int constructor_function_index =
-      heap_object->map()->GetConstructorFunctionIndex();
+  int constructor_function_index = GetConstructorFunctionIndex();
   if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
     Context* native_context = isolate->context()->native_context();
     JSFunction* constructor_function =
@@ -12734,7 +12738,8 @@ void Map::SetShouldBeFastPrototypeMap(Handle<Map> map, bool value,
 // static
 Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
                                                         Isolate* isolate) {
-  Handle<Object> maybe_prototype(map->prototype(), isolate);
+  Handle<Object> maybe_prototype(
+      map->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   if (!maybe_prototype->IsJSObject()) return Handle<Cell>::null();
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell

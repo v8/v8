@@ -1559,7 +1559,7 @@ class Object {
   friend class StringStream;
 
   // Return the map of the root of object's prototype chain.
-  Map* GetRootMap(Isolate* isolate);
+  Map* GetPrototypeChainRootMap(Isolate* isolate);
 
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.
@@ -6331,6 +6331,9 @@ class Map: public HeapObject {
                                                             Isolate* isolate);
   static const int kPrototypeChainValid = 0;
   static const int kPrototypeChainInvalid = 1;
+
+  // Return the map of the root of object's prototype chain.
+  Map* GetPrototypeChainRootMap(Isolate* isolate);
 
   // Returns a WeakCell object containing given prototype. The cell is cached
   // in PrototypeInfo which is created lazily.

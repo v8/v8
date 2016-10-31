@@ -32,9 +32,9 @@ class PrototypeIterator {
   PrototypeIterator(Isolate* isolate, Handle<JSReceiver> receiver,
                     WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
-      : object_(NULL),
+      : isolate_(isolate),
+        object_(NULL),
         handle_(receiver),
-        isolate_(isolate),
         where_to_end_(where_to_end),
         is_at_end_(false),
         seen_proxies_(0) {
@@ -45,8 +45,8 @@ class PrototypeIterator {
   PrototypeIterator(Isolate* isolate, JSReceiver* receiver,
                     WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
-      : object_(receiver),
-        isolate_(isolate),
+      : isolate_(isolate),
+        object_(receiver),
         where_to_end_(where_to_end),
         is_at_end_(false),
         seen_proxies_(0) {
@@ -54,16 +54,17 @@ class PrototypeIterator {
   }
 
   explicit PrototypeIterator(Map* receiver_map)
-      : object_(receiver_map->prototype()),
-        isolate_(receiver_map->GetIsolate()),
+      : isolate_(receiver_map->GetIsolate()),
+        object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
         where_to_end_(END_AT_NULL),
         is_at_end_(object_->IsNull(isolate_)),
         seen_proxies_(0) {}
 
   explicit PrototypeIterator(Handle<Map> receiver_map)
-      : object_(NULL),
-        handle_(handle(receiver_map->prototype(), receiver_map->GetIsolate())),
-        isolate_(receiver_map->GetIsolate()),
+      : isolate_(receiver_map->GetIsolate()),
+        object_(NULL),
+        handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
+                isolate_),
         where_to_end_(END_AT_NULL),
         is_at_end_(handle_->IsNull(isolate_)),
         seen_proxies_(0) {}
@@ -161,9 +162,9 @@ class PrototypeIterator {
   bool IsAtEnd() const { return is_at_end_; }
 
  private:
+  Isolate* isolate_;
   Object* object_;
   Handle<Object> handle_;
-  Isolate* isolate_;
   WhereToEnd where_to_end_;
   bool is_at_end_;
   int seen_proxies_;

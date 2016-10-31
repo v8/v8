@@ -862,7 +862,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
   DCHECK(holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
-  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalObjectMap()) {
+  if (receiver_map->IsJSGlobalObjectMap()) {
     return -1;
   }
   // We don't encode the requirement to check access rights because we already

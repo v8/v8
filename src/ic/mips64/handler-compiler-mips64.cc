@@ -393,10 +393,9 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(FieldType* field_type,
   }
 }
 
-
 Register PropertyHandlerCompiler::CheckPrototypes(
     Register object_reg, Register holder_reg, Register scratch1,
-    Register scratch2, Handle<Name> name, Label* miss, PrototypeCheckType check,
+    Register scratch2, Handle<Name> name, Label* miss,
     ReturnHolder return_what) {
   Handle<Map> receiver_map = map();
 
@@ -415,17 +414,6 @@ Register PropertyHandlerCompiler::CheckPrototypes(
               Operand(Smi::FromInt(Map::kPrototypeChainValid)));
   }
 
-  // The prototype chain of primitives (and their JSValue wrappers) depends
-  // on the native context, which can't be guarded by validity cells.
-  // |object_reg| holds the native context specific prototype in this case;
-  // we need to check its map.
-  if (check == CHECK_ALL_MAPS) {
-    __ ld(scratch1, FieldMemOperand(object_reg, HeapObject::kMapOffset));
-    Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-    __ GetWeakValue(scratch2, cell);
-    __ Branch(miss, ne, scratch1, Operand(scratch2));
-  }
-
   // Keep track of the current object in register reg.
   Register reg = object_reg;
   int depth = 0;
@@ -435,15 +423,14 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     current = isolate()->global_object();
   }
 
-  Handle<JSObject> prototype = Handle<JSObject>::null();
-  Handle<Map> current_map = receiver_map;
+  Handle<Map> current_map(receiver_map->GetPrototypeChainRootMap(isolate()),
+                          isolate());
   Handle<Map> holder_map(holder()->map());
   // Traverse the prototype chain and check the maps in the prototype chain for
   // fast and global objects or do negative lookup for normal objects.
   while (!current_map.is_identical_to(holder_map)) {
     ++depth;
 
-    prototype = handle(JSObject::cast(current_map->prototype()));
     if (current_map->IsJSGlobalObjectMap()) {
       GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(current),
                                 name, scratch2, miss);
@@ -465,7 +452,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
     reg = holder_reg;  // From now on the object will be in holder_reg.
     // Go to the next object in the prototype chain.
-    current = prototype;
+    current = handle(JSObject::cast(current_map->prototype()));
     current_map = handle(current->map());
   }
 
