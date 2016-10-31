@@ -25939,3 +25939,14 @@ TEST(EvalInAccessCheckedContext) {
   CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
   context1->Exit();
 }
+
+TEST(InternalFieldsOnGlobalProxy) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
+
+  v8::Local<v8::Context> context = Context::New(isolate, nullptr, obj_template);
+  v8::Local<v8::Object> global = context->Global();
+  CHECK_EQ(v8::Context::kProxyInternalFieldCount, global->InternalFieldCount());
+}

@@ -2182,7 +2182,8 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
 Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy() {
   // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
   // via ReinitializeJSGlobalProxy later.
-  Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
+  Handle<Map> map =
+      NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSizeWithInternalFields);
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
   CALL_HEAP_FUNCTION(

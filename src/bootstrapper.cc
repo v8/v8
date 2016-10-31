@@ -960,8 +960,9 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   if (global_proxy_template.IsEmpty()) {
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = isolate()->builtins()->Illegal();
-    global_proxy_function = factory()->NewFunction(
-        name, code, JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
+    global_proxy_function =
+        factory()->NewFunction(name, code, JS_GLOBAL_PROXY_TYPE,
+                               JSGlobalProxy::kSizeWithInternalFields);
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
@@ -4519,9 +4520,11 @@ Genesis::Genesis(Isolate* isolate,
   Handle<JSFunction> global_proxy_function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           initial_map, shared, factory()->undefined_value());
-  DCHECK_EQ(global_proxy_data->internal_field_count(), 0);
+  DCHECK_EQ(global_proxy_data->internal_field_count(),
+            v8::Context::kProxyInternalFieldCount);
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
-      JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize, FAST_HOLEY_SMI_ELEMENTS);
+      JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSizeWithInternalFields,
+      FAST_HOLEY_SMI_ELEMENTS);
   JSFunction::SetInitialMap(global_proxy_function, global_proxy_map,
                             factory()->null_value());
   global_proxy_map->set_is_access_check_needed(true);

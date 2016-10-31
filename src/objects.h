@@ -8509,6 +8509,8 @@ class JSGlobalProxy : public JSObject {
   static const int kNativeContextOffset = JSObject::kHeaderSize;
   static const int kHashOffset = kNativeContextOffset + kPointerSize;
   static const int kSize = kHashOffset + kPointerSize;
+  static const int kSizeWithInternalFields =
+      kSize + v8::Context::kProxyInternalFieldCount * kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
