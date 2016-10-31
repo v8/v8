@@ -145,6 +145,12 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // program location.
   MaybeHandle<Map> InferReceiverRootMap(Node* receiver);
 
+  ValueEffectControl InlineApiCall(
+      Node* receiver, Node* context, Node* target, Node* frame_state,
+      ZoneVector<Node*>* stack_parameters, Node* effect, Node* control,
+      Handle<SharedFunctionInfo> shared_info,
+      Handle<FunctionTemplateInfo> function_template_info);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

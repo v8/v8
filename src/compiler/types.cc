@@ -268,6 +268,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case ALLOCATION_SITE_TYPE:
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
+    case FUNCTION_TEMPLATE_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -294,7 +295,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case CALL_HANDLER_INFO_TYPE:
-    case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
