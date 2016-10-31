@@ -204,7 +204,6 @@ const char kRecordModeParam[] = "record_mode";
 const char kEnableSystraceParam[] = "enable_systrace";
 const char kEnableArgumentFilterParam[] = "enable_argument_filter";
 const char kIncludedCategoriesParam[] = "included_categories";
-const char kExcludedCategoriesParam[] = "excluded_categories";
 
 class TraceConfigParser {
  public:
@@ -232,10 +231,8 @@ class TraceConfigParser {
                    kEnableArgumentFilterParam)) {
       trace_config->EnableArgumentFilter();
     }
-    UpdateCategoriesList(isolate, context, trace_config_object,
-                         kIncludedCategoriesParam, trace_config);
-    UpdateCategoriesList(isolate, context, trace_config_object,
-                         kExcludedCategoriesParam, trace_config);
+    UpdateIncludedCategoriesList(isolate, context, trace_config_object,
+                                 trace_config);
   }
 
  private:
@@ -249,10 +246,11 @@ class TraceConfigParser {
     return false;
   }
 
-  static int UpdateCategoriesList(
+  static int UpdateIncludedCategoriesList(
       v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
-      const char* property, platform::tracing::TraceConfig* trace_config) {
-    Local<Value> value = GetValue(isolate, context, object, property);
+      platform::tracing::TraceConfig* trace_config) {
+    Local<Value> value =
+        GetValue(isolate, context, object, kIncludedCategoriesParam);
     if (value->IsArray()) {
       Local<Array> v8_array = Local<Array>::Cast(value);
       for (int i = 0, length = v8_array->Length(); i < length; ++i) {
@@ -261,11 +259,7 @@ class TraceConfigParser {
                              ->ToString(context)
                              .ToLocalChecked();
         String::Utf8Value str(v->ToString(context).ToLocalChecked());
-        if (kIncludedCategoriesParam == property) {
-          trace_config->AddIncludedCategory(*str);
-        } else {
-          trace_config->AddExcludedCategory(*str);
-        }
+        trace_config->AddIncludedCategory(*str);
       }
       return v8_array->Length();
     }
