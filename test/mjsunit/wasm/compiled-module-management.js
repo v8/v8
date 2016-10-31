@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // TODO (mtrofin): re-enable ignition (v8:5345)
-// Flags: --no-ignition --no-ignition-staging
+// Flags: --no-turbo --no-ignition --no-ignition-staging
 // Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
