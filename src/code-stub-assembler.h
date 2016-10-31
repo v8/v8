@@ -1198,7 +1198,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
 #define CSA_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
 #ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
+#define CSA_SLOW_ASSERT(x)               \
+  if (FLAG_enable_slow_asserts) {        \
+    Assert((x), #x, __FILE__, __LINE__); \
+  }
 #else
 #define CSA_SLOW_ASSERT(x)
 #endif
