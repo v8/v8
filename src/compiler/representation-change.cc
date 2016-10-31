@@ -676,7 +676,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
-                                       jsgraph()->ZeroConstant());
+                                       jsgraph()->IntPtrConstant(0));
     return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                        jsgraph()->Int32Constant(0));
   } else if (IsWord(output_rep)) {

@@ -925,7 +925,7 @@ EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
     values[count] =
         graph()->NewNode(machine()->Word32Equal(),
                          graph()->NewNode(machine()->WordEqual(), value,
-                                          jsgraph()->ZeroConstant()),
+                                          jsgraph()->IntPtrConstant(0)),
                          zero);
     count++;
   }
@@ -978,7 +978,7 @@ EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
     values[count] =
         graph()->NewNode(machine()->Word32Equal(),
                          graph()->NewNode(machine()->WordEqual(), value_length,
-                                          jsgraph()->ZeroConstant()),
+                                          jsgraph()->IntPtrConstant(0)),
                          zero);
     count++;
   }
