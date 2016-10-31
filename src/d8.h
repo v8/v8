@@ -372,6 +372,7 @@ class Shell : public i::AllStatic {
                              const  PropertyCallbackInfo<void>& info);
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
