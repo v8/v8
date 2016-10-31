@@ -1133,6 +1133,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kObjectCreate, 2, true);
     SimpleInstallFunction(object_function, "getOwnPropertyDescriptor",
                           Builtins::kObjectGetOwnPropertyDescriptor, 2, false);
+    SimpleInstallFunction(object_function,
+                          factory->getOwnPropertyDescriptors_string(),
+                          Builtins::kObjectGetOwnPropertyDescriptors, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertyNames",
                           Builtins::kObjectGetOwnPropertyNames, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertySymbols",
@@ -1181,6 +1184,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> object_keys = SimpleInstallFunction(
         object_function, "keys", Builtins::kObjectKeys, 1, false);
     native_context()->set_object_keys(*object_keys);
+    SimpleInstallFunction(object_function, factory->entries_string(),
+                          Builtins::kObjectEntries, 1, false);
+    SimpleInstallFunction(object_function, factory->values_string(),
+                          Builtins::kObjectValues, 1, false);
 
     SimpleInstallFunction(isolate->initial_object_prototype(),
                           "__defineGetter__", Builtins::kObjectDefineGetter, 2,
@@ -3315,35 +3322,6 @@ void Genesis::InitializeGlobal_harmony_simd() {
 }
 
 
-void Genesis::InitializeGlobal_harmony_object_values_entries() {
-  if (!FLAG_harmony_object_values_entries) return;
-
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<JSFunction> object_function = isolate->object_function();
-  SimpleInstallFunction(object_function, factory->entries_string(),
-                        Builtins::kObjectEntries, 1, false);
-  SimpleInstallFunction(object_function, factory->values_string(),
-                        Builtins::kObjectValues, 1, false);
-}
-
-void Genesis::InitializeGlobal_harmony_object_own_property_descriptors() {
-  if (!FLAG_harmony_object_own_property_descriptors) return;
-
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<JSFunction> object_function = isolate->object_function();
-  SimpleInstallFunction(object_function,
-                        factory->getOwnPropertyDescriptors_string(),
-                        Builtins::kObjectGetOwnPropertyDescriptors, 1, false);
-}
-
 void Genesis::InitializeGlobal_harmony_array_prototype_values() {
   if (!FLAG_harmony_array_prototype_values) return;
   Handle<JSFunction> array_constructor(native_context()->array_function());
@@ -3823,9 +3801,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
-  static const char* harmony_object_values_entries_natives[] = {nullptr};
-  static const char* harmony_object_own_property_descriptors_natives[] = {
-      nullptr};
   static const char* harmony_array_prototype_values_natives[] = {nullptr};
   static const char* harmony_string_padding_natives[] = {
       "native harmony-string-padding.js", nullptr};

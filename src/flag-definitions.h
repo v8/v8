@@ -223,13 +223,10 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                                                  \
-  V(harmony_async_await, "harmony async-await")                              \
-  V(harmony_restrictive_declarations,                                        \
-    "harmony limitations on sloppy mode function declarations")              \
-  V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
-  V(harmony_object_own_property_descriptors,                                 \
-    "harmony Object.getOwnPropertyDescriptors()")
+#define HARMONY_SHIPPING(V)                     \
+  V(harmony_async_await, "harmony async-await") \
+  V(harmony_restrictive_declarations,           \
+    "harmony limitations on sloppy mode function declarations")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
