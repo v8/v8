@@ -5469,20 +5469,21 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
-  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
+  const int kMementoLastWordOffset =
+      kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
 
   // Bail out if the object is not in new space.
   JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
-  leap(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  leap(scratch_reg, Operand(receiver_reg, kMementoLastWordOffset));
   xorp(scratch_reg, ExternalOperand(new_space_allocation_top));
   testp(scratch_reg, Immediate(~Page::kPageAlignmentMask));
   j(zero, &top_check);
   // The object is on a different page than allocation top. Bail out if the
   // object sits on the page boundary as no memento can follow and we cannot
   // touch the memory following it.
-  leap(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  leap(scratch_reg, Operand(receiver_reg, kMementoLastWordOffset));
   xorp(scratch_reg, receiver_reg);
   testp(scratch_reg, Immediate(~Page::kPageAlignmentMask));
   j(not_zero, no_memento_found);
@@ -5491,9 +5492,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   bind(&top_check);
-  leap(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  leap(scratch_reg, Operand(receiver_reg, kMementoLastWordOffset));
   cmpp(scratch_reg, ExternalOperand(new_space_allocation_top));
-  j(greater, no_memento_found);
+  j(greater_equal, no_memento_found);
   // Memento map check.
   bind(&map_check);
   CompareRoot(MemOperand(receiver_reg, kMementoMapOffset),

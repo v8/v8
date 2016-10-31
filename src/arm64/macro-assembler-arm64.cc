@@ -1532,11 +1532,12 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   ExternalReference new_space_allocation_top_adr =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
-  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
+  const int kMementoLastWordOffset =
+      kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
 
   // Bail out if the object is not in new space.
   JumpIfNotInNewSpace(receiver, no_memento_found);
-  Add(scratch1, receiver, kMementoEndOffset);
+  Add(scratch1, receiver, kMementoLastWordOffset);
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
   Mov(scratch2, new_space_allocation_top_adr);
@@ -1558,7 +1559,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   Mov(scratch2, new_space_allocation_top_adr);
   Ldr(scratch2, MemOperand(scratch2));
   Cmp(scratch1, scratch2);
-  B(gt, no_memento_found);
+  B(ge, no_memento_found);
   // Memento map check.
   bind(&map_check);
   Ldr(scratch1, MemOperand(receiver, kMementoMapOffset));

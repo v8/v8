@@ -6776,7 +6776,8 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
   Node* new_space_top_address = ExternalConstant(
       ExternalReference::new_space_allocation_top_address(isolate()));
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
-  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
+  const int kMementoLastWordOffset =
+      kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
 
   // Bail out if the object is not in new space.
   Node* object_page = PageFromAddress(object);
@@ -6789,28 +6790,29 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
         &no_memento_found);
   }
 
-  Node* memento_end = IntPtrAdd(object, IntPtrConstant(kMementoEndOffset));
-  Node* memento_end_page = PageFromAddress(memento_end);
+  Node* memento_last_word =
+      IntPtrAdd(object, IntPtrConstant(kMementoLastWordOffset));
+  Node* memento_last_word_page = PageFromAddress(memento_last_word);
 
   Node* new_space_top = Load(MachineType::Pointer(), new_space_top_address);
   Node* new_space_top_page = PageFromAddress(new_space_top);
 
-  // If the object is in new space, we need to check whether it is and
-  // respective potential memento object on the same page as the current top.
-  GotoIf(WordEqual(memento_end_page, new_space_top_page), &top_check);
+  // If the object is in new space, we need to check whether respective
+  // potential memento object is on the same page as the current top.
+  GotoIf(WordEqual(memento_last_word_page, new_space_top_page), &top_check);
 
   // The object is on a different page than allocation top. Bail out if the
   // object sits on the page boundary as no memento can follow and we cannot
   // touch the memory following it.
-  Branch(WordEqual(object_page, memento_end_page), &map_check,
+  Branch(WordEqual(object_page, memento_last_word_page), &map_check,
          &no_memento_found);
 
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   Bind(&top_check);
   {
-    Branch(UintPtrGreaterThan(memento_end, new_space_top), &no_memento_found,
-           &map_check);
+    Branch(UintPtrGreaterThanOrEqual(memento_last_word, new_space_top),
+           &no_memento_found, &map_check);
   }
 
   // Memento map check.
