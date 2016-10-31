@@ -355,7 +355,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     }
     if (p1 != MachineType::None()) {
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
+          machine()->Load(p1),
           graph()->NewNode(common()->Parameter(1), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());
@@ -363,7 +363,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     }
     if (p2 != MachineType::None()) {
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
+          machine()->Load(p2),
           graph()->NewNode(common()->Parameter(2), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());
@@ -371,7 +371,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     }
     if (p3 != MachineType::None()) {
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
+          machine()->Load(p3),
           graph()->NewNode(common()->Parameter(3), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());

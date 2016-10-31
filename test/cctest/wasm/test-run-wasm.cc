@@ -827,6 +827,15 @@ WASM_EXEC_TEST(Return_F64) {
   }
 }
 
+WASM_EXEC_TEST(Select_float_parameters) {
+  WasmRunner<float> r(execution_mode, MachineType::Float32(),
+                      MachineType::Float32(), MachineType::Int32());
+  // return select(11, 22, a);
+  BUILD(r,
+        WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)));
+  CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
+}
+
 WASM_EXEC_TEST(Select) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Int32());
   // return select(11, 22, a);
