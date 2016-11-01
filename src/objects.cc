@@ -9992,6 +9992,8 @@ class CodeCache : public AllStatic {
 void Map::UpdateCodeCache(Handle<Map> map,
                           Handle<Name> name,
                           Handle<Code> code) {
+  // TODO(ishell): Experiment: don't cache handlers in map-specific code cache.
+  return;
   Isolate* isolate = map->GetIsolate();
   Handle<FixedArray> cache(map->code_cache(), isolate);
   Handle<FixedArray> new_cache = CodeCache::Put(isolate, cache, name, code);

@@ -18,6 +18,9 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
                                            Handle<Map> stub_holder,
                                            Code::Kind kind,
                                            CacheHolderFlag cache_holder) {
+  // TODO(ishell): Experiment: don't cache handlers in map-specific code cache.
+  return Handle<Code>();
+
   Code::Flags flags = Code::ComputeHandlerFlags(kind, cache_holder);
   Code* code = stub_holder->LookupInCodeCache(*name, flags);
   if (code == nullptr) return Handle<Code>();
