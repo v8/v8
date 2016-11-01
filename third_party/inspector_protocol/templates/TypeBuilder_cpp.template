@@ -150,7 +150,11 @@ const char* {{ literal | to_title_case}} = "{{literal}}";
 void Frontend::{{event.name}}(
     {%- for parameter in event.parameters %}
       {% if "optional" in parameter -%}
+        {%- if new_style(domain) -%}
+        Maybe<{{resolve_type(parameter).raw_type}}>
+        {%- else -%}
         const Maybe<{{resolve_type(parameter).raw_type}}>&
+        {%- endif -%}
       {%- else -%}
         {{resolve_type(parameter).pass_type}}
       {%- endif %} {{parameter.name}}{%- if not loop.last -%}, {% endif -%}
@@ -192,32 +196,32 @@ public:
   {% endfor %}
     }
     ~DispatcherImpl() override { }
-    void dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
+    DispatchResponse::Status dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
 
 protected:
-    using CallHandler = void (DispatcherImpl::*)(int callId, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
+    using CallHandler = DispatchResponse::Status (DispatcherImpl::*)(int callId, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
     using DispatchMap = protocol::HashMap<String, CallHandler>;
     DispatchMap m_dispatchMap;
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
     {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
-    void {{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
+    DispatchResponse::Status {{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
   {% endfor %}
 
     Backend* m_backend;
 };
 
-void DispatcherImpl::dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject)
+DispatchResponse::Status DispatcherImpl::dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject)
 {
     protocol::HashMap<String, CallHandler>::iterator it = m_dispatchMap.find(method);
     if (it == m_dispatchMap.end()) {
-        reportProtocolError(callId, MethodNotFound, "'" + method + "' wasn't found", nullptr);
-        return;
+        reportProtocolError(callId, DispatchResponse::kMethodNotFound, "'" + method + "' wasn't found", nullptr);
+        return DispatchResponse::kError;
     }
 
     protocol::ErrorSupport errors;
-    (this->*(it->second))(callId, std::move(messageObject), &errors);
+    return (this->*(it->second))(callId, std::move(messageObject), &errors);
 }
 
   {% for command in domain.commands %}
@@ -231,14 +235,18 @@ public:
         : DispatcherBase::Callback(std::move(backendImpl), callId) { }
 
     void sendSuccess(
-    {%- for parameter in command.returns -%}
-      {%- if "optional" in parameter -%}
+      {%- for parameter in command.returns -%}
+        {%- if "optional" in parameter -%}
+          {%- if new_style(domain) -%}
+        Maybe<{{resolve_type(parameter).raw_type}}> {{parameter.name}}
+          {%- else -%}
         const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}}
-      {%- else -%}
+          {%- endif -%}
+        {%- else -%}
         {{resolve_type(parameter).pass_type}} {{parameter.name}}
-      {%- endif -%}
-      {%- if not loop.last -%}, {% endif -%}
-    {%- endfor -%}) override
+        {%- endif -%}
+        {%- if not loop.last -%}, {% endif -%}
+      {%- endfor -%}) override
     {
         std::unique_ptr<protocol::DictionaryValue> resultObject = DictionaryValue::create();
           {% for parameter in command.returns %}
@@ -249,19 +257,26 @@ public:
         resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
             {% endif %}
           {% endfor %}
-        sendIfActive(std::move(resultObject), ErrorString());
+        sendIfActive(std::move(resultObject), DispatchResponse::OK());
     }
 
+      {% if new_style(domain) %}
+    void sendFailure(const DispatchResponse& response) override
+    {
+        DCHECK(response.status() == DispatchResponse::kError);
+        sendIfActive(nullptr, response);
+    }
+      {% else %}
     void sendFailure(const ErrorString& error) override
     {
         DCHECK(error.length());
-        sendIfActive(nullptr, error);
+        sendIfActive(nullptr, DispatchResponse::Error(error));
     }
-
+      {% endif %}
 };
     {% endif %}
 
-void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
+DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
 {
     {% if "parameters" in command %}
     // Prepare input parameters.
@@ -282,15 +297,12 @@ void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValu
       {% endfor %}
     errors->pop();
     if (errors->hasErrors()) {
-        reportProtocolError(callId, InvalidParams, kInvalidRequest, errors);
-        return;
+        reportProtocolError(callId, DispatchResponse::kInvalidParams, kInvalidParamsString, errors);
+        return DispatchResponse::kError;
     }
     {% endif %}
-    {% if "async" in command %}
-    std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId));
-    {% elif "returns" in command %}
+    {% if "returns" in command and not ("async" in command) %}
     // Declare output parameters.
-    std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
       {% for property in command.returns %}
         {% if "optional" in property %}
     Maybe<{{resolve_type(property).raw_type}}> out_{{property.name}};
@@ -300,24 +312,40 @@ void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValu
       {% endfor %}
     {% endif %}
 
-    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
     {% if not("async" in command) %}
+    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
+      {% if not new_style(domain) %}
     ErrorString error;
     m_backend->{{command.name}}(&error
+      {%- else %}
+    DispatchResponse response = m_backend->{{command.name}}(
+      {%- endif -%}
       {%- for property in command.parameters -%}
+        {%- if not loop.first or not new_style(domain) -%}, {% endif -%}
         {%- if "optional" in property -%}
-        , in_{{property.name}}
+          {%- if new_style(domain) -%}
+        std::move(in_{{property.name}})
+          {%- else -%}
+        in_{{property.name}}
+          {%- endif -%}
         {%- else -%}
-        , {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
+        {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
         {%- endif -%}
       {%- endfor %}
       {%- if "returns" in command %}
         {%- for property in command.returns -%}
-          , &out_{{property.name}}
+          {%- if not loop.first or command.parameters or not new_style(domain) -%}, {% endif -%}
+          &out_{{property.name}}
         {%- endfor %}
       {% endif %});
-      {% if "returns" in command and not("async" in command) %}
-    if (!error.length()) {
+      {% if not new_style(domain) %}
+    DispatchResponse response = error.length() ? DispatchResponse::Error(error) : DispatchResponse::OK();
+      {% endif %}
+      {% if "returns" in command %}
+    if (response.status() == DispatchResponse::kFallThrough)
+        return response.status();
+    std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
+    if (response.status() == DispatchResponse::kSuccess) {
         {% for parameter in command.returns %}
           {% if "optional" in parameter %}
         if (out_{{parameter.name}}.isJust())
@@ -328,21 +356,30 @@ void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValu
         {% endfor %}
     }
     if (weak->get())
-        weak->get()->sendResponse(callId, error, std::move(result));
+        weak->get()->sendResponse(callId, response, std::move(result));
       {% else %}
     if (weak->get())
-        weak->get()->sendResponse(callId, error);
+        weak->get()->sendResponse(callId, response);
       {% endif %}
-    {%- else %}
+    return response.status();
+    {% else %}
+    std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId));
     m_backend->{{command.name}}(
       {%- for property in command.parameters -%}
+        {%- if not loop.first -%}, {% endif -%}
         {%- if "optional" in property -%}
-        in_{{property.name}},
+          {%- if new_style(domain) -%}
+        std::move(in_{{property.name}})
+          {%- else -%}
+        in_{{property.name}}
+          {%- endif -%}
         {%- else -%}
-        {{resolve_type(property).to_pass_type % ("in_" + property.name)}},
+        {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
         {%- endif -%}
       {%- endfor -%}
+        {%- if command.parameters -%}, {% endif -%}
         std::move(callback));
+    return DispatchResponse::kAsync;
     {% endif %}
 }
   {% endfor %}

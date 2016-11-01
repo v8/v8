@@ -33,7 +33,6 @@ template("inspector_protocol_generate") {
       invoker.config_file,
       "$inspector_protocol_dir/lib/Allocator_h.template",
       "$inspector_protocol_dir/lib/Array_h.template",
-      "$inspector_protocol_dir/lib/BackendCallback_h.template",
       "$inspector_protocol_dir/lib/Collections_h.template",
       "$inspector_protocol_dir/lib/DispatcherBase_cpp.template",
       "$inspector_protocol_dir/lib/DispatcherBase_h.template",

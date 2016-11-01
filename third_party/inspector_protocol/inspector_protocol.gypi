@@ -7,7 +7,6 @@
     'inspector_protocol_files': [
       'lib/Allocator_h.template',
       'lib/Array_h.template',
-      'lib/BackendCallback_h.template',
       'lib/Collections_h.template',
       'lib/DispatcherBase_cpp.template',
       'lib/DispatcherBase_h.template',
