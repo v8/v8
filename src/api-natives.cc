@@ -643,7 +643,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     case GlobalProxyType:
       type = JS_GLOBAL_PROXY_TYPE;
       instance_size += JSGlobalProxy::kSize;
-      DCHECK_EQ(instance_size, JSGlobalProxy::kSizeWithInternalFields);
       break;
     default:
       UNREACHABLE();
