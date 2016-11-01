@@ -7,6 +7,7 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +16,7 @@ namespace compiler {
 // Forward declarations.
 class LoopVariableOptimizer;
 
-class Typer {
+class V8_EXPORT_PRIVATE Typer {
  public:
   Typer(Isolate* isolate, Graph* graph);
   ~Typer();

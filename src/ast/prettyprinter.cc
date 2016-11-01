@@ -529,6 +529,18 @@ void AstPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     }
   } else if (object->IsFixedArray()) {
     Print("FixedArray");
+  } else if (object->IsSymbol()) {
+    // Symbols can only occur as literals if they were inserted by the parser.
+    Symbol* symbol = Symbol::cast(object);
+    if (symbol->name()->IsString()) {
+      int length = 0;
+      String* string = String::cast(symbol->name());
+      std::unique_ptr<char[]> desc = string->ToCString(
+          ALLOW_NULLS, FAST_STRING_TRAVERSAL, 0, string->length(), &length);
+      Print("Symbol(%*s)", length, desc.get());
+    } else {
+      Print("Symbol()");
+    }
   } else {
     Print("<unknown literal %p>", static_cast<void*>(object));
   }

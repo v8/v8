@@ -44,9 +44,6 @@ template <class T>
 V8_BASE_EXPORT MagicNumbersForDivision<T> UnsignedDivisionByConstant(
     T d, unsigned leading_zeros = 0);
 
-template struct V8_BASE_EXPORT MagicNumbersForDivision<uint32_t>;
-template struct V8_BASE_EXPORT MagicNumbersForDivision<uint64_t>;
-
 extern template V8_BASE_EXPORT MagicNumbersForDivision<uint32_t>
 SignedDivisionByConstant(uint32_t d);
 extern template V8_BASE_EXPORT MagicNumbersForDivision<uint64_t>

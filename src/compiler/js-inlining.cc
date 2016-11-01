@@ -184,7 +184,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   for (Node* const input : end->inputs()) {
     switch (input->opcode()) {
       case IrOpcode::kReturn:
-        values.push_back(NodeProperties::GetValueInput(input, 0));
+        values.push_back(NodeProperties::GetValueInput(input, 1));
         effects.push_back(NodeProperties::GetEffectInput(input));
         controls.push_back(NodeProperties::GetControlInput(input));
         break;
@@ -471,8 +471,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     }
   }
 
-  Zone zone(info_->isolate()->allocator());
-  ParseInfo parse_info(&zone, function);
+  Zone zone(info_->isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared_info);
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
@@ -590,7 +590,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // constructor dispatch (allocate implicit receiver and check return value).
     // This models the behavior usually accomplished by our {JSConstructStub}.
     // Note that the context has to be the callers context (input to call node).
-    Node* receiver = jsgraph()->UndefinedConstant();  // Implicit receiver.
+    Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     if (NeedsImplicitReceiver(shared_info)) {
       Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
       Node* effect = NodeProperties::GetEffectInput(node);

@@ -548,14 +548,14 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   GenerateTailCallToSharedCode(masm);
 }
 
-static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool create_implicit_receiver,
-                                           bool check_derived_construct) {
+namespace {
+
+void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
+                                    bool create_implicit_receiver,
+                                    bool check_derived_construct) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
-  //  -- a2     : allocation site or undefined
   //  -- a3     : new target
   //  -- cp     : context
   //  -- ra     : return address
@@ -569,9 +569,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-    __ AssertUndefinedOrAllocationSite(a2, t0);
     __ SmiTag(a0);
-    __ Push(cp, a2, a0);
+    __ Push(cp, a0);
 
     if (create_implicit_receiver) {
       // Allocate the new receiver object.
@@ -697,6 +696,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   }
   __ Ret();
 }
+
+}  // namespace
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, false, true, false);
@@ -1478,8 +1479,14 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ pop(closure);
   __ pop(new_target);
   __ pop(argument_count);
-  // Is the full code valid?
   __ lw(entry, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  // Is the shared function marked for tier up?
+  __ lbu(t1, FieldMemOperand(entry,
+                             SharedFunctionInfo::kMarkedForTierUpByteOffset));
+  __ And(t1, t1,
+         Operand(1 << SharedFunctionInfo::kMarkedForTierUpBitWithinByte));
+  __ Branch(&gotta_call_runtime_no_stack, ne, t1, Operand(zero_reg));
+  // Is the full code valid?
   __ lw(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ lw(t1, FieldMemOperand(entry, Code::kFlagsOffset));
   __ And(t1, t1, Operand(Code::KindField::kMask));

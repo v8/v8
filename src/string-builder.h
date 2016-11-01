@@ -174,6 +174,11 @@ class FixedArrayBuilder {
 
   int capacity() { return array_->length(); }
 
+  Handle<JSArray> ToJSArray(Handle<JSArray> target_array) {
+    JSArray::SetContent(target_array, array_);
+    target_array->set_length(Smi::FromInt(length_));
+    return target_array;
+  }
 
  private:
   Handle<FixedArray> array_;

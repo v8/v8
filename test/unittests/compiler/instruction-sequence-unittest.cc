@@ -22,10 +22,7 @@ static char register_names_[10 * (RegisterConfiguration::kMaxGeneralRegisters +
 namespace {
 static int allocatable_codes[InstructionSequenceTest::kDefaultNRegs] = {
     0, 1, 2, 3, 4, 5, 6, 7};
-static int allocatable_double_codes[InstructionSequenceTest::kDefaultNRegs] = {
-    0, 1, 2, 3, 4, 5, 6, 7};
 }
-
 
 static void InitializeRegisterNames() {
   char* loc = register_names_;
@@ -92,8 +89,7 @@ RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
         num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, num_double_registers_, allocatable_codes,
-        allocatable_double_codes,
+        num_double_registers_, allocatable_codes, allocatable_codes,
         kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
                           : RegisterConfiguration::COMBINE,
         general_register_names_,

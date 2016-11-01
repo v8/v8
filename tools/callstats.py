@@ -84,6 +84,8 @@ def stop_replay_server(server):
 def generate_injection(f, sites, refreshes=0):
   print >> f, """\
 (function() {
+  var sites =
+    """, json.dumps(sites), """;
   var s = window.sessionStorage.getItem("refreshCounter");
   var refreshTotal = """, refreshes, """;
   var refreshCounter = s ? parseInt(s) : refreshTotal;
@@ -99,7 +101,15 @@ def generate_injection(f, sites, refreshes=0):
       url_wanted = "https://" + url_wanted.substr(7);
     }
     return url.startsWith(url_wanted);
-  };
+  }
+  function runCustomScript(site) {
+    if (site.script === undefined) return;
+    /* Combine a script from the given array. */
+    if (typeof site.script !== "string") {
+      site.script = site.script.join(' ');
+    }
+    eval(site.script);
+  }
   function onLoad(url) {
     for (var item of sites) {
       if (!match(url, item)) continue;
@@ -117,13 +127,15 @@ def generate_injection(f, sites, refreshes=0):
           window.location.reload();
         }
       }, timeout);
+      runCustomScript(item);
       return;
     }
     console.log("Ignoring: " + url);
   };
-  var sites =
-    """, json.dumps(sites), """;
-  onLoad(window.location.href);
+  /* Avoid re-triggering the runtime stats for html imports */
+  if (document.currentScript.ownerDocument === document) {
+    onLoad(window.location.href);
+  }
 })();"""
 
 def get_chrome_flags(js_flags, user_data_dir):

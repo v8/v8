@@ -87,7 +87,7 @@ class WasmFunctionBuilder {
   }
 
   exportAs(name) {
-    this.module.exports.push({name: name, kind: kExternalFunction, index: this.index});
+    this.module.addExport(name, this.index);
     return this;
   }
 
@@ -120,7 +120,8 @@ class WasmGlobalBuilder {
   }
 
   exportAs(name) {
-    this.module.exports.push({name: name, kind: kExternalGlobal, index: this.index});
+    this.module.exports.push({name: name, kind: kExternalGlobal,
+                              index: this.index});
     return this;
   }
 }
@@ -132,10 +133,11 @@ class WasmModuleBuilder {
     this.exports = [];
     this.globals = [];
     this.functions = [];
-    this.table = [];
+    this.function_table = [];
+    this.function_table_length = 0;
+    this.function_table_inits = [];
     this.segments = [];
     this.explicit = [];
-    this.pad = null;
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     return this;
@@ -148,11 +150,6 @@ class WasmModuleBuilder {
 
   addMemory(min, max, exp) {
     this.memory = {min: min, max: max, exp: exp};
-    return this;
-  }
-
-  addPadFunctionTable(size) {
-    this.pad = size;
     return this;
   }
 
@@ -201,8 +198,25 @@ class WasmModuleBuilder {
   }
 
   addImportedMemory(module, name, initial = 0, maximum) {
-    let o = {module: module, name: name, kind: kExternalMemory, initial: initial, maximum: maximum};
+    let o = {module: module, name: name, kind: kExternalMemory,
+             initial: initial, maximum: maximum};
     this.imports.push(o);
+    return this;
+  }
+
+  addImportedTable(module, name, initial, maximum) {
+    let o = {module: module, name: name, kind: kExternalTable, initial: initial,
+             maximum: maximum};
+    this.imports.push(o);
+  }
+
+  addExport(name, index) {
+    this.exports.push({name: name, kind: kExternalFunction, index: index});
+    return this;
+  }
+
+  addExportOfKind(name, kind, index) {
+    this.exports.push({name: name, kind: kind, index: index});
     return this;
   }
 
@@ -215,8 +229,24 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
+  addFunctionTableInit(base, is_global, array) {
+    this.function_table_inits.push({base: base, is_global: is_global,
+                                    array: array});
+    if (!is_global) {
+      var length = base + array.length;
+      if (length > this.function_table_length) {
+        this.function_table_length = length;
+      }
+    }
+    return this;
+  }
+
   appendToTable(array) {
-    this.table.push(...array);
+    return this.addFunctionTableInit(this.function_table.length, false, array);
+  }
+
+  setFunctionTableLength(length) {
+    this.function_table_length = length;
     return this;
   }
 
@@ -265,6 +295,12 @@ class WasmModuleBuilder {
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
+          } else if (imp.kind == kExternalTable) {
+            section.emit_u8(kWasmAnyFunctionTypeForm);
+            var has_max = (typeof imp.maximum) != "undefined";
+            section.emit_u8(has_max ? 1 : 0); // flags
+            section.emit_u32v(imp.initial); // initial
+            if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
@@ -287,15 +323,15 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add table.
-    if (wasm.table.length > 0) {
+    // Add function_table.
+    if (wasm.function_table_length > 0) {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u8(1);  // one table entry
         section.emit_u8(kWasmAnyFunctionTypeForm);
         section.emit_u8(1);
-        section.emit_u32v(wasm.table.length);
-        section.emit_u32v(wasm.table.length);
+        section.emit_u32v(wasm.function_table_length);
+        section.emit_u32v(wasm.function_table_length);
       });
     }
 
@@ -389,17 +425,25 @@ class WasmModuleBuilder {
     }
 
     // Add table elements.
-    if (wasm.table.length > 0) {
+    if (wasm.function_table_inits.length > 0) {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kElementSectionCode, section => {
-        section.emit_u8(1);
+        var inits = wasm.function_table_inits;
+        section.emit_u32v(inits.length);
         section.emit_u8(0); // table index
-        section.emit_u8(kExprI32Const);
-        section.emit_u8(0);
-        section.emit_u8(kExprEnd);
-        section.emit_u32v(wasm.table.length);
-        for (let index of wasm.table) {
-          section.emit_u32v(index);
+
+        for (let init of inits) {
+          if (init.is_global) {
+            section.emit_u8(kExprGetGlobal);
+          } else {
+            section.emit_u8(kExprI32Const);
+          }
+          section.emit_u32v(init.base);
+          section.emit_u8(kExprEnd);
+          section.emit_u32v(init.array.length);
+          for (let index of init.array) {
+            section.emit_u32v(index);
+          }
         }
       });
     }

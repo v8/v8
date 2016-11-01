@@ -8,6 +8,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +26,7 @@ class JSGraph;
 class Graph;
 class Schedule;
 
-class EffectControlLinearizer {
+class V8_EXPORT_PRIVATE EffectControlLinearizer {
  public:
   EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone);
 

@@ -306,6 +306,44 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
   return result;
 }
 
+MaybeHandle<String> Factory::NewStringFromUtf8SubString(
+    Handle<SeqOneByteString> str, int begin, int length,
+    PretenureFlag pretenure) {
+  // Check for ASCII first since this is the common case.
+  const char* start = reinterpret_cast<const char*>(str->GetChars() + begin);
+  int non_ascii_start = String::NonAsciiStart(start, length);
+  if (non_ascii_start >= length) {
+    // If the string is ASCII, we can just make a substring.
+    // TODO(v8): the pretenure flag is ignored in this case.
+    return NewSubString(str, begin, begin + length);
+  }
+
+  // Non-ASCII and we need to decode.
+  Access<UnicodeCache::Utf8Decoder> decoder(
+      isolate()->unicode_cache()->utf8_decoder());
+  decoder->Reset(start + non_ascii_start, length - non_ascii_start);
+  int utf16_length = static_cast<int>(decoder->Utf16Length());
+  DCHECK(utf16_length > 0);
+  // Allocate string.
+  Handle<SeqTwoByteString> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate(), result,
+      NewRawTwoByteString(non_ascii_start + utf16_length, pretenure), String);
+
+  // Reset the decoder, because the original {str} may have moved.
+  const char* ascii_data =
+      reinterpret_cast<const char*>(str->GetChars() + begin);
+  decoder->Reset(ascii_data + non_ascii_start, length - non_ascii_start);
+  // Copy ASCII portion.
+  uint16_t* data = result->GetChars();
+  for (int i = 0; i < non_ascii_start; i++) {
+    *data++ = *ascii_data++;
+  }
+  // Now write the remainder.
+  decoder->WriteUtf16(data, utf16_length);
+  return result;
+}
+
 MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
                                                   int length,
                                                   PretenureFlag pretenure) {
@@ -935,7 +973,7 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
     Handle<JSReceiver> thenable, Handle<JSReceiver> then,
     Handle<JSFunction> resolve, Handle<JSFunction> reject,
-    Handle<Object> before_debug_event, Handle<Object> after_debug_event) {
+    Handle<Object> debug_id, Handle<Object> debug_name) {
   Handle<PromiseResolveThenableJobInfo> result =
       Handle<PromiseResolveThenableJobInfo>::cast(
           NewStruct(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE));
@@ -943,22 +981,22 @@ Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
   result->set_then(*then);
   result->set_resolve(*resolve);
   result->set_reject(*reject);
-  result->set_before_debug_event(*before_debug_event);
-  result->set_after_debug_event(*after_debug_event);
+  result->set_debug_id(*debug_id);
+  result->set_debug_name(*debug_name);
   return result;
 }
 
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
     Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
-    Handle<Object> before_debug_event, Handle<Object> after_debug_event,
+    Handle<Object> debug_id, Handle<Object> debug_name,
     Handle<Context> context) {
   Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
       NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
   result->set_value(*value);
   result->set_tasks(*tasks);
   result->set_deferred(*deferred);
-  result->set_before_debug_event(*before_debug_event);
-  result->set_after_debug_event(*after_debug_event);
+  result->set_debug_id(*debug_id);
+  result->set_debug_name(*debug_name);
   result->set_context(*context);
   return result;
 }
@@ -2144,7 +2182,8 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
 Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy() {
   // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
   // via ReinitializeJSGlobalProxy later.
-  Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
+  Handle<Map> map =
+      NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSizeWithInternalFields);
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
   CALL_HEAP_FUNCTION(

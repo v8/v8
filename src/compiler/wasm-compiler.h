@@ -148,7 +148,10 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
-  Node* Branch(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchNoHint(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
+
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
@@ -167,7 +170,7 @@ class WasmGraphBuilder {
   Node* ToJS(Node* node, wasm::LocalType type);
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
-  Node* FunctionTable(uint32_t index);
+  void EnsureFunctionTableNodes();
 
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -197,6 +200,8 @@ class WasmGraphBuilder {
 
   void Int64LoweringForTesting();
 
+  void SimdScalarLoweringForTesting();
+
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
   Node* CreateS128Value(int32_t value);
@@ -214,6 +219,7 @@ class WasmGraphBuilder {
   Node* mem_buffer_;
   Node* mem_size_;
   NodeVector function_tables_;
+  NodeVector function_table_sizes_;
   Node** control_;
   Node** effect_;
   Node** cur_buffer_;

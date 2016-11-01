@@ -88,7 +88,8 @@ Handle<ModuleInfoEntry> ModuleDescriptor::Entry::Serialize(
       isolate, ToStringOrUndefined(isolate, export_name),
       ToStringOrUndefined(isolate, local_name),
       ToStringOrUndefined(isolate, import_name),
-      Handle<Object>(Smi::FromInt(module_request), isolate));
+      Handle<Object>(Smi::FromInt(module_request), isolate), location.beg_pos,
+      location.end_pos);
 }
 
 ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
@@ -184,6 +185,13 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
                 static_cast<int>(module_requests_.size()));
       entry->import_name = import->second->import_name;
       entry->module_request = import->second->module_request;
+      // Hack: When the indirect export cannot be resolved, we want the error
+      // message to point at the import statement, not at the export statement.
+      // Therefore we overwrite [entry]'s location here.  Note that Validate()
+      // has already checked for duplicate exports, so it's guaranteed that we
+      // won't need to report any error pointing at the (now lost) export
+      // location.
+      entry->location = import->second->location;
       entry->local_name = nullptr;
       AddSpecialExport(entry, zone);
       it = regular_exports_.erase(it);

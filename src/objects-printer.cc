@@ -66,11 +66,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberPrint(os);
+      os << "\n";
       break;
     case MUTABLE_HEAP_NUMBER_TYPE:
       os << "<mutable ";
       HeapNumber::cast(this)->HeapNumberPrint(os);
-      os << ">";
+      os << ">\n";
       break;
     case SIMD128_VALUE_TYPE:
       Simd128Value::cast(this)->Simd128ValuePrint(os);
@@ -1168,8 +1169,8 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
   os << "\n - then: " << Brief(then());
   os << "\n - resolve: " << Brief(resolve());
   os << "\n - reject: " << Brief(reject());
-  os << "\n - before debug event: " << Brief(before_debug_event());
-  os << "\n - after debug event: " << Brief(after_debug_event());
+  os << "\n - debug id: " << Brief(debug_id());
+  os << "\n - debug name: " << Brief(debug_name());
   os << "\n";
 }
 
@@ -1179,8 +1180,8 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
   os << "\n - value: " << Brief(value());
   os << "\n - tasks: " << Brief(tasks());
   os << "\n - deferred: " << Brief(deferred());
-  os << "\n - before debug event: " << Brief(before_debug_event());
-  os << "\n - after debug event: " << Brief(after_debug_event());
+  os << "\n - debug id: " << Brief(debug_id());
+  os << "\n - debug name: " << Brief(debug_name());
   os << "\n - reaction context: " << Brief(context());
   os << "\n";
 }
@@ -1202,9 +1203,11 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {  // NOLINT
 
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PrototypeInfo");
+  os << "\n - weak cell: " << Brief(weak_cell());
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
   os << "\n - validity cell: " << Brief(validity_cell());
+  os << "\n - object create map: " << Brief(object_create_map());
   os << "\n";
 }
 

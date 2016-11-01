@@ -97,7 +97,7 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
 
 class TestWithZone : public virtual ::testing::Test {
  public:
-  TestWithZone() : zone_(&allocator_) {}
+  TestWithZone() : zone_(&allocator_, ZONE_NAME) {}
   virtual ~TestWithZone();
 
   Zone* zone() { return &zone_; }
@@ -111,7 +111,7 @@ class TestWithZone : public virtual ::testing::Test {
 
 class TestWithIsolateAndZone : public virtual TestWithIsolate {
  public:
-  TestWithIsolateAndZone() : zone_(&allocator_) {}
+  TestWithIsolateAndZone() : zone_(&allocator_, ZONE_NAME) {}
   virtual ~TestWithIsolateAndZone();
 
   Zone* zone() { return &zone_; }

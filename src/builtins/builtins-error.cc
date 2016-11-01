@@ -55,7 +55,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   Handle<Object> stack_trace =
       isolate->CaptureSimpleStackTrace(object, mode, caller);
-  if (!stack_trace->IsJSArray()) return *isolate->factory()->undefined_value();
+  if (!stack_trace->IsJSArray()) return isolate->heap()->undefined_value();
 
   Handle<Object> formatted_stack_trace;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

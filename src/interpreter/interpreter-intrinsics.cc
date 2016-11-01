@@ -249,12 +249,6 @@ Node* IntrinsicsHelper::NumberToString(Node* input, Node* arg_count,
                              CodeFactory::NumberToString(isolate()));
 }
 
-Node* IntrinsicsHelper::RegExpConstructResult(Node* input, Node* arg_count,
-                                              Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::RegExpConstructResult(isolate()));
-}
-
 Node* IntrinsicsHelper::RegExpExec(Node* input, Node* arg_count,
                                    Node* context) {
   return IntrinsicAsStubCall(input, context,

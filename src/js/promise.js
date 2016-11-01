@@ -44,15 +44,10 @@ utils.Import(function(from) {
 // -------------------------------------------------------------------
 
 // [[PromiseState]] values:
+// These values should be kept in sync with PromiseStatus in globals.h
 const kPending = 0;
 const kFulfilled = +1;
-const kRejected = -1;
-
-var lastMicrotaskId = 0;
-
-function PromiseNextMicrotaskID() {
-  return ++lastMicrotaskId;
-}
+const kRejected = +2;
 
 // ES#sec-createresolvingfunctions
 // CreateResolvingFunctions ( promise )
@@ -72,7 +67,8 @@ function CreateResolvingFunctions(promise, debugEvent) {
   var reject = reason => {
     if (alreadyResolved === true) return;
     alreadyResolved = true;
-    RejectPromise(promise, reason, debugEvent);
+    %PromiseReject(promise, reason, debugEvent);
+    PromiseSet(promise, kRejected, reason);
   };
 
   return {
@@ -148,17 +144,6 @@ function PromiseInit(promise) {
   return PromiseSet(promise, kPending, UNDEFINED);
 }
 
-function FulfillPromise(promise, status, value, promiseQueue) {
-  if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
-    var tasks = GET_PRIVATE(promise, promiseQueue);
-    if (!IS_UNDEFINED(tasks)) {
-      var deferred = GET_PRIVATE(promise, promiseDeferredReactionSymbol);
-      PromiseEnqueue(value, tasks, deferred, status);
-    }
-    PromiseSet(promise, status, value);
-  }
-}
-
 function PromiseHandle(value, handler, deferred) {
   var debug_is_active = DEBUG_IS_ACTIVE;
   try {
@@ -174,7 +159,8 @@ function PromiseHandle(value, handler, deferred) {
       if (IS_UNDEFINED(deferred.reject)) {
         // Pass false for debugEvent so .then chaining does not trigger
         // redundant ExceptionEvents.
-        RejectPromise(deferred.promise, exception, false);
+        %PromiseReject(deferred.promise, exception, false);
+        PromiseSet(deferred.promise, kRejected, exception);
       } else {
         %_Call(deferred.reject, UNDEFINED, exception);
       }
@@ -184,8 +170,8 @@ function PromiseHandle(value, handler, deferred) {
   }
 }
 
-function PromiseEnqueue(value, tasks, deferreds, status) {
-  var id, name, beforeDebug, afterDebug, instrumenting = DEBUG_IS_ACTIVE;
+function PromiseDebugGetInfo(deferreds, status) {
+  var id, name, instrumenting = DEBUG_IS_ACTIVE;
 
   if (instrumenting) {
     // In an async function, reuse the existing stack related to the outer
@@ -202,16 +188,12 @@ function PromiseEnqueue(value, tasks, deferreds, status) {
                        promiseAsyncStackIDSymbol);
       name = "async function";
     } else {
-      id = PromiseNextMicrotaskID();
+      id = %DebugNextMicrotaskId();
       name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
-      %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+      %DebugAsyncTaskEvent("enqueue", id, name);
     }
-
-    beforeDebug = { type: "willHandle", id: id, name: name };
-    afterDebug = { type: "didHandle", id: id, name: name };
   }
-
-  %EnqueuePromiseReactionJob(value, tasks, deferreds, beforeDebug, afterDebug);
+  return [id, name];
 }
 
 function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
@@ -264,16 +246,19 @@ function PromiseCreate() {
 // Promise Resolve Functions, steps 6-13
 function ResolvePromise(promise, resolution) {
   if (resolution === promise) {
-    return RejectPromise(promise,
-                         %make_type_error(kPromiseCyclic, resolution),
-                         true);
+    var exception = %make_type_error(kPromiseCyclic, resolution);
+    %PromiseReject(promise, exception, true);
+    PromiseSet(promise, kRejected, exception);
+    return;
   }
   if (IS_RECEIVER(resolution)) {
     // 25.4.1.3.2 steps 8-12
     try {
       var then = resolution.then;
     } catch (e) {
-      return RejectPromise(promise, e, true);
+      %PromiseReject(promise, e, true);
+      PromiseSet(promise, kRejected, e);
+      return;
     }
 
     // Resolution is a native promise and if it's already resolved or
@@ -285,8 +270,9 @@ function ResolvePromise(promise, resolution) {
         // This goes inside the if-else to save one symbol lookup in
         // the slow path.
         var thenableValue = GET_PRIVATE(resolution, promiseResultSymbol);
-        FulfillPromise(promise, kFulfilled, thenableValue,
+        %PromiseFulfill(promise, kFulfilled, thenableValue,
                        promiseFulfillReactionsSymbol);
+        PromiseSet(promise, kFulfilled, thenableValue);
         SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
         return;
       } else if (thenableState === kRejected) {
@@ -297,7 +283,8 @@ function ResolvePromise(promise, resolution) {
           %PromiseRevokeReject(resolution);
         }
         // Don't cause a debug event as this case is forwarding a rejection
-        RejectPromise(promise, thenableValue, false);
+        %PromiseReject(promise, thenableValue, false);
+        PromiseSet(promise, kRejected, thenableValue);
         SET_PRIVATE(resolution, promiseHasHandlerSymbol, true);
         return;
       }
@@ -305,62 +292,30 @@ function ResolvePromise(promise, resolution) {
 
     if (IS_CALLABLE(then)) {
       var callbacks = CreateResolvingFunctions(promise, false);
-      var id, before_debug_event, after_debug_event;
-      var instrumenting = DEBUG_IS_ACTIVE;
-      if (instrumenting) {
-        if (IsPromise(resolution)) {
+      if (DEBUG_IS_ACTIVE && IsPromise(resolution)) {
           // Mark the dependency of the new promise on the resolution
-          SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
-        }
-        id = PromiseNextMicrotaskID();
-        before_debug_event = {
-          type: "willHandle",
-          id: id,
-          name: "PromiseResolveThenableJob"
-        };
-        after_debug_event = {
-          type: "didHandle",
-          id: id,
-          name: "PromiseResolveThenableJob"
-        };
-        %DebugAsyncTaskEvent({
-          type: "enqueue",
-          id: id,
-          name: "PromiseResolveThenableJob"
-        });
+        SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
       }
       %EnqueuePromiseResolveThenableJob(
-          resolution, then, callbacks.resolve, callbacks.reject,
-          before_debug_event, after_debug_event);
+          resolution, then, callbacks.resolve, callbacks.reject);
       return;
     }
   }
-  FulfillPromise(promise, kFulfilled, resolution,
-                 promiseFulfillReactionsSymbol);
+  %PromiseFulfill(promise, kFulfilled, resolution,
+                  promiseFulfillReactionsSymbol);
+  PromiseSet(promise, kFulfilled, resolution);
 }
 
-// ES#sec-rejectpromise
-// RejectPromise ( promise, reason )
-function RejectPromise(promise, reason, debugEvent) {
-  // Check promise status to confirm that this reject has an effect.
-  // Call runtime for callbacks to the debugger or for unhandled reject.
-  // The debugEvent parameter sets whether a debug ExceptionEvent should
-  // be triggered. It should be set to false when forwarding a rejection
-  // rather than creating a new one.
-  if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
-    // This check is redundant with checks in the runtime, but it may help
-    // avoid unnecessary runtime calls.
-    if ((debugEvent && DEBUG_IS_ACTIVE) ||
-        !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
-      %PromiseRejectEvent(promise, reason, debugEvent);
-    }
-  }
-  FulfillPromise(promise, kRejected, reason, promiseRejectReactionsSymbol)
+// Only used by async-await.js
+function RejectPromise(promise, reason) {
+  %PromiseReject(promise, reason, false);
+  PromiseSet(promise, kRejected, reason);
 }
 
 // Export to bindings
 function DoRejectPromise(promise, reason) {
-  return RejectPromise(promise, reason, true);
+  %PromiseReject(promise, reason, true);
+  PromiseSet(promise, kRejected, reason);
 }
 
 // ES#sec-newpromisecapability
@@ -421,8 +376,8 @@ function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
       PromiseAttachCallbacks(promise, resultCapability, onResolve, onReject);
       break;
     case kFulfilled:
-      PromiseEnqueue(GET_PRIVATE(promise, promiseResultSymbol),
-                     onResolve, resultCapability, kFulfilled);
+      %EnqueuePromiseReactionJob(GET_PRIVATE(promise, promiseResultSymbol),
+                                 onResolve, resultCapability, kFulfilled);
       break;
     case kRejected:
       if (!HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
@@ -430,8 +385,8 @@ function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
         // Revoke previously triggered reject event.
         %PromiseRevokeReject(promise);
       }
-      PromiseEnqueue(GET_PRIVATE(promise, promiseResultSymbol),
-                     onReject, resultCapability, kRejected);
+      %EnqueuePromiseReactionJob(GET_PRIVATE(promise, promiseResultSymbol),
+                                 onReject, resultCapability, kRejected);
       break;
   }
 
@@ -690,7 +645,8 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_reject", DoRejectPromise,
   "promise_resolve", ResolvePromise,
   "promise_then", PromiseThen,
-  "promise_handle", PromiseHandle
+  "promise_handle", PromiseHandle,
+  "promise_debug_get_info", PromiseDebugGetInfo
 ]);
 
 // This allows extras to create promises quickly without building extra
@@ -706,7 +662,6 @@ utils.Export(function(to) {
   to.IsPromise = IsPromise;
   to.PromiseCreate = PromiseCreate;
   to.PromiseThen = PromiseThen;
-  to.PromiseNextMicrotaskID = PromiseNextMicrotaskID;
 
   to.GlobalPromise = GlobalPromise;
   to.NewPromiseCapability = NewPromiseCapability;

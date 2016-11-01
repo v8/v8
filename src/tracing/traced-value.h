@@ -34,6 +34,7 @@ class TracedValue : public ConvertableToTraceFormat {
   void BeginArray(const char* name);
 
   void AppendInteger(int);
+  void AppendLongInteger(int64_t);
   void AppendDouble(double);
   void AppendBoolean(bool);
   void AppendString(const std::string&);

@@ -30,9 +30,10 @@ namespace {
 
 bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
                            Object* handler) {
-  // Validate that the name does not move on scavenge, and that we
+  // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
   DCHECK(!name->GetHeap()->InNewSpace(name));
+  DCHECK(!name->GetHeap()->InNewSpace(handler));
   DCHECK(name->IsUniqueName());
   DCHECK(name->HasHashCode());
   if (handler) {

@@ -73,7 +73,7 @@ class ModuleDescriptor : public ZoneObject {
                 PendingCompilationErrorHandler* error_handler, Zone* zone);
 
   struct Entry : public ZoneObject {
-    const Scanner::Location location;
+    Scanner::Location location;
     const AstRawString* export_name;
     const AstRawString* local_name;
     const AstRawString* import_name;

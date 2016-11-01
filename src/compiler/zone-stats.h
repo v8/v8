@@ -9,22 +9,23 @@
 #include <set>
 #include <vector>
 
+#include "src/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZoneStats final {
+class V8_EXPORT_PRIVATE ZoneStats final {
  public:
   class Scope final {
    public:
-    explicit Scope(ZoneStats* zone_stats)
-        : zone_stats_(zone_stats), zone_(nullptr) {}
+    explicit Scope(ZoneStats* zone_stats, const char* zone_name)
+        : zone_name_(zone_name), zone_stats_(zone_stats), zone_(nullptr) {}
     ~Scope() { Destroy(); }
 
     Zone* zone() {
-      if (zone_ == nullptr) zone_ = zone_stats_->NewEmptyZone();
+      if (zone_ == nullptr) zone_ = zone_stats_->NewEmptyZone(zone_name_);
       return zone_;
     }
     void Destroy() {
@@ -33,12 +34,13 @@ class ZoneStats final {
     }
 
    private:
+    const char* zone_name_;
     ZoneStats* const zone_stats_;
     Zone* zone_;
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
-  class StatsScope final {
+  class V8_EXPORT_PRIVATE StatsScope final {
    public:
     explicit StatsScope(ZoneStats* zone_stats);
     ~StatsScope();
@@ -69,7 +71,7 @@ class ZoneStats final {
   size_t GetCurrentAllocatedBytes();
 
  private:
-  Zone* NewEmptyZone();
+  Zone* NewEmptyZone(const char* zone_name);
   void ReturnZone(Zone* zone);
 
   static const size_t kMaxUnusedSize = 3;

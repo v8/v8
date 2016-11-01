@@ -312,12 +312,11 @@ bool Scope::HasSimpleParameters() {
 }
 
 bool DeclarationScope::ShouldEagerCompile() const {
-  if (!AllowsLazyCompilation()) return true;
-  return !is_lazily_parsed_ && should_eager_compile_;
+  return force_eager_compilation_ || should_eager_compile_;
 }
 
 void DeclarationScope::set_should_eager_compile() {
-  should_eager_compile_ = true;
+  should_eager_compile_ = !is_lazily_parsed_;
 }
 
 void DeclarationScope::set_asm_module() {
@@ -969,15 +968,13 @@ Variable* Scope::DeclareVariable(
 
 VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
                                     const AstRawString* name,
-                                    int start_position, int end_position,
-                                    VariableKind kind) {
+                                    int start_position, VariableKind kind) {
   // Note that we must not share the unresolved variables with
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
   DCHECK(!already_resolved_);
   DCHECK_EQ(!needs_migration_, factory->zone() == zone());
-  VariableProxy* proxy =
-      factory->NewVariableProxy(name, kind, start_position, end_position);
+  VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_position);
   proxy->set_next_unresolved(unresolved_);
   unresolved_ = proxy;
   return proxy;
@@ -1095,15 +1092,16 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
 }
 
 void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
+  // Module variables must be allocated before variable resolution
+  // to ensure that AccessNeedsHoleCheck() can detect import variables.
+  if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
+
   ResolveVariablesRecursively(info);
   AllocateVariablesRecursively();
 
   MaybeHandle<ScopeInfo> outer_scope;
-  for (const Scope* s = outer_scope_; s != nullptr; s = s->outer_scope_) {
-    if (s->scope_info_.is_null()) continue;
-    outer_scope = s->scope_info_;
-    break;
-  }
+  if (outer_scope_ != nullptr) outer_scope = outer_scope_->scope_info_;
+
   AllocateScopeInfosRecursively(info->isolate(), outer_scope);
   if (mode == AnalyzeMode::kDebugger) {
     AllocateDebuggerScopeInfos(info->isolate(), outer_scope);
@@ -1654,6 +1652,59 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   }
 }
 
+namespace {
+
+bool AccessNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
+  if (!var->binding_needs_init()) {
+    return false;
+  }
+
+  // It's impossible to eliminate module import hole checks here, because it's
+  // unknown at compilation time whether the binding referred to in the
+  // exporting module itself requires hole checks.
+  if (var->location() == VariableLocation::MODULE && !var->IsExport()) {
+    return true;
+  }
+
+  // Check if the binding really needs an initialization check. The check
+  // can be skipped in the following situation: we have a LET or CONST
+  // binding, both the Variable and the VariableProxy have the same
+  // declaration scope (i.e. they are both in global code, in the
+  // same function or in the same eval code), the VariableProxy is in
+  // the source physically located after the initializer of the variable,
+  // and that the initializer cannot be skipped due to a nonlinear scope.
+  //
+  // The condition on the declaration scopes is a conservative check for
+  // nested functions that access a binding and are called before the
+  // binding is initialized:
+  //   function() { f(); let x = 1; function f() { x = 2; } }
+  //
+  // The check cannot be skipped on non-linear scopes, namely switch
+  // scopes, to ensure tests are done in cases like the following:
+  //   switch (1) { case 0: let x = 2; case 1: f(x); }
+  // The scope of the variable needs to be checked, in case the use is
+  // in a sub-block which may be linear.
+  if (var->scope()->GetDeclarationScope() != scope->GetDeclarationScope()) {
+    return true;
+  }
+
+  if (var->is_this()) {
+    DCHECK(
+        IsSubclassConstructor(scope->GetDeclarationScope()->function_kind()));
+    // TODO(littledan): implement 'this' hole check elimination.
+    return true;
+  }
+
+  // We should always have valid source positions.
+  DCHECK(var->initializer_position() != kNoSourcePosition);
+  DCHECK(proxy->position() != kNoSourcePosition);
+
+  return var->scope()->is_nonlinear() ||
+         var->initializer_position() >= proxy->position();
+}
+
+}  // anonymous namespace
+
 void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 #ifdef DEBUG
   if (info->script_is_native()) {
@@ -1678,6 +1729,7 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 
   DCHECK_NOT_NULL(var);
   if (proxy->is_assigned()) var->set_maybe_assigned();
+  if (AccessNeedsHoleCheck(var, proxy, this)) proxy->set_needs_hole_check();
   proxy->BindTo(var);
 }
 
@@ -1888,13 +1940,12 @@ void DeclarationScope::AllocateLocals() {
 void ModuleScope::AllocateModuleVariables() {
   for (const auto& it : module()->regular_imports()) {
     Variable* var = LookupLocal(it.first);
-    // TODO(neis): Use a meaningful index.
-    var->AllocateTo(VariableLocation::MODULE, 42);
+    var->AllocateTo(VariableLocation::MODULE, Variable::kModuleImportIndex);
   }
 
   for (const auto& it : module()->regular_exports()) {
     Variable* var = LookupLocal(it.first);
-    var->AllocateTo(VariableLocation::MODULE, 0);
+    var->AllocateTo(VariableLocation::MODULE, Variable::kModuleExportIndex);
   }
 }
 
@@ -1917,9 +1968,7 @@ void Scope::AllocateVariablesRecursively() {
   // Allocate variables for this scope.
   // Parameters must be allocated first, if any.
   if (is_declaration_scope()) {
-    if (is_module_scope()) {
-      AsModuleScope()->AllocateModuleVariables();
-    } else if (is_function_scope()) {
+    if (is_function_scope()) {
       AsDeclarationScope()->AllocateParameterLocals();
     }
     AsDeclarationScope()->AllocateReceiver();

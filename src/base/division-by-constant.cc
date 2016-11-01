@@ -93,6 +93,9 @@ MagicNumbersForDivision<T> UnsignedDivisionByConstant(T d,
 // -----------------------------------------------------------------------------
 // Instantiations.
 
+template struct V8_BASE_EXPORT MagicNumbersForDivision<uint32_t>;
+template struct V8_BASE_EXPORT MagicNumbersForDivision<uint64_t>;
+
 template MagicNumbersForDivision<uint32_t> SignedDivisionByConstant(uint32_t d);
 template MagicNumbersForDivision<uint64_t> SignedDivisionByConstant(uint64_t d);
 

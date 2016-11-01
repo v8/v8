@@ -399,7 +399,7 @@ var assertMatches;
       if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      failWithmessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithMessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
                (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }

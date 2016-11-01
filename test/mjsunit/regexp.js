@@ -739,3 +739,11 @@ const RegExpPrototypeExec = RegExp.prototype.exec;
 RegExp.prototype.exec = function() { throw new Error(); }
 assertThrows(() => "abc".replace(/./, ""));
 RegExp.prototype.exec = RegExpPrototypeExec;
+
+// Test the code path in RE.proto[@@search] when previousLastIndex is a receiver
+// but can't be converted to a primitive. This exposed a crash in the
+// C++ implementation of @@search.
+
+var re = /./;
+re.lastIndex = { [Symbol.toPrimitive]: 42 };
+() => "abc".search(re);

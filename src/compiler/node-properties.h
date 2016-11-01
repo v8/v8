@@ -7,6 +7,7 @@
 
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +18,7 @@ class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class NodeProperties final {
+class V8_EXPORT_PRIVATE NodeProperties final {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.

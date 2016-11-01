@@ -54,31 +54,19 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
 
 // static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    KeyedLoadICTrampolineTFStub stub(isolate);
-    return make_callable(stub);
-  }
-  KeyedLoadICTrampolineStub stub(isolate);
+  KeyedLoadICTrampolineTFStub stub(isolate);
   return make_callable(stub);
 }
 
 // static
 Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    KeyedLoadICTFStub stub(isolate);
-    return make_callable(stub);
-  }
-  KeyedLoadICStub stub(isolate);
+  KeyedLoadICTFStub stub(isolate);
   return make_callable(stub);
 }
 
 // static
 Callable CodeFactory::KeyedLoadIC_Megamorphic(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic_TF(),
-                    LoadWithVectorDescriptor(isolate));
-  }
-  return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic(),
+  return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic_TF(),
                   LoadWithVectorDescriptor(isolate));
 }
 
@@ -113,6 +101,10 @@ Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
 // static
 Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
                                    LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    KeyedStoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
+    return make_callable(stub);
+  }
   KeyedStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
@@ -120,8 +112,21 @@ Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
 // static
 Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
                                                   LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    KeyedStoreICTFStub stub(isolate, StoreICState(language_mode));
+    return make_callable(stub);
+  }
   KeyedStoreICStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
+}
+
+// static
+Callable CodeFactory::KeyedStoreIC_Megamorphic(Isolate* isolate,
+                                               LanguageMode language_mode) {
+  return Callable(language_mode == STRICT
+                      ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
+                      : isolate->builtins()->KeyedStoreIC_Megamorphic(),
+                  StoreWithVectorDescriptor(isolate));
 }
 
 // static
@@ -189,12 +194,6 @@ Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
 // static
 Callable CodeFactory::NumberToString(Isolate* isolate) {
   NumberToStringStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::RegExpConstructResult(Isolate* isolate) {
-  RegExpConstructResultStub stub(isolate);
   return make_callable(stub);
 }
 

@@ -94,16 +94,16 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoad(Register obj, Property* expr);
   void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
 
-  void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+  void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+                         HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableLoadForAccumulatorValue(
+  void BuildVariableLoadForAccumulatorValue(
       Variable* variable, FeedbackVectorSlot slot,
+      HoleCheckMode hole_check_mode,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  MUST_USE_RESULT Register
-  VisitVariableLoadForRegisterValue(Variable* variable, FeedbackVectorSlot slot,
-                                    TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackVectorSlot slot);
+  void BuildVariableAssignment(Variable* variable, Token::Value op,
+                               FeedbackVectorSlot slot,
+                               HoleCheckMode hole_check_mode);
 
   void BuildReturn();
   void BuildReThrow();
@@ -111,7 +111,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
-  void BuildHoleCheckForVariableLoad(Variable* variable);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   // Build jump to targets[value], where
@@ -195,6 +194,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Handle<Name> home_object_symbol() const { return home_object_symbol_; }
   Handle<Name> prototype_string() const { return prototype_string_; }
+  Handle<FixedArray> empty_fixed_array() const { return empty_fixed_array_; }
 
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
@@ -217,6 +217,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Handle<Name> home_object_symbol_;
   Handle<Name> prototype_string_;
+  Handle<FixedArray> empty_fixed_array_;
 };
 
 }  // namespace interpreter

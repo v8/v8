@@ -592,12 +592,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   }
 
   if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {
-    // Generators can be optimized if --turbo-from-bytecode is set.
-    if (FLAG_turbo_from_bytecode) {
-      DisableCrankshaft(kGenerator);
-    } else {
-      DisableOptimization(kGenerator);
-    }
+    DisableCrankshaft(kGenerator);
   }
 
   if (IsClassConstructor(node->kind())) {

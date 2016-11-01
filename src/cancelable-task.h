@@ -11,6 +11,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +22,7 @@ class Isolate;
 
 // Keeps track of cancelable tasks. It is possible to register and remove tasks
 // from any fore- and background task/thread.
-class CancelableTaskManager {
+class V8_EXPORT_PRIVATE CancelableTaskManager {
  public:
   CancelableTaskManager();
 
@@ -31,14 +32,14 @@ class CancelableTaskManager {
   uint32_t Register(Cancelable* task);
 
   // Try to abort running a task identified by {id}. The possible outcomes are:
-  // (1) The task is already finished running and thus has been removed from
-  //     the manager.
+  // (1) The task is already finished running or was canceled before and
+  //     thus has been removed from the manager.
   // (2) The task is currently running and cannot be canceled anymore.
   // (3) The task is not yet running (or finished) so it is canceled and
   //     removed.
   //
-  // Returns {false} for (1) and (2), and {true} for (3).
-  bool TryAbort(uint32_t id);
+  enum TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
+  TryAbortResult TryAbort(uint32_t id);
 
   // Cancels all remaining registered tasks and waits for tasks that are
   // already running. This disallows subsequent Register calls.
@@ -67,8 +68,7 @@ class CancelableTaskManager {
   DISALLOW_COPY_AND_ASSIGN(CancelableTaskManager);
 };
 
-
-class Cancelable {
+class V8_EXPORT_PRIVATE Cancelable {
  public:
   explicit Cancelable(CancelableTaskManager* parent);
   virtual ~Cancelable();

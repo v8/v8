@@ -25,7 +25,7 @@ static int32_t DummyStaticFunction(Object* result) { return 1; }
 
 TEST(WasmRelocationX87MemoryReference) {
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
@@ -87,7 +87,7 @@ TEST(WasmRelocationX87MemoryReference) {
 TEST(WasmRelocationX87MemorySizeReference) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);

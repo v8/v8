@@ -21,10 +21,21 @@
 
 namespace {
 
+std::vector<TaskRunner*> task_runners;
+
+void Terminate() {
+  for (size_t i = 0; i < task_runners.size(); ++i) {
+    task_runners[i]->Terminate();
+    task_runners[i]->Join();
+  }
+  std::vector<TaskRunner*> empty;
+  task_runners.swap(empty);
+}
+
 void Exit() {
   fflush(stdout);
   fflush(stderr);
-  _exit(0);
+  Terminate();
 }
 
 class UtilsExtension : public v8::Extension {
@@ -33,7 +44,8 @@ class UtilsExtension : public v8::Extension {
       : v8::Extension("v8_inspector/utils",
                       "native function print();"
                       "native function quit();"
-                      "native function setlocale();") {}
+                      "native function setlocale();"
+                      "native function load();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -54,6 +66,12 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::SetLocale);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "load",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Load);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -101,6 +119,29 @@ class UtilsExtension : public v8::Extension {
     }
     v8::String::Utf8Value str(args[0]);
     setlocale(LC_NUMERIC, *str);
+  }
+
+  static void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr, "Internal error: load gets one string argument.");
+      Exit();
+    }
+    v8::String::Utf8Value str(args[0]);
+    v8::Isolate* isolate = args.GetIsolate();
+    bool exists = false;
+    std::string filename(*str, str.length());
+    v8::internal::Vector<const char> chars =
+        v8::internal::ReadFile(filename.c_str(), &exists);
+    if (!exists) {
+      isolate->ThrowException(
+          v8::String::NewFromUtf8(isolate, "Error loading file",
+                                  v8::NewStringType::kNormal)
+              .ToLocalChecked());
+      return;
+    }
+    ExecuteStringTask task(chars);
+    v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
+    task.Run(isolate, context);
   }
 };
 
@@ -171,6 +212,59 @@ class SetTimeoutExtension : public v8::Extension {
   }
 };
 
+class InspectorExtension : public v8::Extension {
+ public:
+  InspectorExtension()
+      : v8::Extension("v8_inspector/inspector",
+                      "native function attachInspector();"
+                      "native function detachInspector();") {}
+
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    if (name->Equals(context,
+                     v8::String::NewFromUtf8(isolate, "attachInspector",
+                                             v8::NewStringType::kNormal)
+                         .ToLocalChecked())
+            .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, InspectorExtension::Attach);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "detachInspector",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, InspectorExtension::Detach);
+    }
+    return v8::Local<v8::FunctionTemplate>();
+  }
+
+ private:
+  static void Attach(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(context);
+    if (!inspector) {
+      fprintf(stderr, "Inspector client not found - cannot attach!");
+      Exit();
+    }
+    inspector->contextCreated(
+        v8_inspector::V8ContextInfo(context, 1, v8_inspector::StringView()));
+  }
+
+  static void Detach(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(context);
+    if (!inspector) {
+      fprintf(stderr, "Inspector client not found - cannot detach!");
+      Exit();
+    }
+    inspector->contextDestroyed(context);
+  }
+};
+
 v8::Local<v8::String> ToString(v8::Isolate* isolate,
                                const v8_inspector::StringView& string) {
   if (string.is8Bit())
@@ -220,12 +314,14 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
-  v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
 
   SetTimeoutExtension set_timeout_extension;
   v8::RegisterExtension(&set_timeout_extension);
+  InspectorExtension inspector_extension;
+  v8::RegisterExtension(&inspector_extension);
   UtilsExtension utils_extension;
   v8::RegisterExtension(&utils_extension);
   SendMessageToBackendExtension send_message_to_backend_extension;
@@ -233,7 +329,8 @@ int main(int argc, char* argv[]) {
 
   v8::base::Semaphore ready_semaphore(0);
 
-  const char* backend_extensions[] = {"v8_inspector/setTimeout"};
+  const char* backend_extensions[] = {"v8_inspector/setTimeout",
+                                      "v8_inspector/inspector"};
   v8::ExtensionConfiguration backend_configuration(
       arraysize(backend_extensions), backend_extensions);
   TaskRunner backend_runner(&backend_configuration, false, &ready_semaphore);
@@ -252,6 +349,9 @@ int main(int argc, char* argv[]) {
                                        &ready_semaphore);
   ready_semaphore.Wait();
 
+  task_runners.push_back(&frontend_runner);
+  task_runners.push_back(&backend_runner);
+
   for (int i = 1; i < argc; ++i) {
     if (argv[i][0] == '-') break;
 
@@ -267,5 +367,6 @@ int main(int argc, char* argv[]) {
   }
 
   frontend_runner.Join();
+  backend_runner.Join();
   return 0;
 }

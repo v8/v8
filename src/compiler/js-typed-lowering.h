@@ -5,9 +5,11 @@
 #ifndef V8_COMPILER_JS_TYPED_LOWERING_H_
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/opcodes.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +28,8 @@ class SimplifiedOperatorBuilder;
 class TypeCache;
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSTypedLowering final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   // Flags that control the mode of operation.
   enum Flag {

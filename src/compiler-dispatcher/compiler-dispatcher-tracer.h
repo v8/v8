@@ -11,6 +11,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/ring-buffer.h"
 #include "src/counters.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +29,7 @@ class RuntimeCallStats;
 #define COMPILER_DISPATCHER_TRACE_SCOPE(tracer, scope_id) \
   COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(tracer, scope_id, 0)
 
-class CompilerDispatcherTracer {
+class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
  public:
   enum class ScopeID {
     kPrepareToParse,

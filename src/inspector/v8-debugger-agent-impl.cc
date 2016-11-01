@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/java-script-call-frame.h"
@@ -162,7 +163,7 @@ void V8DebuggerAgentImpl::disable(ErrorString*) {
   m_state->setObject(DebuggerAgentState::javaScriptBreakpoints,
                      protocol::DictionaryValue::create());
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState,
-                      V8Debugger::DontPauseOnExceptions);
+                      v8::DebugInterface::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
   if (!m_pausedContext.IsEmpty()) m_debugger->continueProgram();
@@ -198,12 +199,10 @@ void V8DebuggerAgentImpl::restore() {
     return;
 
   enable();
-  ErrorString error;
 
-  int pauseState = V8Debugger::DontPauseOnExceptions;
+  int pauseState = v8::DebugInterface::NoBreakOnException;
   m_state->getInteger(DebuggerAgentState::pauseOnExceptionsState, &pauseState);
-  setPauseOnExceptionsImpl(&error, pauseState);
-  DCHECK(error.isEmpty());
+  setPauseOnExceptionsImpl(pauseState);
 
   m_skipAllPauses =
       m_state->booleanProperty(DebuggerAgentState::skipAllPauses, false);
@@ -216,6 +215,7 @@ void V8DebuggerAgentImpl::restore() {
   String16 blackboxPattern;
   if (m_state->getString(DebuggerAgentState::blackboxPattern,
                          &blackboxPattern)) {
+    ErrorString error;
     if (!setBlackboxPattern(&error, blackboxPattern)) UNREACHABLE();
   }
 }
@@ -687,28 +687,24 @@ void V8DebuggerAgentImpl::stepOut(ErrorString* errorString) {
 void V8DebuggerAgentImpl::setPauseOnExceptions(
     ErrorString* errorString, const String16& stringPauseState) {
   if (!checkEnabled(errorString)) return;
-  V8Debugger::PauseOnExceptionsState pauseState;
+  v8::DebugInterface::ExceptionBreakState pauseState;
   if (stringPauseState == "none") {
-    pauseState = V8Debugger::DontPauseOnExceptions;
+    pauseState = v8::DebugInterface::NoBreakOnException;
   } else if (stringPauseState == "all") {
-    pauseState = V8Debugger::PauseOnAllExceptions;
+    pauseState = v8::DebugInterface::BreakOnAnyException;
   } else if (stringPauseState == "uncaught") {
-    pauseState = V8Debugger::PauseOnUncaughtExceptions;
+    pauseState = v8::DebugInterface::BreakOnUncaughtException;
   } else {
     *errorString = "Unknown pause on exceptions mode: " + stringPauseState;
     return;
   }
-  setPauseOnExceptionsImpl(errorString, pauseState);
+  setPauseOnExceptionsImpl(pauseState);
 }
 
-void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(ErrorString* errorString,
-                                                   int pauseState) {
+void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(int pauseState) {
   m_debugger->setPauseOnExceptionsState(
-      static_cast<V8Debugger::PauseOnExceptionsState>(pauseState));
-  if (m_debugger->getPauseOnExceptionsState() != pauseState)
-    *errorString = "Internal error. Could not change pause on exceptions state";
-  else
-    m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState, pauseState);
+      static_cast<v8::DebugInterface::ExceptionBreakState>(pauseState));
+  m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState, pauseState);
 }
 
 void V8DebuggerAgentImpl::evaluateOnCallFrame(
@@ -914,7 +910,7 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
   ErrorString ignored;
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Context> debuggerContext =
-      v8::Debug::GetDebugContext(m_isolate);
+      v8::DebugInterface::GetDebugContext(m_isolate);
   v8::Context::Scope contextScope(debuggerContext);
 
   v8::Local<v8::Array> objects = v8::Array::New(m_isolate);
@@ -1209,7 +1205,7 @@ void V8DebuggerAgentImpl::breakProgramOnException(
     std::unique_ptr<protocol::DictionaryValue> data) {
   if (!enabled() ||
       m_debugger->getPauseOnExceptionsState() ==
-          V8Debugger::DontPauseOnExceptions)
+          v8::DebugInterface::NoBreakOnException)
     return;
   breakProgram(breakReason, std::move(data));
 }

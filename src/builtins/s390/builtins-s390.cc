@@ -551,14 +551,14 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   GenerateTailCallToSharedCode(masm);
 }
 
-static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool create_implicit_receiver,
-                                           bool check_derived_construct) {
+namespace {
+
+void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
+                                    bool create_implicit_receiver,
+                                    bool check_derived_construct) {
   // ----------- S t a t e -------------
   //  -- r2     : number of arguments
   //  -- r3     : constructor function
-  //  -- r4     : allocation site or undefined
   //  -- r5     : new target
   //  -- cp     : context
   //  -- lr     : return address
@@ -572,16 +572,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-    __ AssertUndefinedOrAllocationSite(r4, r6);
 
     if (!create_implicit_receiver) {
       __ SmiTag(r6, r2);
       __ LoadAndTestP(r6, r6);
-      __ Push(cp, r4, r6);
+      __ Push(cp, r6);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     } else {
       __ SmiTag(r2);
-      __ Push(cp, r4, r2);
+      __ Push(cp, r2);
 
       // Allocate the new receiver object.
       __ Push(r3, r5);
@@ -709,6 +708,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   }
   __ Ret();
 }
+
+}  // namespace
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, false, true, false);
@@ -1502,9 +1503,14 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ b(&gotta_call_runtime);
 
   __ bind(&try_shared);
-  // Is the full code valid?
   __ LoadP(entry,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  // Is the shared function marked for tier up?
+  __ LoadlB(temp, FieldMemOperand(
+                      entry, SharedFunctionInfo::kMarkedForTierUpByteOffset));
+  __ TestBit(temp, SharedFunctionInfo::kMarkedForTierUpBitWithinByte, r0);
+  __ bne(&gotta_call_runtime);
+  // Is the full code valid?
   __ LoadP(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ LoadlW(r7, FieldMemOperand(entry, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(r7);

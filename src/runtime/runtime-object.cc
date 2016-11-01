@@ -207,6 +207,70 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   return isolate->heap()->false_value();
 }
 
+// ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
+// TODO(verwaest): Support the common cases with precached map directly in
+// an Object.create stub.
+RUNTIME_FUNCTION(Runtime_ObjectCreate) {
+  HandleScope scope(isolate);
+  Handle<Object> prototype = args.at<Object>(0);
+  if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
+  }
+
+  // Generate the map with the specified {prototype} based on the Object
+  // function's initial map from the current native context.
+  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
+  // slack tracking for Object.create.
+  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
+                  isolate);
+  if (map->prototype() != *prototype) {
+    if (prototype->IsNull(isolate)) {
+      map = isolate->slow_object_with_null_prototype_map();
+    } else if (prototype->IsJSObject()) {
+      Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+      if (!js_prototype->map()->is_prototype_map()) {
+        JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
+      }
+      Handle<PrototypeInfo> info =
+          Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+      // TODO(verwaest): Use inobject slack tracking for this map.
+      if (info->HasObjectCreateMap()) {
+        map = handle(info->ObjectCreateMap(), isolate);
+      } else {
+        map = Map::CopyInitialMap(map);
+        Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
+        PrototypeInfo::SetObjectCreateMap(info, map);
+      }
+    } else {
+      map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+    }
+  }
+
+  bool is_dictionary_map = map->is_dictionary_map();
+  Handle<FixedArray> object_properties;
+  if (is_dictionary_map) {
+    // Allocate the actual properties dictionay up front to avoid invalid object
+    // state.
+    object_properties =
+        NameDictionary::New(isolate, NameDictionary::kInitialCapacity);
+  }
+  // Actually allocate the object.
+  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(map);
+  if (is_dictionary_map) {
+    object->set_properties(*object_properties);
+  }
+
+  // Define the properties if properties was specified and is not undefined.
+  Handle<Object> properties = args.at<Object>(1);
+  if (!properties->IsUndefined(isolate)) {
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, JSReceiver::DefineProperties(isolate, object, properties));
+  }
+
+  return *object;
+}
+
 MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,

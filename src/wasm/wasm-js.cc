@@ -27,10 +27,20 @@ using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
 
-static const int kWasmMemoryBufferFieldIndex = 0;
-static const int kWasmMemoryMaximumFieldIndex = 1;
 static const int kWasmTableArrayFieldIndex = 0;
 static const int kWasmTableMaximumFieldIndex = 1;
+static const int kWasmTableDispatchTablesFieldIndex = 2;
+
+enum WasmMemoryObjectData {
+  kWasmMemoryBuffer,
+  kWasmMemoryMaximum,
+  kWasmMemoryInstanceObject
+};
+
+enum WasmInternalFieldCountData {
+  kWasmTableInternalFieldCount = 3,
+  kWasmMemoryInternalFieldCount = 3
+};
 
 namespace {
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
@@ -81,110 +91,6 @@ RawBuffer GetRawBufferSource(
   }
 
   return {start, end};
-}
-
-void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "Wasm.verifyModule()");
-
-  if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a buffer source");
-    return;
-  }
-  RawBuffer buffer = GetRawBufferSource(args[0], &thrower);
-  if (thrower.error()) return;
-
-  i::Zone zone(isolate->allocator());
-  internal::wasm::ModuleResult result =
-      internal::wasm::DecodeWasmModule(isolate, &zone, buffer.start, buffer.end,
-                                       true, internal::wasm::kWasmOrigin);
-
-  if (result.failed()) {
-    thrower.CompileFailed("", result);
-  }
-
-  if (result.val) delete result.val;
-}
-
-void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "Wasm.verifyFunction()");
-
-  if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a buffer source");
-    return;
-  }
-  RawBuffer buffer = GetRawBufferSource(args[0], &thrower);
-  if (thrower.error()) return;
-
-  internal::wasm::FunctionResult result;
-  {
-    // Verification of a single function shouldn't allocate.
-    i::DisallowHeapAllocation no_allocation;
-    i::Zone zone(isolate->allocator());
-    result = internal::wasm::DecodeWasmFunction(isolate, &zone, nullptr,
-                                                buffer.start, buffer.end);
-  }
-
-  if (result.failed()) {
-    thrower.CompileFailed("", result);
-  }
-
-  if (result.val) delete result.val;
-}
-
-i::MaybeHandle<i::JSObject> InstantiateModule(
-    const v8::FunctionCallbackInfo<v8::Value>& args, const byte* start,
-    const byte* end, ErrorThrower* thrower) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-
-  // Decode but avoid a redundant pass over function bodies for verification.
-  // Verification will happen during compilation.
-  i::Zone zone(isolate->allocator());
-  i::MaybeHandle<i::JSObject> module_object =
-      i::wasm::CreateModuleObjectFromBytes(
-          isolate, start, end, thrower, i::wasm::kWasmOrigin,
-          i::Handle<i::Script>::null(), nullptr, nullptr);
-  i::MaybeHandle<i::JSObject> object;
-  if (!module_object.is_null()) {
-    // Success. Instantiate the module and return the object.
-    i::Handle<i::JSObject> ffi = i::Handle<i::JSObject>::null();
-    if (args.Length() > 1 && args[1]->IsObject()) {
-      Local<Object> obj = Local<Object>::Cast(args[1]);
-      ffi = i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj));
-    }
-
-    i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-    if (args.Length() > 2 && args[2]->IsArrayBuffer()) {
-      Local<Object> obj = Local<Object>::Cast(args[2]);
-      i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-      memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
-    }
-
-    object = i::wasm::WasmModule::Instantiate(
-        isolate, thrower, module_object.ToHandleChecked(), ffi, memory);
-    if (!object.is_null()) {
-      args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
-    }
-  }
-  return object;
-}
-
-void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "Wasm.instantiateModule()");
-
-  if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a buffer source");
-    return;
-  }
-  RawBuffer buffer = GetRawBufferSource(args[0], &thrower);
-  if (buffer.start == nullptr) return;
-
-  InstantiateModule(args, buffer.start, buffer.end, &thrower);
 }
 
 static i::MaybeHandle<i::JSObject> CreateModuleObject(
@@ -323,10 +229,14 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  if (args.Length() > 2 && args[2]->IsArrayBuffer()) {
+  if (args.Length() > 2 && args[2]->IsObject()) {
     Local<Object> obj = Local<Object>::Cast(args[2]);
     i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-    memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
+    if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
+      memory = i::WasmJs::GetWasmMemoryArrayBuffer(i_isolate, mem_obj);
+    } else {
+      thrower.TypeError("Argument 2 must be a WebAssembly.Memory");
+    }
   }
   i::MaybeHandle<i::JSObject> instance =
       i::wasm::WasmModule::Instantiate(i_isolate, &thrower, i_obj, ffi, memory);
@@ -366,6 +276,8 @@ bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
   return false;
 }
 
+const int max_table_size = 1 << 26;
+
 void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
@@ -392,7 +304,6 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
   }
-  const int max_table_size = 1 << 26;
   // The descriptor's 'initial'.
   int initial;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
@@ -417,22 +328,9 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSFunction> table_ctor(
-      i_isolate->native_context()->wasm_table_constructor());
-  i::Handle<i::JSObject> table_obj =
-      i_isolate->factory()->NewJSObject(table_ctor);
-  i::Handle<i::FixedArray> fixed_array =
-      i_isolate->factory()->NewFixedArray(initial);
-  i::Object* null = i_isolate->heap()->null_value();
-  for (int i = 0; i < initial; ++i) fixed_array->set(i, null);
-  table_obj->SetInternalField(kWasmTableArrayFieldIndex, *fixed_array);
-  table_obj->SetInternalField(
-      kWasmTableMaximumFieldIndex,
-      has_maximum.FromJust()
-          ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
-          : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
-  i::Handle<i::Symbol> table_sym(i_isolate->native_context()->wasm_table_sym());
-  i::Object::SetProperty(table_obj, table_sym, table_obj, i::STRICT).Check();
+  i::Handle<i::FixedArray> fixed_array;
+  i::Handle<i::JSObject> table_obj = i::WasmJs::CreateWasmTableObject(
+      i_isolate, initial, has_maximum.FromJust(), maximum, &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }
@@ -511,10 +409,44 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Table")) {
     return;
   }
-  // TODO(rossberg): grow table and update relevant instances.
-  v8::Local<v8::Value> e =
-      v8::Exception::TypeError(v8_str(isolate, "Table#grow unimplemented"));
-  isolate->ThrowException(e);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::FixedArray> old_array(
+      i::FixedArray::cast(
+          receiver->GetInternalField(kWasmTableArrayFieldIndex)),
+      i_isolate);
+  int old_size = old_array->length();
+  int64_t new_size64 = 0;
+  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
+    return;
+  }
+  new_size64 += old_size;
+
+  i::Handle<i::Object> max_val(
+      receiver->GetInternalField(kWasmTableMaximumFieldIndex), i_isolate);
+  int max_size =
+      max_val->IsSmi() ? i::Smi::cast(*max_val)->value() : max_table_size;
+  if (new_size64 < old_size || new_size64 > max_size) {
+    v8::Local<v8::Value> e = v8::Exception::RangeError(
+        v8_str(isolate, new_size64 < old_size ? "trying to shrink table"
+                                              : "maximum table size exceeded"));
+    isolate->ThrowException(e);
+    return;
+  }
+  int new_size = static_cast<int>(new_size64);
+
+  if (new_size != old_size) {
+    i::Handle<i::FixedArray> new_array =
+        i_isolate->factory()->NewFixedArray(new_size);
+    for (int i = 0; i < old_size; ++i) new_array->set(i, old_array->get(i));
+    i::Object* null = i_isolate->heap()->null_value();
+    for (int i = old_size; i < new_size; ++i) new_array->set(i, null);
+    receiver->SetInternalField(kWasmTableArrayFieldIndex, *new_array);
+  }
+
+  // TODO(titzer): update relevant instances.
 }
 
 void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -535,15 +467,21 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int i = 0;
   if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  if (i >= 0 && i < i::Handle<i::FixedArray>::cast(array)->length()) {
-    i::Handle<i::Object> value(i::Handle<i::FixedArray>::cast(array)->get(i),
-                               i_isolate);
-    return_value.Set(Utils::ToLocal(value));
+  if (i < 0 || i >= i::Handle<i::FixedArray>::cast(array)->length()) {
+    v8::Local<v8::Value> e =
+        v8::Exception::RangeError(v8_str(isolate, "index out of bounds"));
+    isolate->ThrowException(e);
+    return;
   }
+
+  i::Handle<i::Object> value(i::Handle<i::FixedArray>::cast(array)->get(i),
+                             i_isolate);
+  return_value.Set(Utils::ToLocal(value));
 }
 
 void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
   if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
@@ -551,19 +489,49 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Table")) {
     return;
   }
-  if (args.Length() < 2 ||
-      !(args[1]->IsNull() ||
-        (args[1]->IsObject() && v8::Object::Cast(*args[1])->IsCallable()))) {
+  if (args.Length() < 2) {
     v8::Local<v8::Value> e = v8::Exception::TypeError(
         v8_str(isolate, "Argument 1 must be null or a function"));
     isolate->ThrowException(e);
     return;
   }
+  i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
+  if (!value->IsNull(i_isolate) &&
+      (!value->IsJSFunction() ||
+       i::Handle<i::JSFunction>::cast(value)->code()->kind() !=
+           i::Code::JS_TO_WASM_FUNCTION)) {
+    v8::Local<v8::Value> e = v8::Exception::TypeError(
+        v8_str(isolate, "Argument 1 must be null or a WebAssembly function"));
+    isolate->ThrowException(e);
+    return;
+  }
 
-  // TODO(rossberg): set table element and update relevent instances.
-  v8::Local<v8::Value> e =
-      v8::Exception::TypeError(v8_str(isolate, "Table#set unimplemented"));
-  isolate->ThrowException(e);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::Object> array(
+      receiver->GetInternalField(kWasmTableArrayFieldIndex), i_isolate);
+  int i;
+  if (!args[0]->Int32Value(context).To(&i)) return;
+  if (i < 0 || i >= i::Handle<i::FixedArray>::cast(array)->length()) {
+    v8::Local<v8::Value> e =
+        v8::Exception::RangeError(v8_str(isolate, "index out of bounds"));
+    isolate->ThrowException(e);
+    return;
+  }
+
+  i::Handle<i::FixedArray> dispatch_tables(
+      i::FixedArray::cast(
+          receiver->GetInternalField(kWasmTableDispatchTablesFieldIndex)),
+      i_isolate);
+  if (value->IsNull(i_isolate)) {
+    i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
+                                  i::Handle<i::JSFunction>::null());
+  } else {
+    i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
+                                  i::Handle<i::JSFunction>::cast(value));
+  }
+
+  i::Handle<i::FixedArray>::cast(array)->set(i, *value);
 }
 
 void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -575,11 +543,42 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Memory")) {
     return;
   }
+  if (args.Length() < 1) {
+    v8::Local<v8::Value> e = v8::Exception::TypeError(
+        v8_str(isolate, "Argument 0 required, must be numeric value of pages"));
+    isolate->ThrowException(e);
+    return;
+  }
 
-  // TODO(rossberg): grow memory.
-  v8::Local<v8::Value> e =
-      v8::Exception::TypeError(v8_str(isolate, "Memory#grow unimplemented"));
-  isolate->ThrowException(e);
+  uint32_t delta = args[0]->Uint32Value(context).FromJust();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::Object> instance_object(
+      receiver->GetInternalField(kWasmMemoryInstanceObject), i_isolate);
+  i::Handle<i::JSObject> instance(
+      i::Handle<i::JSObject>::cast(instance_object));
+
+  // TODO(gdeepti) Implement growing memory when shared by different
+  // instances.
+  int32_t ret = internal::wasm::GrowInstanceMemory(i_isolate, instance, delta);
+  if (ret == -1) {
+    v8::Local<v8::Value> e = v8::Exception::Error(
+        v8_str(isolate, "Unable to grow instance memory."));
+    isolate->ThrowException(e);
+    return;
+  }
+  i::MaybeHandle<i::JSArrayBuffer> buffer =
+      internal::wasm::GetInstanceMemory(i_isolate, instance);
+  if (buffer.is_null()) {
+    v8::Local<v8::Value> e = v8::Exception::Error(
+        v8_str(isolate, "WebAssembly.Memory buffer object not set."));
+    isolate->ThrowException(e);
+    return;
+  }
+  receiver->SetInternalField(kWasmMemoryBuffer, *buffer.ToHandleChecked());
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(ret);
 }
 
 void WebAssemblyMemoryGetBuffer(
@@ -595,8 +594,8 @@ void WebAssemblyMemoryGetBuffer(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::JSObject> receiver =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(
-      receiver->GetInternalField(kWasmMemoryBufferFieldIndex), i_isolate);
+  i::Handle<i::Object> buffer(receiver->GetInternalField(kWasmMemoryBuffer),
+                              i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
@@ -610,9 +609,9 @@ i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
       i_isolate->native_context()->wasm_memory_constructor());
   i::Handle<i::JSObject> memory_obj =
       i_isolate->factory()->NewJSObject(memory_ctor);
-  memory_obj->SetInternalField(kWasmMemoryBufferFieldIndex, *buffer);
+  memory_obj->SetInternalField(kWasmMemoryBuffer, *buffer);
   memory_obj->SetInternalField(
-      kWasmMemoryMaximumFieldIndex,
+      kWasmMemoryMaximum,
       has_maximum
           ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
           : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
@@ -620,6 +619,62 @@ i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
       i_isolate->native_context()->wasm_memory_sym());
   i::Object::SetProperty(memory_obj, memory_sym, memory_obj, i::STRICT).Check();
   return memory_obj;
+}
+
+i::Handle<i::JSObject> i::WasmJs::CreateWasmTableObject(
+    i::Isolate* i_isolate, uint32_t initial, bool has_maximum, uint32_t maximum,
+    i::Handle<i::FixedArray>* js_functions) {
+  i::Handle<i::JSFunction> table_ctor(
+      i_isolate->native_context()->wasm_table_constructor());
+  i::Handle<i::JSObject> table_obj =
+      i_isolate->factory()->NewJSObject(table_ctor);
+  *js_functions = i_isolate->factory()->NewFixedArray(initial);
+  i::Object* null = i_isolate->heap()->null_value();
+  // TODO(titzer): consider moving FixedArray to size_t.
+  for (int i = 0; i < static_cast<int>(initial); ++i) {
+    (*js_functions)->set(i, null);
+  }
+  table_obj->SetInternalField(kWasmTableArrayFieldIndex, *(*js_functions));
+  table_obj->SetInternalField(
+      kWasmTableMaximumFieldIndex,
+      has_maximum
+          ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
+          : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
+  Handle<FixedArray> dispatch_tables = i_isolate->factory()->NewFixedArray(0);
+  table_obj->SetInternalField(kWasmTableDispatchTablesFieldIndex,
+                              *dispatch_tables);
+  i::Handle<i::Symbol> table_sym(i_isolate->native_context()->wasm_table_sym());
+  i::Object::SetProperty(table_obj, table_sym, table_obj, i::STRICT).Check();
+  return table_obj;
+}
+
+i::Handle<i::FixedArray> i::WasmJs::AddWasmTableDispatchTable(
+    i::Isolate* i_isolate, i::Handle<i::JSObject> table_obj,
+    i::Handle<i::JSObject> instance, int table_index,
+    i::Handle<i::FixedArray> dispatch_table) {
+  DCHECK(IsWasmTableObject(i_isolate, table_obj));
+  i::Handle<i::FixedArray> dispatch_tables(
+      i::FixedArray::cast(
+          table_obj->GetInternalField(kWasmTableDispatchTablesFieldIndex)),
+      i_isolate);
+  DCHECK_EQ(0, dispatch_tables->length() % 3);
+
+  if (instance.is_null()) return dispatch_tables;
+  // TODO(titzer): use weak cells here to avoid leaking instances.
+
+  // Grow the dispatch table and add a new pair at the end.
+  i::Handle<i::FixedArray> new_dispatch_tables =
+      i_isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 3);
+
+  new_dispatch_tables->set(dispatch_tables->length() + 0, *instance);
+  new_dispatch_tables->set(dispatch_tables->length() + 1,
+                           Smi::FromInt(table_index));
+  new_dispatch_tables->set(dispatch_tables->length() + 2, *dispatch_table);
+
+  table_obj->SetInternalField(kWasmTableDispatchTablesFieldIndex,
+                              *new_dispatch_tables);
+
+  return new_dispatch_tables;
 }
 
 // TODO(titzer): we use the API to create the function template because the
@@ -693,19 +748,19 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSFunction::SetInstancePrototype(
       cons, Handle<Object>(context->initial_object_prototype(), isolate));
   cons->shared()->set_instance_class_name(*name);
-  Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
+  Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
-  JSObject::AddProperty(global, name, wasm_object, attributes);
+  JSObject::AddProperty(global, name, webassembly, attributes);
 
   // Setup compile
-  InstallFunc(isolate, wasm_object, "compile", WebAssemblyCompile);
+  InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile);
 
   // Setup compile
-  InstallFunc(isolate, wasm_object, "validate", WebAssemblyValidate);
+  InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate);
 
   // Setup Module
   Handle<JSFunction> module_constructor =
-      InstallFunc(isolate, wasm_object, "Module", WebAssemblyModule);
+      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule);
   context->set_wasm_module_constructor(*module_constructor);
   Handle<JSObject> module_proto =
       factory->NewJSObject(module_constructor, TENURED);
@@ -717,17 +772,18 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup Instance
   Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, wasm_object, "Instance", WebAssemblyInstance);
+      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance);
   context->set_wasm_instance_constructor(*instance_constructor);
 
   // Setup Table
   Handle<JSFunction> table_constructor =
-      InstallFunc(isolate, wasm_object, "Table", WebAssemblyTable);
+      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable);
   context->set_wasm_table_constructor(*table_constructor);
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
   map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + 2 * i::kPointerSize);
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+                             kWasmTableInternalFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(table_constructor, map, table_proto);
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
                         table_constructor, DONT_ENUM);
@@ -738,12 +794,13 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup Memory
   Handle<JSFunction> memory_constructor =
-      InstallFunc(isolate, wasm_object, "Memory", WebAssemblyMemory);
+      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory);
   context->set_wasm_memory_constructor(*memory_constructor);
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
   map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + 2 * i::kPointerSize);
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+                             kWasmMemoryInternalFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(memory_constructor, map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
                         memory_constructor, DONT_ENUM);
@@ -754,11 +811,11 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   attributes = static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function());
-  JSObject::AddProperty(wasm_object, isolate->factory()->CompileError_string(),
+  JSObject::AddProperty(webassembly, isolate->factory()->CompileError_string(),
                         compile_error, attributes);
   Handle<JSFunction> runtime_error(
       isolate->native_context()->wasm_runtime_error_function());
-  JSObject::AddProperty(wasm_object, isolate->factory()->RuntimeError_string(),
+  JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),
                         runtime_error, attributes);
 }
 
@@ -767,44 +824,13 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
     return;
   }
 
-  Factory* factory = isolate->factory();
-
   // Setup wasm function map.
   Handle<Context> context(global->native_context(), isolate);
   InstallWasmMapsIfNeeded(isolate, context);
 
-  if (!FLAG_expose_wasm) {
-    return;
+  if (FLAG_expose_wasm) {
+    InstallWasmConstructors(isolate, global, context);
   }
-
-  // Bind the experimental WASM object.
-  // TODO(rossberg, titzer): remove once it's no longer needed.
-  {
-    Handle<String> name = v8_str(isolate, "Wasm");
-    Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(
-        cons, Handle<Object>(context->initial_object_prototype(), isolate));
-    cons->shared()->set_instance_class_name(*name);
-    Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
-    JSObject::AddProperty(global, name, wasm_object, attributes);
-
-    // Install functions on the WASM object.
-    InstallFunc(isolate, wasm_object, "verifyModule", VerifyModule);
-    InstallFunc(isolate, wasm_object, "verifyFunction", VerifyFunction);
-    InstallFunc(isolate, wasm_object, "instantiateModule", InstantiateModule);
-
-    {
-      // Add the Wasm.experimentalVersion property.
-      Handle<String> name = v8_str(isolate, "experimentalVersion");
-      PropertyAttributes attributes =
-          static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-      Handle<Smi> value =
-          Handle<Smi>(Smi::FromInt(wasm::kWasmVersion), isolate);
-      JSObject::AddProperty(wasm_object, name, value, attributes);
-    }
-  }
-  InstallWasmConstructors(isolate, global, context);
 }
 
 void WasmJs::InstallWasmMapsIfNeeded(Isolate* isolate,
@@ -836,24 +862,69 @@ void WasmJs::InstallWasmMapsIfNeeded(Isolate* isolate,
   }
 }
 
-bool WasmJs::IsWasmMemoryObject(Isolate* isolate, Handle<Object> value) {
+static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> symbol) {
   if (value->IsJSObject()) {
     i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
-    i::Handle<i::Symbol> sym(isolate->context()->wasm_memory_sym(), isolate);
-    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, sym);
+    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, symbol);
     if (has_brand.IsNothing()) return false;
     if (has_brand.ToChecked()) return true;
   }
   return false;
 }
 
+bool WasmJs::IsWasmMemoryObject(Isolate* isolate, Handle<Object> value) {
+  i::Handle<i::Symbol> symbol(isolate->context()->wasm_memory_sym(), isolate);
+  return HasBrand(value, symbol);
+}
+
+bool WasmJs::IsWasmTableObject(Isolate* isolate, Handle<Object> value) {
+  i::Handle<i::Symbol> symbol(isolate->context()->wasm_table_sym(), isolate);
+  return HasBrand(value, symbol);
+}
+
+Handle<FixedArray> WasmJs::GetWasmTableFunctions(Isolate* isolate,
+                                                 Handle<JSObject> value) {
+  DCHECK(IsWasmTableObject(isolate, value));
+  Handle<Object> arr(
+      JSObject::cast(*value)->GetInternalField(kWasmTableArrayFieldIndex),
+      isolate);
+  return Handle<FixedArray>::cast(arr);
+}
+
 Handle<JSArrayBuffer> WasmJs::GetWasmMemoryArrayBuffer(Isolate* isolate,
                                                        Handle<Object> value) {
   DCHECK(IsWasmMemoryObject(isolate, value));
   Handle<Object> buf(
-      JSObject::cast(*value)->GetInternalField(kWasmMemoryBufferFieldIndex),
-      isolate);
+      JSObject::cast(*value)->GetInternalField(kWasmMemoryBuffer), isolate);
   return Handle<JSArrayBuffer>::cast(buf);
+}
+
+void WasmJs::SetWasmMemoryArrayBuffer(Isolate* isolate, Handle<Object> value,
+                                      Handle<JSArrayBuffer> buffer) {
+  DCHECK(IsWasmMemoryObject(isolate, value));
+  JSObject::cast(*value)->SetInternalField(kWasmMemoryBuffer, *buffer);
+}
+
+uint32_t WasmJs::GetWasmMemoryMaximumSize(Isolate* isolate,
+                                          Handle<Object> value) {
+  DCHECK(IsWasmMemoryObject(isolate, value));
+  Object* max_mem =
+      JSObject::cast(*value)->GetInternalField(kWasmMemoryMaximum);
+  if (max_mem->IsUndefined(isolate)) return wasm::WasmModule::kV8MaxPages;
+  uint32_t max_pages = Smi::cast(max_mem)->value();
+  return max_pages;
+}
+
+void WasmJs::SetWasmMemoryInstance(Isolate* isolate,
+                                   Handle<Object> memory_object,
+                                   Handle<JSObject> instance) {
+  if (!memory_object->IsUndefined(isolate)) {
+    DCHECK(IsWasmMemoryObject(isolate, memory_object));
+    // TODO(gdeepti): This should be a weak list of instance objects
+    // for instances that share memory.
+    JSObject::cast(*memory_object)
+        ->SetInternalField(kWasmMemoryInstanceObject, *instance);
+  }
 }
 }  // namespace internal
 }  // namespace v8

@@ -375,7 +375,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
   // Here we add info for context-allocated "this".
   DCHECK_EQ(index, scope_info->ContextLocalNamesIndex());
-  scope_info->set(index++, *isolate->factory()->this_string());
+  scope_info->set(index++, isolate->heap()->this_string());
   DCHECK_EQ(index, scope_info->ContextLocalInfosIndex());
   const uint32_t value = VariableModeField::encode(CONST) |
                          InitFlagField::encode(kCreatedInitialized) |
@@ -649,12 +649,8 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
     if (*name == get(entry + kModuleVariableNameOffset)) {
-      int index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
-      int properties =
-          Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
-      *mode = VariableModeField::decode(properties);
-      *init_flag = InitFlagField::decode(properties);
-      *maybe_assigned_flag = MaybeAssignedFlagField::decode(properties);
+      int index;
+      ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
       return index;
     }
     entry += kModuleVariableEntryLength;
@@ -796,6 +792,34 @@ int ScopeInfo::ModuleVariableCountIndex() { return ModuleInfoIndex() + 1; }
 
 int ScopeInfo::ModuleVariablesIndex() { return ModuleVariableCountIndex() + 1; }
 
+void ScopeInfo::ModuleVariable(int i, String** name, int* index,
+                               VariableMode* mode,
+                               InitializationFlag* init_flag,
+                               MaybeAssignedFlag* maybe_assigned_flag) {
+  DCHECK_LE(0, i);
+  DCHECK_LT(i, Smi::cast(get(ModuleVariableCountIndex()))->value());
+
+  int entry = ModuleVariablesIndex() + i * kModuleVariableEntryLength;
+  int properties =
+      Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
+
+  if (name != nullptr) {
+    *name = String::cast(get(entry + kModuleVariableNameOffset));
+  }
+  if (index != nullptr) {
+    *index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+  }
+  if (mode != nullptr) {
+    *mode = VariableModeField::decode(properties);
+  }
+  if (init_flag != nullptr) {
+    *init_flag = InitFlagField::decode(properties);
+  }
+  if (maybe_assigned_flag != nullptr) {
+    *maybe_assigned_flag = MaybeAssignedFlagField::decode(properties);
+  }
+}
+
 #ifdef DEBUG
 
 static void PrintList(const char* list_name,
@@ -845,12 +869,15 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              Handle<Object> export_name,
                                              Handle<Object> local_name,
                                              Handle<Object> import_name,
-                                             Handle<Object> module_request) {
+                                             Handle<Object> module_request,
+                                             int beg_pos, int end_pos) {
   Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
   result->set(kExportNameIndex, *export_name);
   result->set(kLocalNameIndex, *local_name);
   result->set(kImportNameIndex, *import_name);
   result->set(kModuleRequestIndex, *module_request);
+  result->set(kBegPosIndex, Smi::FromInt(beg_pos));
+  result->set(kEndPosIndex, Smi::FromInt(end_pos));
   return result;
 }
 
@@ -869,7 +896,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (auto entry : descr->special_exports()) {
-      special_exports->set(i++, *entry->Serialize(isolate));
+      Handle<ModuleInfoEntry> serialized_entry = entry->Serialize(isolate);
+      special_exports->set(i++, *serialized_entry);
     }
   }
 
@@ -879,7 +907,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
-      namespace_imports->set(i++, *entry->Serialize(isolate));
+      Handle<ModuleInfoEntry> serialized_entry = entry->Serialize(isolate);
+      namespace_imports->set(i++, *serialized_entry);
     }
   }
 
@@ -893,7 +922,9 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (const auto& elem : descr->regular_imports()) {
-      regular_imports->set(i++, *elem.second->Serialize(isolate));
+      Handle<ModuleInfoEntry> serialized_entry =
+          elem.second->Serialize(isolate);
+      regular_imports->set(i++, *serialized_entry);
     }
   }
 
@@ -904,6 +935,21 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
   return result;
+}
+
+Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(
+    Handle<ModuleInfo> info, Handle<String> local_name) {
+  Isolate* isolate = info->GetIsolate();
+  Handle<FixedArray> regular_imports(info->regular_imports(), isolate);
+  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> entry(
+        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
+    if (String::cast(entry->local_name())->Equals(*local_name)) {
+      return entry;
+    }
+  }
+  UNREACHABLE();
+  return Handle<ModuleInfoEntry>();
 }
 
 }  // namespace internal

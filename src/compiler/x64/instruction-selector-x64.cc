@@ -1250,6 +1250,19 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
           return false;
       }
     }
+    case IrOpcode::kLoad: {
+      // The movzxbl/movsxbl/movzxwl/movsxwl operations implicitly zero-extend
+      // to 64-bit on x64,
+      // so the zero-extension is a no-op.
+      LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+      switch (load_rep.representation()) {
+        case MachineRepresentation::kWord8:
+        case MachineRepresentation::kWord16:
+          return true;
+        default:
+          return false;
+      }
+    }
     default:
       return false;
   }

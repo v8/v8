@@ -313,6 +313,10 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
             AccessBuilder::ForFixedArrayElement(receiver_map->elements_kind())),
         elements, length, value, effect, control);
 
+    // Return the new length of the {receiver}.
+    value = graph()->NewNode(simplified()->NumberAdd(), length,
+                             jsgraph()->OneConstant());
+
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -883,11 +887,10 @@ Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
       r.InputsMatchTwo(type_cache_.kSafeInteger,
                        type_cache_.kZeroOrUndefined) ||
       r.InputsMatchTwo(type_cache_.kSafeInteger, type_cache_.kTenOrUndefined)) {
-    // Number.parseInt(a:safe-integer) -> NumberToInt32(a)
-    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> NumberToInt32(a)
-    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> NumberToInt32(a)
-    Node* input = r.GetJSCallInput(0);
-    Node* value = graph()->NewNode(simplified()->NumberToInt32(), input);
+    // Number.parseInt(a:safe-integer) -> a
+    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
+    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a
+    Node* value = r.GetJSCallInput(0);
     return Replace(value);
   }
   return NoChange();
@@ -1026,6 +1029,51 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* context = NodeProperties::GetContextInput(node);
+
+    Node* native_context = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+        context, context, effect);
+    Node* map = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::STRING_ITERATOR_MAP_INDEX, true),
+        native_context, native_context, effect);
+
+    // allocate new iterator
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    Node* value = effect = graph()->NewNode(
+        simplified()->Allocate(NOT_TENURED),
+        jsgraph()->Int32Constant(JSStringIterator::kSize), effect, control);
+    effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                              value, map, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+
+    // attach the iterator to this string
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorString()),
+        value, receiver, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+        value, jsgraph()->SmiConstant(0), effect, control);
+
+    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+
+    // replace it
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1093,9 +1141,16 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
           {
             vtrue3 = graph()->NewNode(
                 simplified()->NumberBitwiseOr(),
+// Need to swap the order for big-endian platforms
+#if V8_TARGET_BIG_ENDIAN
+                graph()->NewNode(simplified()->NumberShiftLeft(), lead,
+                                 jsgraph()->Int32Constant(16)),
+                trail);
+#else
                 graph()->NewNode(simplified()->NumberShiftLeft(), trail,
                                  jsgraph()->Int32Constant(16)),
                 lead);
+#endif
           }
 
           Node* if_false3 = graph()->NewNode(common()->IfFalse(), branch3);
@@ -1328,6 +1383,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIterator:
+      return ReduceStringIterator(node);
     case kStringIteratorNext:
       return ReduceStringIteratorNext(node);
     case kDataViewByteLength:

@@ -66,6 +66,7 @@ TEST_MAP = {
   # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
     "mjsunit",
+    "debugger",
     "cctest",
     "webkit",
     "inspector",
@@ -78,6 +79,7 @@ TEST_MAP = {
   # This needs to stay in sync with test/default.isolate.
   "default": [
     "mjsunit",
+    "debugger",
     "cctest",
     "fuzzer",
     "message",
@@ -88,6 +90,7 @@ TEST_MAP = {
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
     "mjsunit",
+    "debugger",
     "cctest",
     "webkit",
     "inspector",
@@ -452,8 +455,13 @@ def ProcessOptions(options):
       print(">>> Latest GN build found is %s" % latest_config)
       options.outdir = os.path.join(DEFAULT_OUT_GN, latest_config)
 
-  build_config_path = os.path.join(
-      BASE_DIR, options.outdir, "v8_build_config.json")
+  if options.buildbot:
+    build_config_path = os.path.join(
+        BASE_DIR, options.outdir, options.mode, "v8_build_config.json")
+  else:
+    build_config_path = os.path.join(
+        BASE_DIR, options.outdir, "v8_build_config.json")
+
   if os.path.exists(build_config_path):
     try:
       with open(build_config_path) as f:
@@ -463,6 +471,10 @@ def ProcessOptions(options):
              build_config_path)
       return False
     options.auto_detect = True
+
+    # In auto-detect mode the outdir is always where we found the build config.
+    # This ensures that we'll also take the build products from there.
+    options.outdir = os.path.dirname(build_config_path)
 
     options.arch_and_mode = None
     options.arch = build_config["v8_target_cpu"]
@@ -601,6 +613,9 @@ def ProcessOptions(options):
   if not options.enable_inspector:
     TEST_MAP["bot_default"].remove("inspector")
     TEST_MAP["optimize_for_size"].remove("inspector")
+    TEST_MAP["default"].remove("debugger")
+    TEST_MAP["bot_default"].remove("debugger")
+    TEST_MAP["optimize_for_size"].remove("debugger")
   return True
 
 
@@ -711,15 +726,15 @@ def Execute(arch, mode, args, options, suites):
 
   shell_dir = options.shell_dir
   if not shell_dir:
-    if options.buildbot:
+    if options.auto_detect:
+      # If an output dir with a build was passed, test directly in that
+      # directory.
+      shell_dir = os.path.join(BASE_DIR, options.outdir)
+    elif options.buildbot:
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(BASE_DIR, options.outdir, mode)
       mode = BuildbotToV8Mode(mode)
-    elif options.auto_detect:
-      # If an output dir with a build was passed, test directly in that
-      # directory.
-      shell_dir = os.path.join(BASE_DIR, options.outdir)
     else:
       shell_dir = os.path.join(
           BASE_DIR,
@@ -742,14 +757,8 @@ def Execute(arch, mode, args, options, suites):
     # Predictable mode is slower.
     options.timeout *= 2
 
-  # TODO(machenbach): Remove temporary verbose output on windows after
-  # debugging driver-hung-up on XP.
-  verbose_output = (
-      options.verbose or
-      utils.IsWindows() and options.progress == "verbose"
-  )
   ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
-                        mode_flags, verbose_output,
+                        mode_flags, options.verbose,
                         options.timeout,
                         options.isolates,
                         options.command_prefix,
@@ -860,7 +869,7 @@ def Execute(arch, mode, args, options, suites):
 
   run_networked = not options.no_network
   if not run_networked:
-    if verbose_output:
+    if options.verbose:
       print("Network distribution disabled, running tests locally.")
   elif utils.GuessOS() != "linux":
     print("Network distribution is only supported on Linux, sorry!")

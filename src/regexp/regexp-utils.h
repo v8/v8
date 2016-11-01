@@ -19,32 +19,31 @@ class RegExpUtils : public AllStatic {
                                              int capture, bool* ok = nullptr);
 
   // Last index (RegExp.lastIndex) accessors.
-  static MaybeHandle<Object> SetLastIndex(Isolate* isolate,
-                                          Handle<JSReceiver> regexp, int value);
-  static MaybeHandle<Object> GetLastIndex(Isolate* isolate,
-                                          Handle<JSReceiver> recv);
+  static MUST_USE_RESULT MaybeHandle<Object> SetLastIndex(
+      Isolate* isolate, Handle<JSReceiver> regexp, int value);
+  static MUST_USE_RESULT MaybeHandle<Object> GetLastIndex(
+      Isolate* isolate, Handle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-  static MaybeHandle<Object> RegExpExec(Isolate* isolate,
-                                        Handle<JSReceiver> regexp,
-                                        Handle<String> string,
-                                        Handle<Object> exec);
+  static MUST_USE_RESULT MaybeHandle<Object> RegExpExec(
+      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
+      Handle<Object> exec);
 
   // ES#sec-isregexp IsRegExp ( argument )
   // Includes checking of the match property.
   static Maybe<bool> IsRegExp(Isolate* isolate, Handle<Object> object);
 
-  // Checks whether exec is identical to the initial RegExp.prototype.exec.
-  static bool IsBuiltinExec(Handle<Object> exec);
+  // Checks whether the given object is an unmodified JSRegExp instance.
+  // Neither the object's map, nor its prototype's map may be modified.
+  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj);
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
   static int AdvanceStringIndex(Isolate* isolate, Handle<String> string,
                                 int index, bool unicode);
-  static MaybeHandle<Object> SetAdvancedStringIndex(Isolate* isolate,
-                                                    Handle<JSReceiver> regexp,
-                                                    Handle<String> string,
-                                                    bool unicode);
+  static MUST_USE_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
+      Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
+      bool unicode);
 };
 
 }  // namespace internal

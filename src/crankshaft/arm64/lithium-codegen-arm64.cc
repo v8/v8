@@ -595,11 +595,16 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      FastNewFunctionContextStub stub(isolate());
-      __ Mov(FastNewFunctionContextDescriptor::SlotsRegister(), slots);
-      __ CallStub(&stub);
-      // Result of FastNewFunctionContextStub is always in new space.
-      need_write_barrier = false;
+      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
+        FastNewFunctionContextStub stub(isolate());
+        __ Mov(FastNewFunctionContextDescriptor::SlotsRegister(), slots);
+        __ CallStub(&stub);
+        // Result of FastNewFunctionContextStub is always in new space.
+        need_write_barrier = false;
+      } else {
+        __ Push(x1);
+        __ CallRuntime(Runtime::kNewFunctionContext);
+      }
     }
     RecordSafepoint(deopt_mode);
     // Context is returned in x0. It replaces the context passed to us. It's
@@ -2659,20 +2664,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ Bind(&use_cache);
 }
 
-
-void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-
-  __ AssertString(input);
-
-  // Assert that we can use a W register load to get the hash.
-  DCHECK((String::kHashShift + String::kArrayIndexValueBits) < kWRegSizeInBits);
-  __ Ldr(result.W(), FieldMemOperand(input, String::kHashFieldOffset));
-  __ IndexFromHash(result, result);
-}
-
-
 void LCodeGen::EmitGoto(int block) {
   // Do not emit jump if we are emitting a goto to the next block.
   if (!IsNextEmittedBlock(block)) {
@@ -2680,24 +2671,9 @@ void LCodeGen::EmitGoto(int block) {
   }
 }
 
-
 void LCodeGen::DoGoto(LGoto* instr) {
   EmitGoto(instr->block_id());
 }
-
-
-void LCodeGen::DoHasCachedArrayIndexAndBranch(
-    LHasCachedArrayIndexAndBranch* instr) {
-  Register input = ToRegister(instr->value());
-  Register temp = ToRegister32(instr->temp());
-
-  // Assert that the cache status bits fit in a W register.
-  DCHECK(is_uint32(String::kContainsCachedArrayIndexMask));
-  __ Ldr(temp, FieldMemOperand(input, String::kHashFieldOffset));
-  __ Tst(temp, String::kContainsCachedArrayIndexMask);
-  EmitBranch(instr, eq);
-}
-
 
 // HHasInstanceTypeAndBranch instruction is built with an interval of type
 // to test but is only used in very restricted ways. The only possible kinds
@@ -4228,8 +4204,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input = ToRegister(instr->value());
   Register scratch = ToRegister(instr->temp());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  bool can_convert_undefined_to_nan =
-      instr->hydrogen()->can_convert_undefined_to_nan();
+  bool can_convert_undefined_to_nan = instr->truncating();
 
   Label done, load_smi;
 
@@ -5206,30 +5181,18 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
   Label done;
 
   if (instr->truncating()) {
+    UseScratchRegisterScope temps(masm());
     Register output = ToRegister(instr->result());
-    Label check_bools;
-
-    // If it's not a heap number, jump to undefined check.
-    __ JumpIfNotHeapNumber(input, &check_bools);
-
-    // A heap number: load value and convert to int32 using truncating function.
+    Register input_map = temps.AcquireX();
+    Register input_instance_type = input_map;
+    Label truncate;
+    __ CompareObjectType(input, input_map, input_instance_type,
+                         HEAP_NUMBER_TYPE);
+    __ B(eq, &truncate);
+    __ Cmp(input_instance_type, ODDBALL_TYPE);
+    DeoptimizeIf(ne, instr, DeoptimizeReason::kNotANumberOrOddball);
+    __ Bind(&truncate);
     __ TruncateHeapNumberToI(output, input);
-    __ B(&done);
-
-    __ Bind(&check_bools);
-
-    Register true_root = output;
-    Register false_root = scratch1;
-    __ LoadTrueFalseRoots(true_root, false_root);
-    __ Cmp(input, true_root);
-    __ Cset(output, eq);
-    __ Ccmp(input, false_root, ZFlag, ne);
-    __ B(eq, &done);
-
-    // Output contains zero, undefined is converted to zero for truncating
-    // conversions.
-    DeoptimizeIfNotRoot(input, Heap::kUndefinedValueRootIndex, instr,
-                        DeoptimizeReason::kNotAHeapNumberUndefinedBoolean);
   } else {
     Register output = ToRegister32(instr->result());
     DoubleRegister dbl_scratch2 = ToDoubleRegister(temp2);

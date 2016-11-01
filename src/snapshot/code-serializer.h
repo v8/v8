@@ -59,8 +59,8 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
  public:
   static std::unique_ptr<ScriptData> SerializeWasmModule(
       Isolate* isolate, Handle<FixedArray> compiled_module);
-  static MaybeHandle<FixedArray> DeserializeWasmModule(Isolate* isolate,
-                                                       ScriptData* data);
+  static MaybeHandle<FixedArray> DeserializeWasmModule(
+      Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes);
 
  protected:
   void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
@@ -74,7 +74,9 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
     }
   }
 
-  bool ElideObject(Object* obj) override { return obj->IsWeakCell(); };
+  bool ElideObject(Object* obj) override {
+    return obj->IsWeakCell() || obj->IsForeign();
+  };
 
  private:
   WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)

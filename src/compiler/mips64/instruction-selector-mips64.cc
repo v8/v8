@@ -31,14 +31,25 @@ class Mips64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
-  bool CanBeImmediate(Node* node, InstructionCode opcode) {
-    int64_t value;
-    if (node->opcode() == IrOpcode::kInt32Constant)
-      value = OpParameter<int32_t>(node);
-    else if (node->opcode() == IrOpcode::kInt64Constant)
-      value = OpParameter<int64_t>(node);
-    else
-      return false;
+  bool IsIntegerConstant(Node* node) {
+    return (node->opcode() == IrOpcode::kInt32Constant) ||
+           (node->opcode() == IrOpcode::kInt64Constant);
+  }
+
+  int64_t GetIntegerConstantValue(Node* node) {
+    if (node->opcode() == IrOpcode::kInt32Constant) {
+      return OpParameter<int32_t>(node);
+    }
+    DCHECK(node->opcode() == IrOpcode::kInt64Constant);
+    return OpParameter<int64_t>(node);
+  }
+
+  bool CanBeImmediate(Node* node, InstructionCode mode) {
+    return IsIntegerConstant(node) &&
+           CanBeImmediate(GetIntegerConstantValue(node), mode);
+  }
+
+  bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
       case kMips64Shl:
       case kMips64Sar:
@@ -91,6 +102,76 @@ static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseOperand(node->InputAt(1), opcode));
 }
 
+struct ExtendingLoadMatcher {
+  ExtendingLoadMatcher(Node* node, InstructionSelector* selector)
+      : matches_(false), selector_(selector), base_(nullptr), immediate_(0) {
+    Initialize(node);
+  }
+
+  bool Matches() const { return matches_; }
+
+  Node* base() const {
+    DCHECK(Matches());
+    return base_;
+  }
+  int64_t immediate() const {
+    DCHECK(Matches());
+    return immediate_;
+  }
+  ArchOpcode opcode() const {
+    DCHECK(Matches());
+    return opcode_;
+  }
+
+ private:
+  bool matches_;
+  InstructionSelector* selector_;
+  Node* base_;
+  int64_t immediate_;
+  ArchOpcode opcode_;
+
+  void Initialize(Node* node) {
+    Int64BinopMatcher m(node);
+    // When loading a 64-bit value and shifting by 32, we should
+    // just load and sign-extend the interesting 4 bytes instead.
+    // This happens, for example, when we're loading and untagging SMIs.
+    DCHECK(m.IsWord64Sar());
+    if (m.left().IsLoad() && m.right().Is(32) &&
+        selector_->CanCover(m.node(), m.left().node())) {
+      Mips64OperandGenerator g(selector_);
+      Node* load = m.left().node();
+      Node* offset = load->InputAt(1);
+      base_ = load->InputAt(0);
+      opcode_ = kMips64Lw;
+      if (g.CanBeImmediate(offset, opcode_)) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+        immediate_ = g.GetIntegerConstantValue(offset) + 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+        immediate_ = g.GetIntegerConstantValue(offset);
+#endif
+        matches_ = g.CanBeImmediate(immediate_, kMips64Lw);
+      }
+    }
+  }
+};
+
+bool TryEmitExtendingLoad(InstructionSelector* selector, Node* node) {
+  ExtendingLoadMatcher m(node, selector);
+  Mips64OperandGenerator g(selector);
+  if (m.Matches()) {
+    InstructionOperand inputs[2];
+    inputs[0] = g.UseRegister(m.base());
+    InstructionCode opcode =
+        m.opcode() | AddressingModeField::encode(kMode_MRI);
+    DCHECK(is_int32(m.immediate()));
+    inputs[1] = g.TempImmediate(static_cast<int32_t>(m.immediate()));
+    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    selector->Emit(opcode, arraysize(outputs), outputs, arraysize(inputs),
+                   inputs);
+    return true;
+  }
+  return false;
+}
 
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        InstructionCode opcode, FlagsContinuation* cont) {
@@ -597,6 +678,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
+  if (TryEmitExtendingLoad(this, node)) return;
   VisitRRO(this, kMips64Dsar, node);
 }
 
@@ -1840,10 +1922,89 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 }
 
+bool IsNodeUnsigned(Node* n) {
+  NodeMatcher m(n);
+
+  if (m.IsLoad()) {
+    LoadRepresentation load_rep = LoadRepresentationOf(n->op());
+    return load_rep.IsUnsigned();
+  } else if (m.IsUnalignedLoad()) {
+    UnalignedLoadRepresentation load_rep =
+        UnalignedLoadRepresentationOf(n->op());
+    return load_rep.IsUnsigned();
+  } else {
+    return m.IsUint32Div() || m.IsUint32LessThan() ||
+           m.IsUint32LessThanOrEqual() || m.IsUint32Mod() ||
+           m.IsUint32MulHigh() || m.IsChangeFloat64ToUint32() ||
+           m.IsTruncateFloat64ToUint32() || m.IsTruncateFloat32ToUint32();
+  }
+}
+
+// Shared routine for multiple word compare operations.
+void VisitFullWord32Compare(InstructionSelector* selector, Node* node,
+                            InstructionCode opcode, FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
+  InstructionOperand leftOp = g.TempRegister();
+  InstructionOperand rightOp = g.TempRegister();
+
+  selector->Emit(kMips64Dshl, leftOp, g.UseRegister(node->InputAt(0)),
+                 g.TempImmediate(32));
+  selector->Emit(kMips64Dshl, rightOp, g.UseRegister(node->InputAt(1)),
+                 g.TempImmediate(32));
+
+  VisitCompare(selector, opcode, leftOp, rightOp, cont);
+}
+
+void VisitOptimizedWord32Compare(InstructionSelector* selector, Node* node,
+                                 InstructionCode opcode,
+                                 FlagsContinuation* cont) {
+  if (FLAG_debug_code) {
+    Mips64OperandGenerator g(selector);
+    InstructionOperand leftOp = g.TempRegister();
+    InstructionOperand rightOp = g.TempRegister();
+    InstructionOperand optimizedResult = g.TempRegister();
+    InstructionOperand fullResult = g.TempRegister();
+    FlagsCondition condition = cont->condition();
+    InstructionCode testOpcode = opcode |
+                                 FlagsConditionField::encode(condition) |
+                                 FlagsModeField::encode(kFlags_set);
+
+    selector->Emit(testOpcode, optimizedResult, g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)));
+
+    selector->Emit(kMips64Dshl, leftOp, g.UseRegister(node->InputAt(0)),
+                   g.TempImmediate(32));
+    selector->Emit(kMips64Dshl, rightOp, g.UseRegister(node->InputAt(1)),
+                   g.TempImmediate(32));
+    selector->Emit(testOpcode, fullResult, leftOp, rightOp);
+
+    selector->Emit(
+        kMips64AssertEqual, g.NoOutput(), optimizedResult, fullResult,
+        g.TempImmediate(BailoutReason::kUnsupportedNonPrimitiveCompare));
+  }
+
+  VisitWordCompare(selector, node, opcode, cont, false);
+}
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
-  VisitWordCompare(selector, node, kMips64Cmp, cont, false);
+  // MIPS64 doesn't support Word32 compare instructions. Instead it relies
+  // that the values in registers are correctly sign-extended and uses
+  // Word64 comparison instead. This behavior is correct in most cases,
+  // but doesn't work when comparing signed with unsigned operands.
+  // We could simulate full Word32 compare in all cases but this would
+  // create an unnecessary overhead since unsigned integers are rarely
+  // used in JavaScript.
+  // The solution proposed here tries to match a comparison of signed
+  // with unsigned operand, and perform full Word32Compare only
+  // in those cases. Unfortunately, the solution is not complete because
+  // it might skip cases where Word32 full compare is needed, so
+  // basically it is a hack.
+  if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1))) {
+    VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
+  } else {
+    VisitOptimizedWord32Compare(selector, node, kMips64Cmp, cont);
+  }
 }
 
 

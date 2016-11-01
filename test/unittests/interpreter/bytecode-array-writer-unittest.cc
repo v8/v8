@@ -57,27 +57,27 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, &info);
+  BytecodeNode node(bytecode, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, &info);
+  BytecodeNode node(bytecode, operand0, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         uint32_t operand1,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, operand1, &info);
+  BytecodeNode node(bytecode, operand0, operand1, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         uint32_t operand1, uint32_t operand2,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, operand1, operand2, &info);
+  BytecodeNode node(bytecode, operand0, operand1, operand2, info);
   writer()->Write(&node);
 }
 
@@ -85,21 +85,21 @@ void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         uint32_t operand1, uint32_t operand2,
                                         uint32_t operand3,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, operand1, operand2, operand3, &info);
+  BytecodeNode node(bytecode, operand0, operand1, operand2, operand3, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
                                             BytecodeLabel* label,
                                             BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, 0, &info);
+  BytecodeNode node(bytecode, 0, info);
   writer()->WriteJump(&node, label);
 }
 
 void BytecodeArrayWriterUnittest::WriteJumpLoop(Bytecode bytecode,
                                                 BytecodeLabel* label, int depth,
                                                 BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, 0, depth, &info);
+  BytecodeNode node(bytecode, 0, depth, info);
   writer()->WriteJump(&node, label);
 }
 

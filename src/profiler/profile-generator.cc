@@ -412,7 +412,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
   value->SetDouble("startTime",
                    (start_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "CpuProfile", this, "data", std::move(value));
+                              "Profile", this, "data", std::move(value));
 }
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
@@ -466,22 +466,27 @@ void CpuProfile::StreamPendingTraceEvents() {
   if (pending_nodes.empty() && !samples_.length()) return;
   auto value = TracedValue::Create();
 
-  if (!pending_nodes.empty()) {
-    value->BeginArray("nodes");
-    for (auto node : pending_nodes) {
-      value->BeginDictionary();
-      BuildNodeValue(node, value.get());
-      value->EndDictionary();
+  if (!pending_nodes.empty() || streaming_next_sample_ != samples_.length()) {
+    value->BeginDictionary("cpuProfile");
+    if (!pending_nodes.empty()) {
+      value->BeginArray("nodes");
+      for (auto node : pending_nodes) {
+        value->BeginDictionary();
+        BuildNodeValue(node, value.get());
+        value->EndDictionary();
+      }
+      value->EndArray();
     }
-    value->EndArray();
+    if (streaming_next_sample_ != samples_.length()) {
+      value->BeginArray("samples");
+      for (int i = streaming_next_sample_; i < samples_.length(); ++i) {
+        value->AppendInteger(samples_[i]->id());
+      }
+      value->EndArray();
+    }
+    value->EndDictionary();
   }
-
   if (streaming_next_sample_ != samples_.length()) {
-    value->BeginArray("samples");
-    for (int i = streaming_next_sample_; i < samples_.length(); ++i) {
-      value->AppendInteger(samples_[i]->id());
-    }
-    value->EndArray();
     value->BeginArray("timeDeltas");
     base::TimeTicks lastTimestamp =
         streaming_next_sample_ ? timestamps_[streaming_next_sample_ - 1]
@@ -497,8 +502,7 @@ void CpuProfile::StreamPendingTraceEvents() {
   }
 
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "CpuProfileChunk", this, "data",
-                              std::move(value));
+                              "ProfileChunk", this, "data", std::move(value));
 }
 
 void CpuProfile::FinishProfile() {
@@ -507,8 +511,7 @@ void CpuProfile::FinishProfile() {
   auto value = TracedValue::Create();
   value->SetDouble("endTime", (end_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "CpuProfileChunk", this, "data",
-                              std::move(value));
+                              "ProfileChunk", this, "data", std::move(value));
 }
 
 void CpuProfile::Print() {
@@ -645,8 +648,9 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   current_profiles_semaphore_.Signal();
 }
 
-ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
-    : profiles_(profiles) {}
+ProfileGenerator::ProfileGenerator(Isolate* isolate,
+                                   CpuProfilesCollection* profiles)
+    : isolate_(isolate), profiles_(profiles) {}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   std::vector<CodeEntry*> entries;
@@ -667,16 +671,14 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      entries.push_back(code_map_.FindEntry(
-          reinterpret_cast<Address>(sample.external_callback_entry)));
+      entries.push_back(FindEntry(sample.external_callback_entry));
     } else {
-      CodeEntry* pc_entry =
-          code_map_.FindEntry(reinterpret_cast<Address>(sample.pc));
+      CodeEntry* pc_entry = FindEntry(sample.pc);
       // If there is no pc_entry we're likely in native code.
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
       if (!pc_entry && !sample.has_external_callback) {
-        pc_entry = code_map_.FindEntry(reinterpret_cast<Address>(sample.tos));
+        pc_entry = FindEntry(sample.tos);
       }
       // If pc is in the function code before it set up stack frame or after the
       // frame was destroyed SafeStackFrameIterator incorrectly thinks that
@@ -709,8 +711,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
 
     for (unsigned i = 0; i < sample.frames_count; ++i) {
       Address stack_pos = reinterpret_cast<Address>(sample.stack[i]);
-      CodeEntry* entry = code_map_.FindEntry(stack_pos);
-
+      CodeEntry* entry = FindEntry(stack_pos);
       if (entry) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
@@ -753,6 +754,22 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
                                       sample.update_stats);
 }
 
+CodeEntry* ProfileGenerator::FindEntry(void* address) {
+  CodeEntry* entry = code_map_.FindEntry(reinterpret_cast<Address>(address));
+  if (!entry) {
+    RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
+    void* start = reinterpret_cast<void*>(rcs);
+    void* end = reinterpret_cast<void*>(rcs + 1);
+    if (start <= address && address < end) {
+      RuntimeCallCounter* counter =
+          reinterpret_cast<RuntimeCallCounter*>(address);
+      entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name,
+                            CodeEntry::kEmptyNamePrefix, "native V8Runtime");
+      code_map_.AddCode(reinterpret_cast<Address>(address), entry, 1);
+    }
+  }
+  return entry;
+}
 
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
   switch (tag) {

@@ -157,7 +157,8 @@ Heap::Heap()
       heap_iterator_depth_(0),
       embedder_heap_tracer_(nullptr),
       embedder_reference_reporter_(new TracePossibleWrapperReporter(this)),
-      force_oom_(false) {
+      force_oom_(false),
+      delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -1016,6 +1017,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
           (committed_memory_before - committed_memory_after) > MB ||
           HasHighFragmentation(used_memory_after, committed_memory_after) ||
           (detached_contexts()->length() > 0);
+      event.committed_memory = committed_memory_after;
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
       }
@@ -1446,6 +1448,7 @@ void Heap::MarkCompact() {
 
 
 void Heap::MarkCompactEpilogue() {
+  TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
   gc_state_ = NOT_IN_GC;
 
   isolate_->counters()->objs_since_last_full()->Set(0);
@@ -1455,18 +1458,12 @@ void Heap::MarkCompactEpilogue() {
   PreprocessStackTraces();
   DCHECK(incremental_marking()->IsStopped());
 
-  // We finished a marking cycle. We can uncommit the marking deque until
-  // we start marking again.
-  mark_compact_collector()->marking_deque()->Uninitialize();
-  mark_compact_collector()->EnsureMarkingDequeIsCommitted(
-      MarkCompactCollector::kMinMarkingDequeSize);
+  mark_compact_collector()->marking_deque()->StopUsing();
 }
 
 
 void Heap::MarkCompactPrologue() {
-  // At any old GC clear the keyed lookup cache to enable collection of unused
-  // maps.
-  isolate_->keyed_lookup_cache()->Clear();
+  TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
   RegExpResultsCache::Clear(string_split_cache());
@@ -2541,16 +2538,6 @@ AllocationResult Heap::AllocateTransitionArray(int capacity) {
 
 void Heap::CreateApiObjects() {
   HandleScope scope(isolate());
-  Factory* factory = isolate()->factory();
-  Handle<Map> new_neander_map =
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-
-  // Don't use Smi-only elements optimizations for objects with the neander
-  // map. There are too many cases where element values are set directly with a
-  // bottleneck to trap the Smi-only -> fast elements transition, and there
-  // appears to be no benefit for optimize this case.
-  new_neander_map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
-  set_neander_map(*new_neander_map);
   set_message_listeners(*TemplateList::New(isolate(), 2));
 }
 
@@ -2886,9 +2873,6 @@ void Heap::CreateInitialObjects() {
   set_weak_stack_trace_list(Smi::kZero);
 
   set_noscript_shared_function_infos(Smi::kZero);
-
-  // Initialize keyed lookup cache.
-  isolate_->keyed_lookup_cache()->Clear();
 
   // Initialize context slot cache.
   isolate_->context_slot_cache()->Clear();

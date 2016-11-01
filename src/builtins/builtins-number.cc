@@ -68,9 +68,10 @@ void Builtins::Generate_NumberIsInteger(CodeStubAssembler* assembler) {
   Node* integer = assembler->Float64Trunc(number_value);
 
   // Check if {number}s value matches the integer (ruling out the infinities).
-  assembler->BranchIfFloat64Equal(assembler->Float64Sub(number_value, integer),
-                                  assembler->Float64Constant(0.0), &return_true,
-                                  &return_false);
+  assembler->Branch(
+      assembler->Float64Equal(assembler->Float64Sub(number_value, integer),
+                              assembler->Float64Constant(0.0)),
+      &return_true, &return_false);
 
   assembler->Bind(&return_true);
   assembler->Return(assembler->BooleanConstant(true));
@@ -139,9 +140,10 @@ void Builtins::Generate_NumberIsSafeInteger(CodeStubAssembler* assembler) {
       &return_false);
 
   // Check if the {integer} value is in safe integer range.
-  assembler->BranchIfFloat64LessThanOrEqual(
-      assembler->Float64Abs(integer),
-      assembler->Float64Constant(kMaxSafeInteger), &return_true, &return_false);
+  assembler->Branch(assembler->Float64LessThanOrEqual(
+                        assembler->Float64Abs(integer),
+                        assembler->Float64Constant(kMaxSafeInteger)),
+                    &return_true, &return_false);
 
   assembler->Bind(&return_true);
   assembler->Return(assembler->BooleanConstant(true));
@@ -205,7 +207,7 @@ void Builtins::Generate_NumberParseFloat(CodeStubAssembler* assembler) {
         {
           // Just return the {input}s cached array index.
           Node* input_array_index =
-              assembler->BitFieldDecodeWord<String::ArrayIndexValueBits>(
+              assembler->DecodeWordFromWord32<String::ArrayIndexValueBits>(
                   input_hash);
           assembler->Return(assembler->SmiTag(input_array_index));
         }
@@ -253,6 +255,103 @@ void Builtins::Generate_NumberParseFloat(CodeStubAssembler* assembler) {
         }
       }
     }
+  }
+}
+
+// ES6 section 20.1.2.13 Number.parseInt ( string, radix )
+void Builtins::Generate_NumberParseInt(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* input = assembler->Parameter(1);
+  Node* radix = assembler->Parameter(2);
+  Node* context = assembler->Parameter(5);
+
+  // Check if {radix} is treated as 10 (i.e. undefined, 0 or 10).
+  Label if_radix10(assembler), if_generic(assembler, Label::kDeferred);
+  assembler->GotoIf(assembler->WordEqual(radix, assembler->UndefinedConstant()),
+                    &if_radix10);
+  assembler->GotoIf(
+      assembler->WordEqual(radix, assembler->SmiConstant(Smi::FromInt(10))),
+      &if_radix10);
+  assembler->GotoIf(
+      assembler->WordEqual(radix, assembler->SmiConstant(Smi::FromInt(0))),
+      &if_radix10);
+  assembler->Goto(&if_generic);
+
+  assembler->Bind(&if_radix10);
+  {
+    // Check if we can avoid the ToString conversion on {input}.
+    Label if_inputissmi(assembler), if_inputisheapnumber(assembler),
+        if_inputisstring(assembler);
+    assembler->GotoIf(assembler->TaggedIsSmi(input), &if_inputissmi);
+    Node* input_map = assembler->LoadMap(input);
+    assembler->GotoIf(
+        assembler->WordEqual(input_map, assembler->HeapNumberMapConstant()),
+        &if_inputisheapnumber);
+    Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
+    assembler->Branch(assembler->IsStringInstanceType(input_instance_type),
+                      &if_inputisstring, &if_generic);
+
+    assembler->Bind(&if_inputissmi);
+    {
+      // Just return the {input}.
+      assembler->Return(input);
+    }
+
+    assembler->Bind(&if_inputisheapnumber);
+    {
+      // Check if the {input} value is in Signed32 range.
+      Label if_inputissigned32(assembler);
+      Node* input_value = assembler->LoadHeapNumberValue(input);
+      Node* input_value32 = assembler->TruncateFloat64ToWord32(input_value);
+      assembler->GotoIf(
+          assembler->Float64Equal(
+              input_value, assembler->ChangeInt32ToFloat64(input_value32)),
+          &if_inputissigned32);
+
+      // Check if the absolute {input} value is in the ]0.01,1e9[ range.
+      Node* input_value_abs = assembler->Float64Abs(input_value);
+
+      assembler->GotoUnless(
+          assembler->Float64LessThan(input_value_abs,
+                                     assembler->Float64Constant(1e9)),
+          &if_generic);
+      assembler->Branch(assembler->Float64LessThan(
+                            assembler->Float64Constant(0.01), input_value_abs),
+                        &if_inputissigned32, &if_generic);
+
+      // Return the truncated int32 value, and return the tagged result.
+      assembler->Bind(&if_inputissigned32);
+      Node* result = assembler->ChangeInt32ToTagged(input_value32);
+      assembler->Return(result);
+    }
+
+    assembler->Bind(&if_inputisstring);
+    {
+      // Check if the String {input} has a cached array index.
+      Node* input_hash = assembler->LoadNameHashField(input);
+      Node* input_bit = assembler->Word32And(
+          input_hash,
+          assembler->Int32Constant(String::kContainsCachedArrayIndexMask));
+      assembler->GotoIf(
+          assembler->Word32NotEqual(input_bit, assembler->Int32Constant(0)),
+          &if_generic);
+
+      // Return the cached array index as result.
+      Node* input_index =
+          assembler->DecodeWordFromWord32<String::ArrayIndexValueBits>(
+              input_hash);
+      Node* result = assembler->SmiTag(input_index);
+      assembler->Return(result);
+    }
+  }
+
+  assembler->Bind(&if_generic);
+  {
+    Node* result =
+        assembler->CallRuntime(Runtime::kStringParseInt, context, input, radix);
+    assembler->Return(result);
   }
 }
 
@@ -836,7 +935,7 @@ void Builtins::Generate_Add(CodeStubAssembler* assembler) {
     Node* lhs_value = var_fadd_lhs.value();
     Node* rhs_value = var_fadd_rhs.value();
     Node* value = assembler->Float64Add(lhs_value, rhs_value);
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&end);
   }
@@ -1015,7 +1114,7 @@ void Builtins::Generate_Subtract(CodeStubAssembler* assembler) {
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
   assembler->Bind(&end);
@@ -1167,7 +1266,7 @@ void Builtins::Generate_Multiply(CodeStubAssembler* assembler) {
   {
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&return_result);
   }
@@ -1387,7 +1486,7 @@ void Builtins::Generate_Divide(CodeStubAssembler* assembler) {
   {
     Node* value = assembler->Float64Div(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
   assembler->Bind(&end);
@@ -1545,7 +1644,7 @@ void Builtins::Generate_Modulus(CodeStubAssembler* assembler) {
   {
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&return_result);
   }
 

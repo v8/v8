@@ -525,7 +525,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
   NumberOperationHint hint;
   if (r.GetBinaryNumberOperationHint(&hint)) {
     if (hint == NumberOperationHint::kNumberOrOddball &&
-        r.BothInputsAre(Type::PlainPrimitive())) {
+        r.BothInputsAre(Type::NumberOrOddball())) {
       r.ConvertInputsToNumber();
       return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
     }
@@ -983,23 +983,12 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
       input = jsgraph()->Constant(kMaxSafeInteger);
     } else {
       if (input_type->Min() <= 0.0) {
-        input = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(), input,
-                             jsgraph()->ZeroConstant()),
-            jsgraph()->ZeroConstant(), input);
-        input_type = Type::Range(0.0, input_type->Max(), graph()->zone());
-        NodeProperties::SetType(input, input_type);
+        input = graph()->NewNode(simplified()->NumberMax(),
+                                 jsgraph()->ZeroConstant(), input);
       }
       if (input_type->Max() > kMaxSafeInteger) {
-        input = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                             jsgraph()->Constant(kMaxSafeInteger), input),
-            jsgraph()->Constant(kMaxSafeInteger), input);
-        input_type =
-            Type::Range(input_type->Min(), kMaxSafeInteger, graph()->zone());
-        NodeProperties::SetType(input, input_type);
+        input = graph()->NewNode(simplified()->NumberMin(),
+                                 jsgraph()->Constant(kMaxSafeInteger), input);
       }
     }
     ReplaceWithValue(node, input);
@@ -1683,6 +1672,7 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   const bool is_construct = (node->opcode() == IrOpcode::kJSCallConstruct);
 
   DCHECK(Builtins::HasCppImplementation(builtin_index));
+  DCHECK_EQ(0, flags & CallDescriptor::kSupportsTailCalls);
 
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = is_construct
@@ -1707,7 +1697,7 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   }
 
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
-  Node* argc_node = jsgraph->Int32Constant(argc);
+  Node* argc_node = jsgraph->Constant(argc);
 
   static const int kStubAndReceiver = 2;
   int cursor = arity + kStubAndReceiver;
@@ -1888,7 +1878,8 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
                     1 + arity, flags)));
-    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
+               ((flags & CallDescriptor::kSupportsTailCalls) == 0)) {
       // Patch {node} to a direct CEntryStub call.
       ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
     } else {

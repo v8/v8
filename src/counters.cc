@@ -238,7 +238,7 @@ class RuntimeCallStatEntries {
       return count_ < other.count_;
     }
 
-    void Print(std::ostream& os) {
+    V8_NOINLINE void Print(std::ostream& os) {
       os.precision(2);
       os << std::fixed << std::setprecision(2);
       os << std::setw(50) << name_;
@@ -249,7 +249,8 @@ class RuntimeCallStatEntries {
       os << std::endl;
     }
 
-    void SetTotal(base::TimeDelta total_time, uint64_t total_count) {
+    V8_NOINLINE void SetTotal(base::TimeDelta total_time,
+                              uint64_t total_count) {
       if (total_time.InMicroseconds() == 0) {
         time_percent_ = 0;
       } else {
@@ -276,9 +277,11 @@ void RuntimeCallCounter::Reset() {
   time = base::TimeDelta();
 }
 
-void RuntimeCallCounter::Dump(std::stringstream& out) {
-  out << "\"" << name << "\":[" << count << "," << time.InMicroseconds()
-      << "],";
+void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
+  value->BeginArray(name);
+  value->AppendLongInteger(count);
+  value->AppendLongInteger(time.InMicroseconds());
+  value->EndArray();
 }
 
 // static
@@ -313,6 +316,9 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
+  if (current_timer_ != NULL) {
+    current_timer_->Elapsed();
+  }
 
 #define PRINT_COUNTER(name) entries.Add(&this->name);
   FOR_EACH_MANUAL_COUNTER(PRINT_COUNTER)
@@ -364,37 +370,36 @@ void RuntimeCallStats::Reset() {
   in_use_ = true;
 }
 
-std::string RuntimeCallStats::Dump() {
-  buffer_.str(std::string());
-  buffer_.clear();
-  buffer_ << "{";
+void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
+  if (current_timer_ != NULL) {
+    current_timer_->Elapsed();
+  }
 #define DUMP_COUNTER(name) \
-  if (this->name.count > 0) this->name.Dump(buffer_);
+  if (this->name.count > 0) this->name.Dump(value);
   FOR_EACH_MANUAL_COUNTER(DUMP_COUNTER)
 #undef DUMP_COUNTER
 
 #define DUMP_COUNTER(name, nargs, result_size) \
-  if (this->Runtime_##name.count > 0) this->Runtime_##name.Dump(buffer_);
+  if (this->Runtime_##name.count > 0) this->Runtime_##name.Dump(value);
   FOR_EACH_INTRINSIC(DUMP_COUNTER)
 #undef DUMP_COUNTER
 
 #define DUMP_COUNTER(name) \
-  if (this->Builtin_##name.count > 0) this->Builtin_##name.Dump(buffer_);
+  if (this->Builtin_##name.count > 0) this->Builtin_##name.Dump(value);
   BUILTIN_LIST_C(DUMP_COUNTER)
 #undef DUMP_COUNTER
 
 #define DUMP_COUNTER(name) \
-  if (this->API_##name.count > 0) this->API_##name.Dump(buffer_);
+  if (this->API_##name.count > 0) this->API_##name.Dump(value);
   FOR_EACH_API_COUNTER(DUMP_COUNTER)
 #undef DUMP_COUNTER
 
 #define DUMP_COUNTER(name) \
-  if (this->Handler_##name.count > 0) this->Handler_##name.Dump(buffer_);
+  if (this->Handler_##name.count > 0) this->Handler_##name.Dump(value);
   FOR_EACH_HANDLER_COUNTER(DUMP_COUNTER)
 #undef DUMP_COUNTER
-  buffer_ << "\"END\":[]}";
+
   in_use_ = false;
-  return buffer_.str();
 }
 
 }  // namespace internal

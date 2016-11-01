@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/macros.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -37,7 +38,7 @@ enum class CompileJobStatus {
   kDone,
 };
 
-class CompilerDispatcherJob {
+class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
   CompilerDispatcherJob(Isolate* isolate, Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);

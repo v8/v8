@@ -6,8 +6,10 @@
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
 #include "src/assembler.h"
+#include "src/base/compiler-specific.h"
 #include "src/compiler/frame-states.h"
 #include "src/deoptimize-reason.h"
+#include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/zone/zone-containers.h"
 
@@ -39,9 +41,9 @@ inline BranchHint NegateBranchHint(BranchHint hint) {
 
 inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
 
-std::ostream& operator<<(std::ostream&, BranchHint);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
-BranchHint BranchHintOf(const Operator* const);
+V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
 
 // Deoptimize reason for Deoptimize, DeoptimizeIf and DeoptimizeUnless.
 DeoptimizeReason DeoptimizeReasonOf(Operator const* const);
@@ -98,14 +100,15 @@ size_t hash_value(SelectParameters const& p);
 
 std::ostream& operator<<(std::ostream&, SelectParameters const& p);
 
-SelectParameters const& SelectParametersOf(const Operator* const);
+V8_EXPORT_PRIVATE SelectParameters const& SelectParametersOf(
+    const Operator* const);
 
-CallDescriptor const* CallDescriptorOf(const Operator* const);
+V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const);
 
-size_t ProjectionIndexOf(const Operator* const);
+V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const);
 
-MachineRepresentation PhiRepresentationOf(const Operator* const);
-
+V8_EXPORT_PRIVATE MachineRepresentation
+PhiRepresentationOf(const Operator* const);
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
 // function. This class bundles the index and a debug name for such operators.
@@ -124,7 +127,7 @@ class ParameterInfo final {
 
 std::ostream& operator<<(std::ostream&, ParameterInfo const&);
 
-int ParameterIndexOf(const Operator* const);
+V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const);
 const ParameterInfo& ParameterInfoOf(const Operator* const);
 
 class RelocatablePtrConstantInfo final {
@@ -180,7 +183,8 @@ OsrGuardType OsrGuardTypeOf(Operator const*);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
-class CommonOperatorBuilder final : public ZoneObject {
+class V8_EXPORT_PRIVATE CommonOperatorBuilder final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
 

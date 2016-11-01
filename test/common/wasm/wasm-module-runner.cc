@@ -23,7 +23,7 @@ uint32_t GetMinModuleMemSize(const WasmModule* module) {
   return WasmModule::kPageSize * module->min_mem_pages;
 }
 
-const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
+const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate,
                                              ErrorThrower* thrower,
                                              const byte* module_start,
                                              const byte* module_end,
@@ -31,18 +31,19 @@ const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
   ModuleResult decoding_result =
-      DecodeWasmModule(isolate, zone, module_start, module_end, false, origin);
+      DecodeWasmModule(isolate, module_start, module_end, false, origin);
 
-  std::unique_ptr<const WasmModule> module(decoding_result.val);
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower->CompileError("WASM.compileRun() failed: %s",
                           decoding_result.error_msg.get());
-    return nullptr;
   }
 
-  if (thrower->error()) return nullptr;
-  return module.release();
+  if (thrower->error()) {
+    if (decoding_result.val) delete decoding_result.val;
+    return nullptr;
+  }
+  return decoding_result.val;
 }
 
 const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
@@ -60,6 +61,7 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 
   // Although we decoded the module for some pre-validation, run the bytes
   // again through the normal pipeline.
+  // TODO(wasm): Use {module} instead of decoding the module bytes again.
   MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
       isolate, module->module_start, module->module_end, thrower,
       ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr, nullptr);
@@ -78,10 +80,10 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 }
 
 const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, Zone* zone,
-    const byte* module_start, const byte* module_end, ModuleOrigin origin) {
+    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin) {
   std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, zone, thrower, module_start, module_end, origin));
+      isolate, thrower, module_start, module_end, origin));
 
   if (module == nullptr) {
     thrower->CompileError("Wasm module decoding failed");
@@ -102,10 +104,9 @@ int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, ModuleOrigin origin) {
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator());
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   Handle<JSObject> instance = CompileInstantiateWasmModuleForTesting(
-      isolate, &thrower, &zone, module_start, module_end, origin);
+      isolate, &thrower, module_start, module_end, origin);
   if (instance.is_null()) {
     return -1;
   }
@@ -114,10 +115,10 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const WasmModule* module, int function_index,
-                            WasmVal* args) {
+                            WasmVal* args, bool* possible_nondeterminism) {
   CHECK(module != nullptr);
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
 
   if (module->import_table.size() > 0) {
@@ -165,6 +166,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   if (instance.mem_start) {
     free(instance.mem_start);
   }
+  *possible_nondeterminism = thread->PossibleNondeterminism();
   if (interpreter_result == WasmInterpreter::FINISHED) {
     WasmVal val = thread->GetReturnValue();
     return val.to<int32_t>();

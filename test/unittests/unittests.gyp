@@ -42,6 +42,7 @@
       'compiler/graph-trimmer-unittest.cc',
       'compiler/graph-unittest.cc',
       'compiler/graph-unittest.h',
+      'compiler/instruction-unittest.cc',
       'compiler/instruction-selector-unittest.cc',
       'compiler/instruction-selector-unittest.h',
       'compiler/instruction-sequence-unittest.cc',
@@ -117,6 +118,8 @@
       'test-utils.h',
       'test-utils.cc',
       'value-serializer-unittest.cc',
+      'zone/segmentpool-unittest.cc',
+      'zone/zone-chunk-list-unittest.cc',
       'wasm/asm-types-unittest.cc',
       'wasm/ast-decoder-unittest.cc',
       'wasm/control-transfer-unittest.cc',
@@ -164,6 +167,7 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
+        '../../src/v8.gyp:v8',
         '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
       ],
@@ -226,14 +230,6 @@
         }],
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
-        }],
-        ['component=="shared_library"', {
-          # compiler-unittests can't be built against a shared library, so we
-          # need to depend on the underlying static target in that case.
-          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
-          'defines': [ 'BUILDING_V8_SHARED', ]
-        }, {
-          'dependencies': ['../../src/v8.gyp:v8'],
         }],
         ['os_posix == 1', {
           # TODO(svenpanne): This is a temporary work-around to fix the warnings

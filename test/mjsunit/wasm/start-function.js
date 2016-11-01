@@ -18,16 +18,6 @@ function instantiate(sig, body) {
   return builder.instantiate();
 }
 
-function assertFails(sig, body) {
-  try {
-    var module = instantiate(sig, body);
-    print("expected failure, but passes");
-    assertFalse(true);
-  } catch (expected) {
-    print("ok: " + expected);
-  }
-}
-
 function assertVerifies(sig, body) {
   var module = instantiate(sig, body);
   assertFalse(module === undefined);
@@ -38,12 +28,12 @@ function assertVerifies(sig, body) {
 }
 
 assertVerifies(kSig_v_v, [kExprNop]);
-assertVerifies(kSig_i_v, [kExprI8Const, 0]);
 
 // Arguments aren't allow to start functions.
-assertFails(kSig_i_i, [kExprGetLocal, 0]);
-assertFails(kSig_i_ii, [kExprGetLocal, 0]);
-assertFails(kSig_i_dd, [kExprGetLocal, 0]);
+assertThrows(() => {instantiate(kSig_i_i, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_ii, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_dd, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
 
 (function testInvalidIndex() {
   print("testInvalidIndex");

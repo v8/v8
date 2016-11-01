@@ -65,7 +65,10 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   // name specific if there are global objects involved.
   Handle<Code> handler = PropertyHandlerCompiler::Find(
       cache_name, stub_holder_map, Code::LOAD_IC, flag);
-  if (!handler.is_null()) return handler;
+  if (!handler.is_null()) {
+    TRACE_HANDLER_STATS(isolate, LoadIC_HandlerCacheHit_NonExistent);
+    return handler;
+  }
 
   TRACE_HANDLER_STATS(isolate, LoadIC_LoadNonexistent);
   NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
@@ -95,24 +98,9 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss,
                                                   ReturnHolder return_what) {
-  PrototypeCheckType check_type = SKIP_RECEIVER;
-  int function_index = map()->IsPrimitiveMap()
-                           ? map()->GetConstructorFunctionIndex()
-                           : Map::kNoConstructorFunctionIndex;
-  if (function_index != Map::kNoConstructorFunctionIndex) {
-    GenerateDirectLoadGlobalFunctionPrototype(masm(), function_index,
-                                              scratch1(), miss);
-    Object* function = isolate()->native_context()->get(function_index);
-    Object* prototype = JSFunction::cast(function)->instance_prototype();
-    Handle<Map> map(JSObject::cast(prototype)->map());
-    set_map(map);
-    object_reg = scratch1();
-    check_type = CHECK_ALL_MAPS;
-  }
-
   // Check that the maps starting from the prototype haven't changed.
   return CheckPrototypes(object_reg, scratch1(), scratch2(), scratch3(), name,
-                         miss, check_type, return_what);
+                         miss, return_what);
 }
 
 
@@ -123,7 +111,7 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                                                    Label* miss,
                                                    ReturnHolder return_what) {
   return CheckPrototypes(object_reg, this->name(), scratch1(), scratch2(), name,
-                         miss, SKIP_RECEIVER, return_what);
+                         miss, return_what);
 }
 
 
@@ -634,8 +622,8 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
   if (elements_kind == DICTIONARY_ELEMENTS) {
     if (FLAG_tf_load_ic_stub) {
       TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
-      return SmiHandler::MakeKeyedLoadHandler(isolate, elements_kind, false,
-                                              is_js_array);
+      return LoadHandler::LoadElement(isolate, elements_kind, false,
+                                      is_js_array);
     }
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
     return LoadDictionaryElementStub(isolate).GetCode();
@@ -648,8 +636,8 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
       *receiver_map == isolate->get_initial_js_array_map(elements_kind);
   if (FLAG_tf_load_ic_stub) {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
-    return SmiHandler::MakeKeyedLoadHandler(
-        isolate, elements_kind, convert_hole_to_undefined, is_js_array);
+    return LoadHandler::LoadElement(isolate, elements_kind,
+                                    convert_hole_to_undefined, is_js_array);
   } else {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadFastElementStub);
     return LoadFastElementStub(isolate, is_js_array, elements_kind,

@@ -2443,7 +2443,7 @@ TEST(CheckCodeNames) {
   CHECK(node);
 
   const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(KeyedLoadIC_Megamorphic builtin)"};
+                                 "::(KeyedLoadIC_Slow builtin)"};
   node = GetNodeByPath(snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 

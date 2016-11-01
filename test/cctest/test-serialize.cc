@@ -287,7 +287,7 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
         isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
-    PartialSerializer partial_serializer(isolate, &startup_serializer);
+    PartialSerializer partial_serializer(isolate, &startup_serializer, nullptr);
     partial_serializer.Serialize(&raw_foo);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -387,7 +387,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer);
+    PartialSerializer partial_serializer(isolate, &startup_serializer, nullptr);
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -506,7 +506,7 @@ static void PartiallySerializeCustomContext(
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer);
+    PartialSerializer partial_serializer(isolate, &startup_serializer, nullptr);
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -815,7 +815,7 @@ TEST(SnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("Math.abs"));
-    CHECK(!IsCompiled("Number.parseInt"));
+    CHECK(!IsCompiled("String.raw"));
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
@@ -825,7 +825,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
       "function f() { return Math.abs(1); }\n"
-      "function g() { return Number.parseInt(1); }\n"
+      "function g() { return String.raw(1); }\n"
       "Object.valueOf(1);"
       "var a = 5";
   const char* warmup = "a = f()";
@@ -850,7 +850,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("f"));
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Number.parseInt"));
+    CHECK(!IsCompiled("String.raw"));
     CHECK(!IsCompiled("Object.valueOf"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
@@ -1678,7 +1678,7 @@ TEST(CodeSerializerInternalReference) {
   // In ignition there are only relative jumps, so the following code
   // would not have any internal references. This test is not relevant
   // for ignition.
-  if (FLAG_ignition) {
+  if (FLAG_ignition || FLAG_turbo) {
     return;
   }
   // Disable experimental natives that are loaded after deserialization.
@@ -1762,7 +1762,7 @@ TEST(CodeSerializerInternalReference) {
 }
 
 TEST(CodeSerializerEagerCompilationAndPreAge) {
-  if (FLAG_ignition) return;
+  if (FLAG_ignition || FLAG_turbo) return;
 
   FLAG_lazy = true;
   FLAG_serialize_toplevel = true;
@@ -2010,12 +2010,11 @@ TEST(SnapshotCreatorMultipleContexts) {
   delete[] blob.data;
 }
 
-static void SerializedCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(42));
 }
 
-static void SerializedCallbackReplacement(
+void SerializedCallbackReplacement(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(1337));
 }
@@ -2086,10 +2085,62 @@ TEST(SnapshotCreatorExternalReferences) {
   delete[] blob.data;
 }
 
+TEST(SnapshotCreatorUnknownExternalReferences) {
+  DisableTurbofan();
+  v8::SnapshotCreator creator;
+  v8::Isolate* isolate = creator.GetIsolate();
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::FunctionTemplate> callback =
+        v8::FunctionTemplate::New(isolate, SerializedCallback);
+    v8::Local<v8::Value> function =
+        callback->GetFunction(context).ToLocalChecked();
+    CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
+    ExpectInt32("f()", 42);
+
+    CHECK_EQ(0, creator.AddContext(context));
+  }
+  v8::StartupData blob =
+      creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+
+  delete[] blob.data;
+}
+
+struct InternalFieldData {
+  uint32_t data;
+};
+
+v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder,
+                                        int index) {
+  InternalFieldData* data = static_cast<InternalFieldData*>(
+      holder->GetAlignedPointerFromInternalField(index));
+  int size = sizeof(*data);
+  char* payload = new char[size];
+  // We simply use memcpy to serialize the content.
+  memcpy(payload, data, size);
+  return {payload, size};
+}
+
+void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
+                               v8::StartupData payload) {
+  InternalFieldData* data = new InternalFieldData{0};
+  memcpy(data, payload.data, payload.raw_size);
+  holder->SetAlignedPointerInInternalField(index, data);
+}
+
 TEST(SnapshotCreatorTemplates) {
   DisableTurbofan();
   v8::StartupData blob;
+
   {
+    InternalFieldData* a1 = new InternalFieldData{11};
+    InternalFieldData* b0 = new InternalFieldData{20};
+    InternalFieldData* c0 = new InternalFieldData{30};
+    InternalFieldData* c1 = new InternalFieldData{31};
+
     v8::SnapshotCreator creator(original_external_references);
     v8::Isolate* isolate = creator.GetIsolate();
     {
@@ -2102,14 +2153,38 @@ TEST(SnapshotCreatorTemplates) {
       global_template->Set(v8_str("f"), callback);
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, no_extension, global_template);
+      v8::Local<v8::ObjectTemplate> object_template =
+          v8::ObjectTemplate::New(isolate);
+      object_template->SetInternalFieldCount(2);
+
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
+
+      v8::Local<v8::Object> a =
+          object_template->NewInstance(context).ToLocalChecked();
+      v8::Local<v8::Object> b =
+          object_template->NewInstance(context).ToLocalChecked();
+      v8::Local<v8::Object> c =
+          object_template->NewInstance(context).ToLocalChecked();
+      a->SetInternalField(0, b);
+      a->SetAlignedPointerInInternalField(1, a1);
+      b->SetAlignedPointerInInternalField(0, b0);
+      b->SetInternalField(1, c);
+      c->SetAlignedPointerInInternalField(0, c0);
+      c->SetAlignedPointerInInternalField(1, c1);
+      CHECK(context->Global()->Set(context, v8_str("a"), a).FromJust());
+
       CHECK_EQ(0, creator.AddContext(context));
       CHECK_EQ(0, creator.AddTemplate(callback));
       CHECK_EQ(1, creator.AddTemplate(global_template));
     }
-    blob =
-        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    blob = creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear,
+                              SerializeInternalFields);
+
+    delete a1;
+    delete b0;
+    delete c1;
+    delete c0;
   }
 
   {
@@ -2117,6 +2192,7 @@ TEST(SnapshotCreatorTemplates) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
+    params.deserialize_internal_fields_callback = DeserializeInternalFields;
     v8::Isolate* isolate = v8::Isolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
@@ -2150,10 +2226,39 @@ TEST(SnapshotCreatorTemplates) {
         // Check that it instantiates to the same prototype.
         ExpectTrue("g.prototype === f.prototype");
 
+        // Retrieve internal fields.
+        v8::Local<v8::Object> a = context->Global()
+                                      ->Get(context, v8_str("a"))
+                                      .ToLocalChecked()
+                                      ->ToObject(context)
+                                      .ToLocalChecked();
+        v8::Local<v8::Object> b =
+            a->GetInternalField(0)->ToObject(context).ToLocalChecked();
+        InternalFieldData* a1 = reinterpret_cast<InternalFieldData*>(
+            a->GetAlignedPointerFromInternalField(1));
+        InternalFieldData* b0 = reinterpret_cast<InternalFieldData*>(
+            b->GetAlignedPointerFromInternalField(0));
+        v8::Local<v8::Object> c =
+            b->GetInternalField(1)->ToObject(context).ToLocalChecked();
+        InternalFieldData* c0 = reinterpret_cast<InternalFieldData*>(
+            c->GetAlignedPointerFromInternalField(0));
+        InternalFieldData* c1 = reinterpret_cast<InternalFieldData*>(
+            c->GetAlignedPointerFromInternalField(1));
+
+        CHECK_EQ(11, a1->data);
+        CHECK_EQ(20, b0->data);
+        CHECK_EQ(30, c0->data);
+        CHECK_EQ(31, c1->data);
+
         // Accessing out of bound returns empty MaybeHandle.
         CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());
         CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
         CHECK(v8::Context::FromSnapshot(isolate, 2).IsEmpty());
+
+        delete a1;
+        delete b0;
+        delete c1;
+        delete c0;
       }
 
       {

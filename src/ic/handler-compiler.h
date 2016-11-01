@@ -13,7 +13,6 @@ namespace internal {
 
 class CallOptimization;
 
-enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
 enum ReturnHolder { RETURN_HOLDER, DONT_RETURN_ANYTHING };
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
@@ -99,7 +98,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   Register CheckPrototypes(Register object_reg, Register holder_reg,
                            Register scratch1, Register scratch2,
                            Handle<Name> name, Label* miss,
-                           PrototypeCheckType check, ReturnHolder return_what);
+                           ReturnHolder return_what);
 
   Handle<Code> GetCode(Code::Kind kind, Handle<Name> name);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }

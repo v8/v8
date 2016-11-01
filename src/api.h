@@ -7,6 +7,7 @@
 
 #include "include/v8-testing.h"
 #include "src/contexts.h"
+#include "src/debug/debug-interface.h"
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/list.h"
@@ -108,7 +109,8 @@ class RegisteredExtension {
   V(StackTrace, JSArray)                     \
   V(StackFrame, JSObject)                    \
   V(Proxy, JSProxy)                          \
-  V(NativeWeakMap, JSWeakMap)
+  V(NativeWeakMap, JSWeakMap)                \
+  V(DebugInterface::Script, Script)
 
 class Utils {
  public:

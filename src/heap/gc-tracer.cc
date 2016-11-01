@@ -524,6 +524,7 @@ void GCTracer::PrintNVP() const {
           "clear.weak_cells=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
+          "epilogue=%.1f "
           "evacuate=%.1f "
           "evacuate.candidates=%.1f "
           "evacuate.clean_up=%.1f "
@@ -549,6 +550,7 @@ void GCTracer::PrintNVP() const {
           "mark.wrapper_prologue=%.1f "
           "mark.wrapper_epilogue=%.1f "
           "mark.wrapper_tracing=%.1f "
+          "prologue=%.1f "
           "sweep=%.1f "
           "sweep.code=%.1f "
           "sweep.map=%.1f "
@@ -605,6 +607,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_WEAK_CELLS],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
+          current_.scopes[Scope::MC_EPILOGUE],
           current_.scopes[Scope::MC_EVACUATE],
           current_.scopes[Scope::MC_EVACUATE_CANDIDATES],
           current_.scopes[Scope::MC_EVACUATE_CLEAN_UP],
@@ -629,7 +632,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_MARK_WRAPPER_PROLOGUE],
           current_.scopes[Scope::MC_MARK_WRAPPER_EPILOGUE],
           current_.scopes[Scope::MC_MARK_WRAPPER_TRACING],
-          current_.scopes[Scope::MC_SWEEP],
+          current_.scopes[Scope::MC_PROLOGUE], current_.scopes[Scope::MC_SWEEP],
           current_.scopes[Scope::MC_SWEEP_CODE],
           current_.scopes[Scope::MC_SWEEP_MAP],
           current_.scopes[Scope::MC_SWEEP_OLD],

@@ -126,7 +126,7 @@ class WasmStackFrame : public StackFrameBase {
  public:
   virtual ~WasmStackFrame() {}
 
-  Handle<Object> GetReceiver() const override { return wasm_obj_; }
+  Handle<Object> GetReceiver() const override { return wasm_instance_; }
   Handle<Object> GetFunction() const override;
 
   Handle<Object> GetFileName() override { return Null(); }
@@ -153,7 +153,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Isolate* isolate_;
 
-  Handle<Object> wasm_obj_;
+  Handle<Object> wasm_instance_;
   uint32_t wasm_func_index_;
   Handle<AbstractCode> code_;
   int offset_;
@@ -520,7 +520,8 @@ class ErrorUtils : public AllStatic {
   T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
-  T(AmbiguousExport, "Multiple star exports provide name '%'")                 \
+  T(AmbiguousExport,                                                           \
+    "The requested module contains conflicting star exports for name '%'")     \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
@@ -627,7 +628,8 @@ class ErrorUtils : public AllStatic {
   T(UnexpectedTokenString, "Unexpected string")                                \
   T(UnexpectedTokenRegExp, "Unexpected regular expression")                    \
   T(UnknownLabel, "Undefined label '%'")                                       \
-  T(UnresolvableExport, "Module does not provide an export named '%'")         \
+  T(UnresolvableExport,                                                        \
+    "The requested module does not provide an export named '%'")               \
   T(UnterminatedArgList, "missing ) after argument list")                      \
   T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
   T(UnterminatedTemplate, "Unterminated template literal")                     \

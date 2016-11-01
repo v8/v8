@@ -538,8 +538,7 @@ void IncrementalMarking::StartMarking() {
 
   PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
-  heap_->mark_compact_collector()->EnsureMarkingDequeIsCommittedAndInitialize(
-      MarkCompactCollector::kMaxMarkingDequeSize);
+  heap_->mark_compact_collector()->marking_deque()->StartUsing();
 
   ActivateIncrementalWriteBarrier();
 
@@ -587,9 +586,6 @@ void IncrementalMarking::FinishBlackAllocation() {
 }
 
 void IncrementalMarking::AbortBlackAllocation() {
-  for (Page* page : *heap()->old_space()) {
-    page->ReleaseBlackAreaEndMarkerMap();
-  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation aborted\n");
@@ -1053,7 +1049,7 @@ void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
   if (heap_->mark_compact_collector()->sweeping_in_progress() &&
       (!FLAG_concurrent_sweeping ||
-       heap_->mark_compact_collector()->sweeper().IsSweepingCompleted())) {
+       !heap_->mark_compact_collector()->sweeper().AreSweeperTasksRunning())) {
     heap_->mark_compact_collector()->EnsureSweepingCompleted();
   }
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {

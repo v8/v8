@@ -29,7 +29,7 @@ BackgroundParsingTask::BackgroundParsingTask(
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  Zone* zone = new Zone(isolate->allocator());
+  Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
   ParseInfo* info = new ParseInfo(zone);
   info->set_toplevel();
   source->zone.reset(zone);

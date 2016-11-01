@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_JS_CREATE_LOWERING_H_
 #define V8_COMPILER_JS_CREATE_LOWERING_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +29,8 @@ class SimplifiedOperatorBuilder;
 
 
 // Lowers JSCreate-level operators to fast (inline) allocations.
-class JSCreateLowering final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSCreateLowering final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
                    JSGraph* jsgraph, MaybeHandle<LiteralsArray> literals_array,

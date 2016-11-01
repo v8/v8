@@ -65,6 +65,13 @@ class NoBarrierAtomicValue {
     return reinterpret_cast<base::NoBarrierAtomicValue<T>*>(address);
   }
 
+  V8_INLINE bool TrySetValue(T old_value, T new_value) {
+    return base::NoBarrier_CompareAndSwap(
+               &value_, cast_helper<T>::to_storage_type(old_value),
+               cast_helper<T>::to_storage_type(new_value)) ==
+           cast_helper<T>::to_storage_type(old_value);
+  }
+
   V8_INLINE T Value() const {
     return cast_helper<T>::to_return_type(base::NoBarrier_Load(&value_));
   }

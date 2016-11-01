@@ -10,9 +10,12 @@
 namespace v8 {
 namespace internal {
 
-PartialSerializer::PartialSerializer(Isolate* isolate,
-                                     StartupSerializer* startup_serializer)
-    : Serializer(isolate), startup_serializer_(startup_serializer) {
+PartialSerializer::PartialSerializer(
+    Isolate* isolate, StartupSerializer* startup_serializer,
+    v8::SerializeInternalFieldsCallback callback)
+    : Serializer(isolate),
+      startup_serializer_(startup_serializer),
+      serialize_internal_fields_(callback) {
   InitializeCodeAddressMap();
 }
 
@@ -40,6 +43,7 @@ void PartialSerializer::Serialize(Object** o) {
   }
   VisitPointer(o);
   SerializeDeferredObjects();
+  SerializeInternalFields();
   Pad();
 }
 
@@ -96,6 +100,11 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     function->ClearTypeFeedbackInfo();
   }
 
+  if (obj->IsJSObject()) {
+    JSObject* jsobj = JSObject::cast(obj);
+    if (jsobj->GetInternalFieldCount() > 0) internal_field_holders_.Add(jsobj);
+  }
+
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_, how_to_code, where_to_point);
   serializer.Serialize();
@@ -111,6 +120,35 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
          o->IsCode() || o->IsScopeInfo() || o->IsAccessorInfo() ||
          o->map() ==
              startup_serializer_->isolate()->heap()->fixed_cow_array_map();
+}
+
+void PartialSerializer::SerializeInternalFields() {
+  int count = internal_field_holders_.length();
+  if (count == 0) return;
+  DisallowHeapAllocation no_gc;
+  DisallowJavascriptExecution no_js(isolate());
+  DisallowCompilation no_compile(isolate());
+  DCHECK_NOT_NULL(serialize_internal_fields_);
+  sink_.Put(kInternalFieldsData, "internal fields data");
+  while (internal_field_holders_.length() > 0) {
+    HandleScope scope(isolate());
+    Handle<JSObject> obj(internal_field_holders_.RemoveLast(), isolate());
+    SerializerReference reference = reference_map_.Lookup(*obj);
+    DCHECK(reference.is_back_reference());
+    int internal_fields_count = obj->GetInternalFieldCount();
+    for (int i = 0; i < internal_fields_count; i++) {
+      if (obj->GetInternalField(i)->IsHeapObject()) continue;
+      StartupData data = serialize_internal_fields_(v8::Utils::ToLocal(obj), i);
+      sink_.Put(kNewObject + reference.space(), "internal field holder");
+      PutBackReference(*obj, reference);
+      sink_.PutInt(i, "internal field index");
+      sink_.PutInt(data.raw_size, "internal fields data size");
+      sink_.PutRaw(reinterpret_cast<const byte*>(data.data), data.raw_size,
+                   "internal fields data");
+      delete[] data.data;
+    }
+  }
+  sink_.Put(kSynchronize, "Finished with internal fields data");
 }
 
 }  // namespace internal

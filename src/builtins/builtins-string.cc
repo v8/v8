@@ -292,8 +292,8 @@ void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
           assembler->Goto(&loop);
 
           assembler->Bind(&if_valueisnotsame);
-          assembler->BranchIf(assembler->Uint32LessThan(lhs_value, rhs_value),
-                              &if_less, &if_greater);
+          assembler->Branch(assembler->Uint32LessThan(lhs_value, rhs_value),
+                            &if_less, &if_greater);
         }
 
         assembler->Bind(&if_done);
@@ -820,17 +820,17 @@ BUILTIN(StringPrototypeEndsWith) {
   }
 
   int start = end - search_string->length();
-  if (start < 0) return *isolate->factory()->false_value();
+  if (start < 0) return isolate->heap()->false_value();
 
   FlatStringReader str_reader(isolate, String::Flatten(str));
   FlatStringReader search_reader(isolate, String::Flatten(search_string));
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return *isolate->factory()->false_value();
+      return isolate->heap()->false_value();
     }
   }
-  return *isolate->factory()->true_value();
+  return isolate->heap()->true_value();
 }
 
 // ES6 section 21.1.3.7
@@ -1239,7 +1239,7 @@ BUILTIN(StringPrototypeStartsWith) {
   }
 
   if (start + search_string->length() > str->length()) {
-    return *isolate->factory()->false_value();
+    return isolate->heap()->false_value();
   }
 
   FlatStringReader str_reader(isolate, String::Flatten(str));
@@ -1247,10 +1247,10 @@ BUILTIN(StringPrototypeStartsWith) {
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return *isolate->factory()->false_value();
+      return isolate->heap()->false_value();
     }
   }
-  return *isolate->factory()->true_value();
+  return isolate->heap()->true_value();
 }
 
 // ES6 section 21.1.3.25 String.prototype.toString ()
@@ -1380,7 +1380,12 @@ compiler::Node* LoadSurrogatePairInternal(CodeStubAssembler* assembler,
     switch (encoding) {
       case UnicodeEncoding::UTF16:
         var_result.Bind(assembler->WordOr(
+// Need to swap the order for big-endian platforms
+#if V8_TARGET_BIG_ENDIAN
+            assembler->WordShl(lead, assembler->Int32Constant(16)), trail));
+#else
             assembler->WordShl(trail, assembler->Int32Constant(16)), lead));
+#endif
         break;
 
       case UnicodeEncoding::UTF32: {

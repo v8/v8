@@ -96,11 +96,14 @@ InspectorTest.logObject = function(object, title)
     lines.push(prefix + "]");
   }
 
-  dumpValue(object, "", title);
+  dumpValue(object, "", title || "");
   InspectorTest.log(lines.join("\n"));
 }
 
-InspectorTest.completeTest = quit.bind(null);
+InspectorTest.completeTest = function()
+{
+  Protocol.Debugger.disable().then(() => quit());
+}
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {

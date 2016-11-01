@@ -256,14 +256,14 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     const char* status = "rejected";
     int status_val = Handle<Smi>::cast(status_obj)->value();
     switch (status_val) {
-      case +1:
+      case kPromiseFulfilled:
         status = "resolved";
         break;
-      case 0:
+      case kPromisePending:
         status = "pending";
         break;
       default:
-        DCHECK_EQ(-1, status_val);
+        DCHECK_EQ(kPromiseRejected, status_val);
     }
 
     Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
@@ -551,10 +551,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<Object> wasm_obj(it.wasm_frame()->wasm_obj(), isolate);
+    Handle<Object> wasm_instance(it.wasm_frame()->wasm_instance(), isolate);
     int func_index = it.wasm_frame()->function_index();
     Handle<String> func_name =
-        wasm::GetWasmFunctionName(isolate, wasm_obj, func_index);
+        wasm::GetWasmFunctionName(isolate, wasm_instance, func_index);
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -948,7 +948,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   DCHECK(args.length() == 2);
 
   if (!args[0]->IsJSGeneratorObject()) {
-    return *isolate->factory()->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   // Check arguments.
@@ -1429,6 +1429,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
 
 
 // Patches script source (should be called upon BeforeCompile event).
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_DebugSetScriptSource) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -1569,6 +1570,7 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
   return *Script::GetWrapper(found);
 }
 
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -1583,6 +1585,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   return Smi::FromInt(line_ends_array->length());
 }
 
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -1609,6 +1612,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
   }
 }
 
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -1661,62 +1665,49 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
   return jsinfo;
 }
 
-// Get information on a specific source line and column possibly offset by a
-// fixed source position. This function is used to find a source position from
-// a line and column position. The fixed source position offset is typically
-// used to find a source position in a function based on a line and column in
-// the source for the function alone. The offset passed will then be the
-// start position of the source for the function within the full script source.
-// Note that incoming line and column parameters may be undefined, and are
-// assumed to be passed *with* offsets.
-RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_CHECKED(JSValue, script, 0);
+namespace {
 
-  CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
-
+Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
+                                      Handle<Object> opt_line,
+                                      Handle<Object> opt_column,
+                                      int32_t offset) {
   // Line and column are possibly undefined and we need to handle these cases,
   // additionally subtracting corresponding offsets.
 
   int32_t line;
-  if (args[1]->IsNull(isolate) || args[1]->IsUndefined(isolate)) {
+  if (opt_line->IsNull(isolate) || opt_line->IsUndefined(isolate)) {
     line = 0;
   } else {
-    CHECK(args[1]->IsNumber());
-    line = NumberToInt32(args[1]) - script_handle->line_offset();
+    CHECK(opt_line->IsNumber());
+    line = NumberToInt32(*opt_line) - script->line_offset();
   }
 
   int32_t column;
-  if (args[2]->IsNull(isolate) || args[2]->IsUndefined(isolate)) {
+  if (opt_column->IsNull(isolate) || opt_column->IsUndefined(isolate)) {
     column = 0;
   } else {
-    CHECK(args[2]->IsNumber());
-    column = NumberToInt32(args[2]);
-    if (line == 0) column -= script_handle->column_offset();
+    CHECK(opt_column->IsNumber());
+    column = NumberToInt32(*opt_column);
+    if (line == 0) column -= script->column_offset();
   }
 
-  CONVERT_NUMBER_CHECKED(int32_t, offset_position, Int32, args[3]);
-
-  if (line < 0 || column < 0 || offset_position < 0) {
-    return isolate->heap()->null_value();
+  if (line < 0 || column < 0 || offset < 0) {
+    return isolate->factory()->null_value();
   }
 
-  Script::InitLineEnds(script_handle);
+  Script::InitLineEnds(script);
 
-  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   const int line_count = line_ends_array->length();
 
   int position;
   if (line == 0) {
-    position = offset_position + column;
+    position = offset + column;
   } else {
     Script::PositionInfo info;
-    if (!script_handle->GetPositionInfo(offset_position, &info,
-                                        Script::NO_OFFSET) ||
+    if (!script->GetPositionInfo(offset, &info, Script::NO_OFFSET) ||
         info.line + line >= line_count) {
-      return isolate->heap()->null_value();
+      return isolate->factory()->null_value();
     }
 
     const int offset_line = info.line + line;
@@ -1727,10 +1718,65 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
     position = offset_line_position + column;
   }
 
-  return *GetJSPositionInfo(script_handle, position, Script::NO_OFFSET,
-                            isolate);
+  return GetJSPositionInfo(script, position, Script::NO_OFFSET, isolate);
 }
 
+// Slow traversal over all scripts on the heap.
+bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
+  Script::Iterator iterator(isolate);
+  Script* script = NULL;
+  while ((script = iterator.Next()) != NULL) {
+    if (script->id() == needle) {
+      *result = handle(script);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+}  // namespace
+
+// Get information on a specific source line and column possibly offset by a
+// fixed source position. This function is used to find a source position from
+// a line and column position. The fixed source position offset is typically
+// used to find a source position in a function based on a line and column in
+// the source for the function alone. The offset passed will then be the
+// start position of the source for the function within the full script source.
+// Note that incoming line and column parameters may be undefined, and are
+// assumed to be passed *with* offsets.
+// TODO(5530): Remove once uses in debug.js are gone.
+RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(JSValue, script, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
+  CONVERT_NUMBER_CHECKED(int32_t, offset, Int32, args[3]);
+
+  CHECK(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  return *ScriptLocationFromLine(isolate, script_handle, opt_line, opt_column,
+                                 offset);
+}
+
+// TODO(5530): Rename once conflicting function has been deleted.
+RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
+  CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
+  CONVERT_NUMBER_CHECKED(int32_t, offset, Int32, args[3]);
+
+  Handle<Script> script;
+  CHECK(GetScriptById(isolate, scriptid, &script));
+
+  return *ScriptLocationFromLine(isolate, script, opt_line, opt_column, offset);
+}
+
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
@@ -1748,6 +1794,7 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
 
 // Returns the given line as a string, or null if line is out of bounds.
 // The parameter line is expected to include the script's line offset.
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -1822,12 +1869,19 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugNextMicrotaskId) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return Smi::FromInt(isolate->GetNextDebugMicrotaskId());
+}
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 3);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
-  isolate->debug()->OnAsyncTaskEvent(data);
+  CONVERT_ARG_HANDLE_CHECKED(String, type, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, id, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
+  isolate->debug()->OnAsyncTaskEvent(type, id, name);
   return isolate->heap()->undefined_value();
 }
 
@@ -1843,6 +1897,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   return NULL;
 }
 
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_GetWasmFunctionOffsetTable) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
@@ -1852,12 +1907,13 @@ RUNTIME_FUNCTION(Runtime_GetWasmFunctionOffsetTable) {
   Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
 
   Handle<wasm::WasmDebugInfo> debug_info =
-      wasm::GetDebugInfo(handle(script->wasm_object(), isolate));
+      wasm::GetDebugInfo(handle(script->wasm_instance(), isolate));
   Handle<FixedArray> elements = wasm::WasmDebugInfo::GetFunctionOffsetTable(
       debug_info, script->wasm_function_index());
   return *isolate->factory()->NewJSArrayWithElements(elements);
 }
 
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_DisassembleWasmFunction) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
@@ -1867,7 +1923,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleWasmFunction) {
   Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
 
   Handle<wasm::WasmDebugInfo> debug_info =
-      wasm::GetDebugInfo(handle(script->wasm_object(), isolate));
+      wasm::GetDebugInfo(handle(script->wasm_instance(), isolate));
   return *wasm::WasmDebugInfo::DisassembleFunction(
       debug_info, script->wasm_function_index());
 }

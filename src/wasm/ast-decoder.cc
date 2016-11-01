@@ -150,6 +150,16 @@ struct Control {
   (build() ? CheckForException(builder_->func(__VA_ARGS__)) : nullptr)
 #define BUILD0(func) (build() ? CheckForException(builder_->func()) : nullptr)
 
+struct LaneOperand {
+  uint8_t lane;
+  unsigned length;
+
+  inline LaneOperand(Decoder* decoder, const byte* pc) {
+    lane = decoder->checked_read_u8(pc, 2, "lane");
+    length = 1;
+  }
+};
+
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
 class WasmDecoder : public Decoder {
@@ -240,8 +250,17 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  inline bool Validate(const byte* pc, LaneOperand& operand) {
+    if (operand.lane < 0 || operand.lane > 3) {
+      error(pc_, pc_ + 2, "invalid extract lane value");
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   unsigned OpcodeLength(const byte* pc) {
-    switch (static_cast<WasmOpcode>(*pc)) {
+    switch (static_cast<byte>(*pc)) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -298,12 +317,39 @@ class WasmDecoder : public Decoder {
         ImmI64Operand operand(this, pc);
         return 1 + operand.length;
       }
+      case kExprGrowMemory:
+      case kExprMemorySize: {
+        MemoryIndexOperand operand(this, pc);
+        return 1 + operand.length;
+      }
       case kExprI8Const:
         return 2;
       case kExprF32Const:
         return 5;
       case kExprF64Const:
         return 9;
+      case kSimdPrefix: {
+        byte simd_index = checked_read_u8(pc, 1, "simd_index");
+        WasmOpcode opcode =
+            static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
+        switch (opcode) {
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+          {
+            return 2;
+          }
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+          {
+            return 3;
+          }
+          default:
+            error("invalid SIMD opcode");
+            return 2;
+        }
+      }
       default:
         return 1;
     }
@@ -698,7 +744,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value cond = Pop(0, kAstI32);
             TFNode* if_true = nullptr;
             TFNode* if_false = nullptr;
-            BUILD(Branch, cond.node, &if_true, &if_false);
+            BUILD(BranchNoHint, cond.node, &if_true, &if_false);
             SsaEnv* end_env = ssa_env_;
             SsaEnv* false_env = Split(ssa_env_);
             false_env->control = if_false;
@@ -816,7 +862,7 @@ class WasmFullDecoder : public WasmDecoder {
               DCHECK(fval.type != kAstEnd);
               DCHECK(cond.type != kAstEnd);
               TFNode* controls[2];
-              builder_->Branch(cond.node, &controls[0], &controls[1]);
+              builder_->BranchNoHint(cond.node, &controls[0], &controls[1]);
               TFNode* merge = builder_->Merge(2, controls);
               TFNode* vals[2] = {tval.node, fval.node};
               TFNode* phi = builder_->Phi(tval.type, 2, vals, merge);
@@ -843,7 +889,7 @@ class WasmFullDecoder : public WasmDecoder {
               SsaEnv* fenv = ssa_env_;
               SsaEnv* tenv = Split(fenv);
               fenv->SetNotMerged();
-              BUILD(Branch, cond.node, &tenv->control, &fenv->control);
+              BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
               ssa_env_ = tenv;
               BreakTo(operand.depth);
               ssa_env_ = fenv;
@@ -1061,17 +1107,23 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprF64StoreMem:
             len = DecodeStoreMem(kAstF64, MachineType::Float64());
             break;
-          case kExprGrowMemory:
+          case kExprGrowMemory: {
+            MemoryIndexOperand operand(this, pc_);
             if (module_->origin != kAsmJsOrigin) {
               Value val = Pop(0, kAstI32);
               Push(kAstI32, BUILD(GrowMemory, val.node));
             } else {
               error("grow_memory is not supported for asmjs modules");
             }
+            len = 1 + operand.length;
             break;
-          case kExprMemorySize:
+          }
+          case kExprMemorySize: {
+            MemoryIndexOperand operand(this, pc_);
             Push(kAstI32, BUILD(CurrentMemoryPages));
+            len = 1 + operand.length;
             break;
+          }
           case kExprCallFunction: {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
@@ -1099,11 +1151,29 @@ class WasmFullDecoder : public WasmDecoder {
           case kSimdPrefix: {
             CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
             len++;
-            byte simd_index = *(pc_ + 1);
+            byte simd_index = checked_read_u8(pc_, 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
             TRACE("  @%-4d #%02x #%02x:%-20s|", startrel(pc_), kSimdPrefix,
                   simd_index, WasmOpcodes::ShortOpcodeName(opcode));
             len += DecodeSimdOpcode(opcode);
+            break;
+          }
+          case kAtomicPrefix: {
+            if (!module_ || module_->origin != kAsmJsOrigin) {
+              error("Atomics are allowed only in AsmJs modules");
+              break;
+            }
+            if (!FLAG_wasm_atomics_prototype) {
+              error("Invalid opcode (enable with --wasm_atomics_prototype)");
+              break;
+            }
+            len = 2;
+            byte atomic_opcode = checked_read_u8(pc_, 1, "atomic index");
+            opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);
+            sig = WasmOpcodes::AtomicSignature(opcode);
+            if (sig) {
+              BuildAtomicOperator(opcode);
+            }
             break;
           }
           default: {
@@ -1249,18 +1319,25 @@ class WasmFullDecoder : public WasmDecoder {
     return 1 + operand.length;
   }
 
+  unsigned ExtractLane(WasmOpcode opcode, LocalType type) {
+    LaneOperand operand(this, pc_);
+    if (Validate(pc_, operand)) {
+      TFNode* input = Pop(0, LocalType::kSimd128).node;
+      TFNode* node = BUILD(SimdExtractLane, opcode, operand.lane, input);
+      Push(type, node);
+    }
+    return operand.length;
+  }
+
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
     unsigned len = 0;
     switch (opcode) {
       case kExprI32x4ExtractLane: {
-        uint8_t lane = this->checked_read_u8(pc_, 2, "lane number");
-        if (lane < 0 || lane > 3) {
-          error(pc_, pc_ + 2, "invalid extract lane value");
-        }
-        TFNode* input = Pop(0, LocalType::kSimd128).node;
-        TFNode* node = BUILD(SimdExtractLane, opcode, lane, input);
-        Push(LocalType::kWord32, node);
-        len++;
+        len = ExtractLane(opcode, LocalType::kWord32);
+        break;
+      }
+      case kExprF32x4ExtractLane: {
+        len = ExtractLane(opcode, LocalType::kFloat32);
         break;
       }
       default: {
@@ -1280,6 +1357,8 @@ class WasmFullDecoder : public WasmDecoder {
     }
     return len;
   }
+
+  void BuildAtomicOperator(WasmOpcode opcode) { UNIMPLEMENTED(); }
 
   void DoReturn() {
     int count = static_cast<int>(sig_->return_count());
@@ -1784,7 +1863,7 @@ class WasmFullDecoder : public WasmDecoder {
 bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
                       const byte* end) {
   AccountingAllocator allocator;
-  Zone tmp(&allocator);
+  Zone tmp(&allocator, ZONE_NAME);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
   WasmFullDecoder decoder(&tmp, nullptr, body);
   return decoder.DecodeLocalDecls(decls);
@@ -1803,7 +1882,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
 
 DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                             FunctionBody& body) {
-  Zone zone(allocator);
+  Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, nullptr, body);
   decoder.Decode();
   return decoder.toResult<DecodeStruct*>(nullptr);
@@ -1811,7 +1890,7 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body) {
-  Zone zone(allocator);
+  Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, builder, body);
   decoder.Decode();
   return decoder.toResult<DecodeStruct*>(nullptr);
@@ -1831,7 +1910,7 @@ void PrintAstForDebugging(const byte* start, const byte* end) {
 bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
               std::ostream& os,
               std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
-  Zone zone(allocator);
+  Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, nullptr, body);
   int line_nr = 0;
 

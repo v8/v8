@@ -121,6 +121,12 @@ void TracedValue::AppendInteger(int value) {
   data_ += std::to_string(value);
 }
 
+void TracedValue::AppendLongInteger(int64_t value) {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
+  WriteComma();
+  data_ += std::to_string(value);
+}
+
 void TracedValue::AppendDouble(double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();

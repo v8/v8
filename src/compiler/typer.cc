@@ -1350,6 +1350,7 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kStringToUpperCase:
           return Type::String();
 
+        case kStringIterator:
         case kStringIteratorNext:
           return Type::OtherObject();
 
@@ -1357,6 +1358,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kArrayIndexOf:
         case kArrayLastIndexOf:
           return Type::Range(-1, kMaxSafeInteger, t->zone());
+        case kArrayPush:
+          return t->cache_.kPositiveSafeInteger;
         // Object functions.
         case kObjectHasOwnProperty:
           return Type::Boolean();
@@ -1399,7 +1402,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsRegExp:
       return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
-    case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();
     case Runtime::kInlineSubString:
     case Runtime::kInlineStringCharFromCode:

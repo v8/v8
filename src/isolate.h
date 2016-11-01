@@ -64,7 +64,6 @@ class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
-class KeyedLookupCache;
 class Logger;
 class MaterializedObjectStore;
 class OptimizingCompileDispatcher;
@@ -403,7 +402,10 @@ typedef List<HeapObject*> DebugObjectCache;
   V(intptr_t*, api_external_references, nullptr)                              \
   V(base::HashMap*, external_reference_map, nullptr)                          \
   V(base::HashMap*, root_index_map, nullptr)                                  \
+  V(v8::DeserializeInternalFieldsCallback,                                    \
+    deserialize_internal_fields_callback, nullptr)                            \
   V(int, pending_microtask_count, 0)                                          \
+  V(int, debug_microtask_count, 0)                                            \
   V(HStatistics*, hstatistics, nullptr)                                       \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(HTracer*, htracer, nullptr)                                               \
@@ -860,10 +862,6 @@ class Isolate {
     return materialized_object_store_;
   }
 
-  KeyedLookupCache* keyed_lookup_cache() {
-    return keyed_lookup_cache_;
-  }
-
   ContextSlotCache* context_slot_cache() {
     return context_slot_cache_;
   }
@@ -1058,7 +1056,7 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  base::RandomNumberGenerator* random_number_generator();
+  V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();
 
   // Generates a random number that is non-zero when masked
   // with the provided mask.
@@ -1109,6 +1107,7 @@ class Isolate {
   void EnqueueMicrotask(Handle<Object> microtask);
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
+  int GetNextDebugMicrotaskId() { return debug_microtask_count_++; }
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
@@ -1325,7 +1324,6 @@ class Isolate {
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
-  KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
   HandleScopeData handle_scope_data_;

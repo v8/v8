@@ -603,6 +603,14 @@ enum ParseRestriction {
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
 };
 
+// TODO(gsathya): Move this to JSPromise once we create it.
+// This should be in sync with the constants in promise.js
+enum PromiseStatus {
+  kPromisePending,
+  kPromiseFulfilled,
+  kPromiseRejected,
+};
+
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
@@ -1048,6 +1056,8 @@ enum VariableLocation : uint8_t {
 // distinct initialization step (kNeedsInitialization) or if the binding is
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
+
+enum class HoleCheckMode { kRequired, kElided };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 

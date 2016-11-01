@@ -98,6 +98,9 @@ PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
       case Bytecode::kLdaContextSlot:
         return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
                 Bytecode::kLdrContextSlot};
+      case Bytecode::kLdaCurrentContextSlot:
+        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
+                Bytecode::kLdrCurrentContextSlot};
       case Bytecode::kLdaUndefined:
         return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
                 Bytecode::kLdrUndefined};

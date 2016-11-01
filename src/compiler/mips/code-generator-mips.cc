@@ -639,20 +639,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->SetFrameAccessToDefault();
       break;
     }
-    case kArchTailCallJSFunctionFromJSFunction:
-    case kArchTailCallJSFunction: {
+    case kArchTailCallJSFunctionFromJSFunction: {
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
         __ lw(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
       }
-
-      if (arch_opcode == kArchTailCallJSFunctionFromJSFunction) {
-        AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                         i.TempRegister(0), i.TempRegister(1),
-                                         i.TempRegister(2));
-      }
+      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
+                                       i.TempRegister(0), i.TempRegister(1),
+                                       i.TempRegister(2));
       __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(at);
       frame_access_state()->ClearSPDelta();
@@ -713,7 +709,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRet:
-      AssembleReturn();
+      AssembleReturn(instr->InputAt(0));
       break;
     case kArchStackPointer:
       __ mov(i.OutputRegister(), sp);
@@ -976,32 +972,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kMipsShlPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
-        __ ShlPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShlPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputRegister(2));
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
-        __ ShlPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShlPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), imm);
       }
     } break;
     case kMipsShrPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
-        __ ShrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputRegister(2));
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
-        __ ShrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ ShrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), imm);
       }
     } break;
     case kMipsSarPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsRegister()) {
-        __ SarPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ SarPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputRegister(2));
       } else {
         uint32_t imm = i.InputOperand(2).immediate();
-        __ SarPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ SarPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), imm);
       }
     } break;
@@ -1388,10 +1390,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
     // ... more basic instructions ...
     case kMipsSeb:
-      __ seb(i.OutputRegister(), i.InputRegister(0));
+      __ Seb(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMipsSeh:
-      __ seh(i.OutputRegister(), i.InputRegister(0));
+      __ Seh(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMipsLbu:
       __ lbu(i.OutputRegister(), i.MemoryOperand());
@@ -1958,8 +1960,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-
-void CodeGenerator::AssembleReturn() {
+void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
 
@@ -1975,17 +1976,31 @@ void CodeGenerator::AssembleReturn() {
     __ MultiPopFPU(saves_fpu);
   }
 
+  MipsOperandConverter g(this, nullptr);
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    // Canonicalize JSFunction return sites for now.
-    if (return_label_.is_bound()) {
-      __ Branch(&return_label_);
-      return;
+    // Canonicalize JSFunction return sites for now unless they have an variable
+    // number of stack slot pops.
+    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+      if (return_label_.is_bound()) {
+        __ Branch(&return_label_);
+        return;
+      } else {
+        __ bind(&return_label_);
+        AssembleDeconstructFrame();
+      }
     } else {
-      __ bind(&return_label_);
       AssembleDeconstructFrame();
     }
+  }
+  if (pop->IsImmediate()) {
+    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
+    pop_count += g.ToConstant(pop).ToInt32();
+  } else {
+    Register pop_reg = g.ToRegister(pop);
+    __ sll(pop_reg, pop_reg, kPointerSizeLog2);
+    __ Addu(sp, sp, Operand(pop_reg));
   }
   if (pop_count != 0) {
     __ DropAndRet(pop_count);

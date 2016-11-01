@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/assembler.h"
+#include "src/globals.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -48,7 +49,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                        \
   V(ConstructTrampoline)                  \
   V(RegExpExec)                           \
-  V(RegExpConstructResult)                \
   V(CopyFastSmiOrObjectElements)          \
   V(TransitionElementsKind)               \
   V(AllocateHeapNumber)                   \
@@ -92,7 +92,7 @@ class PlatformInterfaceDescriptor;
   V(InterpreterCEntry)                    \
   V(ResumeGenerator)
 
-class CallInterfaceDescriptorData {
+class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
   CallInterfaceDescriptorData() : register_param_count_(-1), param_count_(-1) {}
 
@@ -568,12 +568,6 @@ class RegExpExecDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
   DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
                                      CallInterfaceDescriptor)
-};
-
-class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLength, kIndex, kInput)
-  DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
 };
 
 class CopyFastSmiOrObjectElementsDescriptor : public CallInterfaceDescriptor {

@@ -60,7 +60,8 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   Node* load = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), heap_number,
       graph()->start(), graph()->start());
-  Node* ret = graph()->NewNode(common()->Return(), load, graph()->start(),
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, load, graph()->start(),
                                graph()->start());
 
   // Build the basic block structure.
@@ -105,8 +106,9 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   Node* phi = graph()->NewNode(
       common()->Phi(MachineRepresentation::kFloat64, 2), vtrue, vfalse, merge);
 
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
   Node* ret =
-      graph()->NewNode(common()->Return(), phi, graph()->start(), merge);
+      graph()->NewNode(common()->Return(), zero, phi, graph()->start(), merge);
 
   // Build the basic block structure.
   BasicBlock* start = schedule.start();
@@ -206,8 +208,9 @@ TEST_F(EffectControlLinearizerTest, FloatingDiamondsControlWiring) {
   Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
   Node* merge2 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
 
-  Node* ret =
-      graph()->NewNode(common()->Return(), call, graph()->start(), if_success);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, call, graph()->start(),
+                               if_success);
 
   // Build the basic block structure.
   BasicBlock* start = schedule.start();
@@ -289,7 +292,9 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
       simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), heap_number,
       graph()->start(), loop);
 
-  Node* ret = graph()->NewNode(common()->Return(), load, effect_phi, if_true);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, load, effect_phi, if_true);
 
   // Build the basic block structure.
   BasicBlock* start = schedule.start();

@@ -15,6 +15,7 @@
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
+#include "src/tracing/traced-value.h"
 
 namespace v8 {
 namespace internal {
@@ -483,8 +484,8 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
 
 struct RuntimeCallCounter {
   explicit RuntimeCallCounter(const char* name) : name(name) {}
-  void Reset();
-  V8_NOINLINE void Dump(std::stringstream& out);
+  V8_NOINLINE void Reset();
+  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
   const char* name;
   int64_t count = 0;
@@ -498,6 +499,7 @@ class RuntimeCallTimer {
   RuntimeCallTimer() {}
   RuntimeCallCounter* counter() { return counter_; }
   base::ElapsedTimer timer() { return timer_; }
+  RuntimeCallTimer* parent() const { return parent_; }
 
  private:
   friend class RuntimeCallStats;
@@ -518,6 +520,16 @@ class RuntimeCallTimer {
       parent_->counter_->time -= delta;
     }
     return parent_;
+  }
+
+  inline void Elapsed() {
+    base::TimeDelta delta = timer_.Elapsed();
+    counter_->time += delta;
+    if (parent_ != nullptr) {
+      parent_->counter_->time -= delta;
+      parent_->Elapsed();
+    }
+    timer_.Restart();
   }
 
   RuntimeCallCounter* counter_ = nullptr;
@@ -670,6 +682,11 @@ class RuntimeCallTimer {
 #define FOR_EACH_MANUAL_COUNTER(V)                  \
   V(AccessorGetterCallback)                         \
   V(AccessorNameGetterCallback)                     \
+  V(AccessorNameGetterCallback_ArrayLength)         \
+  V(AccessorNameGetterCallback_BoundFunctionLength) \
+  V(AccessorNameGetterCallback_BoundFunctionName)   \
+  V(AccessorNameGetterCallback_FunctionPrototype)   \
+  V(AccessorNameGetterCallback_StringLength)        \
   V(AccessorNameSetterCallback)                     \
   V(Compile)                                        \
   V(CompileCode)                                    \
@@ -727,6 +744,14 @@ class RuntimeCallTimer {
   V(KeyedStoreIC_StoreElementStub)              \
   V(KeyedStoreIC_Polymorphic)                   \
   V(LoadIC_FunctionPrototypeStub)               \
+  V(LoadIC_HandlerCacheHit_AccessCheck)         \
+  V(LoadIC_HandlerCacheHit_Exotic)              \
+  V(LoadIC_HandlerCacheHit_Interceptor)         \
+  V(LoadIC_HandlerCacheHit_JSProxy)             \
+  V(LoadIC_HandlerCacheHit_NonExistent)         \
+  V(LoadIC_HandlerCacheHit_Accessor)            \
+  V(LoadIC_HandlerCacheHit_Data)                \
+  V(LoadIC_HandlerCacheHit_Transition)          \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
   V(LoadIC_LoadConstantDH)                      \
@@ -743,11 +768,22 @@ class RuntimeCallTimer {
   V(LoadIC_LoadNormal)                          \
   V(LoadIC_LoadScriptContextFieldStub)          \
   V(LoadIC_LoadViaGetter)                       \
+  V(LoadIC_Premonomorphic)                      \
   V(LoadIC_SlowStub)                            \
   V(LoadIC_StringLengthStub)                    \
+  V(StoreIC_HandlerCacheHit_AccessCheck)        \
+  V(StoreIC_HandlerCacheHit_Exotic)             \
+  V(StoreIC_HandlerCacheHit_Interceptor)        \
+  V(StoreIC_HandlerCacheHit_JSProxy)            \
+  V(StoreIC_HandlerCacheHit_NonExistent)        \
+  V(StoreIC_HandlerCacheHit_Accessor)           \
+  V(StoreIC_HandlerCacheHit_Data)               \
+  V(StoreIC_HandlerCacheHit_Transition)         \
+  V(StoreIC_Premonomorphic)                     \
   V(StoreIC_SlowStub)                           \
   V(StoreIC_StoreCallback)                      \
   V(StoreIC_StoreField)                         \
+  V(StoreIC_StoreFieldDH)                       \
   V(StoreIC_StoreFieldStub)                     \
   V(StoreIC_StoreGlobal)                        \
   V(StoreIC_StoreGlobalTransition)              \
@@ -798,8 +834,8 @@ class RuntimeCallStats {
                                       CounterId counter_id);
 
   void Reset();
-  V8_NOINLINE void Print(std::ostream& os);
-  V8_NOINLINE std::string Dump();
+  void Print(std::ostream& os);
+  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
   RuntimeCallStats() {
     Reset();
@@ -810,7 +846,6 @@ class RuntimeCallStats {
   bool InUse() { return in_use_; }
 
  private:
-  std::stringstream buffer_;
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
   // Used to track nested tracing scopes.
@@ -863,10 +898,6 @@ class RuntimeCallStats {
      MILLISECOND)                                                              \
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
      MILLISECOND)                                                              \
-  /* Parsing timers. */                                                        \
-  HT(parse, V8.ParseMicroSeconds, 1000000, MICROSECOND)                        \
-  HT(parse_lazy, V8.ParseLazyMicroSeconds, 1000000, MICROSECOND)               \
-  HT(pre_parse, V8.PreParseMicroSeconds, 1000000, MICROSECOND)                 \
   /* Compilation times. */                                                     \
   HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
   HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \

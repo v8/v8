@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_SOURCE_POSITION_H_
 #define V8_COMPILER_SOURCE_POSITION_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/globals.h"
 
@@ -38,7 +39,8 @@ inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
   return !(lhs == rhs);
 }
 
-class SourcePositionTable final : public ZoneObject {
+class V8_EXPORT_PRIVATE SourcePositionTable final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   class Scope final {
    public:

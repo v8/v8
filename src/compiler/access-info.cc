@@ -10,6 +10,7 @@
 #include "src/compiler/type-cache.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
+#include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -343,8 +344,13 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                   : Handle<AccessorPair>::cast(accessors)->setter(),
               isolate());
           if (!accessor->IsJSFunction()) {
-            // TODO(turbofan): Add support for API accessors.
-            return false;
+            CallOptimization optimization(accessor);
+            if (!optimization.is_simple_api_call()) {
+              return false;
+            }
+            if (optimization.api_call_info()->fast_handler()->IsCode()) {
+              return false;
+            }
           }
           *access_info = PropertyAccessInfo::AccessorConstant(
               MapList{receiver_map}, accessor, holder);

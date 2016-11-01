@@ -195,7 +195,6 @@ class V8_PLATFORM_EXPORT TraceConfig {
   void EnableArgumentFilter() { enable_argument_filter_ = true; }
 
   void AddIncludedCategory(const char* included_category);
-  void AddExcludedCategory(const char* excluded_category);
 
   bool IsCategoryGroupEnabled(const char* category_group) const;
 
@@ -204,7 +203,6 @@ class V8_PLATFORM_EXPORT TraceConfig {
   bool enable_systrace_ : 1;
   bool enable_argument_filter_ : 1;
   StringList included_categories_;
-  StringList excluded_categories_;
 
   // Disallow copy and assign
   TraceConfig(const TraceConfig&) = delete;

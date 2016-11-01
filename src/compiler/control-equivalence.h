@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_CONTROL_EQUIVALENCE_H_
 #define V8_COMPILER_CONTROL_EQUIVALENCE_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -28,7 +30,8 @@ namespace compiler {
 // control regions in linear time" by Johnson, Pearson & Pingali (PLDI94) which
 // also contains proofs for the aforementioned equivalence. References to line
 // numbers in the algorithm from figure 4 have been added [line:x].
-class ControlEquivalence final : public ZoneObject {
+class V8_EXPORT_PRIVATE ControlEquivalence final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   ControlEquivalence(Zone* zone, Graph* graph)
       : zone_(zone),

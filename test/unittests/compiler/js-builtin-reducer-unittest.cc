@@ -1517,7 +1517,7 @@ TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32) {
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberToInt32(p0));
+    EXPECT_EQ(p0, r.replacement());
   }
 }
 
@@ -1537,7 +1537,7 @@ TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32AndUndefined) {
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberToInt32(p0));
+    EXPECT_EQ(p0, r.replacement());
   }
 }
 

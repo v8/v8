@@ -749,6 +749,23 @@ class RepresentationSelector {
     }
   }
 
+  void VisitReturn(Node* node) {
+    int tagged_limit = node->op()->ValueInputCount() +
+                       OperatorProperties::GetContextInputCount(node->op()) +
+                       OperatorProperties::GetFrameStateInputCount(node->op());
+    // Visit integer slot count to pop
+    ProcessInput(node, 0, UseInfo::TruncatingWord32());
+
+    // Visit value, context and frame state inputs as tagged.
+    for (int i = 1; i < tagged_limit; i++) {
+      ProcessInput(node, i, UseInfo::AnyTagged());
+    }
+    // Only enqueue other inputs (effects, control).
+    for (int i = tagged_limit; i < node->InputCount(); i++) {
+      EnqueueInput(node, i);
+    }
+  }
+
   // Helper for an unused node.
   void VisitUnused(Node* node) {
     int value_count = node->op()->ValueInputCount() +
@@ -1149,12 +1166,12 @@ class RepresentationSelector {
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
       UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
-      // For subtraction, the right hand side can be minus zero without
-      // resulting in minus zero, so we skip the check for it.
+      // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
+      // a minus zero check for the right hand side, since we already
+      // know that the left hand side is a proper Signed32 value,
+      // potentially guarded by a check.
       UseInfo right_use = CheckedUseInfoAsWord32FromHint(
-          hint, node->opcode() == IrOpcode::kSpeculativeNumberSubtract
-                    ? CheckForMinusZeroMode::kDontCheckForMinusZero
-                    : CheckForMinusZeroMode::kCheckForMinusZero);
+          hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
       VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
                  Type::Signed32());
       if (lower()) ChangeToInt32OverflowOp(node);
@@ -1394,8 +1411,7 @@ class RepresentationSelector {
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
             NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
           } else {
-            DCHECK_EQ(input_info->representation(),
-                      MachineRepresentation::kTagged);
+            DCHECK(CanBeTaggedPointer(input_info->representation()));
             // BooleanNot(x: kRepTagged) => WordEqual(x, #false)
             node->AppendInput(jsgraph_->zone(), jsgraph_->FalseConstant());
             NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
@@ -2449,10 +2465,14 @@ class RepresentationSelector {
       case IrOpcode::kOsrGuard:
         return VisitOsrGuard(node);
 
+      case IrOpcode::kReturn:
+        VisitReturn(node);
+        // Assume the output is tagged.
+        return SetOutput(node, MachineRepresentation::kTagged);
+
       // Operators with all inputs tagged and no or tagged output have uniform
       // handling.
       case IrOpcode::kEnd:
-      case IrOpcode::kReturn:
       case IrOpcode::kIfSuccess:
       case IrOpcode::kIfException:
       case IrOpcode::kIfTrue:

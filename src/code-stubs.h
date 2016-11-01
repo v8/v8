@@ -44,7 +44,6 @@ class ObjectLiteral;
   V(StoreElement)                             \
   V(SubString)                                \
   V(KeyedStoreIC)                             \
-  V(KeyedLoadIC)                              \
   V(LoadGlobalIC)                             \
   V(FastNewObject)                            \
   V(FastNewRestParameter)                     \
@@ -59,10 +58,8 @@ class ObjectLiteral;
   /* version of the corresponding stub is  */ \
   /* used universally */                      \
   V(CallICTrampoline)                         \
-  V(KeyedLoadICTrampoline)                    \
   V(KeyedStoreICTrampoline)                   \
   /* --- HydrogenCodeStubs --- */             \
-  V(StringAdd)                                \
   /* These builtins w/ JS linkage are */      \
   /* just fast-cases of C++ builtins. They */ \
   /* require varg support from TF */          \
@@ -71,7 +68,6 @@ class ObjectLiteral;
   /* These will be ported/eliminated */       \
   /* as part of the new IC system, ask */     \
   /* ishell before doing anything  */         \
-  V(KeyedLoadGeneric)                         \
   V(LoadConstant)                             \
   V(LoadDictionaryElement)                    \
   V(LoadFastElement)                          \
@@ -82,7 +78,6 @@ class ObjectLiteral;
   V(BinaryOpIC)                               \
   V(BinaryOpWithAllocationSite)               \
   V(ToBooleanIC)                              \
-  V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
@@ -122,6 +117,7 @@ class ObjectLiteral;
   V(LoadScriptContextField)                   \
   V(StoreScriptContextField)                  \
   V(NumberToString)                           \
+  V(StringAdd)                                \
   V(GetProperty)                              \
   V(LoadIC)                                   \
   V(KeyedLoadICTF)                            \
@@ -129,6 +125,7 @@ class ObjectLiteral;
   V(StoreField)                               \
   V(StoreGlobal)                              \
   V(StoreIC)                                  \
+  V(KeyedStoreICTF)                           \
   V(StoreInterceptor)                         \
   V(StoreMap)                                 \
   V(StoreTransition)                          \
@@ -141,7 +138,8 @@ class ObjectLiteral;
   V(LoadICTrampoline)                         \
   V(LoadGlobalICTrampoline)                   \
   V(KeyedLoadICTrampolineTF)                  \
-  V(StoreICTrampoline)
+  V(StoreICTrampoline)                        \
+  V(KeyedStoreICTrampolineTF)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -864,6 +862,8 @@ class FastNewClosureStub : public TurboFanCodeStub {
 
 class FastNewFunctionContextStub final : public TurboFanCodeStub {
  public:
+  static const int kMaximumSlots = 0x8000;
+
   explicit FastNewFunctionContextStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
@@ -873,6 +873,11 @@ class FastNewFunctionContextStub final : public TurboFanCodeStub {
                                   compiler::Node* context);
 
  private:
+  // FastNewFunctionContextStub can only allocate closures which fit in the
+  // new space.
+  STATIC_ASSERT(((kMaximumSlots + Context::MIN_CONTEXT_SLOTS) * kPointerSize +
+                 FixedArray::kHeaderSize) < kMaxRegularHeapObjectSize);
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
   DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
 };
@@ -1613,22 +1618,21 @@ class BinaryOpWithAllocationSiteStub final : public BinaryOpICStub {
   DEFINE_HYDROGEN_CODE_STUB(BinaryOpWithAllocationSite, BinaryOpICStub);
 };
 
-
-class StringAddStub final : public HydrogenCodeStub {
+class StringAddStub final : public TurboFanCodeStub {
  public:
   StringAddStub(Isolate* isolate, StringAddFlags flags,
                 PretenureFlag pretenure_flag)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(StringAddFlagsBits::encode(flags) |
-                      PretenureFlagBits::encode(pretenure_flag));
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = (StringAddFlagsBits::encode(flags) |
+                  PretenureFlagBits::encode(pretenure_flag));
   }
 
   StringAddFlags flags() const {
-    return StringAddFlagsBits::decode(sub_minor_key());
+    return StringAddFlagsBits::decode(minor_key_);
   }
 
   PretenureFlag pretenure_flag() const {
-    return PretenureFlagBits::decode(sub_minor_key());
+    return PretenureFlagBits::decode(minor_key_);
   }
 
  private:
@@ -1638,7 +1642,7 @@ class StringAddStub final : public HydrogenCodeStub {
   void PrintBaseName(std::ostream& os) const override;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
-  DEFINE_HYDROGEN_CODE_STUB(StringAdd, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StringAdd, TurboFanCodeStub);
 };
 
 
@@ -1793,17 +1797,6 @@ class RegExpExecStub: public PlatformCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpExec);
   DEFINE_PLATFORM_CODE_STUB(RegExpExec, PlatformCodeStub);
 };
-
-// TODO(jgruber): Remove this once all uses in regexp.js have been removed.
-class RegExpConstructResultStub final : public HydrogenCodeStub {
- public:
-  explicit RegExpConstructResultStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpConstructResult);
-  DEFINE_HYDROGEN_CODE_STUB(RegExpConstructResult, HydrogenCodeStub);
-};
-
 
 // TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
 class CallConstructStub final : public PlatformCodeStub {
@@ -1994,17 +1987,6 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
 };
 
-
-class KeyedLoadGenericStub : public HydrogenCodeStub {
- public:
-  explicit KeyedLoadGenericStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
-};
-
 class LoadICTrampolineStub : public TurboFanCodeStub {
  public:
   explicit LoadICTrampolineStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -2035,17 +2017,6 @@ class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
   DEFINE_CODE_STUB(LoadGlobalICTrampoline, TurboFanCodeStub);
-};
-
-class KeyedLoadICTrampolineStub : public PlatformCodeStub {
- public:
-  explicit KeyedLoadICTrampolineStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, PlatformCodeStub);
 };
 
 class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
@@ -2103,6 +2074,17 @@ class KeyedStoreICTrampolineStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(KeyedStoreICTrampoline, PlatformCodeStub);
 };
 
+class KeyedStoreICTrampolineTFStub : public StoreICTrampolineStub {
+ public:
+  KeyedStoreICTrampolineTFStub(Isolate* isolate, const StoreICState& state)
+      : StoreICTrampolineStub(isolate, state) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
+
+  DEFINE_CODE_STUB(KeyedStoreICTrampolineTF, StoreICTrampolineStub);
+};
 
 class CallICTrampolineStub : public PlatformCodeStub {
  public:
@@ -2157,21 +2139,6 @@ class LoadGlobalICStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(LoadGlobalIC, TurboFanCodeStub);
 };
 
-class KeyedLoadICStub : public PlatformCodeStub {
- public:
-  explicit KeyedLoadICStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  void GenerateForTrampoline(MacroAssembler* masm);
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_PLATFORM_CODE_STUB(KeyedLoadIC, PlatformCodeStub);
-
- protected:
-  void GenerateImpl(MacroAssembler* masm, bool in_frame);
-};
-
 class KeyedLoadICTFStub : public LoadICStub {
  public:
   explicit KeyedLoadICTFStub(Isolate* isolate) : LoadICStub(isolate) {}
@@ -2223,6 +2190,17 @@ class KeyedStoreICStub : public PlatformCodeStub {
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
+class KeyedStoreICTFStub : public StoreICStub {
+ public:
+  KeyedStoreICTFStub(Isolate* isolate, const StoreICState& state)
+      : StoreICStub(isolate, state) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
+
+  DEFINE_CODE_STUB(KeyedStoreICTF, StoreICStub);
+};
 
 class DoubleToIStub : public PlatformCodeStub {
  public:

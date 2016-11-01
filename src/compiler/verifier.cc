@@ -1304,7 +1304,7 @@ void Verifier::Visitor::Check(Node* node) {
 void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs) {
   CHECK_NOT_NULL(graph->start());
   CHECK_NOT_NULL(graph->end());
-  Zone zone(graph->zone()->allocator());
+  Zone zone(graph->zone()->allocator(), ZONE_NAME);
   Visitor visitor(&zone, typing, check_inputs);
   AllNodes all(&zone, graph);
   for (Node* node : all.reachable) visitor.Check(node);
@@ -1394,7 +1394,7 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
 
 void ScheduleVerifier::Run(Schedule* schedule) {
   const size_t count = schedule->BasicBlockCount();
-  Zone tmp_zone(schedule->zone()->allocator());
+  Zone tmp_zone(schedule->zone()->allocator(), ZONE_NAME);
   Zone* zone = &tmp_zone;
   BasicBlock* start = schedule->start();
   BasicBlockVector* rpo_order = schedule->rpo_order();

@@ -46,6 +46,7 @@ class Managed : public Foreign {
     Managed<CppType>** p =
         reinterpret_cast<Managed<CppType>**>(data.GetParameter());
     delete (*p)->get();
+    (*p)->set_foreign_address(0);
     GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
   }
 };

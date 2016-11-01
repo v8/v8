@@ -142,6 +142,9 @@ class Interpreter {
   // Generates code to load a context slot.
   compiler::Node* BuildLoadContextSlot(InterpreterAssembler* assembler);
 
+  // Generates code to load a slot in the current context.
+  compiler::Node* BuildLoadCurrentContextSlot(InterpreterAssembler* assembler);
+
   // Generates code to load a global.
   compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
                                   compiler::Node* feedback_slot,
@@ -175,6 +178,7 @@ class Interpreter {
                                       OperandScale operand_scale);
 
   bool IsDispatchTableInitialized();
+  bool ShouldInitializeDispatchTable();
 
   static const int kNumberOfWideVariants = 3;
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);

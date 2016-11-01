@@ -71,6 +71,10 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
   InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes, 2);
   InstallBuiltin(isolate, holder, "indexOf", Builtins::kArrayIndexOf, 2);
+  InstallBuiltin(isolate, holder, "keys", Builtins::kArrayPrototypeKeys, 0);
+  InstallBuiltin(isolate, holder, "values", Builtins::kArrayPrototypeValues, 0);
+  InstallBuiltin(isolate, holder, "entries", Builtins::kArrayPrototypeEntries,
+                 0);
 
   return *holder;
 }
@@ -422,21 +426,6 @@ RUNTIME_FUNCTION(Runtime_IsArray) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSArray());
 }
-
-RUNTIME_FUNCTION(Runtime_HasCachedArrayIndex) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  return isolate->heap()->false_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetCachedArrayIndex) {
-  // This can never be reached, because Runtime_HasCachedArrayIndex always
-  // returns false.
-  UNIMPLEMENTED();
-  return nullptr;
-}
-
 
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   HandleScope scope(isolate);

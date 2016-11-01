@@ -143,6 +143,35 @@
       ],
     },
     {
+      'target_name': 'v8_simple_wasm_call_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'wasm_call_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'wasm_call_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'wasm-call.cc',
+        '../common/wasm/test-signatures.h',
+        '../common/wasm/wasm-module-runner.cc',
+        '../common/wasm/wasm-module-runner.h',
+      ],
+    },
+    {
       'target_name': 'v8_simple_wasm_code_fuzzer',
       'type': 'executable',
       'dependencies': [

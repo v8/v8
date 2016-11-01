@@ -12,6 +12,7 @@
   V(Arguments_string, "Arguments")                                 \
   V(arguments_to_string, "[object Arguments]")                     \
   V(Array_string, "Array")                                         \
+  V(ArrayIterator_string, "Array Iterator")                        \
   V(assign_string, "assign")                                       \
   V(array_to_string, "[object Array]")                             \
   V(boolean_to_string, "[object Boolean]")                         \
@@ -53,11 +54,14 @@
   V(default_string, "default")                                     \
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
+  V(did_handle_string, "didHandle")                                \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
   V(dot_result_string, ".result")                                  \
   V(dot_string, ".")                                               \
+  V(exec_string, "exec")                                           \
   V(entries_string, "entries")                                     \
+  V(enqueue_string, "enqueue")                                     \
   V(enumerable_string, "enumerable")                               \
   V(era_string, "era")                                             \
   V(Error_string, "Error")                                         \
@@ -95,6 +99,7 @@
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
+  V(keys_string, "keys")                                           \
   V(lastIndex_string, "lastIndex")                                 \
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \
@@ -122,6 +127,7 @@
   V(preventExtensions_string, "preventExtensions")                 \
   V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
+  V(PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
   V(proto_string, "__proto__")                                     \
   V(prototype_string, "prototype")                                 \
   V(Proxy_string, "Proxy")                                         \
@@ -174,6 +180,7 @@
   V(WeakMap_string, "WeakMap")                                     \
   V(WeakSet_string, "WeakSet")                                     \
   V(weekday_string, "weekday")                                     \
+  V(will_handle_string, "willHandle")                              \
   V(writable_string, "writable")                                   \
   V(year_string, "year")
 

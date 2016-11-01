@@ -140,6 +140,8 @@ class IC {
   static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
+  void TraceHandlerCacheHitStats(LookupIterator* lookup);
+
   // Compute the handler either by compiling or by retrieving a cached version.
   Handle<Object> ComputeHandler(LookupIterator* lookup,
                                 Handle<Object> value = Handle<Code>::null());
@@ -311,16 +313,18 @@ class LoadIC : public IC {
  private:
   Handle<Object> SimpleFieldLoad(FieldIndex index);
 
-  // Returns true if the validity cell check is enough to ensure that the
+  // Returns 0 if the validity cell check is enough to ensure that the
   // prototype chain from |receiver_map| till |holder| did not change.
-  bool IsPrototypeValidityCellCheckEnough(Handle<Map> receiver_map,
-                                          Handle<JSObject> holder);
+  // Returns -1 if the handler has to be compiled or the number of prototype
+  // checks otherwise.
+  int GetPrototypeCheckCount(Handle<Map> receiver_map, Handle<JSObject> holder);
 
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
   // Can be used only if IsPrototypeValidityCellCheckEnough() predicate is true.
   Handle<Object> SimpleLoadFromPrototype(Handle<Map> receiver_map,
                                          Handle<JSObject> holder,
+                                         Handle<Name> name,
                                          Handle<Object> smi_handler);
 
   friend class IC;
@@ -355,10 +359,6 @@ class KeyedLoadIC : public LoadIC {
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
-
-  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
-                                            ExtraICState extra_state);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 

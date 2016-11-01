@@ -9704,15 +9704,6 @@ TEST(DetachGlobal) {
   result = CompileRun("other.p");
   CHECK(result->IsInt32());
   CHECK_EQ(24, result->Int32Value(env3).FromJust());
-
-  // Change security token for env3 to something different from env1 and env2.
-  env3->SetSecurityToken(v8_str("bar"));
-
-  // Check that we do not have access to other.p in env1. |other| is now
-  // the global object for env3 which has a different security token,
-  // so access should be blocked.
-  result = CompileRun("other.p");
-  CHECK(result.IsEmpty());
 }
 
 
@@ -14581,7 +14572,7 @@ void SetFunctionEntryHookTest::RunTest() {
     RunLoopInNewEnv(isolate);
 
     // Check the expected invocation counts.
-    if (!i::FLAG_ignition) {
+    if (!i::FLAG_ignition && !i::FLAG_turbo) {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
@@ -14822,8 +14813,9 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env(isolate);
       i::AlwaysAllocateScope always_allocate(i_isolate);
-      i::heap::SimulateFullSpace(i::FLAG_ignition ? heap->old_space()
-                                                  : heap->code_space());
+      i::heap::SimulateFullSpace(i::FLAG_ignition || i::FLAG_turbo
+                                     ? heap->old_space()
+                                     : heap->code_space());
       CompileRun(script);
 
       // Keep a strong reference to the code object in the handle scope.
@@ -21804,7 +21796,7 @@ void TestStubCache(bool primary) {
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (i::FLAG_ignition) return;
+  if (i::FLAG_ignition || i::FLAG_turbo) return;
 
   i::FLAG_native_code_counters = true;
   if (primary) {
@@ -21828,10 +21820,10 @@ void TestStubCache(bool primary) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
-          i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
+          i::CodeStub::LoadIC,        i::CodeStub::LoadICTrampoline,
+          i::CodeStub::KeyedLoadICTF, i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,       i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreIC,  i::CodeStub::KeyedStoreICTrampoline,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Heap* heap = i_isolate->heap();
@@ -25946,4 +25938,15 @@ TEST(EvalInAccessCheckedContext) {
   v8::Local<v8::Value> x_value = CompileRun("fun('x')");
   CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
   context1->Exit();
+}
+
+TEST(InternalFieldsOnGlobalProxy) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
+
+  v8::Local<v8::Context> context = Context::New(isolate, nullptr, obj_template);
+  v8::Local<v8::Object> global = context->Global();
+  CHECK_EQ(v8::Context::kProxyInternalFieldCount, global->InternalFieldCount());
 }

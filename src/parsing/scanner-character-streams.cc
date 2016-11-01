@@ -537,6 +537,7 @@ size_t OneByteExternalStreamingStream::FillBuffer(size_t position) {
   return len;
 }
 
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
 // ----------------------------------------------------------------------------
 // TwoByteExternalStreamingStream
 //
@@ -630,6 +631,156 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
   return true;
 }
 
+#else
+
+// ----------------------------------------------------------------------------
+// TwoByteExternalBufferedStream
+//
+// This class is made specifically to address unaligned access to 16-bit data
+// in MIPS and ARM architectures. It replaces class
+// TwoByteExternalStreamingStream which in some cases does have unaligned
+// accesse to 16-bit data
+
+class TwoByteExternalBufferedStream : public Utf16CharacterStream {
+ public:
+  explicit TwoByteExternalBufferedStream(
+      ScriptCompiler::ExternalSourceStream* source);
+  ~TwoByteExternalBufferedStream();
+
+ protected:
+  static const size_t kBufferSize = 512;
+
+  bool ReadBlock() override;
+
+  // FillBuffer should read up to kBufferSize characters at position and store
+  // them into buffer_[0..]. It returns the number of characters stored.
+  size_t FillBuffer(size_t position, size_t chunk_no);
+
+  // Fixed sized buffer that this class reads from.
+  // The base class' buffer_start_ should always point to buffer_.
+  uc16 buffer_[kBufferSize];
+
+  Chunks chunks_;
+  ScriptCompiler::ExternalSourceStream* source_;
+};
+
+TwoByteExternalBufferedStream::TwoByteExternalBufferedStream(
+    ScriptCompiler::ExternalSourceStream* source)
+    : Utf16CharacterStream(buffer_, buffer_, buffer_, 0), source_(source) {}
+
+TwoByteExternalBufferedStream::~TwoByteExternalBufferedStream() {
+  DeleteChunks(chunks_);
+}
+
+bool TwoByteExternalBufferedStream::ReadBlock() {
+  size_t position = pos();
+  // Find chunk in which the position belongs
+  size_t chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+
+  // Out of data? Return 0.
+  if (chunks_[chunk_no].byte_length == 0) {
+    buffer_cursor_ = buffer_start_;
+    buffer_end_ = buffer_start_;
+    return false;
+  }
+
+  Chunk& current = chunks_[chunk_no];
+
+  bool odd_start = current.byte_pos % 2;
+  // Common case: character is in current chunk.
+  DCHECK_LE(current.byte_pos, 2 * position + odd_start);
+  DCHECK_LT(2 * position + 1, current.byte_pos + current.byte_length);
+
+  // If character starts on odd address copy text in buffer so there is always
+  // aligned access to characters. This is important on MIPS and ARM
+  // architectures. Otherwise read characters from memory directly.
+  if (!odd_start) {
+    buffer_start_ = reinterpret_cast<const uint16_t*>(current.data);
+    size_t number_chars = current.byte_length / 2;
+    buffer_end_ = buffer_start_ + number_chars;
+    buffer_pos_ = current.byte_pos / 2;
+    buffer_cursor_ = buffer_start_ + (position - buffer_pos_);
+    DCHECK_EQ(position, pos());
+    return true;
+  } else {
+    buffer_pos_ = position;
+    buffer_cursor_ = buffer_;
+    buffer_end_ = buffer_ + FillBuffer(position, chunk_no);
+    DCHECK_EQ(pos(), position);
+    DCHECK_LE(buffer_end_, buffer_start_ + kBufferSize);
+    return buffer_cursor_ < buffer_end_;
+  }
+}
+
+size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
+                                                 size_t chunk_no) {
+  // Align buffer_pos_ to the size of the buffer.
+  {
+    size_t new_pos = position / kBufferSize * kBufferSize;
+    if (new_pos != position) {
+      chunk_no = FindChunk(chunks_, source_, 2 * new_pos + 1);
+      buffer_pos_ = new_pos;
+      buffer_cursor_ = buffer_start_ + (position - buffer_pos_);
+      position = new_pos;
+    }
+  }
+
+  Chunk* current = &chunks_[chunk_no];
+
+  // Annoying edge case: Chunks may not be 2-byte aligned, meaning that a
+  // character may be split between the previous and the current chunk.
+  // If we find such a lonely byte at the beginning of the chunk, we'll copy
+  // it to the first byte in buffer_.
+  size_t totalLength = 0;
+  bool lonely_byte = (current->byte_pos == (2 * position + 1));
+  if (lonely_byte) {
+    DCHECK_NE(chunk_no, 0);
+    Chunk& previous_chunk = chunks_[chunk_no - 1];
+    *reinterpret_cast<uint8_t*>(buffer_) =
+        previous_chunk.data[previous_chunk.byte_length - 1];
+    totalLength++;
+  }
+
+  // Common case: character is in current chunk.
+  DCHECK_LE(current->byte_pos, 2 * position + 1);
+  DCHECK_LT(2 * position + 1, current->byte_pos + current->byte_length);
+
+  // Copy characters from current chunk starting from chunk_pos to the end of
+  // buffer or chunk.
+  size_t chunk_pos = position - current->byte_pos / 2;
+  bool middle_of_chunk = chunk_pos != 0;
+  size_t bytes_to_move =
+      i::Min(2 * kBufferSize - !middle_of_chunk,
+             current->byte_length - 2 * chunk_pos + middle_of_chunk);
+  i::MemMove(reinterpret_cast<uint8_t*>(buffer_) + !middle_of_chunk,
+             current->data + 2 * chunk_pos - middle_of_chunk, bytes_to_move);
+
+  // Fill up the rest of the buffer if there is space and data left.
+  totalLength += bytes_to_move;
+  position = (current->byte_pos + current->byte_length) / 2;
+  if (position - buffer_pos_ < kBufferSize) {
+    chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+    current = &chunks_[chunk_no];
+    bytes_to_move = i::Min(2 * kBufferSize - totalLength, current->byte_length);
+    while (bytes_to_move && current->byte_pos % 2) {
+      // Common case: character is in current chunk.
+      DCHECK_LE(current->byte_pos, 2 * position + 1);
+      DCHECK_LT(2 * position + 1, current->byte_pos + current->byte_length);
+
+      i::MemMove(reinterpret_cast<uint8_t*>(buffer_) + totalLength,
+                 current->data, bytes_to_move);
+      totalLength += bytes_to_move;
+      position = (current->byte_pos + current->byte_length) / 2;
+      chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+      current = &chunks_[chunk_no];
+      bytes_to_move =
+          i::Min(2 * kBufferSize - totalLength, current->byte_length);
+    }
+  }
+  return totalLength / 2;
+}
+#endif
+
 // ----------------------------------------------------------------------------
 // ScannerStream: Create stream instances.
 
@@ -669,7 +820,11 @@ Utf16CharacterStream* ScannerStream::For(
     v8::ScriptCompiler::StreamedSource::Encoding encoding) {
   switch (encoding) {
     case v8::ScriptCompiler::StreamedSource::TWO_BYTE:
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
       return new TwoByteExternalStreamingStream(source_stream);
+#else
+      return new TwoByteExternalBufferedStream(source_stream);
+#endif
     case v8::ScriptCompiler::StreamedSource::ONE_BYTE:
       return new OneByteExternalStreamingStream(source_stream);
     case v8::ScriptCompiler::StreamedSource::UTF8:

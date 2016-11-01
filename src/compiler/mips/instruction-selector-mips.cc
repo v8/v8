@@ -429,32 +429,43 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 }
 
 static void VisitInt32PairBinop(InstructionSelector* selector,
-                                InstructionCode opcode, Node* node) {
+                                InstructionCode pair_opcode,
+                                InstructionCode single_opcode, Node* node) {
   MipsOperandGenerator g(selector);
 
-  // We use UseUniqueRegister here to avoid register sharing with the output
-  // register.
-  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
-                                 g.UseUniqueRegister(node->InputAt(1)),
-                                 g.UseUniqueRegister(node->InputAt(2)),
-                                 g.UseUniqueRegister(node->InputAt(3))};
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
 
-  InstructionOperand outputs[] = {
-      g.DefineAsRegister(node),
-      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
-  selector->Emit(opcode, 2, outputs, 4, inputs);
+  if (projection1) {
+    // We use UseUniqueRegister here to avoid register sharing with the output
+    // register.
+    InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                   g.UseUniqueRegister(node->InputAt(1)),
+                                   g.UseUniqueRegister(node->InputAt(2)),
+                                   g.UseUniqueRegister(node->InputAt(3))};
+
+    InstructionOperand outputs[] = {
+        g.DefineAsRegister(node),
+        g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+    selector->Emit(pair_opcode, 2, outputs, 4, inputs);
+  } else {
+    // The high word of the result is not used, so we emit the standard 32 bit
+    // instruction.
+    selector->Emit(single_opcode, g.DefineSameAsFirst(node),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(2)));
+  }
 }
 
 void InstructionSelector::VisitInt32PairAdd(Node* node) {
-  VisitInt32PairBinop(this, kMipsAddPair, node);
+  VisitInt32PairBinop(this, kMipsAddPair, kMipsAdd, node);
 }
 
 void InstructionSelector::VisitInt32PairSub(Node* node) {
-  VisitInt32PairBinop(this, kMipsSubPair, node);
+  VisitInt32PairBinop(this, kMipsSubPair, kMipsSub, node);
 }
 
 void InstructionSelector::VisitInt32PairMul(Node* node) {
-  VisitInt32PairBinop(this, kMipsMulPair, node);
+  VisitInt32PairBinop(this, kMipsMulPair, kMipsMul, node);
 }
 
 // Shared routine for multiple shift operations.
@@ -475,11 +486,21 @@ static void VisitWord32PairShift(InstructionSelector* selector,
                                  g.UseUniqueRegister(node->InputAt(1)),
                                  shift_operand};
 
-  InstructionOperand outputs[] = {
-      g.DefineAsRegister(node),
-      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
 
-  selector->Emit(opcode, 2, outputs, 3, inputs);
+  InstructionOperand outputs[2];
+  InstructionOperand temps[1];
+  int32_t output_count = 0;
+  int32_t temp_count = 0;
+
+  outputs[output_count++] = g.DefineAsRegister(node);
+  if (projection1) {
+    outputs[output_count++] = g.DefineAsRegister(projection1);
+  } else {
+    temps[temp_count++] = g.TempRegister();
+  }
+
+  selector->Emit(opcode, output_count, outputs, 3, inputs, temp_count, temps);
 }
 
 void InstructionSelector::VisitWord32PairShl(Node* node) {

@@ -4161,6 +4161,25 @@ TEST(RunInt32PairAdd) {
   }
 }
 
+TEST(RunInt32PairAddUseOnlyHighWord) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
+      MachineType::Uint32());
+
+  m.Return(m.Projection(1, m.Int32PairAdd(m.Parameter(0), m.Parameter(1),
+                                          m.Parameter(2), m.Parameter(3))));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      CHECK_EQ(static_cast<uint32_t>((*i + *j) >> 32),
+               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                      static_cast<uint32_t>(*i >> 32),
+                      static_cast<uint32_t>(*j & 0xffffffff),
+                      static_cast<uint32_t>(*j >> 32)));
+    }
+  }
+}
+
 void TestInt32PairAddWithSharedInput(int a, int b, int c, int d) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                                MachineType::Uint32());
@@ -4220,6 +4239,25 @@ TEST(RunInt32PairSub) {
              static_cast<uint32_t>(*j & 0xffffffff),
              static_cast<uint32_t>(*j >> 32));
       CHECK_EQ(*i - *j, ToInt64(low, high));
+    }
+  }
+}
+
+TEST(RunInt32PairSubUseOnlyHighWord) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
+      MachineType::Uint32());
+
+  m.Return(m.Projection(1, m.Int32PairSub(m.Parameter(0), m.Parameter(1),
+                                          m.Parameter(2), m.Parameter(3))));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      CHECK_EQ(static_cast<uint32_t>((*i - *j) >> 32),
+               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                      static_cast<uint32_t>(*i >> 32),
+                      static_cast<uint32_t>(*j & 0xffffffff),
+                      static_cast<uint32_t>(*j >> 32)));
     }
   }
 }
@@ -4287,6 +4325,25 @@ TEST(RunInt32PairMul) {
   }
 }
 
+TEST(RunInt32PairMulUseOnlyHighWord) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
+      MachineType::Uint32());
+
+  m.Return(m.Projection(1, m.Int32PairMul(m.Parameter(0), m.Parameter(1),
+                                          m.Parameter(2), m.Parameter(3))));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      CHECK_EQ(static_cast<uint32_t>((*i * *j) >> 32),
+               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                      static_cast<uint32_t>(*i >> 32),
+                      static_cast<uint32_t>(*j & 0xffffffff),
+                      static_cast<uint32_t>(*j >> 32)));
+    }
+  }
+}
+
 void TestInt32PairMulWithSharedInput(int a, int b, int c, int d) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                                MachineType::Uint32());
@@ -4330,13 +4387,13 @@ TEST(RunWord32PairShl) {
   uint32_t high;
   uint32_t low;
 
-  Node* PairAdd =
+  Node* PairShl =
       m.Word32PairShl(m.Parameter(0), m.Parameter(1), m.Parameter(2));
 
   m.StoreToPointer(&low, MachineRepresentation::kWord32,
-                   m.Projection(0, PairAdd));
+                   m.Projection(0, PairShl));
   m.StoreToPointer(&high, MachineRepresentation::kWord32,
-                   m.Projection(1, PairAdd));
+                   m.Projection(1, PairShl));
   m.Return(m.Int32Constant(74));
 
   FOR_UINT64_INPUTS(i) {
@@ -4344,6 +4401,22 @@ TEST(RunWord32PairShl) {
       m.Call(static_cast<uint32_t>(*i & 0xffffffff),
              static_cast<uint32_t>(*i >> 32), j);
       CHECK_EQ(*i << j, ToInt64(low, high));
+    }
+  }
+}
+
+TEST(RunWord32PairShlUseOnlyHighWord) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  m.Return(m.Projection(
+      1, m.Word32PairShl(m.Parameter(0), m.Parameter(1), m.Parameter(2))));
+
+  FOR_UINT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      CHECK_EQ(static_cast<uint32_t>((*i << j) >> 32),
+               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                      static_cast<uint32_t>(*i >> 32), j));
     }
   }
 }
@@ -4405,6 +4478,22 @@ TEST(RunWord32PairShr) {
   }
 }
 
+TEST(RunWord32PairShrUseOnlyHighWord) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  m.Return(m.Projection(
+      1, m.Word32PairShr(m.Parameter(0), m.Parameter(1), m.Parameter(2))));
+
+  FOR_UINT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      CHECK_EQ(static_cast<uint32_t>((*i >> j) >> 32),
+               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                      static_cast<uint32_t>(*i >> 32), j));
+    }
+  }
+}
+
 TEST(RunWord32PairSar) {
   BufferedRawMachineAssemblerTester<int32_t> m(
       MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
@@ -4430,6 +4519,21 @@ TEST(RunWord32PairSar) {
   }
 }
 
+TEST(RunWord32PairSarUseOnlyHighWord) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  m.Return(m.Projection(
+      1, m.Word32PairSar(m.Parameter(0), m.Parameter(1), m.Parameter(2))));
+
+  FOR_INT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      CHECK_EQ(static_cast<uint32_t>((*i >> j) >> 32),
+               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                      static_cast<uint32_t>(*i >> 32), j));
+    }
+  }
+}
 #endif
 
 TEST(RunDeadChangeFloat64ToInt32) {

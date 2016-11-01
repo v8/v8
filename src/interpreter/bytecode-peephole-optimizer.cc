@@ -13,7 +13,7 @@ namespace interpreter {
 
 BytecodePeepholeOptimizer::BytecodePeepholeOptimizer(
     BytecodePipelineStage* next_stage)
-    : next_stage_(next_stage), last_(Bytecode::kIllegal) {
+    : next_stage_(next_stage), last_(Bytecode::kIllegal, BytecodeSourceInfo()) {
   InvalidateLast();
 }
 
@@ -77,8 +77,7 @@ void BytecodePeepholeOptimizer::SetLast(const BytecodeNode* const node) {
   // source position information. NOP without source information can
   // always be elided.
   DCHECK(node->bytecode() != Bytecode::kNop || node->source_info().is_valid());
-
-  last_.Clone(node);
+  last_ = *node;
 }
 
 bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
@@ -142,7 +141,7 @@ void TransformLdaSmiBinaryOpToBinaryOpWithSmi(Bytecode new_bytecode,
   current->set_bytecode(new_bytecode, last->operand(0), current->operand(0),
                         current->operand(1));
   if (last->source_info().is_valid()) {
-    current->source_info_ptr()->Clone(last->source_info());
+    current->set_source_info(last->source_info());
   }
 }
 
@@ -153,7 +152,7 @@ void TransformLdaZeroBinaryOpToBinaryOpWithZero(Bytecode new_bytecode,
   current->set_bytecode(new_bytecode, 0, current->operand(0),
                         current->operand(1));
   if (last->source_info().is_valid()) {
-    current->source_info_ptr()->Clone(last->source_info());
+    current->set_source_info(last->source_info());
   }
 }
 
@@ -223,7 +222,7 @@ void BytecodePeepholeOptimizer::ElideLastAction(
       // |node| can not have a valid source position if the source
       // position of last() is valid (per rules in
       // CanElideLastBasedOnSourcePosition()).
-      node->source_info_ptr()->Clone(last()->source_info());
+      node->set_source_info(last()->source_info());
     }
     SetLast(node);
   } else {
@@ -314,7 +313,7 @@ void BytecodePeepholeOptimizer::ElideLastBeforeJumpAction(
   if (!CanElideLastBasedOnSourcePosition(node)) {
     next_stage()->Write(last());
   } else if (!node->source_info().is_valid()) {
-    node->source_info_ptr()->Clone(last()->source_info());
+    node->set_source_info(last()->source_info());
   }
   InvalidateLast();
 }

@@ -97,7 +97,7 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
   Label context_search(this, 2, context_search_loop_variables);
 
   // Fast path if the depth is 0.
-  BranchIfWord32Equal(depth, Int32Constant(0), &context_found, &context_search);
+  Branch(Word32Equal(depth, Int32Constant(0)), &context_found, &context_search);
 
   // Loop until the depth is 0.
   Bind(&context_search);
@@ -106,8 +106,8 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
     cur_context.Bind(
         LoadContextSlot(cur_context.value(), Context::PREVIOUS_INDEX));
 
-    BranchIfWord32Equal(cur_depth.value(), Int32Constant(0), &context_found,
-                        &context_search);
+    Branch(Word32Equal(cur_depth.value(), Int32Constant(0)), &context_found,
+           &context_search);
   }
 
   Bind(&context_found);
@@ -567,19 +567,13 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   Variable return_value(this, MachineRepresentation::kTagged);
   Label handle_monomorphic(this), extra_checks(this), end(this), call(this),
-      call_function(this), call_without_feedback(this);
-
-  // Slot id of 0 is used to indicate no typefeedback is available. Call using
-  // call builtin.
-  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
-  Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
-  GotoIf(is_feedback_unavailable, &call_without_feedback);
+      call_function(this);
 
   // The checks. First, does function match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
-  Node* feedback_value = LoadWeakCellValue(feedback_element);
+  Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(function, feedback_value);
-  BranchIf(is_monomorphic, &handle_monomorphic, &extra_checks);
+  Branch(is_monomorphic, &handle_monomorphic, &extra_checks);
 
   Bind(&handle_monomorphic);
   {
@@ -610,7 +604,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     Node* is_megamorphic = WordEqual(
         feedback_element,
         HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-    BranchIf(is_megamorphic, &call, &check_allocation_site);
+    Branch(is_megamorphic, &call, &check_allocation_site);
 
     Bind(&check_allocation_site);
     {
@@ -733,18 +727,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     Goto(&end);
   }
 
-  Bind(&call_without_feedback);
-  {
-    // Call using call builtin.
-    Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
-        isolate(), tail_call_mode, CallableType::kAny);
-    Node* code_target_call = HeapConstant(callable_call.code());
-    Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
-                               context, arg_count, first_arg, function);
-    return_value.Bind(ret_value);
-    Goto(&end);
-  }
-
   Bind(&end);
   return return_value.value();
 }
@@ -781,7 +763,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   Node* instance_type = LoadInstanceType(constructor);
   Node* is_js_function =
       WordEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE));
-  BranchIf(is_js_function, &js_function, &call_construct);
+  Branch(is_js_function, &js_function, &call_construct);
 
   Bind(&js_function);
   {
@@ -794,9 +776,9 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
     Node* feedback_element =
         LoadFixedArrayElement(type_feedback_vector, slot_id);
-    Node* feedback_value = LoadWeakCellValue(feedback_element);
+    Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
     Node* is_monomorphic = WordEqual(constructor, feedback_value);
-    BranchIf(is_monomorphic, &call_construct_function, &extra_checks);
+    Branch(is_monomorphic, &call_construct_function, &extra_checks);
 
     Bind(&extra_checks);
     {
@@ -819,7 +801,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
         // monomorphic.
         Comment("check if weak cell is cleared");
         Node* is_smi = TaggedIsSmi(feedback_value);
-        BranchIf(is_smi, &initialize, &mark_megamorphic);
+        Branch(is_smi, &initialize, &mark_megamorphic);
       }
 
       Bind(&check_allocation_site);
@@ -835,8 +817,8 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
             LoadFixedArrayElement(LoadNativeContext(context),
                                   Int32Constant(Context::ARRAY_FUNCTION_INDEX));
         Node* is_array_function = WordEqual(context_slot, constructor);
-        BranchIf(is_array_function, &set_alloc_feedback_and_call,
-                 &mark_megamorphic);
+        Branch(is_array_function, &set_alloc_feedback_and_call,
+               &mark_megamorphic);
       }
 
       Bind(&set_alloc_feedback_and_call);
@@ -851,7 +833,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
         Comment("check if uninitialized");
         Node* is_uninitialized = WordEqual(
             feedback_element, LoadRoot(Heap::kuninitialized_symbolRootIndex));
-        BranchIf(is_uninitialized, &initialize, &mark_megamorphic);
+        Branch(is_uninitialized, &initialize, &mark_megamorphic);
       }
 
       Bind(&initialize);
@@ -863,7 +845,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
             LoadFixedArrayElement(LoadNativeContext(context),
                                   Int32Constant(Context::ARRAY_FUNCTION_INDEX));
         Node* is_array_function = WordEqual(context_slot, constructor);
-        BranchIf(is_array_function, &create_allocation_site, &create_weak_cell);
+        Branch(is_array_function, &create_allocation_site, &create_weak_cell);
 
         Bind(&create_allocation_site);
         {
@@ -1007,7 +989,7 @@ Node* InterpreterAssembler::Jump(Node* delta) {
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
   Label match(this), no_match(this);
 
-  BranchIf(condition, &match, &no_match);
+  Branch(condition, &match, &no_match);
   Bind(&match);
   Jump(delta);
   Bind(&no_match);
@@ -1040,7 +1022,7 @@ Node* InterpreterAssembler::StarDispatchLookahead(Node* target_bytecode) {
 
   Node* star_bytecode = IntPtrConstant(static_cast<int>(Bytecode::kStar));
   Node* is_star = WordEqual(target_bytecode, star_bytecode);
-  BranchIf(is_star, &do_inline_star, &done);
+  Branch(is_star, &do_inline_star, &done);
 
   Bind(&do_inline_star);
   {
@@ -1178,7 +1160,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       // Check if {value} is a HeapNumber.
       Label if_valueisheapnumber(this),
           if_valueisnotheapnumber(this, Label::kDeferred);
-      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+      Node* value_map = LoadMap(value);
+      Branch(WordEqual(value_map, HeapNumberMapConstant()),
              &if_valueisheapnumber, &if_valueisnotheapnumber);
 
       Bind(&if_valueisheapnumber);
@@ -1193,11 +1176,35 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
 
       Bind(&if_valueisnotheapnumber);
       {
-        // Convert the {value} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
-        var_value.Bind(CallStub(callable, context, value));
-        var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kAny));
-        Goto(&loop);
+        // We do not require an Or with earlier feedback here because once we
+        // convert the value to a number, we cannot reach this path. We can
+        // only reach this path on the first pass when the feedback is kNone.
+        Assert(Word32Equal(var_type_feedback->value(),
+                           Int32Constant(BinaryOperationFeedback::kNone)));
+
+        Label if_valueisoddball(this),
+            if_valueisnotoddball(this, Label::kDeferred);
+        Node* is_oddball = Word32Equal(LoadMapInstanceType(value_map),
+                                       Int32Constant(ODDBALL_TYPE));
+        Branch(is_oddball, &if_valueisoddball, &if_valueisnotoddball);
+
+        Bind(&if_valueisoddball);
+        {
+          // Convert Oddball to a Number and perform checks again.
+          var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
+          var_type_feedback->Bind(
+              Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+          Goto(&loop);
+        }
+
+        Bind(&if_valueisnotoddball);
+        {
+          // Convert the {value} to a Number first.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_value.Bind(CallStub(callable, context, value));
+          var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kAny));
+          Goto(&loop);
+        }
       }
     }
   }
@@ -1241,7 +1248,7 @@ void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
 void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
                                                BailoutReason bailout_reason) {
   Label ok(this), abort(this, Label::kDeferred);
-  BranchIfWordEqual(lhs, rhs, &ok, &abort);
+  Branch(WordEqual(lhs, rhs), &ok, &abort);
 
   Bind(&abort);
   Abort(bailout_reason);
@@ -1271,7 +1278,7 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
 
   Node* counter_reached_max = WordEqual(
       old_counter, IntPtrConstant(std::numeric_limits<uintptr_t>::max()));
-  BranchIf(counter_reached_max, &counter_saturated, &counter_ok);
+  Branch(counter_reached_max, &counter_saturated, &counter_ok);
 
   Bind(&counter_ok);
   {

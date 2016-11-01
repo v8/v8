@@ -143,14 +143,14 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
     auto temp = new byte[total];
     memcpy(temp, header, sizeof(header));
     memcpy(temp + sizeof(header), module_start, size);
-    ModuleResult result = DecodeWasmModule(isolate(), zone(), temp,
-                                           temp + total, false, kWasmOrigin);
+    ModuleResult result =
+        DecodeWasmModule(isolate(), temp, temp + total, false, kWasmOrigin);
     delete[] temp;
     return result;
   }
   ModuleResult DecodeModuleNoHeader(const byte* module_start,
                                     const byte* module_end) {
-    return DecodeWasmModule(isolate(), zone(), module_start, module_end, false,
+    return DecodeWasmModule(isolate(), module_start, module_end, false,
                             kWasmOrigin);
   }
 };
@@ -510,8 +510,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
     EXPECT_EQ(1, result.val->signatures.size());
     EXPECT_EQ(1, result.val->functions.size());
     EXPECT_EQ(1, result.val->function_tables.size());
-    EXPECT_EQ(1, result.val->function_tables[0].values.size());
-    EXPECT_EQ(-1, result.val->function_tables[0].values[0]);
+    EXPECT_EQ(1, result.val->function_tables[0].min_size);
   }
   if (result.val) delete result.val;
 }
@@ -537,8 +536,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
     EXPECT_EQ(1, result.val->signatures.size());
     EXPECT_EQ(1, result.val->functions.size());
     EXPECT_EQ(1, result.val->function_tables.size());
-    EXPECT_EQ(1, result.val->function_tables[0].values.size());
-    EXPECT_EQ(0, result.val->function_tables[0].values[0]);
+    EXPECT_EQ(1, result.val->function_tables[0].min_size);
   }
   if (result.val) delete result.val;
 }
@@ -575,10 +573,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
     EXPECT_EQ(2, result.val->signatures.size());
     EXPECT_EQ(4, result.val->functions.size());
     EXPECT_EQ(1, result.val->function_tables.size());
-    EXPECT_EQ(8, result.val->function_tables[0].values.size());
-    for (int i = 0; i < 8; i++) {
-      EXPECT_EQ(i & 3, result.val->function_tables[0].values[i]);
-    }
+    EXPECT_EQ(8, result.val->function_tables[0].min_size);
   }
   if (result.val) delete result.val;
 }
@@ -612,7 +607,7 @@ class WasmSignatureDecodeTest : public TestWithZone {};
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {SIG_ENTRY_v_v};
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   FunctionSig* sig =
       DecodeWasmSignatureForTesting(&zone, data, data + sizeof(data));
 

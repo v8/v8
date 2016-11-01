@@ -159,31 +159,30 @@ bool Statement::IsJump() const {
   }
 }
 
-VariableProxy::VariableProxy(Variable* var, int start_position,
-                             int end_position)
+VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
-      end_position_(end_position),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(var->is_this()) |
-                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+                IsAssignedField::encode(false) |
+                IsResolvedField::encode(false) |
+                HoleCheckModeField::encode(HoleCheckMode::kElided);
   BindTo(var);
 }
 
 VariableProxy::VariableProxy(const AstRawString* name,
-                             VariableKind variable_kind, int start_position,
-                             int end_position)
+                             VariableKind variable_kind, int start_position)
     : Expression(start_position, kVariableProxy),
-      end_position_(end_position),
       raw_name_(name),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+                IsAssignedField::encode(false) |
+                IsResolvedField::encode(false) |
+                HoleCheckModeField::encode(HoleCheckMode::kElided);
 }
 
 VariableProxy::VariableProxy(const VariableProxy* copy_from)
     : Expression(copy_from->position(), kVariableProxy),
-      end_position_(copy_from->end_position_),
       next_unresolved_(nullptr) {
   bit_field_ = copy_from->bit_field_;
   DCHECK(!copy_from->is_resolved());
@@ -293,7 +292,6 @@ bool FunctionLiteral::ShouldEagerCompile() const {
 }
 
 void FunctionLiteral::SetShouldEagerCompile() {
-  if (body_ == nullptr) return;
   scope()->set_should_eager_compile();
 }
 
@@ -893,25 +891,9 @@ bool Expression::IsMonomorphic() const {
   }
 }
 
-bool Call::IsUsingCallFeedbackICSlot() const {
-  return GetCallType() != POSSIBLY_EVAL_CALL;
-}
-
-bool Call::IsUsingCallFeedbackSlot() const {
-  // SuperConstructorCall uses a CallConstructStub, which wants
-  // a Slot, in addition to any IC slots requested elsewhere.
-  return GetCallType() == SUPER_CALL;
-}
-
-
 void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                      FeedbackVectorSlotCache* cache) {
-  if (IsUsingCallFeedbackICSlot()) {
-    ic_slot_ = spec->AddCallICSlot();
-  }
-  if (IsUsingCallFeedbackSlot()) {
-    stub_slot_ = spec->AddGeneralSlot();
-  }
+  ic_slot_ = spec->AddCallICSlot();
 }
 
 Call::CallType Call::GetCallType() const {

@@ -478,9 +478,7 @@ Expression* Parser::NewSuperCallReference(int pos) {
 }
 
 Expression* Parser::NewTargetExpression(int pos) {
-  static const int kNewTargetStringLength = 10;
-  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos,
-                             pos + kNewTargetStringLength);
+  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos);
   proxy->set_is_new_target();
   return proxy;
 }
@@ -596,7 +594,6 @@ Parser::Parser(ParseInfo* info)
       compile_options_(info->compile_options()),
       cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
-      pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -678,7 +675,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
 
-  HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
   RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   Handle<String> source(String::cast(info->script()->source()));
@@ -845,7 +841,6 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
   RuntimeCallTimerScope runtime_timer(isolate,
                                       &RuntimeCallStats::ParseFunction);
-  HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
@@ -1140,15 +1135,19 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
     }
     const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
     const AstRawString* export_name = NULL;
+    Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(CStrVector("as"))) {
       export_name = ParseIdentifierName(CHECK_OK_VOID);
+      // Set the location to the whole "a as b" string, so that it makes sense
+      // both for errors due to "a" and for errors due to "b".
+      location.end_pos = scanner()->location().end_pos;
     }
     if (export_name == NULL) {
       export_name = local_name;
     }
     export_names->Add(export_name, zone());
     local_names->Add(local_name, zone());
-    export_locations->Add(scanner()->location(), zone());
+    export_locations->Add(location, zone());
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA, CHECK_OK_VOID);
   }
@@ -1178,6 +1177,7 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* local_name = import_name;
+    Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
     // BindingIdentifier.
@@ -1198,8 +1198,8 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
     DeclareVariable(local_name, CONST, kNeedsInitialization, position(),
                     CHECK_OK);
 
-    NamedImport* import = new (zone()) NamedImport(
-        import_name, local_name, scanner()->location());
+    NamedImport* import =
+        new (zone()) NamedImport(import_name, local_name, location);
     result->Add(import, zone());
 
     if (peek() == Token::RBRACE) break;
@@ -1404,19 +1404,19 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   //    'export' Declaration
   //    'export' 'default' ... (handled in ParseExportDefault)
 
-  int pos = peek_position();
   Expect(Token::EXPORT, CHECK_OK);
+  int pos = position();
 
   // Allow exported ambient variable, function, and class declarations.
   bool ambient = typed() && CheckContextualKeyword(CStrVector("declare"));
 
   Statement* result = nullptr;
   ZoneList<const AstRawString*> names(1, zone());
+  Scanner::Location loc = scanner()->peek_location();
   if (ambient && (peek() == Token::DEFAULT || peek() == Token::MUL ||
                   peek() == Token::LBRACE)) {
     *ok = false;
-    ReportMessageAt(scanner()->peek_location(),
-                    MessageTemplate::kBadAmbientDeclaration);
+    ReportMessageAt(loc, MessageTemplate::kBadAmbientDeclaration);
     return nullptr;
   }
   switch (peek()) {
@@ -1425,10 +1425,11 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 
     case Token::MUL: {
       Consume(Token::MUL);
+      loc = scanner()->location();
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
       const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
       ExpectSemicolon(CHECK_OK);
-      module()->AddStarExport(module_specifier, scanner()->location(), zone());
+      module()->AddStarExport(module_specifier, loc, zone());
       return factory()->NewEmptyStatement(pos);
     }
 
@@ -1511,14 +1512,14 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       ReportUnexpectedToken(scanner()->current_token());
       return nullptr;
   }
+  loc.end_pos = scanner()->location().end_pos;
 
   // Exported ambients are not checked.
   if (ambient) return factory()->NewEmptyStatement(pos);
 
   ModuleDescriptor* descriptor = module();
   for (int i = 0; i < names.length(); ++i) {
-    // TODO(neis): Provide better location.
-    descriptor->AddExport(names[i], names[i], scanner()->location(), zone());
+    descriptor->AddExport(names[i], names[i], loc, zone());
   }
 
   DCHECK_NOT_NULL(result);
@@ -1526,13 +1527,12 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 }
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name, int begin_pos,
-                                     int end_pos, VariableKind kind) {
-  return scope()->NewUnresolved(factory(), name, begin_pos, end_pos, kind);
+                                     VariableKind kind) {
+  return scope()->NewUnresolved(factory(), name, begin_pos, kind);
 }
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name) {
-  return scope()->NewUnresolved(factory(), name, scanner()->location().beg_pos,
-                                scanner()->location().end_pos);
+  return scope()->NewUnresolved(factory(), name, scanner()->location().beg_pos);
 }
 
 Declaration* Parser::DeclareVariable(const AstRawString* name,
@@ -1546,18 +1546,19 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
                                      int pos, bool* ok) {
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy = factory()->NewVariableProxy(
-      name, NORMAL_VARIABLE, scanner()->location().beg_pos,
-      scanner()->location().end_pos);
+      name, NORMAL_VARIABLE, scanner()->location().beg_pos);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, this->scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
+  Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, ok, nullptr,
+          scanner()->location().end_pos);
+  if (!*ok) return nullptr;
   return declaration;
 }
 
 Variable* Parser::Declare(Declaration* declaration,
                           DeclarationDescriptor::Kind declaration_kind,
                           VariableMode mode, InitializationFlag init, bool* ok,
-                          Scope* scope) {
+                          Scope* scope, int var_end_pos) {
   if (scope == nullptr) {
     scope = this->scope();
   }
@@ -1566,11 +1567,18 @@ Variable* Parser::Declare(Declaration* declaration,
       declaration, mode, init, allow_harmony_restrictive_generators(),
       &sloppy_mode_block_scope_function_redefinition, ok);
   if (!*ok) {
+    // If we only have the start position of a proxy, we can't highlight the
+    // whole variable name.  Pretend its length is 1 so that we highlight at
+    // least the first character.
+    Scanner::Location loc(declaration->proxy()->position(),
+                          var_end_pos != kNoSourcePosition
+                              ? var_end_pos
+                              : declaration->proxy()->position() + 1);
     if (declaration_kind == DeclarationDescriptor::NORMAL) {
-      ReportMessage(MessageTemplate::kVarRedeclaration,
-                    declaration->proxy()->raw_name());
+      ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                      declaration->proxy()->raw_name());
     } else {
-      ReportMessage(MessageTemplate::kParamDupe);
+      ReportMessageAt(loc, MessageTemplate::kParamDupe);
     }
     return nullptr;
   }
@@ -2075,8 +2083,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
 
   *body_block = factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
   (*body_block)->statements()->Add(each_initialization_block, zone());
-  *each_variable = factory()->NewVariableProxy(temp, for_info->each_loc.beg_pos,
-                                               for_info->each_loc.end_pos);
+  *each_variable = factory()->NewVariableProxy(temp, for_info->position);
 }
 
 // Create a TDZ for any lexically-bound names in for in/of statements.
@@ -2755,7 +2762,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // the previous zone is always restored after parsing the body. To be able
     // to do scope analysis correctly after full parsing, we migrate needed
     // information when the function is parsed.
-    Zone temp_zone(zone()->allocator());
+    Zone temp_zone(zone()->allocator(), ZONE_NAME);
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
 #ifdef DEBUG
     if (use_temp_zone) scope->set_needs_migration();
@@ -2801,11 +2808,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       expected_property_count = function_state.expected_property_count();
     }
 
-    if (use_temp_zone || is_lazy_top_level_function) {
+    DCHECK(use_temp_zone || !is_lazy_top_level_function);
+    if (use_temp_zone) {
       // If the preconditions are correct the function body should never be
       // accessed, but do this anyway for better behaviour if they're wrong.
       body = nullptr;
       scope->AnalyzePartially(&previous_zone_ast_node_factory);
+    }
+
+    if (FLAG_trace_preparse) {
+      PrintF("  [%s]: %i-%i %.*s\n",
+             is_lazy_top_level_function
+                 ? "Preparse no-resolution"
+                 : (use_temp_zone ? "Preparse resolution" : "Full parse"),
+             scope->start_position(), scope->end_position(),
+             function_name->byte_length(), function_name->raw_data());
     }
 
     // Parsing the body may change the language mode in our scope.
@@ -3357,11 +3374,6 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
 PreParser::PreParseResult Parser::ParseFunctionBodyWithPreParser(
     SingletonLogger* logger, bool is_inner_function, bool may_abort) {
-  // This function may be called on a background thread too; record only the
-  // main thread preparse times.
-  if (pre_parse_timer_ != NULL) {
-    pre_parse_timer_->Start();
-  }
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
@@ -3389,9 +3401,6 @@ PreParser::PreParseResult Parser::ParseFunctionBodyWithPreParser(
   PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
       function_scope, parsing_module_, logger, is_inner_function, may_abort,
       use_counts_);
-  if (pre_parse_timer_ != NULL) {
-    pre_parse_timer_->Stop();
-  }
   return result;
 }
 
@@ -3510,7 +3519,7 @@ FunctionLiteral* Parser::InsertClassFieldInitializer(
           constructor->scope(),
           constructor->scope()->NewUnresolved(
               factory(), ast_value_factory()->this_string(), kNoSourcePosition,
-              kNoSourcePosition + 4, THIS_VARIABLE)),
+              THIS_VARIABLE)),
       kNoSourcePosition);
   constructor->body()->InsertAt(0, call_initializer, zone());
   return constructor;
@@ -3873,7 +3882,6 @@ bool Parser::Parse(ParseInfo* info) {
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parsing_on_main_thread_);
   Isolate* isolate = info->isolate();
-  pre_parse_timer_ = isolate->counters()->pre_parse();
 
   if (info->is_toplevel()) {
     SetCachedData(info);
@@ -4399,8 +4407,7 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
 
     Expression* result;
     DCHECK_NOT_NULL(lhs->raw_name());
-    result = ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
-                                      lhs->end_position());
+    result = ExpressionFromIdentifier(lhs->raw_name(), lhs->position());
     args->Add(left, zone());
     args->Add(right, zone());
     Expression* call =

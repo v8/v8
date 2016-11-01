@@ -922,7 +922,7 @@ class BailoutId {
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
   bool operator!=(const BailoutId& other) const { return id_ != other.id_; }
   friend size_t hash_value(BailoutId);
-  friend std::ostream& operator<<(std::ostream&, BailoutId);
+  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&, BailoutId);
 
  private:
   static const int kNoneId = -1;
@@ -964,7 +964,7 @@ class TokenDispenserForFinally {
 // I/O support.
 
 // Our version of printf().
-void PRINTF_FORMAT(1, 2) PrintF(const char* format, ...);
+V8_EXPORT_PRIVATE void PRINTF_FORMAT(1, 2) PrintF(const char* format, ...);
 void PRINTF_FORMAT(2, 3) PrintF(FILE* out, const char* format, ...);
 
 // Prepends the current process ID to the output.
@@ -1150,9 +1150,9 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 // Simple support to read a file into a 0-terminated C-string.
 // The returned buffer must be freed by the caller.
 // On return, *exits tells whether the file existed.
-Vector<const char> ReadFile(const char* filename,
-                            bool* exists,
-                            bool verbose = true);
+V8_EXPORT_PRIVATE Vector<const char> ReadFile(const char* filename,
+                                              bool* exists,
+                                              bool verbose = true);
 Vector<const char> ReadFile(FILE* file,
                             bool* exists,
                             bool verbose = true);

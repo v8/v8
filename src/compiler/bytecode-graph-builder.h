@@ -37,7 +37,6 @@ class BytecodeGraphBuilder {
 
  private:
   class Environment;
-  class FrameStateBeforeAndAfter;
 
   void VisitBytecodes();
 
@@ -120,13 +119,23 @@ class BytecodeGraphBuilder {
                                     interpreter::Register first_arg,
                                     size_t arity);
 
+  // Prepare information for eager deoptimization. This information is carried
+  // by dedicated {Checkpoint} nodes that are wired into the effect chain.
+  // Conceptually this frame state is "before" a given operation.
+  void PrepareEagerCheckpoint();
+
+  // Prepare information for lazy deoptimization. This information is attached
+  // to the given node and the output value produced by the node is combined.
+  // Conceptually this frame state is "after" a given operation.
+  void PrepareFrameState(Node* node, OutputFrameStateCombine combine);
+
   // Computes register liveness and replaces dead ones in frame states with the
   // undefined values.
   void ClearNonLiveSlotsInFrameStates();
 
-  void BuildCreateLiteral(const Operator* op);
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadContextSlot();
+  Node* BuildLoadCurrentContextSlot();
   Node* BuildLoadGlobal(uint32_t feedback_slot_index, TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
   Node* BuildNamedLoad();
@@ -137,7 +146,8 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
-  void BuildCall(TailCallMode tail_call_mode);
+  void BuildCall(TailCallMode tail_call_mode,
+                 ConvertReceiverMode receiver_hint);
   void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);

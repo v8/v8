@@ -345,6 +345,38 @@ void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << "StringAddStub_" << flags() << "_" << pretenure_flag();
 }
 
+void StringAddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* left = assembler->Parameter(Descriptor::kLeft);
+  Node* right = assembler->Parameter(Descriptor::kRight);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  if ((flags() & STRING_ADD_CHECK_LEFT) != 0) {
+    DCHECK((flags() & STRING_ADD_CONVERT) != 0);
+    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+    // combined to avoid duplicate smi and instance type checks.
+    left = assembler->ToString(context,
+                               assembler->JSReceiverToPrimitive(context, left));
+  }
+  if ((flags() & STRING_ADD_CHECK_RIGHT) != 0) {
+    DCHECK((flags() & STRING_ADD_CONVERT) != 0);
+    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+    // combined to avoid duplicate smi and instance type checks.
+    right = assembler->ToString(
+        context, assembler->JSReceiverToPrimitive(context, right));
+  }
+
+  if ((flags() & STRING_ADD_CHECK_BOTH) == 0) {
+    CodeStubAssembler::AllocationFlag flags =
+        (pretenure_flag() == TENURED) ? CodeStubAssembler::kPretenured
+                                      : CodeStubAssembler::kNone;
+    assembler->Return(assembler->StringAdd(context, left, right, flags));
+  } else {
+    Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
+                                               pretenure_flag());
+    assembler->TailCallStub(callable, context, left, right);
+  }
+}
 
 InlineCacheState CompareICStub::GetICState() const {
   CompareICState::State state = Max(left(), right());
@@ -411,7 +443,7 @@ void CompareICStub::Generate(MacroAssembler* masm) {
 
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
-  Zone zone(isolate()->allocator());
+  Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   CodeStubAssembler assembler(isolate(), &zone, descriptor, GetCodeFlags(),
                               name);
@@ -527,6 +559,37 @@ void StoreICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
                                          vector);
   assembler->StoreIC(&p);
+}
+
+void KeyedStoreICTrampolineTFStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler->KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
+}
+
+void KeyedStoreICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler->KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
 }
 
 void StoreMapStub::GenerateAssembly(CodeStubAssembler* assembler) const {
@@ -671,8 +734,10 @@ compiler::Node* AddWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry for floating point addition.
-  Label do_fadd(assembler), end(assembler),
-      call_add_stub(assembler, Label::kDeferred);
+  Label do_fadd(assembler), if_lhsisnotnumber(assembler, Label::kDeferred),
+      check_rhsisoddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_add_stub(assembler), end(assembler);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64),
       var_type_feedback(assembler, MachineRepresentation::kWord32),
@@ -725,7 +790,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
       // Check if the {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_add_stub);
+                            &check_rhsisoddball);
 
       var_fadd_lhs.Bind(assembler->SmiToFloat64(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -735,14 +800,12 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   assembler->Bind(&if_lhsisnotsmi);
   {
-    Label check_string(assembler);
-
     // Load the map of {lhs}.
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if {lhs} is a HeapNumber.
-    Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
-    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map), &check_string);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
+                          &if_lhsisnotnumber);
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -763,29 +826,62 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
       // Check if the {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_add_stub);
+                            &check_rhsisoddball);
 
       var_fadd_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
       assembler->Goto(&do_fadd);
     }
+  }
 
-    assembler->Bind(&check_string);
+  assembler->Bind(&do_fadd);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
+    Node* value =
+        assembler->Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
+    var_result.Bind(result);
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&if_lhsisnotnumber);
+  {
+    // No checks on rhs are done yet. We just know lhs is not a number or Smi.
+    Label if_lhsisoddball(assembler), if_lhsisnotoddball(assembler);
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* lhs_is_oddball = assembler->Word32Equal(
+        lhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(lhs_is_oddball, &if_lhsisoddball, &if_lhsisnotoddball);
+
+    assembler->Bind(&if_lhsisoddball);
     {
-      // Check if the {rhs} is a smi, and exit the string check early if it is.
-      assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_add_stub);
+      assembler->GotoIf(assembler->TaggedIsSmi(rhs),
+                        &call_with_oddball_feedback);
 
-      Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
+      // Load the map of the {rhs}.
+      Node* rhs_map = assembler->LoadMap(rhs);
 
+      // Check if {rhs} is a HeapNumber.
+      assembler->Branch(assembler->IsHeapNumberMap(rhs_map),
+                        &call_with_oddball_feedback, &check_rhsisoddball);
+    }
+
+    assembler->Bind(&if_lhsisnotoddball);
+    {
       // Exit unless {lhs} is a string
       assembler->GotoUnless(assembler->IsStringInstanceType(lhs_instance_type),
-                            &call_add_stub);
+                            &call_with_any_feedback);
+
+      // Check if the {rhs} is a smi, and exit the string check early if it is.
+      assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_with_any_feedback);
 
       Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
 
-      // Exit unless {rhs} is a string
+      // Exit unless {rhs} is a string. Since {lhs} is a string we no longer
+      // need an Oddball check.
       assembler->GotoUnless(assembler->IsStringInstanceType(rhs_instance_type),
-                            &call_add_stub);
+                            &call_with_any_feedback);
 
       var_type_feedback.Bind(
           assembler->Int32Constant(BinaryOperationFeedback::kString));
@@ -797,21 +893,33 @@ compiler::Node* AddWithFeedbackStub::Generate(
     }
   }
 
-  assembler->Bind(&do_fadd);
+  assembler->Bind(&check_rhsisoddball);
+  {
+    // Check if rhs is an oddball. At this point we know lhs is either a
+    // Smi or number or oddball and rhs is not a number or Smi.
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+    Node* rhs_is_oddball = assembler->Word32Equal(
+        rhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(rhs_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
-    Node* value =
-        assembler->Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
-    var_result.Bind(result);
-    assembler->Goto(&end);
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_add_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_add_stub);
   }
 
   assembler->Bind(&call_add_stub);
   {
-    var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
     Callable callable = CodeFactory::Add(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
@@ -943,7 +1051,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
   }
 
@@ -1027,8 +1135,10 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point multiplication.
-  Label do_fmul(assembler), end(assembler),
-      call_multiply_stub(assembler, Label::kDeferred);
+  Label do_fmul(assembler), if_lhsisnotnumber(assembler, Label::kDeferred),
+      check_rhsisoddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_multiply_stub(assembler), end(assembler);
   Variable var_lhs_float64(assembler, MachineRepresentation::kFloat64),
       var_rhs_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
@@ -1064,7 +1174,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
       // Check if {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
-                            &call_multiply_stub);
+                            &check_rhsisoddball);
 
       // Convert {lhs} to a double and multiply it with the value of {rhs}.
       var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
@@ -1079,7 +1189,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
     // Check if {lhs} is a HeapNumber.
     assembler->GotoUnless(assembler->WordEqual(lhs_map, number_map),
-                          &call_multiply_stub);
+                          &if_lhsisnotnumber);
 
     // Check if {rhs} is a Smi.
     Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
@@ -1100,7 +1210,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 
       // Check if {rhs} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
-                            &call_multiply_stub);
+                            &check_rhsisoddball);
 
       // Both {lhs} and {rhs} are HeapNumbers. Load their values and
       // multiply them.
@@ -1116,15 +1226,57 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_multiply_stub);
+  assembler->Bind(&if_lhsisnotnumber);
+  {
+    // No checks on rhs are done yet. We just know lhs is not a number or Smi.
+    // Check if lhs is an oddball.
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* lhs_is_oddball = assembler->Word32Equal(
+        lhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(lhs_is_oddball, &call_with_any_feedback);
+
+    assembler->GotoIf(assembler->TaggedIsSmi(rhs), &call_with_oddball_feedback);
+
+    // Load the map of the {rhs}.
+    Node* rhs_map = assembler->LoadMap(rhs);
+
+    // Check if {rhs} is a HeapNumber.
+    assembler->Branch(assembler->IsHeapNumberMap(rhs_map),
+                      &call_with_oddball_feedback, &check_rhsisoddball);
+  }
+
+  assembler->Bind(&check_rhsisoddball);
+  {
+    // Check if rhs is an oddball. At this point we know lhs is either a
+    // Smi or number or oddball and rhs is not a number or Smi.
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+    Node* rhs_is_oddball = assembler->Word32Equal(
+        rhs_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(rhs_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_multiply_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_multiply_stub);
+  }
+
+  assembler->Bind(&call_multiply_stub);
+  {
     Callable callable = CodeFactory::Multiply(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
@@ -1147,7 +1299,10 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point division.
-  Label do_fdiv(assembler), end(assembler), call_divide_stub(assembler);
+  Label do_fdiv(assembler), dividend_is_not_number(assembler, Label::kDeferred),
+      check_divisor_for_oddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_divide_stub(assembler), end(assembler);
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
@@ -1240,7 +1395,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       // Check if {divisor} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                            &call_divide_stub);
+                            &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
       // {divisor}.
@@ -1255,7 +1410,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       // Check if {dividend} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
-                            &call_divide_stub);
+                            &dividend_is_not_number);
 
       // Check if {divisor} is a Smi.
       Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
@@ -1277,7 +1432,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
         // Check if {divisor} is a HeapNumber.
         assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                              &call_divide_stub);
+                              &check_divisor_for_oddball);
 
         // Both {dividend} and {divisor} are HeapNumbers. Load their values
         // and divide them.
@@ -1294,14 +1449,57 @@ compiler::Node* DivideWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value = assembler->Float64Div(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
+  }
+
+  assembler->Bind(&dividend_is_not_number);
+  {
+    // We just know dividend is not a number or Smi. No checks on divisor yet.
+    // Check if dividend is an oddball.
+    Node* dividend_instance_type = assembler->LoadInstanceType(dividend);
+    Node* dividend_is_oddball = assembler->Word32Equal(
+        dividend_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(dividend_is_oddball, &call_with_any_feedback);
+
+    assembler->GotoIf(assembler->TaggedIsSmi(divisor),
+                      &call_with_oddball_feedback);
+
+    // Load the map of the {divisor}.
+    Node* divisor_map = assembler->LoadMap(divisor);
+
+    // Check if {divisor} is a HeapNumber.
+    assembler->Branch(assembler->IsHeapNumberMap(divisor_map),
+                      &call_with_oddball_feedback, &check_divisor_for_oddball);
+  }
+
+  assembler->Bind(&check_divisor_for_oddball);
+  {
+    // Check if divisor is an oddball. At this point we know dividend is either
+    // a Smi or number or oddball and divisor is not a number or Smi.
+    Node* divisor_instance_type = assembler->LoadInstanceType(divisor);
+    Node* divisor_is_oddball = assembler->Word32Equal(
+        divisor_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(divisor_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_divide_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_divide_stub);
   }
 
   assembler->Bind(&call_divide_stub);
   {
-    var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
     Callable callable = CodeFactory::Divide(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, dividend, divisor));
     assembler->Goto(&end);
@@ -1323,7 +1521,10 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point division.
-  Label do_fmod(assembler), end(assembler), call_modulus_stub(assembler);
+  Label do_fmod(assembler), dividend_is_not_number(assembler, Label::kDeferred),
+      check_divisor_for_oddball(assembler, Label::kDeferred),
+      call_with_oddball_feedback(assembler), call_with_any_feedback(assembler),
+      call_modulus_stub(assembler), end(assembler);
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
@@ -1357,7 +1558,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
       // Check if {divisor} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                            &call_modulus_stub);
+                            &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
       // {divisor}.
@@ -1373,7 +1574,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
     // Check if {dividend} is a HeapNumber.
     assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
-                          &call_modulus_stub);
+                          &dividend_is_not_number);
 
     // Check if {divisor} is a Smi.
     Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
@@ -1395,7 +1596,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
 
       // Check if {divisor} is a HeapNumber.
       assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
-                            &call_modulus_stub);
+                            &check_divisor_for_oddball);
 
       // Both {dividend} and {divisor} are HeapNumbers. Load their values
       // and divide them.
@@ -1411,14 +1612,57 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
         assembler->Int32Constant(BinaryOperationFeedback::kNumber));
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
     assembler->Goto(&end);
+  }
+
+  assembler->Bind(&dividend_is_not_number);
+  {
+    // No checks on divisor yet. We just know dividend is not a number or Smi.
+    // Check if dividend is an oddball.
+    Node* dividend_instance_type = assembler->LoadInstanceType(dividend);
+    Node* dividend_is_oddball = assembler->Word32Equal(
+        dividend_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->GotoUnless(dividend_is_oddball, &call_with_any_feedback);
+
+    assembler->GotoIf(assembler->TaggedIsSmi(divisor),
+                      &call_with_oddball_feedback);
+
+    // Load the map of the {divisor}.
+    Node* divisor_map = assembler->LoadMap(divisor);
+
+    // Check if {divisor} is a HeapNumber.
+    assembler->Branch(assembler->IsHeapNumberMap(divisor_map),
+                      &call_with_oddball_feedback, &check_divisor_for_oddball);
+  }
+
+  assembler->Bind(&check_divisor_for_oddball);
+  {
+    // Check if divisor is an oddball. At this point we know dividend is either
+    // a Smi or number or oddball and divisor is not a number or Smi.
+    Node* divisor_instance_type = assembler->LoadInstanceType(divisor);
+    Node* divisor_is_oddball = assembler->Word32Equal(
+        divisor_instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+    assembler->Branch(divisor_is_oddball, &call_with_oddball_feedback,
+                      &call_with_any_feedback);
+  }
+
+  assembler->Bind(&call_with_oddball_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+    assembler->Goto(&call_modulus_stub);
+  }
+
+  assembler->Bind(&call_with_any_feedback);
+  {
+    var_type_feedback.Bind(
+        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_modulus_stub);
   }
 
   assembler->Bind(&call_modulus_stub);
   {
-    var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
     Callable callable = CodeFactory::Modulus(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, dividend, divisor));
     assembler->Goto(&end);
@@ -1507,13 +1751,39 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&if_valuenotnumber);
       {
-        // Convert to a Number first and try again.
-        Callable callable =
-            CodeFactory::NonNumberToNumber(assembler->isolate());
-        var_type_feedback.Bind(
-            assembler->Int32Constant(BinaryOperationFeedback::kAny));
-        value_var.Bind(assembler->CallStub(callable, context, value));
-        assembler->Goto(&start);
+        // We do not require an Or with earlier feedback here because once we
+        // convert the value to a number, we cannot reach this path. We can
+        // only reach this path on the first pass when the feedback is kNone.
+        assembler->Assert(assembler->Word32Equal(
+            var_type_feedback.value(),
+            assembler->Int32Constant(BinaryOperationFeedback::kNone)));
+
+        Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
+        Node* instance_type = assembler->LoadMapInstanceType(value_map);
+        Node* is_oddball = assembler->Word32Equal(
+            instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+        assembler->Branch(is_oddball, &if_valueisoddball, &if_valuenotoddball);
+
+        assembler->Bind(&if_valueisoddball);
+        {
+          // Convert Oddball to Number and check again.
+          value_var.Bind(
+              assembler->LoadObjectField(value, Oddball::kToNumberOffset));
+          var_type_feedback.Bind(assembler->Int32Constant(
+              BinaryOperationFeedback::kNumberOrOddball));
+          assembler->Goto(&start);
+        }
+
+        assembler->Bind(&if_valuenotoddball);
+        {
+          // Convert to a Number first and try again.
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
+          var_type_feedback.Bind(
+              assembler->Int32Constant(BinaryOperationFeedback::kAny));
+          value_var.Bind(assembler->CallStub(callable, context, value));
+          assembler->Goto(&start);
+        }
       }
     }
   }
@@ -1526,7 +1796,7 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
     var_type_feedback.Bind(assembler->Word32Or(
         var_type_feedback.value(),
         assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
-    result_var.Bind(assembler->ChangeFloat64ToTagged(finc_result));
+    result_var.Bind(assembler->AllocateHeapNumberWithValue(finc_result));
     assembler->Goto(&end);
   }
 
@@ -1620,13 +1890,39 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&if_valuenotnumber);
       {
-        // Convert to a Number first and try again.
-        Callable callable =
-            CodeFactory::NonNumberToNumber(assembler->isolate());
-        var_type_feedback.Bind(
-            assembler->Int32Constant(BinaryOperationFeedback::kAny));
-        value_var.Bind(assembler->CallStub(callable, context, value));
-        assembler->Goto(&start);
+        // We do not require an Or with earlier feedback here because once we
+        // convert the value to a number, we cannot reach this path. We can
+        // only reach this path on the first pass when the feedback is kNone.
+        assembler->Assert(assembler->Word32Equal(
+            var_type_feedback.value(),
+            assembler->Int32Constant(BinaryOperationFeedback::kNone)));
+
+        Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
+        Node* instance_type = assembler->LoadMapInstanceType(value_map);
+        Node* is_oddball = assembler->Word32Equal(
+            instance_type, assembler->Int32Constant(ODDBALL_TYPE));
+        assembler->Branch(is_oddball, &if_valueisoddball, &if_valuenotoddball);
+
+        assembler->Bind(&if_valueisoddball);
+        {
+          // Convert Oddball to Number and check again.
+          value_var.Bind(
+              assembler->LoadObjectField(value, Oddball::kToNumberOffset));
+          var_type_feedback.Bind(assembler->Int32Constant(
+              BinaryOperationFeedback::kNumberOrOddball));
+          assembler->Goto(&start);
+        }
+
+        assembler->Bind(&if_valuenotoddball);
+        {
+          // Convert to a Number first and try again.
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
+          var_type_feedback.Bind(
+              assembler->Int32Constant(BinaryOperationFeedback::kAny));
+          value_var.Bind(assembler->CallStub(callable, context, value));
+          assembler->Goto(&start);
+        }
       }
     }
   }
@@ -1639,7 +1935,7 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
     var_type_feedback.Bind(assembler->Word32Or(
         var_type_feedback.value(),
         assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
-    result_var.Bind(assembler->ChangeFloat64ToTagged(fdec_result));
+    result_var.Bind(assembler->AllocateHeapNumberWithValue(fdec_result));
     assembler->Goto(&end);
   }
 
@@ -1739,7 +2035,7 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* global = assembler->LoadObjectField(proxy_map, Map::kPrototypeOffset);
     Node* map_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
         StoreGlobalStub::global_map_placeholder(isolate())));
-    Node* expected_map = assembler->LoadWeakCellValue(map_cell);
+    Node* expected_map = assembler->LoadWeakCellValueUnchecked(map_cell);
     Node* map = assembler->LoadMap(global);
     assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
   }
@@ -2099,14 +2395,6 @@ void LoadDictionaryElementStub::InitializeDescriptor(
       FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
 }
 
-
-void KeyedLoadGenericStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
-}
-
-
 void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
   if (kind() == Code::KEYED_LOAD_IC) {
@@ -2124,15 +2412,6 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
     return StoreWithVectorDescriptor(isolate());
   }
 }
-
-
-void RegExpConstructResultStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
-  descriptor->SetMissHandler(Runtime::kRegExpConstructResult);
-}
-
 
 void TransitionElementsKindStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
@@ -2174,13 +2453,6 @@ void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
   descriptor->Initialize(
       FUNCTION_ADDR(Runtime_BinaryOpIC_MissWithAllocationSite));
 }
-
-
-void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
-  descriptor->SetMissHandler(Runtime::kStringAdd);
-}
-
 
 void GetPropertyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
@@ -2612,14 +2884,16 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
     assembler->Comment("fast double elements path");
     if (FLAG_debug_code) {
       Label correct_elements_map(assembler), abort(assembler, Label::kDeferred);
-      assembler->BranchIf(assembler->IsFixedDoubleArrayMap(elements_map),
-                          &correct_elements_map, &abort);
+      assembler->Branch(assembler->IsFixedDoubleArrayMap(elements_map),
+                        &correct_elements_map, &abort);
 
       assembler->Bind(&abort);
       {
         Node* abort_id = assembler->SmiConstant(
             Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
-        assembler->TailCallRuntime(Runtime::kAbort, context, abort_id);
+        assembler->CallRuntime(Runtime::kAbort, context, abort_id);
+        result.Bind(assembler->UndefinedConstant());
+        assembler->Goto(&return_result);
       }
       assembler->Bind(&correct_elements_map);
     }

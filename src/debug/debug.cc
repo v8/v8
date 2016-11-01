@@ -936,7 +936,7 @@ void Debug::PrepareStepOnThrow() {
     it.Advance();
   }
 
-  if (last_step_action() == StepNext) {
+  if (last_step_action() == StepNext || last_step_action() == StepOut) {
     while (!it.done()) {
       Address current_fp = it.frame()->UnpaddedFP();
       if (current_fp >= thread_local_.target_fp_) break;
@@ -1658,10 +1658,12 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   return CallFunction("MakeCompileEvent", arraysize(argv), argv);
 }
 
-
-MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<String> type,
+                                              Handle<Object> id,
+                                              Handle<String> name) {
+  DCHECK(id->IsNumber());
   // Create the async task event object.
-  Handle<Object> argv[] = { task_event };
+  Handle<Object> argv[] = {type, id, name};
   return CallFunction("MakeAsyncTaskEvent", arraysize(argv), argv);
 }
 
@@ -1781,8 +1783,9 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
 }
 
-
-void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
+void Debug::OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
+                             Handle<String> name) {
+  DCHECK(id->IsNumber());
   if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
@@ -1792,7 +1795,7 @@ void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
   // Create the script collected state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeAsyncTaskEvent(data).ToHandle(&event_data)) return;
+  if (!MakeAsyncTaskEvent(type, id, name).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AsyncTaskEvent,
@@ -1838,8 +1841,8 @@ void Debug::CallEventCallback(v8::DebugEvent event,
   in_debug_event_listener_ = true;
   if (event_listener_->IsForeign()) {
     // Invoke the C debug event listener.
-    v8::Debug::EventCallback callback =
-        FUNCTION_CAST<v8::Debug::EventCallback>(
+    v8::DebugInterface::EventCallback callback =
+        FUNCTION_CAST<v8::DebugInterface::EventCallback>(
             Handle<Foreign>::cast(event_listener_)->foreign_address());
     EventDetailsImpl event_details(event,
                                    Handle<JSObject>::cast(exec_state),
@@ -1847,7 +1850,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                                    event_listener_data_,
                                    client_data);
     callback(event_details);
-    DCHECK(!isolate_->has_scheduled_exception());
+    CHECK(!isolate_->has_scheduled_exception());
   } else {
     // Invoke the JavaScript debug event listener.
     DCHECK(event_listener_->IsJSFunction());
@@ -1856,8 +1859,10 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               event_data,
                               event_listener_data_ };
     Handle<JSReceiver> global = isolate_->global_proxy();
-    Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
-                       global, arraysize(argv), argv);
+    MaybeHandle<Object> result =
+        Execution::Call(isolate_, Handle<JSFunction>::cast(event_listener_),
+                        global, arraysize(argv), argv);
+    CHECK(!result.is_null());  // Listeners may not throw.
   }
   in_debug_event_listener_ = previous;
 }

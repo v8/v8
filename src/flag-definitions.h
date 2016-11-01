@@ -230,13 +230,10 @@ DEFINE_IMPLICATION(use_types, use_strict)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                                                  \
-  V(harmony_async_await, "harmony async-await")                              \
-  V(harmony_restrictive_declarations,                                        \
-    "harmony limitations on sloppy mode function declarations")              \
-  V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
-  V(harmony_object_own_property_descriptors,                                 \
-    "harmony Object.getOwnPropertyDescriptors()")
+#define HARMONY_SHIPPING(V)                     \
+  V(harmony_async_await, "harmony async-await") \
+  V(harmony_restrictive_declarations,           \
+    "harmony limitations on sloppy mode function declarations")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
@@ -262,8 +259,6 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
 // Flags for experimental implementation features.
-DEFINE_BOOL(compiled_keyed_generic_loads, false,
-            "use optimizing compiler to generate keyed generic load stubs")
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
@@ -284,6 +279,8 @@ DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_IMPLICATION(track_field_types, track_fields)
 DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
 DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
+DEFINE_BOOL(mark_shared_functions_for_tier_up, false,
+            "mark shared functions for tier up")
 
 // Flags for optimization types.
 DEFINE_BOOL(optimize_for_size, false,
@@ -410,8 +407,7 @@ DEFINE_BOOL(flush_optimized_code_cache, false,
 DEFINE_BOOL(inline_construct, true, "inline constructor calls")
 DEFINE_BOOL(inline_arguments, true, "inline functions with arguments object")
 DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
-DEFINE_BOOL(inline_into_try, false, "inline into try blocks")
-DEFINE_IMPLICATION(turbo, inline_into_try)
+DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
 DEFINE_INT(escape_analysis_iterations, 2,
            "maximum number of escape analysis fix-point iterations")
 
@@ -434,7 +430,6 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
 DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
 DEFINE_IMPLICATION(turbo, turbo_loop_peeling)
-DEFINE_BOOL(turbo_from_bytecode, true, "enable building graphs from bytecode")
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
@@ -535,6 +530,8 @@ DEFINE_BOOL(wasm_eh_prototype, false,
             "enable prototype exception handling opcodes for wasm")
 DEFINE_BOOL(wasm_mv_prototype, false,
             "enable prototype multi-value support for wasm")
+DEFINE_BOOL(wasm_atomics_prototype, false,
+            "enable prototype atomic opcodes for wasm")
 
 DEFINE_BOOL(wasm_trap_handler, false,
             "use signal handlers to catch out of bounds memory access in wasm"
@@ -804,6 +801,8 @@ DEFINE_BOOL(use_ic, true, "use inline caching")
 DEFINE_BOOL(trace_ic, false, "trace inline cache state transitions")
 DEFINE_BOOL_READONLY(tf_load_ic_stub, true, "use TF LoadIC stub")
 DEFINE_BOOL(tf_store_ic_stub, true, "use TF StoreIC stub")
+DEFINE_BOOL(store_ic_smi_handlers, true, "use data based StoreIC handlers")
+DEFINE_IMPLICATION(store_ic_smi_handlers, tf_store_ic_stub)
 
 // macro-assembler-ia32.cc
 DEFINE_BOOL(native_code_counters, false,
@@ -839,6 +838,7 @@ DEFINE_BOOL(trace_maps, false, "trace map creation")
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_BOOL(trace_parse, false, "trace parsing and preparsing")
+DEFINE_BOOL(trace_preparse, false, "trace preparsing decisions")
 DEFINE_BOOL(lazy_inner_functions, false, "enable lazy parsing inner functions")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
@@ -889,6 +889,9 @@ DEFINE_BOOL(print_all_exceptions, false,
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
+DEFINE_INT(runtime_stats, 0,
+           "internal usage only for controlling runtime statistics")
+DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 
 // snapshot-common.cc
 DEFINE_BOOL(profile_deserialization, false,
@@ -916,12 +919,6 @@ DEFINE_STRING(startup_blob, NULL,
 // code-stubs-hydrogen.cc
 DEFINE_BOOL(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
-
-DEFINE_BOOL(predictable, false, "enable predictable mode")
-DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
-DEFINE_NEG_IMPLICATION(predictable, parallel_compaction)
-DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 
 // mark-compact.cc
 DEFINE_BOOL(force_marking_deque_overflows, false,
@@ -1166,10 +1163,27 @@ DEFINE_IMPLICATION(print_all_code, trace_codegen)
 #endif
 #endif
 
+#undef FLAG
+#define FLAG FLAG_FULL
 
 //
-// VERIFY_PREDICTABLE related flags
+// Predictable mode related flags.
 //
+
+DEFINE_BOOL(predictable, false, "enable predictable mode")
+DEFINE_IMPLICATION(predictable, single_threaded)
+DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
+
+//
+// Threading related flags.
+//
+
+DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
+DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
+DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
+
+
 #undef FLAG
 
 #ifdef VERIFY_PREDICTABLE
@@ -1182,7 +1196,6 @@ DEFINE_BOOL(verify_predictable, false,
             "this mode is used for checking that V8 behaves predictably")
 DEFINE_INT(dump_allocations_digest_at_alloc, -1,
            "dump allocations digest each n-th allocation")
-
 
 //
 // Read-only flags
@@ -1197,7 +1210,6 @@ DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
 DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
             "enable in-object double fields unboxing (64-bit only)")
 DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
-
 
 // Cleanup...
 #undef FLAG_FULL

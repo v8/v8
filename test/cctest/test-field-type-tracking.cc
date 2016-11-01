@@ -589,7 +589,7 @@ static void TestGeneralizeRepresentation(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
@@ -981,7 +981,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
@@ -1066,7 +1066,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
@@ -1597,7 +1597,7 @@ static void TestReconfigureElementsKind_GeneralizeRepresentation(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
@@ -1690,7 +1690,7 @@ static void TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
@@ -2416,7 +2416,7 @@ TEST(FieldTypeConvertSimple) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   CHECK_EQ(FieldType::Any()->Convert(&zone), AstType::NonInternal());
   CHECK_EQ(FieldType::None()->Convert(&zone), AstType::None());

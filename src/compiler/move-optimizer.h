@@ -6,13 +6,14 @@
 #define V8_COMPILER_MOVE_OPTIMIZER_
 
 #include "src/compiler/instruction.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MoveOptimizer final {
+class V8_EXPORT_PRIVATE MoveOptimizer final {
  public:
   MoveOptimizer(Zone* local_zone, InstructionSequence* code);
   void Run();

@@ -477,13 +477,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
-                               int end_pos = kNoSourcePosition,
                                VariableKind kind = NORMAL_VARIABLE);
   VariableProxy* NewUnresolved(const AstRawString* name);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
                     VariableMode mode, InitializationFlag init, bool* ok,
-                    Scope* declaration_scope = nullptr);
+                    Scope* declaration_scope = nullptr,
+                    int var_end_pos = kNoSourcePosition);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
                                int pos, bool* ok);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
@@ -989,7 +989,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
-    return NewUnresolved(ast_value_factory()->this_string(), pos, pos + 4,
+    return NewUnresolved(ast_value_factory()->this_string(), pos,
                          THIS_VARIABLE);
   }
 
@@ -1001,12 +1001,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Literal* ExpressionFromLiteral(Token::Value token, int pos);
 
   V8_INLINE Expression* ExpressionFromIdentifier(
-      const AstRawString* name, int start_position, int end_position,
+      const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
     if (infer == InferName::kYes) {
       fni_->PushVariableName(name);
     }
-    return NewUnresolved(name, start_position, end_position);
+    return NewUnresolved(name, start_position);
   }
 
   V8_INLINE Expression* ExpressionFromString(int pos) {
@@ -1157,7 +1157,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // parsing.
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
-  HistogramTimer* pre_parse_timer_;
 
   bool parsing_on_main_thread_;
 };

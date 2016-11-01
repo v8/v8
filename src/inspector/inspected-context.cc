@@ -73,9 +73,13 @@ v8::Isolate* InspectedContext::isolate() const {
   return m_inspector->isolate();
 }
 
-void InspectedContext::createInjectedScript() {
+bool InspectedContext::createInjectedScript() {
   DCHECK(!m_injectedScript);
-  m_injectedScript = InjectedScript::create(this);
+  std::unique_ptr<InjectedScript> injectedScript = InjectedScript::create(this);
+  // InjectedScript::create can destroy |this|.
+  if (!injectedScript) return false;
+  m_injectedScript = std::move(injectedScript);
+  return true;
 }
 
 void InspectedContext::discardInjectedScript() { m_injectedScript.reset(); }

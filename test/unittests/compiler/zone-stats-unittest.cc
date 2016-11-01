@@ -51,7 +51,7 @@ TEST_F(ZoneStatsTest, Empty) {
   }
   ExpectForPool(0, 0, 0);
   {
-    ZoneStats::Scope scope(zone_stats());
+    ZoneStats::Scope scope(zone_stats(), ZONE_NAME);
     scope.zone();
   }
   ExpectForPool(0, 0, 0);
@@ -65,7 +65,7 @@ TEST_F(ZoneStatsTest, MultipleZonesWithDeletion) {
   // Initialize.
   size_t before_stats = 0;
   for (size_t i = 0; i < kArraySize; ++i) {
-    scopes[i] = new ZoneStats::Scope(zone_stats());
+    scopes[i] = new ZoneStats::Scope(zone_stats(), ZONE_NAME);
     before_stats += Allocate(scopes[i]->zone());  // Add some stuff.
   }
 
@@ -85,7 +85,7 @@ TEST_F(ZoneStatsTest, MultipleZonesWithDeletion) {
   // Delete the scopes and create new ones.
   for (size_t i = 0; i < kArraySize; ++i) {
     delete scopes[i];
-    scopes[i] = new ZoneStats::Scope(zone_stats());
+    scopes[i] = new ZoneStats::Scope(zone_stats(), ZONE_NAME);
   }
 
   Expect(&stats, 0, before_deletion, before_deletion);
@@ -120,7 +120,7 @@ TEST_F(ZoneStatsTest, SimpleAllocationLoop) {
   size_t max_loop_allocation = 0;
   ZoneStats::StatsScope outer_stats(zone_stats());
   {
-    ZoneStats::Scope outer_scope(zone_stats());
+    ZoneStats::Scope outer_scope(zone_stats(), ZONE_NAME);
     size_t outer_allocated = 0;
     for (int i = 0; i < runs; ++i) {
       {
@@ -131,7 +131,7 @@ TEST_F(ZoneStatsTest, SimpleAllocationLoop) {
       ZoneStats::StatsScope inner_stats(zone_stats());
       size_t allocated = 0;
       {
-        ZoneStats::Scope inner_scope(zone_stats());
+        ZoneStats::Scope inner_scope(zone_stats(), ZONE_NAME);
         for (int j = 0; j < 20; ++j) {
           size_t bytes = Allocate(inner_scope.zone());
           allocated += bytes;

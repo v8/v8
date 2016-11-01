@@ -468,8 +468,6 @@ Handle<Code> LChunk::Codegen() {
     code->set_is_crankshafted(true);
 
     CodeGenerator::PrintCode(code, info());
-    DCHECK(!(info()->GetMustNotHaveEagerFrame() &&
-             generator.NeedsEagerFrame()));
     return code;
   }
   assembler.AbortedCodeGeneration();

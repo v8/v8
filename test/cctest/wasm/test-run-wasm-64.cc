@@ -147,6 +147,93 @@ WASM_EXEC_TEST(I64Sub) {
   }
 }
 
+WASM_EXEC_TEST(I64AddUseOnlyLowWord) {
+  REQUIRE(I64Add);
+  REQUIRE(I32ConvertI64);
+  WasmRunner<int32_t> r(execution_mode, MachineType::Int64(),
+                        MachineType::Int64());
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(static_cast<int32_t>(*i + *j), r.Call(*i, *j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64SubUseOnlyLowWord) {
+  REQUIRE(I64Sub);
+  REQUIRE(I32ConvertI64);
+  WasmRunner<int32_t> r(execution_mode, MachineType::Int64(),
+                        MachineType::Int64());
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(static_cast<int32_t>(*i - *j), r.Call(*i, *j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64MulUseOnlyLowWord) {
+  REQUIRE(I64Mul);
+  REQUIRE(I32ConvertI64);
+  WasmRunner<int32_t> r(execution_mode, MachineType::Int64(),
+                        MachineType::Int64());
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_I64_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(static_cast<int32_t>(*i * *j), r.Call(*i, *j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64ShlUseOnlyLowWord) {
+  REQUIRE(I64Shl);
+  REQUIRE(I32ConvertI64);
+  WasmRunner<int32_t> r(execution_mode, MachineType::Int64(),
+                        MachineType::Int64());
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      uint64_t expected = static_cast<int32_t>((*i) << (*j & 0x3f));
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64ShrUseOnlyLowWord) {
+  REQUIRE(I64ShrU);
+  REQUIRE(I32ConvertI64);
+  WasmRunner<int32_t> r(execution_mode, MachineType::Int64(),
+                        MachineType::Int64());
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      uint64_t expected = static_cast<int32_t>((*i) >> (*j & 0x3f));
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64SarUseOnlyLowWord) {
+  REQUIRE(I64ShrS);
+  REQUIRE(I32ConvertI64);
+  WasmRunner<int32_t> r(execution_mode, MachineType::Int64(),
+                        MachineType::Int64());
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      uint64_t expected = static_cast<int32_t>((*i) >> (*j & 0x3f));
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
 WASM_EXEC_TEST(I64DivS) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t> r(execution_mode, MachineType::Int64(),
@@ -1467,7 +1554,7 @@ static void CompileCallIndirectMany(LocalType param) {
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
     v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator);
+    Zone zone(&allocator, ZONE_NAME);
     HandleScope scope(CcTest::InitIsolateOnce());
     TestingModule module(kExecuteCompiled);
     FunctionSig* sig = sigs.many(&zone, kAstStmt, param, num_params);
@@ -1483,7 +1570,7 @@ static void CompileCallIndirectMany(LocalType param) {
       ADD_CODE(code, kExprGetLocal, p);
     }
     ADD_CODE(code, kExprI8Const, 0);
-    ADD_CODE(code, kExprCallIndirect, 1);
+    ADD_CODE(code, kExprCallIndirect, 1, TABLE_ZERO);
 
     t.Build(&code[0], &code[0] + code.size());
     t.Compile();
@@ -1507,7 +1594,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   int num_params = static_cast<int>(arraysize(mixed)) - start;
   for (int which = 0; which < num_params; which++) {
     v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator);
+    Zone zone(&allocator, ZONE_NAME);
     TestingModule module(execution_mode);
     module.AddMemory(1024);
     MachineType* memtypes = &mixed[start];
