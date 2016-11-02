@@ -1331,9 +1331,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
         }
         case kExprBrTable: {
           BranchTableOperand operand(&decoder, code->at(pc));
+          BranchTableIterator iterator(&decoder, operand);
           uint32_t key = Pop().to<uint32_t>();
+          uint32_t depth = 0;
           if (key >= operand.table_count) key = operand.table_count;
-          len = key + DoBreak(code, pc + key, operand.table[key]);
+          for (uint32_t i = 0; i <= key; i++) {
+            DCHECK(iterator.has_next());
+            depth = iterator.next();
+          }
+          len = key + DoBreak(code, pc + key, static_cast<size_t>(depth));
           TRACE("  br[%u] => @%zu\n", key, pc + key + len);
           break;
         }

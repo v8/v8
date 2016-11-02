@@ -905,6 +905,15 @@ WASM_EXEC_TEST(Br_height) {
   }
 }
 
+WASM_EXEC_TEST(Regression_660262) {
+  TestingModule module(execution_mode);
+  module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module);
+  BUILD(r, kExprI8Const, 0x00, kExprI8Const, 0x00, kExprI32LoadMem, 0x00, 0x0f,
+        kExprBrTable, 0x00, 0x80, 0x00);  // entries=0
+  r.Call();
+}
+
 WASM_EXEC_TEST(BrTable0a) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Int32());
   BUILD(r, B1(B1(WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(0)))),
