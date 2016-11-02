@@ -11,6 +11,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -32,8 +33,9 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, Graph* graph)
+Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
     : isolate_(isolate),
+      flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
@@ -546,7 +548,34 @@ Type* Typer::Visitor::TypeIfException(Node* node) {
 
 // Common operators.
 
-Type* Typer::Visitor::TypeParameter(Node* node) { return Type::Any(); }
+Type* Typer::Visitor::TypeParameter(Node* node) {
+  Node* const start = node->InputAt(0);
+  DCHECK_EQ(IrOpcode::kStart, start->opcode());
+  int const parameter_count = start->op()->ValueOutputCount() - 4;
+  DCHECK_LE(1, parameter_count);
+  int const index = ParameterIndexOf(node->op());
+  if (index == Linkage::kJSCallClosureParamIndex) {
+    return Type::Function();
+  } else if (index == 0) {
+    if (typer_->flags() & Typer::kThisIsReceiver) {
+      return Type::Receiver();
+    } else {
+      // Parameter[this] can be the_hole for derived class constructors.
+      return Type::Union(Type::Hole(), Type::NonInternal(), typer_->zone());
+    }
+  } else if (index == Linkage::GetJSCallNewTargetParamIndex(parameter_count)) {
+    if (typer_->flags() & Typer::kNewTargetIsReceiver) {
+      return Type::Receiver();
+    } else {
+      return Type::Union(Type::Receiver(), Type::Undefined(), typer_->zone());
+    }
+  } else if (index == Linkage::GetJSCallArgCountParamIndex(parameter_count)) {
+    return Type::Range(0.0, Code::kMaxArguments, typer_->zone());
+  } else if (index == Linkage::GetJSCallContextParamIndex(parameter_count)) {
+    return Type::OtherInternal();
+  }
+  return Type::NonInternal();
+}
 
 Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 

@@ -868,7 +868,7 @@ struct OsrTyperPhase {
     // to compute loop variable bounds on OSR.
     LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
                                          data->common(), temp_zone);
-    Typer typer(data->isolate(), data->graph());
+    Typer typer(data->isolate(), Typer::kNoFlags, data->graph());
     typer.Run(roots, &induction_vars);
   }
 };
@@ -1545,10 +1545,22 @@ bool PipelineImpl::CreateGraph() {
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
+    // Determine the Typer operation flags.
+    Typer::Flags flags = Typer::kNoFlags;
+    if (is_sloppy(info()->shared_info()->language_mode()) &&
+        !info()->shared_info()->IsBuiltin()) {
+      // Sloppy mode functions always have an Object for this.
+      flags |= Typer::kThisIsReceiver;
+    }
+    if (IsClassConstructor(info()->shared_info()->kind())) {
+      // Class constructors cannot be [[Call]]ed.
+      flags |= Typer::kNewTargetIsReceiver;
+    }
+
     // Type the graph and keep the Typer running on newly created nodes within
     // this scope; the Typer is automatically unlinked from the Graph once we
     // leave this scope below.
-    Typer typer(isolate(), data->graph());
+    Typer typer(isolate(), flags, data->graph());
     Run<TyperPhase>(&typer);
     RunPrintAndVerify("Typed");
 
