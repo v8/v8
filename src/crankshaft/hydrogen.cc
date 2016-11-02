@@ -8117,11 +8117,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   }
 
   // All declarations must be inlineable.
-  ZoneList<Declaration*>* decls = target_info.scope()->declarations();
-  int decl_count = decls->length();
-  for (int i = 0; i < decl_count; ++i) {
-    if (decls->at(i)->IsFunctionDeclaration() ||
-        !decls->at(i)->proxy()->var()->IsStackAllocated()) {
+  Declaration::List* decls = target_info.scope()->declarations();
+  for (Declaration* decl : *decls) {
+    if (decl->IsFunctionDeclaration() ||
+        !decl->proxy()->var()->IsStackAllocated()) {
       TraceInline(target, caller, "target has non-trivial declaration");
       return false;
     }
@@ -11821,9 +11820,8 @@ void HOptimizedGraphBuilder::VisitSuperCallReference(SuperCallReference* expr) {
   return Bailout(kSuperReference);
 }
 
-
 void HOptimizedGraphBuilder::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
+    Declaration::List* declarations) {
   DCHECK(globals_.is_empty());
   AstVisitor<HOptimizedGraphBuilder>::VisitDeclarations(declarations);
   if (!globals_.is_empty()) {

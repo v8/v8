@@ -3635,10 +3635,8 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   DCHECK(inner_scope->is_declaration_scope());
   Scope* function_scope = inner_scope->outer_scope();
   DCHECK(function_scope->is_function_scope());
-  ZoneList<Declaration*>* decls = inner_scope->declarations();
   BlockState block_state(&scope_state_, inner_scope);
-  for (int i = 0; i < decls->length(); ++i) {
-    Declaration* decl = decls->at(i);
+  for (Declaration* decl : *inner_scope->declarations()) {
     if (decl->proxy()->var()->mode() != VAR || !decl->IsVariableDeclaration()) {
       continue;
     }

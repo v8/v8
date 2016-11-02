@@ -471,9 +471,7 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
          context->fall_through());
 }
 
-
-void FullCodeGenerator::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
+void FullCodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   ZoneList<Handle<Object> >* saved_globals = globals_;
   ZoneList<Handle<Object> > inner_globals(10, zone());
   globals_ = &inner_globals;

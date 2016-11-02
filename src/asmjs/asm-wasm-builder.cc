@@ -1722,9 +1722,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitThisFunction(ThisFunction* expr) { UNREACHABLE(); }
 
-  void VisitDeclarations(ZoneList<Declaration*>* decls) {
-    for (int i = 0; i < decls->length(); ++i) {
-      Declaration* decl = decls->at(i);
+  void VisitDeclarations(Declaration::List* decls) {
+    for (Declaration* decl : *decls) {
       RECURSE(Visit(decl));
     }
   }

@@ -1597,6 +1597,77 @@ static inline void WriteLittleEndianValue(void* p, V value) {
   }
 #endif  // V8_TARGET_LITTLE_ENDIAN
 }
+
+// Represents a linked list that threads through the nodes in the linked list.
+// Entries in the list are pointers to nodes. The nodes need to have a T**
+// next() method that returns the location where the next value is stored.
+template <typename T>
+class ThreadedList final {
+ public:
+  ThreadedList() : head_(nullptr), tail_(&head_) {}
+  void Add(T* v) {
+    DCHECK_NULL(*tail_);
+    DCHECK_NULL(*v->next());
+    *tail_ = v;
+    tail_ = v->next();
+  }
+
+  void Clear() {
+    head_ = nullptr;
+    tail_ = &head_;
+  }
+
+  class Iterator final {
+   public:
+    Iterator& operator++() {
+      entry_ = (*entry_)->next();
+      return *this;
+    }
+    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
+    T* operator*() { return *entry_; }
+    Iterator& operator=(T* entry) {
+      T* next = *(*entry_)->next();
+      *entry->next() = next;
+      *entry_ = entry;
+      return *this;
+    }
+
+   private:
+    explicit Iterator(T** entry) : entry_(entry) {}
+
+    T** entry_;
+
+    friend class ThreadedList;
+  };
+
+  Iterator begin() { return Iterator(&head_); }
+  Iterator end() { return Iterator(tail_); }
+
+  void Rewind(Iterator reset_point) {
+    tail_ = reset_point.entry_;
+    *tail_ = nullptr;
+  }
+
+  bool is_empty() const { return head_ == nullptr; }
+
+  // Slow. For testing purposes.
+  int LengthForTest() {
+    int result = 0;
+    for (Iterator t = begin(); t != end(); ++t) ++result;
+    return result;
+  }
+  T* AtForTest(int i) {
+    Iterator t = begin();
+    while (i-- > 0) ++t;
+    return *t;
+  }
+
+ private:
+  T* head_;
+  T** tail_;
+  DISALLOW_COPY_AND_ASSIGN(ThreadedList);
+};
+
 }  // namespace internal
 }  // namespace v8
 

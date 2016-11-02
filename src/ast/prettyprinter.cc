@@ -662,13 +662,10 @@ void AstPrinter::PrintOut(Isolate* isolate, AstNode* node) {
   PrintF("%s", printer.output_);
 }
 
-
-void AstPrinter::PrintDeclarations(ZoneList<Declaration*>* declarations) {
-  if (declarations->length() > 0) {
+void AstPrinter::PrintDeclarations(Declaration::List* declarations) {
+  if (!declarations->is_empty()) {
     IndentedScope indent(this, "DECLS");
-    for (int i = 0; i < declarations->length(); i++) {
-      Visit(declarations->at(i));
-    }
+    for (Declaration* decl : *declarations) Visit(decl);
   }
 }
 

@@ -2116,7 +2116,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   FunctionState* function_state() const { return function_state_; }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
 
   AstTypeBounds* bounds() { return &bounds_; }
 

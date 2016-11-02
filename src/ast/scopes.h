@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Scope* top_inner_scope_;
     VariableProxy* top_unresolved_;
     int top_local_;
-    int top_decl_;
+    ThreadedList<Declaration>::Iterator top_decl_;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
@@ -153,7 +153,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool* ok);
 
   // Declarations list.
-  ZoneList<Declaration*>* declarations() { return &decls_; }
+  ThreadedList<Declaration>* declarations() { return &decls_; }
 
   ZoneList<Variable*>* locals() { return &locals_; }
 
@@ -465,7 +465,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // form a linked list of all unresolved proxies.
   VariableProxy* unresolved_;
   // Declarations.
-  ZoneList<Declaration*> decls_;
+  ThreadedList<Declaration> decls_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;

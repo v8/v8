@@ -97,7 +97,6 @@ Scope::Scope(Zone* zone)
       outer_scope_(nullptr),
       variables_(zone),
       locals_(4, zone),
-      decls_(4, zone),
       scope_type_(SCRIPT_SCOPE) {
   SetDefaults();
 }
@@ -107,7 +106,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
       outer_scope_(outer_scope),
       variables_(zone),
       locals_(4, zone),
-      decls_(4, zone),
       scope_type_(scope_type) {
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
@@ -122,7 +120,7 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_),
       top_local_(scope->GetClosureScope()->locals_.length()),
-      top_decl_(scope->GetClosureScope()->decls_.length()) {}
+      top_decl_(scope->GetClosureScope()->decls_.end()) {}
 
 DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory)
@@ -212,7 +210,6 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
       outer_scope_(nullptr),
       variables_(zone),
       locals_(0, zone),
-      decls_(0, zone),
       scope_info_(scope_info),
       scope_type_(scope_type) {
   DCHECK(!scope_info.is_null());
@@ -242,7 +239,6 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
       outer_scope_(nullptr),
       variables_(zone),
       locals_(0, zone),
-      decls_(0, zone),
       scope_info_(scope_info),
       scope_type_(CATCH_SCOPE) {
   SetDefaults();
@@ -949,7 +945,7 @@ Variable* Scope::DeclareVariable(
   // same variable if it is declared several times. This is not a
   // semantic issue, but it may be a performance issue since it may
   // lead to repeated DeclareEvalVar or DeclareEvalFunction calls.
-  decls_.Add(declaration, zone());
+  decls_.Add(declaration);
   proxy->BindTo(var);
   return var;
 }
@@ -1031,9 +1027,7 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 }
 
 Declaration* Scope::CheckConflictingVarDeclarations() {
-  int length = decls_.length();
-  for (int i = 0; i < length; i++) {
-    Declaration* decl = decls_[i];
+  for (Declaration* decl : decls_) {
     VariableMode mode = decl->proxy()->var()->mode();
     if (IsLexicalVariableMode(mode) && !is_block_scope()) continue;
 
@@ -1068,10 +1062,8 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
       // Conflict; find and return its declaration.
       DCHECK(IsLexicalVariableMode(var->mode()));
       const AstRawString* name = names.at(i);
-      for (int j = 0; j < decls_.length(); ++j) {
-        if (decls_[j]->proxy()->raw_name() == name) {
-          return decls_[j];
-        }
+      for (Declaration* decl : decls_) {
+        if (decl->proxy()->raw_name() == name) return decl;
       }
       DCHECK(false);
     }
@@ -1245,7 +1237,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  decls_.Rewind(0);
+  decls_.Clear();
   locals_.Rewind(0);
   sloppy_block_function_map_.Clear();
   variables_.Clear();

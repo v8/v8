@@ -781,9 +781,8 @@ int AstTyper::variable_index(Variable* var) {
              : var->IsParameter() ? parameter_index(var->index()) : kNoVar;
 }
 
-void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
-  for (int i = 0; i < decls->length(); ++i) {
-    Declaration* decl = decls->at(i);
+void AstTyper::VisitDeclarations(Declaration::List* decls) {
+  for (Declaration* decl : *decls) {
     RECURSE(Visit(decl));
   }
 }

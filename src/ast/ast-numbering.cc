@@ -37,7 +37,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitReference(Expression* expr);
 
   void VisitStatements(ZoneList<Statement*>* statements);
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitLiteralProperty(LiteralProperty* property);
 
@@ -547,12 +547,8 @@ void AstNumberingVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   }
 }
 
-
-void AstNumberingVisitor::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
-  for (int i = 0; i < declarations->length(); i++) {
-    Visit(declarations->at(i));
-  }
+void AstNumberingVisitor::VisitDeclarations(Declaration::List* decls) {
+  for (Declaration* decl : *decls) Visit(decl);
 }
 
 

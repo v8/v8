@@ -2895,8 +2895,7 @@ void AstGraphBuilder::VisitCaseClause(CaseClause* expr) {
   UNREACHABLE();
 }
 
-
-void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
+void AstGraphBuilder::VisitDeclarations(Declaration::List* declarations) {
   DCHECK(globals()->empty());
   AstVisitor<AstGraphBuilder>::VisitDeclarations(declarations);
   if (globals()->empty()) return;

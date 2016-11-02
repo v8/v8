@@ -907,13 +907,12 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
   }
 }
 
-void BytecodeGenerator::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
+void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   RegisterAllocationScope register_scope(this);
   DCHECK(globals_builder()->empty());
-  for (int i = 0; i < declarations->length(); i++) {
+  for (Declaration* decl : *declarations) {
     RegisterAllocationScope register_scope(this);
-    Visit(declarations->at(i));
+    Visit(decl);
   }
   if (globals_builder()->empty()) return;
 

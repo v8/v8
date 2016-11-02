@@ -509,20 +509,25 @@ class DoExpression final : public Expression {
 
 class Declaration : public AstNode {
  public:
+  typedef ThreadedList<Declaration> List;
+
   VariableProxy* proxy() const { return proxy_; }
   Scope* scope() const { return scope_; }
 
  protected:
   Declaration(VariableProxy* proxy, Scope* scope, int pos, NodeType type)
-      : AstNode(pos, type), proxy_(proxy), scope_(scope) {}
+      : AstNode(pos, type), proxy_(proxy), scope_(scope), next_(nullptr) {}
 
   static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
 
  private:
   VariableProxy* proxy_;
-
   // Nested scope from which the declaration originated.
   Scope* scope_;
+  // Declarations list threaded through the declarations.
+  Declaration** next() { return &next_; }
+  Declaration* next_;
+  friend List;
 };
 
 
@@ -2958,10 +2963,8 @@ class AstVisitor BASE_EMBEDDED {
  public:
   void Visit(AstNode* node) { impl()->Visit(node); }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) {
-    for (int i = 0; i < declarations->length(); i++) {
-      Visit(declarations->at(i));
-    }
+  void VisitDeclarations(Declaration::List* declarations) {
+    for (Declaration* decl : *declarations) Visit(decl);
   }
 
   void VisitStatements(ZoneList<Statement*>* statements) {

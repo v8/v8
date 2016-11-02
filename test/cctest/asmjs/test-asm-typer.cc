@@ -64,17 +64,18 @@ class AsmTyperHarnessBuilder {
     }
 
     outer_scope_ = info.script_scope();
-    module_ =
-        info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
+    module_ = info.scope()
+                  ->declarations()
+                  ->AtForTest(0)
+                  ->AsFunctionDeclaration()
+                  ->fun();
     typer_.reset(new AsmTyper(isolate_, zone_, *script_, module_));
 
     if (validation_type_ == ValidateStatement ||
         validation_type_ == ValidateExpression) {
       fun_scope_.reset(new AsmTyper::FunctionScope(typer_.get()));
 
-      auto* decls = module_->scope()->declarations();
-      for (int ii = 0; ii < decls->length(); ++ii) {
-        Declaration* decl = decls->at(ii);
+      for (Declaration* decl : *module_->scope()->declarations()) {
         if (FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration()) {
           fun_decl_ = fun_decl;
           break;

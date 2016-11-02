@@ -647,11 +647,8 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
     FAIL(current, "Invalid top-level statement in asm.js module.");
   }
 
-  ZoneList<Declaration*>* decls = scope->declarations();
-
-  for (int ii = 0; ii < decls->length(); ++ii) {
-    Declaration* decl = decls->at(ii);
-
+  Declaration::List* decls = scope->declarations();
+  for (Declaration* decl : *decls) {
     if (FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration()) {
       RECURSE(ValidateFunction(fun_decl));
       source_layout.AddFunction(*fun_decl);
@@ -664,9 +661,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
     source_layout.AddTable(*function_table);
   }
 
-  for (int ii = 0; ii < decls->length(); ++ii) {
-    Declaration* decl = decls->at(ii);
-
+  for (Declaration* decl : *decls) {
     if (decl->IsFunctionDeclaration()) {
       continue;
     }
@@ -1161,7 +1156,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
 
   DCHECK(return_type_->IsReturnType());
 
-  for (auto* decl : *fun->scope()->declarations()) {
+  for (Declaration* decl : *fun->scope()->declarations()) {
     auto* var_decl = decl->AsVariableDeclaration();
     if (var_decl == nullptr) {
       FAIL(decl, "Functions may only define inner variables.");
