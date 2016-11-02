@@ -333,8 +333,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
 
 TEST(FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::FLAG_always_opt || !i::FLAG_lazy ||
-      (FLAG_ignition && FLAG_ignition_eager)) {
+  if (i::FLAG_always_opt || !i::FLAG_lazy) {
     return;
   }
   CcTest::InitializeVM();

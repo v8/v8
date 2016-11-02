@@ -14637,7 +14637,7 @@ static bool FunctionNameIs(const char* expected,
   // "LazyCompile:<type><function_name>" or Function:<type><function_name>,
   // where the type is one of "*", "~" or "".
   static const char* kPreamble;
-  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) {
+  if (!i::FLAG_lazy) {
     kPreamble = "Function:";
   } else {
     kPreamble = "LazyCompile:";
@@ -15368,7 +15368,7 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
   // Producing cached parser data while parsing eagerly is not supported.
-  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+  if (!i::FLAG_lazy) return;
 
   v8::V8::Initialize();
   LocalContext env;
@@ -24833,7 +24833,7 @@ TEST(InvalidParserCacheData) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
-  if (i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager)) {
+  if (i::FLAG_lazy) {
     // Cached parser data is not consumed while parsing eagerly.
     TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
   }
@@ -24849,7 +24849,7 @@ TEST(InvalidCodeCacheData) {
 
 TEST(ParserCacheRejectedGracefully) {
   // Producing cached parser data while parsing eagerly is not supported.
-  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+  if (!i::FLAG_lazy) return;
 
   i::FLAG_min_preparse_length = 0;
   v8::V8::Initialize();

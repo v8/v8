@@ -684,7 +684,7 @@ TEST(LineNumber) {
 
   profiler.processor()->StopSynchronously();
 
-  bool is_lazy = i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager);
+  bool is_lazy = i::FLAG_lazy;
   CHECK_EQ(1, GetFunctionLineNumber(profiler, env, "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4,
            GetFunctionLineNumber(profiler, env, "lazy_func_at_forth_line"));

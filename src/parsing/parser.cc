@@ -614,10 +614,6 @@ Parser::Parser(ParseInfo* info)
   // Consider compiling eagerly when targeting the code cache.
   can_compile_lazily &= !(FLAG_serialize_eager && info->will_serialize());
 
-  // Consider compiling eagerly when compiling bytecode for Ignition.
-  can_compile_lazily &= !(FLAG_ignition && FLAG_ignition_eager &&
-                          info->isolate()->serializer_enabled());
-
   set_default_eager_compile_hint(can_compile_lazily
                                      ? FunctionLiteral::kShouldLazyCompile
                                      : FunctionLiteral::kShouldEagerCompile);
