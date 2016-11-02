@@ -311,13 +311,7 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
 
 
 void MemoryAllocator::TearDown() {
-  unmapper()->WaitUntilCompleted();
-
-  MemoryChunk* chunk = nullptr;
-  while ((chunk = unmapper()->TryGetPooledMemoryChunkSafe()) != nullptr) {
-    FreeMemory(reinterpret_cast<Address>(chunk), MemoryChunk::kPageSize,
-               NOT_EXECUTABLE);
-  }
+  unmapper()->TearDown();
 
   // Check that spaces were torn down before MemoryAllocator.
   DCHECK_EQ(size_.Value(), 0);
@@ -382,6 +376,13 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
   while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
     allocator_->PerformFreeMemory(chunk);
   }
+}
+
+void MemoryAllocator::Unmapper::TearDown() {
+  WaitUntilCompleted();
+  ReconsiderDelayedChunks();
+  CHECK(delayed_regular_chunks_.empty());
+  PerformFreeMemoryOnQueuedChunks();
 }
 
 void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {

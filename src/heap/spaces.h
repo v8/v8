@@ -1133,6 +1133,7 @@ class MemoryAllocator {
 
     void FreeQueuedChunks();
     bool WaitUntilCompleted();
+    void TearDown();
 
    private:
     enum ChunkQueueType {
