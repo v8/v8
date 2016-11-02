@@ -32,9 +32,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       was_activated_(false),
       black_allocation_(false),
       finalize_marking_completed_(false),
-      request_type_(NONE),
-      new_generation_observer_(*this, kAllocatedThreshold),
-      old_generation_observer_(*this, kAllocatedThreshold) {}
+      request_type_(NONE) {}
 
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
@@ -487,16 +485,6 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
           "[IncrementalMarking] Start sweeping.\n");
     }
     state_ = SWEEPING;
-  }
-
-  SpaceIterator it(heap_);
-  while (it.has_next()) {
-    Space* space = it.next();
-    if (space == heap_->new_space()) {
-      space->AddAllocationObserver(&new_generation_observer_);
-    } else {
-      space->AddAllocationObserver(&old_generation_observer_);
-    }
   }
 
   incremental_marking_job()->Start(heap_);
@@ -957,16 +945,6 @@ void IncrementalMarking::Stop() {
         Max(0, old_generation_size_mb - old_generation_limit_mb));
   }
 
-  SpaceIterator it(heap_);
-  while (it.has_next()) {
-    Space* space = it.next();
-    if (space == heap_->new_space()) {
-      space->RemoveAllocationObserver(&new_generation_observer_);
-    } else {
-      space->RemoveAllocationObserver(&old_generation_observer_);
-    }
-  }
-
   IncrementalMarking::set_should_hurry(false);
   if (IsMarking()) {
     PatchIncrementalMarkingRecordWriteStubs(heap_,
@@ -1085,30 +1063,33 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
     return;
   }
 
-  size_t bytes_to_process =
-      StepSizeToKeepUpWithAllocations() + StepSizeToMakeProgress();
+  size_t bytes_to_process = StepSizeToKeepUpWithAllocations();
 
-  if (bytes_to_process >= IncrementalMarking::kAllocatedThreshold) {
-    // The first step after Scavenge will see many allocated bytes.
-    // Cap the step size to distribute the marking work more uniformly.
-    size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-        kMaxStepSizeInMs,
-        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
-    bytes_to_process = Min(bytes_to_process, max_step_size);
-
-    size_t bytes_processed = 0;
-    if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
-      // Steps performed in tasks have put us ahead of schedule.
-      // We skip processing of marking dequeue here and thus
-      // shift marking time from inside V8 to standalone tasks.
-      bytes_marked_ahead_of_schedule_ -= bytes_to_process;
-      bytes_processed = bytes_to_process;
-    } else {
-      bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
-                             FORCE_COMPLETION, StepOrigin::kV8);
-    }
-    bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
+  if (bytes_to_process < IncrementalMarking::kAllocatedThreshold) {
+    return;
   }
+
+  bytes_to_process += StepSizeToMakeProgress();
+
+  // The first step after Scavenge will see many allocated bytes.
+  // Cap the step size to distribute the marking work more uniformly.
+  size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
+      kMaxStepSizeInMs,
+      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+  bytes_to_process = Min(bytes_to_process, max_step_size);
+
+  size_t bytes_processed = 0;
+  if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
+    // Steps performed in tasks have put us ahead of schedule.
+    // We skip processing of marking dequeue here and thus
+    // shift marking time from inside V8 to standalone tasks.
+    bytes_marked_ahead_of_schedule_ -= bytes_to_process;
+    bytes_processed = bytes_to_process;
+  } else {
+    bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
+                           FORCE_COMPLETION, StepOrigin::kV8);
+  }
+  bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
 }
 
 size_t IncrementalMarking::Step(size_t bytes_to_process,
