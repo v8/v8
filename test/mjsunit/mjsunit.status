@@ -646,9 +646,6 @@
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
 
-  # TODO(4680): Test doesn't know about three tier compiler pipeline.
-  'assert-opt-and-deopt': [SKIP],
-
   # Fails because concurrent compilation is not triggered on bytecode.
   # Check in Runtime_OptimizeFunctionOnNextCall.
   'compiler/manual-concurrent-recompile': [FAIL],
@@ -656,22 +653,6 @@
   'regress/regress-prepare-break-while-recompile': [FAIL],
 
 }],  # variant == ignition
-
-['variant == ignition and arch == arm64', {
-  # TODO(rmcilroy,4680): Arm64 specific timeouts.
-  'asm/construct-double': [SKIP],
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'wasm/asm-wasm-i32': [SKIP],
-  'wasm/asm-wasm-u32': [SKIP],
-}],  # variant == ignition and arch == arm64
-
-['variant == ignition and arch == arm', {
-  # TODO(rmcilroy,4680): Arm specific timeouts.
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'regress/regress-1257': [SKIP],
-}],  # variant == ignition and arch == arm
 
 ['variant == ignition and msan', {
   # TODO(mythria,4680): All of these tests have large loops and hence slow
@@ -688,7 +669,6 @@
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'assert-opt-and-deopt': [SKIP],
   'debug-liveedit-double-call': [FAIL],
 
   # Fails because concurrent compilation is not triggered on bytecode.
@@ -696,27 +676,11 @@
   'compiler/manual-concurrent-recompile': [FAIL],
   'regress/regress-embedded-cons-string': [FAIL],
   'regress/regress-prepare-break-while-recompile': [FAIL],
-
-  # Flaky.
-  'asm/int32div': [SKIP],
-  'asm/int32mod': [SKIP],
-  'compiler/uint32': [SKIP],
-  'regress/regress-454725': [SKIP],
-
-  # Might trigger stack overflow.
-  'unicode-test': [SKIP],
-
 }],  # variant == ignition_staging
 
 ##############################################################################
 ['variant == ignition_turbofan', {
   'debug-liveedit-double-call': [FAIL],
-
-  # Might trigger stack overflow.
-  'unicode-test': [SKIP],
-
-  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
-  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
 
   # TODO(rmcilroy,titzer): Times out after
   # https://codereview.chromium.org/1951013002 .
@@ -729,15 +693,6 @@
   'unicodelctest-no-optimization': [SKIP],
 
 }],  # variant == ignition_turbofan
-
-['variant == ignition_turbofan and arch == arm64', {
-  # TODO(rmcilroy,4680): Arm64 specific timeouts.
-  'asm/construct-double': [SKIP],
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'wasm/asm-wasm-i32': [SKIP],
-  'wasm/asm-wasm-u32': [SKIP],
-}],  # variant == ignition_turbofan and arch == arm64
 
 ['variant == ignition_turbofan and arch == arm', {
   # TODO(rmcilroy,4680): Arm specific timeouts.
