@@ -118,10 +118,7 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
       function->shared()->code()->is_interpreter_trampoline_builtin();
 
   vector->ComputeCounts(&with, &gen, &type_vector_ic_count, is_interpreted);
-  if (is_interpreted) {
-    DCHECK_EQ(*ic_total_count, 0);
-    *ic_total_count = type_vector_ic_count;
-  }
+  *ic_total_count += type_vector_ic_count;
   *ic_with_type_info_count += with;
   *ic_generic_count += gen;
 

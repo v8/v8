@@ -2238,13 +2238,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   context()->Plug(r3);
 }
 
-
-void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
-  ic_total_count_++;
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
-}
-
-
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   Expression* callee = expr->expression();

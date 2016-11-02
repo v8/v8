@@ -223,20 +223,25 @@ void FullCodeGenerator::PrepareForBailout(Expression* node,
   PrepareForBailoutForId(node->id(), state);
 }
 
-void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
-                                   TypeFeedbackId id) {
+void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
+  ic_total_count_++;
+  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
+}
+
+void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot,
+                                   Handle<Object> name) {
   DCHECK(name->IsName());
   __ Move(LoadDescriptor::NameRegister(), name);
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
 
-  Handle<Code> ic = CodeFactory::LoadIC(isolate()).code();
-  CallIC(ic, id);
+  Handle<Code> code = CodeFactory::LoadIC(isolate()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   if (FLAG_tf_load_ic_stub) RestoreContext();
 }
 
 void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
-                                    Handle<Object> name, TypeFeedbackId id) {
+                                    Handle<Object> name) {
   DCHECK(name->IsName());
   __ Move(StoreDescriptor::NameRegister(), name);
 
@@ -249,8 +254,8 @@ void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
-  Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
-  CallIC(ic, id);
+  Handle<Code> code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 
@@ -264,9 +269,9 @@ void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
-  Handle<Code> ic =
+  Handle<Code> code =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-  CallIC(ic);
+  __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 
@@ -503,8 +508,8 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
 #endif
   EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(),
                proxy->VariableFeedbackSlot());
-  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
-  CallIC(ic);
+  Handle<Code> code = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
 }
 
 void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
@@ -1122,8 +1127,8 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
-  CallIC(ic);
+  Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 

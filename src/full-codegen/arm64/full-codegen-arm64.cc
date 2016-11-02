@@ -2120,16 +2120,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   context()->Plug(x0);
 }
 
-
-void FullCodeGenerator::CallIC(Handle<Code> code,
-                               TypeFeedbackId ast_id) {
-  ic_total_count_++;
-  // All calls must have a predictable size in full-codegen code to ensure that
-  // the debugger can patch them correctly.
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
-}
-
-
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitCallWithLoadIC");
