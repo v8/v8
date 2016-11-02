@@ -330,7 +330,7 @@ def resolve_type(protocol, prop):
 
 
 def new_style(domain):
-    domains = [ "Schema", "Console", "Profiler" ]
+    domains = [ "Schema", "Console", "Profiler", "HeapProfiler" ]
     return domain["domain"] in domains
 
 

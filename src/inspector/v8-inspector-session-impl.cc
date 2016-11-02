@@ -107,7 +107,7 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   ErrorString errorString;
   m_consoleAgent->disable();
   m_profilerAgent->disable();
-  m_heapProfilerAgent->disable(&errorString);
+  m_heapProfilerAgent->disable();
   m_debuggerAgent->disable(&errorString);
   m_runtimeAgent->disable(&errorString);
 
