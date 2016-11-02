@@ -3777,8 +3777,7 @@ Node* AstGraphBuilder::BuildReturn(Node* return_value) {
     return_value =
         NewNode(javascript()->CallRuntime(Runtime::kTraceExit), return_value);
   }
-  Node* pop_node = jsgraph()->Int32Constant(0);
-  Node* control = NewNode(common()->Return(), pop_node, return_value);
+  Node* control = NewNode(common()->Return(), return_value);
   UpdateControlDependencyToLeaveFunction(control);
   return control;
 }

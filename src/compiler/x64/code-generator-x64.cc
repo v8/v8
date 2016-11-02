@@ -4,8 +4,6 @@
 
 #include "src/compiler/code-generator.h"
 
-#include <limits>
-
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -920,7 +918,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRet:
-      AssembleReturn(instr->InputAt(0));
+      AssembleReturn();
       break;
     case kArchStackPointer:
       __ movq(i.OutputRegister(), rsp);
@@ -2449,7 +2447,8 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
+
+void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
   // Restore registers.
@@ -2478,41 +2477,22 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // Might need rcx for scratch if pop_size is too big or if there is a variable
-  // pop count.
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rcx.bit());
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rdx.bit());
-  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
-  X64OperandConverter g(this, nullptr);
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
-      // Canonicalize JSFunction return sites for now.
-      if (return_label_.is_bound()) {
-        __ jmp(&return_label_);
-        return;
-      } else {
-        __ bind(&return_label_);
-        AssembleDeconstructFrame();
-      }
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ jmp(&return_label_);
+      return;
     } else {
+      __ bind(&return_label_);
       AssembleDeconstructFrame();
     }
   }
-
-  if (pop->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
-    pop_size += g.ToConstant(pop).ToInt32() * kPointerSize;
-    CHECK_LT(pop_size, std::numeric_limits<int>::max());
-    __ Ret(static_cast<int>(pop_size), rcx);
-  } else {
-    Register pop_reg = g.ToRegister(pop);
-    Register scratch_reg = pop_reg.is(rcx) ? rdx : rcx;
-    __ popq(scratch_reg);
-    __ leaq(rsp, Operand(rsp, pop_reg, times_8, static_cast<int>(pop_size)));
-    __ jmp(scratch_reg);
-  }
+  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+  // Might need rcx for scratch if pop_size is too big.
+  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rcx.bit());
+  __ Ret(static_cast<int>(pop_size), rcx);
 }
 
 

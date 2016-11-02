@@ -129,7 +129,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // Generates an architecture-specific, descriptor-specific return sequence
   // to tear down a stack frame.
-  void AssembleReturn(InstructionOperand* pop);
+  void AssembleReturn();
 
   void AssembleDeconstructFrame();
 

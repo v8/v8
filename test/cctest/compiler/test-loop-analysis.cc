@@ -116,8 +116,7 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   Node* Return(Node* val, Node* effect, Node* control) {
-    Node* zero = graph.NewNode(common.Int32Constant(0));
-    Node* ret = graph.NewNode(common.Return(), zero, val, effect, control);
+    Node* ret = graph.NewNode(common.Return(), val, effect, control);
     end->ReplaceInput(0, ret);
     return ret;
   }
@@ -697,8 +696,7 @@ TEST(LaEdgeMatrix1) {
         Node* if_true = t.graph.NewNode(t.common.IfTrue(), branch);
         Node* exit = t.graph.NewNode(t.common.IfFalse(), branch);
         loop->ReplaceInput(1, if_true);
-        Node* zero = t.graph.NewNode(t.common.Int32Constant(0));
-        Node* ret = t.graph.NewNode(t.common.Return(), zero, p3, t.start, exit);
+        Node* ret = t.graph.NewNode(t.common.Return(), p3, t.start, exit);
         t.graph.SetEnd(ret);
 
         Node* choices[] = {p1, phi, cond};
@@ -745,9 +743,7 @@ void RunEdgeMatrix2(int i) {
       loop2->ReplaceInput(1, if_true2);
       loop1->ReplaceInput(1, exit2);
 
-      Node* zero = t.graph.NewNode(t.common.Int32Constant(0));
-      Node* ret =
-          t.graph.NewNode(t.common.Return(), zero, phi1, t.start, exit1);
+      Node* ret = t.graph.NewNode(t.common.Return(), phi1, t.start, exit1);
       t.graph.SetEnd(ret);
 
       Node* choices[] = {p1, phi1, cond1, phi2, cond2};
@@ -834,8 +830,7 @@ void RunEdgeMatrix3(int c1a, int c1b, int c1c,    // line break
   loop2->ReplaceInput(1, exit3);
   loop1->ReplaceInput(1, exit2);
 
-  Node* zero = t.graph.NewNode(t.common.Int32Constant(0));
-  Node* ret = t.graph.NewNode(t.common.Return(), zero, phi1, t.start, exit1);
+  Node* ret = t.graph.NewNode(t.common.Return(), phi1, t.start, exit1);
   t.graph.SetEnd(ret);
 
   // Mutate the graph according to the edge choices.
@@ -948,8 +943,7 @@ static void RunManyChainedLoops_i(int count) {
     last = exit;
   }
 
-  Node* zero = t.graph.NewNode(t.common.Int32Constant(0));
-  Node* ret = t.graph.NewNode(t.common.Return(), zero, t.p0, t.start, last);
+  Node* ret = t.graph.NewNode(t.common.Return(), t.p0, t.start, last);
   t.graph.SetEnd(ret);
 
   // Verify loops.
@@ -968,7 +962,6 @@ static void RunManyNestedLoops_i(int count) {
   Node* entry = t.start;
 
   // Build loops.
-  Node* zero = t.graph.NewNode(t.common.Int32Constant(0));
   for (int i = 0; i < count; i++) {
     Node* loop = t.graph.NewNode(t.common.Loop(2), entry, t.start);
     Node* phi = t.graph.NewNode(t.common.Phi(MachineRepresentation::kWord32, 2),
@@ -988,7 +981,7 @@ static void RunManyNestedLoops_i(int count) {
       outer->ReplaceInput(1, exit);
     } else {
       // outer loop.
-      Node* ret = t.graph.NewNode(t.common.Return(), zero, t.p0, t.start, exit);
+      Node* ret = t.graph.NewNode(t.common.Return(), t.p0, t.start, exit);
       t.graph.SetEnd(ret);
     }
     outer = loop;

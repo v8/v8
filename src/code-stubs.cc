@@ -2891,9 +2891,7 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
       {
         Node* abort_id = assembler->SmiConstant(
             Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
-        assembler->CallRuntime(Runtime::kAbort, context, abort_id);
-        result.Bind(assembler->UndefinedConstant());
-        assembler->Goto(&return_result);
+        assembler->TailCallRuntime(Runtime::kAbort, context, abort_id);
       }
       assembler->Bind(&correct_elements_map);
     }

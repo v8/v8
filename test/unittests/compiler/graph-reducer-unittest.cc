@@ -290,13 +290,12 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ValueUse) {
   CommonOperatorBuilder common(zone());
   Node* node = graph()->NewNode(&kMockOperator);
   Node* start = graph()->NewNode(common.Start(1));
-  Node* zero = graph()->NewNode(common.Int32Constant(0));
-  Node* use_value = graph()->NewNode(common.Return(), zero, node, start, start);
+  Node* use_value = graph()->NewNode(common.Return(), node, start, start);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
-  EXPECT_EQ(replacement, use_value->InputAt(1));
+  EXPECT_EQ(replacement, use_value->InputAt(0));
   EXPECT_EQ(0, node->UseCount());
   EXPECT_EQ(1, replacement->UseCount());
   EXPECT_THAT(replacement->uses(), ElementsAre(use_value));

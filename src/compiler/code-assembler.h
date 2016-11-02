@@ -236,7 +236,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* Parameter(int value);
   void Return(Node* value);
-  void PopAndReturn(Node* pop, Node* value);
 
   void DebugBreak();
   void Comment(const char* format, ...);

@@ -86,9 +86,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
   }
 
   void Return(Node* value) {
-    Node* zero = graph()->NewNode(common()->Int32Constant(0));
-    return_ = graph()->NewNode(common()->Return(), zero, value, effect_,
-                               graph()->start());
+    return_ =
+        graph()->NewNode(common()->Return(), value, effect_, graph()->start());
     effect_ = NULL;
   }
 

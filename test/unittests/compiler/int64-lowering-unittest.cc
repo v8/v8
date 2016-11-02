@@ -40,9 +40,8 @@ class Int64LoweringTest : public GraphTest {
   MachineOperatorBuilder* machine() { return &machine_; }
 
   void LowerGraph(Node* node, Signature<MachineRepresentation>* signature) {
-    Node* zero = graph()->NewNode(common()->Int32Constant(0));
-    Node* ret = graph()->NewNode(common()->Return(), zero, node,
-                                 graph()->start(), graph()->start());
+    Node* ret = graph()->NewNode(common()->Return(), node, graph()->start(),
+                                 graph()->start());
     NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
     Int64Lowering lowering(graph(), machine(), common(), zone(), signature);
@@ -217,8 +216,7 @@ TEST_F(Int64LoweringTest, UnalignedInt64Load) {
                                  Int32Constant(base), Int32Constant(index),  \
                                  Int64Constant(value(0)), start(), start()); \
                                                                              \
-  Node* zero = graph()->NewNode(common()->Int32Constant(0));                 \
-  Node* ret = graph()->NewNode(common()->Return(), zero,                     \
+  Node* ret = graph()->NewNode(common()->Return(),                           \
                                Int32Constant(return_value), store, start()); \
                                                                              \
   NodeProperties::MergeControlToEnd(graph(), common(), ret);                 \
@@ -315,7 +313,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
 
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)),
+          graph()->end()->InputAt(1)->InputAt(0)->InputAt(0)),
       wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
 }
 
@@ -349,7 +347,7 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
 
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)),
+          graph()->end()->InputAt(1)->InputAt(0)),
       wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
 }
 

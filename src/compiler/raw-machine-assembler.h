@@ -774,9 +774,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);
-  void PopAndReturn(Node* pop, Node* value);
-  void PopAndReturn(Node* pop, Node* v1, Node* v2);
-  void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();

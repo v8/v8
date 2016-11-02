@@ -281,8 +281,7 @@ class WasmTrapHelper : public ZoneObject {
     } else {
       // End the control flow with returning 0xdeadbeef
       Node* ret_value = GetTrapValue(builder_->GetFunctionSignature());
-      end = graph()->NewNode(jsgraph()->common()->Return(),
-                             jsgraph()->Int32Constant(0), ret_value,
+      end = graph()->NewNode(jsgraph()->common()->Return(), ret_value,
                              *effect_ptr, *control_ptr);
     }
 
@@ -1042,13 +1041,11 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   DCHECK_NOT_NULL(*control_);
   DCHECK_NOT_NULL(*effect_);
 
-  Node** buf = Realloc(vals, count, count + 3);
-  memmove(buf + 1, buf, sizeof(void*) * count);
-  buf[0] = jsgraph()->Int32Constant(0);
-  buf[count + 1] = *effect_;
-  buf[count + 2] = *control_;
+  Node** buf = Realloc(vals, count, count + 2);
+  buf[count] = *effect_;
+  buf[count + 1] = *control_;
   Node* ret =
-      graph()->NewNode(jsgraph()->common()->Return(count), count + 3, buf);
+      graph()->NewNode(jsgraph()->common()->Return(count), count + 2, vals);
 
   MergeControlToEnd(jsgraph(), ret);
   return ret;
@@ -2678,8 +2675,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   }
   Node* jsval = ToJS(
       retval, sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
-  Node* ret = graph()->NewNode(jsgraph()->common()->Return(),
-                               jsgraph()->Int32Constant(0), jsval, call, start);
+  Node* ret =
+      graph()->NewNode(jsgraph()->common()->Return(), jsval, call, start);
 
   MergeControlToEnd(jsgraph(), ret);
 }
@@ -2790,16 +2787,14 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   Node* val =
       FromJS(call, HeapConstant(isolate->native_context()),
              sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
-  Node* pop_size = jsgraph()->Int32Constant(0);
   if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
       sig->GetReturn() == wasm::kAstI64) {
-    ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val,
+    ret = graph()->NewNode(jsgraph()->common()->Return(), val,
                            graph()->NewNode(jsgraph()->machine()->Word32Sar(),
                                             val, jsgraph()->Int32Constant(31)),
                            call, start);
   } else {
-    ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val, call,
-                           start);
+    ret = graph()->NewNode(jsgraph()->common()->Return(), val, call, start);
   }
 
   MergeControlToEnd(jsgraph(), ret);

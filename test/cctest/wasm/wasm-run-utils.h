@@ -391,9 +391,8 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
                          graph()->start()),
         graph()->NewNode(common()->Int32Constant(0)), call, effect,
         graph()->start());
-    Node* zero = graph()->NewNode(common()->Int32Constant(0));
     Node* r = graph()->NewNode(
-        common()->Return(), zero,
+        common()->Return(),
         graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
         effect, graph()->start());
     graph()->SetEnd(graph()->NewNode(common()->End(2), r, graph()->start()));
