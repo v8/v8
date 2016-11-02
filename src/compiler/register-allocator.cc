@@ -1360,18 +1360,23 @@ RegisterAllocationData::RegisterAllocationData(
                    allocation_zone()),
       fixed_live_ranges_(this->config()->num_general_registers(), nullptr,
                          allocation_zone()),
-      fixed_float_live_ranges_(this->config()->num_float_registers(), nullptr,
-                               allocation_zone()),
+      fixed_float_live_ranges_(allocation_zone()),
       fixed_double_live_ranges_(this->config()->num_double_registers(), nullptr,
                                 allocation_zone()),
-      fixed_simd128_live_ranges_(this->config()->num_simd128_registers(),
-                                 nullptr, allocation_zone()),
+      fixed_simd128_live_ranges_(allocation_zone()),
       spill_ranges_(code->VirtualRegisterCount(), nullptr, allocation_zone()),
       delayed_references_(allocation_zone()),
       assigned_registers_(nullptr),
       assigned_double_registers_(nullptr),
       virtual_register_count_(code->VirtualRegisterCount()),
       preassigned_slot_ranges_(zone) {
+  if (!kSimpleFPAliasing) {
+    fixed_float_live_ranges_.resize(this->config()->num_float_registers(),
+                                    nullptr);
+    fixed_simd128_live_ranges_.resize(this->config()->num_simd128_registers(),
+                                      nullptr);
+  }
+
   assigned_registers_ = new (code_zone())
       BitVector(this->config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
@@ -1915,24 +1920,22 @@ TopLevelLiveRange* LiveRangeBuilder::FixedLiveRangeFor(int index) {
 
 TopLevelLiveRange* LiveRangeBuilder::FixedFPLiveRangeFor(
     int index, MachineRepresentation rep) {
-  int num_regs = -1;
-  ZoneVector<TopLevelLiveRange*>* live_ranges = nullptr;
-  switch (rep) {
-    case MachineRepresentation::kFloat32:
-      num_regs = config()->num_float_registers();
-      live_ranges = &data()->fixed_float_live_ranges();
-      break;
-    case MachineRepresentation::kFloat64:
-      num_regs = config()->num_double_registers();
-      live_ranges = &data()->fixed_double_live_ranges();
-      break;
-    case MachineRepresentation::kSimd128:
-      num_regs = config()->num_simd128_registers();
-      live_ranges = &data()->fixed_simd128_live_ranges();
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  int num_regs = config()->num_double_registers();
+  ZoneVector<TopLevelLiveRange*>* live_ranges =
+      &data()->fixed_double_live_ranges();
+  if (!kSimpleFPAliasing) {
+    switch (rep) {
+      case MachineRepresentation::kFloat32:
+        num_regs = config()->num_float_registers();
+        live_ranges = &data()->fixed_float_live_ranges();
+        break;
+      case MachineRepresentation::kSimd128:
+        num_regs = config()->num_simd128_registers();
+        live_ranges = &data()->fixed_simd128_live_ranges();
+        break;
+      default:
+        break;
+    }
   }
 
   DCHECK(index < num_regs);
@@ -2741,14 +2744,16 @@ void LinearScanAllocator::AllocateRegisters() {
       if (current != nullptr) AddToInactive(current);
     }
   } else {
-    for (TopLevelLiveRange* current : data()->fixed_float_live_ranges()) {
-      if (current != nullptr) AddToInactive(current);
-    }
     for (TopLevelLiveRange* current : data()->fixed_double_live_ranges()) {
       if (current != nullptr) AddToInactive(current);
     }
-    for (TopLevelLiveRange* current : data()->fixed_simd128_live_ranges()) {
-      if (current != nullptr) AddToInactive(current);
+    if (!kSimpleFPAliasing) {
+      for (TopLevelLiveRange* current : data()->fixed_float_live_ranges()) {
+        if (current != nullptr) AddToInactive(current);
+      }
+      for (TopLevelLiveRange* current : data()->fixed_simd128_live_ranges()) {
+        if (current != nullptr) AddToInactive(current);
+      }
     }
   }
 
