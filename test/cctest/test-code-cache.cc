@@ -40,9 +40,6 @@ static Handle<Code> GetDummyCode(Isolate* isolate) {
 }  // namespace
 
 TEST(CodeCache) {
-  // TODO(ishell): Experiment: don't cache handlers in map-specific code cache.
-  return;
-
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
