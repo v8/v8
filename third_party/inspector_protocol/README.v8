@@ -14,3 +14,5 @@ description.
 Local modifications:
 - This only includes the lib/ and templates/ directories, scripts, build
   and the LICENSE files.
+- New style domains [ "Schema", "Console", "Profiler" ] are added in
+  CodeGenerator.py.
