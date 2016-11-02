@@ -288,36 +288,36 @@ void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   RuntimeCallCounter* counter = &(stats->*counter_id);
-  timer->Start(counter, stats->current_timer_);
-  stats->current_timer_ = timer;
+  timer->Start(counter, stats->current_timer_.Value());
+  stats->current_timer_.SetValue(timer);
 }
 
 // static
 void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
-  if (stats->current_timer_ == timer) {
-    stats->current_timer_ = timer->Stop();
+  if (stats->current_timer_.Value() == timer) {
+    stats->current_timer_.SetValue(timer->Stop());
   } else {
     // Must be a Threading cctest. Walk the chain of Timers to find the
     // buried one that's leaving. We don't care about keeping nested timings
     // accurate, just avoid crashing by keeping the chain intact.
-    RuntimeCallTimer* next = stats->current_timer_;
-    while (next->parent_ != timer) next = next->parent_;
-    next->parent_ = timer->Stop();
+    RuntimeCallTimer* next = stats->current_timer_.Value();
+    while (next->parent() != timer) next = next->parent();
+    next->parent_.SetValue(timer->Stop());
   }
 }
 
 // static
 void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
                                                CounterId counter_id) {
-  DCHECK_NOT_NULL(stats->current_timer_);
+  DCHECK_NOT_NULL(stats->current_timer_.Value());
   RuntimeCallCounter* counter = &(stats->*counter_id);
-  stats->current_timer_->counter_ = counter;
+  stats->current_timer_.Value()->counter_ = counter;
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
-  if (current_timer_ != NULL) {
-    current_timer_->Elapsed();
+  if (current_timer_.Value() != nullptr) {
+    current_timer_.Value()->Elapsed();
   }
 
 #define PRINT_COUNTER(name) entries.Add(&this->name);
@@ -371,8 +371,8 @@ void RuntimeCallStats::Reset() {
 }
 
 void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
-  if (current_timer_ != NULL) {
-    current_timer_->Elapsed();
+  if (current_timer_.Value() != nullptr) {
+    current_timer_.Value()->Elapsed();
   }
 #define DUMP_COUNTER(name) \
   if (this->name.count > 0) this->name.Dump(value);

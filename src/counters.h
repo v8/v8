@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
@@ -496,17 +497,16 @@ struct RuntimeCallCounter {
 // timers used for properly measuring the own time of a RuntimeCallCounter.
 class RuntimeCallTimer {
  public:
-  RuntimeCallTimer() {}
   RuntimeCallCounter* counter() { return counter_; }
   base::ElapsedTimer timer() { return timer_; }
-  RuntimeCallTimer* parent() const { return parent_; }
+  RuntimeCallTimer* parent() const { return parent_.Value(); }
 
  private:
   friend class RuntimeCallStats;
 
   inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
     counter_ = counter;
-    parent_ = parent;
+    parent_.SetValue(parent);
     timer_.Start();
   }
 
@@ -515,25 +515,25 @@ class RuntimeCallTimer {
     timer_.Stop();
     counter_->count++;
     counter_->time += delta;
-    if (parent_ != NULL) {
+    if (parent()) {
       // Adjust parent timer so that it does not include sub timer's time.
-      parent_->counter_->time -= delta;
+      parent()->counter_->time -= delta;
     }
-    return parent_;
+    return parent();
   }
 
   inline void Elapsed() {
     base::TimeDelta delta = timer_.Elapsed();
     counter_->time += delta;
-    if (parent_ != nullptr) {
-      parent_->counter_->time -= delta;
-      parent_->Elapsed();
+    if (parent()) {
+      parent()->counter_->time -= delta;
+      parent()->Elapsed();
     }
     timer_.Restart();
   }
 
   RuntimeCallCounter* counter_ = nullptr;
-  RuntimeCallTimer* parent_ = nullptr;
+  base::AtomicValue<RuntimeCallTimer*> parent_;
   base::ElapsedTimer timer_;
 };
 
@@ -842,12 +842,12 @@ class RuntimeCallStats {
     in_use_ = false;
   }
 
-  RuntimeCallTimer* current_timer() { return current_timer_; }
+  RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   bool InUse() { return in_use_; }
 
  private:
   // Counter to track recursive time events.
-  RuntimeCallTimer* current_timer_ = NULL;
+  base::AtomicValue<RuntimeCallTimer*> current_timer_;
   // Used to track nested tracing scopes.
   bool in_use_;
 };
