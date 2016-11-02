@@ -65,6 +65,8 @@ using v8::MemoryPressureLevel;
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
+  /* Empty scope info */                                                       \
+  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   /* Oddballs */                                                               \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
@@ -140,7 +142,6 @@ using v8::MemoryPressureLevel;
   V(Map, uint8x16_map, Uint8x16Map)                                            \
   V(Map, bool8x16_map, Bool8x16Map)                                            \
   /* Canonical empty values */                                                 \
-  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
