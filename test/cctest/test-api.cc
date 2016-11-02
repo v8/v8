@@ -25939,3 +25939,41 @@ TEST(EvalInAccessCheckedContext) {
   CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
   context1->Exit();
 }
+
+THREADED_TEST(ImmutableProtoWithParent) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::FunctionTemplate> parent = v8::FunctionTemplate::New(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->Inherit(parent);
+  templ->PrototypeTemplate()->SetImmutableProto();
+
+  Local<v8::Function> function =
+      templ->GetFunction(context.local()).ToLocalChecked();
+  Local<v8::Object> instance =
+      function->NewInstance(context.local()).ToLocalChecked();
+  Local<v8::Object> prototype =
+      instance->Get(context.local(), v8_str("__proto__"))
+          .ToLocalChecked()
+          ->ToObject(context.local())
+          .ToLocalChecked();
+
+  // Look up the prototype
+  Local<v8::Value> original_proto =
+      prototype->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
+
+  // Setting the prototype (e.g., to null) throws
+  CHECK(
+      prototype->SetPrototype(context.local(), v8::Null(isolate)).IsNothing());
+
+  // The original prototype is still there
+  Local<Value> new_proto =
+      prototype->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
+  CHECK(new_proto->IsObject());
+  CHECK(new_proto.As<v8::Object>()
+            ->Equals(context.local(), original_proto)
+            .FromJust());
+}

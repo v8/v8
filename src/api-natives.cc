@@ -437,9 +437,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           JSObject::GetProperty(parent_instance,
                                 isolate->factory()->prototype_string()),
           JSFunction);
-      MAYBE_RETURN(JSObject::SetPrototype(prototype, parent_prototype, false,
-                                          Object::THROW_ON_ERROR),
-                   MaybeHandle<JSFunction>());
+      JSObject::ForceSetPrototype(prototype, parent_prototype);
     }
   }
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
