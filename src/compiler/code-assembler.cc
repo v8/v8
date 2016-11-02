@@ -1066,16 +1066,15 @@ bool CodeAssembler::Variable::IsBound() const {
   return impl_->value_ != nullptr;
 }
 
-CodeAssembler::Label::Label(CodeAssembler* assembler, int merged_value_count,
-                            CodeAssembler::Variable** merged_variables,
-                            CodeAssembler::Label::Type type)
+CodeAssembler::Label::Label(CodeAssembler* assembler, size_t vars_count,
+                            Variable** vars, CodeAssembler::Label::Type type)
     : bound_(false), merge_count_(0), assembler_(assembler), label_(nullptr) {
   void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
   label_ = new (buffer)
       RawMachineLabel(type == kDeferred ? RawMachineLabel::kDeferred
                                         : RawMachineLabel::kNonDeferred);
-  for (int i = 0; i < merged_value_count; ++i) {
-    variable_phis_[merged_variables[i]->impl_] = nullptr;
+  for (size_t i = 0; i < vars_count; ++i) {
+    variable_phis_[vars[i]->impl_] = nullptr;
   }
 }
 

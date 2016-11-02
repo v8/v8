@@ -518,7 +518,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Copies |character_count| elements from |from_string| to |to_string|
   // starting at the |from_index|'th character. |from_string| and |to_string|
-  // must be either both one-byte strings or both two-byte strings.
+  // can either be one-byte strings or two-byte strings, although if
+  // |from_string| is two-byte, then |to_string| must be two-byte.
   // |from_index|, |to_index| and |character_count| must be either Smis or
   // intptr_ts depending on |mode| s.t. 0 <= |from_index| <= |from_index| +
   // |character_count| <= from_string.length and 0 <= |to_index| <= |to_index| +
@@ -528,7 +529,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             compiler::Node* from_index,
                             compiler::Node* to_index,
                             compiler::Node* character_count,
-                            String::Encoding encoding, ParameterMode mode);
+                            String::Encoding from_encoding,
+                            String::Encoding to_encoding, ParameterMode mode);
 
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
@@ -1023,11 +1025,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   enum class IndexAdvanceMode { kPre, kPost };
 
   void BuildFastLoop(
+      const VariableList& var_list, MachineRepresentation index_rep,
+      compiler::Node* start_index, compiler::Node* end_index,
+      std::function<void(CodeStubAssembler* assembler, compiler::Node* index)>
+          body,
+      int increment, IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+
+  void BuildFastLoop(
       MachineRepresentation index_rep, compiler::Node* start_index,
       compiler::Node* end_index,
       std::function<void(CodeStubAssembler* assembler, compiler::Node* index)>
           body,
-      int increment, IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+      int increment, IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
+    BuildFastLoop(VariableList(0, zone()), index_rep, start_index, end_index,
+                  body, increment, mode);
+  }
 
   enum class ForEachDirection { kForward, kReverse };
 

@@ -1785,5 +1785,141 @@ TEST(PopAndReturnVariable) {
   }
 }
 
+TEST(OneToTwoByteStringCopy) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeStubAssemblerTester m(isolate, 2);
+
+  m.CopyStringCharacters(
+      m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
+      m.SmiConstant(Smi::FromInt(0)), m.SmiConstant(Smi::FromInt(5)),
+      String::ONE_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
+      CodeStubAssembler::SMI_PARAMETERS);
+  m.Return(m.SmiConstant(Smi::FromInt(0)));
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
+  uc16 array[] = {1000, 1001, 1002, 1003, 1004};
+  Vector<const uc16> str(array);
+  Handle<String> string2 =
+      isolate->factory()->NewStringFromTwoByte(str).ToHandleChecked();
+  FunctionTester ft(code, 2);
+  ft.Call(string1, string2);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[0]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[1]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[2],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[2]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[3],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[3]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[4],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[4]);
+}
+
+TEST(OneToOneByteStringCopy) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeStubAssemblerTester m(isolate, 2);
+
+  m.CopyStringCharacters(
+      m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
+      m.SmiConstant(Smi::FromInt(0)), m.SmiConstant(Smi::FromInt(5)),
+      String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING,
+      CodeStubAssembler::SMI_PARAMETERS);
+  m.Return(m.SmiConstant(Smi::FromInt(0)));
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
+  uint8_t array[] = {100, 101, 102, 103, 104};
+  Vector<const uint8_t> str(array);
+  Handle<String> string2 =
+      isolate->factory()->NewStringFromOneByte(str).ToHandleChecked();
+  FunctionTester ft(code, 2);
+  ft.Call(string1, string2);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[0]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[1]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[2],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[2]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[3],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[3]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[4],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[4]);
+}
+
+TEST(OneToOneByteStringCopyNonZeroStart) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeStubAssemblerTester m(isolate, 2);
+
+  m.CopyStringCharacters(
+      m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
+      m.SmiConstant(Smi::FromInt(3)), m.SmiConstant(Smi::FromInt(2)),
+      String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING,
+      CodeStubAssembler::SMI_PARAMETERS);
+  m.Return(m.SmiConstant(Smi::FromInt(0)));
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
+  uint8_t array[] = {100, 101, 102, 103, 104};
+  Vector<const uint8_t> str(array);
+  Handle<String> string2 =
+      isolate->factory()->NewStringFromOneByte(str).ToHandleChecked();
+  FunctionTester ft(code, 2);
+  ft.Call(string1, string2);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[3]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
+           Handle<SeqOneByteString>::cast(string2)->GetChars()[4]);
+  CHECK_EQ(100, Handle<SeqOneByteString>::cast(string2)->GetChars()[0]);
+  CHECK_EQ(101, Handle<SeqOneByteString>::cast(string2)->GetChars()[1]);
+  CHECK_EQ(102, Handle<SeqOneByteString>::cast(string2)->GetChars()[2]);
+}
+
+TEST(TwoToTwoByteStringCopy) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeStubAssemblerTester m(isolate, 2);
+
+  m.CopyStringCharacters(
+      m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
+      m.SmiConstant(Smi::FromInt(0)), m.SmiConstant(Smi::FromInt(5)),
+      String::TWO_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
+      CodeStubAssembler::SMI_PARAMETERS);
+  m.Return(m.SmiConstant(Smi::FromInt(0)));
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  uc16 array1[] = {2000, 2001, 2002, 2003, 2004};
+  Vector<const uc16> str1(array1);
+  Handle<String> string1 =
+      isolate->factory()->NewStringFromTwoByte(str1).ToHandleChecked();
+  uc16 array2[] = {1000, 1001, 1002, 1003, 1004};
+  Vector<const uc16> str2(array2);
+  Handle<String> string2 =
+      isolate->factory()->NewStringFromTwoByte(str2).ToHandleChecked();
+  FunctionTester ft(code, 2);
+  ft.Call(string1, string2);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[0],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[0]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[1],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[1]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[2],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[2]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[3],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[3]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[4],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars()[4]);
+}
+
 }  // namespace internal
 }  // namespace v8
