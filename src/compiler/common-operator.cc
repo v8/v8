@@ -256,8 +256,8 @@ OsrGuardType OsrGuardTypeOf(Operator const* op) {
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
   V(2)                        \
-  V(3)
-
+  V(3)                        \
+  V(4)
 
 #define CACHED_END_LIST(V) \
   V(1)                     \
@@ -396,16 +396,16 @@ struct CommonOperatorGlobalCache final {
   CACHED_END_LIST(CACHED_END)
 #undef CACHED_END
 
-  template <size_t kInputCount>
+  template <size_t kValueInputCount>
   struct ReturnOperator final : public Operator {
     ReturnOperator()
-        : Operator(                                   // --
-              IrOpcode::kReturn, Operator::kNoThrow,  // opcode
-              "Return",                               // name
-              kInputCount, 1, 1, 0, 0, 1) {}          // counts
+        : Operator(                                    // --
+              IrOpcode::kReturn, Operator::kNoThrow,   // opcode
+              "Return",                                // name
+              kValueInputCount + 1, 1, 1, 0, 0, 1) {}  // counts
   };
-#define CACHED_RETURN(input_count) \
-  ReturnOperator<input_count> kReturn##input_count##Operator;
+#define CACHED_RETURN(value_input_count) \
+  ReturnOperator<value_input_count> kReturn##value_input_count##Operator;
   CACHED_RETURN_LIST(CACHED_RETURN)
 #undef CACHED_RETURN
 
@@ -632,7 +632,6 @@ const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
       0, 0, control_input_count, 0, 0, 0);  // counts
 }
 
-
 const Operator* CommonOperatorBuilder::Return(int value_input_count) {
   switch (value_input_count) {
 #define CACHED_RETURN(input_count) \
@@ -647,7 +646,7 @@ const Operator* CommonOperatorBuilder::Return(int value_input_count) {
   return new (zone()) Operator(               //--
       IrOpcode::kReturn, Operator::kNoThrow,  // opcode
       "Return",                               // name
-      value_input_count, 1, 1, 0, 0, 1);      // counts
+      value_input_count + 1, 1, 1, 0, 0, 1);  // counts
 }
 
 

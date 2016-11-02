@@ -749,6 +749,23 @@ class RepresentationSelector {
     }
   }
 
+  void VisitReturn(Node* node) {
+    int tagged_limit = node->op()->ValueInputCount() +
+                       OperatorProperties::GetContextInputCount(node->op()) +
+                       OperatorProperties::GetFrameStateInputCount(node->op());
+    // Visit integer slot count to pop
+    ProcessInput(node, 0, UseInfo::TruncatingWord32());
+
+    // Visit value, context and frame state inputs as tagged.
+    for (int i = 1; i < tagged_limit; i++) {
+      ProcessInput(node, i, UseInfo::AnyTagged());
+    }
+    // Only enqueue other inputs (effects, control).
+    for (int i = tagged_limit; i < node->InputCount(); i++) {
+      EnqueueInput(node, i);
+    }
+  }
+
   // Helper for an unused node.
   void VisitUnused(Node* node) {
     int value_count = node->op()->ValueInputCount() +
@@ -2448,10 +2465,14 @@ class RepresentationSelector {
       case IrOpcode::kOsrGuard:
         return VisitOsrGuard(node);
 
+      case IrOpcode::kReturn:
+        VisitReturn(node);
+        // Assume the output is tagged.
+        return SetOutput(node, MachineRepresentation::kTagged);
+
       // Operators with all inputs tagged and no or tagged output have uniform
       // handling.
       case IrOpcode::kEnd:
-      case IrOpcode::kReturn:
       case IrOpcode::kIfSuccess:
       case IrOpcode::kIfException:
       case IrOpcode::kIfTrue:

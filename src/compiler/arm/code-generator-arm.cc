@@ -744,7 +744,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRet:
-      AssembleReturn();
+      AssembleReturn(instr->InputAt(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchStackPointer:
@@ -1737,8 +1737,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-
-void CodeGenerator::AssembleReturn() {
+void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
 
@@ -1762,19 +1761,33 @@ void CodeGenerator::AssembleReturn() {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
+  ArmOperandConverter g(this, nullptr);
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    // Canonicalize JSFunction return sites for now.
-    if (return_label_.is_bound()) {
-      __ b(&return_label_);
-      return;
+    // Canonicalize JSFunction return sites for now unless they have an variable
+    // number of stack slot pops.
+    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+      if (return_label_.is_bound()) {
+        __ b(&return_label_);
+        return;
+      } else {
+        __ bind(&return_label_);
+        AssembleDeconstructFrame();
+      }
     } else {
-      __ bind(&return_label_);
       AssembleDeconstructFrame();
     }
   }
-  __ Ret(pop_count);
+
+  if (pop->IsImmediate()) {
+    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
+    pop_count += g.ToConstant(pop).ToInt32();
+  } else {
+    __ Drop(g.ToRegister(pop));
+  }
+  __ Drop(pop_count);
+  __ Ret();
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,

@@ -180,6 +180,10 @@ void CodeAssembler::Return(Node* value) {
   return raw_assembler_->Return(value);
 }
 
+void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
+  return raw_assembler_->PopAndReturn(pop, value);
+}
+
 void CodeAssembler::DebugBreak() { raw_assembler_->DebugBreak(); }
 
 void CodeAssembler::Comment(const char* format, ...) {

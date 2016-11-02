@@ -783,7 +783,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRet:
-      AssembleReturn();
+      AssembleReturn(instr->InputAt(0));
       break;
     case kArchStackPointer:
       __ mov(i.OutputRegister(), masm()->StackPointer());
@@ -1854,8 +1854,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-
-void CodeGenerator::AssembleReturn() {
+void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
   // Restore registers.
@@ -1874,16 +1873,25 @@ void CodeGenerator::AssembleReturn() {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
+  Arm64OperandConverter g(this, nullptr);
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    // Canonicalize JSFunction return sites for now.
-    if (return_label_.is_bound()) {
-      __ B(&return_label_);
-      return;
+    // Canonicalize JSFunction return sites for now unless they have an variable
+    // number of stack slot pops.
+    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+      if (return_label_.is_bound()) {
+        __ B(&return_label_);
+        return;
+      } else {
+        __ Bind(&return_label_);
+        AssembleDeconstructFrame();
+        if (descriptor->UseNativeStack()) {
+          pop_count += (pop_count & 1);  // align
+        }
+      }
     } else {
-      __ Bind(&return_label_);
       AssembleDeconstructFrame();
       if (descriptor->UseNativeStack()) {
         pop_count += (pop_count & 1);  // align
@@ -1892,7 +1900,16 @@ void CodeGenerator::AssembleReturn() {
   } else if (descriptor->UseNativeStack()) {
     pop_count += (pop_count & 1);  // align
   }
-  __ Drop(pop_count);
+
+  if (pop->IsImmediate()) {
+    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
+    pop_count += g.ToConstant(pop).ToInt32();
+    __ Drop(pop_count);
+  } else {
+    Register pop_reg = g.ToRegister(pop);
+    __ Add(pop_reg, pop_reg, pop_count);
+    __ Drop(pop_reg);
+  }
 
   if (descriptor->UseNativeStack()) {
     __ AssertCspAligned();
