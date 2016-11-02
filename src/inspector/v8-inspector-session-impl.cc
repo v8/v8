@@ -187,8 +187,7 @@ InjectedScript* V8InspectorSessionImpl::findInjectedScript(
 
   const std::unique_ptr<InspectedContext>& context = contextsIt->second;
   if (!context->getInjectedScript()) {
-    context->createInjectedScript();
-    if (!context->getInjectedScript()) {
+    if (!context->createInjectedScript()) {
       *errorString = "Cannot access specified execution context";
       return nullptr;
     }
