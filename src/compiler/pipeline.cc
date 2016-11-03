@@ -918,7 +918,7 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
-        data->info()->dependencies());
+        data->info()->dependencies(), data->native_context());
     Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),

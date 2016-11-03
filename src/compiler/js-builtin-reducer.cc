@@ -96,11 +96,13 @@ class JSCallReduction {
 
 JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
                                    Flags flags,
-                                   CompilationDependencies* dependencies)
+                                   CompilationDependencies* dependencies,
+                                   Handle<Context> native_context)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      native_context_(native_context),
       type_cache_(TypeCache::Get()) {}
 
 namespace {
@@ -1033,14 +1035,9 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
-    Node* context = NodeProperties::GetContextInput(node);
 
-    Node* native_context = effect = graph()->NewNode(
-        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-        context, context, effect);
-    Node* map = effect = graph()->NewNode(
-        javascript()->LoadContext(0, Context::STRING_ITERATOR_MAP_INDEX, true),
-        native_context, native_context, effect);
+    Node* map = jsgraph()->HeapConstant(
+        handle(native_context()->string_iterator_map(), isolate()));
 
     // allocate new iterator
     effect = graph()->NewNode(

@@ -38,7 +38,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   typedef base::Flags<Flag> Flags;
 
   JSBuiltinReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
-                   CompilationDependencies* dependencies);
+                   CompilationDependencies* dependencies,
+                   Handle<Context> native_context);
   ~JSBuiltinReducer() final {}
 
   Reduction Reduce(Node* node) final;
@@ -104,6 +105,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Factory* factory() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
+  Handle<Context> native_context() const { return native_context_; }
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
   JSOperatorBuilder* javascript() const;
@@ -112,6 +114,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   CompilationDependencies* const dependencies_;
   Flags const flags_;
   JSGraph* const jsgraph_;
+  Handle<Context> const native_context_;
   TypeCache const& type_cache_;
 };
 
