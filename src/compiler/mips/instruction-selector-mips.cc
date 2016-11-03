@@ -40,6 +40,10 @@ class MipsOperandGenerator final : public OperandGenerator {
       case kMipsSar:
       case kMipsShr:
         return is_uint5(value);
+      case kMipsAdd:
+      case kMipsAnd:
+      case kMipsOr:
+      case kMipsSub:
       case kMipsXor:
         return is_uint16(value);
       case kMipsLdc1:
@@ -86,9 +90,23 @@ static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseOperand(node->InputAt(1), opcode));
 }
 
+bool TryMatchImmediate(InstructionSelector* selector,
+                       InstructionCode* opcode_return, Node* node,
+                       size_t* input_count_return, InstructionOperand* inputs) {
+  MipsOperandGenerator g(selector);
+  if (g.CanBeImmediate(node, *opcode_return)) {
+    *opcode_return |= AddressingModeField::encode(kMode_MRI);
+    inputs[0] = g.UseImmediate(node);
+    *input_count_return = 1;
+    return true;
+  }
+  return false;
+}
 
 static void VisitBinop(InstructionSelector* selector, Node* node,
-                       InstructionCode opcode, FlagsContinuation* cont) {
+                       InstructionCode opcode, bool has_reverse_opcode,
+                       InstructionCode reverse_opcode,
+                       FlagsContinuation* cont) {
   MipsOperandGenerator g(selector);
   Int32BinopMatcher m(node);
   InstructionOperand inputs[4];
@@ -96,8 +114,21 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   InstructionOperand outputs[2];
   size_t output_count = 0;
 
-  inputs[input_count++] = g.UseRegister(m.left().node());
-  inputs[input_count++] = g.UseOperand(m.right().node(), opcode);
+  if (TryMatchImmediate(selector, &opcode, m.right().node(), &input_count,
+                        &inputs[1])) {
+    inputs[0] = g.UseRegister(m.left().node());
+    input_count++;
+  }
+  if (has_reverse_opcode &&
+      TryMatchImmediate(selector, &reverse_opcode, m.left().node(),
+                        &input_count, &inputs[1])) {
+    inputs[0] = g.UseRegister(m.right().node());
+    opcode = reverse_opcode;
+    input_count++;
+  } else {
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseOperand(m.right().node(), opcode);
+  }
 
   if (cont->IsBranch()) {
     inputs[input_count++] = g.Label(cont->true_block());
@@ -130,11 +161,21 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   }
 }
 
+static void VisitBinop(InstructionSelector* selector, Node* node,
+                       InstructionCode opcode, bool has_reverse_opcode,
+                       InstructionCode reverse_opcode) {
+  FlagsContinuation cont;
+  VisitBinop(selector, node, opcode, has_reverse_opcode, reverse_opcode, &cont);
+}
+
+static void VisitBinop(InstructionSelector* selector, Node* node,
+                       InstructionCode opcode, FlagsContinuation* cont) {
+  VisitBinop(selector, node, opcode, false, kArchNop, cont);
+}
 
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        InstructionCode opcode) {
-  FlagsContinuation cont;
-  VisitBinop(selector, node, opcode, &cont);
+  VisitBinop(selector, node, opcode, false, kArchNop);
 }
 
 
@@ -317,12 +358,12 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  VisitBinop(this, node, kMipsAnd);
+  VisitBinop(this, node, kMipsAnd, true, kMipsAnd);
 }
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBinop(this, node, kMipsOr);
+  VisitBinop(this, node, kMipsOr, true, kMipsOr);
 }
 
 
@@ -346,7 +387,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
          g.TempImmediate(0));
     return;
   }
-  VisitBinop(this, node, kMipsXor);
+  VisitBinop(this, node, kMipsXor, true, kMipsXor);
 }
 
 
@@ -575,7 +616,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     }
   }
 
-  VisitBinop(this, node, kMipsAdd);
+  VisitBinop(this, node, kMipsAdd, true, kMipsAdd);
 }
 
 
