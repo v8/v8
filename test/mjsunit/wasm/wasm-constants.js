@@ -94,6 +94,7 @@ let kMemoryZero = 0;
 
 // Useful signatures
 let kSig_i_i = makeSig([kAstI32], [kAstI32]);
+let kSig_l_l = makeSig([kAstI64], [kAstI64]);
 let kSig_i_l = makeSig([kAstI64], [kAstI32]);
 let kSig_i_ii = makeSig([kAstI32, kAstI32], [kAstI32]);
 let kSig_i_iii = makeSig([kAstI32, kAstI32, kAstI32], [kAstI32]);

@@ -1627,7 +1627,7 @@ class WasmInstanceBuilder {
     desc.set_writable(false);
 
     // Process each export in the export table.
-    int func_index = 0;
+    int export_index = 0;
     for (auto exp : module_->export_table) {
       Handle<String> name =
           ExtractStringFromModuleBytes(isolate_, compiled_module_,
@@ -1637,20 +1637,20 @@ class WasmInstanceBuilder {
         case kExternalFunction: {
           // Wrap and export the code as a JSFunction.
           WasmFunction& function = module_->functions[exp.index];
-          int export_index =
-              static_cast<int>(module_->functions.size() + func_index);
+          int func_index =
+              static_cast<int>(module_->functions.size() + export_index);
           Handle<JSFunction> js_function = js_wrappers_[exp.index];
           if (js_function.is_null()) {
             // Wrap the exported code as a JSFunction.
             Handle<Code> export_code =
-                code_table->GetValueChecked<Code>(isolate_, export_index);
-            js_function =
-                WrapExportCodeAsJSFunction(isolate_, export_code, name,
-                                           function.sig, func_index, instance);
+                code_table->GetValueChecked<Code>(isolate_, func_index);
+            js_function = WrapExportCodeAsJSFunction(
+                isolate_, export_code, name, function.sig, function.func_index,
+                instance);
             js_wrappers_[exp.index] = js_function;
           }
           desc.set_value(js_function);
-          func_index++;
+          export_index++;
           break;
         }
         case kExternalTable: {
