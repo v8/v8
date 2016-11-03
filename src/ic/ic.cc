@@ -915,10 +915,10 @@ int LoadIC::GetPrototypeCheckCount(Handle<Map> receiver_map,
                                     Handle<FixedArray>(), Handle<Name>());
 }
 
-Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
-                                               Handle<JSObject> holder,
-                                               Handle<Name> name,
-                                               Handle<Object> smi_handler) {
+Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
+                                         Handle<JSObject> holder,
+                                         Handle<Name> name,
+                                         Handle<Object> smi_handler) {
   int checks_count = GetPrototypeCheckCount(receiver_map, holder);
   DCHECK_LE(0, checks_count);
 
@@ -950,8 +950,8 @@ Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
   return handler_array;
 }
 
-Handle<Object> LoadIC::SimpleLoadNonExistent(Handle<Map> receiver_map,
-                                             Handle<Name> name) {
+Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
+                                       Handle<Name> name) {
   Handle<JSObject> holder;  // null handle
   int checks_count = GetPrototypeCheckCount(receiver_map, holder);
   DCHECK_LE(0, checks_count);
@@ -1041,7 +1041,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   } else if (!lookup->IsFound()) {
     if (kind() == Code::LOAD_IC) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-      code = SimpleLoadNonExistent(receiver_map(), lookup->name());
+      code = LoadNonExistent(receiver_map(), lookup->name());
     } else if (kind() == Code::LOAD_GLOBAL_IC) {
       code = NamedLoadHandlerCompiler::ComputeLoadNonexistent(lookup->name(),
                                                               receiver_map());
@@ -1387,10 +1387,9 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         if (receiver_is_holder) {
           return smi_handler;
         }
-        if (FLAG_tf_load_ic_stub && GetPrototypeCheckCount(map, holder) >= 0) {
+        if (FLAG_tf_load_ic_stub && kind() != Code::LOAD_GLOBAL_IC) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
-          return SimpleLoadFromPrototype(map, holder, lookup->name(),
-                                         smi_handler);
+          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
         }
         break;  // Custom-compiled handler.
       }
@@ -1404,10 +1403,9 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
           return smi_handler;
         }
-        if (GetPrototypeCheckCount(map, holder) >= 0) {
+        if (kind() != Code::LOAD_GLOBAL_IC) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
-          return SimpleLoadFromPrototype(map, holder, lookup->name(),
-                                         smi_handler);
+          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
         }
       } else {
         if (receiver_is_holder) {

@@ -325,14 +325,13 @@ class LoadIC : public IC {
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
   // Can be used only if GetPrototypeCheckCount() returns non negative value.
-  Handle<Object> SimpleLoadFromPrototype(Handle<Map> receiver_map,
-                                         Handle<JSObject> holder,
-                                         Handle<Name> name,
-                                         Handle<Object> smi_handler);
+  Handle<Object> LoadFromPrototype(Handle<Map> receiver_map,
+                                   Handle<JSObject> holder, Handle<Name> name,
+                                   Handle<Object> smi_handler);
 
   // Creates a data handler that represents a load of a non-existent property.
-  Handle<Object> SimpleLoadNonExistent(Handle<Map> receiver_map,
-                                       Handle<Name> name);
+  Handle<Object> LoadNonExistent(Handle<Map> receiver_map, Handle<Name> name);
+
   friend class IC;
 };
 
