@@ -269,11 +269,10 @@ Response V8HeapProfilerAgentImpl::getHeapObjectId(
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Value> value;
   v8::Local<v8::Context> context;
-  protocol::ErrorString errorString;
-  if (!m_session->unwrapObject(&errorString, objectId, &value, &context,
-                               nullptr) ||
-      value->IsUndefined())
-    return Response::Error(errorString);
+  Response response =
+      m_session->unwrapObject(objectId, &value, &context, nullptr);
+  if (!response.isSuccess()) return response;
+  if (value->IsUndefined()) return Response::InternalError();
 
   v8::SnapshotObjectId id = m_isolate->GetHeapProfiler()->GetObjectId(value);
   *heapSnapshotObjectId = String16::fromInteger(static_cast<size_t>(id));

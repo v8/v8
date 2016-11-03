@@ -22,6 +22,7 @@
 #include "src/inspector/v8-regex.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+#include "src/inspector/v8-value-copier.h"
 
 #include "include/v8-inspector.h"
 
@@ -560,9 +561,13 @@ void V8DebuggerAgentImpl::restartFrame(
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
     Maybe<StackTrace>* asyncStackTrace) {
   if (!assertPaused(errorString)) return;
-  InjectedScript::CallFrameScope scope(
-      errorString, m_inspector, m_session->contextGroupId(), callFrameId);
-  if (!scope.initialize()) return;
+  InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
+                                       callFrameId);
+  Response response = scope.initialize();
+  if (!response.isSuccess()) {
+    *errorString = response.errorMessage();
+    return;
+  }
   if (scope.frameOrdinal() >= m_pausedCallFrames.size()) {
     *errorString = "Could not find call frame with given id";
     return;
@@ -715,16 +720,19 @@ void V8DebuggerAgentImpl::evaluateOnCallFrame(
     std::unique_ptr<RemoteObject>* result,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!assertPaused(errorString)) return;
-  InjectedScript::CallFrameScope scope(
-      errorString, m_inspector, m_session->contextGroupId(), callFrameId);
-  if (!scope.initialize()) return;
+  InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
+                                       callFrameId);
+  Response response = scope.initialize();
+  if (!response.isSuccess()) {
+    *errorString = response.errorMessage();
+    return;
+  }
   if (scope.frameOrdinal() >= m_pausedCallFrames.size()) {
     *errorString = "Could not find call frame with given id";
     return;
   }
 
-  if (includeCommandLineAPI.fromMaybe(false) && !scope.installCommandLineAPI())
-    return;
+  if (includeCommandLineAPI.fromMaybe(false)) scope.installCommandLineAPI();
   if (silent.fromMaybe(false)) scope.ignoreExceptionsAndMuteConsole();
 
   v8::MaybeLocal<v8::Value> maybeResultValue =
@@ -733,11 +741,16 @@ void V8DebuggerAgentImpl::evaluateOnCallFrame(
 
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
-  if (!scope.initialize()) return;
-  scope.injectedScript()->wrapEvaluateResult(
-      errorString, maybeResultValue, scope.tryCatch(),
-      objectGroup.fromMaybe(""), returnByValue.fromMaybe(false),
-      generatePreview.fromMaybe(false), result, exceptionDetails);
+  response = scope.initialize();
+  if (!response.isSuccess()) {
+    *errorString = response.errorMessage();
+    return;
+  }
+  response = scope.injectedScript()->wrapEvaluateResult(
+      maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""),
+      returnByValue.fromMaybe(false), generatePreview.fromMaybe(false), result,
+      exceptionDetails);
+  if (!response.isSuccess()) *errorString = response.errorMessage();
 }
 
 void V8DebuggerAgentImpl::setVariableValue(
@@ -746,15 +759,20 @@ void V8DebuggerAgentImpl::setVariableValue(
     const String16& callFrameId) {
   if (!checkEnabled(errorString)) return;
   if (!assertPaused(errorString)) return;
-  InjectedScript::CallFrameScope scope(
-      errorString, m_inspector, m_session->contextGroupId(), callFrameId);
-  if (!scope.initialize()) return;
-
-  v8::Local<v8::Value> newValue;
-  if (!scope.injectedScript()
-           ->resolveCallArgument(errorString, newValueArgument.get())
-           .ToLocal(&newValue))
+  InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
+                                       callFrameId);
+  Response response = scope.initialize();
+  if (!response.isSuccess()) {
+    *errorString = response.errorMessage();
     return;
+  }
+  v8::Local<v8::Value> newValue;
+  response = scope.injectedScript()->resolveCallArgument(newValueArgument.get(),
+                                                         &newValue);
+  if (!response.isSuccess()) {
+    *errorString = response.errorMessage();
+    return;
+  }
 
   if (scope.frameOrdinal() >= m_pausedCallFrames.size()) {
     *errorString = "Could not find call frame with given id";
@@ -907,7 +925,6 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
     ErrorString* errorString) {
   if (m_pausedContext.IsEmpty() || !m_pausedCallFrames.size())
     return Array<CallFrame>::create();
-  ErrorString ignored;
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Context> debuggerContext =
       v8::DebugInterface::GetDebugContext(m_isolate);
@@ -925,9 +942,9 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
       return Array<CallFrame>::create();
 
     int contextId = currentCallFrame->contextId();
-    InjectedScript* injectedScript =
-        contextId ? m_session->findInjectedScript(&ignored, contextId)
-                  : nullptr;
+
+    InjectedScript* injectedScript = nullptr;
+    if (contextId) m_session->findInjectedScript(contextId, injectedScript);
 
     String16 callFrameId =
         RemoteCallFrameId::serialize(contextId, static_cast<int>(frameOrdinal));
@@ -950,24 +967,31 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
                   !scopeChain->IsArray()))
         return Array<CallFrame>::create();
       v8::Local<v8::Array> scopeChainArray = scopeChain.As<v8::Array>();
-      if (!injectedScript->wrapPropertyInArray(
-              errorString, scopeChainArray,
-              toV8StringInternalized(m_isolate, "object"),
-              backtraceObjectGroup))
+      Response response = injectedScript->wrapPropertyInArray(
+          scopeChainArray, toV8StringInternalized(m_isolate, "object"),
+          backtraceObjectGroup);
+      if (!response.isSuccess()) {
+        *errorString = response.errorMessage();
         return Array<CallFrame>::create();
-      if (!injectedScript->wrapObjectProperty(
-              errorString, details, toV8StringInternalized(m_isolate, "this"),
-              backtraceObjectGroup))
+      }
+      response = injectedScript->wrapObjectProperty(
+          details, toV8StringInternalized(m_isolate, "this"),
+          backtraceObjectGroup);
+      if (!response.isSuccess()) {
+        *errorString = response.errorMessage();
         return Array<CallFrame>::create();
+      }
       if (details
               ->Has(debuggerContext,
                     toV8StringInternalized(m_isolate, "returnValue"))
               .FromMaybe(false)) {
-        if (!injectedScript->wrapObjectProperty(
-                errorString, details,
-                toV8StringInternalized(m_isolate, "returnValue"),
-                backtraceObjectGroup))
+        response = injectedScript->wrapObjectProperty(
+            details, toV8StringInternalized(m_isolate, "returnValue"),
+            backtraceObjectGroup);
+        if (!response.isSuccess()) {
+          *errorString = response.errorMessage();
           return Array<CallFrame>::create();
+        }
       }
     } else {
       if (hasInternalError(errorString, !details
@@ -1010,9 +1034,9 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
       return Array<CallFrame>::create();
   }
 
-  std::unique_ptr<protocol::Value> protocolValue =
-      toProtocolValue(errorString, debuggerContext, objects);
-  if (!protocolValue) return Array<CallFrame>::create();
+  std::unique_ptr<protocol::Value> protocolValue;
+  Response response = toProtocolValue(debuggerContext, objects, &protocolValue);
+  if (!response.isSuccess()) return Array<CallFrame>::create();
   protocol::ErrorSupport errorSupport;
   std::unique_ptr<Array<CallFrame>> callFrames =
       Array<CallFrame>::parse(protocolValue.get(), &errorSupport);
@@ -1127,17 +1151,17 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
   v8::HandleScope handles(m_isolate);
 
   if (!exception.IsEmpty()) {
-    ErrorString ignored;
-    InjectedScript* injectedScript =
-        m_session->findInjectedScript(&ignored, V8Debugger::contextId(context));
+    InjectedScript* injectedScript = nullptr;
+    m_session->findInjectedScript(V8Debugger::contextId(context),
+                                  injectedScript);
     if (injectedScript) {
       m_breakReason =
           isPromiseRejection
               ? protocol::Debugger::Paused::ReasonEnum::PromiseRejection
               : protocol::Debugger::Paused::ReasonEnum::Exception;
-      ErrorString errorString;
-      auto obj = injectedScript->wrapObject(&errorString, exception,
-                                            backtraceObjectGroup);
+      std::unique_ptr<protocol::Runtime::RemoteObject> obj;
+      injectedScript->wrapObject(exception, backtraceObjectGroup, false, false,
+                                 &obj);
       m_breakAuxData = obj ? obj->serialize() : nullptr;
       // m_breakAuxData might be null after this.
     }
