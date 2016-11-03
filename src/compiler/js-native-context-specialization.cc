@@ -688,19 +688,29 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
       // Strings are immutable in JavaScript.
       if (access_mode == AccessMode::kStore) return NoChange();
 
-      // Ensure that {index} is less than {receiver} length.
-      Node* length = jsgraph()->Constant(string->length());
-      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                        length, effect, control);
+      // Properly deal with constant {index}.
+      NumberMatcher mindex(index);
+      if (mindex.IsInteger() && mindex.IsInRange(0.0, string->length() - 1)) {
+        // Constant-fold the {index} access to {string}.
+        Node* value =
+            jsgraph()->Constant(string->Get(static_cast<int>(mindex.Value())));
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      } else if (flags() & kDeoptimizationEnabled) {
+        // Ensure that {index} is less than {receiver} length.
+        Node* length = jsgraph()->Constant(string->length());
+        index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                          length, effect, control);
 
-      // Load the character from the {receiver}.
-      value = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                               index, control);
+        // Load the character from the {receiver}.
+        value = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                                 index, control);
 
-      // Return it as a single character string.
-      value = graph()->NewNode(simplified()->StringFromCharCode(), value);
-      ReplaceWithValue(node, value, effect, control);
-      return Replace(value);
+        // Return it as a single character string.
+        value = graph()->NewNode(simplified()->StringFromCharCode(), value);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
     }
   }
 
