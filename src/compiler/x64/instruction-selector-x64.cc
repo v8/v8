@@ -1942,9 +1942,26 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       case IrOpcode::kFloat64Equal:
         cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
         return VisitFloat64Compare(selector, value, cont);
-      case IrOpcode::kFloat64LessThan:
+      case IrOpcode::kFloat64LessThan: {
+        Float64BinopMatcher m(value);
+        if (m.left().Is(0.0) && m.right().IsFloat64Abs()) {
+          // This matches the pattern
+          //
+          //   Float64LessThan(#0.0, Float64Abs(x))
+          //
+          // which TurboFan generates for NumberToBoolean in the general case,
+          // and which evaluates to false if x is 0, -0 or NaN. We can compile
+          // this to a simple (v)ucomisd using not_equal flags condition, which
+          // avoids the costly Float64Abs.
+          cont->OverwriteAndNegateIfEqual(kNotEqual);
+          InstructionCode const opcode =
+              selector->IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+          return VisitCompare(selector, opcode, m.left().node(),
+                              m.right().InputAt(0), cont, false);
+        }
         cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
         return VisitFloat64Compare(selector, value, cont);
+      }
       case IrOpcode::kFloat64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
         return VisitFloat64Compare(selector, value, cont);
@@ -2205,13 +2222,27 @@ void InstructionSelector::VisitFloat64Equal(Node* node) {
   VisitFloat64Compare(this, node, &cont);
 }
 
-
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
+  Float64BinopMatcher m(node);
+  if (m.left().Is(0.0) && m.right().IsFloat64Abs()) {
+    // This matches the pattern
+    //
+    //   Float64LessThan(#0.0, Float64Abs(x))
+    //
+    // which TurboFan generates for NumberToBoolean in the general case,
+    // and which evaluates to false if x is 0, -0 or NaN. We can compile
+    // this to a simple (v)ucomisd using not_equal flags condition, which
+    // avoids the costly Float64Abs.
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
+    InstructionCode const opcode =
+        IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+    return VisitCompare(this, opcode, m.left().node(), m.right().InputAt(0),
+                        &cont, false);
+  }
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
-
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   FlagsContinuation cont =

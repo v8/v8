@@ -879,9 +879,8 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
                                           MachineType::Float64());
 
       // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
-      Node* zero = Float64Constant(0.0);
-      GotoIf(Float64LessThan(zero, value_value), if_true);
-      Branch(Float64LessThan(value_value, zero), if_true, if_false);
+      Branch(Float64LessThan(Float64Constant(0.0), Float64Abs(value_value)),
+             if_true, if_false);
     }
 
     Bind(&if_valueisother);

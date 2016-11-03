@@ -913,15 +913,14 @@ EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
                                                   Node* control) {
   Node* value = node->InputAt(0);
-  Node* one = jsgraph()->Int32Constant(1);
   Node* zero = jsgraph()->Int32Constant(0);
   Node* fzero = jsgraph()->Float64Constant(0.0);
 
   // Collect effect/control/value triples.
   int count = 0;
-  Node* values[7];
-  Node* effects[7];
-  Node* controls[6];
+  Node* values[6];
+  Node* effects[6];
+  Node* controls[5];
 
   // Check if {value} is a Smi.
   Node* check_smi = ObjectIsSmi(value);
@@ -1012,20 +1011,12 @@ EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
         simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
         eheapnumber, if_heapnumber);
 
-    // Check if {value} is either less than 0.0 or greater than 0.0.
-    Node* check =
-        graph()->NewNode(machine()->Float64LessThan(), fzero, value_value);
-    Node* branch = graph()->NewNode(common()->Branch(), check, if_heapnumber);
-
-    controls[count] = graph()->NewNode(common()->IfTrue(), branch);
+    // Check if {value} is not one of 0, -0, or NaN.
+    controls[count] = if_heapnumber;
     effects[count] = eheapnumber;
-    values[count] = one;
-    count++;
-
-    controls[count] = graph()->NewNode(common()->IfFalse(), branch);
-    effects[count] = eheapnumber;
-    values[count] =
-        graph()->NewNode(machine()->Float64LessThan(), value_value, fzero);
+    values[count] = graph()->NewNode(
+        machine()->Float64LessThan(), fzero,
+        graph()->NewNode(machine()->Float64Abs(), value_value));
     count++;
   }
   control = graph()->NewNode(common()->IfFalse(), branch_heapnumber);
