@@ -1353,7 +1353,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberConstant:
         return VisitLeaf(node, MachineRepresentation::kTagged);
       case IrOpcode::kHeapConstant:
-        return VisitLeaf(node, MachineRepresentation::kTagged);
+        return VisitLeaf(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kBranch:
         ProcessInput(node, 0, UseInfo::Bool());
@@ -1381,7 +1381,7 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           VisitInputs(node);
-          SetOutput(node, MachineRepresentation::kTagged);
+          SetOutput(node, MachineRepresentation::kTaggedPointer);
         }
         return;
       }
@@ -2092,7 +2092,7 @@ class RepresentationSelector {
       case IrOpcode::kStringLessThan:
       case IrOpcode::kStringLessThanOrEqual: {
         return VisitBinop(node, UseInfo::AnyTagged(),
-                          MachineRepresentation::kTagged);
+                          MachineRepresentation::kTaggedPointer);
       }
       case IrOpcode::kStringCharCodeAt: {
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
@@ -2101,12 +2101,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringFromCharCode: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
-                  MachineRepresentation::kTagged);
+                  MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kStringFromCodePoint: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
-                  MachineRepresentation::kTagged);
+                  MachineRepresentation::kTaggedPointer);
         return;
       }
 
@@ -2130,11 +2130,13 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckHeapObject: {
         if (InputCannotBe(node, Type::SignedSmall())) {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
         } else {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
+                    MachineRepresentation::kTaggedPointer);
         }
+        if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
       case IrOpcode::kCheckIf: {
@@ -2175,10 +2177,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckString: {
         if (InputIs(node, Type::String())) {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
         }
         return;
       }
@@ -2186,7 +2190,7 @@ class RepresentationSelector {
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, UseInfo::TruncatingWord32());
         ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kTagged);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kLoadField: {
@@ -2400,7 +2404,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckTaggedHole: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kConvertTaggedHoleToUndefined: {
@@ -2433,14 +2438,14 @@ class RepresentationSelector {
       }
       case IrOpcode::kEnsureWritableFastElements:
         return VisitBinop(node, UseInfo::AnyTagged(),
-                          MachineRepresentation::kTagged);
+                          MachineRepresentation::kTaggedPointer);
       case IrOpcode::kMaybeGrowFastElements: {
         ProcessInput(node, 0, UseInfo::AnyTagged());         // object
         ProcessInput(node, 1, UseInfo::AnyTagged());         // elements
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 3, UseInfo::TruncatingWord32());  // length
         ProcessRemainingInputs(node, 4);
-        SetOutput(node, MachineRepresentation::kTagged);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
 
@@ -2465,6 +2470,11 @@ class RepresentationSelector {
       case IrOpcode::kOsrGuard:
         return VisitOsrGuard(node);
 
+      case IrOpcode::kFinishRegion:
+        VisitInputs(node);
+        // Assume the output is tagged pointer.
+        return SetOutput(node, MachineRepresentation::kTaggedPointer);
+
       case IrOpcode::kReturn:
         VisitReturn(node);
         // Assume the output is tagged.
@@ -2486,7 +2496,6 @@ class RepresentationSelector {
       case IrOpcode::kMerge:
       case IrOpcode::kThrow:
       case IrOpcode::kBeginRegion:
-      case IrOpcode::kFinishRegion:
       case IrOpcode::kProjection:
       case IrOpcode::kObjectState:
       case IrOpcode::kOsrValue:

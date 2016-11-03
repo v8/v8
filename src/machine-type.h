@@ -234,6 +234,11 @@ inline bool CanBeTaggedPointer(MachineRepresentation rep) {
          rep == MachineRepresentation::kTaggedPointer;
 }
 
+inline bool CanBeTaggedSigned(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kTagged ||
+         rep == MachineRepresentation::kTaggedSigned;
+}
+
 inline bool IsAnyTagged(MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || rep == MachineRepresentation::kTaggedSigned;
 }

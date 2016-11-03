@@ -56,6 +56,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                Node* control);
   ValueEffectControl LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                 Node* control);
+  ValueEffectControl LowerChangeFloat64ToTaggedPointer(Node* node, Node* effect,
+                                                       Node* control);
   ValueEffectControl LowerChangeTaggedSignedToInt32(Node* node, Node* effect,
                                                     Node* control);
   ValueEffectControl LowerChangeTaggedToBit(Node* node, Node* effect,
@@ -74,8 +76,6 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                       Node* effect, Node* control);
   ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
                                   Node* control);
-  ValueEffectControl LowerCheckHeapObject(Node* node, Node* frame_state,
-                                          Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Add(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Sub(Node* node, Node* frame_state,
@@ -114,6 +114,10 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                       Node* frame_state,
                                                       Node* effect,
                                                       Node* control);
+  ValueEffectControl LowerCheckedTaggedToTaggedPointer(Node* node,
+                                                       Node* frame_state,
+                                                       Node* effect,
+                                                       Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
   ValueEffectControl LowerTruncateTaggedToBit(Node* node, Node* effect,

@@ -80,7 +80,8 @@ enum class TypeCheckKind : uint8_t {
   kSignedSmall,
   kSigned32,
   kNumber,
-  kNumberOrOddball
+  kNumberOrOddball,
+  kHeapObject
 };
 
 inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
@@ -95,6 +96,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Number";
     case TypeCheckKind::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case TypeCheckKind::kHeapObject:
+      return os << "HeapObject";
   }
   UNREACHABLE();
   return os;
@@ -152,6 +155,10 @@ class UseInfo {
   }
 
   // Possibly deoptimizing conversions.
+  static UseInfo CheckedHeapObjectAsTaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
+                   TypeCheckKind::kHeapObject);
+  }
   static UseInfo CheckedSignedSmallAsTaggedSigned() {
     return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
                    TypeCheckKind::kSignedSmall);
@@ -260,7 +267,8 @@ class RepresentationChanger final {
                                          UseInfo use_info);
   Node* GetTaggedPointerRepresentationFor(Node* node,
                                           MachineRepresentation output_rep,
-                                          Type* output_type);
+                                          Type* output_type, Node* use_node,
+                                          UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type* output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
@@ -284,8 +292,10 @@ class RepresentationChanger final {
   Node* InsertChangeFloat32ToFloat64(Node* node);
   Node* InsertChangeFloat64ToInt32(Node* node);
   Node* InsertChangeFloat64ToUint32(Node* node);
+  Node* InsertChangeInt32ToFloat64(Node* node);
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
+  Node* InsertChangeUint32ToFloat64(Node* node);
 
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
 

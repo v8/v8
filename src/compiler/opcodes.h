@@ -179,6 +179,7 @@
   V(ChangeInt32ToTagged)             \
   V(ChangeUint32ToTagged)            \
   V(ChangeFloat64ToTagged)           \
+  V(ChangeFloat64ToTaggedPointer)    \
   V(ChangeTaggedToBit)               \
   V(ChangeBitToTagged)               \
   V(TruncateTaggedToWord32)          \
@@ -201,7 +202,8 @@
   V(CheckedTaggedToInt32)             \
   V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)           \
-  V(CheckedTaggedToTaggedSigned)
+  V(CheckedTaggedToTaggedSigned)      \
+  V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
