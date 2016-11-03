@@ -96,7 +96,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Scope* outer_scope_;
     Scope* top_inner_scope_;
     VariableProxy* top_unresolved_;
-    int top_local_;
+    ThreadedList<Variable>::Iterator top_local_;
     ThreadedList<Declaration>::Iterator top_decl_;
   };
 
@@ -155,7 +155,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }
 
-  ZoneList<Variable*>* locals() { return &locals_; }
+  ThreadedList<Variable>* locals() { return &locals_; }
 
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
@@ -429,14 +429,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
                     VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
-    bool added;
-    Variable* var =
-        variables_.Declare(zone, scope, name, mode, kind, initialization_flag,
-                           maybe_assigned_flag, &added);
-    if (added) locals_.Add(var, zone);
-    return var;
-  }
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
@@ -459,8 +452,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   VariableMap variables_;
   // In case of non-scopeinfo-backed scopes, this contains the variables of the
   // map above in order of addition.
-  // TODO(verwaest): Thread through Variable.
-  ZoneList<Variable*> locals_;
+  ThreadedList<Variable> locals_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
   VariableProxy* unresolved_;
@@ -737,12 +729,7 @@ class DeclarationScope : public Scope {
   // Adds a local variable in this scope's locals list. This is for adjusting
   // the scope of temporaries and do-expression vars when desugaring parameter
   // initializers.
-  void AddLocal(Variable* var) {
-    DCHECK(!already_resolved_);
-    // Temporaries are only placed in ClosureScopes.
-    DCHECK_EQ(GetClosureScope(), this);
-    locals_.Add(var, zone());
-  }
+  void AddLocal(Variable* var);
 
   void DeclareSloppyBlockFunction(const AstRawString* name,
                                   SloppyBlockFunctionStatement* statement) {

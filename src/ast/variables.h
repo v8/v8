@@ -123,6 +123,8 @@ class Variable final : public ZoneObject {
     return mode == VAR ? kCreatedInitialized : kNeedsInitialization;
   }
 
+  typedef ThreadedList<Variable> List;
+
  private:
   Scope* scope_;
   const AstRawString* name_;
@@ -132,6 +134,7 @@ class Variable final : public ZoneObject {
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
+  Variable* next_;
   int index_;
   int initializer_position_;
   uint16_t bit_field_;
@@ -150,6 +153,11 @@ class Variable final : public ZoneObject {
   class MaybeAssignedFlagField
       : public BitField16<MaybeAssignedFlag, InitializationFlagField::kNext,
                           2> {};
+  Variable** next() { return &next_; }
+  friend List;
+  // To reset next to nullptr upon resetting after preparsing.
+  // TODO(verwaest): Remove once we properly preparse parameters.
+  friend class DeclarationScope;
 };
 }  // namespace internal
 }  // namespace v8

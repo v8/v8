@@ -96,7 +96,6 @@ Scope::Scope(Zone* zone)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
-      locals_(4, zone),
       scope_type_(SCRIPT_SCOPE) {
   SetDefaults();
 }
@@ -105,7 +104,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     : zone_(zone),
       outer_scope_(outer_scope),
       variables_(zone),
-      locals_(4, zone),
       scope_type_(scope_type) {
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
@@ -119,7 +117,7 @@ Scope::Snapshot::Snapshot(Scope* scope)
     : outer_scope_(scope),
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_),
-      top_local_(scope->GetClosureScope()->locals_.length()),
+      top_local_(scope->GetClosureScope()->locals_.end()),
       top_decl_(scope->GetClosureScope()->decls_.end()) {}
 
 DeclarationScope::DeclarationScope(Zone* zone,
@@ -209,7 +207,6 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
-      locals_(0, zone),
       scope_info_(scope_info),
       scope_type_(scope_type) {
   DCHECK(!scope_info.is_null());
@@ -238,7 +235,6 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
-      locals_(0, zone),
       scope_info_(scope_info),
       scope_type_(CATCH_SCOPE) {
   SetDefaults();
@@ -684,13 +680,32 @@ Scope* Scope::FinalizeBlockScope() {
   return NULL;
 }
 
+void DeclarationScope::AddLocal(Variable* var) {
+  DCHECK(!already_resolved_);
+  // Temporaries are only placed in ClosureScopes.
+  DCHECK_EQ(GetClosureScope(), this);
+  locals_.Add(var);
+}
+
+Variable* Scope::Declare(Zone* zone, Scope* scope, const AstRawString* name,
+                         VariableMode mode, VariableKind kind,
+                         InitializationFlag initialization_flag,
+                         MaybeAssignedFlag maybe_assigned_flag) {
+  bool added;
+  Variable* var =
+      variables_.Declare(zone, scope, name, mode, kind, initialization_flag,
+                         maybe_assigned_flag, &added);
+  if (added) locals_.Add(var);
+  return var;
+}
+
 void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   DCHECK_EQ(new_parent, outer_scope_->inner_scope_);
   DCHECK_EQ(new_parent->outer_scope_, outer_scope_);
   DCHECK_EQ(new_parent, new_parent->GetClosureScope());
   DCHECK_NULL(new_parent->inner_scope_);
   DCHECK_NULL(new_parent->unresolved_);
-  DCHECK_EQ(0, new_parent->locals_.length());
+  DCHECK(new_parent->locals_.is_empty());
   Scope* inner_scope = new_parent->sibling_;
   if (inner_scope != top_inner_scope_) {
     for (; inner_scope->sibling() != top_inner_scope_;
@@ -722,13 +737,13 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   // name in the closure-scope. See
   // test/mjsunit/harmony/default-parameter-do-expression.js.
   DeclarationScope* outer_closure = outer_scope_->GetClosureScope();
-  for (int i = top_local_; i < outer_closure->locals_.length(); i++) {
-    Variable* local = outer_closure->locals_.at(i);
+
+  new_parent->locals_.MoveTail(outer_closure->locals(), top_local_);
+  for (Variable* local : new_parent->locals_) {
     DCHECK(local->mode() == TEMPORARY || local->mode() == VAR);
     DCHECK_EQ(local->scope(), local->scope()->GetClosureScope());
     DCHECK_NE(local->scope(), new_parent);
     local->set_scope(new_parent);
-    new_parent->AddLocal(local);
     if (local->mode() == VAR) {
       outer_closure->variables_.Remove(local);
       new_parent->variables_.Add(new_parent->zone(), local);
@@ -1238,7 +1253,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 
   // Reset all non-trivial members.
   decls_.Clear();
-  locals_.Rewind(0);
+  locals_.Clear();
   sloppy_block_function_map_.Clear();
   variables_.Clear();
   // Make sure we won't walk the scope tree from here on.
@@ -1255,10 +1270,14 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
     for (int i = 0; i < params_.length(); i++) {
       Variable* var = params_[i];
       if (var->mode() == TEMPORARY) {
-        locals_.Add(var, zone());
+        // TODO(verwaest): Remove and unfriend DeclarationScope from Variable.
+        *var->next() = nullptr;
+        locals_.Add(var);
       } else if (variables_.Lookup(var->raw_name()) == nullptr) {
+        // TODO(verwaest): Remove and unfriend DeclarationScope from Variable.
+        *var->next() = nullptr;
         variables_.Add(zone(), var);
-        locals_.Add(var, zone());
+        locals_.Add(var);
       }
     }
   } else {
@@ -1884,8 +1903,8 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
 }
 
 void Scope::AllocateNonParameterLocalsAndDeclaredGlobals() {
-  for (int i = 0; i < locals_.length(); i++) {
-    AllocateNonParameterLocal(locals_[i]);
+  for (Variable* local : locals_) {
+    AllocateNonParameterLocal(local);
   }
 
   if (is_declaration_scope()) {

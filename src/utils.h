@@ -1648,6 +1648,15 @@ class ThreadedList final {
     *tail_ = nullptr;
   }
 
+  void MoveTail(ThreadedList<T>* parent, Iterator location) {
+    if (parent->end() != location) {
+      DCHECK_NULL(*tail_);
+      *tail_ = *location;
+      tail_ = parent->tail_;
+      parent->Rewind(location);
+    }
+  }
+
   bool is_empty() const { return head_ == nullptr; }
 
   // Slow. For testing purposes.

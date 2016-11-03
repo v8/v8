@@ -19,6 +19,7 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
     : scope_(scope),
       name_(name),
       local_if_not_shadowed_(nullptr),
+      next_(nullptr),
       index_(-1),
       initializer_position_(kNoSourcePosition),
       bit_field_(MaybeAssignedFlagField::encode(maybe_assigned_flag) |

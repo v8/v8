@@ -58,7 +58,6 @@ bool ScopeInfo::Equals(ScopeInfo* other) const {
 Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
                                     MaybeHandle<ScopeInfo> outer_scope) {
   // Collect variables.
-  ZoneList<Variable*>* locals = scope->locals();
   int stack_local_count = 0;
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -67,8 +66,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   // slot index indicates at which offset a particular scope starts in the
   // parent declaration scope.
   int first_slot_index = 0;
-  for (int i = 0; i < locals->length(); i++) {
-    Variable* var = locals->at(i);
+  for (Variable* var : *scope->locals()) {
     switch (var->location()) {
       case VariableLocation::LOCAL:
         if (stack_local_count == 0) first_slot_index = var->index();
@@ -198,8 +196,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   int context_local_info_base = context_local_base + context_local_count;
   int module_var_entry = scope_info->ModuleVariablesIndex();
 
-  for (int i = 0; i < locals->length(); ++i) {
-    Variable* var = locals->at(i);
+  for (Variable* var : *scope->locals()) {
     switch (var->location()) {
       case VariableLocation::LOCAL: {
         int local_index = var->index() - first_slot_index;

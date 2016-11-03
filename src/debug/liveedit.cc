@@ -1900,9 +1900,7 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
   Scope* current_scope = scope;
   while (current_scope != NULL) {
     HandleScope handle_scope(isolate_);
-    ZoneList<Variable*>* locals = current_scope->locals();
-    for (int i = 0; i < locals->length(); i++) {
-      Variable* var = locals->at(i);
+    for (Variable* var : *current_scope->locals()) {
       if (!var->IsContextSlot()) continue;
       int context_index = var->index() - Context::MIN_CONTEXT_SLOTS;
       int location = scope_info_length + context_index * 2;
