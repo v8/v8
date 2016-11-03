@@ -33,12 +33,12 @@ class BytecodeGraphBuilder {
                        SourcePositionTable* source_positions);
 
   // Creates a graph by visiting bytecodes.
-  bool CreateGraph();
+  bool CreateGraph(bool stack_check = true);
 
  private:
   class Environment;
 
-  void VisitBytecodes();
+  void VisitBytecodes(bool stack_check);
 
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();

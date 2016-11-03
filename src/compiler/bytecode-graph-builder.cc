@@ -569,7 +569,7 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   return VectorSlotPair(feedback_vector(), slot);
 }
 
-bool BytecodeGraphBuilder::CreateGraph() {
+bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
   // context and closure.
@@ -581,7 +581,7 @@ bool BytecodeGraphBuilder::CreateGraph() {
                   GetFunctionContext());
   set_environment(&env);
 
-  VisitBytecodes();
+  VisitBytecodes(stack_check);
 
   // Finish the basic structure of the graph.
   DCHECK_NE(0u, exit_controls_.size());
@@ -641,7 +641,7 @@ void BytecodeGraphBuilder::ClearNonLiveSlotsInFrameStates() {
   }
 }
 
-void BytecodeGraphBuilder::VisitBytecodes() {
+void BytecodeGraphBuilder::VisitBytecodes(bool stack_check) {
   BytecodeBranchAnalysis analysis(bytecode_array(), local_zone());
   BytecodeLoopAnalysis loop_analysis(bytecode_array(), &analysis, local_zone());
   analysis.Analyze();
@@ -655,7 +655,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
       bytecode_array()->source_position_table());
 
   BuildOSRNormalEntryPoint();
-  while (!iterator.done()) {
+  for (; !iterator.done(); iterator.Advance()) {
     int current_offset = iterator.current_offset();
     UpdateCurrentSourcePosition(&source_position_iterator, current_offset);
     EnterAndExitExceptionHandlers(current_offset);
@@ -663,6 +663,13 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     if (environment() != nullptr) {
       BuildLoopHeaderEnvironment(current_offset);
       BuildOSRLoopEntryPoint(current_offset);
+
+      // Skip the first stack check if stack_check is false
+      if (!stack_check &&
+          iterator.current_bytecode() == interpreter::Bytecode::kStackCheck) {
+        stack_check = true;
+        continue;
+      }
 
       switch (iterator.current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
@@ -673,7 +680,6 @@ void BytecodeGraphBuilder::VisitBytecodes() {
 #undef BYTECODE_CODE
       }
     }
-    iterator.Advance();
   }
 
   set_branch_analysis(nullptr);
