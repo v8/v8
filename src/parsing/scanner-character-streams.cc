@@ -537,7 +537,7 @@ size_t OneByteExternalStreamingStream::FillBuffer(size_t position) {
   return len;
 }
 
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
 // ----------------------------------------------------------------------------
 // TwoByteExternalStreamingStream
 //
@@ -703,6 +703,7 @@ bool TwoByteExternalBufferedStream::ReadBlock() {
     DCHECK_EQ(position, pos());
     return true;
   } else {
+    buffer_start_ = buffer_;
     buffer_pos_ = position;
     buffer_cursor_ = buffer_;
     buffer_end_ = buffer_ + FillBuffer(position, chunk_no);
@@ -714,6 +715,8 @@ bool TwoByteExternalBufferedStream::ReadBlock() {
 
 size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
                                                  size_t chunk_no) {
+  DCHECK_EQ(chunks_[chunk_no].byte_pos % 2, 1);
+  bool odd_start = true;
   // Align buffer_pos_ to the size of the buffer.
   {
     size_t new_pos = position / kBufferSize * kBufferSize;
@@ -722,6 +725,7 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
       buffer_pos_ = new_pos;
       buffer_cursor_ = buffer_start_ + (position - buffer_pos_);
       position = new_pos;
+      odd_start = chunks_[chunk_no].byte_pos % 2;
     }
   }
 
@@ -742,18 +746,18 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
   }
 
   // Common case: character is in current chunk.
-  DCHECK_LE(current->byte_pos, 2 * position + 1);
+  DCHECK_LE(current->byte_pos, 2 * position + odd_start);
   DCHECK_LT(2 * position + 1, current->byte_pos + current->byte_length);
 
   // Copy characters from current chunk starting from chunk_pos to the end of
   // buffer or chunk.
   size_t chunk_pos = position - current->byte_pos / 2;
-  bool middle_of_chunk = chunk_pos != 0;
+  size_t start_offset = odd_start && chunk_pos != 0;
   size_t bytes_to_move =
-      i::Min(2 * kBufferSize - !middle_of_chunk,
-             current->byte_length - 2 * chunk_pos + middle_of_chunk);
-  i::MemMove(reinterpret_cast<uint8_t*>(buffer_) + !middle_of_chunk,
-             current->data + 2 * chunk_pos - middle_of_chunk, bytes_to_move);
+      i::Min(2 * kBufferSize - lonely_byte,
+             current->byte_length - 2 * chunk_pos + start_offset);
+  i::MemMove(reinterpret_cast<uint8_t*>(buffer_) + lonely_byte,
+             current->data + 2 * chunk_pos - start_offset, bytes_to_move);
 
   // Fill up the rest of the buffer if there is space and data left.
   totalLength += bytes_to_move;
@@ -761,10 +765,11 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
   if (position - buffer_pos_ < kBufferSize) {
     chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
     current = &chunks_[chunk_no];
+    odd_start = current->byte_pos % 2;
     bytes_to_move = i::Min(2 * kBufferSize - totalLength, current->byte_length);
-    while (bytes_to_move && current->byte_pos % 2) {
+    while (bytes_to_move) {
       // Common case: character is in current chunk.
-      DCHECK_LE(current->byte_pos, 2 * position + 1);
+      DCHECK_LE(current->byte_pos, 2 * position + odd_start);
       DCHECK_LT(2 * position + 1, current->byte_pos + current->byte_length);
 
       i::MemMove(reinterpret_cast<uint8_t*>(buffer_) + totalLength,
@@ -773,6 +778,7 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
       position = (current->byte_pos + current->byte_length) / 2;
       chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
       current = &chunks_[chunk_no];
+      odd_start = current->byte_pos % 2;
       bytes_to_move =
           i::Min(2 * kBufferSize - totalLength, current->byte_length);
     }
@@ -820,7 +826,7 @@ Utf16CharacterStream* ScannerStream::For(
     v8::ScriptCompiler::StreamedSource::Encoding encoding) {
   switch (encoding) {
     case v8::ScriptCompiler::StreamedSource::TWO_BYTE:
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
       return new TwoByteExternalStreamingStream(source_stream);
 #else
       return new TwoByteExternalBufferedStream(source_stream);
