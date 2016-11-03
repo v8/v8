@@ -5552,8 +5552,7 @@ void Heap::NotifyDeserializationComplete() {
 }
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  DCHECK_NOT_NULL(tracer);
-  CHECK_NULL(embedder_heap_tracer_);
+  DCHECK_EQ(gc_state_, HeapState::NOT_IN_GC);
   embedder_heap_tracer_ = tracer;
 }
 
