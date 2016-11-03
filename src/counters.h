@@ -764,6 +764,7 @@ class RuntimeCallTimer {
   V(LoadIC_LoadFieldStub)                       \
   V(LoadIC_LoadGlobal)                          \
   V(LoadIC_LoadInterceptor)                     \
+  V(LoadIC_LoadNonexistentDH)                   \
   V(LoadIC_LoadNonexistent)                     \
   V(LoadIC_LoadNormal)                          \
   V(LoadIC_LoadScriptContextFieldStub)          \

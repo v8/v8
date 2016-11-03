@@ -859,7 +859,7 @@ template <bool fill_array>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                         Handle<JSObject> holder, Handle<FixedArray> array,
                         Handle<Name> name) {
-  DCHECK(holder->HasFastProperties());
+  DCHECK(holder.is_null() || holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
   if (receiver_map->IsJSGlobalObjectMap()) {
@@ -872,11 +872,11 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
   HandleScope scope(isolate);
   int checks_count = 0;
 
-  // Switch to custom compiled handler if the prototype chain contains global
-  // or dictionary objects.
+  // Create/count entries for each global or dictionary prototype appeared in
+  // the prototype chain contains from receiver till holder.
   for (PrototypeIterator iter(receiver_map); !iter.IsAtEnd(); iter.Advance()) {
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    if (*current == *holder) break;
+    if (holder.is_identical_to(current)) break;
     Handle<Map> current_map(current->map(), isolate);
 
     if (current_map->IsJSGlobalObjectMap()) {
@@ -950,6 +950,41 @@ Handle<Object> LoadIC::SimpleLoadFromPrototype(Handle<Map> receiver_map,
   return handler_array;
 }
 
+Handle<Object> LoadIC::SimpleLoadNonExistent(Handle<Map> receiver_map,
+                                             Handle<Name> name) {
+  Handle<JSObject> holder;  // null handle
+  int checks_count = GetPrototypeCheckCount(receiver_map, holder);
+  DCHECK_LE(0, checks_count);
+  DCHECK(!receiver_map->IsJSGlobalObjectMap());
+
+  Handle<Object> smi_handler = LoadHandler::LoadNonExistent(
+      isolate(), receiver_map->is_dictionary_map());
+
+  Handle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+  if (validity_cell.is_null()) {
+    // This must be a case when receiver's prototype is null.
+    DCHECK_EQ(*isolate()->factory()->null_value(),
+              receiver_map->GetPrototypeChainRootMap(isolate())->prototype());
+    DCHECK_EQ(0, checks_count);
+    validity_cell = handle(Smi::FromInt(0), isolate());
+  }
+
+  Factory* factory = isolate()->factory();
+  if (checks_count == 0) {
+    return factory->NewTuple3(factory->null_value(), smi_handler,
+                              validity_cell);
+  }
+  Handle<FixedArray> handler_array(factory->NewFixedArray(
+      LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
+  handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
+  handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
+  handler_array->set(LoadHandler::kHolderCellIndex, *factory->null_value());
+  InitPrototypeChecks<true>(isolate(), receiver_map, holder, handler_array,
+                            name);
+  return handler_array;
+}
+
 bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
   DCHECK(lookup->state() == LookupIterator::ACCESSOR);
   Isolate* isolate = lookup->isolate();
@@ -1004,7 +1039,10 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       lookup->state() == LookupIterator::ACCESS_CHECK) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
-    if (kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC) {
+    if (kind() == Code::LOAD_IC) {
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+      code = SimpleLoadNonExistent(receiver_map(), lookup->name());
+    } else if (kind() == Code::LOAD_GLOBAL_IC) {
       code = NamedLoadHandlerCompiler::ComputeLoadNonexistent(lookup->name(),
                                                               receiver_map());
       // TODO(jkummerow/verwaest): Introduce a builtin that handles this case.

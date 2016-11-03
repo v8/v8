@@ -16,12 +16,12 @@ namespace internal {
 // A set of bit fields representing Smi handlers for loads.
 class LoadHandler {
  public:
-  enum Kind { kForElements, kForFields, kForConstants };
+  enum Kind { kForElements, kForFields, kForConstants, kForNonExistent };
   class KindBits : public BitField<Kind, 0, 2> {};
 
   // Defines whether negative lookup check should be done on receiver object.
-  // Applicable to kForFields and kForConstants kinds only when loading value
-  // from prototype chain. Ignored when loading from holder.
+  // Applicable to kForFields, kForConstants and kForNonExistent kinds only when
+  // loading value from prototype chain. Ignored when loading from holder.
   class DoNegativeLookupOnReceiverBits
       : public BitField<bool, KindBits::kNext, 1> {};
 
@@ -85,6 +85,11 @@ class LoadHandler {
   // check is a part of a prototype chain check.
   static inline Handle<Object> EnableNegativeLookupOnReceiver(
       Isolate* isolate, Handle<Object> smi_handler);
+
+  // Creates a Smi-handler for loading a non-existent property. Works only as
+  // a part of prototype chain check.
+  static inline Handle<Object> LoadNonExistent(
+      Isolate* isolate, bool do_negative_lookup_on_receiver);
 
   // Creates a Smi-handler for loading an element.
   static inline Handle<Object> LoadElement(Isolate* isolate,

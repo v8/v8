@@ -40,6 +40,14 @@ Handle<Object> LoadHandler::EnableNegativeLookupOnReceiver(
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Object> LoadHandler::LoadNonExistent(
+    Isolate* isolate, bool do_negative_lookup_on_receiver) {
+  int config =
+      KindBits::encode(kForNonExistent) |
+      DoNegativeLookupOnReceiverBits::encode(do_negative_lookup_on_receiver);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Object> LoadHandler::LoadElement(Isolate* isolate,
                                         ElementsKind elements_kind,
                                         bool convert_hole_to_undefined,

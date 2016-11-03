@@ -5632,13 +5632,18 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
             LoadHandler::kValidityCellOffset);
 
   // Both FixedArray and Tuple3 handlers have validity cell at the same offset.
+  Label validity_cell_check_done(this);
   Node* validity_cell =
       LoadObjectField(handler, LoadHandler::kValidityCellOffset);
+  GotoIf(WordEqual(validity_cell, IntPtrConstant(0)),
+         &validity_cell_check_done);
   Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
   GotoIf(WordNotEqual(cell_value,
                       SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
          miss);
+  Goto(&validity_cell_check_done);
 
+  Bind(&validity_cell_check_done);
   Node* smi_handler = LoadObjectField(handler, LoadHandler::kSmiHandlerOffset);
   CSA_ASSERT(TaggedIsSmi(smi_handler));
 
@@ -5660,6 +5665,12 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
 
   Bind(&tuple_handler);
   {
+    Label load_existent(this);
+    GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
+    // This is a handler for a load of a non-existent value.
+    Return(UndefinedConstant());
+
+    Bind(&load_existent);
     Node* holder = LoadWeakCellValue(maybe_holder_cell);
     // The |holder| is guaranteed to be alive at this point since we passed
     // both the receiver map check and the validity cell check.
@@ -5682,10 +5693,16 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
                   },
                   1, IndexAdvanceMode::kPost);
 
-    Node* holder_cell = LoadFixedArrayElement(
+    Node* maybe_holder_cell = LoadFixedArrayElement(
         handler, IntPtrConstant(LoadHandler::kHolderCellIndex), 0,
         INTPTR_PARAMETERS);
-    Node* holder = LoadWeakCellValue(holder_cell);
+    Label load_existent(this);
+    GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
+    // This is a handler for a load of a non-existent value.
+    Return(UndefinedConstant());
+
+    Bind(&load_existent);
+    Node* holder = LoadWeakCellValue(maybe_holder_cell);
     // The |holder| is guaranteed to be alive at this point since we passed
     // the receiver map check, the validity cell check and the prototype chain
     // check.
