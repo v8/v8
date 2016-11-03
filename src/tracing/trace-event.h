@@ -249,10 +249,20 @@ enum CategoryGroupEnabledFlags {
   INTERNAL_TRACE_EVENT_UID(ScopedContext)                                  \
   INTERNAL_TRACE_EVENT_UID(scoped_context)(context);
 
+#define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() \
+  base::NoBarrier_Load(&v8::internal::tracing::kRuntimeCallStatsTracingEnabled)
+
 #define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name) \
   INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
 
 #define INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)  \
+  {                                                                            \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(                                    \
+        TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));                        \
+    base::NoBarrier_Store(                                                     \
+        &v8::internal::tracing::kRuntimeCallStatsTracingEnabled,               \
+        INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE());     \
+  }                                                                            \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                      \
   v8::internal::tracing::CallStatsScopedTracer INTERNAL_TRACE_EVENT_UID(       \
       tracer);                                                                 \

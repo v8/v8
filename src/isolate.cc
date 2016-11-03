@@ -42,7 +42,6 @@
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
 #include "src/snapshot/deserializer.h"
-#include "src/tracing/tracing-category-observer.h"
 #include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -2738,8 +2737,8 @@ void Isolate::DumpAndResetCompilationStats() {
   turbo_statistics_ = nullptr;
   delete hstatistics_;
   hstatistics_ = nullptr;
-  if (V8_UNLIKELY(FLAG_runtime_stats ==
-                  v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
+  if (FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED()) {
     OFStream os(stdout);
     counters()->runtime_call_stats()->Print(os);
     counters()->runtime_call_stats()->Reset();

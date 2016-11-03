@@ -2831,7 +2831,8 @@ int Shell::Main(int argc, char* argv[]) {
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing_controller->Initialize(trace_buffer);
     if (!i::FLAG_verify_predictable) {
-      platform::SetTracingController(g_platform, tracing_controller.release());
+      platform::SetTracingController(g_platform, tracing_controller.get());
+      tracing_controller.release();
     }
   }
 

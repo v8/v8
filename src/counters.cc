@@ -344,8 +344,9 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
-  if (V8_LIKELY(FLAG_runtime_stats == 0)) return;
-
+  if (!FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())
+    return;
 #define RESET_COUNTER(name) this->name.Reset();
   FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
 #undef RESET_COUNTER

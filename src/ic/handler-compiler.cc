@@ -212,7 +212,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+  if (FLAG_runtime_call_stats) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register reg = Frontend(name);
@@ -224,7 +224,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
     int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+  if (FLAG_runtime_call_stats) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
@@ -578,7 +578,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization, int accessor_index,
     Handle<Code> slow_stub) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+  if (FLAG_runtime_call_stats) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);

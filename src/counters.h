@@ -853,13 +853,14 @@ class RuntimeCallStats {
   bool in_use_;
 };
 
-#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name) \
-  do {                                                  \
-    if (V8_UNLIKELY(FLAG_runtime_stats)) {              \
-      RuntimeCallStats::CorrectCurrentCounterId(        \
-          isolate->counters()->runtime_call_stats(),    \
-          &RuntimeCallStats::counter_name);             \
-    }                                                   \
+#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name)                 \
+  do {                                                                  \
+    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() || \
+                    FLAG_runtime_call_stats)) {                         \
+      RuntimeCallStats::CorrectCurrentCounterId(                        \
+          isolate->counters()->runtime_call_stats(),                    \
+          &RuntimeCallStats::counter_name);                             \
+    }                                                                   \
   } while (false)
 
 #define TRACE_HANDLER_STATS(isolate, counter_name) \
