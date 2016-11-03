@@ -31,8 +31,7 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
   STATIC_ASSERT(FIRST_INCREMENTAL_SCOPE == 0);
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
-      FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     RuntimeCallStats::Enter(
         tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_,
         &RuntimeCallStats::GC);
@@ -43,8 +42,7 @@ GCTracer::Scope::~Scope() {
   tracer_->AddScopeSample(
       scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
-      FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     RuntimeCallStats::Leave(
         tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_);
   }
@@ -205,8 +203,7 @@ void GCTracer::Start(GarbageCollector collector,
                                                           committed_memory);
   counters->aggregated_memory_heap_used()->AddSample(start_time, used_memory);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
-      FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     RuntimeCallStats::Enter(heap_->isolate()->counters()->runtime_call_stats(),
                             &timer_, &RuntimeCallStats::GC);
   }
@@ -296,8 +293,7 @@ void GCTracer::Stop(GarbageCollector collector) {
   }
 
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
-      FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     RuntimeCallStats::Leave(heap_->isolate()->counters()->runtime_call_stats(),
                             &timer_);
   }

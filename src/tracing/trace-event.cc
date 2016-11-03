@@ -15,10 +15,6 @@ namespace v8 {
 namespace internal {
 namespace tracing {
 
-// A global flag used as a shortcut to check for the
-// v8.runtime-call-stats category due to its high frequency use.
-base::Atomic32 kRuntimeCallStatsTracingEnabled = false;
-
 v8::Platform* TraceEventHelper::GetCurrentPlatform() {
   return v8::internal::V8::GetCurrentPlatform();
 }

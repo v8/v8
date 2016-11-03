@@ -17,6 +17,7 @@ void TracingCategoryObserver::SetUp() {
   TracingCategoryObserver::instance_ = new TracingCategoryObserver();
   v8::internal::V8::GetCurrentPlatform()->AddTraceStateObserver(
       TracingCategoryObserver::instance_);
+  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));
 }
 
 void TracingCategoryObserver::TearDown() {
