@@ -14,11 +14,11 @@ namespace compiler {
 class ZoneHolder {
  public:
   explicit ZoneHolder(Isolate* isolate)
-      : zone_(isolate->allocator(), ZONE_NAME) {}
-  Zone* zone() { return &zone_; }
+      : held_zone_(isolate->allocator(), ZONE_NAME) {}
+  Zone* held_zone() { return &held_zone_; }
 
  private:
-  Zone zone_;
+  Zone held_zone_;
 };
 
 // Inherit from ZoneHolder in order to create a zone that can be passed to
@@ -30,7 +30,7 @@ class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
   CodeAssemblerTesterImpl(Isolate* isolate,
                           const CallInterfaceDescriptor& descriptor)
       : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::zone(), descriptor,
+        CodeAssemblerT(isolate, ZoneHolder::held_zone(), descriptor,
                        Code::ComputeFlags(Code::STUB), "test"),
         scope_(isolate) {}
 
@@ -38,7 +38,7 @@ class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
   CodeAssemblerTesterImpl(Isolate* isolate, int parameter_count,
                           Code::Kind kind = Code::FUNCTION)
       : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::zone(), parameter_count,
+        CodeAssemblerT(isolate, ZoneHolder::held_zone(), parameter_count,
                        Code::ComputeFlags(kind), "test"),
         scope_(isolate) {}
 
@@ -46,7 +46,7 @@ class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
   // specific flags.
   CodeAssemblerTesterImpl(Isolate* isolate, Code::Flags flags)
       : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::zone(), 0, flags, "test"),
+        CodeAssemblerT(isolate, ZoneHolder::held_zone(), 0, flags, "test"),
         scope_(isolate) {}
 
   Handle<Code> GenerateCodeCloseAndEscape() {

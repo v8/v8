@@ -8756,5 +8756,76 @@ compiler::Node* CodeStubAssembler::IsDetachedBuffer(compiler::Node* buffer) {
                         Int32Constant(0));
 }
 
+CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
+                                     compiler::Node* argc,
+                                     CodeStubAssembler::ParameterMode mode)
+    : assembler_(assembler),
+      argc_(argc),
+      arguments_(nullptr),
+      fp_(assembler->LoadFramePointer()) {
+  compiler::Node* offset = assembler->ElementOffsetFromIndex(
+      argc_, FAST_ELEMENTS, mode,
+      (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
+  arguments_ = assembler_->IntPtrAddFoldConstants(fp_, offset);
+  if (mode == CodeStubAssembler::INTEGER_PARAMETERS) {
+    argc_ = assembler->ChangeInt32ToIntPtr(argc_);
+  } else if (mode == CodeStubAssembler::SMI_PARAMETERS) {
+    argc_ = assembler->SmiUntag(argc_);
+  }
+}
+
+compiler::Node* CodeStubArguments::GetReceiver() {
+  return assembler_->Load(MachineType::AnyTagged(), arguments_,
+                          assembler_->IntPtrConstant(kPointerSize));
+}
+
+compiler::Node* CodeStubArguments::AtIndex(
+    compiler::Node* index, CodeStubAssembler::ParameterMode mode) {
+  typedef compiler::Node Node;
+  Node* negated_index = assembler_->IntPtrSubFoldConstants(
+      assembler_->IntPtrOrSmiConstant(0, mode), index);
+  Node* offset =
+      assembler_->ElementOffsetFromIndex(negated_index, FAST_ELEMENTS, mode, 0);
+  return assembler_->Load(MachineType::AnyTagged(), arguments_, offset);
+}
+
+compiler::Node* CodeStubArguments::AtIndex(int index) {
+  return AtIndex(assembler_->IntPtrConstant(index));
+}
+
+void CodeStubArguments::ForEach(const CodeStubAssembler::VariableList& vars,
+                                CodeStubArguments::ForEachBodyFunction body,
+                                compiler::Node* first, compiler::Node* last,
+                                CodeStubAssembler::ParameterMode mode) {
+  assembler_->Comment("CodeStubArguments::ForEach");
+  DCHECK_IMPLIES(first == nullptr || last == nullptr,
+                 mode == CodeStubAssembler::INTPTR_PARAMETERS);
+  if (first == nullptr) {
+    first = assembler_->IntPtrOrSmiConstant(0, mode);
+  }
+  if (last == nullptr) {
+    last = argc_;
+  }
+  compiler::Node* start = assembler_->IntPtrSubFoldConstants(
+      arguments_,
+      assembler_->ElementOffsetFromIndex(first, FAST_ELEMENTS, mode));
+  compiler::Node* end = assembler_->IntPtrSubFoldConstants(
+      arguments_,
+      assembler_->ElementOffsetFromIndex(last, FAST_ELEMENTS, mode));
+  assembler_->BuildFastLoop(
+      vars, MachineType::PointerRepresentation(), start, end,
+      [body](CodeStubAssembler* assembler, compiler::Node* current) {
+        Node* arg = assembler->Load(MachineType::AnyTagged(), current);
+        body(assembler, arg);
+      },
+      -kPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
+}
+
+void CodeStubArguments::PopAndReturn(compiler::Node* value) {
+  assembler_->PopAndReturn(
+      assembler_->IntPtrAddFoldConstants(argc_, assembler_->IntPtrConstant(1)),
+      value);
+}
+
 }  // namespace internal
 }  // namespace v8

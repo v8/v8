@@ -1917,5 +1917,63 @@ TEST(TwoToTwoByteStringCopy) {
            Handle<SeqTwoByteString>::cast(string2)->GetChars()[4]);
 }
 
+TEST(Arguments) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
+
+  m.Assert(m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
+  m.Assert(m.WordEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
+  m.Assert(m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
+
+  m.Return(arguments.GetReceiver());
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
+                                  Handle<Smi>(Smi::FromInt(12), isolate),
+                                  Handle<Smi>(Smi::FromInt(13), isolate),
+                                  Handle<Smi>(Smi::FromInt(14), isolate))
+                              .ToHandleChecked();
+  CHECK_EQ(*isolate->factory()->undefined_value(), *result);
+}
+
+TEST(ArgumentsForEach) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
+
+  CodeStubAssemblerTester::Variable sum(&m,
+                                        MachineType::PointerRepresentation());
+  CodeStubAssemblerTester::VariableList list({&sum}, m.zone());
+
+  sum.Bind(m.IntPtrConstant(0));
+
+  arguments.ForEach(list, [&m, &sum](CodeStubAssembler* assembler, Node* arg) {
+    sum.Bind(assembler->IntPtrAdd(sum.value(), arg));
+  });
+
+  m.Return(sum.value());
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
+                                  Handle<Smi>(Smi::FromInt(12), isolate),
+                                  Handle<Smi>(Smi::FromInt(13), isolate),
+                                  Handle<Smi>(Smi::FromInt(14), isolate))
+                              .ToHandleChecked();
+  CHECK_EQ(Smi::FromInt(12 + 13 + 14), *result);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1108,6 +1108,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* IsDetachedBuffer(compiler::Node* buffer);
 
  private:
+  friend class CodeStubArguments;
+
   enum ElementSupport { kOnlyProperties, kSupportElements };
 
   void DescriptorLookupLinear(compiler::Node* unique_name,
@@ -1206,6 +1208,53 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                      AllocationFlags flags);
 
   static const int kElementLoopUnrollThreshold = 8;
+};
+
+class CodeStubArguments {
+ public:
+  // |argc| specifies the number of arguments passed to the builtin excluding
+  // the receiver.
+  CodeStubArguments(CodeStubAssembler* assembler, compiler::Node* argc,
+                    CodeStubAssembler::ParameterMode mode =
+                        CodeStubAssembler::INTPTR_PARAMETERS);
+
+  compiler::Node* GetReceiver();
+
+  // |index| is zero-based and does not include the receiver
+  compiler::Node* AtIndex(compiler::Node* index,
+                          CodeStubAssembler::ParameterMode mode =
+                              CodeStubAssembler::INTPTR_PARAMETERS);
+
+  compiler::Node* AtIndex(int index);
+
+  typedef std::function<void(CodeStubAssembler* assembler, compiler::Node* arg)>
+      ForEachBodyFunction;
+
+  // Iteration doesn't include the receiver. |first| and |last| are zero-based.
+  void ForEach(ForEachBodyFunction body, compiler::Node* first = nullptr,
+               compiler::Node* last = nullptr,
+               CodeStubAssembler::ParameterMode mode =
+                   CodeStubAssembler::INTPTR_PARAMETERS) {
+    CodeStubAssembler::VariableList list(0, assembler_->zone());
+    ForEach(list, body, first, last);
+  }
+
+  // Iteration doesn't include the receiver. |first| and |last| are zero-based.
+  void ForEach(const CodeStubAssembler::VariableList& vars,
+               ForEachBodyFunction body, compiler::Node* first = nullptr,
+               compiler::Node* last = nullptr,
+               CodeStubAssembler::ParameterMode mode =
+                   CodeStubAssembler::INTPTR_PARAMETERS);
+
+  void PopAndReturn(compiler::Node* value);
+
+ private:
+  compiler::Node* GetArguments();
+
+  CodeStubAssembler* assembler_;
+  compiler::Node* argc_;
+  compiler::Node* arguments_;
+  compiler::Node* fp_;
 };
 
 #define CSA_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
