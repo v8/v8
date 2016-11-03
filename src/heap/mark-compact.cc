@@ -290,9 +290,6 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
       TraceFragmentation(heap()->map_space());
     }
 
-    heap()->old_space()->EvictEvacuationCandidatesFromLinearAllocationArea();
-    heap()->code_space()->EvictEvacuationCandidatesFromLinearAllocationArea();
-
     compacting_ = evacuation_candidates_.length() > 0;
   }
 
@@ -641,8 +638,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(!sweeping_in_progress());
   DCHECK(!FLAG_concurrent_sweeping ||
          sweeper().IsSweepingCompleted(space->identity()));
+  Page* owner_of_linear_allocation_area =
+      space->top() == space->limit()
+          ? nullptr
+          : Page::FromAllocationAreaAddress(space->top());
   for (Page* p : *space) {
-    if (p->NeverEvacuate()) continue;
+    if (p->NeverEvacuate() || p == owner_of_linear_allocation_area) continue;
     // Invariant: Evacuation candidates are just created when marking is
     // started. This means that sweeping has finished. Furthermore, at the end
     // of a GC all evacuation candidates are cleared and their slot buffers are

@@ -2800,20 +2800,6 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
 }
 
 
-void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
-  if (allocation_info_.top() >= allocation_info_.limit()) return;
-
-  if (!Page::FromAllocationAreaAddress(allocation_info_.top())->CanAllocate()) {
-    // Create filler object to keep page iterable if it was iterable.
-    int remaining =
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top());
-    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining,
-                                 ClearRecordedSlots::kNo);
-    allocation_info_.Reset(nullptr, nullptr);
-  }
-}
-
-
 HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {

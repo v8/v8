@@ -2067,8 +2067,6 @@ class PagedSpace : public Space {
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
-  void EvictEvacuationCandidatesFromLinearAllocationArea();
-
   bool CanExpand(size_t size);
 
   // Returns the number of total pages in this space.

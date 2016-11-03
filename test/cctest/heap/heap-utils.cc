@@ -193,6 +193,21 @@ void GcAndSweep(Heap* heap, AllocationSpace space) {
   }
 }
 
+void ForceEvacuationCandidate(Page* page) {
+  CHECK(FLAG_manual_evacuation_candidates_selection);
+  page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  PagedSpace* space = static_cast<PagedSpace*>(page->owner());
+  Address top = space->top();
+  Address limit = space->limit();
+  if (top < limit && Page::FromAllocationAreaAddress(top) == page) {
+    // Create filler object to keep page iterable if it was iterable.
+    int remaining = static_cast<int>(limit - top);
+    space->heap()->CreateFillerObjectAt(top, remaining,
+                                        ClearRecordedSlots::kNo);
+    space->SetTopAndLimit(nullptr, nullptr);
+  }
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
