@@ -99,7 +99,6 @@ class IncrementalMarking {
                                    CompletionAction completion_action,
                                    ForceCompletionAction force_completion,
                                    StepOrigin step_origin);
-  void AdvanceIncrementalMarkingOnAllocation();
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -219,6 +218,20 @@ class IncrementalMarking {
   void AbortBlackAllocation();
 
  private:
+  class Observer : public AllocationObserver {
+   public:
+    Observer(IncrementalMarking& incremental_marking, intptr_t step_size)
+        : AllocationObserver(step_size),
+          incremental_marking_(incremental_marking) {}
+
+    void Step(int bytes_allocated, Address, size_t) override {
+      incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
+    }
+
+   private:
+    IncrementalMarking& incremental_marking_;
+  };
+
   int64_t SpaceLeftInOldSpace();
 
   void StartMarking();
@@ -256,6 +269,8 @@ class IncrementalMarking {
 
   void IncrementIdleMarkingDelayCounter();
 
+  void AdvanceIncrementalMarkingOnAllocation();
+
   size_t StepSizeToKeepUpWithAllocations();
   size_t StepSizeToMakeProgress();
 
@@ -282,6 +297,8 @@ class IncrementalMarking {
   GCRequestType request_type_;
 
   IncrementalMarkingJob incremental_marking_job_;
+  Observer new_generation_observer_;
+  Observer old_generation_observer_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

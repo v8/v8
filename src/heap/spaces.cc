@@ -2582,15 +2582,6 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 
   owner_->heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
       Heap::kNoGCFlags, kNoGCCallbackFlags);
-  // We cannot place incremental marking step in an AllocationObserver because
-  // 1) incremental marking step can change linear allocation area.
-  // 2) allocation observers are called after allocation.
-  // 3) allocation folding assumes that the newly allocated object immediately
-  //    precedes the linear allocation area.
-  // See crbug.com/659165.
-  owner_->heap()
-      ->incremental_marking()
-      ->AdvanceIncrementalMarkingOnAllocation();
 
   size_t new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
@@ -3020,8 +3011,6 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
                                                             kNoGCCallbackFlags);
-  heap()->incremental_marking()->AdvanceIncrementalMarkingOnAllocation();
-
   AllocationStep(object->address(), object_size);
 
   if (heap()->incremental_marking()->black_allocation()) {
