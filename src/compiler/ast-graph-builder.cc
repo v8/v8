@@ -3358,7 +3358,11 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case VariableLocation::CONTEXT: {
       // Context variable (potentially up the context chain).
       int depth = current_scope()->ContextChainLength(variable->scope());
-      bool immutable = variable->maybe_assigned() == kNotAssigned;
+      // TODO(mstarzinger): The {maybe_assigned} flag computed during variable
+      // resolution is highly inaccurate and cannot be trusted. We are only
+      // taking this information into account when asm.js compilation is used.
+      bool immutable = variable->maybe_assigned() == kNotAssigned &&
+                       info()->is_function_context_specializing();
       const Operator* op =
           javascript()->LoadContext(depth, variable->index(), immutable);
       Node* value = NewNode(op, current_context());
