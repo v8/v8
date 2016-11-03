@@ -283,7 +283,7 @@ class PipelineData {
     DCHECK(frame_ == nullptr);
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
-      fixed_frame_size = CalculateFixedFrameSize(descriptor);
+      fixed_frame_size = descriptor->CalculateFixedFrameSize();
     }
     frame_ = new (instruction_zone()) Frame(fixed_frame_size);
   }
@@ -354,16 +354,6 @@ class PipelineData {
 
   // Source position output for --trace-turbo.
   std::string source_position_output_;
-
-  int CalculateFixedFrameSize(CallDescriptor* descriptor) {
-    if (descriptor->IsJSFunctionCall()) {
-      return StandardFrameConstants::kFixedSlotCount;
-    }
-    return descriptor->IsCFunctionCall()
-               ? (CommonFrameConstants::kFixedSlotCountAboveFp +
-                  CommonFrameConstants::kCPSlotCount)
-               : TypedFrameConstants::kFixedSlotCount;
-  }
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };

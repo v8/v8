@@ -187,7 +187,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // Causes the code generator to initialize the root register.
     kInitializeRootRegister = 1u << 7,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 8
+    kNoAllocate = 1u << 8,
+    // Push argument count as part of function prologue.
+    kPushArgumentCount = 1u << 9
   };
   typedef base::Flags<Flag> Flags;
 
@@ -249,6 +251,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
   bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
   bool UseNativeStack() const { return flags() & kUseNativeStack; }
+  bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
   }
@@ -295,6 +298,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   int GetStackParameterDelta(const CallDescriptor* tail_caller = nullptr) const;
 
   bool CanTailCall(const Node* call) const;
+
+  int CalculateFixedFrameSize() const;
 
  private:
   friend class Linkage;

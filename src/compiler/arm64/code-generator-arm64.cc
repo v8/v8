@@ -1795,43 +1795,57 @@ void CodeGenerator::AssembleConstructFrame() {
     __ AssertCspAligned();
   }
 
+  int fixed_frame_size = descriptor->CalculateFixedFrameSize();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+
   if (frame_access_state()->has_frame()) {
+    // Link the frame
     if (descriptor->IsJSFunctionCall()) {
       DCHECK(!descriptor->UseNativeStack());
       __ Prologue(this->info()->GeneratePreagedPrologue());
     } else {
-      if (descriptor->IsCFunctionCall()) {
-        __ Push(lr, fp);
-        __ Mov(fp, masm_.StackPointer());
-        __ Claim(frame()->GetSpillSlotCount());
-      } else {
-        __ StubPrologue(info()->GetOutputStackFrameType(),
-                        frame()->GetTotalFrameSlotCount());
-      }
+      __ Push(lr, fp);
+      __ Mov(fp, masm_.StackPointer());
     }
-
     if (!info()->GeneratePreagedPrologue()) {
       unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
     }
-  }
 
-  int shrink_slots = frame()->GetSpillSlotCount();
+    // Create OSR entry if applicable
+    if (info()->is_osr()) {
+      // TurboFan OSR-compiled functions cannot be entered directly.
+      __ Abort(kShouldNotDirectlyEnterOsrFunction);
 
-  if (info()->is_osr()) {
-    // TurboFan OSR-compiled functions cannot be entered directly.
-    __ Abort(kShouldNotDirectlyEnterOsrFunction);
+      // Unoptimized code jumps directly to this entrypoint while the
+      // unoptimized
+      // frame is still on the stack. Optimized code uses OSR values directly
+      // from
+      // the unoptimized frame. Thus, all that needs to be done is to allocate
+      // the
+      // remaining stack slots.
+      if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+      osr_pc_offset_ = __ pc_offset();
+      shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
+    }
 
-    // Unoptimized code jumps directly to this entrypoint while the unoptimized
-    // frame is still on the stack. Optimized code uses OSR values directly from
-    // the unoptimized frame. Thus, all that needs to be done is to allocate the
-    // remaining stack slots.
-    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
-    osr_pc_offset_ = __ pc_offset();
-    shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
-  }
-
-  if (descriptor->IsJSFunctionCall()) {
-    __ Claim(shrink_slots);
+    // Build remainder of frame, including accounting for and filling-in
+    // frame-specific header information, e.g. claiming the extra slot that
+    // other platforms explicitly push for STUB frames and frames recording
+    // their argument count.
+    __ Claim(shrink_slots + (fixed_frame_size & 1));
+    if (descriptor->PushArgumentCount()) {
+      __ Str(kJavaScriptCallArgCountRegister,
+             MemOperand(fp, OptimizedBuiltinFrameConstants::kArgCOffset));
+    }
+    bool is_stub_frame =
+        !descriptor->IsJSFunctionCall() && !descriptor->IsCFunctionCall();
+    if (is_stub_frame) {
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.AcquireX();
+      __ Mov(temp, Smi::FromInt(info()->GetOutputStackFrameType()));
+      __ Str(temp, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+    }
   }
 
   // Save FP registers.

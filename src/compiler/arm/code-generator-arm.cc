@@ -1690,6 +1690,9 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ Push(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
@@ -1699,7 +1702,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.

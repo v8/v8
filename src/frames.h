@@ -218,6 +218,48 @@ class StandardFrameConstants : public CommonFrameConstants {
   static const int kLastObjectOffset = kContextOffset;
 };
 
+// OptimizedBuiltinFrameConstants are used for TF-generated builtins. They
+// always have a context below the saved fp/constant pool and below that the
+// JSFunction of the executing function and below that an integer (not a Smi)
+// containing the number of arguments passed to the builtin.
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+//  -n-1 |   parameter 0   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n   |                 |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2   |  parameter n-1  |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1   |   parameter n   |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | Fixed                      |
+//       |- - - - - - - - -| Header <-- frame ptr       |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |     Context     |   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |    JSFunction   |   |   otherwise, cp = 0    |
+//       |- - - - - - - - -|   |                        |
+// 4+cp  |      argc       |   v                        |
+//       +-----------------+----                        |
+// 5+cp  |                 |   ^                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  |                 | Frame slots           (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
+class OptimizedBuiltinFrameConstants : public StandardFrameConstants {
+ public:
+  static const int kArgCSize = kPointerSize;
+  static const int kArgCOffset = -3 * kPointerSize - kCPSlotSize;
+  static const int kFixedFrameSize = kFixedFrameSizeAboveFp - kArgCOffset;
+  static const int kFixedSlotCount = kFixedFrameSize / kPointerSize;
+};
+
 // TypedFrames have a SMI type maker value below the saved FP/constant pool to
 // distinguish them from StandardFrames, which have a context in that position
 // instead.
@@ -940,6 +982,8 @@ class OptimizedFrame : public JavaScriptFrame {
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
   DeoptimizationInputData* GetDeoptimizationData(int* deopt_index) const;
+
+  Object* receiver() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 

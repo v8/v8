@@ -1285,6 +1285,19 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   return nullptr;
 }
 
+Object* OptimizedFrame::receiver() const {
+  Code* code = LookupCode();
+  if (code->kind() == Code::BUILTIN) {
+    Address argc_ptr = fp() + OptimizedBuiltinFrameConstants::kArgCOffset;
+    intptr_t argc = *reinterpret_cast<intptr_t*>(argc_ptr);
+    intptr_t args_size =
+        (StandardFrameConstants::kFixedSlotCountAboveFp + argc) * kPointerSize;
+    Address receiver_ptr = fp() + args_size;
+    return *reinterpret_cast<Object**>(receiver_ptr);
+  } else {
+    return JavaScriptFrame::receiver();
+  }
+}
 
 void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
   DCHECK(functions->length() == 0);

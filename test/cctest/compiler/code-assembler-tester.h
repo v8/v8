@@ -35,10 +35,11 @@ class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
         scope_(isolate) {}
 
   // Test generating code for a JS function (e.g. builtins).
-  CodeAssemblerTesterImpl(Isolate* isolate, int parameter_count)
+  CodeAssemblerTesterImpl(Isolate* isolate, int parameter_count,
+                          Code::Kind kind = Code::FUNCTION)
       : ZoneHolder(isolate),
         CodeAssemblerT(isolate, ZoneHolder::zone(), parameter_count,
-                       Code::ComputeFlags(Code::FUNCTION), "test"),
+                       Code::ComputeFlags(kind), "test"),
         scope_(isolate) {}
 
   // This constructor is intended to be used for creating code objects with

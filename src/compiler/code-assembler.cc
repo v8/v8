@@ -41,8 +41,11 @@ CodeAssembler::CodeAssembler(Isolate* isolate, Zone* zone,
 CodeAssembler::CodeAssembler(Isolate* isolate, Zone* zone, int parameter_count,
                              Code::Flags flags, const char* name)
     : CodeAssembler(isolate, zone,
-                    Linkage::GetJSCallDescriptor(zone, false, parameter_count,
-                                                 CallDescriptor::kNoFlags),
+                    Linkage::GetJSCallDescriptor(
+                        zone, false, parameter_count,
+                        Code::ExtractKindFromFlags(flags) == Code::BUILTIN
+                            ? CallDescriptor::kPushArgumentCount
+                            : CallDescriptor::kNoFlags),
                     flags, name) {}
 
 CodeAssembler::CodeAssembler(Isolate* isolate, Zone* zone,

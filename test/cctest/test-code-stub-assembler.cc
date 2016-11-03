@@ -1510,7 +1510,8 @@ TEST(GotoIfException) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
-  CodeStubAssemblerTester m(isolate, kNumParams);
+  // Emulate TFJ builtin
+  CodeStubAssemblerTester m(isolate, kNumParams, Code::BUILTIN);
 
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* to_string_tag =
@@ -1528,9 +1529,6 @@ TEST(GotoIfException) {
 
   Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
-
-  // Emulate TFJ builtin
-  code->set_flags(Code::ComputeFlags(Code::BUILTIN));
 
   FunctionTester ft(code, kNumParams);
   Handle<Object> result = ft.Call().ToHandleChecked();
@@ -1551,7 +1549,8 @@ TEST(GotoIfExceptionMultiple) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;  // receiver, first, second, third
-  CodeStubAssemblerTester m(isolate, kNumParams);
+  // Emulate TFJ builtin
+  CodeStubAssemblerTester m(isolate, kNumParams, Code::BUILTIN);
 
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* first_value = m.Parameter(0);
@@ -1595,9 +1594,6 @@ TEST(GotoIfExceptionMultiple) {
 
   Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
-
-  // Emulate TFJ builtin
-  code->set_flags(Code::ComputeFlags(Code::BUILTIN));
 
   FunctionTester ft(code, kNumParams);
 
