@@ -3588,9 +3588,11 @@ class PointerUpdateJobTraits {
 
 int NumberOfPointerUpdateTasks(int pages) {
   if (!FLAG_parallel_pointer_update) return 1;
-  const int kMaxTasks = 4;
+  const int available_cores = Max(
+      1, static_cast<int>(
+             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
   const int kPagesPerTask = 4;
-  return Min(kMaxTasks, (pages + kPagesPerTask - 1) / kPagesPerTask);
+  return Min(available_cores, (pages + kPagesPerTask - 1) / kPagesPerTask);
 }
 
 template <PointerDirection direction>
