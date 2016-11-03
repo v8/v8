@@ -645,19 +645,6 @@
   'debug-liveedit-double-call': [FAIL],
 }],  # variant == ignition
 
-['variant == ignition and msan', {
-  # TODO(mythria,4680): All of these tests have large loops and hence slow
-  # and timeout.
-  'compiler/osr-big': [SKIP],
-  'compiler/osr-nested': [SKIP],
-  'regress/regress-298269': [SKIP],
-  'regress/regress-crbug-319860': [SKIP],
-  'regress/regress-deep-proto': [SKIP],
-  'try': [SKIP],
-  # Too slow for interpreter and msan.
-  'es6/tail-call-megatest*': [SKIP],
-}],  # variant == ignition and msan
-
 ##############################################################################
 ['variant == ignition_turbofan', {
   # TODO(5587): fails to liveedit evaled code.
@@ -673,26 +660,6 @@
   # TODO(rmcilroy): Flaky OOM.
   'unicodelctest-no-optimization': [SKIP],
 }],  # variant == ignition_turbofan
-
-['variant == ignition_turbofan and arch == arm', {
-  # TODO(rmcilroy,4680): Arm specific timeouts.
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'regress/regress-1257': [SKIP],
-}],  # variant == ignition_turbofan and arch == arm
-
-['variant == ignition_turbofan and msan', {
-  # TODO(mythria,4680): All of these tests have large loops and hence slow
-  # and timeout.
-  'compiler/osr-big': [SKIP],
-  'compiler/osr-nested': [SKIP],
-  'regress/regress-298269': [SKIP],
-  'regress/regress-crbug-319860': [SKIP],
-  'regress/regress-deep-proto': [SKIP],
-  'try': [SKIP],
-  # Too slow for interpreter and msan.
-  'es6/tail-call-megatest*': [SKIP],
-}],  # variant == ignition_turbofan and msan
 
 ##############################################################################
 ['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
