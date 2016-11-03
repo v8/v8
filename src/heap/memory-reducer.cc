@@ -17,8 +17,6 @@ const int MemoryReducer::kLongDelayMs = 8000;
 const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
 const int MemoryReducer::kMaxNumberOfGCs = 3;
-const double MemoryReducer::kCommittedMemoryFactor = 1.1;
-const size_t MemoryReducer::kCommittedMemoryDelta = 10 * MB;
 
 MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
     : CancelableTask(memory_reducer->heap()->isolate()),
@@ -50,7 +48,6 @@ void MemoryReducer::TimerTask::RunInternal() {
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
       (heap->incremental_marking()->CanBeActivated() || optimize_for_memory);
-  event.committed_memory = heap->CommittedOldGenerationMemory();
   memory_reducer_->NotifyTimer(event);
 }
 
@@ -141,30 +138,17 @@ bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
   if (!FLAG_incremental_marking || !FLAG_memory_reducer) {
-    return State(kDone, 0, 0, state.last_gc_time_ms, 0);
+    return State(kDone, 0, 0, state.last_gc_time_ms);
   }
   switch (state.action) {
     case kDone:
       if (event.type == kTimer) {
         return state;
-      } else if (event.type == kMarkCompact) {
-        if (event.committed_memory <
-            Max(static_cast<size_t>(state.committed_memory_at_last_run *
-                                    kCommittedMemoryFactor),
-                state.committed_memory_at_last_run + kCommittedMemoryDelta)) {
-          return state;
-        } else {
-          return State(kWait, 0, event.time_ms + kLongDelayMs,
-                       event.type == kMarkCompact ? event.time_ms
-                                                  : state.last_gc_time_ms,
-                       0);
-        }
       } else {
-        DCHECK_EQ(kPossibleGarbage, event.type);
+        DCHECK(event.type == kPossibleGarbage || event.type == kMarkCompact);
         return State(
             kWait, 0, event.time_ms + kLongDelayMs,
-            event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms,
-            0);
+            event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms);
       }
     case kWait:
       switch (event.type) {
@@ -172,24 +156,23 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
           return state;
         case kTimer:
           if (state.started_gcs >= kMaxNumberOfGCs) {
-            return State(kDone, kMaxNumberOfGCs, 0.0, state.last_gc_time_ms,
-                         event.committed_memory);
+            return State(kDone, kMaxNumberOfGCs, 0.0, state.last_gc_time_ms);
           } else if (event.can_start_incremental_gc &&
                      (event.should_start_incremental_gc ||
                       WatchdogGC(state, event))) {
             if (state.next_gc_start_ms <= event.time_ms) {
               return State(kRun, state.started_gcs + 1, 0.0,
-                           state.last_gc_time_ms, 0);
+                           state.last_gc_time_ms);
             } else {
               return state;
             }
           } else {
             return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs,
-                         state.last_gc_time_ms, 0);
+                         state.last_gc_time_ms);
           }
         case kMarkCompact:
           return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs,
-                       event.time_ms, 0);
+                       event.time_ms);
       }
     case kRun:
       if (event.type != kMarkCompact) {
@@ -198,15 +181,14 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
         if (state.started_gcs < kMaxNumberOfGCs &&
             (event.next_gc_likely_to_collect_more || state.started_gcs == 1)) {
           return State(kWait, state.started_gcs, event.time_ms + kShortDelayMs,
-                       event.time_ms, 0);
+                       event.time_ms);
         } else {
-          return State(kDone, kMaxNumberOfGCs, 0.0, event.time_ms,
-                       event.committed_memory);
+          return State(kDone, kMaxNumberOfGCs, 0.0, event.time_ms);
         }
       }
   }
   UNREACHABLE();
-  return State(kDone, 0, 0, 0.0, 0);  // Make the compiler happy.
+  return State(kDone, 0, 0, 0.0);  // Make the compiler happy.
 }
 
 
@@ -222,7 +204,7 @@ void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
       isolate, timer_task, (delay_ms + kSlackMs) / 1000.0);
 }
 
-void MemoryReducer::TearDown() { state_ = State(kDone, 0, 0, 0.0, 0); }
+void MemoryReducer::TearDown() { state_ = State(kDone, 0, 0, 0.0); }
 
 }  // namespace internal
 }  // namespace v8

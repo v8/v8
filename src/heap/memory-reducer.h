@@ -86,17 +86,15 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 
   struct State {
     State(Action action, int started_gcs, double next_gc_start_ms,
-          double last_gc_time_ms, size_t committed_memory_at_last_run)
+          double last_gc_time_ms)
         : action(action),
           started_gcs(started_gcs),
           next_gc_start_ms(next_gc_start_ms),
-          last_gc_time_ms(last_gc_time_ms),
-          committed_memory_at_last_run(committed_memory_at_last_run) {}
+          last_gc_time_ms(last_gc_time_ms) {}
     Action action;
     int started_gcs;
     double next_gc_start_ms;
     double last_gc_time_ms;
-    size_t committed_memory_at_last_run;
   };
 
   enum EventType { kTimer, kMarkCompact, kPossibleGarbage };
@@ -104,7 +102,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   struct Event {
     EventType type;
     double time_ms;
-    size_t committed_memory;
     bool next_gc_likely_to_collect_more;
     bool should_start_incremental_gc;
     bool can_start_incremental_gc;
@@ -112,7 +109,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 
   explicit MemoryReducer(Heap* heap)
       : heap_(heap),
-        state_(kDone, 0, 0.0, 0.0, 0),
+        state_(kDone, 0, 0.0, 0.0),
         js_calls_counter_(0),
         js_calls_sample_time_ms_(0.0) {}
   // Callbacks.
@@ -129,12 +126,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
   static const int kMaxNumberOfGCs;
-  // The committed memory has to increase by at least this factor since the
-  // last run in order to trigger a new run after mark-compact.
-  static const double kCommittedMemoryFactor;
-  // The committed memory has to increase by at least this amount since the
-  // last run in order to trigger a new run after mark-compact.
-  static const size_t kCommittedMemoryDelta;
 
   Heap* heap() { return heap_; }
 
