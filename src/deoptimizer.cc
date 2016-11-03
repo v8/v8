@@ -2281,7 +2281,7 @@ FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
   }
 }
 
-void TranslationBuffer::Add(int32_t value, Zone* zone) {
+void TranslationBuffer::Add(int32_t value) {
   // This wouldn't handle kMinInt correctly if it ever encountered it.
   DCHECK(value != kMinInt);
   // Encode the sign bit in the least significant bit.
@@ -2292,7 +2292,7 @@ void TranslationBuffer::Add(int32_t value, Zone* zone) {
   // each byte to indicate whether or not more bytes follow.
   do {
     uint32_t next = bits >> 7;
-    contents_.Add(((bits << 1) & 0xFF) | (next != 0), zone);
+    contents_.push_back(((bits << 1) & 0xFF) | (next != 0));
     bits = next;
   } while (bits != 0);
 }
@@ -2316,167 +2316,166 @@ int32_t TranslationIterator::Next() {
 
 
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
-  int length = contents_.length();
-  Handle<ByteArray> result = factory->NewByteArray(length, TENURED);
-  MemCopy(result->GetDataStartAddress(), contents_.ToVector().start(), length);
+  Handle<ByteArray> result = factory->NewByteArray(CurrentIndex(), TENURED);
+  contents_.CopyTo(result->GetDataStartAddress());
   return result;
 }
 
 
 void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
-  buffer_->Add(CONSTRUCT_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(CONSTRUCT_STUB_FRAME);
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginGetterStubFrame(int literal_id) {
-  buffer_->Add(GETTER_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(GETTER_STUB_FRAME);
+  buffer_->Add(literal_id);
 }
 
 
 void Translation::BeginSetterStubFrame(int literal_id) {
-  buffer_->Add(SETTER_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(SETTER_STUB_FRAME);
+  buffer_->Add(literal_id);
 }
 
 
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
-  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME, zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME);
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 void Translation::BeginTailCallerFrame(int literal_id) {
-  buffer_->Add(TAIL_CALLER_FRAME, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(TAIL_CALLER_FRAME);
+  buffer_->Add(literal_id);
 }
 
 void Translation::BeginJSFrame(BailoutId node_id,
                                int literal_id,
                                unsigned height) {
-  buffer_->Add(JS_FRAME, zone());
-  buffer_->Add(node_id.ToInt(), zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(JS_FRAME);
+  buffer_->Add(node_id.ToInt());
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
                                         int literal_id, unsigned height) {
-  buffer_->Add(INTERPRETED_FRAME, zone());
-  buffer_->Add(bytecode_offset.ToInt(), zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(INTERPRETED_FRAME);
+  buffer_->Add(bytecode_offset.ToInt());
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginCompiledStubFrame(int height) {
-  buffer_->Add(COMPILED_STUB_FRAME, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(COMPILED_STUB_FRAME);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginArgumentsObject(int args_length) {
-  buffer_->Add(ARGUMENTS_OBJECT, zone());
-  buffer_->Add(args_length, zone());
+  buffer_->Add(ARGUMENTS_OBJECT);
+  buffer_->Add(args_length);
 }
 
 
 void Translation::BeginCapturedObject(int length) {
-  buffer_->Add(CAPTURED_OBJECT, zone());
-  buffer_->Add(length, zone());
+  buffer_->Add(CAPTURED_OBJECT);
+  buffer_->Add(length);
 }
 
 
 void Translation::DuplicateObject(int object_index) {
-  buffer_->Add(DUPLICATED_OBJECT, zone());
-  buffer_->Add(object_index, zone());
+  buffer_->Add(DUPLICATED_OBJECT);
+  buffer_->Add(object_index);
 }
 
 
 void Translation::StoreRegister(Register reg) {
-  buffer_->Add(REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreInt32Register(Register reg) {
-  buffer_->Add(INT32_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(INT32_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreUint32Register(Register reg) {
-  buffer_->Add(UINT32_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(UINT32_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreBoolRegister(Register reg) {
-  buffer_->Add(BOOL_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(BOOL_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 void Translation::StoreFloatRegister(FloatRegister reg) {
-  buffer_->Add(FLOAT_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(FLOAT_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
-  buffer_->Add(DOUBLE_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(DOUBLE_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreStackSlot(int index) {
-  buffer_->Add(STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreInt32StackSlot(int index) {
-  buffer_->Add(INT32_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(INT32_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreUint32StackSlot(int index) {
-  buffer_->Add(UINT32_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(UINT32_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreBoolStackSlot(int index) {
-  buffer_->Add(BOOL_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(BOOL_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 void Translation::StoreFloatStackSlot(int index) {
-  buffer_->Add(FLOAT_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(FLOAT_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 void Translation::StoreDoubleStackSlot(int index) {
-  buffer_->Add(DOUBLE_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(DOUBLE_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreLiteral(int literal_id) {
-  buffer_->Add(LITERAL, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(LITERAL);
+  buffer_->Add(literal_id);
 }
 
 
 void Translation::StoreArgumentsObject(bool args_known,
                                        int args_index,
                                        int args_length) {
-  buffer_->Add(ARGUMENTS_OBJECT, zone());
-  buffer_->Add(args_known, zone());
-  buffer_->Add(args_index, zone());
-  buffer_->Add(args_length, zone());
+  buffer_->Add(ARGUMENTS_OBJECT);
+  buffer_->Add(args_known);
+  buffer_->Add(args_index);
+  buffer_->Add(args_length);
 }
 
 

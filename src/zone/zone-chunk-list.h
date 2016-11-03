@@ -82,6 +82,8 @@ class ZoneChunkList : public ZoneObject {
   // TODO(heimbuef): Add 'rFind', seeking from the end and returning a
   // reverse iterator.
 
+  void CopyTo(T* ptr);
+
   ForwardZoneChunkListIterator<T> begin();
   ForwardZoneChunkListIterator<T> end();
   ReverseZoneChunkListIterator<T> rbegin();
@@ -389,6 +391,19 @@ ForwardZoneChunkListIterator<const T> ZoneChunkList<T>::Find(
   SeekResult seek_result = SeekIndex(index);
   return ForwardZoneChunkListIterator<const T>(seek_result.chunk_,
                                                seek_result.chunk_index_);
+}
+
+template <typename T>
+void ZoneChunkList<T>::CopyTo(T* ptr) {
+  for (Chunk* current = front_; current != nullptr; current = current->next_) {
+    void* start = current->items();
+    void* end = current->items() + current->position_;
+    size_t bytes = static_cast<size_t>(reinterpret_cast<uintptr_t>(end) -
+                                       reinterpret_cast<uintptr_t>(start));
+
+    MemCopy(ptr, current->items(), bytes);
+    ptr += current->position_;
+  }
 }
 
 template <typename T>
