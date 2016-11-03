@@ -640,18 +640,9 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition', {
+['variant == ignition or variant == ignition_staging', {
+  # TODO(5587): fails to liveedit evaled code.
   'debug-liveedit-double-call': [FAIL],
-
-  # Might trigger stack overflow.
-  'unicode-test': [SKIP],
-
-  # Fails because concurrent compilation is not triggered on bytecode.
-  # Check in Runtime_OptimizeFunctionOnNextCall.
-  'compiler/manual-concurrent-recompile': [FAIL],
-  'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
-
 }],  # variant == ignition
 
 ['variant == ignition and msan', {
@@ -668,18 +659,8 @@
 }],  # variant == ignition and msan
 
 ##############################################################################
-['variant == ignition_staging', {
-  'debug-liveedit-double-call': [FAIL],
-
-  # Fails because concurrent compilation is not triggered on bytecode.
-  # Check in Runtime_OptimizeFunctionOnNextCall.
-  'compiler/manual-concurrent-recompile': [FAIL],
-  'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
-}],  # variant == ignition_staging
-
-##############################################################################
 ['variant == ignition_turbofan', {
+  # TODO(5587): fails to liveedit evaled code.
   'debug-liveedit-double-call': [FAIL],
 
   # TODO(rmcilroy,titzer): Times out after
@@ -691,7 +672,6 @@
 
   # TODO(rmcilroy): Flaky OOM.
   'unicodelctest-no-optimization': [SKIP],
-
 }],  # variant == ignition_turbofan
 
 ['variant == ignition_turbofan and arch == arm', {
