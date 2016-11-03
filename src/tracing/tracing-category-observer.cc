@@ -4,7 +4,6 @@
 
 #include "src/tracing/tracing-category-observer.h"
 
-#include "include/v8.h"
 #include "src/flags.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
@@ -12,18 +11,21 @@
 namespace v8 {
 namespace tracing {
 
-std::unique_ptr<TracingCategoryObserver> TracingCategoryObserver::Create() {
-  return std::unique_ptr<TracingCategoryObserver>(
-      new TracingCategoryObserverImpl());
+TracingCategoryObserver* TracingCategoryObserver::instance_ = nullptr;
+
+void TracingCategoryObserver::SetUp() {
+  TracingCategoryObserver::instance_ = new TracingCategoryObserver();
+  v8::internal::V8::GetCurrentPlatform()->AddTraceStateObserver(
+      TracingCategoryObserver::instance_);
 }
 
-TracingCategoryObserverImpl::TracingCategoryObserverImpl() {}
-
-TracingCategoryObserverImpl::~TracingCategoryObserverImpl() {
-  OnTraceDisabled();
+void TracingCategoryObserver::TearDown() {
+  v8::internal::V8::GetCurrentPlatform()->RemoveTraceStateObserver(
+      TracingCategoryObserver::instance_);
+  delete TracingCategoryObserver::instance_;
 }
 
-void TracingCategoryObserverImpl::OnTraceEnabled() {
+void TracingCategoryObserver::OnTraceEnabled() {
   bool enabled = false;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
       TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"), &enabled);
@@ -32,7 +34,7 @@ void TracingCategoryObserverImpl::OnTraceEnabled() {
   }
 }
 
-void TracingCategoryObserverImpl::OnTraceDisabled() {
+void TracingCategoryObserver::OnTraceDisabled() {
   v8::internal::FLAG_runtime_stats &= ~ENABLED_BY_TRACING;
 }
 

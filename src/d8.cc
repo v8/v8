@@ -22,7 +22,6 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
-#include "include/v8-tracing.h"
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/debug/stack_trace.h"
@@ -153,7 +152,6 @@ class PredictablePlatform : public Platform {
 
 
 v8::Platform* g_platform = NULL;
-std::unique_ptr<tracing::TracingCategoryObserver> g_tracing_category_observer;
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
@@ -2823,6 +2821,21 @@ int Shell::Main(int argc, char* argv[]) {
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform();
 
+  std::unique_ptr<platform::tracing::TracingController> tracing_controller;
+  if (options.trace_enabled) {
+    trace_file.open("v8_trace.json");
+    tracing_controller.reset(new platform::tracing::TracingController());
+    platform::tracing::TraceBuffer* trace_buffer =
+        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+            platform::tracing::TraceBuffer::kRingBufferChunks,
+            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+    tracing_controller->Initialize(trace_buffer);
+    if (!i::FLAG_verify_predictable) {
+      platform::SetTracingController(g_platform, tracing_controller.get());
+      tracing_controller.release();
+    }
+  }
+
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
@@ -2857,6 +2870,7 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
+
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope scope(isolate);
@@ -2864,14 +2878,6 @@ int Shell::Main(int argc, char* argv[]) {
     PerIsolateData data(isolate);
 
     if (options.trace_enabled) {
-      trace_file.open("v8_trace.json");
-      platform::tracing::TracingController* tracing_controller =
-          new platform::tracing::TracingController();
-      platform::tracing::TraceBuffer* trace_buffer =
-          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
-              platform::tracing::TraceBuffer::kRingBufferChunks,
-              platform::tracing::TraceWriter::CreateJSONTraceWriter(
-                  trace_file));
       platform::tracing::TraceConfig* trace_config;
       if (options.trace_config) {
         int size = 0;
@@ -2884,14 +2890,6 @@ int Shell::Main(int argc, char* argv[]) {
         trace_config =
             platform::tracing::TraceConfig::CreateDefaultTraceConfig();
       }
-      tracing_controller->Initialize(trace_buffer);
-      if (!i::FLAG_verify_predictable) {
-        platform::SetTracingController(g_platform, tracing_controller);
-      }
-      g_tracing_category_observer = tracing::TracingCategoryObserver::Create();
-      g_platform->AddTraceStateObserver(
-          reinterpret_cast<Platform::TraceStateObserver*>(
-              g_tracing_category_observer.get()));
       tracing_controller->StartTracing(trace_config);
     }
 
@@ -2953,9 +2951,6 @@ int Shell::Main(int argc, char* argv[]) {
   isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
-  g_platform->RemoveTraceStateObserver(
-      reinterpret_cast<Platform::TraceStateObserver*>(
-          g_tracing_category_observer.get()));
   delete g_platform;
 
   return result;
