@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE ValueNumberingReducer final
   Reduction Reduce(Node* node) override;
 
  private:
-  enum { kInitialCapacity = 256u, kCapacityToSizeRatio = 2u };
+  enum { kInitialCapacity = 256u };
 
   void Grow();
   Zone* temp_zone() const { return temp_zone_; }

@@ -69,7 +69,7 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
   }
 
   DCHECK(size_ < capacity_);
-  DCHECK(size_ * kCapacityToSizeRatio < capacity_);
+  DCHECK(size_ + size_ / 4 < capacity_);
 
   const size_t mask = capacity_ - 1;
   size_t dead = capacity_;
@@ -85,10 +85,10 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
         entries_[i] = node;
         size_++;
 
-        // Resize to keep load factor below 1/kCapacityToSizeRatio.
-        if (size_ * kCapacityToSizeRatio >= capacity_) Grow();
+        // Resize to keep load factor below 80%
+        if (size_ + size_ / 4 >= capacity_) Grow();
       }
-      DCHECK(size_ * kCapacityToSizeRatio < capacity_);
+      DCHECK(size_ + size_ / 4 < capacity_);
       return NoChange();
     }
 
@@ -152,11 +152,10 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
 
 
 void ValueNumberingReducer::Grow() {
-  // Allocate a new block of entries kCapacityToSizeRatio times the previous
-  // capacity.
+  // Allocate a new block of entries double the previous capacity.
   Node** const old_entries = entries_;
   size_t const old_capacity = capacity_;
-  capacity_ *= kCapacityToSizeRatio;
+  capacity_ *= 2;
   entries_ = temp_zone()->NewArray<Node*>(capacity_);
   memset(entries_, 0, sizeof(*entries_) * capacity_);
   size_ = 0;
