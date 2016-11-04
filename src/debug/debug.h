@@ -461,6 +461,8 @@ class Debug {
   void ClearStepOut();
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+  bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
+                              int end_position, std::set<int>* positions);
 
   void RecordAsyncFunction(Handle<JSGeneratorObject> generator_object);
 

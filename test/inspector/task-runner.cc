@@ -123,13 +123,29 @@ TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
 }
 
+namespace {
+
+v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+  v8::internal::Vector<uint16_t> buffer =
+      v8::internal::Vector<uint16_t>::New(str->Length());
+  str->Write(buffer.start(), 0, str->Length());
+  return buffer;
+}
+
+}  // namespace
+
 ExecuteStringTask::ExecuteStringTask(
-    const v8::internal::Vector<uint16_t>& expression)
-    : expression_(expression) {}
+    const v8::internal::Vector<uint16_t>& expression,
+    v8::Local<v8::String> name, v8::Local<v8::Integer> line_offset,
+    v8::Local<v8::Integer> column_offset)
+    : expression_(expression),
+      name_(ToVector(name)),
+      line_offset_(line_offset.As<v8::Int32>()->Value()),
+      column_offset_(column_offset.As<v8::Int32>()->Value()) {}
 
 ExecuteStringTask::ExecuteStringTask(
     const v8::internal::Vector<const char>& expression)
-    : expression_utf8_(expression) {}
+    : expression_utf8_(expression), line_offset_(0), column_offset_(0) {}
 
 void ExecuteStringTask::Run(v8::Isolate* isolate,
                             const v8::Global<v8::Context>& context) {
@@ -139,7 +155,15 @@ void ExecuteStringTask::Run(v8::Isolate* isolate,
   v8::Local<v8::Context> local_context = context.Get(isolate);
   v8::Context::Scope context_scope(local_context);
 
-  v8::ScriptOrigin origin(v8::String::Empty(isolate));
+  v8::Local<v8::String> name =
+      v8::String::NewFromTwoByte(isolate, name_.start(),
+                                 v8::NewStringType::kNormal, name_.length())
+          .ToLocalChecked();
+  v8::Local<v8::Integer> line_offset = v8::Integer::New(isolate, line_offset_);
+  v8::Local<v8::Integer> column_offset =
+      v8::Integer::New(isolate, column_offset_);
+
+  v8::ScriptOrigin origin(name, line_offset, column_offset);
   v8::Local<v8::String> source;
   if (expression_.length()) {
     source = v8::String::NewFromTwoByte(isolate, expression_.start(),

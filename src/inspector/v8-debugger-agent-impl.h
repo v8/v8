@@ -71,6 +71,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<bool> optionalCaseSensitive, Maybe<bool> optionalIsRegex,
       std::unique_ptr<protocol::Array<protocol::Debugger::SearchMatch>>*)
       override;
+  Response getPossibleBreakpoints(
+      std::unique_ptr<protocol::Debugger::Location> start,
+      Maybe<protocol::Debugger::Location> end,
+      std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations)
+      override;
   Response setScriptSource(
       const String16& inScriptId, const String16& inScriptSource,
       Maybe<bool> dryRun,

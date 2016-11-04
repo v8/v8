@@ -349,6 +349,48 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
   m_breakpointIdToDebuggerBreakpointIds.erase(breakpointId);
 }
 
+Response V8DebuggerAgentImpl::getPossibleBreakpoints(
+    std::unique_ptr<protocol::Debugger::Location> start,
+    Maybe<protocol::Debugger::Location> end,
+    std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
+  String16 scriptId = start->getScriptId();
+
+  if (start->getLineNumber() < 0 || start->getColumnNumber(0) < 0)
+    return Response::Error(
+        "start.lineNumber and start.columnNumber should be >= 0");
+
+  v8::DebugInterface::Location v8Start(start->getLineNumber(),
+                                       start->getColumnNumber(0));
+  v8::DebugInterface::Location v8End;
+  if (end.isJust()) {
+    if (end.fromJust()->getScriptId() != scriptId)
+      return Response::Error("Locations should contain the same scriptId");
+    int line = end.fromJust()->getLineNumber();
+    int column = end.fromJust()->getColumnNumber(0);
+    if (line < 0 || column < 0)
+      return Response::Error(
+          "end.lineNumber and end.columnNumber should be >= 0");
+    v8End = v8::DebugInterface::Location(line, column);
+  }
+  auto it = m_scripts.find(scriptId);
+  if (it == m_scripts.end()) return Response::Error("Script not found");
+
+  std::vector<v8::DebugInterface::Location> v8Locations;
+  if (!it->second->getPossibleBreakpoints(v8Start, v8End, &v8Locations))
+    return Response::InternalError();
+
+  *locations = protocol::Array<protocol::Debugger::Location>::create();
+  for (size_t i = 0; i < v8Locations.size(); ++i) {
+    (*locations)
+        ->addItem(protocol::Debugger::Location::create()
+                      .setScriptId(scriptId)
+                      .setLineNumber(v8Locations[i].GetLineNumber())
+                      .setColumnNumber(v8Locations[i].GetColumnNumber())
+                      .build());
+  }
+  return Response::OK();
+}
+
 Response V8DebuggerAgentImpl::continueToLocation(
     std::unique_ptr<protocol::Debugger::Location> location) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
@@ -509,7 +551,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
   if (!response.isSuccess() || compileError) return response;
 
   ScriptsMap::iterator it = m_scripts.find(scriptId);
-  if (it != m_scripts.end()) it->second->setSource(m_isolate, newSource);
+  if (it != m_scripts.end()) it->second->setSource(newSource);
 
   std::unique_ptr<Array<CallFrame>> callFrames;
   response = currentCallFrames(&callFrames);

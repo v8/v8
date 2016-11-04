@@ -8950,6 +8950,82 @@ MaybeLocal<String> DebugInterface::Script::Source() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
+namespace {
+int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
+  return i::Smi::cast(array->get(index))->value();
+}
+}  // namespace
+
+bool DebugInterface::Script::GetPossibleBreakpoints(
+    const Location& start, const Location& end,
+    std::vector<Location>* locations) const {
+  CHECK(!start.IsEmpty());
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+
+  i::Script::InitLineEnds(script);
+  CHECK(script->line_ends()->IsFixedArray());
+  i::Isolate* isolate = script->GetIsolate();
+  i::Handle<i::FixedArray> line_ends =
+      i::Handle<i::FixedArray>::cast(i::handle(script->line_ends(), isolate));
+  CHECK(line_ends->length());
+
+  int start_offset = GetSourcePosition(start);
+  int end_offset;
+  if (end.IsEmpty()) {
+    end_offset = GetSmiValue(line_ends, line_ends->length() - 1) + 1;
+  } else {
+    end_offset = GetSourcePosition(end);
+  }
+  if (start_offset >= end_offset) return true;
+
+  std::set<int> offsets;
+  if (!isolate->debug()->GetPossibleBreakpoints(script, start_offset,
+                                                end_offset, &offsets)) {
+    return false;
+  }
+
+  int current_line_end_index = 0;
+  for (const auto& it : offsets) {
+    int offset = it;
+    while (offset > GetSmiValue(line_ends, current_line_end_index)) {
+      ++current_line_end_index;
+      CHECK(current_line_end_index < line_ends->length());
+    }
+    int line_offset = 0;
+
+    if (current_line_end_index > 0) {
+      line_offset = GetSmiValue(line_ends, current_line_end_index - 1) + 1;
+    }
+    locations->push_back(Location(
+        current_line_end_index + script->line_offset(),
+        offset - line_offset +
+            (current_line_end_index == 0 ? script->column_offset() : 0)));
+  }
+  return true;
+}
+
+int DebugInterface::Script::GetSourcePosition(const Location& location) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+
+  int line = std::max(location.GetLineNumber() - script->line_offset(), 0);
+  int column = location.GetColumnNumber();
+  if (line == 0) {
+    column = std::max(0, column - script->column_offset());
+  }
+
+  i::Script::InitLineEnds(script);
+  CHECK(script->line_ends()->IsFixedArray());
+  i::Handle<i::FixedArray> line_ends = i::Handle<i::FixedArray>::cast(
+      i::handle(script->line_ends(), script->GetIsolate()));
+  CHECK(line_ends->length());
+  if (line >= line_ends->length())
+    return GetSmiValue(line_ends, line_ends->length() - 1);
+  int line_offset = GetSmiValue(line_ends, line);
+  if (line == 0) return std::min(column, line_offset);
+  int prev_line_offset = GetSmiValue(line_ends, line - 1);
+  return std::min(prev_line_offset + column + 1, line_offset);
+}
+
 MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
     v8::Isolate* v8_isolate, v8::Local<v8::Object> script) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -8966,6 +9042,28 @@ MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
   if (script_obj->type() != i::Script::TYPE_NORMAL) return MaybeLocal<Script>();
   return ToApiHandle<DebugInterface::Script>(
       handle_scope.CloseAndEscape(script_obj));
+}
+
+DebugInterface::Location::Location(int lineNumber, int columnNumber)
+    : lineNumber_(lineNumber), columnNumber_(columnNumber) {
+  CHECK(lineNumber >= 0);
+  CHECK(columnNumber >= 0);
+}
+
+DebugInterface::Location::Location() : lineNumber_(-1), columnNumber_(-1) {}
+
+int DebugInterface::Location::GetLineNumber() const {
+  CHECK(lineNumber_ >= 0);
+  return lineNumber_;
+}
+
+int DebugInterface::Location::GetColumnNumber() const {
+  CHECK(columnNumber_ >= 0);
+  return columnNumber_;
+}
+
+bool DebugInterface::Location::IsEmpty() const {
+  return lineNumber_ == -1 && columnNumber_ == -1;
 }
 
 void DebugInterface::GetLoadedScripts(

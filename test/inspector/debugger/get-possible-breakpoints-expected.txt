@@ -1,0 +1,942 @@
+Test for Debugger.getPossibleBreakpoints
+
+Running test: getPossibleBreakpointsInRange
+Test start.scriptId != end.scriptId.
+{
+    error : {
+        code : -32000
+        message : Locations should contain the same scriptId
+    }
+    id : <messageId>
+}
+Test not existing scriptId.
+{
+    error : {
+        code : -32000
+        message : Script not found
+    }
+    id : <messageId>
+}
+Test end < start.
+{
+    id : <messageId>
+    result : {
+        locations : [
+        ]
+    }
+}
+Test empty range in first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+        ]
+    }
+}
+Test one character range in first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test empty range in not first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+        ]
+    }
+}
+Test one character range in not first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test end is undefined
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 42
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 16
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 49
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 53
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 57
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 0
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test end.lineNumber > scripts.lineCount()
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 42
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 16
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 49
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 53
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 57
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 0
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test one string
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 42
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test end.columnNumber > end.line.length(), should be the same as previous.
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 42
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+
+Running test: getPossibleBreakpointsInArrow
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 50
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 55
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 66
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 70
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 81
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 87
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [7] : {
+                columnNumber : 91
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [8] : {
+                columnNumber : 94
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+
+Running test: arrowFunctionFirstLine
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 18
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 44
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 48
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 51
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 18
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 44
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 48
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 51
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+paused in foo1
+{
+    columnNumber : 18
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in foo1
+{
+    columnNumber : 51
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 44
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 48
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+
+Running test: arrowFunctionOnPause
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 0
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 28
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 54
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 58
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 61
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 18
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 44
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [7] : {
+                columnNumber : 48
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [8] : {
+                columnNumber : 51
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [9] : {
+                columnNumber : 0
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [10] : {
+                columnNumber : 0
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+            [11] : {
+                columnNumber : 6
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 0
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 28
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 54
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 58
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 61
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 18
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 44
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 48
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 51
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 0
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 0
+            lineNumber : 3
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 6
+            lineNumber : 3
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+paused in foo3
+{
+    columnNumber : 28
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in foo3
+{
+    columnNumber : 61
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in foo4
+{
+    columnNumber : 18
+    lineNumber : 1
+    scriptId : <scriptId>
+}
+paused in foo4
+{
+    columnNumber : 51
+    lineNumber : 1
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 54
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 58
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 44
+    lineNumber : 1
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 48
+    lineNumber : 1
+    scriptId : <scriptId>
+}
+
+Running test: getPossibleBreakpointsInRangeWithOffset
+Test empty range in first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+        ]
+    }
+}
+Test one character range in first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test empty range in not first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+        ]
+    }
+}
+Test one character range in not first line.
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 16
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test end is undefined
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 43
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 16
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 49
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 53
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 57
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 0
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test end.lineNumber > scripts.lineCount()
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 43
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 16
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 49
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 53
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 57
+                lineNumber : 2
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 0
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test one string
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 43
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+Test end.columnNumber > end.line.length(), should be the same as previous.
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 43
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+
+Running test: withOffset
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 36
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 62
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 66
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 69
+                lineNumber : 3
+                scriptId : <scriptId>
+            }
+            [4] : {
+                columnNumber : 18
+                lineNumber : 4
+                scriptId : <scriptId>
+            }
+            [5] : {
+                columnNumber : 44
+                lineNumber : 4
+                scriptId : <scriptId>
+            }
+            [6] : {
+                columnNumber : 48
+                lineNumber : 4
+                scriptId : <scriptId>
+            }
+            [7] : {
+                columnNumber : 51
+                lineNumber : 4
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 36
+            lineNumber : 3
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 62
+            lineNumber : 3
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 66
+            lineNumber : 3
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 69
+            lineNumber : 3
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 18
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 44
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 48
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 51
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+paused in foo5
+{
+    columnNumber : 36
+    lineNumber : 3
+    scriptId : <scriptId>
+}
+paused in foo5
+{
+    columnNumber : 69
+    lineNumber : 3
+    scriptId : <scriptId>
+}
+paused in foo6
+{
+    columnNumber : 18
+    lineNumber : 4
+    scriptId : <scriptId>
+}
+paused in foo6
+{
+    columnNumber : 51
+    lineNumber : 4
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 62
+    lineNumber : 3
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 66
+    lineNumber : 3
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 44
+    lineNumber : 4
+    scriptId : <scriptId>
+}
+paused in Promise.resolve.then
+{
+    columnNumber : 48
+    lineNumber : 4
+    scriptId : <scriptId>
+}

@@ -38,6 +38,13 @@ void Exit() {
   Terminate();
 }
 
+v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+  v8::internal::Vector<uint16_t> buffer =
+      v8::internal::Vector<uint16_t>::New(str->Length());
+  str->Write(buffer.start(), 0, str->Length());
+  return buffer;
+}
+
 class UtilsExtension : public v8::Extension {
  public:
   UtilsExtension()
@@ -45,7 +52,8 @@ class UtilsExtension : public v8::Extension {
                       "native function print();"
                       "native function quit();"
                       "native function setlocale();"
-                      "native function load();") {}
+                      "native function load();"
+                      "native function compileAndRunWithOrigin();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -72,11 +80,24 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::Load);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "compileAndRunWithOrigin",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       UtilsExtension::CompileAndRunWithOrigin);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
 
+  static void set_backend_task_runner(TaskRunner* runner) {
+    backend_runner_ = runner;
+  }
+
  private:
+  static TaskRunner* backend_runner_;
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
     for (int i = 0; i < args.Length(); i++) {
       v8::HandleScope handle_scope(args.GetIsolate());
@@ -143,7 +164,24 @@ class UtilsExtension : public v8::Extension {
     v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
     task.Run(isolate, context);
   }
+
+  static void CompileAndRunWithOrigin(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 4 || !args[0]->IsString() || !args[1]->IsString() ||
+        !args[2]->IsInt32() || !args[3]->IsInt32()) {
+      fprintf(stderr,
+              "Internal error: compileAndRunWithOrigin(source, name, line, "
+              "column).");
+      Exit();
+    }
+
+    backend_runner_->Append(new ExecuteStringTask(
+        ToVector(args[0].As<v8::String>()), args[1].As<v8::String>(),
+        args[2].As<v8::Int32>(), args[3].As<v8::Int32>()));
+  }
 };
+
+TaskRunner* UtilsExtension::backend_runner_ = nullptr;
 
 class SetTimeoutTask : public TaskRunner::Task {
  public:
@@ -174,13 +212,6 @@ class SetTimeoutTask : public TaskRunner::Task {
   v8::Global<v8::Function> function_;
 };
 
-v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
-  v8::internal::Vector<uint16_t> buffer =
-      v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(buffer.start(), 0, str->Length());
-  return buffer;
-}
-
 class SetTimeoutExtension : public v8::Extension {
  public:
   SetTimeoutExtension()
@@ -201,13 +232,15 @@ class SetTimeoutExtension : public v8::Extension {
               "Internal error: only setTimeout(function, 0) is supported.");
       Exit();
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
     if (args[0]->IsFunction()) {
-      TaskRunner::FromContext(context)->Append(new SetTimeoutTask(
-          args.GetIsolate(), v8::Local<v8::Function>::Cast(args[0])));
-    } else {
       TaskRunner::FromContext(context)->Append(
-          new ExecuteStringTask(ToVector(args[0].As<v8::String>())));
+          new SetTimeoutTask(isolate, v8::Local<v8::Function>::Cast(args[0])));
+    } else {
+      TaskRunner::FromContext(context)->Append(new ExecuteStringTask(
+          ToVector(args[0].As<v8::String>()), v8::String::Empty(isolate),
+          v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0)));
     }
   }
 };
@@ -301,7 +334,9 @@ class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
     v8::Local<v8::String> result = v8::String::Concat(prefix, message_string);
     result = v8::String::Concat(result, suffix);
 
-    frontend_task_runner_->Append(new ExecuteStringTask(ToVector(result)));
+    frontend_task_runner_->Append(new ExecuteStringTask(
+        ToVector(result), v8::String::Empty(isolate),
+        v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0)));
   }
 
  private:
@@ -336,6 +371,7 @@ int main(int argc, char* argv[]) {
   TaskRunner backend_runner(&backend_configuration, false, &ready_semaphore);
   ready_semaphore.Wait();
   SendMessageToBackendExtension::set_backend_task_runner(&backend_runner);
+  UtilsExtension::set_backend_task_runner(&backend_runner);
 
   const char* frontend_extensions[] = {"v8_inspector/utils",
                                        "v8_inspector/frontend"};

@@ -70,6 +70,7 @@ static String16 calculateHash(const String16& str) {
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
                                    v8::Local<v8::DebugInterface::Script> script,
                                    bool isLiveEdit) {
+  m_isolate = script->GetIsolate();
   m_id = String16::fromInteger(script->Id());
   v8::Local<v8::String> tmp;
   if (script->Name().ToLocal(&tmp)) m_url = toProtocolString(tmp);
@@ -113,8 +114,9 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
   }
 
   m_isLiveEdit = isLiveEdit;
+
   if (script->Source().ToLocal(&tmp)) {
-    m_source.Reset(isolate, tmp);
+    m_source.Reset(m_isolate, tmp);
     String16 source = toProtocolString(tmp);
     m_hash = calculateHash(source);
     // V8 will not count last line if script source ends with \n.
@@ -123,6 +125,8 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
       m_endColumn = 0;
     }
   }
+
+  m_script.Reset(m_isolate, script);
 }
 
 V8DebuggerScript::~V8DebuggerScript() {}
@@ -143,10 +147,18 @@ void V8DebuggerScript::setSourceMappingURL(const String16& sourceMappingURL) {
   m_sourceMappingURL = sourceMappingURL;
 }
 
-void V8DebuggerScript::setSource(v8::Isolate* isolate,
-                                 v8::Local<v8::String> source) {
-  m_source.Reset(isolate, source);
+void V8DebuggerScript::setSource(v8::Local<v8::String> source) {
+  m_source.Reset(m_isolate, source);
   m_hash = calculateHash(toProtocolString(source));
+}
+
+bool V8DebuggerScript::getPossibleBreakpoints(
+    const v8::DebugInterface::Location& start,
+    const v8::DebugInterface::Location& end,
+    std::vector<v8::DebugInterface::Location>* locations) {
+  v8::HandleScope scope(m_isolate);
+  v8::Local<v8::DebugInterface::Script> script = m_script.Get(m_isolate);
+  return script->GetPossibleBreakpoints(start, end, locations);
 }
 
 }  // namespace v8_inspector
