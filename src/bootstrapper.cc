@@ -2519,23 +2519,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
-    // Create the ThrowTypeError functions.
+    // Create the ThrowTypeError function.
     Handle<AccessorPair> callee = factory->NewAccessorPair();
-    Handle<AccessorPair> caller = factory->NewAccessorPair();
 
     Handle<JSFunction> poison = GetStrictArgumentsPoisonFunction();
 
-    // Install the ThrowTypeError functions.
+    // Install the ThrowTypeError function.
     callee->set_getter(*poison);
     callee->set_setter(*poison);
-    caller->set_getter(*poison);
-    caller->set_setter(*poison);
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(
         JS_ARGUMENTS_TYPE, JSStrictArgumentsObject::kSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
-    Map::EnsureDescriptorSlack(map, 3);
+    Map::EnsureDescriptorSlack(map, 2);
 
     {  // length
       DataDescriptor d(factory->length_string(),
@@ -2545,11 +2542,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
     {  // callee
       AccessorConstantDescriptor d(factory->callee_string(), callee,
-                                   attributes);
-      map->AppendDescriptor(&d);
-    }
-    {  // caller
-      AccessorConstantDescriptor d(factory->caller_string(), caller,
                                    attributes);
       map->AppendDescriptor(&d);
     }

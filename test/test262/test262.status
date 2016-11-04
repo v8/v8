@@ -202,6 +202,17 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5535
+  'built-ins/ThrowTypeError/unique-per-realm-non-simple': [FAIL],
+  'built-ins/ThrowTypeError/unique-per-realm-unmapped-args': [FAIL],
+  'language/arguments-object/10.6-13-b-1-s': [FAIL],
+  'language/arguments-object/10.6-13-b-2-s': [FAIL],
+  'language/arguments-object/10.6-13-b-3-s': [FAIL],
+  'language/arguments-object/10.6-14-1-s': [FAIL],
+  'language/arguments-object/10.6-14-b-1-s': [FAIL],
+  'language/arguments-object/10.6-14-b-4-s': [FAIL],
+  'language/statements/class/strict-mode/arguments-caller': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
 
