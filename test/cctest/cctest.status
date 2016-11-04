@@ -359,6 +359,9 @@
   'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
   'test-profile-generator/LineNumber': [FAIL],
   'test-sampler-api/StackFramesConsistent': [FAIL],
+
+  # BUG(v8:5457)
+  'test-api/SetJitCodeEventHandler ': [PASS, ['no_snap', SKIP]],
 }],  # variant == turbofan_opt
 
 ##############################################################################
