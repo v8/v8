@@ -8949,18 +8949,13 @@ void DebugInterface::GetLoadedScripts(
     PersistentValueVector<DebugInterface::Script>& scripts) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  {
-    i::DisallowHeapAllocation no_gc;
-    i::Script::Iterator iterator(isolate);
-    i::Script* script;
-    while ((script = iterator.Next())) {
-      if (script->type() != i::Script::TYPE_NORMAL) continue;
-      if (script->HasValidSource()) {
-        i::HandleScope handle_scope(isolate);
-        i::Handle<i::Script> script_handle(script, isolate);
-        scripts.Append(ToApiHandle<Script>(script_handle));
-      }
-    }
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::FixedArray> instances = isolate->debug()->GetLoadedScripts();
+  for (int i = 0; i < instances->length(); i++) {
+    i::Handle<i::Script> script =
+        i::Handle<i::Script>(i::Script::cast(instances->get(i)));
+    if (script->type() != i::Script::TYPE_NORMAL) continue;
+    scripts.Append(ToApiHandle<Script>(script));
   }
 }
 

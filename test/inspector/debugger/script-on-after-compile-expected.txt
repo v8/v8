@@ -661,4 +661,4 @@ scriptParsed
     startLine : 0
     url : 
 }
-Remove script references and re-enable debugger.
+Run gc and then Debugger.enable()..
