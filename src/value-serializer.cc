@@ -9,11 +9,15 @@
 #include "src/base/logging.h"
 #include "src/conversions.h"
 #include "src/factory.h"
+#include "src/flags.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/transitions.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
@@ -107,6 +111,11 @@ enum class SerializationTag : uint8_t {
   kArrayBufferView = 'V',
   // Shared array buffer (transferred). transferID:uint32_t
   kSharedArrayBufferTransfer = 'u',
+  // Compiled WebAssembly module. encodingType:(one-byte tag).
+  // If encodingType == 'y' (raw bytes):
+  //  wasmWireByteLength:uint32_t, then raw data
+  //  compiledDataLength:uint32_t, then raw data
+  kWasmModule = 'W',
 };
 
 namespace {
@@ -122,6 +131,10 @@ enum class ArrayBufferViewTag : uint8_t {
   kFloat32Array = 'f',
   kFloat64Array = 'F',
   kDataView = '?',
+};
+
+enum class WasmEncodingTag : uint8_t {
+  kRawBytes = 'y',
 };
 
 }  // namespace
@@ -365,8 +378,16 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
-      return js_object->GetInternalFieldCount() ? WriteHostObject(js_object)
-                                                : WriteJSObject(js_object);
+      Map* map = js_object->map();
+      if (FLAG_expose_wasm &&
+          map->GetConstructor() ==
+              isolate_->native_context()->wasm_module_constructor()) {
+        return WriteWasmModule(js_object);
+      } else if (JSObject::GetInternalFieldCount(map)) {
+        return WriteHostObject(js_object);
+      } else {
+        return WriteJSObject(js_object);
+      }
     }
     case JS_SPECIAL_API_OBJECT_TYPE:
       return WriteHostObject(Handle<JSObject>::cast(receiver));
@@ -717,6 +738,29 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   return Just(true);
 }
 
+Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
+  Handle<wasm::WasmCompiledModule> compiled_part(
+      wasm::WasmCompiledModule::cast(object->GetInternalField(0)), isolate_);
+  WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
+  WriteTag(SerializationTag::kWasmModule);
+  WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
+
+  Handle<String> wire_bytes = compiled_part->module_bytes();
+  int wire_bytes_length = wire_bytes->length();
+  WriteVarint<uint32_t>(wire_bytes_length);
+  uint8_t* destination = ReserveRawBytes(wire_bytes_length);
+  String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
+
+  std::unique_ptr<ScriptData> script_data =
+      WasmCompiledModuleSerializer::SerializeWasmModule(isolate_,
+                                                        compiled_part);
+  int script_data_length = script_data->length();
+  WriteVarint<uint32_t>(script_data_length);
+  WriteRawBytes(script_data->data(), script_data_length);
+
+  return Just(true);
+}
+
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   if (!delegate_) {
     isolate_->Throw(*isolate_->factory()->NewError(
@@ -1027,6 +1071,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       const bool is_shared = true;
       return ReadTransferredJSArrayBuffer(is_shared);
     }
+    case SerializationTag::kWasmModule:
+      return ReadWasmModule();
     default:
       // TODO(jbroman): Introduce an explicit tag for host objects to avoid
       // having to treat every unknown tag as a potential host object.
@@ -1427,6 +1473,52 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       pretenure_);
   AddObjectWithID(id, typed_array);
   return typed_array;
+}
+
+MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
+  if (!FLAG_expose_wasm) return MaybeHandle<JSObject>();
+
+  Vector<const uint8_t> encoding_tag;
+  if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
+      encoding_tag[0] != static_cast<uint8_t>(WasmEncodingTag::kRawBytes)) {
+    return MaybeHandle<JSObject>();
+  }
+
+  // Extract the data from the buffer: wasm wire bytes, followed by V8 compiled
+  // script data.
+  static_assert(sizeof(int) <= sizeof(uint32_t),
+                "max int must fit in uint32_t");
+  const uint32_t max_valid_size = std::numeric_limits<int>::max();
+  uint32_t wire_bytes_length = 0;
+  Vector<const uint8_t> wire_bytes;
+  uint32_t compiled_bytes_length = 0;
+  Vector<const uint8_t> compiled_bytes;
+  if (!ReadVarint<uint32_t>().To(&wire_bytes_length) ||
+      wire_bytes_length > max_valid_size ||
+      !ReadRawBytes(wire_bytes_length).To(&wire_bytes) ||
+      !ReadVarint<uint32_t>().To(&compiled_bytes_length) ||
+      compiled_bytes_length > max_valid_size ||
+      !ReadRawBytes(compiled_bytes_length).To(&compiled_bytes)) {
+    return MaybeHandle<JSObject>();
+  }
+
+  // Try to deserialize the compiled module first.
+  ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
+  Handle<FixedArray> compiled_part;
+  if (WasmCompiledModuleSerializer::DeserializeWasmModule(
+          isolate_, &script_data, wire_bytes)
+          .ToHandle(&compiled_part)) {
+    return wasm::CreateWasmModuleObject(
+        isolate_, Handle<wasm::WasmCompiledModule>::cast(compiled_part),
+        wasm::ModuleOrigin::kWasmOrigin);
+  }
+
+  // If that fails, recompile.
+  wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
+  return wasm::CreateModuleObjectFromBytes(
+      isolate_, wire_bytes.begin(), wire_bytes.end(), &thrower,
+      wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr,
+      nullptr);
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
