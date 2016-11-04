@@ -48,6 +48,7 @@ group("default_tests") {
     deps = [
       ":cctest_run",
       ":fuzzer_run",
+      ":inspector-test_run",
       ":intl_run",
       ":message_run",
       ":mjsunit_run",
@@ -60,7 +61,6 @@ group("default_tests") {
 v8_isolate_run("bot_default") {
   deps = [
     ":default_tests",
-    ":inspector-test_run",
     ":webkit_run",
   ]
 
