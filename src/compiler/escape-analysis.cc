@@ -1339,9 +1339,19 @@ bool EscapeAnalysis::CompareVirtualObjects(Node* left, Node* right) {
 
 namespace {
 
+bool IsOffsetForFieldAccessCorrect(const FieldAccess& access) {
+#if V8_TARGET_LITTLE_ENDIAN
+  return (access.offset % kPointerSize) == 0;
+#else
+  return ((access.offset +
+           (1 << ElementSizeLog2Of(access.machine_type.representation()))) %
+          kPointerSize) == 0;
+#endif
+}
+
 int OffsetForFieldAccess(Node* node) {
   FieldAccess access = FieldAccessOf(node->op());
-  DCHECK_EQ(access.offset % kPointerSize, 0);
+  DCHECK(IsOffsetForFieldAccessCorrect(access));
   return access.offset / kPointerSize;
 }
 
@@ -1420,7 +1430,7 @@ void EscapeAnalysis::ProcessLoadField(Node* node) {
     // Record that the load has this alias.
     UpdateReplacement(state, node, value);
   } else if (from->opcode() == IrOpcode::kPhi &&
-             FieldAccessOf(node->op()).offset % kPointerSize == 0) {
+             IsOffsetForFieldAccessCorrect(FieldAccessOf(node->op()))) {
     int offset = OffsetForFieldAccess(node);
     // Only binary phis are supported for now.
     ProcessLoadFromPhi(offset, from, node, state);
