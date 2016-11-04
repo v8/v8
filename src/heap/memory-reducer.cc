@@ -35,9 +35,10 @@ void MemoryReducer::TimerTask::RunInternal() {
   bool is_idle = js_call_rate < kJsCallsPerMsThreshold && low_allocation_rate;
   bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(heap->isolate(), "Memory reducer: call rate %.3lf, %s, %s\n",
-                 js_call_rate, low_allocation_rate ? "low alloc" : "high alloc",
-                 optimize_for_memory ? "background" : "foreground");
+    heap->isolate()->PrintWithTimestamp(
+        "Memory reducer: call rate %.3lf, %s, %s\n", js_call_rate,
+        low_allocation_rate ? "low alloc" : "high alloc",
+        optimize_for_memory ? "background" : "foreground");
   }
   event.type = kTimer;
   event.time_ms = time_ms;
@@ -70,8 +71,8 @@ void MemoryReducer::NotifyTimer(const Event& event) {
     DCHECK(heap()->incremental_marking()->IsStopped());
     DCHECK(FLAG_incremental_marking);
     if (FLAG_trace_gc_verbose) {
-      PrintIsolate(heap()->isolate(), "Memory reducer: started GC #%d\n",
-                   state_.started_gcs);
+      heap()->isolate()->PrintWithTimestamp("Memory reducer: started GC #%d\n",
+                                            state_.started_gcs);
     }
     heap()->StartIdleIncrementalMarking(
         GarbageCollectionReason::kMemoryReducer);
@@ -93,8 +94,9 @@ void MemoryReducer::NotifyTimer(const Event& event) {
     // Re-schedule the timer.
     ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
     if (FLAG_trace_gc_verbose) {
-      PrintIsolate(heap()->isolate(), "Memory reducer: waiting for %.f ms\n",
-                   state_.next_gc_start_ms - event.time_ms);
+      heap()->isolate()->PrintWithTimestamp(
+          "Memory reducer: waiting for %.f ms\n",
+          state_.next_gc_start_ms - event.time_ms);
     }
   }
 }
@@ -110,9 +112,9 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
   }
   if (old_action == kRun) {
     if (FLAG_trace_gc_verbose) {
-      PrintIsolate(heap()->isolate(), "Memory reducer: finished GC #%d (%s)\n",
-                   state_.started_gcs,
-                   state_.action == kWait ? "will do more" : "done");
+      heap()->isolate()->PrintWithTimestamp(
+          "Memory reducer: finished GC #%d (%s)\n", state_.started_gcs,
+          state_.action == kWait ? "will do more" : "done");
     }
   }
 }
