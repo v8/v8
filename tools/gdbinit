@@ -72,7 +72,7 @@ end
 define bta
 python
 import re
-frame_re = re.compile("^#(\d+).* in (\S+) .+ at (.+)")
+frame_re = re.compile("^#(\d+)\s*(?:0x[a-f\d]+ in )?(.+) \(.+ at (.+)")
 assert_re = re.compile("^\s*(\S+) = .+<v8::internal::Per\w+AssertType::(\w+)_ASSERT, (false|true)>")
 btl = gdb.execute("backtrace full", to_string = True).splitlines()
 for l in btl:
@@ -88,6 +88,7 @@ for l in btl:
       prefix = "Allow"
       color = "\033[92m"
     print("%s -> %s %s (%s)\033[0m" % (color, prefix, match.group(2), match.group(1)))
+end
 end
 document bta
 Print stack trace with assertion scopes
