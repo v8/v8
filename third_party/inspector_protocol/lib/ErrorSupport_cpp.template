@@ -8,17 +8,8 @@
 namespace {{namespace}} {
 {% endfor %}
 
-ErrorSupport::ErrorSupport() : m_errorString(nullptr) { }
-ErrorSupport::ErrorSupport(String* errorString) : m_errorString(errorString) { }
-ErrorSupport::~ErrorSupport()
-{
-    if (m_errorString && hasErrors()) {
-        StringBuilder builder;
-        builder.append("Internal error(s): ");
-        builder.append(errors());
-        *m_errorString = builder.toString();
-    }
-}
+ErrorSupport::ErrorSupport() { }
+ErrorSupport::~ErrorSupport() { }
 
 void ErrorSupport::setName(const String& name)
 {

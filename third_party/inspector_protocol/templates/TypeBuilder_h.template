@@ -196,40 +196,26 @@ public:
         virtual void sendSuccess(
       {%- for parameter in command.returns -%}
         {%- if "optional" in parameter -%}
-          {%- if new_style(domain) -%}
             Maybe<{{resolve_type(parameter).raw_type}}> {{parameter.name}}
-          {%- else -%}
-            const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}}
-          {%- endif -%}
         {%- else -%}
                 {{resolve_type(parameter).pass_type}} {{parameter.name}}
         {%- endif -%}
         {%- if not loop.last -%}, {% endif -%}
       {%- endfor -%}
         ) = 0;
-      {% if new_style(domain) %}
         virtual void sendFailure(const DispatchResponse&) = 0;
-      {% else %}
-        virtual void sendFailure(const ErrorString&) = 0;
-      {% endif %}
+        virtual ~{{command.name | to_title_case}}Callback() { }
     };
     {% endif %}
-    {%- if not("async" in command) and new_style(domain) %}
+    {%- if not("async" in command) %}
     virtual DispatchResponse {{command.name}}(
     {%- else %}
     virtual void {{command.name}}(
     {%- endif %}
-    {%- if not("async" in command) and not new_style(domain) -%}
-        ErrorString*
-    {%- endif -%}
     {%- for parameter in command.parameters -%}
-      {%- if (not loop.first) or (not ("async" in command) and not new_style(domain)) -%}, {% endif -%}
+      {%- if not loop.first -%}, {% endif -%}
       {%- if "optional" in parameter -%}
-        {%- if new_style(domain) -%}
         Maybe<{{resolve_type(parameter).raw_type}}> in_{{parameter.name}}
-        {%- else -%}
-        const Maybe<{{resolve_type(parameter).raw_type}}>& in_{{parameter.name}}
-        {%- endif -%}
       {%- else -%}
         {{resolve_type(parameter).pass_type}} in_{{parameter.name}}
       {%- endif -%}
@@ -239,7 +225,7 @@ public:
         std::unique_ptr<{{command.name | to_title_case}}Callback> callback
     {%- else -%}
       {%- for parameter in command.returns -%}
-        {%- if (not loop.first) or command.parameters or not new_style(domain) -%}, {% endif -%}
+        {%- if (not loop.first) or command.parameters -%}, {% endif -%}
         {%- if "optional" in parameter -%}
         Maybe<{{resolve_type(parameter).raw_type}}>* out_{{parameter.name}}
         {%- else -%}
@@ -251,26 +237,11 @@ public:
   {% endfor %}
 
   {% if not has_disable(domain.commands) %}
-    {% if new_style(domain) %}
     virtual DispatchResponse disable()
     {
         return DispatchResponse::OK();
     }
-    {% else %}
-    virtual void disable(ErrorString*) { }
-    {% endif %}
   {% endif %}
-
-    // TODO(dgozman): remove once all domains migrated.
-    static void disableMe(Backend* backend)
-    {
-  {% if new_style(domain) %}
-        backend->disable();
-  {% else %}
-        ErrorString error;
-        backend->disable(&error);
-  {% endif %}
-    }
 };
 
 // ------------- Frontend interface.
@@ -283,11 +254,7 @@ public:
     void {{event.name}}(
     {%- for parameter in event.parameters -%}
       {%- if "optional" in parameter -%}
-        {%- if new_style(domain) -%}
         Maybe<{{resolve_type(parameter).raw_type}}> {{parameter.name}} = Maybe<{{resolve_type(parameter).raw_type}}>()
-        {%- else -%}
-        const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}} = Maybe<{{resolve_type(parameter).raw_type}}>()
-        {%- endif -%}
       {%- else -%}
         {{resolve_type(parameter).pass_type}} {{parameter.name}}
       {%- endif -%}{%- if not loop.last -%}, {% endif -%}
