@@ -94,7 +94,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
   // Load |slot_index| from |context|.
-  compiler::Node* LoadContextSlot(compiler::Node* context, int slot_index);
   compiler::Node* LoadContextSlot(compiler::Node* context,
                                   compiler::Node* slot_index);
   // Stores |value| into |slot_index| of |context|.
