@@ -5340,6 +5340,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       LookupIterator it(global, variable->name(), LookupIterator::OWN);
+      it.TryLookupCachedProperty();
       if (CanInlineGlobalPropertyAccess(variable, &it, LOAD)) {
         InlineGlobalPropertyLoad(&it, expr->id());
         return;
@@ -6151,6 +6152,18 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
   }
 
   if (info->IsAccessorConstant()) {
+    MaybeHandle<Name> maybe_name =
+        FunctionTemplateInfo::TryGetCachedPropertyName(isolate(),
+                                                       info->accessor());
+    if (!maybe_name.is_null()) {
+      Handle<Name> name = maybe_name.ToHandleChecked();
+      PropertyAccessInfo cache_info(this, LOAD, info->map(), name);
+      // Load new target.
+      if (cache_info.CanAccessMonomorphic()) {
+        return BuildLoadNamedField(&cache_info, checked_object);
+      }
+    }
+
     Push(checked_object);
     int argument_count = 1;
     if (!info->IsLoad()) {

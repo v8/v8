@@ -1097,6 +1097,11 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
                                  static_cast<i::PropertyAttributes>(attribute));
 }
 
+void Template::SetPrivate(v8::Local<Private> name, v8::Local<Data> value,
+                          v8::PropertyAttribute attribute) {
+  Set(Utils::ToLocal(Utils::OpenHandle(reinterpret_cast<Name*>(*name))), value,
+      attribute);
+}
 
 void Template::SetAccessorProperty(
     v8::Local<v8::Name> name,
@@ -1160,11 +1165,11 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   info->set_parent_template(*Utils::OpenHandle(*value));
 }
 
-
 static Local<FunctionTemplate> FunctionTemplateNew(
     i::Isolate* isolate, FunctionCallback callback,
     experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
-    v8::Local<Signature> signature, int length, bool do_not_cache) {
+    v8::Local<Signature> signature, int length, bool do_not_cache,
+    v8::Local<Private> cached_property_name = v8::Local<Private>()) {
   i::Handle<i::Struct> struct_obj =
       isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1188,6 +1193,10 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   obj->set_accept_any_receiver(true);
   if (!signature.IsEmpty())
     obj->set_signature(*Utils::OpenHandle(*signature));
+  obj->set_cached_property_name(
+      cached_property_name.IsEmpty()
+          ? isolate->heap()->the_hole_value()
+          : *Utils::OpenHandle(*cached_property_name));
   return Utils::ToLocal(obj);
 }
 
@@ -1232,6 +1241,16 @@ Local<FunctionTemplate> FunctionTemplate::NewWithFastHandler(
                              length, false);
 }
 
+Local<FunctionTemplate> FunctionTemplate::NewWithCache(
+    Isolate* isolate, FunctionCallback callback, Local<Private> cache_property,
+    Local<Value> data, Local<Signature> signature, int length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK(!i_isolate->serializer_enabled());
+  LOG_API(i_isolate, FunctionTemplate, NewWithFastHandler);
+  ENTER_V8(i_isolate);
+  return FunctionTemplateNew(i_isolate, callback, nullptr, data, signature,
+                             length, false, cache_property);
+}
 
 Local<Signature> Signature::New(Isolate* isolate,
                                 Local<FunctionTemplate> receiver) {

@@ -1132,6 +1132,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   VerifyPointer(instance_template());
   VerifyPointer(signature());
   VerifyPointer(access_check_info());
+  VerifyPointer(cached_property_name());
 }
 
 

@@ -11480,6 +11480,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_BOOLEAN_ACCESSORS(do_not_cache)
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
 
+  DECL_ACCESSORS(cached_property_name, Object)
+
   DECLARE_CAST(FunctionTemplateInfo)
 
   // Dispatched behavior.
@@ -11506,7 +11508,8 @@ class FunctionTemplateInfo: public TemplateInfo {
       kAccessCheckInfoOffset + kPointerSize;
   static const int kFlagOffset = kSharedFunctionInfoOffset + kPointerSize;
   static const int kLengthOffset = kFlagOffset + kPointerSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+  static const int kCachedPropertyNameOffset = kLengthOffset + kPointerSize;
+  static const int kSize = kCachedPropertyNameOffset + kPointerSize;
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info);
@@ -11516,6 +11519,10 @@ class FunctionTemplateInfo: public TemplateInfo {
   inline bool IsTemplateFor(JSObject* object);
   bool IsTemplateFor(Map* map);
   inline bool instantiated();
+
+  // Helper function for cached accessors.
+  static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,
+                                                    Handle<Object> getter);
 
  private:
   // Bit position in the flag, from least significant bit position.

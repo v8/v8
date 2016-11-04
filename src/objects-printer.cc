@@ -1293,6 +1293,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - instance_template: " << Brief(instance_template());
   os << "\n - signature: " << Brief(signature());
   os << "\n - access_check_info: " << Brief(access_check_info());
+  os << "\n - cached_property_name: " << Brief(cached_property_name());
   os << "\n - hidden_prototype: " << (hidden_prototype() ? "true" : "false");
   os << "\n - undetectable: " << (undetectable() ? "true" : "false");
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");

@@ -5856,6 +5856,8 @@ ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
 ACCESSORS(FunctionTemplateInfo, shared_function_info, Object,
           kSharedFunctionInfoOffset)
+ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
+          kCachedPropertyNameOffset)
 
 SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 

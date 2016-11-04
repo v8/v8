@@ -1209,10 +1209,10 @@ void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
 Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
                                   Handle<Object> value) {
   // Try to find a globally shared handler stub.
-  Handle<Object> handler = GetMapIndependentHandler(lookup);
-  if (!handler.is_null()) {
-    DCHECK(IC::IsHandler(*handler));
-    return handler;
+  Handle<Object> shared_handler = GetMapIndependentHandler(lookup);
+  if (!shared_handler.is_null()) {
+    DCHECK(IC::IsHandler(*shared_handler));
+    return shared_handler;
   }
 
   // Otherwise check the map's handler cache for a map-specific handler, and
@@ -1232,16 +1232,16 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
     stub_holder_map = receiver_map();
   }
 
-  Handle<Code> code = PropertyHandlerCompiler::Find(
+  Handle<Object> handler = PropertyHandlerCompiler::Find(
       lookup->name(), stub_holder_map, kind(), flag);
   // Use the cached value if it exists, and if it is different from the
   // handler that just missed.
-  if (!code.is_null()) {
-    Handle<Object> handler;
-    if (maybe_handler_.ToHandle(&handler)) {
-      if (!handler.is_identical_to(code)) {
+  if (!handler.is_null()) {
+    Handle<Object> current_handler;
+    if (maybe_handler_.ToHandle(&current_handler)) {
+      if (!current_handler.is_identical_to(handler)) {
         TraceHandlerCacheHitStats(lookup);
-        return code;
+        return handler;
       }
     } else {
       // maybe_handler_ is only populated for MONOMORPHIC and POLYMORPHIC ICs.
@@ -1251,23 +1251,25 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
         Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
         Object* megamorphic_cached_handler =
             stub_cache()->Get(*lookup->name(), map);
-        if (megamorphic_cached_handler != *code) {
+        if (megamorphic_cached_handler != *handler) {
           TraceHandlerCacheHitStats(lookup);
-          return code;
+          return handler;
         }
       } else {
         TraceHandlerCacheHitStats(lookup);
-        return code;
+        return handler;
       }
     }
   }
 
-  code = CompileHandler(lookup, value, flag);
-  DCHECK(code->is_handler());
-  DCHECK(Code::ExtractCacheHolderFromFlags(code->flags()) == flag);
-  Map::UpdateCodeCache(stub_holder_map, lookup->name(), code);
-
-  return code;
+  handler = CompileHandler(lookup, value, flag);
+  DCHECK(IC::IsHandler(*handler));
+  if (handler->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(handler);
+    DCHECK_EQ(Code::ExtractCacheHolderFromFlags(code->flags()), flag);
+    Map::UpdateCodeCache(stub_holder_map, lookup->name(), code);
+  }
+  return handler;
 }
 
 Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
@@ -1426,9 +1428,9 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   return Handle<Code>::null();
 }
 
-Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
-                                    Handle<Object> unused,
-                                    CacheHolderFlag cache_holder) {
+Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
+                                      Handle<Object> unused,
+                                      CacheHolderFlag cache_holder) {
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
 #ifdef DEBUG
   // Only used by DCHECKs below.
@@ -1473,6 +1475,10 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       DCHECK(IsCompatibleReceiver(lookup, map));
       Handle<Object> accessors = lookup->GetAccessors();
       if (accessors->IsAccessorPair()) {
+        if (lookup->TryLookupCachedProperty()) {
+          DCHECK_EQ(LookupIterator::DATA, lookup->state());
+          return ComputeHandler(lookup);
+        }
         DCHECK(holder->HasFastProperties());
         DCHECK(!GetSharedFunctionInfo()->HasDebugInfo());
         Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
@@ -1995,9 +2001,9 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
   return Handle<Code>::null();
 }
 
-Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
-                                     Handle<Object> value,
-                                     CacheHolderFlag cache_holder) {
+Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
+                                       Handle<Object> value,
+                                       CacheHolderFlag cache_holder) {
   DCHECK_NE(LookupIterator::JSPROXY, lookup->state());
 
   // This is currently guaranteed by checks in StoreIC::Store.

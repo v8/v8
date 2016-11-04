@@ -149,11 +149,11 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  virtual Handle<Code> CompileHandler(LookupIterator* lookup,
-                                      Handle<Object> value,
-                                      CacheHolderFlag cache_holder) {
+  virtual Handle<Object> CompileHandler(LookupIterator* lookup,
+                                        Handle<Object> value,
+                                        CacheHolderFlag cache_holder) {
     UNREACHABLE();
-    return Handle<Code>::null();
+    return Handle<Object>::null();
   }
 
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
@@ -307,8 +307,8 @@ class LoadIC : public IC {
 
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
 
-  Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
-                              CacheHolderFlag cache_holder) override;
+  Handle<Object> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
+                                CacheHolderFlag cache_holder) override;
 
  private:
   // Creates a data handler that represents a load of a field by given index.
@@ -421,8 +421,8 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-  Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> value,
-                              CacheHolderFlag cache_holder) override;
+  Handle<Object> CompileHandler(LookupIterator* lookup, Handle<Object> value,
+                                CacheHolderFlag cache_holder) override;
 
  private:
   friend class IC;

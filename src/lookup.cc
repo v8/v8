@@ -842,5 +842,27 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
   return Handle<InterceptorInfo>();
 }
 
+bool LookupIterator::TryLookupCachedProperty() {
+  return state() == LookupIterator::ACCESSOR &&
+         GetAccessors()->IsAccessorPair() && LookupCachedProperty();
+}
+
+bool LookupIterator::LookupCachedProperty() {
+  DCHECK_EQ(state(), LookupIterator::ACCESSOR);
+  DCHECK(GetAccessors()->IsAccessorPair());
+
+  AccessorPair* accessor_pair = AccessorPair::cast(*GetAccessors());
+  Handle<Object> getter(accessor_pair->getter(), isolate());
+  MaybeHandle<Name> maybe_name =
+      FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
+  if (maybe_name.is_null()) return false;
+
+  // We have found a cached property! Modify the iterator accordingly.
+  name_ = maybe_name.ToHandleChecked();
+  Restart();
+  CHECK_EQ(state(), LookupIterator::DATA);
+  return true;
+}
+
 }  // namespace internal
 }  // namespace v8
