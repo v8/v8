@@ -104,11 +104,10 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
 }
 
 V8InspectorSessionImpl::~V8InspectorSessionImpl() {
-  protocol::ErrorString errorString;
   m_consoleAgent->disable();
   m_profilerAgent->disable();
   m_heapProfilerAgent->disable();
-  m_debuggerAgent->disable(&errorString);
+  m_debuggerAgent->disable();
   m_runtimeAgent->disable();
 
   discardInjectedScripts();
@@ -382,19 +381,12 @@ void V8InspectorSessionImpl::breakProgram(const StringView& breakReason,
 }
 
 void V8InspectorSessionImpl::setSkipAllPauses(bool skip) {
-  protocol::ErrorString errorString;
-  m_debuggerAgent->setSkipAllPauses(&errorString, skip);
+  m_debuggerAgent->setSkipAllPauses(skip);
 }
 
-void V8InspectorSessionImpl::resume() {
-  protocol::ErrorString errorString;
-  m_debuggerAgent->resume(&errorString);
-}
+void V8InspectorSessionImpl::resume() { m_debuggerAgent->resume(); }
 
-void V8InspectorSessionImpl::stepOver() {
-  protocol::ErrorString errorString;
-  m_debuggerAgent->stepOver(&errorString);
-}
+void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver(); }
 
 std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
 V8InspectorSessionImpl::searchInTextByLines(const StringView& text,

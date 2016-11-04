@@ -330,8 +330,7 @@ def resolve_type(protocol, prop):
 
 
 def new_style(domain):
-    domains = [ "Schema", "Console", "Profiler", "HeapProfiler", "Runtime" ]
-    return domain["domain"] in domains
+    return True
 
 
 def join_arrays(dict, keys):

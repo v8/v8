@@ -329,11 +329,11 @@ void V8Debugger::clearStepping() {
   v8::DebugInterface::ClearStepping(m_isolate);
 }
 
-bool V8Debugger::setScriptSource(
+Response V8Debugger::setScriptSource(
     const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
-    ErrorString* error,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails,
-    JavaScriptCallFrames* newCallFrames, Maybe<bool>* stackChanged) {
+    JavaScriptCallFrames* newCallFrames, Maybe<bool>* stackChanged,
+    bool* compileError) {
   class EnableLiveEditScope {
    public:
     explicit EnableLiveEditScope(v8::Isolate* isolate) : m_isolate(isolate) {
@@ -349,6 +349,7 @@ bool V8Debugger::setScriptSource(
     v8::Isolate* m_isolate;
   };
 
+  *compileError = false;
   DCHECK(enabled());
   v8::HandleScope scope(m_isolate);
 
@@ -369,10 +370,9 @@ bool V8Debugger::setScriptSource(
     if (tryCatch.HasCaught()) {
       v8::Local<v8::Message> message = tryCatch.Message();
       if (!message.IsEmpty())
-        *error = toProtocolStringWithTypeCheck(message->Get());
+        return Response::Error(toProtocolStringWithTypeCheck(message->Get()));
       else
-        *error = "Unknown error.";
-      return false;
+        return Response::InternalError();
     }
     v8result = maybeResult.ToLocalChecked();
   }
@@ -397,7 +397,7 @@ bool V8Debugger::setScriptSource(
         JavaScriptCallFrames frames = currentCallFrames();
         newCallFrames->swap(frames);
       }
-      return true;
+      return Response::OK();
     }
     // Compile error.
     case 1: {
@@ -419,11 +419,11 @@ bool V8Debugger::setScriptSource(
                                                     ->Value()) -
                                1)
               .build();
-      return false;
+      *compileError = true;
+      return Response::OK();
     }
   }
-  *error = "Unknown error.";
-  return false;
+  return Response::InternalError();
 }
 
 JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
