@@ -77,11 +77,19 @@ class ModuleDescriptor : public ZoneObject {
     const AstRawString* export_name;
     const AstRawString* local_name;
     const AstRawString* import_name;
+
     // The module_request value records the order in which modules are
     // requested. It also functions as an index into the ModuleInfo's array of
     // module specifiers and into the Module's array of requested modules.  A
     // negative value means no module request.
     int module_request;
+
+    // Import/export entries that are associated with a MODULE-allocated
+    // variable use the cell_index value to encode the location of their cell.
+    // Negative values are used for imports and positive values for exports.
+    // For entries that are not associated with a MODULE-allocated variable,
+    // cell_index is 0.
+    int cell_index;
 
     // TODO(neis): Remove local_name component?
     explicit Entry(Scanner::Location loc)
@@ -89,7 +97,8 @@ class ModuleDescriptor : public ZoneObject {
           export_name(nullptr),
           local_name(nullptr),
           import_name(nullptr),
-          module_request(-1) {}
+          module_request(-1),
+          cell_index(0) {}
 
     // (De-)serialization support.
     // Note that the location value is not preserved as it's only needed by the
@@ -110,7 +119,7 @@ class ModuleDescriptor : public ZoneObject {
   }
 
   // All the remaining imports, indexed by local name.
-  const ZoneMap<const AstRawString*, const Entry*>& regular_imports() const {
+  const ZoneMap<const AstRawString*, Entry*>& regular_imports() const {
     return regular_imports_;
   }
 
@@ -139,7 +148,7 @@ class ModuleDescriptor : public ZoneObject {
     special_exports_.Add(entry, zone);
   }
 
-  void AddRegularImport(const Entry* entry) {
+  void AddRegularImport(Entry* entry) {
     DCHECK_NOT_NULL(entry->import_name);
     DCHECK_NOT_NULL(entry->local_name);
     DCHECK_NULL(entry->export_name);
@@ -168,7 +177,7 @@ class ModuleDescriptor : public ZoneObject {
   ZoneList<const Entry*> special_exports_;
   ZoneList<const Entry*> namespace_imports_;
   ZoneMultimap<const AstRawString*, Entry*> regular_exports_;
-  ZoneMap<const AstRawString*, const Entry*> regular_imports_;
+  ZoneMap<const AstRawString*, Entry*> regular_imports_;
 
   // If there are multiple export entries with the same export name, return the
   // last of them (in source order).  Otherwise return nullptr.
@@ -191,6 +200,11 @@ class ModuleDescriptor : public ZoneObject {
   //   import {a as b} from "X"; export {a as c} from "X";
   // (The import entry is never deleted.)
   void MakeIndirectExportsExplicit(Zone* zone);
+
+  // Assign a cell_index of -1,-2,... to regular imports.
+  // Assign a cell_index of +1,+2,... to regular (local) exports.
+  // Assign a cell_index of 0 to anything else.
+  void AssignCellIndices();
 
   int AddModuleRequest(const AstRawString* specifier) {
     DCHECK_NOT_NULL(specifier);

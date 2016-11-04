@@ -779,20 +779,29 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   // There should be no local slot with the given name.
   DCHECK_LT(scope_info_->StackSlotIndex(*name_handle), 0);
 
+  bool found = false;
+
+  VariableLocation location;
+  int index;
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
 
-  VariableLocation location = VariableLocation::CONTEXT;
-  int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
-                                          &init_flag, &maybe_assigned_flag);
-  if (index < 0 && scope_type() == MODULE_SCOPE) {
+  {
+    location = VariableLocation::CONTEXT;
+    index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
+                                        &init_flag, &maybe_assigned_flag);
+    found = index >= 0;
+  }
+
+  if (!found && scope_type() == MODULE_SCOPE) {
     location = VariableLocation::MODULE;
     index = scope_info_->ModuleIndex(name_handle, &mode, &init_flag,
                                      &maybe_assigned_flag);
+    found = index != 0;
   }
 
-  if (index < 0) {
+  if (!found) {
     index = scope_info_->FunctionContextSlotIndex(*name_handle);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name);
@@ -1936,12 +1945,14 @@ void DeclarationScope::AllocateLocals() {
 void ModuleScope::AllocateModuleVariables() {
   for (const auto& it : module()->regular_imports()) {
     Variable* var = LookupLocal(it.first);
-    var->AllocateTo(VariableLocation::MODULE, Variable::kModuleImportIndex);
+    var->AllocateTo(VariableLocation::MODULE, it.second->cell_index);
+    DCHECK(!var->IsExport());
   }
 
   for (const auto& it : module()->regular_exports()) {
     Variable* var = LookupLocal(it.first);
-    var->AllocateTo(VariableLocation::MODULE, Variable::kModuleExportIndex);
+    var->AllocateTo(VariableLocation::MODULE, it.second->cell_index);
+    DCHECK(var->IsExport());
   }
 }
 

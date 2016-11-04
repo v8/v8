@@ -87,9 +87,8 @@ Handle<ModuleInfoEntry> ModuleDescriptor::Entry::Serialize(
   return ModuleInfoEntry::New(
       isolate, ToStringOrUndefined(isolate, export_name),
       ToStringOrUndefined(isolate, local_name),
-      ToStringOrUndefined(isolate, import_name),
-      Handle<Object>(Smi::FromInt(module_request), isolate), location.beg_pos,
-      location.end_pos);
+      ToStringOrUndefined(isolate, import_name), module_request, cell_index,
+      location.beg_pos, location.end_pos);
 }
 
 ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
@@ -102,7 +101,8 @@ ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
       isolate, avfactory, handle(entry->local_name(), isolate));
   result->import_name = FromStringOrUndefined(
       isolate, avfactory, handle(entry->import_name(), isolate));
-  result->module_request = Smi::cast(entry->module_request())->value();
+  result->module_request = entry->module_request();
+  result->cell_index = entry->cell_index();
   return result;
 }
 
@@ -113,19 +113,22 @@ Handle<FixedArray> ModuleDescriptor::SerializeRegularExports(Isolate* isolate,
   // names.  (Regular exports have neither import name nor module request.)
 
   ZoneVector<Handle<Object>> data(zone);
-  data.reserve(2 * regular_exports_.size());
+  data.reserve(3 * regular_exports_.size());
 
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
     // Find out how many export names this local name has.
     auto next = it;
     int size = 0;
     do {
+      DCHECK_EQ(it->second->local_name, next->second->local_name);
+      DCHECK_EQ(it->second->cell_index, next->second->cell_index);
       ++next;
       ++size;
     } while (next != regular_exports_.end() && next->first == it->first);
 
     Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(size);
     data.push_back(it->second->local_name->string());
+    data.push_back(handle(Smi::FromInt(it->second->cell_index), isolate));
     data.push_back(export_names);
 
     // Collect the export names.
@@ -154,6 +157,7 @@ void ModuleDescriptor::DeserializeRegularExports(Isolate* isolate,
                                                  Handle<FixedArray> data) {
   for (int i = 0, length_i = data->length(); i < length_i;) {
     Handle<String> local_name(String::cast(data->get(i++)), isolate);
+    int cell_index = Smi::cast(data->get(i++))->value();
     Handle<FixedArray> export_names(FixedArray::cast(data->get(i++)), isolate);
 
     for (int j = 0, length_j = export_names->length(); j < length_j; ++j) {
@@ -163,6 +167,7 @@ void ModuleDescriptor::DeserializeRegularExports(Isolate* isolate,
           new (avfactory->zone()) Entry(Scanner::Location::invalid());
       entry->local_name = avfactory->GetString(local_name);
       entry->export_name = avfactory->GetString(export_name);
+      entry->cell_index = cell_index;
 
       AddRegularExport(entry);
     }
@@ -198,6 +203,36 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
     } else {
       it++;
     }
+  }
+}
+
+void ModuleDescriptor::AssignCellIndices() {
+  int export_index = 1;
+  for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
+    auto current_key = it->first;
+    // This local name may be exported under multiple export names.  Assign the
+    // same index to each such entry.
+    do {
+      Entry* entry = it->second;
+      DCHECK_NOT_NULL(entry->local_name);
+      DCHECK_NULL(entry->import_name);
+      DCHECK_LT(entry->module_request, 0);
+      DCHECK_EQ(entry->cell_index, 0);
+      entry->cell_index = export_index;
+      it++;
+    } while (it != regular_exports_.end() && it->first == current_key);
+    export_index++;
+  }
+
+  int import_index = -1;
+  for (const auto& elem : regular_imports_) {
+    Entry* entry = elem.second;
+    DCHECK_NOT_NULL(entry->local_name);
+    DCHECK_NOT_NULL(entry->import_name);
+    DCHECK_LE(0, entry->module_request);
+    DCHECK_EQ(entry->cell_index, 0);
+    entry->cell_index = import_index;
+    import_index--;
   }
 }
 
@@ -267,6 +302,7 @@ bool ModuleDescriptor::Validate(ModuleScope* module_scope,
   }
 
   MakeIndirectExportsExplicit(zone);
+  AssignCellIndices();
   return true;
 }
 

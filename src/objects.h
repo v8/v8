@@ -4546,8 +4546,9 @@ class ScopeInfo : public FixedArray {
                               VariableMode* mode, InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
-  // Lookup metadata of a MODULE-allocated variable.  Return a negative value if
-  // there is no module variable with the given name.
+  // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
+  // module variable with the given name (the index value of a MODULE variable
+  // is never 0).
   int ModuleIndex(Handle<String> name, VariableMode* mode,
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
@@ -4740,12 +4741,13 @@ class ModuleInfoEntry : public FixedArray {
                                      Handle<Object> export_name,
                                      Handle<Object> local_name,
                                      Handle<Object> import_name,
-                                     Handle<Object> module_request, int beg_pos,
-                                     int end_pos);
+                                     int module_request, int cell_index,
+                                     int beg_pos, int end_pos);
   inline Object* export_name() const;
   inline Object* local_name() const;
   inline Object* import_name() const;
-  inline Object* module_request() const;
+  inline int module_request() const;
+  inline int cell_index() const;
   inline int beg_pos() const;
   inline int end_pos() const;
 
@@ -4756,6 +4758,7 @@ class ModuleInfoEntry : public FixedArray {
     kLocalNameIndex,
     kImportNameIndex,
     kModuleRequestIndex,
+    kCellIndexIndex,
     kBegPosIndex,
     kEndPosIndex,
     kLength
@@ -4763,6 +4766,7 @@ class ModuleInfoEntry : public FixedArray {
 };
 
 // ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
+// TODO(neis): Use Struct instead of FixedArray.
 class ModuleInfo : public FixedArray {
  public:
   DECLARE_CAST(ModuleInfo)

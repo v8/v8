@@ -651,7 +651,7 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
     entry += kModuleVariableEntryLength;
   }
 
-  return -1;
+  return 0;
 }
 
 int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
@@ -803,6 +803,7 @@ void ScopeInfo::ModuleVariable(int i, String** name, int* index,
   }
   if (index != nullptr) {
     *index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+    DCHECK_NE(*index, 0);
   }
   if (mode != nullptr) {
     *mode = VariableModeField::decode(properties);
@@ -864,13 +865,14 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              Handle<Object> export_name,
                                              Handle<Object> local_name,
                                              Handle<Object> import_name,
-                                             Handle<Object> module_request,
+                                             int module_request, int cell_index,
                                              int beg_pos, int end_pos) {
   Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
   result->set(kExportNameIndex, *export_name);
   result->set(kLocalNameIndex, *local_name);
   result->set(kImportNameIndex, *import_name);
-  result->set(kModuleRequestIndex, *module_request);
+  result->set(kModuleRequestIndex, Smi::FromInt(module_request));
+  result->set(kCellIndexIndex, Smi::FromInt(cell_index));
   result->set(kBegPosIndex, Smi::FromInt(beg_pos));
   result->set(kEndPosIndex, Smi::FromInt(end_pos));
   return result;

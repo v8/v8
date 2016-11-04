@@ -801,7 +801,8 @@ void ScopeIterator::CopyModuleVarsToScopeObject(Handle<ScopeInfo> scope_info,
       scope_info->ModuleVariable(i, &name, &index);
       CHECK(!ScopeInfo::VariableIsSynthetic(name));
       local_name = handle(name, isolate);
-      is_export = index == Variable::kModuleExportIndex;
+      DCHECK_NE(index, 0);
+      is_export = index > 0;
     }
 
     Handle<Object> value;
@@ -814,9 +815,8 @@ void ScopeIterator::CopyModuleVarsToScopeObject(Handle<ScopeInfo> scope_info,
       Handle<ModuleInfoEntry> entry =
           ModuleInfo::LookupRegularImport(module_info, local_name);
       Handle<String> import_name(String::cast(entry->import_name()), isolate);
-      int module_request = Smi::cast(entry->module_request())->value();
       value = Module::LoadImport(handle(context->module(), isolate),
-                                 import_name, module_request);
+                                 import_name, entry->module_request());
     }
 
     // Reflect variables under TDZ as undefined in scope object.

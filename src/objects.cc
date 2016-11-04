@@ -19912,7 +19912,6 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
   if (object->IsModuleInfoEntry()) {
     // Not yet resolved indirect export.
     Handle<ModuleInfoEntry> entry = Handle<ModuleInfoEntry>::cast(object);
-    int module_request = Smi::cast(entry->module_request())->value();
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
     Handle<Script> script(
         Script::cast(JSFunction::cast(module->code())->shared()->script()),
@@ -19920,8 +19919,8 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
-    if (!ResolveImport(module, import_name, module_request, new_loc, true,
-                       resolve_set)
+    if (!ResolveImport(module, import_name, entry->module_request(), new_loc,
+                       true, resolve_set)
              .ToHandle(&cell)) {
       DCHECK(isolate->has_pending_exception());
       return MaybeHandle<Cell>();
@@ -19958,7 +19957,6 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       if (!entry->export_name()->IsUndefined(isolate)) {
         continue;  // Indirect export.
       }
-      int module_request = Smi::cast(entry->module_request())->value();
 
       Handle<Script> script(
           Script::cast(JSFunction::cast(module->code())->shared()->script()),
@@ -19966,7 +19964,7 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
-      if (ResolveImport(module, name, module_request, new_loc, false,
+      if (ResolveImport(module, name, entry->module_request(), new_loc, false,
                         resolve_set)
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
@@ -20019,9 +20017,10 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
 
   // Set up local exports.
   Handle<FixedArray> regular_exports(module_info->regular_exports(), isolate);
-  for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
+  for (int i = 0, n = regular_exports->length(); i < n; i += 3) {
+    // TODO(neis): Make this more robust.
     Handle<FixedArray> export_names(
-        FixedArray::cast(regular_exports->get(i + 1)), isolate);
+        FixedArray::cast(regular_exports->get(i + 2)), isolate);
     CreateExport(module, export_names);
   }
 
@@ -20069,13 +20068,13 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
     Handle<ModuleInfoEntry> entry(
         ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
     Handle<String> name(String::cast(entry->import_name()), isolate);
-    int module_request = Smi::cast(entry->module_request())->value();
     Handle<Script> script(
         Script::cast(JSFunction::cast(module->code())->shared()->script()),
         isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(&zone);
-    if (ResolveImport(module, name, module_request, loc, true, &resolve_set)
+    if (ResolveImport(module, name, entry->module_request(), loc, true,
+                      &resolve_set)
             .is_null()) {
       return false;
     }
@@ -20159,9 +20158,8 @@ void FetchStarExports(Handle<Module> module, Zone* zone,
       continue;  // Indirect export.
     }
 
-    int module_request = Smi::cast(entry->module_request())->value();
     Handle<Module> requested_module(
-        Module::cast(module->requested_modules()->get(module_request)),
+        Module::cast(module->requested_modules()->get(entry->module_request())),
         isolate);
 
     // Recurse.

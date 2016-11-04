@@ -100,19 +100,16 @@ class Variable final : public ZoneObject {
 
   int index() const { return index_; }
 
-  // Sentinel index values for module exports and imports.
-  enum { kModuleExportIndex, kModuleImportIndex };
-
   bool IsExport() const {
-    DCHECK(location() == VariableLocation::MODULE);
-    return index() == kModuleExportIndex;
+    DCHECK_EQ(location(), VariableLocation::MODULE);
+    DCHECK_NE(index(), 0);
+    return index() > 0;
   }
 
   void AllocateTo(VariableLocation location, int index) {
     DCHECK(IsUnallocated() ||
            (this->location() == location && this->index() == index));
-    DCHECK_IMPLIES(location == VariableLocation::MODULE,
-                   index == kModuleExportIndex || index == kModuleImportIndex);
+    DCHECK_IMPLIES(location == VariableLocation::MODULE, index != 0);
     bit_field_ = LocationField::update(bit_field_, location);
     DCHECK_EQ(location, this->location());
     index_ = index;

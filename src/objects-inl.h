@@ -8052,8 +8052,12 @@ Object* ModuleInfoEntry::local_name() const { return get(kLocalNameIndex); }
 
 Object* ModuleInfoEntry::import_name() const { return get(kImportNameIndex); }
 
-Object* ModuleInfoEntry::module_request() const {
-  return get(kModuleRequestIndex);
+int ModuleInfoEntry::module_request() const {
+  return Smi::cast(get(kModuleRequestIndex))->value();
+}
+
+int ModuleInfoEntry::cell_index() const {
+  return Smi::cast(get(kCellIndexIndex))->value();
 }
 
 int ModuleInfoEntry::beg_pos() const {
