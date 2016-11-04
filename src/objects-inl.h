@@ -803,10 +803,6 @@ bool HeapObject::IsScopeInfo() const {
   return map() == GetHeap()->scope_info_map();
 }
 
-bool HeapObject::IsModuleInfoEntry() const {
-  return map() == GetHeap()->module_info_entry_map();
-}
-
 bool HeapObject::IsModuleInfo() const {
   return map() == GetHeap()->module_info_map();
 }
@@ -3351,7 +3347,6 @@ CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(Map)
-CAST_ACCESSOR(ModuleInfoEntry)
 CAST_ACCESSOR(ModuleInfo)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
@@ -8046,27 +8041,13 @@ bool ScopeInfo::HasSimpleParameters() {
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
 #undef SCOPE_INFO_FIELD_ACCESSORS
 
-Object* ModuleInfoEntry::export_name() const { return get(kExportNameIndex); }
-
-Object* ModuleInfoEntry::local_name() const { return get(kLocalNameIndex); }
-
-Object* ModuleInfoEntry::import_name() const { return get(kImportNameIndex); }
-
-int ModuleInfoEntry::module_request() const {
-  return Smi::cast(get(kModuleRequestIndex))->value();
-}
-
-int ModuleInfoEntry::cell_index() const {
-  return Smi::cast(get(kCellIndexIndex))->value();
-}
-
-int ModuleInfoEntry::beg_pos() const {
-  return Smi::cast(get(kBegPosIndex))->value();
-}
-
-int ModuleInfoEntry::end_pos() const {
-  return Smi::cast(get(kEndPosIndex))->value();
-}
+ACCESSORS(ModuleInfoEntry, export_name, Object, kExportNameOffset)
+ACCESSORS(ModuleInfoEntry, local_name, Object, kLocalNameOffset)
+ACCESSORS(ModuleInfoEntry, import_name, Object, kImportNameOffset)
+SMI_ACCESSORS(ModuleInfoEntry, module_request, kModuleRequestOffset)
+SMI_ACCESSORS(ModuleInfoEntry, cell_index, kCellIndexOffset)
+SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
+SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
 FixedArray* ModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));

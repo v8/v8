@@ -97,7 +97,6 @@
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
-//         - ModuleInfoEntry
 //         - ModuleInfo
 //         - ScriptContextTable
 //         - WeakFixedArray
@@ -159,6 +158,7 @@
 //       - CodeCache
 //       - PrototypeInfo
 //       - Module
+//       - ModuleInfoEntry
 //     - WeakCell
 //
 // Formats of Object*:
@@ -407,6 +407,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TUPLE3_TYPE)                                                \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
+  V(MODULE_INFO_ENTRY_TYPE)                                     \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
@@ -572,6 +573,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
   V(TUPLE3, Tuple3, tuple3)                                                  \
   V(MODULE, Module, module)                                                  \
+  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)
 
 // We use the full 8 bits of the instance_type field to encode heap object
@@ -751,6 +753,7 @@ enum InstanceType {
   TUPLE3_TYPE,
   CONTEXT_EXTENSION_TYPE,
   MODULE_TYPE,
+  MODULE_INFO_ENTRY_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -1102,7 +1105,6 @@ template <class C> inline bool Is(Object* obj);
   V(ScriptContextTable)          \
   V(NativeContext)               \
   V(ScopeInfo)                   \
-  V(ModuleInfoEntry)             \
   V(ModuleInfo)                  \
   V(JSBoundFunction)             \
   V(JSFunction)                  \
@@ -4734,71 +4736,6 @@ class ScopeInfo : public FixedArray {
   friend class ScopeIterator;
 };
 
-class ModuleInfoEntry : public FixedArray {
- public:
-  DECLARE_CAST(ModuleInfoEntry)
-  static Handle<ModuleInfoEntry> New(Isolate* isolate,
-                                     Handle<Object> export_name,
-                                     Handle<Object> local_name,
-                                     Handle<Object> import_name,
-                                     int module_request, int cell_index,
-                                     int beg_pos, int end_pos);
-  inline Object* export_name() const;
-  inline Object* local_name() const;
-  inline Object* import_name() const;
-  inline int module_request() const;
-  inline int cell_index() const;
-  inline int beg_pos() const;
-  inline int end_pos() const;
-
- private:
-  friend class Factory;
-  enum {
-    kExportNameIndex,
-    kLocalNameIndex,
-    kImportNameIndex,
-    kModuleRequestIndex,
-    kCellIndexIndex,
-    kBegPosIndex,
-    kEndPosIndex,
-    kLength
-  };
-};
-
-// ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
-// TODO(neis): Use Struct instead of FixedArray.
-class ModuleInfo : public FixedArray {
- public:
-  DECLARE_CAST(ModuleInfo)
-
-  static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
-                                ModuleDescriptor* descr);
-
-  inline FixedArray* module_requests() const;
-  inline FixedArray* special_exports() const;
-  inline FixedArray* regular_exports() const;
-  inline FixedArray* namespace_imports() const;
-  inline FixedArray* regular_imports() const;
-
-  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
-                                                     Handle<String> local_name);
-
-#ifdef DEBUG
-  inline bool Equals(ModuleInfo* other) const;
-#endif
-
- private:
-  friend class Factory;
-  enum {
-    kModuleRequestsIndex,
-    kSpecialExportsIndex,
-    kRegularExportsIndex,
-    kNamespaceImportsIndex,
-    kRegularImportsIndex,
-    kLength
-  };
-};
-
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
@@ -8124,6 +8061,73 @@ class JSGeneratorObject: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
+class ModuleInfoEntry : public Struct {
+ public:
+  DECLARE_CAST(ModuleInfoEntry)
+  DECLARE_PRINTER(ModuleInfoEntry)
+  DECLARE_VERIFIER(ModuleInfoEntry)
+
+  DECL_ACCESSORS(export_name, Object)
+  DECL_ACCESSORS(local_name, Object)
+  DECL_ACCESSORS(import_name, Object)
+  DECL_INT_ACCESSORS(module_request)
+  DECL_INT_ACCESSORS(cell_index)
+  DECL_INT_ACCESSORS(beg_pos)
+  DECL_INT_ACCESSORS(end_pos)
+
+  static Handle<ModuleInfoEntry> New(Isolate* isolate,
+                                     Handle<Object> export_name,
+                                     Handle<Object> local_name,
+                                     Handle<Object> import_name,
+                                     int module_request, int cell_index,
+                                     int beg_pos, int end_pos);
+
+  static const int kExportNameOffset = HeapObject::kHeaderSize;
+  static const int kLocalNameOffset = kExportNameOffset + kPointerSize;
+  static const int kImportNameOffset = kLocalNameOffset + kPointerSize;
+  static const int kModuleRequestOffset = kImportNameOffset + kPointerSize;
+  static const int kCellIndexOffset = kModuleRequestOffset + kPointerSize;
+  static const int kBegPosOffset = kCellIndexOffset + kPointerSize;
+  static const int kEndPosOffset = kBegPosOffset + kPointerSize;
+  static const int kSize = kEndPosOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfoEntry);
+};
+
+// ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
+class ModuleInfo : public FixedArray {
+ public:
+  DECLARE_CAST(ModuleInfo)
+
+  static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
+                                ModuleDescriptor* descr);
+
+  inline FixedArray* module_requests() const;
+  inline FixedArray* special_exports() const;
+  inline FixedArray* regular_exports() const;
+  inline FixedArray* namespace_imports() const;
+  inline FixedArray* regular_imports() const;
+
+  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
+                                                     Handle<String> local_name);
+
+#ifdef DEBUG
+  inline bool Equals(ModuleInfo* other) const;
+#endif
+
+ private:
+  friend class Factory;
+  enum {
+    kModuleRequestsIndex,
+    kSpecialExportsIndex,
+    kRegularExportsIndex,
+    kNamespaceImportsIndex,
+    kRegularImportsIndex,
+    kLength
+  };
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfo);
+};
 // When importing a module namespace (import * as foo from "bar"), a
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.

@@ -92,7 +92,6 @@ using v8::MemoryPressureLevel;
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
-  V(Map, module_info_entry_map, ModuleInfoEntryMap)                            \
   V(Map, module_info_map, ModuleInfoMap)                                       \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
@@ -277,7 +276,6 @@ using v8::MemoryPressureLevel;
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
   V(ScopeInfoMap)                       \
-  V(ModuleInfoEntryMap)                 \
   V(ModuleInfoMap)                      \
   V(FixedCOWArrayMap)                   \
   V(FixedDoubleArrayMap)                \

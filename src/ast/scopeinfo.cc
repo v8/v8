@@ -867,14 +867,15 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              Handle<Object> import_name,
                                              int module_request, int cell_index,
                                              int beg_pos, int end_pos) {
-  Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
-  result->set(kExportNameIndex, *export_name);
-  result->set(kLocalNameIndex, *local_name);
-  result->set(kImportNameIndex, *import_name);
-  result->set(kModuleRequestIndex, Smi::FromInt(module_request));
-  result->set(kCellIndexIndex, Smi::FromInt(cell_index));
-  result->set(kBegPosIndex, Smi::FromInt(beg_pos));
-  result->set(kEndPosIndex, Smi::FromInt(end_pos));
+  Handle<ModuleInfoEntry> result = Handle<ModuleInfoEntry>::cast(
+      isolate->factory()->NewStruct(MODULE_INFO_ENTRY_TYPE));
+  result->set_export_name(*export_name);
+  result->set_local_name(*local_name);
+  result->set_import_name(*import_name);
+  result->set_module_request(module_request);
+  result->set_cell_index(cell_index);
+  result->set_beg_pos(beg_pos);
+  result->set_end_pos(end_pos);
   return result;
 }
 

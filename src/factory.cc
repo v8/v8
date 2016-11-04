@@ -1512,12 +1512,6 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   return scope_info;
 }
 
-Handle<ModuleInfoEntry> Factory::NewModuleInfoEntry() {
-  Handle<FixedArray> array = NewFixedArray(ModuleInfoEntry::kLength, TENURED);
-  array->set_map_no_write_barrier(*module_info_entry_map());
-  return Handle<ModuleInfoEntry>::cast(array);
-}
-
 Handle<ModuleInfo> Factory::NewModuleInfo() {
   Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
   array->set_map_no_write_barrier(*module_info_map());
