@@ -2986,7 +2986,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 5);
   HandleScope scope(isolate);
 
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     RETURN_RESULT_OR_FAILURE(
         isolate, Runtime::SetObjectProperty(isolate, receiver, name, value,
                                             language_mode));
