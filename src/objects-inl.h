@@ -5055,8 +5055,7 @@ inline bool Code::is_hydrogen_stub() {
 inline bool Code::is_interpreter_trampoline_builtin() {
   Builtins* builtins = GetIsolate()->builtins();
   return this == *builtins->InterpreterEntryTrampoline() ||
-         this == *builtins->InterpreterEnterBytecodeDispatch() ||
-         this == *builtins->InterpreterMarkBaselineOnReturn();
+         this == *builtins->InterpreterEnterBytecodeDispatch();
 }
 
 inline bool Code::has_unwinding_info() const {

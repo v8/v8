@@ -406,15 +406,11 @@ static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-  Code* interpreter_baseline_on_return =
-      isolate->builtins()->builtin(Builtins::kInterpreterMarkBaselineOnReturn);
 
   return (pc >= interpreter_entry_trampoline->instruction_start() &&
           pc < interpreter_entry_trampoline->instruction_end()) ||
          (pc >= interpreter_bytecode_dispatch->instruction_start() &&
-          pc < interpreter_bytecode_dispatch->instruction_end()) ||
-         (pc >= interpreter_baseline_on_return->instruction_start() &&
-          pc < interpreter_baseline_on_return->instruction_end());
+          pc < interpreter_bytecode_dispatch->instruction_end());
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,

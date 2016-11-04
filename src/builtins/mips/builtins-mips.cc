@@ -1145,31 +1145,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Jump(t0);
 }
 
-void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
-  // Save the function and context for call to CompileBaseline.
-  __ lw(a1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ lw(kContextRegister,
-        MemOperand(fp, StandardFrameConstants::kContextOffset));
-
-  // Leave the frame before recompiling for baseline so that we don't count as
-  // an activation on the stack.
-  LeaveInterpreterFrame(masm, t0);
-
-  {
-    FrameScope frame_scope(masm, StackFrame::INTERNAL);
-    // Push return value.
-    __ push(v0);
-
-    // Push function as argument and compile for baseline.
-    __ push(a1);
-    __ CallRuntime(Runtime::kCompileBaseline);
-
-    // Restore return value.
-    __ pop(v0);
-  }
-  __ Jump(ra);
-}
-
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
                                         Register scratch1, Register scratch2,
                                         Label* stack_overflow) {

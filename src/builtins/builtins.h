@@ -109,7 +109,6 @@ namespace internal {
                                                                               \
   /* Interpreter */                                                           \
   ASM(InterpreterEntryTrampoline)                                             \
-  ASM(InterpreterMarkBaselineOnReturn)                                        \
   ASM(InterpreterPushArgsAndCall)                                             \
   ASM(InterpreterPushArgsAndCallFunction)                                     \
   ASM(InterpreterPushArgsAndTailCall)                                         \
