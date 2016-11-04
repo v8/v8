@@ -84,7 +84,7 @@ TEST(AtomicNumber, OperatorSubtractionAssignment) {
 
 namespace {
 
-enum TestFlag {
+enum TestFlag : base::AtomicWord {
   kA,
   kB,
   kC,
