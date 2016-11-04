@@ -25978,3 +25978,44 @@ TEST(InternalFieldsOnGlobalProxy) {
   v8::Local<v8::Object> global = context->Global();
   CHECK_EQ(1, global->InternalFieldCount());
 }
+
+THREADED_TEST(ImmutableProtoGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
+  global_template->SetImmutableProto();
+  v8::Local<Context> context = Context::New(isolate, 0, global_template);
+  Context::Scope context_scope(context);
+  v8::Local<Value> result = CompileRun(
+      "global = this;"
+      "(function() {"
+      "  try {"
+      "    global.__proto__ = {};"
+      "    return 0;"
+      "  } catch (e) {"
+      "    return 1;"
+      "  }"
+      "})()");
+  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 1))
+            .FromJust());
+}
+
+THREADED_TEST(MutableProtoGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
+  v8::Local<Context> context = Context::New(isolate, 0, global_template);
+  Context::Scope context_scope(context);
+  v8::Local<Value> result = CompileRun(
+      "global = this;"
+      "(function() {"
+      "  try {"
+      "    global.__proto__ = {};"
+      "    return 0;"
+      "  } catch (e) {"
+      "    return 1;"
+      "  }"
+      "})()");
+  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 0))
+            .FromJust());
+}

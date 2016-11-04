@@ -15553,7 +15553,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   // Nothing to do if prototype is already set.
   if (map->prototype() == *value) return Just(true);
 
-  bool immutable_proto = object->map()->is_immutable_proto();
+  bool immutable_proto = map->is_immutable_proto();
   if (immutable_proto) {
     RETURN_FAILURE(
         isolate, should_throw,

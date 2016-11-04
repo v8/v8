@@ -613,10 +613,12 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   int internal_field_count = 0;
+  bool immutable_proto = false;
   if (!obj->instance_template()->IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
         ObjectTemplateInfo::cast(obj->instance_template()));
     internal_field_count = instance_template->internal_field_count();
+    immutable_proto = instance_template->immutable_proto();
   }
 
   // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
@@ -675,6 +677,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     map->set_is_callable();
     map->set_is_constructor(true);
   }
+
+  if (immutable_proto) map->set_immutable_proto(true);
 
   return result;
 }
