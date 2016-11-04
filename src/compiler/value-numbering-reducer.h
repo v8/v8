@@ -24,6 +24,7 @@ class V8_EXPORT_PRIVATE ValueNumberingReducer final
  private:
   enum { kInitialCapacity = 256u };
 
+  Reduction ReplaceIfTypesMatch(Node* node, Node* replacement);
   void Grow();
   Zone* temp_zone() const { return temp_zone_; }
   Zone* graph_zone() const { return graph_zone_; }

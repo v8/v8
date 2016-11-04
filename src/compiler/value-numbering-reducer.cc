@@ -112,10 +112,31 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
         if (entry->IsDead()) {
           continue;
         }
+        if (entry == node) {
+          // Collision with ourselves, doesn't count as a real collision.
+          // Opportunistically clean-up the duplicate entry if we're at the end
+          // of a bucket.
+          if (!entries_[(j + 1) & mask]) {
+            entries_[j] = nullptr;
+            size_--;
+            return NoChange();
+          }
+          // Otherwise, keep searching for another collision.
+          continue;
+        }
         if (Equals(entry, node)) {
-          // Overwrite the colliding entry with the actual entry.
-          entries_[i] = entry;
-          return Replace(entry);
+          Reduction reduction = ReplaceIfTypesMatch(node, entry);
+          if (reduction.Changed()) {
+            // Overwrite the colliding entry with the actual entry.
+            entries_[i] = entry;
+            // Opportunistically clean-up the duplicate entry if we're at the
+            // end of a bucket.
+            if (!entries_[(j + 1) & mask]) {
+              entries_[j] = nullptr;
+              size_--;
+            }
+          }
+          return reduction;
         }
       }
     }
@@ -126,28 +147,32 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
       continue;
     }
     if (Equals(entry, node)) {
-      // Make sure the replacement has at least as good type as the original
-      // node.
-      if (NodeProperties::IsTyped(entry) && NodeProperties::IsTyped(node)) {
-        Type* entry_type = NodeProperties::GetType(entry);
-        Type* node_type = NodeProperties::GetType(node);
-        if (!entry_type->Is(node_type)) {
-          // Ideally, we would set an intersection of {entry_type} and
-          // {node_type} here. However, typing of NumberConstants assigns
-          // different types to constants with the same value (it creates
-          // a fresh heap number), which would make the intersection empty.
-          // To be safe, we use the smaller type if the types are comparable.
-          if (node_type->Is(entry_type)) {
-            NodeProperties::SetType(entry, node_type);
-          } else {
-            // Types are not comparable => do not replace.
-            return NoChange();
-          }
-        }
-      }
-      return Replace(entry);
+      return ReplaceIfTypesMatch(node, entry);
     }
   }
+}
+
+Reduction ValueNumberingReducer::ReplaceIfTypesMatch(Node* node,
+                                                     Node* replacement) {
+  // Make sure the replacement has at least as good type as the original node.
+  if (NodeProperties::IsTyped(replacement) && NodeProperties::IsTyped(node)) {
+    Type* replacement_type = NodeProperties::GetType(replacement);
+    Type* node_type = NodeProperties::GetType(node);
+    if (!replacement_type->Is(node_type)) {
+      // Ideally, we would set an intersection of {replacement_type} and
+      // {node_type} here. However, typing of NumberConstants assigns different
+      // types to constants with the same value (it creates a fresh heap
+      // number), which would make the intersection empty. To be safe, we use
+      // the smaller type if the types are comparable.
+      if (node_type->Is(replacement_type)) {
+        NodeProperties::SetType(replacement, node_type);
+      } else {
+        // Types are not comparable => do not replace.
+        return NoChange();
+      }
+    }
+  }
+  return Replace(replacement);
 }
 
 
