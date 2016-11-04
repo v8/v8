@@ -2239,6 +2239,9 @@ void CodeGenerator::AssembleConstructFrame() {
       __ mov(fp, sp);
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ Push(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }

@@ -1930,7 +1930,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
