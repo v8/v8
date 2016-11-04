@@ -962,7 +962,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<Code> code = isolate()->builtins()->Illegal();
     global_proxy_function =
         factory()->NewFunction(name, code, JS_GLOBAL_PROXY_TYPE,
-                               JSGlobalProxy::kSizeWithInternalFields);
+                               JSGlobalProxy::SizeWithInternalFields(0));
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
@@ -4368,7 +4368,12 @@ Genesis::Genesis(Isolate* isolate,
   // and initialize it later in CreateNewGlobals.
   Handle<JSGlobalProxy> global_proxy;
   if (!maybe_global_proxy.ToHandle(&global_proxy)) {
-    global_proxy = isolate->factory()->NewUninitializedJSGlobalProxy();
+    const int internal_field_count =
+        !global_proxy_template.IsEmpty()
+            ? global_proxy_template->InternalFieldCount()
+            : 0;
+    global_proxy = isolate->factory()->NewUninitializedJSGlobalProxy(
+        JSGlobalProxy::SizeWithInternalFields(internal_field_count));
   }
 
   // We can only de-serialize a context if the isolate was initialized from
@@ -4477,9 +4482,12 @@ Genesis::Genesis(Isolate* isolate,
     return;
   }
 
+  const int proxy_size = JSGlobalProxy::SizeWithInternalFields(
+      global_proxy_template->InternalFieldCount());
+
   Handle<JSGlobalProxy> global_proxy;
   if (!maybe_global_proxy.ToHandle(&global_proxy)) {
-    global_proxy = factory()->NewUninitializedJSGlobalProxy();
+    global_proxy = factory()->NewUninitializedJSGlobalProxy(proxy_size);
   }
 
   // CreateNewGlobals.
@@ -4496,10 +4504,9 @@ Genesis::Genesis(Isolate* isolate,
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           initial_map, shared, factory()->undefined_value());
   DCHECK_EQ(global_proxy_data->internal_field_count(),
-            v8::Context::kProxyInternalFieldCount);
+            global_proxy_template->InternalFieldCount());
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
-      JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSizeWithInternalFields,
-      FAST_HOLEY_SMI_ELEMENTS);
+      JS_GLOBAL_PROXY_TYPE, proxy_size, FAST_HOLEY_SMI_ELEMENTS);
   JSFunction::SetInitialMap(global_proxy_function, global_proxy_map,
                             factory()->null_value());
   global_proxy_map->set_is_access_check_needed(true);

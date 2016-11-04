@@ -416,7 +416,8 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
     HandleScope handle_scope(isolate);
     Handle<Object> root;
     Handle<JSGlobalProxy> global_proxy =
-        isolate->factory()->NewUninitializedJSGlobalProxy();
+        isolate->factory()->NewUninitializedJSGlobalProxy(
+            JSGlobalProxy::SizeWithInternalFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
       Deserializer deserializer(&snapshot_data);
@@ -535,7 +536,8 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
     HandleScope handle_scope(isolate);
     Handle<Object> root;
     Handle<JSGlobalProxy> global_proxy =
-        isolate->factory()->NewUninitializedJSGlobalProxy();
+        isolate->factory()->NewUninitializedJSGlobalProxy(
+            JSGlobalProxy::SizeWithInternalFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
       Deserializer deserializer(&snapshot_data);

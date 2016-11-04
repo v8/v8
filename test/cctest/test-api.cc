@@ -25972,8 +25972,9 @@ TEST(InternalFieldsOnGlobalProxy) {
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
+  obj_template->SetInternalFieldCount(1);
 
   v8::Local<v8::Context> context = Context::New(isolate, nullptr, obj_template);
   v8::Local<v8::Object> global = context->Global();
-  CHECK_EQ(v8::Context::kProxyInternalFieldCount, global->InternalFieldCount());
+  CHECK_EQ(1, global->InternalFieldCount());
 }

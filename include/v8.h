@@ -7870,12 +7870,6 @@ class V8_EXPORT ExtensionConfiguration {
   const char** names_;
 };
 
-#ifndef V8_CONTEXT_PROXY_INTERNAL_FIELD_COUNT
-// The number of required internal fields for global proxy objects can be
-// defined by embedder.
-#define V8_CONTEXT_PROXY_INTERNAL_FIELD_COUNT 2
-#endif
-
 /**
  * A sandboxed execution context with its own set of built-in objects
  * and functions.
@@ -8072,9 +8066,6 @@ class V8_EXPORT Context {
    private:
     Local<Context> context_;
   };
-
-  static const int kProxyInternalFieldCount =
-      V8_CONTEXT_PROXY_INTERNAL_FIELD_COUNT;
 
  private:
   friend class Value;

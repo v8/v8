@@ -6076,7 +6076,7 @@ static i::Handle<ObjectType> CreateEnvironment(
           *Utils::OpenHandle(*global_template));
 
       proxy_template->SetInternalFieldCount(
-          v8::Context::kProxyInternalFieldCount);
+          global_template->InternalFieldCount());
 
       // Migrate security handlers from global_template to
       // proxy_template.  Temporarily removing access check
