@@ -1306,7 +1306,6 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyFunctionSent,
-  kAllowHarmonyRestrictiveDeclarations,
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyTrailingCommas,
@@ -1326,8 +1325,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
-  parser->set_allow_harmony_restrictive_declarations(
-      flags.Contains(kAllowHarmonyRestrictiveDeclarations));
   parser->set_allow_harmony_async_await(
       flags.Contains(kAllowHarmonyAsyncAwait));
   parser->set_allow_harmony_restrictive_generators(
@@ -7660,11 +7657,6 @@ TEST(FunctionDeclarationError) {
   // Invalid in all contexts
   const char* error_data[] = {
     "try function foo() {} catch (e) {}",
-    NULL
-  };
-  // Valid in sloppy mode only, and only when the
-  // --harmony-restrictive-declarations flag is off
-  const char* unrestricted_data[] = {
     "do function foo() {} while (0);",
     "for (;false;) function foo() {}",
     "for (var i = 0; i < 1; i++) function f() { };",
@@ -7696,8 +7688,7 @@ TEST(FunctionDeclarationError) {
     // "{ function* f() {} function f() {} }",
     NULL
   };
-  // Valid only in sloppy mode, with or without
-  // --harmony-restrictive-declarations
+  // Valid only in sloppy mode.
   const char* sloppy_data[] = {
     "if (true) function foo() {}",
     "if (false) {} else function f() { };",
@@ -7708,30 +7699,13 @@ TEST(FunctionDeclarationError) {
   };
   // clang-format on
 
-  static const ParserFlag restrictive_flags[] = {
-      kAllowHarmonyRestrictiveDeclarations};
-
   // Nothing parses in strict mode without a SyntaxError
   RunParserSyncTest(strict_context, error_data, kError);
-  RunParserSyncTest(strict_context, error_data, kError, NULL, 0,
-                    restrictive_flags, arraysize(restrictive_flags));
-  RunParserSyncTest(strict_context, unrestricted_data, kError);
-  RunParserSyncTest(strict_context, unrestricted_data, kError, NULL, 0,
-                    restrictive_flags, arraysize(restrictive_flags));
   RunParserSyncTest(strict_context, sloppy_data, kError);
-  RunParserSyncTest(strict_context, sloppy_data, kError, NULL, 0,
-                    restrictive_flags, arraysize(restrictive_flags));
 
-  // In sloppy mode, some things are successful, depending on the flag
+  // In sloppy mode, sloppy_data is successful
   RunParserSyncTest(sloppy_context, error_data, kError);
-  RunParserSyncTest(sloppy_context, error_data, kError, NULL, 0,
-                    restrictive_flags, arraysize(restrictive_flags));
-  RunParserSyncTest(sloppy_context, unrestricted_data, kSuccess);
-  RunParserSyncTest(sloppy_context, unrestricted_data, kError, NULL, 0,
-                    restrictive_flags, arraysize(restrictive_flags));
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess);
-  RunParserSyncTest(sloppy_context, sloppy_data, kSuccess, restrictive_flags,
-                    arraysize(restrictive_flags));
 }
 
 TEST(ExponentiationOperator) {

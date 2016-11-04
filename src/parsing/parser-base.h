@@ -211,7 +211,6 @@ class ParserBase {
         allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
-        allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
@@ -226,7 +225,6 @@ class ParserBase {
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(tailcalls);
-  ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
@@ -1463,7 +1461,6 @@ class ParserBase {
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
-  bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
@@ -3683,13 +3680,10 @@ ParserBase<Impl>::ParseFunctionDeclaration(bool* ok) {
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
   if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-    if (allow_harmony_restrictive_declarations()) {
-      impl()->ReportMessageAt(scanner()->location(),
-                              MessageTemplate::kGeneratorInLegacyContext);
-      *ok = false;
-      return impl()->NullStatement();
-    }
+    impl()->ReportMessageAt(scanner()->location(),
+                            MessageTemplate::kGeneratorInLegacyContext);
+    *ok = false;
+    return impl()->NullStatement();
   }
   return ParseHoistableDeclaration(pos, flags, nullptr, false, ok);
 }
@@ -4645,8 +4639,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     ZoneList<const AstRawString*>* labels, bool legacy, bool* ok) {
-  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
-      (legacy && allow_harmony_restrictive_declarations())) {
+  if (is_strict(language_mode()) || peek() != Token::FUNCTION || legacy) {
     return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
   } else {
     if (legacy) {
