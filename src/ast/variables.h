@@ -152,9 +152,6 @@ class Variable final : public ZoneObject {
                           2> {};
   Variable** next() { return &next_; }
   friend List;
-  // To reset next to nullptr upon resetting after preparsing.
-  // TODO(verwaest): Remove once we properly preparse parameters.
-  friend class DeclarationScope;
 };
 }  // namespace internal
 }  // namespace v8

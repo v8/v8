@@ -53,7 +53,9 @@ class ParserRecorder {
   virtual ~ParserRecorder() { }
 
   // Logs the scope and some details of a function literal in the source.
-  virtual void LogFunction(int start, int end, int literals, int properties,
+  virtual void LogFunction(int start, int end, int num_parameters,
+                           int function_length, bool has_duplicate_parameters,
+                           int literals, int properties,
                            LanguageMode language_mode, bool uses_super_property,
                            bool calls_eval) = 0;
 
@@ -72,12 +74,20 @@ class ParserRecorder {
 class SingletonLogger : public ParserRecorder {
  public:
   SingletonLogger()
-      : has_error_(false), start_(-1), end_(-1), error_type_(kSyntaxError) {}
+      : has_error_(false),
+        start_(-1),
+        end_(-1),
+        num_parameters_(-1),
+        function_length_(-1),
+        has_duplicate_parameters_(false),
+        error_type_(kSyntaxError) {}
   virtual ~SingletonLogger() {}
 
   void Reset() { has_error_ = false; }
 
-  virtual void LogFunction(int start, int end, int literals, int properties,
+  virtual void LogFunction(int start, int end, int num_parameters,
+                           int function_length, bool has_duplicate_parameters,
+                           int literals, int properties,
                            LanguageMode language_mode, bool uses_super_property,
                            bool calls_eval) {
     DCHECK(!has_error_);
@@ -85,6 +95,9 @@ class SingletonLogger : public ParserRecorder {
     DCHECK(start_ == -1 && end_ == -1);
     start_ = start;
     end_ = end;
+    num_parameters_ = num_parameters;
+    function_length_ = function_length;
+    has_duplicate_parameters_ = has_duplicate_parameters;
     literals_ = literals;
     properties_ = properties;
     language_mode_ = language_mode;
@@ -110,6 +123,18 @@ class SingletonLogger : public ParserRecorder {
 
   int start() const { return start_; }
   int end() const { return end_; }
+  int num_parameters() const {
+    DCHECK(!has_error_);
+    return num_parameters_;
+  }
+  int function_length() const {
+    DCHECK(!has_error_);
+    return function_length_;
+  }
+  bool has_duplicate_parameters() const {
+    DCHECK(!has_error_);
+    return has_duplicate_parameters_;
+  }
   int literals() const {
     DCHECK(!has_error_);
     return literals_;
@@ -148,6 +173,9 @@ class SingletonLogger : public ParserRecorder {
   int start_;
   int end_;
   // For function entries.
+  int num_parameters_;
+  int function_length_;
+  bool has_duplicate_parameters_;
   int literals_;
   int properties_;
   LanguageMode language_mode_;
@@ -170,17 +198,11 @@ class CompleteParserRecorder : public ParserRecorder {
   CompleteParserRecorder();
   virtual ~CompleteParserRecorder() {}
 
-  virtual void LogFunction(int start, int end, int literals, int properties,
+  virtual void LogFunction(int start, int end, int num_parameters,
+                           int function_length, bool has_duplicate_parameters,
+                           int literals, int properties,
                            LanguageMode language_mode, bool uses_super_property,
-                           bool calls_eval) {
-    function_store_.Add(start);
-    function_store_.Add(end);
-    function_store_.Add(literals);
-    function_store_.Add(properties);
-    function_store_.Add(language_mode);
-    function_store_.Add(uses_super_property);
-    function_store_.Add(calls_eval);
-  }
+                           bool calls_eval);
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector

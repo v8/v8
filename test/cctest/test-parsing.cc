@@ -287,14 +287,30 @@ TEST(PreparseFunctionDataIsUsed) {
       i::GetCurrentStackPosition() - 128 * 1024);
 
   const char* good_code[] = {
-      "function this_is_lazy() { var a; } function foo() { return 25; } foo();",
-      "var this_is_lazy = () => { var a; }; var foo = () => 25; foo();",
+      "function z() { var a; } function f() { return 25; } f();",
+      "var z = function () { var a; }; function f() { return 25; } f();",
+      "function *z() { var a; } function f() { return 25; } f();",
+      "var z = function *() { var a; }; function f() { return 25; } f();",
+      "function z(p1, p2) { var a; } function f() { return 25; } f();",
+      "var z = function (p1, p2) { var a; }; function f() { return 25; } f();",
+      "function *z(p1, p2) { var a; } function f() { return 25; } f();",
+      "var z = function *(p1, p2) { var a; }; function f() { return 25; } f();",
+      "var z = () => { var a; }; function f() { return 25; } f();",
+      "var z = (p1, p2) => { var a; }; function f() { return 25; } f();",
   };
 
   // Insert a syntax error inside the lazy function.
   const char* bad_code[] = {
-      "function this_is_lazy() { if (   } function foo() { return 25; } foo();",
-      "var this_is_lazy = () => { if (   }; var foo = () => 25; foo();",
+      "function z() { if (   } function f() { return 25; } f();",
+      "var z = function () { if (   }; function f() { return 25; } f();",
+      "function *z() { if (   } function f() { return 25; } f();",
+      "var z = function *() { if (   }; function f() { return 25; } f();",
+      "function z(p1, p2) { if (   } function f() { return 25; } f();",
+      "var z = function (p1, p2) { if (   }; function f() { return 25; } f();",
+      "function *z(p1, p2) { if (   } function f() { return 25; } f();",
+      "var z = function *(p1, p2) { if (   }; function f() { return 25; } f();",
+      "var z = () => { if (   }; function f() { return 25; } f();",
+      "var z = (p1, p2) => { if (   }; function f() { return 25; } f();",
   };
 
   for (unsigned i = 0; i < arraysize(good_code); i++) {
@@ -488,17 +504,16 @@ TEST(Regress928) {
 
   int first_function =
       static_cast<int>(strstr(program, "function") - program);
-  int first_lbrace = first_function + i::StrLength("function () ");
-  CHECK_EQ('{', program[first_lbrace]);
-  i::FunctionEntry entry1 = pd->GetFunctionEntry(first_lbrace);
+  int first_lparen = first_function + i::StrLength("function ");
+  CHECK_EQ('(', program[first_lparen]);
+  i::FunctionEntry entry1 = pd->GetFunctionEntry(first_lparen);
   CHECK(!entry1.is_valid());
 
   int second_function =
-      static_cast<int>(strstr(program + first_lbrace, "function") - program);
-  int second_lbrace =
-      second_function + i::StrLength("function () ");
-  CHECK_EQ('{', program[second_lbrace]);
-  i::FunctionEntry entry2 = pd->GetFunctionEntry(second_lbrace);
+      static_cast<int>(strstr(program + first_lparen, "function") - program);
+  int second_lparen = second_function + i::StrLength("function ");
+  CHECK_EQ('(', program[second_lparen]);
+  i::FunctionEntry entry2 = pd->GetFunctionEntry(second_lparen);
   CHECK(entry2.is_valid());
   CHECK_EQ('}', program[entry2.end_pos() - 1]);
 }

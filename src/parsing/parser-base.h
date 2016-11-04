@@ -3953,12 +3953,22 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
     if (peek() == Token::LBRACE) {
       // Multiple statement body
-      Consume(Token::LBRACE);
       DCHECK_EQ(scope(), formal_parameters.scope);
       if (is_lazy_top_level_function) {
+        // FIXME(marja): Arrow function parameters will be parsed even if the
+        // body is preparsed; move relevant parts of parameter handling to
+        // simulate consistent parameter handling.
         Scanner::BookmarkScope bookmark(scanner());
         bookmark.Set();
-        LazyParsingResult result = impl()->SkipLazyFunctionBody(
+        // For arrow functions, we don't need to retrieve data about function
+        // parameters.
+        int dummy_num_parameters = -1;
+        int dummy_function_length = -1;
+        bool dummy_has_duplicate_parameters = false;
+        DCHECK((kind & FunctionKind::kArrowFunction) != 0);
+        LazyParsingResult result = impl()->SkipFunction(
+            kind, formal_parameters.scope, &dummy_num_parameters,
+            &dummy_function_length, &dummy_has_duplicate_parameters,
             &materialized_literal_count, &expected_property_count, false, true,
             CHECK_OK);
         formal_parameters.scope->ResetAfterPreparsing(
@@ -3982,6 +3992,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         }
       }
       if (!is_lazy_top_level_function) {
+        Consume(Token::LBRACE);
         body = impl()->ParseEagerFunctionBody(
             impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
             kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);

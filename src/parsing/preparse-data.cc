@@ -12,6 +12,20 @@
 namespace v8 {
 namespace internal {
 
+void CompleteParserRecorder::LogFunction(
+    int start, int end, int num_parameters, int function_length,
+    bool has_duplicate_parameters, int literals, int properties,
+    LanguageMode language_mode, bool uses_super_property, bool calls_eval) {
+  function_store_.Add(start);
+  function_store_.Add(end);
+  function_store_.Add(num_parameters);
+  function_store_.Add(function_length);
+  function_store_.Add(literals);
+  function_store_.Add(properties);
+  function_store_.Add(
+      FunctionEntry::EncodeFlags(language_mode, uses_super_property, calls_eval,
+                                 has_duplicate_parameters));
+}
 
 CompleteParserRecorder::CompleteParserRecorder() {
   preamble_[PreparseDataConstants::kMagicOffset] =

@@ -887,7 +887,8 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseFunction(DeclarationScope* function_scope,
+  PreParseResult PreParseFunction(FunctionKind kind,
+                                  DeclarationScope* function_scope,
                                   bool parsing_module, SingletonLogger* log,
                                   bool track_unresolved_variables,
                                   bool may_abort, int* use_counts);
@@ -910,9 +911,11 @@ class PreParser : public ParserBase<PreParser> {
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
 
-  V8_INLINE LazyParsingResult SkipLazyFunctionBody(
+  V8_INLINE LazyParsingResult SkipFunction(
+      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, bool* has_duplicate_parameters,
       int* materialized_literal_count, int* expected_property_count,
-      bool track_unresolved_variables, bool may_abort, bool* ok) {
+      bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -921,7 +924,9 @@ class PreParser : public ParserBase<PreParser> {
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_pos, FunctionLiteral::FunctionType function_type,
       LanguageMode language_mode, bool* ok);
-  LazyParsingResult ParseStatementListAndLogFunction(bool may_abort, bool* ok);
+  LazyParsingResult ParseStatementListAndLogFunction(
+      int position_before_formals, PreParserFormalParameters* formals,
+      bool has_duplicate_parameters, bool maybe_abort, bool* ok);
 
   struct TemplateLiteralState {};
 

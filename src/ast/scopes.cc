@@ -1261,6 +1261,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
+  params_.Clear();
   decls_.Clear();
   locals_.Clear();
   sloppy_block_function_map_.Clear();
@@ -1269,28 +1270,8 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   inner_scope_ = nullptr;
   unresolved_ = nullptr;
 
-  // TODO(verwaest): We should properly preparse the parameters (no declarations
-  // should be created), and reparse on abort.
-  if (aborted) {
-    if (!IsArrowFunction(function_kind_)) {
-      DeclareDefaultFunctionVariables(ast_value_factory);
-    }
-    // Recreate declarations for parameters.
-    for (int i = 0; i < params_.length(); i++) {
-      Variable* var = params_[i];
-      if (var->mode() == TEMPORARY) {
-        // TODO(verwaest): Remove and unfriend DeclarationScope from Variable.
-        *var->next() = nullptr;
-        locals_.Add(var);
-      } else if (variables_.Lookup(var->raw_name()) == nullptr) {
-        // TODO(verwaest): Remove and unfriend DeclarationScope from Variable.
-        *var->next() = nullptr;
-        variables_.Add(zone(), var);
-        locals_.Add(var);
-      }
-    }
-  } else {
-    params_.Rewind(0);
+  if (aborted && !IsArrowFunction(function_kind_)) {
+    DeclareDefaultFunctionVariables(ast_value_factory);
   }
 
 #ifdef DEBUG
