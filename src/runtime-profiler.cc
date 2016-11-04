@@ -267,7 +267,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
     }
     return;
   }
-  if (function->IsOptimized()) return;
+  if (frame->is_optimized()) return;
 
   int ticks = shared_code->profiler_ticks();
 
@@ -361,7 +361,7 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
     return;
   }
 
-  if (function->IsOptimized()) return;
+  if (frame->is_optimized()) return;
 
   OptimizationReason reason = ShouldOptimizeIgnition(function, frame);
 
@@ -372,8 +372,6 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
 
 bool RuntimeProfiler::MaybeOSRIgnition(JSFunction* function,
                                        JavaScriptFrame* frame) {
-  if (!FLAG_ignition_osr) return false;
-
   SharedFunctionInfo* shared = function->shared();
   int ticks = shared->profiler_ticks();
 
