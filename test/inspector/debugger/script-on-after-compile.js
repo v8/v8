@@ -1,7 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// Flags: --expose_gc
 
 print("Checks that inspector correctly process compiled scripts");
 
@@ -49,9 +48,10 @@ addScripts()
   .then(() => Protocol.Debugger.enable())
   .then(addScripts)
   .then(() => Protocol.Debugger.disable())
-
-  .then(() => InspectorTest.log("Run gc and then Debugger.enable().."))
-  .then(() => Protocol.Runtime.evaluate({ expression: "for (let i = 1; i < 20; ++i) eval(`foo${i} = undefined`); gc();" }))
+  .then(() => InspectorTest.log("Remove script references and re-enable debugger."))
+  .then(() => Protocol.Runtime.evaluate(
+      { expression: "for (let i = 1; i < 20; ++i) eval(`foo${i} = undefined`);" }))
+  .then(() => Protocol.HeapProfiler.collectGarbage())
   .then(() => Protocol.Debugger.enable())
   .then(InspectorTest.completeTest);
 
