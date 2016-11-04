@@ -1044,7 +1044,7 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
     Node* value = effect = graph()->NewNode(
         simplified()->Allocate(NOT_TENURED),
-        jsgraph()->Int32Constant(JSStringIterator::kSize), effect, control);
+        jsgraph()->Constant(JSStringIterator::kSize), effect, control);
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
