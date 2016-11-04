@@ -1199,10 +1199,6 @@ class Heap {
 
   EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
 
-  EmbedderReachableReferenceReporter* embedder_reachable_reference_reporter() {
-    return embedder_reference_reporter_;
-  }
-
   size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
 
   // ===========================================================================
@@ -2309,7 +2305,6 @@ class Heap {
   int heap_iterator_depth_;
 
   EmbedderHeapTracer* embedder_heap_tracer_;
-  EmbedderReachableReferenceReporter* embedder_reference_reporter_;
   std::vector<std::pair<void*, void*>> wrappers_to_trace_;
 
   // Used for testing purposes.
@@ -2631,18 +2626,6 @@ class AllocationObserver {
   friend class NewSpace;
   friend class PagedSpace;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
-};
-
-class TracePossibleWrapperReporter : public EmbedderReachableReferenceReporter {
- public:
-  explicit TracePossibleWrapperReporter(Heap* heap) : heap_(heap) {}
-  void ReportExternalReference(Value* object) override {
-    heap_->RegisterExternallyReferencedObject(
-        reinterpret_cast<Object**>(object));
-  }
-
- private:
-  Heap* heap_;
 };
 
 }  // namespace internal

@@ -156,7 +156,6 @@ Heap::Heap()
       strong_roots_list_(NULL),
       heap_iterator_depth_(0),
       embedder_heap_tracer_(nullptr),
-      embedder_reference_reporter_(new TracePossibleWrapperReporter(this)),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
@@ -5708,9 +5707,6 @@ void Heap::TearDown() {
 
   delete memory_allocator_;
   memory_allocator_ = nullptr;
-
-  delete embedder_reference_reporter_;
-  embedder_reference_reporter_ = nullptr;
 }
 
 

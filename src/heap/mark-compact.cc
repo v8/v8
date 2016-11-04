@@ -811,8 +811,7 @@ void MarkCompactCollector::Prepare() {
   if (!was_marked_incrementally_) {
     if (heap_->UsingEmbedderHeapTracer()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
-      heap_->embedder_heap_tracer()->TracePrologue(
-          heap_->embedder_reachable_reference_reporter());
+      heap_->embedder_heap_tracer()->TracePrologue();
     }
   }
 

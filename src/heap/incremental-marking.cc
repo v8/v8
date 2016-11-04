@@ -528,8 +528,7 @@ void IncrementalMarking::StartMarking() {
   if (heap_->UsingEmbedderHeapTracer()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
-    heap_->embedder_heap_tracer()->TracePrologue(
-        heap_->embedder_reachable_reference_reporter());
+    heap_->embedder_heap_tracer()->TracePrologue();
   }
 
   RecordWriteStub::Mode mode = is_compacting_
