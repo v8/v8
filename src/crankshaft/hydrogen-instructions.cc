@@ -3578,10 +3578,12 @@ HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
           return H_CONSTANT_INT(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);
-      } else {
+      } else if (c_left->DoubleValue() != 0) {
         int sign = Double(c_left->DoubleValue()).Sign() *
                    Double(c_right->DoubleValue()).Sign();  // Right could be -0.
         return H_CONSTANT_DOUBLE(sign * V8_INFINITY);
+      } else {
+        return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
       }
     }
   }
