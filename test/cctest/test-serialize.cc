@@ -50,9 +50,10 @@
 
 using namespace v8::internal;
 
-void DisableTurbofan() {
-  const char* flag = "--turbo-filter=\"\"";
-  FlagList::SetFlagsFromString(flag, StrLength(flag));
+void DisableAlwaysOpt() {
+  // Isolates prepared for serialization do not optimize. The only exception is
+  // with the flag --always-opt.
+  FLAG_always_opt = false;
 }
 
 
@@ -150,10 +151,7 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce) {
-  // The serialize-deserialize tests only work if the VM is built without
-  // serialization.  That doesn't matter.  We don't need to be able to
-  // serialize a snapshot in a VM that is booted from a snapshot.
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   Vector<const byte> blob = Serialize(isolate);
   isolate = Deserialize(blob);
@@ -171,7 +169,7 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   Vector<const byte> blob1 = Serialize(isolate);
   Vector<const byte> blob2 = Serialize(isolate);
@@ -191,7 +189,7 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   Vector<const byte> blob = Serialize(isolate);
   isolate = Deserialize(blob);
@@ -215,7 +213,7 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   Vector<const byte> blob1 = Serialize(isolate);
   Vector<const byte> blob2 = Serialize(isolate);
@@ -303,7 +301,7 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
 }
 
 UNINITIALIZED_TEST(PartialSerializerObject) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> partial_blob;
   PartiallySerializeObject(&startup_blob, &partial_blob);
@@ -401,7 +399,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 }
 
 UNINITIALIZED_TEST(PartialSerializerContext) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> partial_blob;
   PartiallySerializeContext(&startup_blob, &partial_blob);
@@ -521,7 +519,7 @@ static void PartiallySerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(PartialSerializerCustomContext) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> partial_blob;
   PartiallySerializeCustomContext(&startup_blob, &partial_blob);
@@ -612,7 +610,7 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
 }
 
 TEST(CustomSnapshotDataBlob1) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
   v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
@@ -637,7 +635,7 @@ TEST(CustomSnapshotDataBlob1) {
 }
 
 TEST(CustomSnapshotDataBlob2) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   const char* source2 =
       "function f() { return g() * 2; }"
       "function g() { return 43; }"
@@ -670,8 +668,7 @@ static void SerializationFunctionTemplate(
 }
 
 TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
-  DisableTurbofan();
-
+  DisableAlwaysOpt();
   const char* source1 =
       "var o = {};"
       "(function() {"
@@ -716,7 +713,7 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
 }
 
 TEST(CustomSnapshotDataBlobWithLocker) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate0 = v8::Isolate::New(create_params);
@@ -754,7 +751,7 @@ TEST(CustomSnapshotDataBlobWithLocker) {
 }
 
 TEST(CustomSnapshotDataBlobStackOverflow) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   const char* source =
       "var a = [0];"
       "var b = a;"
@@ -800,7 +797,7 @@ bool IsCompiled(const char* name) {
 }
 
 TEST(SnapshotDataBlobWithWarmup) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
   v8::StartupData cold = v8::V8::CreateSnapshotDataBlob();
@@ -828,7 +825,7 @@ TEST(SnapshotDataBlobWithWarmup) {
 }
 
 TEST(CustomSnapshotDataBlobWithWarmup) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   const char* source =
       "function f() { return Math.abs(1); }\n"
       "function g() { return String.raw(1); }\n"
@@ -864,7 +861,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
 }
 
 TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
@@ -1955,7 +1952,7 @@ TEST(CodeSerializerEmbeddedObject) {
 }
 
 TEST(SnapshotCreatorMultipleContexts) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -2032,7 +2029,7 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallbackReplacement), 0};
 
 TEST(SnapshotCreatorExternalReferences) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator(original_external_references);
@@ -2092,7 +2089,7 @@ TEST(SnapshotCreatorExternalReferences) {
 }
 
 TEST(SnapshotCreatorUnknownExternalReferences) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::SnapshotCreator creator;
   v8::Isolate* isolate = creator.GetIsolate();
   {
@@ -2138,7 +2135,7 @@ void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
 }
 
 TEST(SnapshotCreatorTemplates) {
-  DisableTurbofan();
+  DisableAlwaysOpt();
   v8::StartupData blob;
 
   {
