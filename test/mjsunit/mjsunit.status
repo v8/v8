@@ -172,7 +172,7 @@
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
-  'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.

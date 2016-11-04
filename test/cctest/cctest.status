@@ -68,7 +68,8 @@
   'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
-  'test-api/Threading*': [PASS, NO_VARIANTS],
+  # They are also slow in debug mode.
+  'test-api/Threading*': [PASS, NO_VARIANTS, ['mode == debug', SLOW]],
 
   # BUG(2999). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
@@ -94,10 +95,6 @@
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
@@ -134,8 +131,6 @@
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
-  'test-api/Threading1': [SKIP],
-  'test-api/Threading2': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -167,10 +162,7 @@
   'test-strings/CountBreakIterator': [SKIP],
 
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -229,10 +221,7 @@
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'arch == arm'
 
 ##############################################################################
@@ -256,7 +245,8 @@
 
   # TODO(mips-team): Currently fails on mips board.
   'test-parsing/TooManyArguments': [SKIP],
-  'test-api/Threading3': [SKIP],
+  'test-api/Threading5': [SKIP],
+  'test-api/Threading6': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -329,8 +319,7 @@
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run == True'

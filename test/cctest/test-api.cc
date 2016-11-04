@@ -13820,34 +13820,23 @@ void ApiTestFuzzer::CallTest() {
            test_number_);
 }
 
-// Lets not be needlessly self-referential.
-TEST(Threading1) {
-  ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
-  ApiTestFuzzer::RunAllTests();
-  ApiTestFuzzer::TearDown();
-}
+#define THREADING_TEST(INDEX, NAME)            \
+  TEST(Threading##INDEX) {                     \
+    ApiTestFuzzer::SetUp(ApiTestFuzzer::NAME); \
+    ApiTestFuzzer::RunAllTests();              \
+    ApiTestFuzzer::TearDown();                 \
+  }
 
+THREADING_TEST(1, FIRST_PART)
+THREADING_TEST(2, SECOND_PART)
+THREADING_TEST(3, THIRD_PART)
+THREADING_TEST(4, FOURTH_PART)
+THREADING_TEST(5, FIFTH_PART)
+THREADING_TEST(6, SIXTH_PART)
+THREADING_TEST(7, SEVENTH_PART)
+THREADING_TEST(8, EIGHTH_PART)
 
-TEST(Threading2) {
-  ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
-  ApiTestFuzzer::RunAllTests();
-  ApiTestFuzzer::TearDown();
-}
-
-
-TEST(Threading3) {
-  ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
-  ApiTestFuzzer::RunAllTests();
-  ApiTestFuzzer::TearDown();
-}
-
-
-TEST(Threading4) {
-  ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
-  ApiTestFuzzer::RunAllTests();
-  ApiTestFuzzer::TearDown();
-}
-
+#undef THREADING_TEST
 
 static void ThrowInJS(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();

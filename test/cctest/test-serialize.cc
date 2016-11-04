@@ -609,16 +609,11 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
   v8_isolate->Dispose();
 }
 
-TEST(CustomSnapshotDataBlob) {
+TEST(CustomSnapshotDataBlob1) {
   DisableTurbofan();
   const char* source1 = "function f() { return 42; }";
-  const char* source2 =
-      "function f() { return g() * 2; }"
-      "function g() { return 43; }"
-      "/./.test('a')";
 
   v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
-  v8::StartupData data2 = v8::V8::CreateSnapshotDataBlob(source2);
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -637,6 +632,16 @@ TEST(CustomSnapshotDataBlob) {
     CHECK(CompileRun("this.g")->IsUndefined());
   }
   isolate1->Dispose();
+}
+
+TEST(CustomSnapshotDataBlob2) {
+  DisableTurbofan();
+  const char* source2 =
+      "function f() { return g() * 2; }"
+      "function g() { return 43; }"
+      "/./.test('a')";
+
+  v8::StartupData data2 = v8::V8::CreateSnapshotDataBlob(source2);
 
   v8::Isolate::CreateParams params2;
   params2.snapshot_blob = &data2;
@@ -656,7 +661,6 @@ TEST(CustomSnapshotDataBlob) {
   }
   isolate2->Dispose();
 }
-
 
 static void SerializationFunctionTemplate(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1070,9 +1074,9 @@ TEST(CodeSerializerLargeCodeObject) {
   FLAG_always_opt = false;
 
   Vector<const uint8_t> source =
-      ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (!j) {"),
+      ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
                       STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
-                      STATIC_CHAR_VECTOR("} j=7; j"), 2000);
+                      STATIC_CHAR_VECTOR("} j=7; j"), 1000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
