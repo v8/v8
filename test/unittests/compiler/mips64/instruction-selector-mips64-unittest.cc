@@ -286,6 +286,15 @@ const Conversion kFloat32RoundInstructions[] = {
       kMips64TruncWS, MachineType::Int32()},
      MachineType::Float32()}};
 
+// MIPS64 instructions that clear the top 32 bits of the destination.
+const MachInst2 kCanElideChangeUint32ToUint64[] = {
+    {&RawMachineAssembler::Uint32Div, "Uint32Div", kMips64DivU,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kMips64ModU,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32MulHigh, "Uint32MulHigh", kMips64MulHighU,
+     MachineType::Uint32()}};
+
 }  // namespace
 
 
@@ -1144,6 +1153,83 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
   }
 }
 
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorElidedChangeUint32ToUint64Test;
+
+TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
+  const MachInst2 binop = GetParam();
+  StreamBuilder m(this, MachineType::Uint64(), binop.machine_type,
+                  binop.machine_type);
+  m.Return(m.ChangeUint32ToUint64(
+      (m.*binop.constructor)(m.Parameter(0), m.Parameter(1))));
+  Stream s = m.Build();
+  // Make sure the `ChangeUint32ToUint64` node turned into a no-op.
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(binop.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorElidedChangeUint32ToUint64Test,
+                        ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
+
+TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
+  // For each case, make sure the `ChangeUint32ToUint64` node turned into a
+  // no-op.
+
+  // Lbu
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kMips64Lbu, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // Lhu
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kMips64Lhu, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // Lwu
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kMips64Lwu, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Loads and stores.

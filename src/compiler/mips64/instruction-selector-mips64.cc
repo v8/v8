@@ -1254,6 +1254,33 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Mips64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  switch (value->opcode()) {
+    // 32-bit operations will write their result in a 64 bit register,
+    // clearing the top 32 bits of the destination register.
+    case IrOpcode::kUint32Div:
+    case IrOpcode::kUint32Mod:
+    case IrOpcode::kUint32MulHigh: {
+      Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      return;
+    }
+    case IrOpcode::kLoad: {
+      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      if (load_rep.IsUnsigned()) {
+        switch (load_rep.representation()) {
+          case MachineRepresentation::kWord8:
+          case MachineRepresentation::kWord16:
+          case MachineRepresentation::kWord32:
+            Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+            return;
+          default:
+            break;
+        }
+      }
+    }
+    default:
+      break;
+  }
   Emit(kMips64Dext, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
        g.TempImmediate(0), g.TempImmediate(32));
 }
