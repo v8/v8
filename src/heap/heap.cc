@@ -5470,7 +5470,7 @@ bool Heap::SetUp() {
   mark_compact_collector_ = new MarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
-  if (V8_UNLIKELY(FLAG_gc_stats)) {
+  if (FLAG_track_gc_object_stats) {
     live_object_stats_ = new ObjectStats(this);
     dead_object_stats_ = new ObjectStats(this);
   }

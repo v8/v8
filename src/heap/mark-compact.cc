@@ -25,7 +25,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/tracing/tracing-category-observer.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
 
@@ -2237,21 +2236,17 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
 }
 
 void MarkCompactCollector::RecordObjectStats() {
-  if (V8_UNLIKELY(FLAG_gc_stats)) {
-    heap()->CreateObjectStats();
+  if (FLAG_track_gc_object_stats) {
     ObjectStatsVisitor visitor(heap(), heap()->live_object_stats_,
                                heap()->dead_object_stats_);
     VisitAllObjects(&visitor);
-    if (V8_UNLIKELY(FLAG_gc_stats &
-                    v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-      std::stringstream live, dead;
-      heap()->live_object_stats_->Dump(live);
-      heap()->dead_object_stats_->Dump(dead);
-      TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
-                           "V8.GC_Objects_Stats", TRACE_EVENT_SCOPE_THREAD,
-                           "live", TRACE_STR_COPY(live.str().c_str()), "dead",
-                           TRACE_STR_COPY(dead.str().c_str()));
-    }
+    std::stringstream live, dead;
+    heap()->live_object_stats_->Dump(live);
+    heap()->dead_object_stats_->Dump(dead);
+    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
+                         "V8.GC_Objects_Stats", TRACE_EVENT_SCOPE_THREAD,
+                         "live", TRACE_STR_COPY(live.str().c_str()), "dead",
+                         TRACE_STR_COPY(dead.str().c_str()));
     if (FLAG_trace_gc_object_stats) {
       heap()->live_object_stats_->PrintJSON("live");
       heap()->dead_object_stats_->PrintJSON("dead");
