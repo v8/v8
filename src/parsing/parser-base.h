@@ -4041,6 +4041,12 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     impl()->RewriteDestructuringAssignments();
   }
 
+  if (FLAG_trace_preparse) {
+    Scope* scope = formal_parameters.scope;
+    PrintF("  [%s]: %i-%i (arrow function)\n",
+           is_lazy_top_level_function ? "Preparse no-resolution" : "Full parse",
+           scope->start_position(), scope->end_position());
+  }
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
       materialized_literal_count, expected_property_count,
