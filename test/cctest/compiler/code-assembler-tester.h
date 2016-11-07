@@ -36,7 +36,7 @@ class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTesterImpl(Isolate* isolate, int parameter_count,
-                          Code::Kind kind = Code::FUNCTION)
+                          Code::Kind kind = Code::BUILTIN)
       : ZoneHolder(isolate),
         CodeAssemblerT(isolate, ZoneHolder::held_zone(), parameter_count,
                        Code::ComputeFlags(kind), "test"),

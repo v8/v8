@@ -141,7 +141,8 @@ Node* CodeStubAssembler::WordIsPowerOfTwo(Node* value) {
   // value && !(value & (value - 1))
   return WordEqual(
       Select(WordEqual(value, IntPtrConstant(0)), IntPtrConstant(1),
-             WordAnd(value, IntPtrSub(value, IntPtrConstant(1)))),
+             WordAnd(value, IntPtrSub(value, IntPtrConstant(1))),
+             MachineType::PointerRepresentation()),
       IntPtrConstant(0));
 }
 
@@ -1708,6 +1709,7 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
                          SKIP_WRITE_BARRIER);
 
   // Initialize NameDictionary elements.
+  result = BitcastTaggedToWord(result);
   Node* start_address = IntPtrAdd(
       result, IntPtrConstant(NameDictionary::OffsetOfElementAt(
                                  NameDictionary::kElementsStartIndex) -
@@ -1772,13 +1774,12 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
   Comment("StoreFieldsNoWriteBarrier");
   CSA_ASSERT(WordIsWordAligned(start_address));
   CSA_ASSERT(WordIsWordAligned(end_address));
-  BuildFastLoop(MachineType::PointerRepresentation(), start_address,
-                end_address,
-                [value](CodeStubAssembler* a, Node* current) {
-                  a->StoreNoWriteBarrier(MachineType::PointerRepresentation(),
-                                         current, value);
-                },
-                kPointerSize, IndexAdvanceMode::kPost);
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), start_address, end_address,
+      [value](CodeStubAssembler* a, Node* current) {
+        a->StoreNoWriteBarrier(MachineRepresentation::kTagged, current, value);
+      },
+      kPointerSize, IndexAdvanceMode::kPost);
 }
 
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
@@ -4012,7 +4013,8 @@ Node* CodeStubAssembler::HashTableComputeCapacity(Node* at_least_space_for) {
 }
 
 Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
-  return Select(IntPtrGreaterThanOrEqual(left, right), left, right);
+  return Select(IntPtrGreaterThanOrEqual(left, right), left, right,
+                MachineType::PointerRepresentation());
 }
 
 template <typename Dictionary>
