@@ -17,6 +17,7 @@
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -507,10 +508,14 @@ class RuntimeCallTimer {
   inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
     counter_ = counter;
     parent_.SetValue(parent);
-    timer_.Start();
+    if (FLAG_runtime_stats !=
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
+      timer_.Start();
+    }
   }
 
   inline RuntimeCallTimer* Stop() {
+    if (!timer_.IsStarted()) return parent();
     base::TimeDelta delta = timer_.Elapsed();
     timer_.Stop();
     counter_->count++;
