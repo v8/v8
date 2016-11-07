@@ -7421,6 +7421,16 @@ void HOptimizedGraphBuilder::EnsureArgumentsArePushedForAccess() {
   function_state()->set_arguments_elements(arguments_elements);
 }
 
+bool HOptimizedGraphBuilder::IsAnyParameterContextAllocated() {
+  int count = current_info()->scope()->num_parameters();
+  for (int i = 0; i < count; ++i) {
+    if (current_info()->scope()->parameter(i)->location() ==
+        VariableLocation::CONTEXT) {
+      return true;
+    }
+  }
+  return false;
+}
 
 bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   VariableProxy* proxy = expr->obj()->AsVariableProxy();
@@ -7455,6 +7465,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
     // We need to take into account the KEYED_LOAD_IC feedback to guard the
     // HBoundsCheck instructions below.
     if (!expr->IsMonomorphic()) return false;
+    if (IsAnyParameterContextAllocated()) return false;
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->obj(), ARGUMENTS_ALLOWED), true);
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->key()), true);
     HValue* key = Pop();
@@ -10471,21 +10482,6 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         break;
 
       case VariableLocation::CONTEXT: {
-        // Bail out if we try to mutate a parameter value in a function
-        // using the arguments object.  We do not (yet) correctly handle the
-        // arguments property of the function.
-        if (current_info()->scope()->arguments() != NULL) {
-          // Parameters will rewrite to context slots.  We have no direct
-          // way to detect that the variable is a parameter so we use a
-          // linear search of the parameter list.
-          int count = current_info()->scope()->num_parameters();
-          for (int i = 0; i < count; ++i) {
-            if (var == current_info()->scope()->parameter(i)) {
-              return Bailout(kAssignmentToParameterInArgumentsObject);
-            }
-          }
-        }
-
         HValue* context = BuildContextChainWalk(var);
         HStoreContextSlot::Mode mode = IsLexicalVariableMode(var->mode())
             ? HStoreContextSlot::kCheckDeoptimize : HStoreContextSlot::kNoCheck;

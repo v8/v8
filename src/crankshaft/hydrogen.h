@@ -2800,6 +2800,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   bool CanBeFunctionApplyArguments(Call* expr);
 
+  bool IsAnyParameterContextAllocated();
+
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;
 
