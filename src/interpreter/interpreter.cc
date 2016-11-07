@@ -541,14 +541,14 @@ compiler::Node* Interpreter::BuildLoadContextSlot(
   Node* slot_index = __ BytecodeOperandIdx(1);
   Node* depth = __ BytecodeOperandUImm(2);
   Node* slot_context = __ GetContextAtDepth(context, depth);
-  return __ LoadContextSlot(slot_context, slot_index);
+  return __ LoadContextElement(slot_context, slot_index);
 }
 
 compiler::Node* Interpreter::BuildLoadCurrentContextSlot(
     InterpreterAssembler* assembler) {
   Node* slot_index = __ BytecodeOperandIdx(0);
   Node* slot_context = __ GetContext();
-  return __ LoadContextSlot(slot_context, slot_index);
+  return __ LoadContextElement(slot_context, slot_index);
 }
 
 // LdaContextSlot <context> <slot_index> <depth>
@@ -602,7 +602,7 @@ void Interpreter::DoStaContextSlot(InterpreterAssembler* assembler) {
   Node* slot_index = __ BytecodeOperandIdx(1);
   Node* depth = __ BytecodeOperandUImm(2);
   Node* slot_context = __ GetContextAtDepth(context, depth);
-  __ StoreContextSlot(slot_context, slot_index, value);
+  __ StoreContextElement(slot_context, slot_index, value);
   __ Dispatch();
 }
 
@@ -614,7 +614,7 @@ void Interpreter::DoStaCurrentContextSlot(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* slot_index = __ BytecodeOperandIdx(0);
   Node* slot_context = __ GetContext();
-  __ StoreContextSlot(slot_context, slot_index, value);
+  __ StoreContextElement(slot_context, slot_index, value);
   __ Dispatch();
 }
 
@@ -659,7 +659,7 @@ void Interpreter::DoLdaLookupContextSlot(Runtime::FunctionId function_id,
   // Fast path does a normal load context.
   {
     Node* slot_context = __ GetContextAtDepth(context, depth);
-    Node* result = __ LoadContextSlot(slot_context, slot_index);
+    Node* result = __ LoadContextElement(slot_context, slot_index);
     __ SetAccumulator(result);
     __ Dispatch();
   }
@@ -1758,7 +1758,7 @@ void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
   // Get the function to call from the native context.
   Node* context = __ GetContext();
   Node* native_context = __ LoadNativeContext(context);
-  Node* function = __ LoadContextSlot(native_context, context_index);
+  Node* function = __ LoadContextElement(native_context, context_index);
 
   // Call the function.
   Node* result = __ CallJS(function, context, first_arg, args_count,

@@ -331,7 +331,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Context manipulation
   compiler::Node* LoadContextElement(compiler::Node* context, int slot_index);
+  compiler::Node* LoadContextElement(compiler::Node* context,
+                                     compiler::Node* slot_index);
   compiler::Node* StoreContextElement(compiler::Node* context, int slot_index,
+                                      compiler::Node* value);
+  compiler::Node* StoreContextElement(compiler::Node* context,
+                                      compiler::Node* slot_index,
                                       compiler::Node* value);
   compiler::Node* LoadNativeContext(compiler::Node* context);
 

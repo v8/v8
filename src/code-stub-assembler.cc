@@ -1265,11 +1265,26 @@ Node* CodeStubAssembler::LoadContextElement(Node* context, int slot_index) {
   return Load(MachineType::AnyTagged(), context, IntPtrConstant(offset));
 }
 
+Node* CodeStubAssembler::LoadContextElement(Node* context, Node* slot_index) {
+  Node* offset =
+      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
+                IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
+  return Load(MachineType::AnyTagged(), context, offset);
+}
+
 Node* CodeStubAssembler::StoreContextElement(Node* context, int slot_index,
                                              Node* value) {
   int offset = Context::SlotOffset(slot_index);
   return Store(MachineRepresentation::kTagged, context, IntPtrConstant(offset),
                value);
+}
+
+Node* CodeStubAssembler::StoreContextElement(Node* context, Node* slot_index,
+                                             Node* value) {
+  Node* offset =
+      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
+                IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
+  return Store(MachineRepresentation::kTagged, context, offset, value);
 }
 
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {

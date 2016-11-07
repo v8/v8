@@ -485,21 +485,6 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
   }
 }
 
-Node* InterpreterAssembler::LoadContextSlot(Node* context, Node* slot_index) {
-  Node* offset =
-      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
-                IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-  return Load(MachineType::AnyTagged(), context, offset);
-}
-
-Node* InterpreterAssembler::StoreContextSlot(Node* context, Node* slot_index,
-                                             Node* value) {
-  Node* offset =
-      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
-                IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-  return Store(MachineRepresentation::kTagged, context, offset, value);
-}
-
 Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* function = LoadRegister(Register::function_closure());
   Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
