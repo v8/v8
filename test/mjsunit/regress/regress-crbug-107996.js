@@ -30,15 +30,19 @@
 Debug = debug.Debug;
 
 Debug.setListener(listener);
-
+var exception = null;
 var fourteen;
 var four_in_debugger = [];
 
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
-    for (var i = 0; i < exec_state.frameCount(); i++) {
-      var frame = exec_state.frame(i);
-      four_in_debugger[i] = frame.evaluate("four", false).value();
+    try {
+      for (var i = 0; i < exec_state.frameCount() - 1; i++) {
+        var frame = exec_state.frame(i);
+        four_in_debugger[i] = frame.evaluate("four", false).value();
+      }
+    } catch (e) {
+      exception = e;
     }
   }
 }
@@ -62,3 +66,4 @@ assertEquals(4, four_in_debugger[1]);
 assertEquals(4, four_in_debugger[2]);
 
 Debug.setListener(null);
+assertNull(exception);

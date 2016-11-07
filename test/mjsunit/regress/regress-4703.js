@@ -4,8 +4,10 @@
 
 // Flags: --expose-debug-as debug
 
+var exception = null;
+
 function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
+  if (event != debug.Debug.DebugEvent.Break) return;
   try {
     var all_scopes = exec_state.frame().allScopes();
     assertEquals([ debug.ScopeType.Block,
@@ -15,6 +17,7 @@ function listener(event, exec_state, event_data, data) {
                  all_scopes.map(scope => scope.scopeType()));
   } catch (e) {
     exception = e;
+    print(e);
   }
 }
 
@@ -28,3 +31,6 @@ debug.Debug.setListener(listener);
   }
   debugger;
 })();
+
+debug.Debug.setListener(null);
+assertNull(exception);

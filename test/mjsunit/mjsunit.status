@@ -69,6 +69,7 @@
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
+  'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
@@ -133,17 +134,6 @@
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
   'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  ##############################################################################
-  # BUG(5581): Broken tests with exceptions thrown in debug listener.
-  'es6/debug-step-into-constructor': [FAIL],
-  'es6/default-parameters-debug': [FAIL],
-  'regress/regress-2296': [FAIL],
-  'regress/regress-2318': [FAIL],
-  'regress/regress-4703': [FAIL],
-  'regress/regress-5071': [FAIL],
-  'regress/regress-998565': [FAIL],
-  'regress/regress-crbug-107996': [FAIL],
 
   ##############################################################################
   # Tests with different versions for release and debug.
