@@ -475,6 +475,23 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
 }
 
+TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
+  {
+    const byte data[] = {
+        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
+        U32V_3(65536),
+    };
+    EXPECT_VERIFIES(data);
+  }
+  {
+    const byte data[] = {
+        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
+        U32V_3(65537),
+    };
+    EXPECT_FAILURE(data);
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   const byte data[] = {
       SECTION(Memory, 4),

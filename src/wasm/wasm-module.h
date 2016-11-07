@@ -177,6 +177,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
   static const size_t kV8MaxPages = 16384;      // Maximum memory size = 1gb
+  static const size_t kSpecMaxPages = 65536;    // Maximum according to the spec
   static const size_t kV8MaxTableSize = 16 * 1024 * 1024;
 
   Zone* owned_zone;

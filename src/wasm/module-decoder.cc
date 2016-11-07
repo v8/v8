@@ -316,7 +316,8 @@ class ModuleDecoder : public Decoder {
             WasmIndirectFunctionTable* table = &module->function_tables.back();
             consume_resizable_limits(
                 "element count", "elements", WasmModule::kV8MaxTableSize,
-                &table->min_size, &table->has_max, &table->max_size);
+                &table->min_size, &table->has_max, WasmModule::kV8MaxTableSize,
+                &table->max_size);
             break;
           }
           case kExternalMemory: {
@@ -324,6 +325,7 @@ class ModuleDecoder : public Decoder {
             bool has_max = false;
             consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
                                      &module->min_mem_pages, &has_max,
+                                     WasmModule::kSpecMaxPages,
                                      &module->max_mem_pages);
             break;
           }
@@ -385,7 +387,8 @@ class ModuleDecoder : public Decoder {
         expect_u8("table type", kWasmAnyFunctionTypeForm);
         consume_resizable_limits("table elements", "elements",
                                  WasmModule::kV8MaxTableSize, &table->min_size,
-                                 &table->has_max, &table->max_size);
+                                 &table->has_max, WasmModule::kV8MaxTableSize,
+                                 &table->max_size);
       }
       section_iter.advance();
     }
@@ -401,9 +404,9 @@ class ModuleDecoder : public Decoder {
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
         bool has_max = false;
-        consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
-                                 &module->min_mem_pages, &has_max,
-                                 &module->max_mem_pages);
+        consume_resizable_limits(
+            "memory", "pages", WasmModule::kV8MaxPages, &module->min_mem_pages,
+            &has_max, WasmModule::kSpecMaxPages, &module->max_mem_pages);
       }
       section_iter.advance();
     }
@@ -843,26 +846,27 @@ class ModuleDecoder : public Decoder {
   }
 
   void consume_resizable_limits(const char* name, const char* units,
-                                uint32_t max_value, uint32_t* initial,
-                                bool* has_max, uint32_t* maximum) {
+                                uint32_t max_initial, uint32_t* initial,
+                                bool* has_max, uint32_t max_maximum,
+                                uint32_t* maximum) {
     uint32_t flags = consume_u32v("resizable limits flags");
     const byte* pos = pc();
     *initial = consume_u32v("initial size");
     *has_max = false;
-    if (*initial > max_value) {
+    if (*initial > max_initial) {
       error(pos, pos,
             "initial %s size (%u %s) is larger than implementation limit (%u)",
-            name, *initial, units, max_value);
+            name, *initial, units, max_initial);
     }
     if (flags & 1) {
       *has_max = true;
       pos = pc();
       *maximum = consume_u32v("maximum size");
-      if (*maximum > max_value) {
+      if (*maximum > max_maximum) {
         error(
             pos, pos,
             "maximum %s size (%u %s) is larger than implementation limit (%u)",
-            name, *maximum, units, max_value);
+            name, *maximum, units, max_maximum);
       }
       if (*maximum < *initial) {
         error(pos, pos, "maximum %s size (%u %s) is less than initial (%u %s)",
@@ -870,7 +874,7 @@ class ModuleDecoder : public Decoder {
       }
     } else {
       *has_max = false;
-      *maximum = max_value;
+      *maximum = max_initial;
     }
   }
 
