@@ -424,181 +424,117 @@ void Builtins::Generate_StringFromCharCode(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* code = assembler->Parameter(1);
-  Node* context = assembler->Parameter(4);
+  Node* argc = assembler->ChangeInt32ToIntPtr(
+      assembler->Parameter(BuiltinDescriptor::kArgumentsCount));
+  Node* context = assembler->Parameter(BuiltinDescriptor::kContext);
+
+  CodeStubArguments arguments(assembler, argc);
 
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
   Label if_oneargument(assembler), if_notoneargument(assembler);
-  Node* parent_frame_pointer = assembler->LoadParentFramePointer();
-  Node* parent_frame_type =
-      assembler->Load(MachineType::Pointer(), parent_frame_pointer,
-                      assembler->IntPtrConstant(
-                          CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler->Branch(
-      assembler->WordEqual(
-          parent_frame_type,
-          assembler->SmiConstant(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR))),
-      &if_notoneargument, &if_oneargument);
+  assembler->Branch(assembler->WordEqual(argc, assembler->IntPtrConstant(1)),
+                    &if_oneargument, &if_notoneargument);
 
   assembler->Bind(&if_oneargument);
   {
     // Single argument case, perform fast single character string cache lookup
     // for one-byte code units, or fall back to creating a single character
     // string on the fly otherwise.
+    Node* code = arguments.AtIndex(0);
     Node* code32 = assembler->TruncateTaggedToWord32(context, code);
     Node* code16 = assembler->Word32And(
         code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
     Node* result = assembler->StringFromCharCode(code16);
-    assembler->Return(result);
+    arguments.PopAndReturn(result);
   }
 
+  Node* code16 = nullptr;
   assembler->Bind(&if_notoneargument);
   {
-    // Determine the resulting string length.
-    Node* length = assembler->LoadAndUntagSmi(
-        parent_frame_pointer, ArgumentsAdaptorFrameConstants::kLengthOffset);
-
+    Label two_byte(assembler);
     // Assume that the resulting string contains only one-byte characters.
-    Node* result = assembler->AllocateSeqOneByteString(context, length);
+    Node* one_byte_result = assembler->AllocateSeqOneByteString(context, argc);
 
-    // Truncate all input parameters and append them to the resulting string.
-    Variable var_offset(assembler, MachineType::PointerRepresentation());
-    Label loop(assembler, &var_offset), done_loop(assembler);
-    var_offset.Bind(assembler->IntPtrConstant(0));
-    assembler->Goto(&loop);
-    assembler->Bind(&loop);
-    {
-      // Load the current {offset}.
-      Node* offset = var_offset.value();
+    Variable max_index(assembler, MachineType::PointerRepresentation());
+    max_index.Bind(assembler->IntPtrConstant(0));
 
-      // Check if we're done with the string.
-      assembler->GotoIf(assembler->WordEqual(offset, length), &done_loop);
-
-      // Load the next code point and truncate it to a 16-bit value.
-      Node* code = assembler->Load(
-          MachineType::AnyTagged(), parent_frame_pointer,
-          assembler->IntPtrAdd(
-              assembler->WordShl(assembler->IntPtrSub(length, offset),
-                                 assembler->IntPtrConstant(kPointerSizeLog2)),
-              assembler->IntPtrConstant(
-                  CommonFrameConstants::kFixedFrameSizeAboveFp -
-                  kPointerSize)));
-      Node* code32 = assembler->TruncateTaggedToWord32(context, code);
-      Node* code16 = assembler->Word32And(
+    // Iterate over the incoming arguments, converting them to 8-bit character
+    // codes. Stop if any of the conversions generates a code that doesn't fit
+    // in 8 bits.
+    CodeStubAssembler::VariableList vars({&max_index}, assembler->zone());
+    arguments.ForEach(vars, [context, &two_byte, &max_index, &code16,
+                             one_byte_result](CodeStubAssembler* assembler,
+                                              Node* arg) {
+      Node* code32 = assembler->TruncateTaggedToWord32(context, arg);
+      code16 = assembler->Word32And(
           code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
 
-      // Check if {code16} fits into a one-byte string.
-      Label if_codeisonebyte(assembler), if_codeistwobyte(assembler);
-      assembler->Branch(
-          assembler->Int32LessThanOrEqual(
+      assembler->GotoIf(
+          assembler->Int32GreaterThan(
               code16, assembler->Int32Constant(String::kMaxOneByteCharCode)),
-          &if_codeisonebyte, &if_codeistwobyte);
+          &two_byte);
 
-      assembler->Bind(&if_codeisonebyte);
-      {
-        // The {code16} fits into the SeqOneByteString {result}.
-        assembler->StoreNoWriteBarrier(
-            MachineRepresentation::kWord8, result,
-            assembler->IntPtrAdd(
-                assembler->IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                          kHeapObjectTag),
-                offset),
-            code16);
-        var_offset.Bind(
-            assembler->IntPtrAdd(offset, assembler->IntPtrConstant(1)));
-        assembler->Goto(&loop);
-      }
+      // The {code16} fits into the SeqOneByteString {one_byte_result}.
+      Node* offset = assembler->ElementOffsetFromIndex(
+          max_index.value(), UINT8_ELEMENTS,
+          CodeStubAssembler::INTPTR_PARAMETERS,
+          SeqOneByteString::kHeaderSize - kHeapObjectTag);
+      assembler->StoreNoWriteBarrier(MachineRepresentation::kWord8,
+                                     one_byte_result, offset, code16);
+      max_index.Bind(assembler->IntPtrAdd(max_index.value(),
+                                          assembler->IntPtrConstant(1)));
+    });
+    arguments.PopAndReturn(one_byte_result);
 
-      assembler->Bind(&if_codeistwobyte);
-      {
-        // Allocate a SeqTwoByteString to hold the resulting string.
-        Node* cresult = assembler->AllocateSeqTwoByteString(context, length);
+    assembler->Bind(&two_byte);
 
-        // Copy all characters that were previously written to the
-        // SeqOneByteString in {result} over to the new {cresult}.
-        Variable var_coffset(assembler, MachineType::PointerRepresentation());
-        Label cloop(assembler, &var_coffset), done_cloop(assembler);
-        var_coffset.Bind(assembler->IntPtrConstant(0));
-        assembler->Goto(&cloop);
-        assembler->Bind(&cloop);
-        {
-          Node* coffset = var_coffset.value();
-          assembler->GotoIf(assembler->WordEqual(coffset, offset), &done_cloop);
-          Node* ccode = assembler->Load(
-              MachineType::Uint8(), result,
-              assembler->IntPtrAdd(
-                  assembler->IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                            kHeapObjectTag),
-                  coffset));
-          assembler->StoreNoWriteBarrier(
-              MachineRepresentation::kWord16, cresult,
-              assembler->IntPtrAdd(
-                  assembler->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                            kHeapObjectTag),
-                  assembler->WordShl(coffset, 1)),
-              ccode);
-          var_coffset.Bind(
-              assembler->IntPtrAdd(coffset, assembler->IntPtrConstant(1)));
-          assembler->Goto(&cloop);
-        }
+    // At least one of the characters in the string requires a 16-bit
+    // representation.  Allocate a SeqTwoByteString to hold the resulting
+    // string.
+    Node* two_byte_result = assembler->AllocateSeqTwoByteString(context, argc);
 
-        // Write the pending {code16} to {offset}.
-        assembler->Bind(&done_cloop);
-        assembler->StoreNoWriteBarrier(
-            MachineRepresentation::kWord16, cresult,
-            assembler->IntPtrAdd(
-                assembler->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                          kHeapObjectTag),
-                assembler->WordShl(offset, 1)),
-            code16);
+    // Copy the characters that have already been put in the 8-bit string into
+    // their corresponding positions in the new 16-bit string.
+    Node* zero = assembler->IntPtrConstant(0);
+    assembler->CopyStringCharacters(
+        one_byte_result, two_byte_result, zero, zero, max_index.value(),
+        String::ONE_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
+        CodeStubAssembler::INTPTR_PARAMETERS);
 
-        // Copy the remaining parameters to the SeqTwoByteString {cresult}.
-        Label floop(assembler, &var_offset), done_floop(assembler);
-        assembler->Goto(&floop);
-        assembler->Bind(&floop);
-        {
-          // Compute the next {offset}.
-          Node* offset = assembler->IntPtrAdd(var_offset.value(),
-                                              assembler->IntPtrConstant(1));
+    // Write the character that caused the 8-bit to 16-bit fault.
+    Node* max_index_offset = assembler->ElementOffsetFromIndex(
+        max_index.value(), UINT16_ELEMENTS,
+        CodeStubAssembler::INTPTR_PARAMETERS,
+        SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+    assembler->StoreNoWriteBarrier(MachineRepresentation::kWord16,
+                                   two_byte_result, max_index_offset, code16);
+    max_index.Bind(
+        assembler->IntPtrAdd(max_index.value(), assembler->IntPtrConstant(1)));
 
-          // Check if we're done with the string.
-          assembler->GotoIf(assembler->WordEqual(offset, length), &done_floop);
-
-          // Load the next code point and truncate it to a 16-bit value.
-          Node* code = assembler->Load(
-              MachineType::AnyTagged(), parent_frame_pointer,
-              assembler->IntPtrAdd(
-                  assembler->WordShl(
-                      assembler->IntPtrSub(length, offset),
-                      assembler->IntPtrConstant(kPointerSizeLog2)),
-                  assembler->IntPtrConstant(
-                      CommonFrameConstants::kFixedFrameSizeAboveFp -
-                      kPointerSize)));
-          Node* code32 = assembler->TruncateTaggedToWord32(context, code);
+    // Resume copying the passed-in arguments from the same place where the
+    // 8-bit copy stopped, but this time copying over all of the characters
+    // using a 16-bit representation.
+    arguments.ForEach(
+        vars,
+        [context, two_byte_result, &max_index](CodeStubAssembler* assembler,
+                                               Node* arg) {
+          Node* code32 = assembler->TruncateTaggedToWord32(context, arg);
           Node* code16 = assembler->Word32And(
               code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
 
-          // Store the truncated {code} point at the next offset.
-          assembler->StoreNoWriteBarrier(
-              MachineRepresentation::kWord16, cresult,
-              assembler->IntPtrAdd(
-                  assembler->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                            kHeapObjectTag),
-                  assembler->WordShl(offset, 1)),
-              code16);
-          var_offset.Bind(offset);
-          assembler->Goto(&floop);
-        }
+          Node* offset = assembler->ElementOffsetFromIndex(
+              max_index.value(), UINT16_ELEMENTS,
+              CodeStubAssembler::INTPTR_PARAMETERS,
+              SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+          assembler->StoreNoWriteBarrier(MachineRepresentation::kWord16,
+                                         two_byte_result, offset, code16);
+          max_index.Bind(assembler->IntPtrAdd(max_index.value(),
+                                              assembler->IntPtrConstant(1)));
+        },
+        max_index.value());
 
-        // Return the SeqTwoByteString.
-        assembler->Bind(&done_floop);
-        assembler->Return(cresult);
-      }
-    }
-
-    assembler->Bind(&done_loop);
-    assembler->Return(result);
+    arguments.PopAndReturn(two_byte_result);
   }
 }
 

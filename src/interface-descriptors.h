@@ -62,6 +62,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateInt8x16)                      \
   V(AllocateUint8x16)                     \
   V(AllocateBool8x16)                     \
+  V(Builtin)                              \
   V(ArrayNoArgumentConstructor)           \
   V(ArraySingleArgumentConstructor)       \
   V(ArrayNArgumentsConstructor)           \
@@ -596,6 +597,15 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
   };
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
+
+class BuiltinDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kNewTarget, kArgumentsCount)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BuiltinDescriptor,
+                                               CallInterfaceDescriptor)
+  static const Register ArgumentsCountRegister();
+  static const Register NewTargetRegister();
+};
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
  public:

@@ -370,6 +370,27 @@ void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void BuiltinDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void BuiltinDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {NewTargetRegister(), ArgumentsCountRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+const Register BuiltinDescriptor::ArgumentsCountRegister() {
+  return kJavaScriptCallArgCountRegister;
+}
+const Register BuiltinDescriptor::NewTargetRegister() {
+  return kJavaScriptCallNewTargetRegister;
+}
+
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kAllocationSite, kActualArgumentsCount, kFunctionParameter

@@ -203,6 +203,12 @@ Callable CodeFactory::RegExpExec(Isolate* isolate) {
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
+// static
+Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
+  Handle<Code> code(isolate->builtins()->StringFromCharCode());
+  return Callable(code, BuiltinDescriptor(isolate));
+}
+
 #define DECLARE_TFS(Name, Kind, Extra, InterfaceDescriptor) \
   typedef InterfaceDescriptor##Descriptor Name##Descriptor;
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TFS,

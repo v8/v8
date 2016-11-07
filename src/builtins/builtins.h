@@ -620,7 +620,7 @@ namespace internal {
   ASM(StringConstructor_ConstructStub)                                        \
   CPP(StringFromCodePoint)                                                    \
   /* ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits ) */             \
-  TFJ(StringFromCharCode, 1)                                                  \
+  TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 section 21.1.3.1 String.prototype.charAt ( pos ) */                  \
   TFJ(StringPrototypeCharAt, 1)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \

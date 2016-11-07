@@ -1112,6 +1112,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // TypedArray/ArrayBuffer helpers
   compiler::Node* IsDetachedBuffer(compiler::Node* buffer);
 
+  compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
+                                         ElementsKind kind, ParameterMode mode,
+                                         int base_size = 0);
+
  private:
   friend class CodeStubArguments;
 
@@ -1171,10 +1175,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfPrototypesHaveNoElements(compiler::Node* receiver_map,
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
-
-  compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
-                                         ElementsKind kind, ParameterMode mode,
-                                         int base_size = 0);
 
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
                                      AllocationFlags flags,
