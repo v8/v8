@@ -1311,6 +1311,11 @@ class TestModuleEnv : public ModuleEnv {
     return result;
   }
 
+  void InitializeFunctionTable() {
+    mod.function_tables.push_back(
+        {0, 0, true, std::vector<int32_t>(), false, false, SignatureMap()});
+  }
+
  private:
   WasmModule mod;
 };
@@ -1421,6 +1426,7 @@ TEST_F(AstDecoderTest, MultiReturnType) {
 TEST_F(AstDecoderTest, SimpleIndirectCalls) {
   FunctionSig* sig = sigs.i_i();
   TestModuleEnv module_env;
+  module_env.InitializeFunctionTable();
   module = &module_env;
 
   byte f0 = module_env.AddSignature(sigs.i_v());
@@ -1436,6 +1442,7 @@ TEST_F(AstDecoderTest, SimpleIndirectCalls) {
 TEST_F(AstDecoderTest, IndirectCallsOutOfBounds) {
   FunctionSig* sig = sigs.i_i();
   TestModuleEnv module_env;
+  module_env.InitializeFunctionTable();
   module = &module_env;
 
   EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(0, WASM_ZERO));
@@ -1452,6 +1459,7 @@ TEST_F(AstDecoderTest, IndirectCallsOutOfBounds) {
 TEST_F(AstDecoderTest, IndirectCallsWithMismatchedSigs3) {
   FunctionSig* sig = sigs.i_i();
   TestModuleEnv module_env;
+  module_env.InitializeFunctionTable();
   module = &module_env;
 
   byte f0 = module_env.AddFunction(sigs.i_f());
@@ -1469,6 +1477,21 @@ TEST_F(AstDecoderTest, IndirectCallsWithMismatchedSigs3) {
   EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I8(16)));
   EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I64V_1(16)));
   EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_F32(17.6)));
+}
+
+TEST_F(AstDecoderTest, IndirectCallsWithoutTableCrash) {
+  FunctionSig* sig = sigs.i_i();
+  TestModuleEnv module_env;
+  module = &module_env;
+
+  byte f0 = module_env.AddSignature(sigs.i_v());
+  byte f1 = module_env.AddSignature(sigs.i_i());
+  byte f2 = module_env.AddSignature(sigs.i_ii());
+
+  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(f0, WASM_ZERO));
+  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I8(22)));
+  EXPECT_FAILURE_S(
+      sig, WASM_CALL_INDIRECT2(f2, WASM_ZERO, WASM_I8(32), WASM_I8(72)));
 }
 
 TEST_F(AstDecoderTest, SimpleImportCalls) {

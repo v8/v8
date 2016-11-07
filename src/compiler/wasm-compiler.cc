@@ -2168,15 +2168,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   uint32_t table_index = 0;
   wasm::FunctionSig* sig = module_->GetSignature(sig_index);
 
-  if (!module_->IsValidTable(table_index)) {
-    // No function table. Generate a trap and return a constant.
-    trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, Int32Constant(0), position);
-    (*rets) = Buffer(sig->return_count());
-    for (size_t i = 0; i < sig->return_count(); i++) {
-      (*rets)[i] = trap_->GetTrapValue(sig->GetReturn(i));
-    }
-    return trap_->GetTrapValue(sig);
-  }
+  DCHECK(module_->IsValidTable(table_index));
 
   EnsureFunctionTableNodes();
   MachineOperatorBuilder* machine = jsgraph()->machine();
