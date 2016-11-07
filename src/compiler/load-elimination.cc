@@ -448,6 +448,26 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
   return this;
 }
 
+LoadElimination::AbstractState const*
+LoadElimination::AbstractState::KillFields(Node* object, Zone* zone) const {
+  for (size_t i = 0;; ++i) {
+    if (i == arraysize(fields_)) return this;
+    if (AbstractField const* this_field = this->fields_[i]) {
+      AbstractField const* that_field = this_field->Kill(object, zone);
+      if (that_field != this_field) {
+        AbstractState* that = new (zone) AbstractState(*this);
+        that->fields_[i] = this_field;
+        while (++i < arraysize(fields_)) {
+          if (this->fields_[i] != nullptr) {
+            that->fields_[i] = this->fields_[i]->Kill(object, zone);
+          }
+        }
+        return that;
+      }
+    }
+  }
+}
+
 Node* LoadElimination::AbstractState::LookupField(Node* object,
                                                   size_t index) const {
   if (AbstractField const* this_field = this->fields_[index]) {
@@ -662,7 +682,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
     state = state->AddField(object, field_index, new_value, zone());
   } else {
     // Unsupported StoreField operator.
-    state = empty_state();
+    state = state->KillFields(object, zone());
   }
   return UpdateState(node, state);
 }
@@ -856,8 +876,11 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             FieldAccess const& access = FieldAccessOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
             int field_index = FieldIndexOf(access);
-            if (field_index < 0) return empty_state();
-            state = state->KillField(object, field_index, zone());
+            if (field_index < 0) {
+              state = state->KillFields(object, zone());
+            } else {
+              state = state->KillField(object, field_index, zone());
+            }
             break;
           }
           case IrOpcode::kStoreElement: {
