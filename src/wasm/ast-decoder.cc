@@ -227,11 +227,6 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
-    uint32_t table_index = 0;
-    if (!module_->IsValidTable(table_index)) {
-      error("function table has to exist to execute call_indirect");
-      return false;
-    }
     if (Complete(pc, operand)) {
       return true;
     }

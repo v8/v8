@@ -56,7 +56,6 @@ builder.addFunction("main", kSig_i_i)
       kExprEnd,
   ])
   .exportAs("main");
-builder.appendToTable([0]);
 
 var module = builder.instantiate();
 
