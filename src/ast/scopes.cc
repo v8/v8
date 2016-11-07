@@ -160,7 +160,7 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
                          AstValueFactory* avfactory)
     : DeclarationScope(avfactory->zone(), MODULE_SCOPE, scope_info) {
   Zone* zone = avfactory->zone();
-  ModuleInfo* module_info = scope_info->ModuleDescriptorInfo();
+  Handle<ModuleInfo> module_info(scope_info->ModuleDescriptorInfo(), isolate);
 
   set_language_mode(STRICT);
   module_descriptor_ = new (zone) ModuleDescriptor(zone);
@@ -177,9 +177,8 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   }
 
   // Deserialize regular exports.
-  Handle<FixedArray> regular_exports(module_info->regular_exports(), isolate);
   module_descriptor_->DeserializeRegularExports(isolate, avfactory,
-                                                regular_exports);
+                                                module_info);
 
   // Deserialize namespace imports.
   Handle<FixedArray> namespace_imports(module_info->namespace_imports(),

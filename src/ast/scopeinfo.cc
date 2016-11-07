@@ -935,6 +935,27 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   return result;
 }
 
+int ModuleInfo::RegularExportCount() const {
+  DCHECK_EQ(regular_exports()->length() % kRegularExportLength, 0);
+  return regular_exports()->length() / kRegularExportLength;
+}
+
+String* ModuleInfo::RegularExportLocalName(int i) const {
+  return String::cast(regular_exports()->get(i * kRegularExportLength +
+                                             kRegularExportLocalNameOffset));
+}
+
+int ModuleInfo::RegularExportCellIndex(int i) const {
+  return Smi::cast(regular_exports()->get(i * kRegularExportLength +
+                                          kRegularExportCellIndexOffset))
+      ->value();
+}
+
+FixedArray* ModuleInfo::RegularExportExportNames(int i) const {
+  return FixedArray::cast(regular_exports()->get(
+      i * kRegularExportLength + kRegularExportExportNamesOffset));
+}
+
 Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(
     Handle<ModuleInfo> info, Handle<String> local_name) {
   Isolate* isolate = info->GetIsolate();

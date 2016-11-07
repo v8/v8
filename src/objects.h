@@ -8109,6 +8109,12 @@ class ModuleInfo : public FixedArray {
   inline FixedArray* namespace_imports() const;
   inline FixedArray* regular_imports() const;
 
+  // Accessors for [regular_exports].
+  int RegularExportCount() const;
+  String* RegularExportLocalName(int i) const;
+  int RegularExportCellIndex(int i) const;
+  FixedArray* RegularExportExportNames(int i) const;
+
   static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
                                                      Handle<String> local_name);
 
@@ -8118,6 +8124,7 @@ class ModuleInfo : public FixedArray {
 
  private:
   friend class Factory;
+  friend class ModuleDescriptor;
   enum {
     kModuleRequestsIndex,
     kSpecialExportsIndex,
@@ -8125,6 +8132,12 @@ class ModuleInfo : public FixedArray {
     kNamespaceImportsIndex,
     kRegularImportsIndex,
     kLength
+  };
+  enum {
+    kRegularExportLocalNameOffset,
+    kRegularExportCellIndexOffset,
+    kRegularExportExportNamesOffset,
+    kRegularExportLength
   };
   DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfo);
 };

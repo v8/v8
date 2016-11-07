@@ -1816,7 +1816,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   Handle<ModuleInfo> module_info(code->scope_info()->ModuleDescriptorInfo(),
                                  isolate());
   Handle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate(), module_info->regular_exports()->length());
+      ObjectHashTable::New(isolate(), module_info->RegularExportCount());
   int requested_modules_length = module_info->module_requests()->length();
   Handle<FixedArray> requested_modules =
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)

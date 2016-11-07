@@ -14,6 +14,7 @@ namespace internal {
 
 
 class AstRawString;
+class ModuleInfo;
 class ModuleInfoEntry;
 
 class ModuleDescriptor : public ZoneObject {
@@ -169,7 +170,7 @@ class ModuleDescriptor : public ZoneObject {
   Handle<FixedArray> SerializeRegularExports(Isolate* isolate,
                                              Zone* zone) const;
   void DeserializeRegularExports(Isolate* isolate, AstValueFactory* avfactory,
-                                 Handle<FixedArray> data);
+                                 Handle<ModuleInfo> module_info);
 
  private:
   // TODO(neis): Use STL datastructure instead of ZoneList?

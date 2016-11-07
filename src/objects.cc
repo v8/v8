@@ -20021,11 +20021,9 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
                                  isolate);
 
   // Set up local exports.
-  Handle<FixedArray> regular_exports(module_info->regular_exports(), isolate);
-  for (int i = 0, n = regular_exports->length(); i < n; i += 3) {
-    // TODO(neis): Make this more robust.
-    Handle<FixedArray> export_names(
-        FixedArray::cast(regular_exports->get(i + 2)), isolate);
+  for (int i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
+    Handle<FixedArray> export_names(module_info->RegularExportExportNames(i),
+                                    isolate);
     CreateExport(module, export_names);
   }
 

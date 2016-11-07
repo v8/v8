@@ -112,55 +112,61 @@ Handle<FixedArray> ModuleDescriptor::SerializeRegularExports(Isolate* isolate,
   // local names and for each local name immediately access all its export
   // names.  (Regular exports have neither import name nor module request.)
 
-  ZoneVector<Handle<Object>> data(zone);
-  data.reserve(3 * regular_exports_.size());
+  ZoneVector<Handle<Object>> data(
+      ModuleInfo::kRegularExportLength * regular_exports_.size(), zone);
+  int index = 0;
 
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
     // Find out how many export names this local name has.
     auto next = it;
-    int size = 0;
+    int count = 0;
     do {
       DCHECK_EQ(it->second->local_name, next->second->local_name);
       DCHECK_EQ(it->second->cell_index, next->second->cell_index);
       ++next;
-      ++size;
+      ++count;
     } while (next != regular_exports_.end() && next->first == it->first);
 
-    Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(size);
-    data.push_back(it->second->local_name->string());
-    data.push_back(handle(Smi::FromInt(it->second->cell_index), isolate));
-    data.push_back(export_names);
+    Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(count);
+    data[index + ModuleInfo::kRegularExportLocalNameOffset] =
+        it->second->local_name->string();
+    data[index + ModuleInfo::kRegularExportCellIndexOffset] =
+        handle(Smi::FromInt(it->second->cell_index), isolate);
+    data[index + ModuleInfo::kRegularExportExportNamesOffset] = export_names;
+    index += ModuleInfo::kRegularExportLength;
 
     // Collect the export names.
     int i = 0;
     for (; it != next; ++it) {
       export_names->set(i++, *it->second->export_name->string());
     }
-    DCHECK_EQ(i, size);
+    DCHECK_EQ(i, count);
 
     // Continue with the next distinct key.
     DCHECK(it == next);
   }
+  DCHECK_LE(index, static_cast<int>(data.size()));
+  data.resize(index);
 
   // We cannot create the FixedArray earlier because we only now know the
-  // precise size (the number of unique keys in regular_exports).
-  int size = static_cast<int>(data.size());
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(size);
-  for (int i = 0; i < size; ++i) {
+  // precise size.
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(index);
+  for (int i = 0; i < index; ++i) {
     result->set(i, *data[i]);
   }
   return result;
 }
 
-void ModuleDescriptor::DeserializeRegularExports(Isolate* isolate,
-                                                 AstValueFactory* avfactory,
-                                                 Handle<FixedArray> data) {
-  for (int i = 0, length_i = data->length(); i < length_i;) {
-    Handle<String> local_name(String::cast(data->get(i++)), isolate);
-    int cell_index = Smi::cast(data->get(i++))->value();
-    Handle<FixedArray> export_names(FixedArray::cast(data->get(i++)), isolate);
+void ModuleDescriptor::DeserializeRegularExports(
+    Isolate* isolate, AstValueFactory* avfactory,
+    Handle<ModuleInfo> module_info) {
+  for (int i = 0, count = module_info->RegularExportCount(); i < count; ++i) {
+    Handle<String> local_name(module_info->RegularExportLocalName(i), isolate);
+    int cell_index = module_info->RegularExportCellIndex(i);
+    Handle<FixedArray> export_names(module_info->RegularExportExportNames(i),
+                                    isolate);
 
-    for (int j = 0, length_j = export_names->length(); j < length_j; ++j) {
+    for (int j = 0, length = export_names->length(); j < length; ++j) {
       Handle<String> export_name(String::cast(export_names->get(j)), isolate);
 
       Entry* entry =
