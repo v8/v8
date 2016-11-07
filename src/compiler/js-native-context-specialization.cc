@@ -161,7 +161,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                            receiver, effect, control);
     } else {
       // Monomorphic property access.
-      effect = BuildCheckHeapObject(receiver, effect, control);
+      receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                           receiver, effect, control);
       effect = BuildCheckMaps(receiver, effect, control,
                               access_info.receiver_maps());
     }
@@ -199,7 +200,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
       receiverissmi_effect = effect;
     } else {
-      effect = BuildCheckHeapObject(receiver, effect, control);
+      receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                           receiver, effect, control);
     }
 
     // Load the {receiver} map. The resulting effect is the dominating effect
@@ -507,7 +509,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Ensure that {receiver} is a heap object.
-    effect = BuildCheckHeapObject(receiver, effect, control);
+    receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                         receiver, effect, control);
 
     // Check for the monomorphic case.
     if (access_infos.size() == 1) {
@@ -1447,33 +1450,6 @@ Node* JSNativeContextSpecialization::BuildCheckMaps(
   inputs[input_count - 1] = control;
   return graph()->NewNode(simplified()->CheckMaps(map_input_count), input_count,
                           inputs);
-}
-
-Node* JSNativeContextSpecialization::BuildCheckHeapObject(Node* receiver,
-                                                          Node* effect,
-                                                          Node* control) {
-  switch (receiver->opcode()) {
-    case IrOpcode::kHeapConstant:
-    case IrOpcode::kJSCreate:
-    case IrOpcode::kJSCreateArguments:
-    case IrOpcode::kJSCreateArray:
-    case IrOpcode::kJSCreateClosure:
-    case IrOpcode::kJSCreateIterResultObject:
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateLiteralObject:
-    case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSConvertReceiver:
-    case IrOpcode::kJSToName:
-    case IrOpcode::kJSToString:
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSTypeOf: {
-      return effect;
-    }
-    default: {
-      return graph()->NewNode(simplified()->CheckHeapObject(), receiver, effect,
-                              control);
-    }
-  }
 }
 
 void JSNativeContextSpecialization::AssumePrototypesStable(
