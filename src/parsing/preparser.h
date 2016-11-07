@@ -911,7 +911,10 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
+  // Indicates that we won't switch from the preparser to the preparser; we'll
+  // just stay where we are.
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
+  bool parse_lazily() const { return false; }
 
   V8_INLINE LazyParsingResult SkipFunction(
       FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
@@ -1523,7 +1526,6 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos,
     const PreParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
   PreParserStatementList result;
 
   Scope* inner_scope = scope();

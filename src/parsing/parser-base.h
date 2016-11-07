@@ -198,7 +198,6 @@ class ParserBase {
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory),
-        mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         parsing_module_(false),
         stack_limit_(stack_limit),
         zone_(zone),
@@ -254,8 +253,6 @@ class ParserBase {
     kAllowRestrictedIdentifiers,
     kDontAllowRestrictedIdentifiers
   };
-
-  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
 
   enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
 
@@ -591,22 +588,6 @@ class ParserBase {
     int expected_property_count_;
   };
 
-  class ParsingModeScope BASE_EMBEDDED {
-   public:
-    ParsingModeScope(ParserBase* parser, Mode mode)
-        : parser_(parser),
-          old_mode_(parser->mode()) {
-      parser_->mode_ = mode;
-    }
-    ~ParsingModeScope() {
-      parser_->mode_ = old_mode_;
-    }
-
-   private:
-    ParserBase* parser_;
-    Mode old_mode_;
-  };
-
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER };
     Scope* scope;
@@ -753,7 +734,6 @@ class ParserBase {
   int peek_position() const { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
-  Mode mode() const { return mode_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -1440,7 +1420,6 @@ class ParserBase {
   FuncNameInferrer* fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
-  Mode mode_;
   bool parsing_module_;
   uintptr_t stack_limit_;
 
@@ -3924,7 +3903,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       default_eager_compile_hint_;
-  bool can_preparse = mode() == PARSE_LAZILY &&
+  bool can_preparse = impl()->parse_lazily() &&
                       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
   // handling in Scope::ResolveVariable needs to change.
@@ -4411,11 +4390,6 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
           *ok = false;
           return kLazyParsingComplete;
         }
-        // Because declarations in strict eval code don't leak into the scope
-        // of the eval call, it is likely that functions declared in strict
-        // eval code will be used within the eval code, so lazy parsing is
-        // probably not a win.
-        if (scope()->is_eval_scope()) mode_ = PARSE_EAGERLY;
       } else if (impl()->IsUseAsmDirective(stat) &&
                  token_loc.end_pos - token_loc.beg_pos ==
                      sizeof("use asm") + 1) {

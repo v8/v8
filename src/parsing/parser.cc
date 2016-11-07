@@ -590,6 +590,7 @@ Parser::Parser(ParseInfo* info)
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       original_scope_(nullptr),
+      mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       target_stack_(nullptr),
       compile_options_(info->compile_options()),
       cached_parse_data_(nullptr),
@@ -2569,11 +2570,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // parenthesis before the function means that it will be called
   // immediately). bar can be parsed lazily, but we need to parse it in a mode
   // that tracks unresolved variables.
-  DCHECK_IMPLIES(mode() == PARSE_LAZILY, FLAG_lazy);
-  DCHECK_IMPLIES(mode() == PARSE_LAZILY, allow_lazy());
-  DCHECK_IMPLIES(mode() == PARSE_LAZILY, extension_ == nullptr);
+  DCHECK_IMPLIES(parse_lazily(), FLAG_lazy);
+  DCHECK_IMPLIES(parse_lazily(), allow_lazy());
+  DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
-  bool can_preparse = mode() == PARSE_LAZILY &&
+  bool can_preparse = parse_lazily() &&
                       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
 
   bool is_lazy_top_level_function =
