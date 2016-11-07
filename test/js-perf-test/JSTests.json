@@ -170,6 +170,7 @@
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
         {"name": "Assign"},
+        {"name": "Create"},
         {"name": "Entries"},
         {"name": "EntriesMegamorphic"},
         {"name": "Values"},
