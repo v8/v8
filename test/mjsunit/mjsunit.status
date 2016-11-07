@@ -59,10 +59,6 @@
   'es6/debug-promises/reject-with-undefined-reject': [FAIL],
   'es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
-  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
-  # not work, but we expect it to not crash.
-  'debug-step-turbofan': [PASS, FAIL],
-
   # Issue 5587: The eval'ed code is piped through Ignition and fails when being
   # live edited. This needs investigation.
   'debug-liveedit-double-call': [SKIP],
@@ -209,7 +205,6 @@
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
   # Tests taking too long
-  'debug-stepout-scope-part8': [SKIP],
   'mirror-object': [SKIP],
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
