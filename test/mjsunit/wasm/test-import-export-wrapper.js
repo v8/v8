@@ -68,8 +68,8 @@ var expect_no_elison = 1;
 
 // Function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
-// In this case, first_import and second_export have same signature,
-// So that wrappers will be removed. If the wrappers do are not removed, then
+// In this test, first_import and second_export have the same signature, and
+// therefore the wrappers will be removed. If the wrappers are not removed, then
 // the test crashes because of the int64 parameter, which is not allowed in the
 // wrappers.
 (function TestWasmWrapperElisionInt64() {
