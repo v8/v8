@@ -7452,6 +7452,9 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       result = New<HConstant>(argument_count);
     }
   } else {
+    // We need to take into account the KEYED_LOAD_IC feedback to guard the
+    // HBoundsCheck instructions below.
+    if (!expr->IsMonomorphic()) return false;
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->obj(), ARGUMENTS_ALLOWED), true);
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->key()), true);
     HValue* key = Pop();
