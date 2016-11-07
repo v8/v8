@@ -19826,6 +19826,22 @@ class Module::ResolveSet
   Zone* zone_;
 };
 
+namespace {
+
+int ExportIndex(int cell_index) {
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+            ModuleDescriptor::kExport);
+  return cell_index - 1;
+}
+
+int ImportIndex(int cell_index) {
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+            ModuleDescriptor::kImport);
+  return -cell_index - 1;
+}
+
+}  // anonymous namespace
+
 void Module::CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                   Handle<ModuleInfoEntry> entry) {
   Isolate* isolate = module->GetIsolate();
@@ -19835,11 +19851,15 @@ void Module::CreateIndirectExport(Handle<Module> module, Handle<String> name,
   module->set_exports(*exports);
 }
 
-void Module::CreateExport(Handle<Module> module, Handle<FixedArray> names) {
+void Module::CreateExport(Handle<Module> module, int cell_index,
+                          Handle<FixedArray> names) {
   DCHECK_LT(0, names->length());
   Isolate* isolate = module->GetIsolate();
+
   Handle<Cell> cell =
       isolate->factory()->NewCell(isolate->factory()->undefined_value());
+  module->regular_exports()->set(ExportIndex(cell_index), *cell);
+
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   for (int i = 0, n = names->length(); i < n; ++i) {
     Handle<String> name(String::cast(names->get(i)), isolate);
@@ -19849,24 +19869,33 @@ void Module::CreateExport(Handle<Module> module, Handle<FixedArray> names) {
   module->set_exports(*exports);
 }
 
-void Module::StoreExport(Handle<Module> module, Handle<String> name,
-                         Handle<Object> value) {
-  Handle<Cell> cell(Cell::cast(module->exports()->Lookup(name)));
-  cell->set_value(*value);
-}
-
-Handle<Object> Module::LoadExport(Handle<Module> module, Handle<String> name) {
+Handle<Object> Module::LoadVariable(Handle<Module> module, int cell_index) {
   Isolate* isolate = module->GetIsolate();
-  Handle<Object> object(module->exports()->Lookup(name), isolate);
+  Handle<Object> object;
+  switch (ModuleDescriptor::GetCellIndexKind(cell_index)) {
+    case ModuleDescriptor::kImport:
+      object = handle(module->regular_imports()->get(ImportIndex(cell_index)),
+                      isolate);
+      break;
+    case ModuleDescriptor::kExport:
+      object = handle(module->regular_exports()->get(ExportIndex(cell_index)),
+                      isolate);
+      break;
+    case ModuleDescriptor::kInvalid:
+      UNREACHABLE();
+      break;
+  }
   return handle(Handle<Cell>::cast(object)->value(), isolate);
 }
 
-Handle<Object> Module::LoadImport(Handle<Module> module, Handle<String> name,
-                                  int module_request) {
+void Module::StoreVariable(Handle<Module> module, int cell_index,
+                           Handle<Object> value) {
   Isolate* isolate = module->GetIsolate();
-  Handle<Module> requested_module(
-      Module::cast(module->requested_modules()->get(module_request)), isolate);
-  return Module::LoadExport(requested_module, name);
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+            ModuleDescriptor::kExport);
+  Handle<Object> object(module->regular_exports()->get(ExportIndex(cell_index)),
+                        isolate);
+  Handle<Cell>::cast(object)->set_value(*value);
 }
 
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
@@ -20021,10 +20050,12 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
                                  isolate);
 
   // Set up local exports.
+  // TODO(neis): Create regular_exports array here instead of in factory method?
   for (int i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
+    int cell_index = module_info->RegularExportCellIndex(i);
     Handle<FixedArray> export_names(module_info->RegularExportExportNames(i),
                                     isolate);
-    CreateExport(module, export_names);
+    CreateExport(module, cell_index, export_names);
   }
 
   // Partially set up indirect exports.
@@ -20076,11 +20107,13 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
         isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(&zone);
-    if (ResolveImport(module, name, entry->module_request(), loc, true,
-                      &resolve_set)
-            .is_null()) {
+    Handle<Cell> cell;
+    if (!ResolveImport(module, name, entry->module_request(), loc, true,
+                       &resolve_set)
+             .ToHandle(&cell)) {
       return false;
     }
+    module->regular_imports()->set(ImportIndex(entry->cell_index()), *cell);
   }
 
   // Resolve indirect exports.

@@ -212,6 +212,13 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   }
 }
 
+ModuleDescriptor::CellIndexKind ModuleDescriptor::GetCellIndexKind(
+    int cell_index) {
+  if (cell_index > 0) return kExport;
+  if (cell_index < 0) return kImport;
+  return kInvalid;
+}
+
 void ModuleDescriptor::AssignCellIndices() {
   int export_index = 1;
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {

@@ -1865,26 +1865,11 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::MODULE: {
-      ModuleDescriptor* descriptor = scope()->GetModuleScope()->module();
-      if (variable->IsExport()) {
-        auto it = descriptor->regular_exports().find(variable->raw_name());
-        DCHECK(it != descriptor->regular_exports().end());
-        Register export_name = register_allocator()->NewRegister();
-        builder()
-            ->LoadLiteral(it->second->export_name->string())
-            .StoreAccumulatorInRegister(export_name)
-            .CallRuntime(Runtime::kLoadModuleExport, export_name);
-      } else {
-        auto it = descriptor->regular_imports().find(variable->raw_name());
-        DCHECK(it != descriptor->regular_imports().end());
-        RegisterList args = register_allocator()->NewRegisterList(2);
-        builder()
-            ->LoadLiteral(it->second->import_name->string())
-            .StoreAccumulatorInRegister(args[0])
-            .LoadLiteral(Smi::FromInt(it->second->module_request))
-            .StoreAccumulatorInRegister(args[1])
-            .CallRuntime(Runtime::kLoadModuleImport, args);
-      }
+      Register index = register_allocator()->NewRegister();
+      builder()
+          ->LoadLiteral(Smi::FromInt(variable->index()))
+          .StoreAccumulatorInRegister(index)
+          .CallRuntime(Runtime::kLoadModuleVariable, index);
       if (hole_check_mode == HoleCheckMode::kRequired) {
         BuildThrowIfHole(variable->name());
       }
@@ -2052,23 +2037,17 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
       // assignments for them.
       DCHECK(variable->IsExport());
 
-      ModuleDescriptor* mod = scope()->GetModuleScope()->module();
-      // There may be several export names for this local name, but it doesn't
-      // matter which one we pick, as they all map to the same cell.
-      auto it = mod->regular_exports().find(variable->raw_name());
-      DCHECK(it != mod->regular_exports().end());
-
       RegisterList args = register_allocator()->NewRegisterList(2);
       builder()
           ->StoreAccumulatorInRegister(args[1])
-          .LoadLiteral(it->second->export_name->string())
+          .LoadLiteral(Smi::FromInt(variable->index()))
           .StoreAccumulatorInRegister(args[0]);
       if (hole_check_mode == HoleCheckMode::kRequired) {
-        builder()->CallRuntime(Runtime::kLoadModuleExport, args[0]);
+        builder()->CallRuntime(Runtime::kLoadModuleVariable, args[0]);
         BuildHoleCheckForVariableAssignment(variable, op);
       }
       builder()
-          ->CallRuntime(Runtime::kStoreModuleExport, args)
+          ->CallRuntime(Runtime::kStoreModuleVariable, args)
           .LoadAccumulatorWithRegister(args[1]);
       break;
     }

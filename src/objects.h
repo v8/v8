@@ -8179,7 +8179,15 @@ class Module : public Struct {
   // Module::ModuleVerify() for the precise invariant.
   DECL_ACCESSORS(code, Object)
 
-  // The export table.
+  // Arrays of cells corresponding to regular exports and regular imports.
+  // A cell's position in the array is determined by the cell index of the
+  // associated module entry (which coincides with the variable index of the
+  // associated variable).
+  DECL_ACCESSORS(regular_exports, FixedArray)
+  DECL_ACCESSORS(regular_imports, FixedArray)
+
+  // The complete export table, mapping an export name to its cell.
+  // TODO(neis): We may want to remove the regular exports from the table.
   DECL_ACCESSORS(exports, ObjectHashTable)
 
   // Hash for this object (a random non-zero Smi).
@@ -8210,12 +8218,9 @@ class Module : public Struct {
   // Implementation of spec operation ModuleEvaluation.
   static MUST_USE_RESULT MaybeHandle<Object> Evaluate(Handle<Module> module);
 
-  static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
-  static void StoreExport(Handle<Module> module, Handle<String> name,
-                          Handle<Object> value);
-
-  static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
-                                   int module_request);
+  static Handle<Object> LoadVariable(Handle<Module> module, int cell_index);
+  static void StoreVariable(Handle<Module> module, int cell_index,
+                            Handle<Object> value);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
@@ -8224,7 +8229,9 @@ class Module : public Struct {
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
-  static const int kHashOffset = kExportsOffset + kPointerSize;
+  static const int kRegularExportsOffset = kExportsOffset + kPointerSize;
+  static const int kRegularImportsOffset = kRegularExportsOffset + kPointerSize;
+  static const int kHashOffset = kRegularImportsOffset + kPointerSize;
   static const int kModuleNamespaceOffset = kHashOffset + kPointerSize;
   static const int kRequestedModulesOffset =
       kModuleNamespaceOffset + kPointerSize;
@@ -8233,7 +8240,8 @@ class Module : public Struct {
  private:
   enum { kEvaluatedBit };
 
-  static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
+  static void CreateExport(Handle<Module> module, int cell_index,
+                           Handle<FixedArray> names);
   static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
 

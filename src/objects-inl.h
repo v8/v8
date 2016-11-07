@@ -5781,6 +5781,8 @@ ACCESSORS(JSFixedArrayIterator, initial_next, JSFunction, kNextOffset)
 
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
+ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
+ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)

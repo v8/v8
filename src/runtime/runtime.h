@@ -359,9 +359,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_MODULE(F) \
   F(GetModuleNamespace, 1, 1)        \
-  F(LoadModuleExport, 1, 1)          \
-  F(LoadModuleImport, 2, 1)          \
-  F(StoreModuleExport, 2, 1)
+  F(LoadModuleVariable, 1, 1)        \
+  F(StoreModuleVariable, 2, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
   F(IsValidSmi, 1, 1)                  \
