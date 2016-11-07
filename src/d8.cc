@@ -1569,16 +1569,6 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   return handle_scope.Escape(context);
 }
 
-
-void Shell::Exit(int exit_code) {
-  // Use _exit instead of exit to avoid races between isolate
-  // threads and static destructors.
-  fflush(stdout);
-  fflush(stderr);
-  _exit(exit_code);
-}
-
-
 struct CounterAndKey {
   Counter* counter;
   const char* key;
