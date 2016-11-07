@@ -321,6 +321,8 @@ class LiveObjectIterator BASE_EMBEDDED {
   HeapObject* Next();
 
  private:
+  inline Heap* heap() { return chunk_->heap(); }
+
   MemoryChunk* chunk_;
   MarkBitCellIterator it_;
   Address cell_base_;
