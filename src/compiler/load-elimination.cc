@@ -897,6 +897,7 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
   switch (rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kSimd128:
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord32:
@@ -910,16 +911,20 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kFloat32:
       return -1;  // Currently untracked.
     case MachineRepresentation::kFloat64:
-    case MachineRepresentation::kSimd128:
-      return -1;  // Currently untracked.
+      if (kDoubleSize != kPointerSize) {
+        return -1;  // We currently only track pointer size fields.
+      }
+    // Fall through.
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       // TODO(bmeurer): Check that we never do overlapping load/stores of
-      // individual parts of Float64/Simd128 values.
+      // individual parts of Float64 values.
       break;
   }
-  DCHECK_EQ(kTaggedBase, access.base_is_tagged);
+  if (access.base_is_tagged != kTaggedBase) {
+    return -1;  // We currently only track tagged objects.
+  }
   return FieldIndexOf(access.offset);
 }
 
