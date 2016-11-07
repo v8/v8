@@ -191,15 +191,13 @@ class ParserBase {
   const Impl* impl() const { return static_cast<const Impl*>(this); }
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
-             v8::Extension* extension, AstValueFactory* ast_value_factory,
-             ParserRecorder* log)
+             v8::Extension* extension, AstValueFactory* ast_value_factory)
       : scope_state_(nullptr),
         function_state_(nullptr),
         extension_(extension),
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory),
-        log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         parsing_module_(false),
         stack_limit_(stack_limit),
@@ -1442,7 +1440,6 @@ class ParserBase {
   FuncNameInferrer* fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
-  ParserRecorder* log_;
   Mode mode_;
   bool parsing_module_;
   uintptr_t stack_limit_;

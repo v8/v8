@@ -12,10 +12,11 @@
 namespace v8 {
 namespace internal {
 
-void CompleteParserRecorder::LogFunction(
-    int start, int end, int num_parameters, int function_length,
-    bool has_duplicate_parameters, int literals, int properties,
-    LanguageMode language_mode, bool uses_super_property, bool calls_eval) {
+void ParserLogger::LogFunction(int start, int end, int num_parameters,
+                               int function_length,
+                               bool has_duplicate_parameters, int literals,
+                               int properties, LanguageMode language_mode,
+                               bool uses_super_property, bool calls_eval) {
   function_store_.Add(start);
   function_store_.Add(end);
   function_store_.Add(num_parameters);
@@ -27,7 +28,7 @@ void CompleteParserRecorder::LogFunction(
                                  has_duplicate_parameters));
 }
 
-CompleteParserRecorder::CompleteParserRecorder() {
+ParserLogger::ParserLogger() {
   preamble_[PreparseDataConstants::kMagicOffset] =
       PreparseDataConstants::kMagicNumber;
   preamble_[PreparseDataConstants::kVersionOffset] =
@@ -41,11 +42,9 @@ CompleteParserRecorder::CompleteParserRecorder() {
 #endif
 }
 
-
-void CompleteParserRecorder::LogMessage(int start_pos, int end_pos,
-                                        MessageTemplate::Template message,
-                                        const char* arg_opt,
-                                        ParseErrorType error_type) {
+void ParserLogger::LogMessage(int start_pos, int end_pos,
+                              MessageTemplate::Template message,
+                              const char* arg_opt, ParseErrorType error_type) {
   if (HasError()) return;
   preamble_[PreparseDataConstants::kHasErrorOffset] = true;
   function_store_.Reset();
@@ -63,16 +62,14 @@ void CompleteParserRecorder::LogMessage(int start_pos, int end_pos,
   if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
 }
 
-
-void CompleteParserRecorder::WriteString(Vector<const char> str) {
+void ParserLogger::WriteString(Vector<const char> str) {
   function_store_.Add(str.length());
   for (int i = 0; i < str.length(); i++) {
     function_store_.Add(str[i]);
   }
 }
 
-
-ScriptData* CompleteParserRecorder::GetScriptData() {
+ScriptData* ParserLogger::GetScriptData() {
   int function_size = function_store_.size();
   int total_size = PreparseDataConstants::kHeaderSize + function_size;
   unsigned* data = NewArray<unsigned>(total_size);

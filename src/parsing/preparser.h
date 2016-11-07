@@ -838,11 +838,13 @@ class PreParser : public ParserBase<PreParser> {
   };
 
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
-            ParserRecorder* log, uintptr_t stack_limit)
-      : ParserBase<PreParser>(zone, scanner, stack_limit, NULL,
-                              ast_value_factory, log),
+            uintptr_t stack_limit)
+      : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
+                              ast_value_factory),
         use_counts_(nullptr),
         track_unresolved_variables_(false) {}
+
+  PreParserLogger* logger() { return &log_; }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -889,7 +891,7 @@ class PreParser : public ParserBase<PreParser> {
   // the final '}'.
   PreParseResult PreParseFunction(FunctionKind kind,
                                   DeclarationScope* function_scope,
-                                  bool parsing_module, SingletonLogger* log,
+                                  bool parsing_module,
                                   bool track_unresolved_variables,
                                   bool may_abort, int* use_counts);
 
@@ -925,8 +927,8 @@ class PreParser : public ParserBase<PreParser> {
       int function_token_pos, FunctionLiteral::FunctionType function_type,
       LanguageMode language_mode, bool* ok);
   LazyParsingResult ParseStatementListAndLogFunction(
-      int position_before_formals, PreParserFormalParameters* formals,
-      bool has_duplicate_parameters, bool maybe_abort, bool* ok);
+      PreParserFormalParameters* formals, bool has_duplicate_parameters,
+      bool maybe_abort, bool* ok);
 
   struct TemplateLiteralState {};
 
@@ -1268,8 +1270,8 @@ class PreParser : public ParserBase<PreParser> {
                                  MessageTemplate::Template message,
                                  const char* arg = NULL,
                                  ParseErrorType error_type = kSyntaxError) {
-    log_->LogMessage(source_location.beg_pos, source_location.end_pos, message,
-                     arg, error_type);
+    log_.LogMessage(source_location.beg_pos, source_location.end_pos, message,
+                    arg, error_type);
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
@@ -1502,6 +1504,7 @@ class PreParser : public ParserBase<PreParser> {
 
   int* use_counts_;
   bool track_unresolved_variables_;
+  PreParserLogger log_;
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,

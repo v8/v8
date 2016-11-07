@@ -85,11 +85,9 @@ PreParserIdentifier PreParser::GetSymbol() const {
 
 PreParser::PreParseResult PreParser::PreParseFunction(
     FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
-    SingletonLogger* log, bool is_inner_function, bool may_abort,
-    int* use_counts) {
+    bool is_inner_function, bool may_abort, int* use_counts) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
-  log_ = log;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
@@ -127,8 +125,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
   LazyParsingResult result = ParseStatementListAndLogFunction(
-      function_scope->start_position(), &formals, has_duplicate_parameters,
-      may_abort, ok);
+      &formals, has_duplicate_parameters, may_abort, ok);
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
   if (result == kLazyParsingAborted) {
@@ -136,7 +133,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (!*ok) {
-    DCHECK(log->has_error());
+    DCHECK(log_.has_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
 
@@ -235,8 +232,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 }
 
 PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
-    int start_position, PreParserFormalParameters* formals,
-    bool has_duplicate_parameters, bool may_abort, bool* ok) {
+    PreParserFormalParameters* formals, bool has_duplicate_parameters,
+    bool may_abort, bool* ok) {
   PreParserStatementList body;
   LazyParsingResult result = ParseStatementList(
       body, Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
@@ -245,13 +242,11 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
-  DeclarationScope* scope = this->scope()->AsDeclarationScope();
-  DCHECK(scope->is_function_scope());
-  log_->LogFunction(start_position, body_end, formals->num_parameters(),
-                    formals->function_length, has_duplicate_parameters,
-                    function_state_->materialized_literal_count(),
-                    function_state_->expected_property_count(), language_mode(),
-                    scope->uses_super_property(), scope->calls_eval());
+  DCHECK(this->scope()->is_function_scope());
+  log_.LogFunction(body_end, formals->num_parameters(),
+                   formals->function_length, has_duplicate_parameters,
+                   function_state_->materialized_literal_count(),
+                   function_state_->expected_property_count());
   return kLazyParsingComplete;
 }
 

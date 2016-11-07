@@ -134,7 +134,6 @@ class ParseData {
 // JAVASCRIPT PARSING
 
 class Parser;
-class SingletonLogger;
 
 
 struct ParserFormalParameters : FormalParametersBase {
@@ -523,7 +522,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   PreParser::PreParseResult ParseFunctionWithPreParser(FunctionKind kind,
                                                        DeclarationScope* scope,
-                                                       SingletonLogger* logger,
                                                        bool is_inner_function,
                                                        bool may_abort);
 
@@ -1137,6 +1135,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int total_preparse_skipped_;
 
   bool parsing_on_main_thread_;
+  ParserLogger* log_;
 };
 
 // ----------------------------------------------------------------------------
