@@ -419,13 +419,17 @@ class InterruptThread : public v8::base::Thread {
   static void OnInterrupt(v8::Isolate* isolate, void* data) {
     int32_t* m = reinterpret_cast<int32_t*>(data);
     // Set the interrupt location to 0 to break the loop in {TestInterruptLoop}.
-    m[interrupt_location_] = interrupt_value_;
+    int32_t* ptr = &m[interrupt_location_];
+    WriteLittleEndianValue<int32_t>(ptr, interrupt_value_);
   }
 
   virtual void Run() {
     // Wait for the main thread to write the signal value.
-    while (memory_[0] != signal_value_) {
-    }
+    int32_t val = 0;
+    do {
+      val = memory_[0];
+      val = ReadLittleEndianValue<int32_t>(&val);
+    } while (val != signal_value_);
     isolate_->RequestInterrupt(&OnInterrupt, const_cast<int32_t*>(memory_));
   }
 
@@ -489,8 +493,9 @@ TEST(TestInterruptLoop) {
   thread.Start();
   testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr,
                                    ModuleOrigin::kWasmOrigin);
+  int32_t val = memory_array[InterruptThread::interrupt_location_];
   CHECK_EQ(InterruptThread::interrupt_value_,
-           memory_array[InterruptThread::interrupt_location_]);
+           ReadLittleEndianValue<int32_t>(&val));
 }
 
 TEST(Run_WasmModule_GrowMemoryInIf) {
