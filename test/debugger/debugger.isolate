@@ -7,10 +7,7 @@
     ['v8_enable_inspector==1', {
       'variables': {
         'files': [
-          './debugger.status',
-          './protocol/',
-          './test-api.js',
-          './testcfg.py',
+          './',
         ],
       },
     }],
