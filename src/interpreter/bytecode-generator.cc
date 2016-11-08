@@ -2724,7 +2724,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (is_postfix) {
     // Convert old value into a number before saving it.
     old_value = register_allocator()->NewRegister();
-    builder()->ConvertAccumulatorToNumber(old_value);
+    builder()
+        ->ConvertAccumulatorToNumber(old_value)
+        .LoadAccumulatorWithRegister(old_value);
   }
 
   // Perform +1/-1 operation.
