@@ -438,9 +438,6 @@ class V8_EXPORT_PRIVATE Factory final {
   // runtime.
   Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                PretenureFlag pretenure = NOT_TENURED);
-  // JSObject that should have a memento pointing to the allocation site.
-  Handle<JSObject> NewJSObjectWithMemento(Handle<JSFunction> constructor,
-                                          Handle<AllocationSite> site);
   // JSObject without a prototype.
   Handle<JSObject> NewJSObjectWithNullProto();
 

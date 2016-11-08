@@ -1632,16 +1632,6 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 }
 
 
-Handle<JSObject> Factory::NewJSObjectWithMemento(
-    Handle<JSFunction> constructor,
-    Handle<AllocationSite> site) {
-  JSFunction::EnsureHasInitialMap(constructor);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObject(*constructor, NOT_TENURED, *site),
-      JSObject);
-}
-
 Handle<JSObject> Factory::NewJSObjectWithNullProto() {
   Handle<JSObject> result = NewJSObject(isolate()->object_function());
   Handle<Map> new_map =
