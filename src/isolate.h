@@ -1073,12 +1073,6 @@ class Isolate {
     return id;
   }
 
-  void IncrementJsCallsFromApiCounter() { ++js_calls_from_api_counter_; }
-
-  unsigned int js_calls_from_api_counter() {
-    return js_calls_from_api_counter_;
-  }
-
   // Get (and lazily initialize) the registry for per-isolate symbols.
   Handle<JSObject> GetSymbolRegistry();
 
@@ -1415,9 +1409,6 @@ class Isolate {
   unsigned int stress_deopt_count_;
 
   int next_optimization_id_;
-
-  // Counts javascript calls from the API. Wraps around on overflow.
-  unsigned int js_calls_from_api_counter_;
 
 #if TRACE_MAPS
   int next_unique_sfi_id_;

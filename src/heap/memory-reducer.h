@@ -149,9 +149,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 
   static bool WatchdogGC(const State& state, const Event& event);
 
-  // Returns the rate of JS calls initiated from the API.
-  double SampleAndGetJsCallsPerMs(double time_ms);
-
   Heap* heap_;
   State state_;
   unsigned int js_calls_counter_;

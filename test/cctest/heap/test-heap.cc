@@ -6408,30 +6408,6 @@ TEST(Regress519319) {
 }
 
 
-HEAP_TEST(TestMemoryReducerSampleJsCalls) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Heap* heap = CcTest::heap();
-  Isolate* isolate = CcTest::i_isolate();
-  MemoryReducer* memory_reducer = heap->memory_reducer_;
-  memory_reducer->SampleAndGetJsCallsPerMs(0);
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  double calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(1);
-  CheckDoubleEquals(3, calls_per_ms);
-
-  calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(2);
-  CheckDoubleEquals(0, calls_per_ms);
-
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(4);
-  CheckDoubleEquals(2, calls_per_ms);
-}
-
 HEAP_TEST(Regress587004) {
   FLAG_concurrent_sweeping = false;
 #ifdef VERIFY_HEAP
