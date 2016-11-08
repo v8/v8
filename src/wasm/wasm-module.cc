@@ -1233,12 +1233,18 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     if (module_->start_function_index >= 0) {
       HandleScope scope(isolate_);
+      ModuleEnv module_env;
+      module_env.module = module_;
+      module_env.instance = nullptr;
+      module_env.origin = module_->origin;
       int start_index = module_->start_function_index;
       Handle<Code> startup_code =
           code_table->GetValueChecked<Code>(isolate_, start_index);
       FunctionSig* sig = module_->functions[start_index].sig;
+      Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
+          isolate_, &module_env, startup_code, start_index);
       Handle<JSFunction> startup_fct = WrapExportCodeAsJSFunction(
-          isolate_, startup_code, factory->InternalizeUtf8String("start"), sig,
+          isolate_, wrapper_code, factory->InternalizeUtf8String("start"), sig,
           start_index, instance);
       RecordStats(isolate_, *startup_code);
       // Call the JS function.
