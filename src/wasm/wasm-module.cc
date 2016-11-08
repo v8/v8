@@ -2065,12 +2065,12 @@ bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
                                const byte* end, ErrorThrower* thrower,
                                ModuleOrigin origin) {
   ModuleResult result = DecodeWasmModule(isolate, start, end, false, origin);
-  if (result.ok()) {
-    DCHECK_NOT_NULL(result.val);
+  if (result.val) {
     delete result.val;
-    return true;
+  } else {
+    DCHECK(!result.ok());
   }
-  return false;
+  return result.ok();
 }
 
 MaybeHandle<JSArrayBuffer> wasm::GetInstanceMemory(Isolate* isolate,
