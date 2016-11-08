@@ -53,6 +53,11 @@ class V8_EXPORT_PRIVATE MoveOptimizer final {
   InstructionSequence* const code_;
   MoveOpVector local_vector_;
 
+  // Reusable buffers for storing operand sets. We need at most two sets
+  // at any given time, so we create two buffers.
+  ZoneVector<InstructionOperand> operand_buffer1;
+  ZoneVector<InstructionOperand> operand_buffer2;
+
   DISALLOW_COPY_AND_ASSIGN(MoveOptimizer);
 };
 

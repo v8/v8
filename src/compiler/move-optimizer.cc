@@ -28,16 +28,27 @@ typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 
 class OperandSet {
  public:
-  explicit OperandSet(Zone* zone) : set_(zone), fp_reps_(0) {}
+  explicit OperandSet(ZoneVector<InstructionOperand>* buffer)
+      : set_(buffer), fp_reps_(0) {
+    buffer->clear();
+  }
 
   void InsertOp(const InstructionOperand& op) {
-    set_.insert(op);
+    set_->push_back(op);
+
     if (!kSimpleFPAliasing && op.IsFPRegister())
       fp_reps_ |= RepBit(LocationOperand::cast(op).representation());
   }
 
+  bool Contains(const InstructionOperand& op) const {
+    for (const InstructionOperand& elem : *set_) {
+      if (elem.EqualsCanonicalized(op)) return true;
+    }
+    return false;
+  }
+
   bool ContainsOpOrAlias(const InstructionOperand& op) const {
-    if (set_.find(op) != set_.end()) return true;
+    if (Contains(op)) return true;
 
     if (!kSimpleFPAliasing && op.IsFPRegister()) {
       // Platforms where FP registers have complex aliasing need extra checks.
@@ -71,16 +82,18 @@ class OperandSet {
           config->GetAliases(rep, loc.register_code(), other_rep1, &base);
       DCHECK(aliases > 0 || (aliases == 0 && base == -1));
       while (aliases--) {
-        if (set_.find(AllocatedOperand(LocationOperand::REGISTER, other_rep1,
-                                       base + aliases)) != set_.end())
+        if (Contains(AllocatedOperand(LocationOperand::REGISTER, other_rep1,
+                                      base + aliases))) {
           return true;
+        }
       }
       aliases = config->GetAliases(rep, loc.register_code(), other_rep2, &base);
       DCHECK(aliases > 0 || (aliases == 0 && base == -1));
       while (aliases--) {
-        if (set_.find(AllocatedOperand(LocationOperand::REGISTER, other_rep2,
-                                       base + aliases)) != set_.end())
+        if (Contains(AllocatedOperand(LocationOperand::REGISTER, other_rep2,
+                                      base + aliases))) {
           return true;
+        }
       }
     }
     return false;
@@ -95,7 +108,7 @@ class OperandSet {
     return reps && !base::bits::IsPowerOfTwo32(reps);
   }
 
-  ZoneSet<InstructionOperand, CompareOperandModuloType> set_;
+  ZoneVector<InstructionOperand>* set_;
   int fp_reps_;
 };
 
@@ -115,12 +128,12 @@ int FindFirstNonEmptySlot(const Instruction* instr) {
 
 }  // namespace
 
-
 MoveOptimizer::MoveOptimizer(Zone* local_zone, InstructionSequence* code)
     : local_zone_(local_zone),
       code_(code),
-      local_vector_(local_zone) {}
-
+      local_vector_(local_zone),
+      operand_buffer1(local_zone),
+      operand_buffer2(local_zone) {}
 
 void MoveOptimizer::Run() {
   for (Instruction* instruction : code()->instructions()) {
@@ -160,8 +173,8 @@ void MoveOptimizer::RemoveClobberedDestinations(Instruction* instruction) {
   DCHECK(instruction->parallel_moves()[1] == nullptr ||
          instruction->parallel_moves()[1]->empty());
 
-  OperandSet outputs(local_zone());
-  OperandSet inputs(local_zone());
+  OperandSet outputs(&operand_buffer1);
+  OperandSet inputs(&operand_buffer2);
 
   // Outputs and temps are treated together as potentially clobbering a
   // destination operand.
@@ -202,8 +215,8 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   ParallelMove* from_moves = from->parallel_moves()[0];
   if (from_moves == nullptr || from_moves->empty()) return;
 
-  OperandSet dst_cant_be(local_zone());
-  OperandSet src_cant_be(local_zone());
+  OperandSet dst_cant_be(&operand_buffer1);
+  OperandSet src_cant_be(&operand_buffer2);
 
   // If an operand is an input to the instruction, we cannot move assignments
   // where it appears on the LHS.
@@ -417,7 +430,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   if (correct_counts != move_map.size()) {
     // Moves that are unique to each predecessor won't be pushed to the common
     // successor.
-    OperandSet conflicting_srcs(local_zone());
+    OperandSet conflicting_srcs(&operand_buffer1);
     for (auto iter = move_map.begin(), end = move_map.end(); iter != end;) {
       auto current = iter;
       ++iter;
