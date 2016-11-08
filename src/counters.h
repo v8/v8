@@ -757,6 +757,8 @@ class RuntimeCallTimer {
   V(LoadIC_HandlerCacheHit_Accessor)            \
   V(LoadIC_HandlerCacheHit_Data)                \
   V(LoadIC_HandlerCacheHit_Transition)          \
+  V(LoadIC_LoadApiGetterDH)                     \
+  V(LoadIC_LoadApiGetterFromPrototypeDH)        \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
   V(LoadIC_LoadConstantDH)                      \

@@ -35,9 +35,11 @@ class LoadHandler {
   // Encoding when KindBits contains kForConstants.
   //
 
+  class IsAccessorInfoBits
+      : public BitField<bool, DoNegativeLookupOnReceiverBits::kNext, 1> {};
   // +2 here is because each descriptor entry occupies 3 slots in array.
   class DescriptorValueIndexBits
-      : public BitField<unsigned, DoNegativeLookupOnReceiverBits::kNext,
+      : public BitField<unsigned, IsAccessorInfoBits::kNext,
                         kDescriptorIndexBitCount + 2> {};
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(DescriptorValueIndexBits::kNext <= kSmiValueSize);
@@ -86,6 +88,9 @@ class LoadHandler {
 
   // Creates a Smi-handler for loading a constant from fast object.
   static inline Handle<Object> LoadConstant(Isolate* isolate, int descriptor);
+
+  // Creates a Smi-handler for loading an Api getter property from fast object.
+  static inline Handle<Object> LoadApiGetter(Isolate* isolate, int descriptor);
 
   // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
   // check is a part of a prototype chain check.

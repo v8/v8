@@ -24,6 +24,15 @@ Handle<Object> LoadHandler::LoadField(Isolate* isolate,
 
 Handle<Object> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
   int config = KindBits::encode(kForConstants) |
+               IsAccessorInfoBits::encode(false) |
+               DescriptorValueIndexBits::encode(
+                   DescriptorArray::ToValueIndex(descriptor));
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Object> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
+  int config = KindBits::encode(kForConstants) |
+               IsAccessorInfoBits::encode(true) |
                DescriptorValueIndexBits::encode(
                    DescriptorArray::ToValueIndex(descriptor));
   return handle(Smi::FromInt(config), isolate);

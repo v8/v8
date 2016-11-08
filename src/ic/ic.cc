@@ -1365,16 +1365,32 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           }
           // Ruled out by IsCompatibleReceiver() above.
           DCHECK(AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map));
-          if (!holder->HasFastProperties()) return slow_stub();
-          if (receiver_is_holder) {
-            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterStub);
-            int index = lookup->GetAccessorIndex();
-            LoadApiGetterStub stub(isolate(), true, index);
-            return stub.GetCode();
-          }
-          if (info->is_sloppy() && !receiver->IsJSReceiver()) {
+          if (!holder->HasFastProperties() ||
+              (info->is_sloppy() && !receiver->IsJSReceiver())) {
+            DCHECK(!holder->HasFastProperties() || !receiver_is_holder);
             TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
             return slow_stub();
+          }
+          if (FLAG_tf_load_ic_stub) {
+            Handle<Object> smi_handler = LoadHandler::LoadApiGetter(
+                isolate(), lookup->GetAccessorIndex());
+            if (receiver_is_holder) {
+              TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
+              return smi_handler;
+            }
+            if (kind() != Code::LOAD_GLOBAL_IC) {
+              TRACE_HANDLER_STATS(isolate(),
+                                  LoadIC_LoadApiGetterFromPrototypeDH);
+              return LoadFromPrototype(map, holder, lookup->name(),
+                                       smi_handler);
+            }
+          } else {
+            if (receiver_is_holder) {
+              TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterStub);
+              int index = lookup->GetAccessorIndex();
+              LoadApiGetterStub stub(isolate(), true, index);
+              return stub.GetCode();
+            }
           }
           break;  // Custom-compiled handler.
         }

@@ -5615,8 +5615,17 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
       CSA_ASSERT(UintPtrLessThan(
           descriptor, LoadAndUntagFixedArrayBaseLength(descriptors)));
 #endif
-      Return(
-          LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS));
+      Node* value =
+          LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS);
+
+      Label if_accessor_info(this);
+      GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
+             &if_accessor_info);
+      Return(value);
+
+      Bind(&if_accessor_info);
+      Callable callable = CodeFactory::ApiGetter(isolate());
+      TailCallStub(callable, p->context, p->receiver, holder, value);
     }
   }
 
