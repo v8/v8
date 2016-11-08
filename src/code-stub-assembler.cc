@@ -2709,6 +2709,11 @@ Node* CodeStubAssembler::IsJSObject(Node* object) {
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
+Node* CodeStubAssembler::IsJSGlobalProxy(Node* object) {
+  return Word32Equal(LoadInstanceType(object),
+                     Int32Constant(JS_GLOBAL_PROXY_TYPE));
+}
+
 Node* CodeStubAssembler::IsMap(Node* map) {
   return HasInstanceType(map, MAP_TYPE);
 }
@@ -5662,11 +5667,12 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
   Bind(&validity_cell_check_done);
   Node* smi_handler = LoadObjectField(handler, LoadHandler::kSmiHandlerOffset);
   CSA_ASSERT(TaggedIsSmi(smi_handler));
+  Node* handler_flags = SmiUntag(smi_handler);
 
   Label check_prototypes(this);
-  GotoUnless(IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(
-                 SmiUntag(smi_handler)),
-             &check_prototypes);
+  GotoUnless(
+      IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(handler_flags),
+      &check_prototypes);
   {
     // We have a dictionary receiver, do a negative lookup check.
     NameDictionaryNegativeLookup(p->receiver, p->name, miss);
@@ -5700,8 +5706,40 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
   Bind(&array_handler);
   {
     Node* length = SmiUntag(maybe_holder_cell);
-    BuildFastLoop(MachineType::PointerRepresentation(),
-                  IntPtrConstant(LoadHandler::kFirstPrototypeIndex), length,
+
+    Variable start_index(this, MachineType::PointerRepresentation());
+    start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
+
+    Label can_access(this);
+    GotoUnless(
+        IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
+        &can_access);
+    {
+      // Skip this entry of a handler.
+      start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex + 1));
+
+      int offset =
+          FixedArray::OffsetOfElementAt(LoadHandler::kFirstPrototypeIndex);
+      Node* expected_native_context =
+          LoadWeakCellValue(LoadObjectField(handler, offset), miss);
+      CSA_ASSERT(IsNativeContext(expected_native_context));
+
+      Node* native_context = LoadNativeContext(p->context);
+      GotoIf(WordEqual(expected_native_context, native_context), &can_access);
+      // If the receiver is not a JSGlobalProxy then we miss.
+      GotoUnless(IsJSGlobalProxy(p->receiver), miss);
+      // For JSGlobalProxy receiver try to compare security tokens of current
+      // and expected native contexts.
+      Node* expected_token = LoadContextElement(expected_native_context,
+                                                Context::SECURITY_TOKEN_INDEX);
+      Node* current_token =
+          LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
+      Branch(WordEqual(expected_token, current_token), &can_access, miss);
+    }
+    Bind(&can_access);
+
+    BuildFastLoop(MachineType::PointerRepresentation(), start_index.value(),
+                  length,
                   [this, p, handler, miss](CodeStubAssembler*, Node* current) {
                     Node* prototype_cell = LoadFixedArrayElement(
                         handler, current, 0, INTPTR_PARAMETERS);
@@ -5744,6 +5782,7 @@ void CodeStubAssembler::CheckPrototype(Node* prototype_cell, Node* name,
 
   Bind(&if_dictionary_object);
   {
+    CSA_ASSERT(IsDictionaryMap(LoadMap(maybe_prototype)));
     NameDictionaryNegativeLookup(maybe_prototype, name, miss);
     Goto(&done);
   }

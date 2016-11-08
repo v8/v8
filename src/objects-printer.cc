@@ -1046,18 +1046,18 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
 
 
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {  // NOLINT
-  os << "global_proxy ";
-  JSObjectPrint(os);
-  os << "native context : " << Brief(native_context());
-  os << "\n";
+  JSObjectPrintHeader(os, this, "JSGlobalProxy");
+  os << "\n - native context = " << Brief(native_context());
+  os << "\n - hash = " << Brief(hash());
+  JSObjectPrintBody(os, this);
 }
 
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
-  os << "global ";
-  JSObjectPrint(os);
-  os << "native context : " << Brief(native_context());
-  os << "\n";
+  JSObjectPrintHeader(os, this, "JSGlobalObject");
+  os << "\n - native context = " << Brief(native_context());
+  os << "\n - global proxy = " << Brief(global_proxy());
+  JSObjectPrintBody(os, this);
 }
 
 

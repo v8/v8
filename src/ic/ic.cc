@@ -868,6 +868,21 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
   HandleScope scope(isolate);
   int checks_count = 0;
 
+  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
+    // The validity cell check for primitive and global proxy receivers does
+    // not guarantee that certain native context ever had access to other
+    // native context. However, a handler created for one native context could
+    // be used in other native context through the megamorphic stub cache.
+    // So we record the original native context to which this handler
+    // corresponds.
+    if (fill_array) {
+      Handle<Context> native_context = isolate->native_context();
+      array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
+                 native_context->self_weak_cell());
+    }
+    checks_count++;
+  }
+
   // Create/count entries for each global or dictionary prototype appeared in
   // the prototype chain contains from receiver till holder.
   for (PrototypeIterator iter(receiver_map); !iter.IsAtEnd(); iter.Advance()) {
@@ -917,9 +932,13 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
                                          Handle<Object> smi_handler) {
   int checks_count = GetPrototypeCheckCount(receiver_map, holder);
   DCHECK_LE(0, checks_count);
+  DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
-  if (receiver_map->IsJSGlobalObjectMap()) {
-    UNREACHABLE();
+  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
+    DCHECK(!receiver_map->is_dictionary_map());
+    DCHECK_LE(1, checks_count);  // For native context.
+    smi_handler =
+        LoadHandler::EnableAccessCheckOnReceiver(isolate(), smi_handler);
   } else if (receiver_map->is_dictionary_map()) {
     smi_handler =
         LoadHandler::EnableNegativeLookupOnReceiver(isolate(), smi_handler);
@@ -955,6 +974,13 @@ Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
 
   Handle<Object> smi_handler = LoadHandler::LoadNonExistent(
       isolate(), receiver_map->is_dictionary_map());
+
+  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
+    DCHECK(!receiver_map->is_dictionary_map());
+    DCHECK_LE(1, checks_count);  // For native context.
+    smi_handler =
+        LoadHandler::EnableAccessCheckOnReceiver(isolate(), smi_handler);
+  }
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());

@@ -29,12 +29,23 @@ Handle<Object> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Object> LoadHandler::EnableAccessCheckOnReceiver(
+    Isolate* isolate, Handle<Object> smi_handler) {
+  int config = Smi::cast(*smi_handler)->value();
+#ifdef DEBUG
+  Kind kind = KindBits::decode(config);
+  DCHECK_NE(kForElements, kind);
+#endif
+  config = DoAccessCheckOnReceiverBits::update(config, true);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Object> LoadHandler::EnableNegativeLookupOnReceiver(
     Isolate* isolate, Handle<Object> smi_handler) {
   int config = Smi::cast(*smi_handler)->value();
 #ifdef DEBUG
   Kind kind = KindBits::decode(config);
-  DCHECK(kind == kForFields || kind == kForConstants);
+  DCHECK_NE(kForElements, kind);
 #endif
   config = DoNegativeLookupOnReceiverBits::update(config, true);
   return handle(Smi::FromInt(config), isolate);

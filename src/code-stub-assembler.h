@@ -617,6 +617,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* IsStringInstanceType(compiler::Node* instance_type);
   compiler::Node* IsString(compiler::Node* object);
   compiler::Node* IsJSObject(compiler::Node* object);
+  compiler::Node* IsJSGlobalProxy(compiler::Node* object);
   compiler::Node* IsJSReceiverInstanceType(compiler::Node* instance_type);
   compiler::Node* IsJSReceiver(compiler::Node* object);
   compiler::Node* IsMap(compiler::Node* object);

@@ -21736,10 +21736,6 @@ TEST(ScopedMicrotasks) {
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
 }
 
-#ifdef ENABLE_DISASSEMBLER
-// FLAG_test_primary_stub_cache and FLAG_test_secondary_stub_cache are read
-// only when ENABLE_DISASSEMBLER is not defined.
-
 namespace {
 
 int probes_counter = 0;
@@ -21756,6 +21752,14 @@ int* LookupCounter(const char* name) {
   }
   return NULL;
 }
+
+}  // namespace
+
+#ifdef ENABLE_DISASSEMBLER
+// FLAG_test_primary_stub_cache and FLAG_test_secondary_stub_cache are read
+// only when ENABLE_DISASSEMBLER is not defined.
+
+namespace {
 
 const char* kMegamorphicTestProgram =
     "function CreateClass(name) {\n"
@@ -22658,6 +22662,7 @@ TEST(AccessCheckThrows) {
   // Create a context and set an x property on it's global object.
   LocalContext context0(NULL, global_template);
   v8::Local<v8::Object> global0 = context0->Global();
+  CHECK(global0->Set(context0.local(), v8_str("x"), global0).FromJust());
 
   // Create a context with a different security token so that the
   // failed access check callback will be called on each access.
@@ -22712,6 +22717,128 @@ TEST(AccessCheckThrows) {
   isolate->SetFailedAccessCheckCallbackFunction(NULL);
 }
 
+TEST(AccessCheckInIC) {
+  // The test does not work with interpreter because bytecode handlers taken
+  // from the snapshot already refer to ICs with disabled counters and there
+  // is no way to trigger bytecode handlers recompilation.
+  if (i::FLAG_ignition || i::FLAG_turbo) return;
+
+  i::FLAG_native_code_counters = true;
+  i::FLAG_crankshaft = false;
+  i::FLAG_turbo = false;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.counter_lookup_callback = LookupCounter;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
+
+    {
+      // Enforce recompilation of IC stubs that access megamorphic stub cache
+      // to respect enabled native code counters and stub cache test flags.
+      i::CodeStub::Major code_stub_keys[] = {
+          i::CodeStub::LoadIC,        i::CodeStub::LoadICTrampoline,
+          i::CodeStub::KeyedLoadICTF, i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,       i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreIC,  i::CodeStub::KeyedStoreICTrampoline,
+      };
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::Heap* heap = i_isolate->heap();
+      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
+      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
+        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
+      }
+      heap->SetRootCodeStubs(*dict);
+    }
+
+    // Create an ObjectTemplate for global objects and install access
+    // check callbacks that will block access.
+    v8::Local<v8::ObjectTemplate> global_template =
+        v8::ObjectTemplate::New(isolate);
+    global_template->SetAccessCheckCallback(AccessCounter);
+
+    // Create a context and set an x property on its global object.
+    LocalContext context0(isolate, NULL, global_template);
+    v8::Local<v8::Object> global0 = context0->Global();
+    CHECK(global0->Set(context0.local(), v8_str("x"), global0).FromJust());
+
+    // Create a context with a different security token so that the
+    // failed access check callback will be called on each access.
+    LocalContext context1(isolate, NULL, global_template);
+    CHECK(context1->Global()
+              ->Set(context1.local(), v8_str("other"), global0)
+              .FromJust());
+
+    // Set different security tokens.
+    Local<Value> token0 = v8_str("token0");
+    context0.local()->SetSecurityToken(token0);
+    context1.local()->SetSecurityToken(v8_str("token1"));
+
+    int initial_probes = probes_counter;
+    int initial_misses = misses_counter;
+    int initial_updates = updates_counter;
+    access_count = 0;
+
+    // Create megamorphic load ic with a handler for "global0.x" compiled for
+    // context0.
+    CompileRun(context0.local(),
+               "Number(1).__proto__.x = null;\n"
+               "String(1).__proto__.x = null;\n"
+               "function get0(o) { return o.x; };\n"
+               "get0({x:1});\n"      // premonomorphic
+               "get0({x:1,a:0});\n"  // monomorphic
+               "get0({x:1,b:0});\n"  // polymorphic
+               "get0('str');\n"
+               "get0(1.1);\n"
+               "get0(this);\n"  // megamorphic
+               "");
+    CHECK_EQ(0, probes_counter - initial_probes);
+    CHECK_EQ(0, misses_counter - initial_misses);
+    CHECK_EQ(5, updates_counter - initial_updates);
+
+    // Create megamorphic load ic in context1.
+    CompileRun(context1.local(),
+               "function get1(o) { return o.x; };\n"
+               "get1({x:1});\n"      // premonomorphic
+               "get1({x:1,a:0});\n"  // monomorphic
+               "get1({x:1,b:0});\n"  // polymorphic
+               "get1({x:1,c:0});\n"
+               "get1({x:1,d:0});\n"
+               "get1({x:1,e:0});\n"  // megamorphic
+               "");
+    CHECK_EQ(0, access_count);
+    CHECK_EQ(0, probes_counter - initial_probes);
+    CHECK_EQ(0, misses_counter - initial_misses);
+    CHECK_EQ(10, updates_counter - initial_updates);
+
+    // Feed the |other| to the load ic and ensure that it doesn't pick the
+    // handler for "global0.x" compiled for context0 from the megamorphic
+    // cache but create another handler for "global0.x" compiled for context1
+    // and ensure the access check callback is triggered.
+    CompileRun(context1.local(), "get1(other)");
+    CHECK_EQ(1, access_count);  // Access check callback must be triggered.
+
+    // Feed the primitive objects to the load ic and ensure that it doesn't
+    // pick handlers for primitive maps from the megamorphic stub cache even
+    // if the security token matches.
+    context1.local()->SetSecurityToken(token0);
+    CHECK(CompileRun(context1.local(), "get1(1.1)")
+              .ToLocalChecked()
+              ->IsUndefined());
+    CHECK(CompileRun(context1.local(), "get1('str')")
+              .ToLocalChecked()
+              ->IsUndefined());
+
+    CHECK_EQ(1, access_count);  // Access check callback must be triggered.
+    CHECK_EQ(3, probes_counter - initial_probes);
+    CHECK_EQ(0, misses_counter - initial_misses);
+    CHECK_EQ(13, updates_counter - initial_updates);
+  }
+  isolate->Dispose();
+}
 
 class RequestInterruptTestBase {
  public:
