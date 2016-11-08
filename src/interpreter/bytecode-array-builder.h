@@ -99,6 +99,14 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& StoreContextSlot(Register context, int slot_index,
                                          int depth);
 
+  // Load from a module variable into the accumulator. |depth| is the depth of
+  // the current context relative to the module context.
+  BytecodeArrayBuilder& LoadModuleVariable(int cell_index, int depth);
+
+  // Store from the accumulator into a module variable. |depth| is the depth of
+  // the current context relative to the module context.
+  BytecodeArrayBuilder& StoreModuleVariable(int cell_index, int depth);
+
   // Register-accumulator transfers.
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
   BytecodeArrayBuilder& StoreAccumulatorInRegister(Register reg);

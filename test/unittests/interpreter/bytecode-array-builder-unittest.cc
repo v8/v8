@@ -332,7 +332,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
       .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0, reg);
 
-  // Emit generator operations
+  // Emit load and store operations for module variables.
+  builder.LoadModuleVariable(-1, 42)
+      .LoadModuleVariable(0, 42)
+      .LoadModuleVariable(1, 42)
+      .StoreModuleVariable(-1, 42)
+      .StoreModuleVariable(0, 42)
+      .StoreModuleVariable(1, 42);
+
+  // Emit generator operations.
   builder.SuspendGenerator(reg)
       .ResumeGenerator(reg);
 

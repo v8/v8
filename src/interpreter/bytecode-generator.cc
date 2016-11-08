@@ -1865,11 +1865,8 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::MODULE: {
-      Register index = register_allocator()->NewRegister();
-      builder()
-          ->LoadLiteral(Smi::FromInt(variable->index()))
-          .StoreAccumulatorInRegister(index)
-          .CallRuntime(Runtime::kLoadModuleVariable, index);
+      int depth = execution_context()->ContextChainDepth(variable->scope());
+      builder()->LoadModuleVariable(variable->index(), depth);
       if (hole_check_mode == HoleCheckMode::kRequired) {
         BuildThrowIfHole(variable->name());
       }
@@ -2037,18 +2034,16 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
       // assignments for them.
       DCHECK(variable->IsExport());
 
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->StoreAccumulatorInRegister(args[1])
-          .LoadLiteral(Smi::FromInt(variable->index()))
-          .StoreAccumulatorInRegister(args[0]);
+      int depth = execution_context()->ContextChainDepth(variable->scope());
       if (hole_check_mode == HoleCheckMode::kRequired) {
-        builder()->CallRuntime(Runtime::kLoadModuleVariable, args[0]);
+        Register value_temp = register_allocator()->NewRegister();
+        builder()
+            ->StoreAccumulatorInRegister(value_temp)
+            .LoadModuleVariable(variable->index(), depth);
         BuildHoleCheckForVariableAssignment(variable, op);
+        builder()->LoadAccumulatorWithRegister(value_temp);
       }
-      builder()
-          ->CallRuntime(Runtime::kStoreModuleVariable, args)
-          .LoadAccumulatorWithRegister(args[1]);
+      builder()->StoreModuleVariable(variable->index(), depth);
       break;
     }
   }

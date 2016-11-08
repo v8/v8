@@ -1138,6 +1138,25 @@ void BytecodeGraphBuilder::VisitStaKeyedPropertyStrict() {
   BuildKeyedStore(LanguageMode::STRICT);
 }
 
+void BytecodeGraphBuilder::VisitLdaModuleVariable() {
+  // TODO(neis): Don't call the runtime.
+  PrepareEagerCheckpoint();
+  Node* index = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
+  const Operator* op = javascript()->CallRuntime(Runtime::kLoadModuleVariable);
+  Node* value = NewNode(op, index);
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitStaModuleVariable() {
+  // TODO(neis): Don't call the runtime.
+  PrepareEagerCheckpoint();
+  Node* index = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
+  Node* value = environment()->LookupAccumulator();
+  const Operator* op = javascript()->CallRuntime(Runtime::kStoreModuleVariable);
+  Node* store = NewNode(op, index, value);
+  environment()->RecordAfterState(store, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitPushContext() {
   Node* new_context = environment()->LookupAccumulator();
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0),

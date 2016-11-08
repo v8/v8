@@ -792,6 +792,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInStep(Register index) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreModuleVariable(int cell_index,
+                                                                int depth) {
+  OutputStaModuleVariable(cell_index, depth);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadModuleVariable(int cell_index,
+                                                               int depth) {
+  OutputLdaModuleVariable(cell_index, depth);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
     Register generator) {
   OutputSuspendGenerator(generator);

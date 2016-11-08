@@ -94,6 +94,12 @@ namespace interpreter {
   V(LdrKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,                \
     OperandType::kIdx, OperandType::kRegOut)                                   \
                                                                                \
+  /* Operations on module variables */                                         \
+  V(LdaModuleVariable, AccumulatorUse::kWrite, OperandType::kImm,              \
+    OperandType::kUImm)                                                        \
+  V(StaModuleVariable, AccumulatorUse::kRead, OperandType::kImm,               \
+    OperandType::kUImm)                                                        \
+                                                                               \
   /* Propery stores (StoreIC) operations */                                    \
   V(StaNamedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kIdx, OperandType::kIdx)                                      \

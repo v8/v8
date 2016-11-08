@@ -928,6 +928,88 @@ void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   DoKeyedStoreIC(ic, assembler);
 }
 
+// LdaModuleVariable <cell_index> <depth>
+//
+// Load the contents of a module variable into the accumulator.  The variable is
+// identified by <cell_index>.  <depth> is the depth of the current context
+// relative to the module context.
+void Interpreter::DoLdaModuleVariable(InterpreterAssembler* assembler) {
+  Node* cell_index = __ BytecodeOperandImm(0);
+  Node* depth = __ BytecodeOperandUImm(1);
+
+  Node* module_context = __ GetContextAtDepth(__ GetContext(), depth);
+  Node* module =
+      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
+
+  Label if_export(assembler), if_import(assembler), end(assembler);
+  __ Branch(__ IntPtrGreaterThan(cell_index, __ IntPtrConstant(0)), &if_export,
+            &if_import);
+
+  __ Bind(&if_export);
+  {
+    Node* regular_exports =
+        __ LoadObjectField(module, Module::kRegularExportsOffset);
+    // The actual array index is (cell_index - 1).
+    Node* export_index = __ IntPtrSub(cell_index, __ IntPtrConstant(1));
+    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index);
+    __ SetAccumulator(__ LoadObjectField(cell, Cell::kValueOffset));
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_import);
+  {
+    Node* regular_imports =
+        __ LoadObjectField(module, Module::kRegularImportsOffset);
+    // The actual array index is (-cell_index - 1).
+    Node* import_index = __ IntPtrSub(__ IntPtrConstant(-1), cell_index);
+    Node* cell = __ LoadFixedArrayElement(regular_imports, import_index);
+    __ SetAccumulator(__ LoadObjectField(cell, Cell::kValueOffset));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
+}
+
+// StaModuleVariable <cell_index> <depth>
+//
+// Store accumulator to the module variable identified by <cell_index>.
+// <depth> is the depth of the current context relative to the module context.
+void Interpreter::DoStaModuleVariable(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Node* cell_index = __ BytecodeOperandImm(0);
+  Node* depth = __ BytecodeOperandUImm(1);
+
+  Node* module_context = __ GetContextAtDepth(__ GetContext(), depth);
+  Node* module =
+      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
+
+  Label if_export(assembler), if_import(assembler), end(assembler);
+  __ Branch(__ IntPtrGreaterThan(cell_index, __ IntPtrConstant(0)), &if_export,
+            &if_import);
+
+  __ Bind(&if_export);
+  {
+    Node* regular_exports =
+        __ LoadObjectField(module, Module::kRegularExportsOffset);
+    // The actual array index is (cell_index - 1).
+    Node* export_index = __ IntPtrSub(cell_index, __ IntPtrConstant(1));
+    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index);
+    __ StoreObjectField(cell, Cell::kValueOffset, value);
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_import);
+  {
+    // Not supported (probably never).
+    __ Abort(kUnsupportedModuleOperation);
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
+}
+
 // PushContext <context>
 //
 // Saves the current context in <context>, and pushes the accumulator as the
