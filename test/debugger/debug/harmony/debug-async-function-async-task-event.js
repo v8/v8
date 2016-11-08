@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-async-await --expose-debug-as debug --allow-natives-syntax
+// Flags: --harmony-async-await
 
 // The test observes the callbacks that async/await makes to the inspector
 // to make accurate stack traces. The pattern is based on saving a stack once

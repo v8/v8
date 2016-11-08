@@ -59,6 +59,10 @@ class DebugWrapper {
                        Module:  8
                      };
 
+    // Types of exceptions that can be broken upon.
+    this.ExceptionBreak = { Caught : 0,
+                            Uncaught: 1 };
+
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
 
@@ -75,6 +79,39 @@ class DebugWrapper {
   stepOver() { this.sendMessageForMethodChecked("Debugger.stepOver"); }
   stepInto() { this.sendMessageForMethodChecked("Debugger.stepInto"); }
   stepOut() { this.sendMessageForMethodChecked("Debugger.stepOut"); }
+
+  setBreakOnException()  {
+    this.sendMessageForMethodChecked(
+        "Debugger.setPauseOnExceptions", { state : "all" });
+  }
+
+  clearBreakOnException()  {
+    const newState = this.isBreakOnUncaughtException() ? "uncaught" : "none";
+    this.sendMessageForMethodChecked(
+        "Debugger.setPauseOnExceptions", { state : newState });
+  }
+
+  isBreakOnException() {
+    return !!%IsBreakOnException(this.ExceptionBreak.Caught);
+  };
+
+  setBreakOnUncaughtException()  {
+    const newState = this.isBreakOnException() ? "all" : "uncaught";
+    this.sendMessageForMethodChecked(
+        "Debugger.setPauseOnExceptions", { state : newState });
+  }
+
+  clearBreakOnUncaughtException()  {
+    const newState = this.isBreakOnException() ? "all" : "none";
+    this.sendMessageForMethodChecked(
+        "Debugger.setPauseOnExceptions", { state : newState });
+  }
+
+  isBreakOnUncaughtException() {
+    return !!%IsBreakOnException(this.ExceptionBreak.Uncaught);
+  };
+
+  clearStepping() { %ClearStepping(); };
 
   // Returns the resulting breakpoint id.
   setBreakPoint(func, opt_line, opt_column, opt_condition) {
@@ -161,8 +198,8 @@ class DebugWrapper {
     send(message);
   }
 
-  sendMessageForMethodChecked(method) {
-    const {msgid, msg} = this.createMessage(method);
+  sendMessageForMethodChecked(method, params) {
+    const {msgid, msg} = this.createMessage(method, params);
     this.sendMessage(msg);
     this.takeReplyChecked(msgid);
   }
