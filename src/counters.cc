@@ -309,9 +309,10 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
 // static
 void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
                                                CounterId counter_id) {
-  DCHECK_NOT_NULL(stats->current_timer_.Value());
-  RuntimeCallCounter* counter = &(stats->*counter_id);
-  stats->current_timer_.Value()->counter_ = counter;
+  RuntimeCallTimer* timer = stats->current_timer_.Value();
+  // When RCS are enabled dynamically there might be no current timer set up.
+  if (timer == nullptr) return;
+  timer->counter_ = &(stats->*counter_id);
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
