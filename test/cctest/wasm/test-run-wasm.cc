@@ -1109,6 +1109,20 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
   }
 }
 
+WASM_EXEC_TEST(LoadMaxUint32Offset) {
+  TestingModule module(execution_mode);
+  module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module);
+
+  BUILD(r, kExprI8Const, 0,  // index
+        static_cast<byte>(v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(
+            MachineType::Int32(), false)),  // --
+        0,                                  // alignment
+        U32V_5(0xffffffff));                // offset
+
+  CHECK_TRAP32(r.Call());
+}
+
 WASM_EXEC_TEST(LoadStoreLoad) {
   TestingModule module(execution_mode);
   int32_t* memory = module.AddMemoryElems<int32_t>(8);

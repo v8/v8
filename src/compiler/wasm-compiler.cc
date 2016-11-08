@@ -2912,7 +2912,17 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     // out of bounds; one check for the offset being in bounds, and the next for
     // the offset + index being out of bounds for code to be patched correctly
     // on relocation.
-    size_t effective_offset = offset + memsize - 1;
+
+    // Check for overflows.
+    if ((std::numeric_limits<uint32_t>::max() - memsize) + 1 < offset) {
+      // Always trap. Do not use TrapAlways because it does not create a valid
+      // graph here.
+      trap_->TrapIfEq32(wasm::kTrapMemOutOfBounds, jsgraph()->Int32Constant(0),
+                        0, position);
+      return;
+    }
+    size_t effective_offset = (offset - 1) + memsize;
+
     Node* cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThan(),
                                   jsgraph()->IntPtrConstant(effective_offset),
                                   jsgraph()->RelocatableInt32Constant(
