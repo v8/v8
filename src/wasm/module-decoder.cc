@@ -337,6 +337,9 @@ class ModuleDecoder : public Decoder {
             WasmGlobal* global = &module->globals.back();
             global->type = consume_value_type();
             global->mutability = consume_u8("mutability") != 0;
+            if (global->mutability) {
+              error("mutable globals cannot be imported");
+            }
             break;
           }
           default:

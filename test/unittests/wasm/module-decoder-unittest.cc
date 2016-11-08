@@ -894,6 +894,37 @@ TEST_F(WasmModuleVerifyTest, ImportTable_nosigs1) {
   EXPECT_VERIFIES(data);
 }
 
+TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
+  {
+    static const byte data[] = {
+        SECTION(Import, 8),  // section header
+        1,                   // number of imports
+        NAME_LENGTH(1),      // --
+        'm',                 // module name
+        NAME_LENGTH(1),      // --
+        'f',                 // global name
+        kExternalGlobal,     // import kind
+        kLocalI32,           // type
+        0,                   // mutability
+    };
+    EXPECT_VERIFIES(data);
+  }
+  {
+    static const byte data[] = {
+        SECTION(Import, 8),  // section header
+        1,                   // sig table
+        NAME_LENGTH(1),      // --
+        'm',                 // module name
+        NAME_LENGTH(1),      // --
+        'f',                 // global name
+        kExternalGlobal,     // import kind
+        kLocalI32,           // type
+        1,                   // mutability
+    };
+    EXPECT_FAILURE(data);
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, ImportTable_nosigs2) {
   static const byte data[] = {
       SECTION(Import, 6),  1,    // sig table
