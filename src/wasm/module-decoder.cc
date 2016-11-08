@@ -478,7 +478,12 @@ class ModuleDecoder : public Decoder {
           case kExternalGlobal: {
             WasmGlobal* global = nullptr;
             exp->index = consume_global_index(module, &global);
-            if (global) global->exported = true;
+            if (global) {
+              if (global->mutability) {
+                error("mutable globals cannot be exported");
+              }
+              global->exported = true;
+            }
             break;
           }
           default:

@@ -248,6 +248,47 @@ TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   if (result.val) delete result.val;
 }
 
+TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
+  {
+    static const byte data[] = {
+        SECTION(Global, 6),  // --
+        1,
+        kLocalI32,                  // local type
+        0,                          // immutable
+        WASM_INIT_EXPR_I32V_1(13),  // init
+        SECTION(Export, 8),         // --
+        1,                          // Export count
+        4,                          // name length
+        'n',                        // --
+        'a',                        // --
+        'm',                        // --
+        'e',                        // --
+        kExternalGlobal,            // global
+        0,                          // global index
+    };
+    EXPECT_VERIFIES(data);
+  }
+  {
+    static const byte data[] = {
+        SECTION(Global, 6),         // --
+        1,                          // --
+        kLocalI32,                  // local type
+        1,                          // mutable
+        WASM_INIT_EXPR_I32V_1(13),  // init
+        SECTION(Export, 8),         // --
+        1,                          // Export count
+        4,                          // name length
+        'n',                        // --
+        'a',                        // --
+        'm',                        // --
+        'e',                        // --
+        kExternalGlobal,            // global
+        0,                          // global index
+    };
+    EXPECT_FAILURE(data);
+  }
+}
+
 static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
   while (true) {
     uint32_t next = val >> 7;
