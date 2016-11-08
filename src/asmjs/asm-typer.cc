@@ -2713,6 +2713,10 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
       FAIL(statement, "Identifier in return statement is not const.");
     }
 
+    if (!var_info->type()->IsReturnType()) {
+      FAIL(statement, "Constant in return must be signed, float, or double.");
+    }
+
     return var_info->type();
   }
 

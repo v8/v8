@@ -2026,4 +2026,31 @@ TEST(B640194) {
   }
 }
 
+TEST(B660813) {
+  const char* kTests[] = {
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  const i = 0xffffffff;\n"
+      "  function f() {\n"
+      "    return i;\n"
+      "  }\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  const i = -(-2147483648);\n"
+      "  function f() {\n"
+      "    return i;\n"
+      "  }\n"
+      "}",
+  };
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage(
+                 "Constant in return must be signed, float, or double.")) {
+      std::cerr << "Test:\n" << kTests[ii];
+      CHECK(false);
+    }
+  }
+}
+
 }  // namespace

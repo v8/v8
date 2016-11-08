@@ -283,3 +283,15 @@ function assertValidAsm(func) {
   assertValidAsm(Module);
   assertEquals(123, m.foo());
 })();
+
+(function TestBadConstUnsignedReturn() {
+  function Module() {
+    "use asm";
+    const i = 0xffffffff;
+    function foo() { return i; }
+    return { foo: foo };
+  }
+  var m = Module();
+  assertTrue(%IsNotAsmWasmCode(Module));
+  assertEquals(0xffffffff, m.foo());
+})();
