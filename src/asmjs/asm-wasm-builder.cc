@@ -19,7 +19,6 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -755,7 +754,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
   };
 
-  void EmitAssignmentLhs(Expression* target, MachineType* mtype) {
+  void EmitAssignmentLhs(Expression* target, AsmType** atype) {
     // Match the left hand side of the assignment.
     VariableProxy* target_var = target->AsVariableProxy();
     if (target_var != nullptr) {
@@ -766,7 +765,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     Property* target_prop = target->AsProperty();
     if (target_prop != nullptr) {
       // Left hand side is a property access, i.e. the asm.js heap.
-      VisitPropertyAndEmitIndex(target_prop, mtype);
+      VisitPropertyAndEmitIndex(target_prop, atype);
       return;
     }
 
@@ -814,7 +813,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     RECURSE(Visit(value));
   }
 
-  void EmitAssignment(Assignment* expr, MachineType type, ValueFate fate) {
+  void EmitAssignment(Assignment* expr, AsmType* type, ValueFate fate) {
     // Match the left hand side of the assignment.
     VariableProxy* target_var = expr->target()->AsVariableProxy();
     if (target_var != nullptr) {
@@ -849,21 +848,21 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       // Note that unlike StoreMem, AsmjsStoreMem ignores out-of-bounds writes.
       WasmOpcode opcode;
-      if (type == MachineType::Int8()) {
+      if (type == AsmType::Int8Array()) {
         opcode = kExprI32AsmjsStoreMem8;
-      } else if (type == MachineType::Uint8()) {
+      } else if (type == AsmType::Uint8Array()) {
         opcode = kExprI32AsmjsStoreMem8;
-      } else if (type == MachineType::Int16()) {
+      } else if (type == AsmType::Int16Array()) {
         opcode = kExprI32AsmjsStoreMem16;
-      } else if (type == MachineType::Uint16()) {
+      } else if (type == AsmType::Uint16Array()) {
         opcode = kExprI32AsmjsStoreMem16;
-      } else if (type == MachineType::Int32()) {
+      } else if (type == AsmType::Int32Array()) {
         opcode = kExprI32AsmjsStoreMem;
-      } else if (type == MachineType::Uint32()) {
+      } else if (type == AsmType::Uint32Array()) {
         opcode = kExprI32AsmjsStoreMem;
-      } else if (type == MachineType::Float32()) {
+      } else if (type == AsmType::Float32Array()) {
         opcode = kExprF32AsmjsStoreMem;
-      } else if (type == MachineType::Float64()) {
+      } else if (type == AsmType::Float64Array()) {
         opcode = kExprF64AsmjsStoreMem;
       } else {
         UNREACHABLE();
@@ -930,12 +929,12 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
 
     if (as_init) LoadInitFunction();
-    MachineType mtype = MachineType::None();
+    AsmType* atype = AsmType::None();
     bool is_nop = false;
-    EmitAssignmentLhs(expr->target(), &mtype);
+    EmitAssignmentLhs(expr->target(), &atype);
     EmitAssignmentRhs(expr->target(), expr->value(), &is_nop);
     if (!is_nop) {
-      EmitAssignment(expr, mtype, fate);
+      EmitAssignment(expr, atype, fate);
     }
     if (as_init) UnLoadInitFunction();
   }
@@ -959,40 +958,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
   }
 
-  void VisitPropertyAndEmitIndex(Property* expr, MachineType* mtype) {
+  void VisitPropertyAndEmitIndex(Property* expr, AsmType** atype) {
     Expression* obj = expr->obj();
-    AsmType* type = typer_->TypeOf(obj);
-    int size;
-    if (type->IsA(AsmType::Uint8Array())) {
-      *mtype = MachineType::Uint8();
-      size = 1;
-    } else if (type->IsA(AsmType::Int8Array())) {
-      *mtype = MachineType::Int8();
-      size = 1;
-    } else if (type->IsA(AsmType::Uint16Array())) {
-      *mtype = MachineType::Uint16();
-      size = 2;
-    } else if (type->IsA(AsmType::Int16Array())) {
-      *mtype = MachineType::Int16();
-      size = 2;
-    } else if (type->IsA(AsmType::Uint32Array())) {
-      *mtype = MachineType::Uint32();
-      size = 4;
-    } else if (type->IsA(AsmType::Int32Array())) {
-      *mtype = MachineType::Int32();
-      size = 4;
-    } else if (type->IsA(AsmType::Uint32Array())) {
-      *mtype = MachineType::Uint32();
-      size = 4;
-    } else if (type->IsA(AsmType::Float32Array())) {
-      *mtype = MachineType::Float32();
-      size = 4;
-    } else if (type->IsA(AsmType::Float64Array())) {
-      *mtype = MachineType::Float64();
-      size = 8;
-    } else {
-      UNREACHABLE();
-    }
+    *atype = typer_->TypeOf(obj);
+    int size = (*atype)->ElementSizeInBytes();
     if (size == 1) {
       // Allow more general expression in byte arrays than the spec
       // strictly permits.
@@ -1030,24 +999,24 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   }
 
   void VisitProperty(Property* expr) {
-    MachineType type;
+    AsmType* type = AsmType::None();
     VisitPropertyAndEmitIndex(expr, &type);
     WasmOpcode opcode;
-    if (type == MachineType::Int8()) {
+    if (type == AsmType::Int8Array()) {
       opcode = kExprI32AsmjsLoadMem8S;
-    } else if (type == MachineType::Uint8()) {
+    } else if (type == AsmType::Uint8Array()) {
       opcode = kExprI32AsmjsLoadMem8U;
-    } else if (type == MachineType::Int16()) {
+    } else if (type == AsmType::Int16Array()) {
       opcode = kExprI32AsmjsLoadMem16S;
-    } else if (type == MachineType::Uint16()) {
+    } else if (type == AsmType::Uint16Array()) {
       opcode = kExprI32AsmjsLoadMem16U;
-    } else if (type == MachineType::Int32()) {
+    } else if (type == AsmType::Int32Array()) {
       opcode = kExprI32AsmjsLoadMem;
-    } else if (type == MachineType::Uint32()) {
+    } else if (type == AsmType::Uint32Array()) {
       opcode = kExprI32AsmjsLoadMem;
-    } else if (type == MachineType::Float32()) {
+    } else if (type == AsmType::Float32Array()) {
       opcode = kExprF32AsmjsLoadMem;
-    } else if (type == MachineType::Float64()) {
+    } else if (type == AsmType::Float64Array()) {
       opcode = kExprF64AsmjsLoadMem;
     } else {
       UNREACHABLE();
