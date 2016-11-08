@@ -836,6 +836,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
       WasmCompiledModule::New(isolate, module_wrapper);
   ret->set_code_table(code_table);
   ret->set_min_mem_pages(min_mem_pages);
+  ret->set_max_mem_pages(max_mem_pages);
   if (function_table_count > 0) {
     ret->set_function_tables(function_tables);
     ret->set_empty_function_tables(function_tables);
@@ -1123,7 +1124,6 @@ class WasmInstanceBuilder {
 
     uint32_t min_mem_pages = module_->min_mem_pages;
     isolate_->counters()->wasm_min_mem_pages_count()->AddSample(min_mem_pages);
-    // TODO(wasm): re-enable counter for max_mem_pages when we use that field.
 
     if (!memory_.is_null()) {
       // Set externally passed ArrayBuffer non neuterable.
@@ -1676,8 +1676,9 @@ class WasmInstanceBuilder {
                 JSArrayBuffer::cast(
                     instance->GetInternalField(kWasmMemArrayBuffer)),
                 isolate_);
-            memory_object =
-                WasmJs::CreateWasmMemoryObject(isolate_, buffer, false, 0);
+            memory_object = WasmJs::CreateWasmMemoryObject(
+                isolate_, buffer, (module_->max_mem_pages != 0),
+                module_->max_mem_pages);
             instance->SetInternalField(kWasmMemObject, *memory_object);
           }
 
@@ -2101,11 +2102,18 @@ int32_t wasm::GetInstanceMemorySize(Isolate* isolate,
 }
 
 uint32_t GetMaxInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance) {
-  uint32_t max_pages = WasmModule::kV8MaxPages;
   Handle<Object> memory_object(instance->GetInternalField(kWasmMemObject),
                                isolate);
-  if (memory_object->IsUndefined(isolate)) return max_pages;
-  return WasmJs::GetWasmMemoryMaximumSize(isolate, memory_object);
+  if (!memory_object->IsUndefined(isolate)) {
+    uint32_t mem_obj_max =
+        WasmJs::GetWasmMemoryMaximumSize(isolate, memory_object);
+    if (mem_obj_max != 0) return mem_obj_max;
+  }
+  uint32_t compiled_max_pages = GetCompiledModule(*instance)->max_mem_pages();
+  isolate->counters()->wasm_max_mem_pages_count()->AddSample(
+      compiled_max_pages);
+  if (compiled_max_pages != 0) return compiled_max_pages;
+  return WasmModule::kV8MaxPages;
 }
 
 int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
@@ -2113,7 +2121,6 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
   if (!IsWasmInstance(*instance)) return -1;
   if (pages == 0) return GetInstanceMemorySize(isolate, instance);
   uint32_t max_pages = GetMaxInstanceMemorySize(isolate, instance);
-  if (WasmModule::kV8MaxPages < max_pages) return -1;
 
   Address old_mem_start = nullptr;
   uint32_t old_size = 0, new_size = 0;
@@ -2138,7 +2145,8 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
     new_size = old_size + pages * WasmModule::kPageSize;
   }
 
-  if (new_size <= old_size || max_pages * WasmModule::kPageSize < new_size) {
+  if (new_size <= old_size || max_pages * WasmModule::kPageSize < new_size ||
+      WasmModule::kV8MaxPages * WasmModule::kPageSize < new_size) {
     return -1;
   }
   Handle<JSArrayBuffer> buffer = NewArrayBuffer(isolate, new_size);

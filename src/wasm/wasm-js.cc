@@ -910,7 +910,7 @@ uint32_t WasmJs::GetWasmMemoryMaximumSize(Isolate* isolate,
   DCHECK(IsWasmMemoryObject(isolate, value));
   Object* max_mem =
       JSObject::cast(*value)->GetInternalField(kWasmMemoryMaximum);
-  if (max_mem->IsUndefined(isolate)) return wasm::WasmModule::kV8MaxPages;
+  if (max_mem->IsUndefined(isolate)) return 0;
   uint32_t max_pages = Smi::cast(max_mem)->value();
   return max_pages;
 }

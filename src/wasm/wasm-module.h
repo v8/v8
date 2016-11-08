@@ -406,6 +406,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
   MACRO(OBJECT, JSArrayBuffer, memory)                \
   MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)        \
+  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)        \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
   MACRO(WEAK_LINK, JSObject, owning_instance)         \
