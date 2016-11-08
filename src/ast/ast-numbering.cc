@@ -147,8 +147,15 @@ void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
   IncrementNodeCount();
-  if (node->var()->IsLookupSlot()) {
-    DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
+  switch (node->var()->location()) {
+    case VariableLocation::LOOKUP:
+      DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
+      break;
+    case VariableLocation::MODULE:
+      DisableCrankshaft(kReferenceToModuleVariable);
+      break;
+    default:
+      break;
   }
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
