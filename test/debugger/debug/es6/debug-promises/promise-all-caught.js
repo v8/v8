@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when we only listen to uncaught exceptions and a
 // Promise p3 created by Promise.all has a catch handler, and is rejected

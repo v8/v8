@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-async-await --expose-debug-as debug
+// Flags: --harmony-async-await
 
 Debug = debug.Debug
 

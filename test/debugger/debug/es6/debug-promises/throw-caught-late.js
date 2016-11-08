@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
 
-// Test debug events when we only listen to uncaught exceptions and
-// there is a catch handler for the exception thrown in a Promise.
+// Test debug events when we only listen to uncaught exceptions, the Promise
+// throws, and a catch handler is installed right before throwing.
 // We expect no debug event to be triggered.
 
 Debug = debug.Debug;
@@ -16,12 +15,10 @@ var p = new Promise(function(resolve, reject) {
 
 var q = p.then(
   function() {
-    throw new Error("caught throw");
-  });
-
-q.catch(
-  function(e) {
-    assertEquals("caught throw", e.message);
+    q.catch(function(e) {
+      assertEquals("caught", e.message);
+    });
+    throw new Error("caught");
   });
 
 function listener(event, exec_state, event_data, data) {

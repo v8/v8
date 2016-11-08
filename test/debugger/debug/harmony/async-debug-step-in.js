@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --harmony-async-await
+// Flags: --harmony-async-await
 
 var Debug = debug.Debug;
 var step_count = 0;
@@ -26,26 +26,26 @@ Debug.setListener(listener);
 var late_resolve;
 
 function g() {
-  return new Promise(
+  return new Promise(  // B3 StepIn
     function(res, rej) {
-      late_resolve = res;
-    }
+      late_resolve = res;  // B4 StepIn
+    }                      // B5 StepIn
   );
-}
+}                      // B6 StepIn
 
 async function f() {
   var a = 1;
-  debugger;        // B0 StepNext
-  a +=             // B1 StepNext
-       await       // B3 StepNext
-             g();  // B2 StepNext
-  return a;        // B4 StepNext
-}                  // B5 Continue
+  debugger;            // B0 StepNext
+  a +=                 // B1 StepIn
+       await           // B7 StepIn
+             g();      // B2 StepIn
+  return a;            // B8 StepIn
+}                      // B9 Continue
 
-f();
+f().then(value => assertEquals(4, value));
 
 late_resolve(3);
 
 %RunMicrotasks();
 
-assertEquals(6, step_count);
+assertEquals(10, step_count);
