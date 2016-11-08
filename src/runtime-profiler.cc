@@ -26,9 +26,6 @@ static const int kProfilerTicksBeforeBaseline = 1;
 // Number of times a function has to be seen on the stack before it is
 // optimized.
 static const int kProfilerTicksBeforeOptimization = 2;
-// Number of times a interpreted function has to be seen on the stack before
-// it is optimized (with Turbofan, ignition is only optimized with Turbofan).
-static const int kProfilerTicksBeforeOptimizingInterpretedFunction = 4;
 // If the function optimization was disabled due to high deoptimization count,
 // but the function is hot and has been seen on the stack this number of times,
 // then we try to reenable optimization for this function.
@@ -39,7 +36,6 @@ static const int kProfilerTicksBeforeReenablingOptimization = 250;
 static const int kTicksWhenNotEnoughTypeInfo = 100;
 // We only have one byte to store the number of ticks.
 STATIC_ASSERT(kProfilerTicksBeforeOptimization < 256);
-STATIC_ASSERT(kProfilerTicksBeforeOptimizingInterpretedFunction < 256);
 STATIC_ASSERT(kProfilerTicksBeforeReenablingOptimization < 256);
 STATIC_ASSERT(kTicksWhenNotEnoughTypeInfo < 256);
 
@@ -403,7 +399,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
   SharedFunctionInfo* shared = function->shared();
   int ticks = shared->profiler_ticks();
 
-  if (ticks >= kProfilerTicksBeforeOptimizingInterpretedFunction) {
+  if (ticks >= kProfilerTicksBeforeOptimization) {
     int typeinfo, generic, total, type_percentage, generic_percentage;
     GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
                 &generic_percentage);
