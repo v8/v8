@@ -362,7 +362,7 @@ void BytecodeGenerator::ControlScope::PerformCommand(Command command,
       return;
     }
     current = current->outer();
-    if (current->context() != context) {
+    if (current->context() != context && context->ShouldPopContext()) {
       // Pop context to the expected depth.
       // TODO(rmcilroy): Only emit a single context pop.
       generator()->builder()->PopContext(current->context()->reg());
