@@ -820,12 +820,15 @@ Type* Typer::Visitor::TypeFrameState(Node* node) {
 
 Type* Typer::Visitor::TypeStateValues(Node* node) { return Type::Internal(); }
 
-Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
-
 Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeTypedObjectState(Node* node) {
+  return Type::Internal();
+}
 
 Type* Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 

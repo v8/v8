@@ -434,6 +434,7 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
     case IrOpcode::kObjectState:
+    case IrOpcode::kTypedObjectState:
       UNREACHABLE();
       break;
     default:
@@ -485,6 +486,10 @@ size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
                                         FrameStateInputKind kind, Zone* zone) {
   switch (input->opcode()) {
     case IrOpcode::kObjectState: {
+      UNREACHABLE();
+      return 0;
+    }
+    case IrOpcode::kTypedObjectState: {
       size_t id = deduplicator->GetObjectId(input);
       if (id == StateObjectDeduplicator::kNotDuplicated) {
         size_t entries = 0;
@@ -492,10 +497,12 @@ size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
         descriptor->fields().push_back(
             StateValueDescriptor::Recursive(zone, id));
         StateValueDescriptor* new_desc = &descriptor->fields().back();
-        for (Edge edge : input->input_edges()) {
+        int const input_count = input->op()->ValueInputCount();
+        ZoneVector<MachineType> const* types = MachineTypesOf(input->op());
+        for (int i = 0; i < input_count; ++i) {
           entries += AddOperandToStateValueDescriptor(
-              new_desc, inputs, g, deduplicator, edge.to(),
-              MachineType::AnyTagged(), kind, zone);
+              new_desc, inputs, g, deduplicator, input->InputAt(i),
+              types->at(i), kind, zone);
         }
         return entries;
       } else {
@@ -506,7 +513,6 @@ size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
             StateValueDescriptor::Duplicate(zone, id));
         return 0;
       }
-      break;
     }
     default: {
       inputs->push_back(OperandForDeopt(g, input, kind, type.representation()));

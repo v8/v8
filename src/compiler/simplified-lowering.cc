@@ -1012,6 +1012,36 @@ class RepresentationSelector {
     SetOutput(node, MachineRepresentation::kTagged);
   }
 
+  void VisitObjectState(Node* node) {
+    if (propagate()) {
+      for (int i = 0; i < node->InputCount(); i++) {
+        EnqueueInput(node, i, UseInfo::Any());
+      }
+    } else if (lower()) {
+      Zone* zone = jsgraph_->zone();
+      ZoneVector<MachineType>* types =
+          new (zone->New(sizeof(ZoneVector<MachineType>)))
+              ZoneVector<MachineType>(node->InputCount(), zone);
+      for (int i = 0; i < node->InputCount(); i++) {
+        Node* input = node->InputAt(i);
+        NodeInfo* input_info = GetInfo(input);
+        Type* input_type = TypeOf(input);
+        MachineRepresentation rep = input_type->IsInhabited()
+                                        ? input_info->representation()
+                                        : MachineRepresentation::kNone;
+        MachineType machine_type(rep, DeoptValueSemanticOf(input_type));
+        DCHECK(machine_type.representation() !=
+                   MachineRepresentation::kWord32 ||
+               machine_type.semantic() == MachineSemantic::kInt32 ||
+               machine_type.semantic() == MachineSemantic::kUint32);
+        (*types)[i] = machine_type;
+      }
+      NodeProperties::ChangeOp(node,
+                               jsgraph_->common()->TypedObjectState(types));
+    }
+    SetOutput(node, MachineRepresentation::kTagged);
+  }
+
   const Operator* Int32Op(Node* node) {
     return changer_->Int32OperatorFor(node->opcode());
   }
@@ -2456,6 +2486,8 @@ class RepresentationSelector {
         return;
       case IrOpcode::kStateValues:
         return VisitStateValues(node);
+      case IrOpcode::kObjectState:
+        return VisitObjectState(node);
       case IrOpcode::kTypeGuard: {
         // We just get rid of the sigma here. In principle, it should be
         // possible to refine the truncation and representation based on
@@ -2497,7 +2529,6 @@ class RepresentationSelector {
       case IrOpcode::kThrow:
       case IrOpcode::kBeginRegion:
       case IrOpcode::kProjection:
-      case IrOpcode::kObjectState:
       case IrOpcode::kOsrValue:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:

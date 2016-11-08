@@ -57,6 +57,7 @@
   V(StateValues)          \
   V(TypedStateValues)     \
   V(ObjectState)          \
+  V(TypedObjectState)     \
   V(Call)                 \
   V(Parameter)            \
   V(OsrValue)             \

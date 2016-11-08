@@ -1578,8 +1578,8 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         }
         int input_count = static_cast<int>(cache_->fields().size());
         Node* new_object_state =
-            graph()->NewNode(common()->ObjectState(input_count, vobj->id()),
-                             input_count, &cache_->fields().front());
+            graph()->NewNode(common()->ObjectState(input_count), input_count,
+                             &cache_->fields().front());
         vobj->SetObjectState(new_object_state);
         TRACE(
             "Creating object state #%d for vobj %p (from node #%d) at effect "
