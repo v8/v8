@@ -65,8 +65,12 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
-  if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
+
+  if (FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
+      FLAG_turbo_profiling || isolate_->is_profiling()) {
+    MarkAsSourcePositionsEnabled();
+  }
 }
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,

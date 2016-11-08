@@ -447,9 +447,6 @@ DEFINE_BOOL(turbo_stats_nvp, false,
 DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(turbo_type_feedback, true,
             "use typed feedback for representation inference in Turbofan")
-DEFINE_BOOL(turbo_source_positions, false,
-            "track source code positions when building TurboFan IR")
-DEFINE_IMPLICATION(trace_turbo, turbo_source_positions)
 DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
