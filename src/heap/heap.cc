@@ -1672,8 +1672,6 @@ void Heap::Scavenge() {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_WEAK);
     // Copy objects reachable from the encountered weak collections list.
     scavenge_visitor.VisitPointer(&encountered_weak_collections_);
-    // Copy objects reachable from the encountered weak cells.
-    scavenge_visitor.VisitPointer(&encountered_weak_cells_);
   }
 
   {
