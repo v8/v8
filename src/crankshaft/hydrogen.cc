@@ -5045,7 +5045,7 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
   }
 
   HBasicBlock* body_exit = JoinContinue(
-      stmt, stmt->ContinueId(), current_block(), break_info.continue_block());
+      stmt, stmt->IncrementId(), current_block(), break_info.continue_block());
 
   if (body_exit != NULL) {
     set_current_block(body_exit);

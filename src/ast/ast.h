@@ -756,7 +756,6 @@ class ForInStatement final : public ForEachStatement {
   BailoutId FilterId() const { return BailoutId(local_id(4)); }
   BailoutId AssignmentId() const { return BailoutId(local_id(5)); }
   BailoutId IncrementId() const { return BailoutId(local_id(6)); }
-  BailoutId ContinueId() const { return EntryId(); }
   BailoutId StackCheckId() const { return BodyId(); }
 
  private:
