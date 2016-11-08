@@ -22,4 +22,11 @@
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['variant == turbofan_opt', {
+
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug/ignition/debug-break-on-stack': [FAIL],
+}],  # variant == turbofan_opt
 ]

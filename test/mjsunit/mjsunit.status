@@ -612,7 +612,6 @@
   'debug-evaluate-locals-optimized-double': [FAIL],
   'debug-liveedit-double-call': [FAIL],
   'es6/debug-evaluate-blockscopes': [FAIL],
-  'ignition/debug-break-on-stack': [FAIL],
 
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
