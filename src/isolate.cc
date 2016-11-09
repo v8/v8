@@ -1775,6 +1775,9 @@ void Isolate::PopPromise() {
 bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
   Handle<JSFunction> fun = promise_has_user_defined_reject_handler();
   Handle<Object> has_reject_handler;
+  // If we are, e.g., overflowing the stack, don't try to call out to JS
+  if (!AllowJavascriptExecution::IsAllowed(this)) return false;
+  // Call the registered function to check for a handler
   if (Execution::TryCall(this, fun, promise, 0, NULL)
           .ToHandle(&has_reject_handler)) {
     return has_reject_handler->IsTrue(this);
