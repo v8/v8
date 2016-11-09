@@ -1754,9 +1754,10 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        assembler->Assert(assembler->Word32Equal(
-            var_type_feedback.value(),
-            assembler->Int32Constant(BinaryOperationFeedback::kNone)));
+        CSA_ASSERT(assembler,
+                   assembler->Word32Equal(var_type_feedback.value(),
+                                          assembler->Int32Constant(
+                                              BinaryOperationFeedback::kNone)));
 
         Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
         Node* instance_type = assembler->LoadMapInstanceType(value_map);
@@ -1893,9 +1894,10 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        assembler->Assert(assembler->Word32Equal(
-            var_type_feedback.value(),
-            assembler->Int32Constant(BinaryOperationFeedback::kNone)));
+        CSA_ASSERT(assembler,
+                   assembler->Word32Equal(var_type_feedback.value(),
+                                          assembler->Int32Constant(
+                                              BinaryOperationFeedback::kNone)));
 
         Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
         Node* instance_type = assembler->LoadMapInstanceType(value_map);
@@ -2571,12 +2573,13 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
 
   if (FLAG_debug_code) {
     // Function must be a function without a prototype.
-    assembler->Assert(assembler->Word32And(
-        compiler_hints,
-        assembler->Int32Constant((FunctionKind::kAccessorFunction |
-                                  FunctionKind::kArrowFunction |
-                                  FunctionKind::kConciseMethod)
-                                 << SharedFunctionInfo::kFunctionKindShift)));
+    CSA_ASSERT(assembler, assembler->Word32And(
+                              compiler_hints,
+                              assembler->Int32Constant(
+                                  (FunctionKind::kAccessorFunction |
+                                   FunctionKind::kArrowFunction |
+                                   FunctionKind::kConciseMethod)
+                                  << SharedFunctionInfo::kFunctionKindShift)));
   }
   assembler->Goto(&if_function_without_prototype);
 

@@ -161,7 +161,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                 compiler::Node* offset);
   compiler::Node* IsRegularHeapObjectSize(compiler::Node* size);
 
-  void Assert(compiler::Node* condition, const char* string = nullptr,
+  typedef std::function<compiler::Node*()> ConditionBody;
+  void Assert(ConditionBody condition_body, const char* string = nullptr,
               const char* file = nullptr, int line = 0);
 
   // Check a value for smi-ness
@@ -1263,14 +1264,20 @@ class CodeStubArguments {
   compiler::Node* fp_;
 };
 
-#define CSA_ASSERT(x) Assert((x), #x, __FILE__, __LINE__)
+#ifdef DEBUG
+#define CSA_ASSERT(csa, x) \
+  (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
+#else
+#define CSA_ASSERT(csa, x) ((void)0)
+#endif
+
 #ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_ASSERT(x)               \
-  if (FLAG_enable_slow_asserts) {        \
-    Assert((x), #x, __FILE__, __LINE__); \
+#define CSA_SLOW_ASSERT(csa, x)                                 \
+  if (FLAG_enable_slow_asserts) {                               \
+    (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__); \
   }
 #else
-#define CSA_SLOW_ASSERT(x)
+#define CSA_SLOW_ASSERT(csa, x) ((void)0)
 #endif
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);

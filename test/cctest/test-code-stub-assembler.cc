@@ -1925,9 +1925,12 @@ TEST(Arguments) {
 
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
-  m.Assert(m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
-  m.Assert(m.WordEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
-  m.Assert(m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(
+      &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
+  CSA_ASSERT(
+      &m, m.WordEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
+  CSA_ASSERT(
+      &m, m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
 
   m.Return(arguments.GetReceiver());
 

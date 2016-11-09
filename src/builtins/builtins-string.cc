@@ -1001,8 +1001,8 @@ void Builtins::Generate_StringPrototypeSubstr(CodeStubAssembler* a) {
       // two cases according to the spec: if it is negative, "" is returned; if
       // it is positive, then length is set to {string_length} - {start}.
 
-      a->Assert(a->WordEqual(a->LoadMap(var_length.value()),
-                             a->HeapNumberMapConstant()));
+      CSA_ASSERT(a, a->WordEqual(a->LoadMap(var_length.value()),
+                                 a->HeapNumberMapConstant()));
 
       Label if_isnegative(a), if_ispositive(a);
       Node* const float_zero = a->Float64Constant(0.);
@@ -1071,7 +1071,8 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
   a->Bind(&if_isnotsmi);
   {
     // {value} is a heap number - in this case, it is definitely out of bounds.
-    a->Assert(a->WordEqual(a->LoadMap(value_int), a->HeapNumberMapConstant()));
+    CSA_ASSERT(a,
+               a->WordEqual(a->LoadMap(value_int), a->HeapNumberMapConstant()));
 
     Node* const float_zero = a->Float64Constant(0.);
     Node* const smi_zero = a->SmiConstant(Smi::kZero);
@@ -1301,17 +1302,16 @@ compiler::Node* LoadSurrogatePairInternal(CodeStubAssembler* assembler,
   {
     Node* lead = var_result.value();
     Node* trail = var_trail.value();
-#ifdef ENABLE_SLOW_DCHECKS
+
     // Check that this path is only taken if a surrogate pair is found
-    assembler->Assert(assembler->Uint32GreaterThanOrEqual(
-        lead, assembler->Int32Constant(0xD800)));
-    assembler->Assert(
-        assembler->Uint32LessThan(lead, assembler->Int32Constant(0xDC00)));
-    assembler->Assert(assembler->Uint32GreaterThanOrEqual(
-        trail, assembler->Int32Constant(0xDC00)));
-    assembler->Assert(
-        assembler->Uint32LessThan(trail, assembler->Int32Constant(0xE000)));
-#endif
+    CSA_SLOW_ASSERT(assembler, assembler->Uint32GreaterThanOrEqual(
+                                   lead, assembler->Int32Constant(0xD800)));
+    CSA_SLOW_ASSERT(assembler, assembler->Uint32LessThan(
+                                   lead, assembler->Int32Constant(0xDC00)));
+    CSA_SLOW_ASSERT(assembler, assembler->Uint32GreaterThanOrEqual(
+                                   trail, assembler->Int32Constant(0xDC00)));
+    CSA_SLOW_ASSERT(assembler, assembler->Uint32LessThan(
+                                   trail, assembler->Int32Constant(0xE000)));
 
     switch (encoding) {
       case UnicodeEncoding::UTF16:

@@ -2179,14 +2179,14 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
 
   assembler->Bind(&if_isfastarray);
   {
-    assembler->Assert(
-        assembler->Word32Equal(assembler->LoadMapInstanceType(array_map),
-                               assembler->Int32Constant(JS_ARRAY_TYPE)));
+    CSA_ASSERT(assembler,
+               assembler->Word32Equal(assembler->LoadMapInstanceType(array_map),
+                                      assembler->Int32Constant(JS_ARRAY_TYPE)));
 
     Node* length = assembler->LoadObjectField(array, JSArray::kLengthOffset);
 
-    assembler->Assert(assembler->TaggedIsSmi(length));
-    assembler->Assert(assembler->TaggedIsSmi(index));
+    CSA_ASSERT(assembler, assembler->TaggedIsSmi(length));
+    CSA_ASSERT(assembler, assembler->TaggedIsSmi(index));
 
     assembler->GotoUnless(assembler->SmiBelow(index, length), &set_done);
 
@@ -2384,8 +2384,8 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
         assembler->Bind(&done);
         length = var_length.value();
       }
-      assembler->Assert(assembler->TaggedIsSmi(length));
-      assembler->Assert(assembler->TaggedIsSmi(index));
+      CSA_ASSERT(assembler, assembler->TaggedIsSmi(length));
+      CSA_ASSERT(assembler, assembler->TaggedIsSmi(index));
 
       assembler->GotoUnless(assembler->SmiBelow(index, length), &set_done);
 

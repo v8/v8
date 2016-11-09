@@ -1602,7 +1602,7 @@ compiler::Node* ReplaceGlobalCallableFastPath(
 
   Node* const res_length = a->LoadJSArrayLength(res);
   Node* const res_elems = a->LoadElements(res);
-  a->CSA_ASSERT(a->HasInstanceType(res_elems, FIXED_ARRAY_TYPE));
+  CSA_ASSERT(a, a->HasInstanceType(res_elems, FIXED_ARRAY_TYPE));
 
   CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
   Node* const num_capture_registers = a->LoadFixedArrayElement(
@@ -1677,7 +1677,7 @@ compiler::Node* ReplaceGlobalCallableFastPath(
 
       a->Bind(&if_isstring);
       {
-        a->Assert(a->IsStringInstanceType(a->LoadInstanceType(elem)));
+        CSA_ASSERT(a, a->IsStringInstanceType(a->LoadInstanceType(elem)));
 
         Callable call_callable = CodeFactory::Call(isolate);
         Node* const replacement_obj =
@@ -1725,7 +1725,7 @@ compiler::Node* ReplaceGlobalCallableFastPath(
           // elem must be an Array.
           // Use the apply argument as backing for global RegExp properties.
 
-          a->CSA_ASSERT(a->HasInstanceType(elem, JS_ARRAY_TYPE));
+          CSA_ASSERT(a, a->HasInstanceType(elem, JS_ARRAY_TYPE));
 
           // TODO(jgruber): Remove indirection through Call->ReflectApply.
           Callable call_callable = CodeFactory::Call(isolate);

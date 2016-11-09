@@ -1159,8 +1159,9 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        Assert(Word32Equal(var_type_feedback->value(),
-                           Int32Constant(BinaryOperationFeedback::kNone)));
+        CSA_ASSERT(this,
+                   Word32Equal(var_type_feedback->value(),
+                               Int32Constant(BinaryOperationFeedback::kNone)));
 
         Label if_valueisoddball(this),
             if_valueisnotoddball(this, Label::kDeferred);
