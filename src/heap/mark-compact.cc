@@ -3741,12 +3741,12 @@ int MarkCompactCollector::Sweeper::ParallelSweepSpace(AllocationSpace identity,
 int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
                                                      AllocationSpace identity) {
   int max_freed = 0;
-  if (page->mutex()->TryLock()) {
+  {
+    base::LockGuard<base::Mutex> guard(page->mutex());
     // If this page was already swept in the meantime, we can return here.
-    if (page->concurrent_sweeping_state().Value() != Page::kSweepingPending) {
-      page->mutex()->Unlock();
-      return 0;
-    }
+    if (page->SweepingDone()) return 0;
+    DCHECK_EQ(Page::kSweepingPending,
+              page->concurrent_sweeping_state().Value());
     page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
     const Sweeper::FreeSpaceTreatmentMode free_space_mode =
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
@@ -3755,6 +3755,7 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     } else {
       max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     }
+    DCHECK(page->SweepingDone());
 
     // After finishing sweeping of a page we clean up its remembered set.
     if (page->typed_old_to_new_slots()) {
@@ -3763,13 +3764,11 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     if (page->old_to_new_slots()) {
       page->old_to_new_slots()->FreeToBeFreedBuckets();
     }
+  }
 
-    {
-      base::LockGuard<base::Mutex> guard(&mutex_);
-      swept_list_[identity].Add(page);
-    }
-    page->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
-    page->mutex()->Unlock();
+  {
+    base::LockGuard<base::Mutex> guard(&mutex_);
+    swept_list_[identity].Add(page);
   }
   return max_freed;
 }
