@@ -771,9 +771,13 @@ void Interpreter::DoStaLookupSlotStrict(InterpreterAssembler* assembler) {
   DoStaLookupSlot(LanguageMode::STRICT, assembler);
 }
 
-Node* Interpreter::BuildLoadNamedProperty(Callable ic,
-                                          InterpreterAssembler* assembler) {
+// LdaNamedProperty <object> <name_index> <slot>
+//
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
+// constant pool entry <name_index>.
+void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
   typedef LoadWithVectorDescriptor Descriptor;
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* code_target = __ HeapConstant(ic.code());
   Node* register_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(register_index);
@@ -783,38 +787,21 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  return __ CallStub(
+  Node* result = __ CallStub(
       ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
       Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
       Arg(Descriptor::kVector, type_feedback_vector));
-}
-
-// LdaNamedProperty <object> <name_index> <slot>
-//
-// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
-// constant pool entry <name_index>.
-void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadNamedProperty(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// LdrNamedProperty <object> <name_index> <slot> <reg>
+// KeyedLoadIC <object> <slot>
 //
-// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
-// constant pool entry <name_index> and puts the result into register <reg>.
-void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadNamedProperty(ic, assembler);
-  Node* destination = __ BytecodeOperandReg(3);
-  __ StoreRegister(result, destination);
-  __ Dispatch();
-}
-
-Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
-                                          InterpreterAssembler* assembler) {
+// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
+// in the accumulator.
+void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
   typedef LoadWithVectorDescriptor Descriptor;
+  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
   Node* code_target = __ HeapConstant(ic.code());
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(reg_index);
@@ -823,32 +810,11 @@ Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  return __ CallStub(
+  Node* result = __ CallStub(
       ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
       Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
       Arg(Descriptor::kVector, type_feedback_vector));
-}
-
-// KeyedLoadIC <object> <slot>
-//
-// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
-// in the accumulator.
-void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadKeyedProperty(ic, assembler);
   __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// LdrKeyedProperty <object> <slot> <reg>
-//
-// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
-// in the accumulator and puts the result in register <reg>.
-void Interpreter::DoLdrKeyedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadKeyedProperty(ic, assembler);
-  Node* destination = __ BytecodeOperandReg(2);
-  __ StoreRegister(result, destination);
   __ Dispatch();
 }
 

@@ -1043,7 +1043,8 @@ void BytecodeGraphBuilder::VisitStaLookupSlotStrict() {
   BuildStaLookupSlot(LanguageMode::STRICT);
 }
 
-Node* BytecodeGraphBuilder::BuildNamedLoad() {
+void BytecodeGraphBuilder::VisitLdaNamedProperty() {
+  PrepareEagerCheckpoint();
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Handle<Name> name =
@@ -1052,23 +1053,12 @@ Node* BytecodeGraphBuilder::BuildNamedLoad() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->LoadNamed(name, feedback);
-  return NewNode(op, object, GetFunctionClosure());
-}
-
-void BytecodeGraphBuilder::VisitLdaNamedProperty() {
-  PrepareEagerCheckpoint();
-  Node* node = BuildNamedLoad();
+  Node* node = NewNode(op, object, GetFunctionClosure());
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitLdrNamedProperty() {
+void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
   PrepareEagerCheckpoint();
-  Node* node = BuildNamedLoad();
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3), node,
-                              Environment::kAttachFrameState);
-}
-
-Node* BytecodeGraphBuilder::BuildKeyedLoad() {
   Node* key = environment()->LookupAccumulator();
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -1076,20 +1066,8 @@ Node* BytecodeGraphBuilder::BuildKeyedLoad() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
 
   const Operator* op = javascript()->LoadProperty(feedback);
-  return NewNode(op, object, key, GetFunctionClosure());
-}
-
-void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
-  PrepareEagerCheckpoint();
-  Node* node = BuildKeyedLoad();
+  Node* node = NewNode(op, object, key, GetFunctionClosure());
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitLdrKeyedProperty() {
-  PrepareEagerCheckpoint();
-  Node* node = BuildKeyedLoad();
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2), node,
-                              Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {

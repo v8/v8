@@ -594,7 +594,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 169
+bytecode array length: 170
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -660,7 +660,8 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
                 B(Star), R(2),
-                B(LdrNamedProperty), R(2), U8(2), U8(2), R(3),
+                B(LdaNamedProperty), R(2), U8(2), U8(2),
+                B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
                 B(StaCurrentContextSlot), U8(6),
   /*   16 E> */ B(LdaCurrentContextSlot), U8(6),
@@ -821,7 +822,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 159
+bytecode array length: 161
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -880,10 +881,12 @@ bytecodes: [
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
   /*   27 S> */ B(LdrCurrentContextSlot), U8(6), R(3),
-  /*   30 E> */ B(LdrNamedProperty), R(3), U8(1), U8(4), R(2),
+  /*   30 E> */ B(LdaNamedProperty), R(3), U8(1), U8(4),
+                B(Star), R(2),
   /*   33 E> */ B(LdrCurrentContextSlot), U8(6), R(4),
   /*   38 E> */ B(LdrCurrentContextSlot), U8(6), R(6),
-  /*   41 E> */ B(LdrNamedProperty), R(6), U8(2), U8(6), R(5),
+  /*   41 E> */ B(LdaNamedProperty), R(6), U8(2), U8(6),
+                B(Star), R(5),
   /*   31 E> */ B(CallProperty), R(2), R(3), U8(3), U8(2),
                 B(LdaUndefined),
   /*   45 S> */ B(Return),

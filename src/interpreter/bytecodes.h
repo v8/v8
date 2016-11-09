@@ -87,12 +87,8 @@ namespace interpreter {
   /* Property loads (LoadIC) operations */                                     \
   V(LdaNamedProperty, AccumulatorUse::kWrite, OperandType::kReg,               \
     OperandType::kIdx, OperandType::kIdx)                                      \
-  V(LdrNamedProperty, AccumulatorUse::kNone, OperandType::kReg,                \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)                \
   V(LdaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
     OperandType::kIdx)                                                         \
-  V(LdrKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,                \
-    OperandType::kIdx, OperandType::kRegOut)                                   \
                                                                                \
   /* Operations on module variables */                                         \
   V(LdaModuleVariable, AccumulatorUse::kWrite, OperandType::kImm,              \

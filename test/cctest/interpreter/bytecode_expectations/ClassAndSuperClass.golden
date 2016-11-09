@@ -22,12 +22,13 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 37
 bytecodes: [
                 B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
   /*  104 S> */ B(LdaConstant), U8(0),
-  /*  111 E> */ B(LdrKeyedProperty), R(closure), U8(4), R(4),
+  /*  111 E> */ B(LdaKeyedProperty), R(closure), U8(4),
+                B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
                 B(Mov), R(this), R(3),
@@ -62,12 +63,13 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 47
 bytecodes: [
                 B(Mov), R(closure), R(0),
   /*  125 E> */ B(StackCheck),
   /*  130 S> */ B(LdaConstant), U8(0),
-  /*  130 E> */ B(LdrKeyedProperty), R(closure), U8(2), R(2),
+  /*  130 E> */ B(LdaKeyedProperty), R(closure), U8(2),
+                B(Star), R(2),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(LdaSmi), U8(2),
@@ -75,7 +77,8 @@ bytecodes: [
                 B(Mov), R(this), R(1),
   /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper_Strict), R(1), U8(4),
   /*  143 S> */ B(LdaConstant), U8(0),
-  /*  150 E> */ B(LdrKeyedProperty), R(closure), U8(4), R(2),
+  /*  150 E> */ B(LdaKeyedProperty), R(closure), U8(4),
+                B(Star), R(2),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(Mov), R(this), R(1),

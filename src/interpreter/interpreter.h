@@ -150,14 +150,6 @@ class Interpreter {
                                   compiler::Node* feedback_slot,
                                   InterpreterAssembler* assembler);
 
-  // Generates code to load a named property.
-  compiler::Node* BuildLoadNamedProperty(Callable ic,
-                                         InterpreterAssembler* assembler);
-
-  // Generates code to load a keyed property.
-  compiler::Node* BuildLoadKeyedProperty(Callable ic,
-                                         InterpreterAssembler* assembler);
-
   // Generates code to prepare the result for ForInPrepare. Cache data
   // are placed into the consecutive series of registers starting at
   // |output_register|.

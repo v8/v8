@@ -321,57 +321,6 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
 
 // Tests covering BytecodePeepholeOptimizer::UpdateLastAndCurrentBytecodes().
 
-TEST_F(BytecodePeepholeOptimizerTest, MergeLoadICStar) {
-  const uint32_t operands[] = {
-      static_cast<uint32_t>(Register(31).ToOperand()), 32, 33,
-      static_cast<uint32_t>(Register(256).ToOperand())};
-  const int expected_operand_count = static_cast<int>(arraysize(operands));
-
-  BytecodeNode first(Bytecode::kLdaNamedProperty, operands[0], operands[1],
-                     operands[2]);
-  BytecodeNode second(Bytecode::kStar, operands[3]);
-  BytecodeNode third(Bytecode::kReturn);
-  optimizer()->Write(&first);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrNamedProperty);
-  CHECK_EQ(last_written().operand_count(), expected_operand_count);
-  for (int i = 0; i < expected_operand_count; ++i) {
-    CHECK_EQ(last_written().operand(i), operands[i]);
-  }
-  optimizer()->Write(&third);
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
-  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  Flush();
-  CHECK_EQ(last_written().bytecode(), third.bytecode());
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, MergeLdaKeyedPropertyStar) {
-  const uint32_t operands[] = {static_cast<uint32_t>(Register(31).ToOperand()),
-                               9999997,
-                               static_cast<uint32_t>(Register(1).ToOperand())};
-  const int expected_operand_count = static_cast<int>(arraysize(operands));
-
-  BytecodeNode first(Bytecode::kLdaKeyedProperty, operands[0], operands[1]);
-  BytecodeNode second(Bytecode::kStar, operands[2]);
-  BytecodeNode third(Bytecode::kReturn);
-  optimizer()->Write(&first);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrKeyedProperty);
-  CHECK_EQ(last_written().operand_count(), expected_operand_count);
-  for (int i = 0; i < expected_operand_count; ++i) {
-    CHECK_EQ(last_written().operand(i), operands[i]);
-  }
-  optimizer()->Write(&third);
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
-  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  Flush();
-  CHECK_EQ(last_written().bytecode(), third.bytecode());
-}
-
 TEST_F(BytecodePeepholeOptimizerTest, MergeLdaGlobalStar) {
   const uint32_t operands[] = {19191,
                                static_cast<uint32_t>(Register(1).ToOperand())};

@@ -86,12 +86,6 @@ PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
   // load so can be elided.
   if (current == Bytecode::kStar) {
     switch (last) {
-      case Bytecode::kLdaNamedProperty:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrNamedProperty};
-      case Bytecode::kLdaKeyedProperty:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrKeyedProperty};
       case Bytecode::kLdaGlobal:
         return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
                 Bytecode::kLdrGlobal};

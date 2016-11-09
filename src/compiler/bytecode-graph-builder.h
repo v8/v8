@@ -138,9 +138,7 @@ class BytecodeGraphBuilder {
   Node* BuildLoadCurrentContextSlot();
   Node* BuildLoadGlobal(uint32_t feedback_slot_index, TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  Node* BuildNamedLoad();
   void BuildNamedStore(LanguageMode language_mode);
-  Node* BuildKeyedLoad();
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
