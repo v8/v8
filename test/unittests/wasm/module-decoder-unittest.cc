@@ -516,6 +516,20 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
 }
 
+TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
+  const byte data[] = {
+      SECTION(Data, 11),
+      ENTRY_COUNT(1),
+      LINEAR_MEMORY_INDEX_0,
+      WASM_INIT_EXPR_I32V_3(0x9bbaa),  // dest addr
+      U32V_1(3),                       // source size
+      'a',
+      'b',
+      'c'  // data bytes
+  };
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
   {
     const byte data[] = {

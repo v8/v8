@@ -185,6 +185,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   const byte* module_end = nullptr;    // end address for the module bytes
   uint32_t min_mem_pages = 0;  // minimum size of the memory in 64k pages
   uint32_t max_mem_pages = 0;  // maximum size of the memory in 64k pages
+  bool has_memory = false;     // true if the memory was defined or imported
   bool mem_export = false;     // true if the memory is exported
   // TODO(wasm): reconcile start function index being an int with
   // the fact that we index on uint32_t, so we may technically not be

@@ -327,6 +327,7 @@ class ModuleDecoder : public Decoder {
                                      &module->min_mem_pages, &has_max,
                                      WasmModule::kSpecMaxPages,
                                      &module->max_mem_pages);
+            module->has_memory = true;
             break;
           }
           case kExternalGlobal: {
@@ -411,6 +412,7 @@ class ModuleDecoder : public Decoder {
             "memory", "pages", WasmModule::kV8MaxPages, &module->min_mem_pages,
             &has_max, WasmModule::kSpecMaxPages, &module->max_mem_pages);
       }
+      module->has_memory = true;
       section_iter.advance();
     }
 
@@ -594,6 +596,10 @@ class ModuleDecoder : public Decoder {
       uint32_t data_segments_count = consume_u32v("data segments count");
       module->data_segments.reserve(SafeReserve(data_segments_count));
       for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
+        if (!module->has_memory) {
+          error("cannot load data without memory");
+          break;
+        }
         TRACE("DecodeDataSegment[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
         module->data_segments.push_back({
