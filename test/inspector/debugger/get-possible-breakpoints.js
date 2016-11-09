@@ -1,7 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// Flags: --expose-gc
 
 print("Test for Debugger.getPossibleBreakpoints");
 
@@ -9,6 +8,7 @@ Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 
 InspectorTest.runTestSuite([
+
   function getPossibleBreakpointsInRange(next) {
     var source = "function foo(){ return Promise.resolve(); }\nfunction boo(){ return Promise.resolve().then(() => 42); }\n\n";
     var scriptId;
@@ -138,8 +138,26 @@ function foo6() { Promise.resolve().then(() => 42) }`;
       .then(setAllBreakpoints)
       .then(() => Protocol.Runtime.evaluate({ expression: "foo5(); foo6()"}))
       .then(next);
-  }
+  },
 
+  function arrowFunctionReturn(next) {
+    waitForPossibleBreakpoints("() => 239\n", { lineNumber: 0, columnNumber: 0 })
+      .then(InspectorTest.logMessage)
+      .then(() => waitForPossibleBreakpoints("function foo() { function boo() { return 239 }  }\n", { lineNumber: 0, columnNumber: 0 }))
+      .then(InspectorTest.logMessage)
+      .then(() => waitForPossibleBreakpoints("() => { 239 }\n", { lineNumber: 0, columnNumber: 0 }))
+      .then(InspectorTest.logMessage)
+      // TODO(kozyatinskiy): lineNumber for return position should be 21 instead of 22.
+      .then(() => waitForPossibleBreakpoints("function foo() { 239 }\n", { lineNumber: 0, columnNumber: 0 }))
+      .then(InspectorTest.logMessage)
+      // TODO(kozyatinskiy): lineNumber for return position should be only 9, not 8.
+      .then(() => waitForPossibleBreakpoints("() => 239", { lineNumber: 0, columnNumber: 0 }))
+      .then(InspectorTest.logMessage)
+      // TODO(kozyatinskiy): lineNumber for return position should be only 19, not 20.
+      .then(() => waitForPossibleBreakpoints("() => { return 239 }", { lineNumber: 0, columnNumber: 0 }))
+      .then(InspectorTest.logMessage)
+      .then(next)
+  }
 ]);
 
 function compileScript(source, origin) {

@@ -2707,6 +2707,10 @@ class FunctionLiteral final : public Expression {
         IsClassFieldInitializer::update(bit_field_, is_class_field_initializer);
   }
 
+  int return_position() {
+    return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -2717,7 +2721,7 @@ class FunctionLiteral final : public Expression {
                   int function_length, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
-                  bool is_function)
+                  bool is_function, bool has_braces)
       : Expression(position, kFunctionLiteral),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2725,6 +2729,7 @@ class FunctionLiteral final : public Expression {
         function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         yield_count_(0),
+        has_braces_(has_braces),
         raw_name_(name),
         scope_(scope),
         body_(body),
@@ -2762,6 +2767,7 @@ class FunctionLiteral final : public Expression {
   int function_length_;
   int function_token_position_;
   int yield_count_;
+  bool has_braces_;
 
   const AstString* raw_name_;
   DeclarationScope* scope_;
@@ -3457,12 +3463,13 @@ class AstNodeFactory final BASE_EMBEDDED {
       int expected_property_count, int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+      bool has_braces) {
     return new (zone_) FunctionLiteral(
         zone_, name, ast_value_factory_, scope, body,
         materialized_literal_count, expected_property_count, parameter_count,
         function_length, function_type, has_duplicate_parameters,
-        eager_compile_hint, position, true);
+        eager_compile_hint, position, true, has_braces);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3477,7 +3484,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         body, materialized_literal_count, expected_property_count,
         parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kShouldLazyCompile, 0, false);
+        FunctionLiteral::kShouldLazyCompile, 0, false, true);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(

@@ -51,9 +51,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
         pipeline_);
   }
 
-  return_position_ =
-      literal ? std::max(literal->start_position(), literal->end_position() - 1)
-              : kNoSourcePosition;
+  return_position_ = literal ? literal->return_position() : kNoSourcePosition;
 }
 
 Register BytecodeArrayBuilder::first_context_register() const {

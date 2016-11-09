@@ -88,12 +88,12 @@ Test end is undefined
                 scriptId : <scriptId>
             }
             [3] : {
-                columnNumber : 49
+                columnNumber : 52
                 lineNumber : 1
                 scriptId : <scriptId>
             }
             [4] : {
-                columnNumber : 53
+                columnNumber : 54
                 lineNumber : 1
                 scriptId : <scriptId>
             }
@@ -131,12 +131,12 @@ Test end.lineNumber > scripts.lineCount()
                 scriptId : <scriptId>
             }
             [3] : {
-                columnNumber : 49
+                columnNumber : 52
                 lineNumber : 1
                 scriptId : <scriptId>
             }
             [4] : {
-                columnNumber : 53
+                columnNumber : 54
                 lineNumber : 1
                 scriptId : <scriptId>
             }
@@ -201,37 +201,37 @@ Running test: getPossibleBreakpointsInArrow
                 scriptId : <scriptId>
             }
             [1] : {
-                columnNumber : 50
+                columnNumber : 53
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [2] : {
-                columnNumber : 55
+                columnNumber : 56
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [3] : {
-                columnNumber : 66
+                columnNumber : 69
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [4] : {
-                columnNumber : 70
+                columnNumber : 71
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [5] : {
-                columnNumber : 81
+                columnNumber : 84
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [6] : {
-                columnNumber : 87
+                columnNumber : 90
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [7] : {
-                columnNumber : 91
+                columnNumber : 92
                 lineNumber : 0
                 scriptId : <scriptId>
             }
@@ -255,12 +255,12 @@ Running test: arrowFunctionFirstLine
                 scriptId : <scriptId>
             }
             [1] : {
-                columnNumber : 44
+                columnNumber : 47
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [2] : {
-                columnNumber : 48
+                columnNumber : 49
                 lineNumber : 0
                 scriptId : <scriptId>
             }
@@ -287,7 +287,7 @@ Running test: arrowFunctionFirstLine
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 44
+            columnNumber : 47
             lineNumber : 0
             scriptId : <scriptId>
         }
@@ -298,7 +298,7 @@ Running test: arrowFunctionFirstLine
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 48
+            columnNumber : 49
             lineNumber : 0
             scriptId : <scriptId>
         }
@@ -330,13 +330,13 @@ paused in foo1
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 44
+    columnNumber : 47
     lineNumber : 0
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 48
+    columnNumber : 49
     lineNumber : 0
     scriptId : <scriptId>
 }
@@ -357,12 +357,12 @@ Running test: arrowFunctionOnPause
                 scriptId : <scriptId>
             }
             [2] : {
-                columnNumber : 54
+                columnNumber : 57
                 lineNumber : 0
                 scriptId : <scriptId>
             }
             [3] : {
-                columnNumber : 58
+                columnNumber : 59
                 lineNumber : 0
                 scriptId : <scriptId>
             }
@@ -377,12 +377,12 @@ Running test: arrowFunctionOnPause
                 scriptId : <scriptId>
             }
             [6] : {
-                columnNumber : 44
+                columnNumber : 47
                 lineNumber : 1
                 scriptId : <scriptId>
             }
             [7] : {
-                columnNumber : 48
+                columnNumber : 49
                 lineNumber : 1
                 scriptId : <scriptId>
             }
@@ -435,7 +435,7 @@ Running test: arrowFunctionOnPause
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 54
+            columnNumber : 57
             lineNumber : 0
             scriptId : <scriptId>
         }
@@ -446,7 +446,7 @@ Running test: arrowFunctionOnPause
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 58
+            columnNumber : 59
             lineNumber : 0
             scriptId : <scriptId>
         }
@@ -479,7 +479,7 @@ Running test: arrowFunctionOnPause
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 44
+            columnNumber : 47
             lineNumber : 1
             scriptId : <scriptId>
         }
@@ -490,7 +490,7 @@ Running test: arrowFunctionOnPause
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 48
+            columnNumber : 49
             lineNumber : 1
             scriptId : <scriptId>
         }
@@ -567,25 +567,25 @@ paused in foo4
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 54
+    columnNumber : 57
     lineNumber : 0
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 58
+    columnNumber : 59
     lineNumber : 0
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 44
+    columnNumber : 47
     lineNumber : 1
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 48
+    columnNumber : 49
     lineNumber : 1
     scriptId : <scriptId>
 }
@@ -654,12 +654,12 @@ Test end is undefined
                 scriptId : <scriptId>
             }
             [3] : {
-                columnNumber : 49
+                columnNumber : 52
                 lineNumber : 2
                 scriptId : <scriptId>
             }
             [4] : {
-                columnNumber : 53
+                columnNumber : 54
                 lineNumber : 2
                 scriptId : <scriptId>
             }
@@ -697,12 +697,12 @@ Test end.lineNumber > scripts.lineCount()
                 scriptId : <scriptId>
             }
             [3] : {
-                columnNumber : 49
+                columnNumber : 52
                 lineNumber : 2
                 scriptId : <scriptId>
             }
             [4] : {
-                columnNumber : 53
+                columnNumber : 54
                 lineNumber : 2
                 scriptId : <scriptId>
             }
@@ -767,12 +767,12 @@ Running test: withOffset
                 scriptId : <scriptId>
             }
             [1] : {
-                columnNumber : 62
+                columnNumber : 65
                 lineNumber : 3
                 scriptId : <scriptId>
             }
             [2] : {
-                columnNumber : 66
+                columnNumber : 67
                 lineNumber : 3
                 scriptId : <scriptId>
             }
@@ -787,12 +787,12 @@ Running test: withOffset
                 scriptId : <scriptId>
             }
             [5] : {
-                columnNumber : 44
+                columnNumber : 47
                 lineNumber : 4
                 scriptId : <scriptId>
             }
             [6] : {
-                columnNumber : 48
+                columnNumber : 49
                 lineNumber : 4
                 scriptId : <scriptId>
             }
@@ -819,7 +819,7 @@ Running test: withOffset
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 62
+            columnNumber : 65
             lineNumber : 3
             scriptId : <scriptId>
         }
@@ -830,7 +830,7 @@ Running test: withOffset
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 66
+            columnNumber : 67
             lineNumber : 3
             scriptId : <scriptId>
         }
@@ -863,7 +863,7 @@ Running test: withOffset
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 44
+            columnNumber : 47
             lineNumber : 4
             scriptId : <scriptId>
         }
@@ -874,7 +874,7 @@ Running test: withOffset
     id : <messageId>
     result : {
         actualLocation : {
-            columnNumber : 48
+            columnNumber : 49
             lineNumber : 4
             scriptId : <scriptId>
         }
@@ -918,25 +918,174 @@ paused in foo6
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 62
+    columnNumber : 65
     lineNumber : 3
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 66
+    columnNumber : 67
     lineNumber : 3
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 44
+    columnNumber : 47
     lineNumber : 4
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
 {
-    columnNumber : 48
+    columnNumber : 49
     lineNumber : 4
     scriptId : <scriptId>
+}
+
+Running test: arrowFunctionReturn
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 0
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 6
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 9
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 34
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 45
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 48
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 49
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 0
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 8
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 12
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 13
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 17
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 21
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 22
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 0
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 6
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 8
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [3] : {
+                columnNumber : 9
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 0
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 8
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 19
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+        ]
+    }
 }

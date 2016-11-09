@@ -285,7 +285,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       name, function_scope, body, materialized_literal_count,
       expected_property_count, parameter_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos);
+      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
+      true);
 
   function_literal->set_requires_class_field_init(requires_class_field_init);
 
@@ -2722,7 +2723,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, materialized_literal_count,
       expected_property_count, num_parameters, function_length,
-      duplicate_parameters, function_type, eager_compile_hint, pos);
+      duplicate_parameters, function_type, eager_compile_hint, pos, true);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -3416,7 +3417,8 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
       initializer_state.expected_property_count(), 0, count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
+      FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position(),
+      true);
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
