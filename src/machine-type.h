@@ -29,8 +29,13 @@ enum class MachineRepresentation : uint8_t {
   kFloat32,
   kFloat64,
   kSimd128,
-  kFirstFPRepresentation = kFloat32
+  kFirstFPRepresentation = kFloat32,
+  kLastRepresentation = kSimd128
 };
+
+static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
+                  kIntSize * kBitsPerByte,
+              "Bit masks of MachineRepresentation should fit in an int");
 
 const char* MachineReprToString(MachineRepresentation);
 

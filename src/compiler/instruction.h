@@ -1389,20 +1389,13 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
   MachineRepresentation GetRepresentation(int virtual_register) const;
   void MarkAsRepresentation(MachineRepresentation rep, int virtual_register);
+  int representation_mask() const { return representation_mask_; }
 
   bool IsReference(int virtual_register) const {
     return CanBeTaggedPointer(GetRepresentation(virtual_register));
   }
   bool IsFP(int virtual_register) const {
     return IsFloatingPoint(GetRepresentation(virtual_register));
-  }
-  bool IsFloat(int virtual_register) const {
-    return GetRepresentation(virtual_register) ==
-           MachineRepresentation::kFloat32;
-  }
-  bool IsDouble(int virtual_register) const {
-    return GetRepresentation(virtual_register) ==
-           MachineRepresentation::kFloat64;
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;
@@ -1523,6 +1516,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   int next_virtual_register_;
   ReferenceMapDeque reference_maps_;
   ZoneVector<MachineRepresentation> representations_;
+  int representation_mask_;
   DeoptimizationVector deoptimization_entries_;
 
   // Used at construction time
