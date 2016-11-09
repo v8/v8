@@ -599,11 +599,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
-  }
-  if (!info()->is_optimizing_from_bytecode()) {
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
+  }
+  if (!info()->is_optimizing_from_bytecode()) {
     if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
     }

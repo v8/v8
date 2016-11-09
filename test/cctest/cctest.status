@@ -425,6 +425,9 @@
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
 
+  # TODO(vogelheim,5548): Turbofan does support cached accessors.
+  'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
+
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == turbofan or variant == ignition_turbofan
