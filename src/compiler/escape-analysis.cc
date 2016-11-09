@@ -1135,7 +1135,17 @@ VirtualObject* EscapeAnalysis::CopyForModificationAt(VirtualObject* obj,
                                                      Node* node) {
   if (obj->NeedCopyForModification()) {
     state = CopyForModificationAt(state, node);
-    return state->Copy(obj, status_analysis_->GetAlias(obj->id()));
+    // TODO(tebbi): this copies the complete virtual state. Replace with a more
+    // precise analysis of which objects are actually affected by the change.
+    Alias changed_alias = status_analysis_->GetAlias(obj->id());
+    for (Alias alias = 0; alias < state->size(); ++alias) {
+      if (VirtualObject* next_obj = state->VirtualObjectFromAlias(alias)) {
+        if (alias != changed_alias && next_obj->NeedCopyForModification()) {
+          state->Copy(next_obj, alias);
+        }
+      }
+    }
+    return state->Copy(obj, changed_alias);
   }
   return obj;
 }
