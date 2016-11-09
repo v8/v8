@@ -158,7 +158,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   void SetNumRegs(int num_general_registers, int num_double_registers);
   int GetNumRegs(MachineRepresentation rep);
   int GetAllocatableCode(int index, MachineRepresentation rep = kNoRep);
-  RegisterConfiguration* config();
+  const RegisterConfiguration* config();
   InstructionSequence* sequence();
 
   void StartLoop(int loop_blocks);
