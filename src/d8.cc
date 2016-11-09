@@ -2811,17 +2811,17 @@ int Shell::Main(int argc, char* argv[]) {
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform();
 
-  std::unique_ptr<platform::tracing::TracingController> tracing_controller;
+  platform::tracing::TracingController* tracing_controller;
   if (options.trace_enabled) {
     trace_file.open("v8_trace.json");
-    tracing_controller.reset(new platform::tracing::TracingController());
+    tracing_controller = new platform::tracing::TracingController();
     platform::tracing::TraceBuffer* trace_buffer =
         platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing_controller->Initialize(trace_buffer);
     if (!i::FLAG_verify_predictable) {
-      platform::SetTracingController(g_platform, tracing_controller.release());
+      platform::SetTracingController(g_platform, tracing_controller);
     }
   }
 
@@ -2941,6 +2941,9 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;
+  if (i::FLAG_verify_predictable) {
+    delete tracing_controller;
+  }
 
   return result;
 }
