@@ -447,8 +447,8 @@ void GCTracer::PrintNVP() const {
           "code=%.2f "
           "semispace=%.2f "
           "object_groups=%.2f "
-          "external_prologue=%.2f "
-          "external_epilogue=%.2f "
+          "external.prologue=%.2f "
+          "external.epilogue=%.2f "
           "external_weak_global_handles=%.2f "
           "steps_count=%d "
           "steps_took=%.1f "
@@ -484,8 +484,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES],
           current_.scopes[Scope::SCAVENGER_SEMISPACE],
           current_.scopes[Scope::SCAVENGER_OBJECT_GROUPS],
-          current_.scopes[Scope::SCAVENGER_EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::SCAVENGER_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::EXTERNAL_PROLOGUE],
+          current_.scopes[Scope::EXTERNAL_EPILOGUE],
           current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
@@ -529,8 +529,8 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.to_evacuated=%.1f "
           "evacuate.update_pointers.to_new=%.1f "
           "evacuate.update_pointers.weak=%.1f "
-          "external.mc_prologue=%.1f "
-          "external.mc_epilogue=%.1f "
+          "external.prologue=%.1f "
+          "external.epilogue=%.1f "
           "external.weak_global_handles=%.1f "
           "finish=%.1f "
           "mark=%.1f "
@@ -612,8 +612,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
-          current_.scopes[Scope::MC_EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::MC_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::EXTERNAL_PROLOGUE],
+          current_.scopes[Scope::EXTERNAL_EPILOGUE],
           current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],

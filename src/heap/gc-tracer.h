@@ -37,6 +37,8 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
 #define TRACER_SCOPES(F)                      \
   INCREMENTAL_SCOPES(F)                       \
+  F(EXTERNAL_EPILOGUE)                        \
+  F(EXTERNAL_PROLOGUE)                        \
   F(EXTERNAL_WEAK_GLOBAL_HANDLES)             \
   F(MC_CLEAR)                                 \
   F(MC_CLEAR_CODE_FLUSH)                      \
@@ -58,8 +60,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED) \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)       \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)         \
-  F(MC_EXTERNAL_EPILOGUE)                     \
-  F(MC_EXTERNAL_PROLOGUE)                     \
   F(MC_FINISH)                                \
   F(MC_MARK)                                  \
   F(MC_MARK_FINISH_INCREMENTAL)               \
@@ -80,8 +80,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_SWEEP_MAP)                             \
   F(MC_SWEEP_OLD)                             \
   F(SCAVENGER_CODE_FLUSH_CANDIDATES)          \
-  F(SCAVENGER_EXTERNAL_EPILOGUE)              \
-  F(SCAVENGER_EXTERNAL_PROLOGUE)              \
   F(SCAVENGER_OBJECT_GROUPS)                  \
   F(SCAVENGER_OLD_TO_NEW_POINTERS)            \
   F(SCAVENGER_ROOTS)                          \
@@ -364,12 +362,10 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   double TotalExternalTime() const {
     return current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES] +
-           current_.scopes[Scope::MC_EXTERNAL_EPILOGUE] +
-           current_.scopes[Scope::MC_EXTERNAL_PROLOGUE] +
+           current_.scopes[Scope::EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::EXTERNAL_PROLOGUE] +
            current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE] +
-           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE] +
-           current_.scopes[Scope::SCAVENGER_EXTERNAL_EPILOGUE] +
-           current_.scopes[Scope::SCAVENGER_EXTERNAL_PROLOGUE];
+           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE];
   }
 
   // Pointer to the heap that owns this tracer.
