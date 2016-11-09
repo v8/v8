@@ -616,6 +616,9 @@
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
 
+  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
+  'regress/regress-crbug-323936': [FAIL],
+
   # Too slow.
   'big-object-literal': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
