@@ -284,7 +284,7 @@ class Scanner {
   }
 
   // Returns the value of the last smi that was scanned.
-  int smi_value() const { return current_.smi_value_; }
+  uint32_t smi_value() const { return current_.smi_value_; }
 
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
@@ -487,7 +487,7 @@ class Scanner {
     Location location;
     LiteralBuffer* literal_chars;
     LiteralBuffer* raw_literal_chars;
-    int smi_value_;
+    uint32_t smi_value_;
     Token::Value token;
   };
 

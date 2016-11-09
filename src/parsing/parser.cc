@@ -503,7 +503,7 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
     case Token::FALSE_LITERAL:
       return factory()->NewBooleanLiteral(false, pos);
     case Token::SMI: {
-      int value = scanner()->smi_value();
+      uint32_t value = scanner()->smi_value();
       return factory()->NewSmiLiteral(value, pos);
     }
     case Token::NUMBER: {
@@ -3923,9 +3923,9 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
             const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
         zone());
 
-    // Ensure hash is suitable as a Smi value
+    // Truncate hash to Smi-range.
     Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
-    args->Add(factory()->NewSmiLiteral(hash_obj->value(), pos), zone());
+    args->Add(factory()->NewNumberLiteral(hash_obj->value(), pos), zone());
 
     Expression* call_site = factory()->NewCallRuntime(
         Context::GET_TEMPLATE_CALL_SITE_INDEX, args, start);

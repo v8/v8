@@ -3283,7 +3283,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         Literal(ast_value_factory_->NewNumber(number, with_dot), pos);
   }
 
-  Literal* NewSmiLiteral(int number, int pos) {
+  Literal* NewSmiLiteral(uint32_t number, int pos) {
     return new (zone_) Literal(ast_value_factory_->NewSmi(number), pos);
   }
 
