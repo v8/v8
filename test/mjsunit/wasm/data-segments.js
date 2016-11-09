@@ -32,30 +32,6 @@ SimpleDataSegmentTest(4);
 SimpleDataSegmentTest(12);
 SimpleDataSegmentTest(1064);
 
-function GlobalInitTest(offset) {
-  print("GlobalInitTest(" + offset + ")...");
-  var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
-  var g = builder.addGlobal(kAstI32, false);
-  g.init = offset;
-  builder.addFunction("load", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
-    .exportAs("load");
-  builder.addDataSegment(g.index, [7, 7, 7, 7], true);
-
-  var buffer = builder.toBuffer(debug);
-  var instance = new WebAssembly.Instance(new WebAssembly.Module(buffer));
-  for (var i = offset - 20; i < offset + 20; i += 4) {
-    if (i < 0) continue;
-    var expected = i == offset ? 117901063 : 0;
-    assertEquals(expected, instance.exports.load(i));
-  }
-}
-
-GlobalInitTest(0);
-GlobalInitTest(12);
-GlobalInitTest(3040);
-
 function GlobalImportedInitTest(pad) {
   print("GlobaleImportedInitTest(" + pad + ")...");
   var builder = new WasmModuleBuilder();

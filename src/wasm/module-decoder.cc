@@ -910,6 +910,21 @@ class ModuleDecoder : public Decoder {
     switch (opcode) {
       case kExprGetGlobal: {
         GlobalIndexOperand operand(this, pc() - 1);
+        if (module->globals.size() <= operand.index) {
+          error("global index is out of bounds");
+          expr.kind = WasmInitExpr::kNone;
+          expr.val.i32_const = 0;
+          break;
+        }
+        WasmGlobal* global = &module->globals[operand.index];
+        if (global->mutability || !global->imported) {
+          error(
+              "only immutable imported globals can be used in initializer "
+              "expressions");
+          expr.kind = WasmInitExpr::kNone;
+          expr.val.i32_const = 0;
+          break;
+        }
         expr.kind = WasmInitExpr::kGlobalIndex;
         expr.val.global_index = operand.index;
         len = operand.length;

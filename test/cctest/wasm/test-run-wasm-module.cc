@@ -755,35 +755,6 @@ static void RunWasmModuleGlobalInitTest(LocalType type, CType expected) {
       ExportAsMain(f1);
       TestModule(&zone, builder, expected);
     }
-
-    for (int padding = 0; padding < 5; padding++) {
-      // Test with a global index
-      WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-      for (int i = 0; i < padding; i++) {  // pad global before
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 40000));
-      }
-
-      uint32_t global1 =
-          builder->AddGlobal(type, false, false, WasmInitExpr(expected));
-
-      for (int i = 0; i < padding; i++) {  // pad global middle
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 50000));
-      }
-
-      uint32_t global2 =
-          builder->AddGlobal(type, false, false,
-                             WasmInitExpr(WasmInitExpr::kGlobalIndex, global1));
-
-      for (int i = 0; i < padding; i++) {  // pad global after
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 60000));
-      }
-
-      WasmFunctionBuilder* f1 = builder->AddFunction(&sig);
-      byte code[] = {WASM_GET_GLOBAL(global2)};
-      f1->EmitCode(code, sizeof(code));
-      ExportAsMain(f1);
-      TestModule(&zone, builder, expected);
-    }
   }
   Cleanup();
 }
