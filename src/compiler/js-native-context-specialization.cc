@@ -1200,6 +1200,14 @@ JSNativeContextSpecialization::BuildElementAccess(
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
                                           effect, control);
 
+        // Introduce the appropriate truncation for {value}. Currently we
+        // only need to do this for ClamedUint8Array {receiver}s, as the
+        // other truncations are implicit in the StoreTypedElement, but we
+        // might want to change that at some point.
+        if (external_array_type == kExternalUint8ClampedArray) {
+          value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
+        }
+
         // Check if we can skip the out-of-bounds store.
         if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
           Node* check =

@@ -87,6 +87,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberTrunc:
       return ReduceNumberRoundop(node);
+    case IrOpcode::kNumberToUint8Clamped:
+      return ReduceNumberToUint8Clamped(node);
     case IrOpcode::kPhi:
       return ReducePhi(node);
     case IrOpcode::kSelect:
@@ -187,6 +189,15 @@ Reduction TypedOptimization::ReduceNumberRoundop(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceNumberToUint8Clamped(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(type_cache_.kUint8)) {
     return Replace(input);
   }
   return NoChange();

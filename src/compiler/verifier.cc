@@ -826,6 +826,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Signed32());
       break;
     case IrOpcode::kNumberToUint32:
+    case IrOpcode::kNumberToUint8Clamped:
       // Number -> Unsigned32
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Unsigned32());

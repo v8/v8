@@ -393,6 +393,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(NumberToBoolean, Operator::kNoProperties, 1, 0)              \
   V(NumberToInt32, Operator::kNoProperties, 1, 0)                \
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
+  V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \

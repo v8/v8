@@ -490,6 +490,13 @@ Type* OperationTyper::NumberToUint32(Type* type) {
   return Type::Unsigned32();
 }
 
+Type* OperationTyper::NumberToUint8Clamped(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+
+  if (type->Is(cache_.kUint8)) return type;
+  return cache_.kUint8;
+}
+
 Type* OperationTyper::NumberSilenceNaN(Type* type) {
   DCHECK(type->Is(Type::Number()));
   // TODO(jarin): This is a terrible hack; we definitely need a dedicated type

@@ -47,6 +47,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceCheckString(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
+  Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceSelect(Node* node);
 

@@ -26,6 +26,8 @@ class TypeCache final {
   Type* const kInt8 = CreateRange<int8_t>();
   Type* const kUint8 = CreateRange<uint8_t>();
   Type* const kUint8Clamped = kUint8;
+  Type* const kUint8OrMinusZeroOrNaN =
+      Type::Union(kUint8, Type::MinusZeroOrNaN(), zone());
   Type* const kInt16 = CreateRange<int16_t>();
   Type* const kUint16 = CreateRange<uint16_t>();
   Type* const kInt32 = Type::Signed32();

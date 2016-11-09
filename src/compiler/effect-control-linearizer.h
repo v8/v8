@@ -182,6 +182,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                          Node* control);
   ValueEffectControl LowerFloat64RoundDown(Node* node, Node* effect,
                                            Node* control);
+  ValueEffectControl LowerFloat64RoundTiesEven(Node* node, Node* effect,
+                                               Node* control);
   ValueEffectControl LowerFloat64RoundTruncate(Node* node, Node* effect,
                                                Node* control);
 
@@ -193,6 +195,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(
       CheckTaggedInputMode mode, Node* value, Node* frame_state, Node* effect,
       Node* control);
+  ValueEffectControl BuildFloat64RoundDown(Node* value, Node* effect,
+                                           Node* control);
   ValueEffectControl LowerStringComparison(Callable const& callable, Node* node,
                                            Node* effect, Node* control);
 
