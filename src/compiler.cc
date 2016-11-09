@@ -1249,7 +1249,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 // static
 Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  if (shared->code()->is_interpreter_trampoline_builtin()) {
+  if (shared->IsInterpreted()) {
     if (UseTurboFan(shared)) {
       return OPTIMIZED;
     } else {

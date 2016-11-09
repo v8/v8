@@ -7319,6 +7319,14 @@ class SharedFunctionInfo: public HeapObject {
   // a Code object or a BytecodeArray.
   inline AbstractCode* abstract_code();
 
+  // Tells whether or not this shared function info is interpreted.
+  //
+  // Note: function->IsInterpreted() does not necessarily return the same value
+  // as function->shared()->IsInterpreted() because the shared function info
+  // could tier up to baseline via a different function closure. The interpreter
+  // entry stub will "self-heal" this divergence when the function is executed.
+  inline bool IsInterpreted() const;
+
   inline void ReplaceCode(Code* code);
   inline bool HasBaselineCode() const;
 
@@ -8352,6 +8360,14 @@ class JSFunction: public JSObject {
 
   // Tells whether this function inlines the given shared function info.
   bool Inlines(SharedFunctionInfo* candidate);
+
+  // Tells whether or not this function is interpreted.
+  //
+  // Note: function->IsInterpreted() does not necessarily return the same value
+  // as function->shared()->IsInterpreted() because the shared function info
+  // could tier up to baseline via a different function closure. The interpreter
+  // entry stub will "self-heal" this divergence when the function is executed.
+  inline bool IsInterpreted();
 
   // Tells whether or not this function has been optimized.
   inline bool IsOptimized();

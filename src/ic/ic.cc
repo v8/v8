@@ -115,7 +115,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   if (maybe_function->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(maybe_function);
     int code_offset = 0;
-    if (function->code()->is_interpreter_trampoline_builtin()) {
+    if (function->IsInterpreted()) {
       code_offset = InterpretedFrame::GetBytecodeOffset(fp());
     } else {
       code_offset =

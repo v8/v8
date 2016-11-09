@@ -1279,8 +1279,10 @@ UNINITIALIZED_TEST(TestCodeFlushing) {
     }
 
     // foo should no longer be in the compilation cache
-    CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-    CHECK(!function->is_compiled() || function->IsOptimized());
+    CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+          function->IsInterpreted());
+    CHECK(!function->is_compiled() || function->IsOptimized() ||
+          function->IsInterpreted());
     // Call foo to get it recompiled.
     CompileRun("foo()");
     CHECK(function->shared()->is_compiled());
@@ -1327,7 +1329,8 @@ TEST(TestCodeFlushingPreAged) {
   // The code was only run once, so it should be pre-aged and collected on the
   // next GC.
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
 
   // Execute the function again twice, and ensure it is reset to the young age.
   { v8::HandleScope scope(CcTest::isolate());
@@ -1347,8 +1350,10 @@ TEST(TestCodeFlushingPreAged) {
   }
 
   // foo should no longer be in the compilation cache
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-  CHECK(!function->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
+  CHECK(!function->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
   // Call foo to get it recompiled.
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
@@ -1396,8 +1401,10 @@ TEST(TestCodeFlushingIncremental) {
     heap::SimulateIncrementalMarking(CcTest::heap());
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   }
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-  CHECK(!function->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
+  CHECK(!function->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
 
   // This compile will compile the function again.
   { v8::HandleScope scope(CcTest::isolate());
@@ -1490,8 +1497,10 @@ TEST(TestCodeFlushingIncrementalScavenge) {
 
   // Simulate one final GC to make sure the candidate queue is sane.
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-  CHECK(!function->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
+  CHECK(!function->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
 }
 
 
@@ -1606,6 +1615,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this
   // test is invalid.
+  i::FLAG_allow_natives_syntax = true;
   if (!FLAG_flush_code || !FLAG_compilation_cache) {
     return;
   }
@@ -1622,7 +1632,7 @@ TEST(CompilationCacheCachingBehavior) {
       "  var y = 42;"
       "  var z = x + y;"
       "};"
-      "foo()";
+      "foo();";
   Handle<String> source = factory->InternalizeUtf8String(raw_source);
   Handle<Context> native_context = isolate->native_context();
 
@@ -4078,6 +4088,7 @@ TEST(Regress165495) {
 
 
 TEST(Regress169209) {
+  i::FLAG_always_opt = false;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 
@@ -4095,11 +4106,15 @@ TEST(Regress169209) {
   {
     HandleScope inner_scope(isolate);
     LocalContext env;
-    CompileRun("function f() { return 'foobar'; }"
-               "function g(x) { if (x) f(); }"
-               "f();"
-               "g(false);"
-               "g(false);");
+    CompileRun(
+        "function f() { return 'foobar'; }"
+        "function g(x) { if (x) f(); }"
+        "f();"
+        "%BaselineFunctionOnNextCall(f);"
+        "f();"
+        "g(false);"
+        "%BaselineFunctionOnNextCall(g);"
+        "g(false);");
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -4119,8 +4134,11 @@ TEST(Regress169209) {
   {
     HandleScope inner_scope(isolate);
     LocalContext env;
-    CompileRun("function flushMe() { return 0; }"
-               "flushMe(1);");
+    CompileRun(
+        "function flushMe() { return 0; }"
+        "flushMe(1);"
+        "%BaselineFunctionOnNextCall(flushMe);"
+        "flushMe(1);");
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CcTest::global()

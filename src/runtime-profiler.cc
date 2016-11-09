@@ -110,8 +110,7 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
   // Harvest vector-ics as well
   TypeFeedbackVector* vector = function->feedback_vector();
   int with = 0, gen = 0, type_vector_ic_count = 0;
-  const bool is_interpreted =
-      function->shared()->code()->is_interpreter_trampoline_builtin();
+  const bool is_interpreted = function->shared()->IsInterpreted();
 
   vector->ComputeCounts(&with, &gen, &type_vector_ic_count, is_interpreted);
   *ic_total_count += type_vector_ic_count;
@@ -157,11 +156,7 @@ void RuntimeProfiler::Baseline(JSFunction* function,
                                OptimizationReason reason) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
   TraceRecompile(function, OptimizationReasonToString(reason), "baseline");
-
-  // TODO(4280): Fix this to check function is compiled for the interpreter
-  // once we have a standard way to check that. For now function will only
-  // have a bytecode array if compiled for the interpreter.
-  DCHECK(function->shared()->HasBytecodeArray());
+  DCHECK(function->shared()->IsInterpreted());
   function->MarkForBaseline();
 }
 
@@ -464,7 +459,7 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
 
     Compiler::CompilationTier next_tier =
         Compiler::NextCompilationTier(function);
-    if (function->shared()->code()->is_interpreter_trampoline_builtin()) {
+    if (function->shared()->IsInterpreted()) {
       if (next_tier == Compiler::BASELINE) {
         MaybeBaselineIgnition(function, frame);
       } else {
