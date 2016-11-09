@@ -54,9 +54,7 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
   if (module->import_table.size() > 0) {
     thrower->CompileError("Not supported: module has imports.");
   }
-  if (module->export_table.size() == 0) {
-    thrower->CompileError("Not supported: module has no exports.");
-  }
+
   if (thrower->error()) return Handle<JSObject>::null();
 
   // Although we decoded the module for some pre-validation, run the bytes

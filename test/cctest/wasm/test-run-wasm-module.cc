@@ -802,3 +802,40 @@ TEST(Run_WasmModule_Global_f64) {
   RunWasmModuleGlobalInitTest<double>(kAstF64, -833.9);
   RunWasmModuleGlobalInitTest<double>(kAstF64, 86374.25);
 }
+
+TEST(InitDataAtTheUpperLimit) {
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,     // --
+        kMemorySectionCode,     // --
+        U32V_1(4),              // section size
+        ENTRY_COUNT(1),         // --
+        kResizableMaximumFlag,  // --
+        1,                      // initial size
+        2,                      // maximum size
+        kDataSectionCode,       // --
+        U32V_1(9),              // section size
+        ENTRY_COUNT(1),         // --
+        0,                      // linear memory index
+        WASM_I32V_3(0xffff),    // destination offset
+        kExprEnd,
+        U32V_1(1),  // source size
+        'c'         // data bytes
+    };
+
+    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
+                                                    data + arraysize(data),
+                                                    ModuleOrigin::kWasmOrigin);
+    if (thrower.error()) {
+      thrower.Reify()->Print();
+      CHECK(false);
+    }
+  }
+  Cleanup();
+}

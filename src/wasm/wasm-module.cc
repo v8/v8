@@ -1366,8 +1366,12 @@ class WasmInstanceBuilder {
       uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
       uint32_t source_size = segment.source_size;
       if (dest_offset >= mem_size || source_size >= mem_size ||
-          dest_offset >= (mem_size - source_size)) {
-        thrower_->RangeError("data segment does not fit into memory");
+          dest_offset > (mem_size - source_size)) {
+        thrower_->RangeError(
+            "data segment (start = %u, size = %u) does not fit into memory "
+            "(size = %zu)",
+            dest_offset, source_size, mem_size);
+        return;
       }
       byte* dest = mem_addr + dest_offset;
       const byte* src = reinterpret_cast<const byte*>(
