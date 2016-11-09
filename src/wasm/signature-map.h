@@ -17,7 +17,7 @@ namespace wasm {
 // A signature map canonicalizes signatures into a range of indices so that
 // two different {FunctionSig} instances with the same contents map to the
 // same index.
-class SignatureMap {
+class V8_EXPORT_PRIVATE SignatureMap {
  public:
   // Gets the index for a signature, assigning a new index if necessary.
   uint32_t FindOrInsert(FunctionSig* sig);
