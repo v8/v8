@@ -329,6 +329,8 @@ class LiveObjectIterator BASE_EMBEDDED {
   MarkBit::CellType current_cell_;
 };
 
+enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
+
 // -------------------------------------------------------------------------
 // Mark-Compact collector
 class MarkCompactCollector {
@@ -526,6 +528,7 @@ class MarkCompactCollector {
   Sweeper& sweeper() { return sweeper_; }
 
  private:
+  template <PageEvacuationMode mode>
   class EvacuateNewSpacePageVisitor;
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;

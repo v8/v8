@@ -203,14 +203,15 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   return page;
 }
 
-Page* Page::ConvertNewToOld(Page* old_page, PagedSpace* new_owner) {
+Page* Page::ConvertNewToOld(Page* old_page) {
+  OldSpace* old_space = old_page->heap()->old_space();
   DCHECK(old_page->InNewSpace());
-  old_page->set_owner(new_owner);
+  old_page->set_owner(old_space);
   old_page->SetFlags(0, ~0);
-  new_owner->AccountCommitted(old_page->size());
+  old_space->AccountCommitted(old_page->size());
   Page* new_page = Page::Initialize<kDoNotFreeMemory>(
-      old_page->heap(), old_page, NOT_EXECUTABLE, new_owner);
-  new_page->InsertAfter(new_owner->anchor()->prev_page());
+      old_page->heap(), old_page, NOT_EXECUTABLE, old_space);
+  new_page->InsertAfter(old_space->anchor()->prev_page());
   return new_page;
 }
 

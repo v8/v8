@@ -631,7 +631,13 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(HeapObject* object,
                                 base::HashMap* pretenuring_feedback) {
-  DCHECK(InFromSpace(object));
+  DCHECK(InFromSpace(object) ||
+         (InToSpace(object) &&
+          Page::FromAddress(object->address())
+              ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) ||
+         (!InNewSpace(object) &&
+          Page::FromAddress(object->address())
+              ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;

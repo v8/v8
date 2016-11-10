@@ -1834,41 +1834,48 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
   base::HashMap* local_pretenuring_feedback_;
 };
 
+template <PageEvacuationMode mode>
 class MarkCompactCollector::EvacuateNewSpacePageVisitor final
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  explicit EvacuateNewSpacePageVisitor(Heap* heap)
-      : heap_(heap), promoted_size_(0), semispace_copied_size_(0) {}
+  explicit EvacuateNewSpacePageVisitor(
+      Heap* heap, base::HashMap* local_pretenuring_feedback)
+      : heap_(heap),
+        moved_bytes_(0),
+        local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
-  static void MoveToOldSpace(Page* page, PagedSpace* owner) {
-    page->Unlink();
-    Page* new_page = Page::ConvertNewToOld(page, owner);
-    new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
-  }
-
-  static void MoveToToSpace(Page* page) {
-    page->heap()->new_space()->MovePageFromSpaceToSpace(page);
-    page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
+  static void Move(Page* page) {
+    switch (mode) {
+      case NEW_TO_NEW:
+        page->heap()->new_space()->MovePageFromSpaceToSpace(page);
+        page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
+        break;
+      case NEW_TO_OLD: {
+        page->Unlink();
+        Page* new_page = Page::ConvertNewToOld(page);
+        new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+        break;
+      }
+    }
   }
 
   inline bool Visit(HeapObject* object) {
-    RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-    object->IterateBodyFast(&visitor);
-    promoted_size_ += object->Size();
+    heap_->UpdateAllocationSite<Heap::kCached>(object,
+                                               local_pretenuring_feedback_);
+    if (mode == NEW_TO_OLD) {
+      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
+      object->IterateBodyFast(&visitor);
+    }
     return true;
   }
 
-  intptr_t promoted_size() { return promoted_size_; }
-  intptr_t semispace_copied_size() { return semispace_copied_size_; }
-
-  void account_semispace_copied(intptr_t copied) {
-    semispace_copied_size_ += copied;
-  }
+  intptr_t moved_bytes() { return moved_bytes_; }
+  void account_moved_bytes(intptr_t bytes) { moved_bytes_ += bytes; }
 
  private:
   Heap* heap_;
-  intptr_t promoted_size_;
-  intptr_t semispace_copied_size_;
+  intptr_t moved_bytes_;
+  base::HashMap* local_pretenuring_feedback_;
 };
 
 class MarkCompactCollector::EvacuateOldSpaceVisitor final
@@ -2925,7 +2932,11 @@ class MarkCompactCollector::Evacuator : public Malloced {
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
                            &local_pretenuring_feedback_),
-        new_space_page_visitor(collector->heap()),
+        new_to_new_page_visitor_(collector->heap(),
+                                 &local_pretenuring_feedback_),
+        new_to_old_page_visitor_(collector->heap(),
+                                 &local_pretenuring_feedback_),
+
         old_space_visitor_(collector->heap(), &compaction_spaces_),
         duration_(0.0),
         bytes_compacted_(0) {}
@@ -2956,7 +2967,10 @@ class MarkCompactCollector::Evacuator : public Malloced {
 
   // Visitors for the corresponding spaces.
   EvacuateNewSpaceVisitor new_space_visitor_;
-  EvacuateNewSpacePageVisitor new_space_page_visitor;
+  EvacuateNewSpacePageVisitor<PageEvacuationMode::NEW_TO_NEW>
+      new_to_new_page_visitor_;
+  EvacuateNewSpacePageVisitor<PageEvacuationMode::NEW_TO_OLD>
+      new_to_old_page_visitor_;
   EvacuateOldSpaceVisitor old_space_visitor_;
 
   // Book keeping info.
@@ -2977,20 +2991,23 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
       case kObjectsNewToOld:
         success = collector_->VisitLiveObjects(page, &new_space_visitor_,
                                                kClearMarkbits);
+        DCHECK(success);
         ArrayBufferTracker::ProcessBuffers(
             page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
-        DCHECK(success);
         break;
       case kPageNewToOld:
-        success = collector_->VisitLiveObjects(page, &new_space_page_visitor,
+        success = collector_->VisitLiveObjects(page, &new_to_old_page_visitor_,
                                                kKeepMarking);
-        // ArrayBufferTracker will be updated during sweeping.
         DCHECK(success);
+        new_to_old_page_visitor_.account_moved_bytes(page->LiveBytes());
+        // ArrayBufferTracker will be updated during sweeping.
         break;
       case kPageNewToNew:
-        new_space_page_visitor.account_semispace_copied(page->LiveBytes());
+        success = collector_->VisitLiveObjects(page, &new_to_new_page_visitor_,
+                                               kKeepMarking);
+        DCHECK(success);
+        new_to_new_page_visitor_.account_moved_bytes(page->LiveBytes());
         // ArrayBufferTracker will be updated during sweeping.
-        success = true;
         break;
       case kObjectsOldToOld:
         success = collector_->VisitLiveObjects(page, &old_space_visitor_,
@@ -3015,8 +3032,6 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
               page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
         }
         break;
-      default:
-        UNREACHABLE();
     }
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
@@ -3042,15 +3057,15 @@ void MarkCompactCollector::Evacuator::Finalize() {
       compaction_spaces_.Get(CODE_SPACE));
   heap()->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
   heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
-                                       new_space_page_visitor.promoted_size());
+                                       new_to_old_page_visitor_.moved_bytes());
   heap()->IncrementSemiSpaceCopiedObjectSize(
       new_space_visitor_.semispace_copied_size() +
-      new_space_page_visitor.semispace_copied_size());
+      new_to_new_page_visitor_.moved_bytes());
   heap()->IncrementYoungSurvivorsCounter(
       new_space_visitor_.promoted_size() +
       new_space_visitor_.semispace_copied_size() +
-      new_space_page_visitor.promoted_size() +
-      new_space_page_visitor.semispace_copied_size());
+      new_to_old_page_visitor_.moved_bytes() +
+      new_to_new_page_visitor_.moved_bytes());
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
 }
 
@@ -3147,9 +3162,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
         !page->Contains(age_mark)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
-        EvacuateNewSpacePageVisitor::MoveToOldSpace(page, heap()->old_space());
+        EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       } else {
-        EvacuateNewSpacePageVisitor::MoveToToSpace(page);
+        EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
 

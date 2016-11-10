@@ -667,7 +667,7 @@ class Page : public MemoryChunk {
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
-  static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
+  static inline Page* ConvertNewToOld(Page* old_page);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
