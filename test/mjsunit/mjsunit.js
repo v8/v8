@@ -216,8 +216,12 @@ var assertMatches;
       message += " (" + name_opt + ")";
     }
 
-    message += ": expected <" + expectedText +
-        "> found <" + PrettyPrint(found) + ">";
+    var foundText = PrettyPrint(found);
+    if (expectedText.length <= 40 && foundText.length <= 40) {
+      message += ": expected <" + expectedText + "> found <" + foundText + ">";
+    } else {
+      message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
+    }
     throw new MjsUnitAssertionError(message);
   }
 
