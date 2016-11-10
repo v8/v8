@@ -6,18 +6,32 @@
 
 var zero = 0;
 
-function f() {
-  return 0 / zero;
-}
-assertTrue(isNaN(f()));
-assertTrue(isNaN(f()));
-%OptimizeFunctionOnNextCall(f);
-assertTrue(isNaN(f()));
+(function ConstantFoldZeroDivZero() {
+  function f() {
+    return 0 / zero;
+  }
+  assertTrue(isNaN(f()));
+  assertTrue(isNaN(f()));
+  %OptimizeFunctionOnNextCall(f);
+  assertTrue(isNaN(f()));
+})();
 
-function g() {
-  return -0 / zero;
-}
-assertTrue(isNaN(g()));
-assertTrue(isNaN(g()));
-%OptimizeFunctionOnNextCall(g);
-assertTrue(isNaN(g()));
+(function ConstantFoldMinusZeroDivZero() {
+  function f() {
+    return -0 / zero;
+  }
+  assertTrue(isNaN(f()));
+  assertTrue(isNaN(f()));
+  %OptimizeFunctionOnNextCall(f);
+  assertTrue(isNaN(f()));
+})();
+
+(function ConstantFoldNaNDivZero() {
+  function f() {
+    return NaN / 0;
+  }
+  assertTrue(isNaN(f()));
+  assertTrue(isNaN(f()));
+  %OptimizeFunctionOnNextCall(f);
+  assertTrue(isNaN(f()));
+})();

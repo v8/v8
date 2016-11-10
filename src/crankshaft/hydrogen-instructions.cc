@@ -3572,7 +3572,10 @@ HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
-      if (c_right->DoubleValue() != 0) {
+      if (std::isnan(c_left->DoubleValue()) ||
+          std::isnan(c_right->DoubleValue())) {
+        return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
+      } else if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
         if (IsInt32Double(double_res)) {
           return H_CONSTANT_INT(double_res);
