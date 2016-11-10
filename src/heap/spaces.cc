@@ -2852,7 +2852,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   if (heap()->ShouldExpandOldGenerationOnAllocationFailure() && Expand()) {
     DCHECK((CountTotalPages() > 1) ||
-           (size_in_bytes <= free_list_.Available()));
+           (static_cast<size_t>(size_in_bytes) <= free_list_.Available()));
     return free_list_.Allocate(static_cast<size_t>(size_in_bytes));
   }
 

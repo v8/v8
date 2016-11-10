@@ -1643,7 +1643,7 @@ class FreeList {
  public:
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
-  static inline int GuaranteedAllocatable(int maximum_freed) {
+  static inline size_t GuaranteedAllocatable(size_t maximum_freed) {
     if (maximum_freed <= kTiniestListMax) {
       // Since we are not iterating over all list entries, we cannot guarantee
       // that we can find the maximum freed block in that free list.
@@ -1685,8 +1685,8 @@ class FreeList {
   }
 
   // Return the number of bytes available on the free list.
-  intptr_t Available() {
-    intptr_t available = 0;
+  size_t Available() {
+    size_t available = 0;
     ForAllFreeListCategories([&available](FreeListCategory* category) {
       available += category->available();
     });

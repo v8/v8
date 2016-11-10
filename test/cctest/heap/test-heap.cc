@@ -5732,13 +5732,13 @@ TEST(Regress388880) {
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
-  int desired_offset = Page::kPageSize - map1->instance_size();
+  size_t desired_offset = Page::kPageSize - map1->instance_size();
 
   // Allocate padding objects in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
   heap::SimulateFullSpace(heap->old_space());
-  int padding_size = desired_offset - Page::kObjectStartOffset;
-  heap::CreatePadding(heap, padding_size, TENURED);
+  size_t padding_size = desired_offset - Page::kObjectStartOffset;
+  heap::CreatePadding(heap, static_cast<int>(padding_size), TENURED);
 
   Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
   o->set_properties(*factory->empty_fixed_array());

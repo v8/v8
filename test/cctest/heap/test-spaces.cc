@@ -530,7 +530,8 @@ TEST(SizeOfInitialHeap) {
   }
 
   // No large objects required to perform the above steps.
-  CHECK_EQ(initial_lo_space, isolate->heap()->lo_space()->Size());
+  CHECK_EQ(initial_lo_space,
+           static_cast<size_t>(isolate->heap()->lo_space()->Size()));
 }
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {

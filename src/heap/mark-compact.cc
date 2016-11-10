@@ -3331,7 +3331,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
-  return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
+  return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
 }
 
 void MarkCompactCollector::InvalidateCode(Code* code) {

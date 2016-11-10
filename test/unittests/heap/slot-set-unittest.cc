@@ -127,7 +127,7 @@ TEST(SlotSet, RemoveRange) {
     CheckRemoveRangeOn(start * kPointerSize, (start + 1) * kPointerSize);
     CheckRemoveRangeOn(start * kPointerSize, (start + 2) * kPointerSize);
     const uint32_t kEnds[] = {32, 64, 100, 128, 1024, 1500, 2048};
-    for (int i = 0; i < sizeof(kEnds) / sizeof(uint32_t); i++) {
+    for (size_t i = 0; i < sizeof(kEnds) / sizeof(uint32_t); i++) {
       for (int k = -3; k <= 3; k++) {
         uint32_t end = (kEnds[i] + k);
         if (start < end) {

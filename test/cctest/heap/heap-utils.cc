@@ -38,8 +38,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
   const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
   CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
   Handle<FixedArray> array;
-  for (size_t allocated = 0;
-       allocated != (Page::kAllocatableMemory - remainder);
+  for (int allocated = 0; allocated != (Page::kAllocatableMemory - remainder);
        allocated += array->Size()) {
     if (allocated == (Page::kAllocatableMemory - kArraySize)) {
       array = isolate->factory()->NewFixedArray(
