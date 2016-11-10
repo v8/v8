@@ -165,7 +165,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         i_isolate, instance, &compiler_thrower, "main", argc, compiled_args,
         v8::internal::wasm::ModuleOrigin::kWasmOrigin);
   }
-  if (result_interpreted == 0xdeadbeef) {
+  if (result_interpreted == bit_cast<int32_t>(0xdeadbeef)) {
     CHECK(i_isolate->has_pending_exception());
     i_isolate->clear_pending_exception();
   } else {

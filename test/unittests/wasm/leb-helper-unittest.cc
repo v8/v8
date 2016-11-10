@@ -23,19 +23,19 @@ TEST_F(LEBHelperTest, sizeof_u32v) {
     EXPECT_EQ(1, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 7); i < (1 << 9); i++) {
+  for (uint32_t i = (1u << 7); i < (1u << 9); i++) {
     EXPECT_EQ(2, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 14); i < (1 << 16); i += 33) {
+  for (uint32_t i = (1u << 14); i < (1u << 16); i += 33) {
     EXPECT_EQ(3, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 21); i < (1 << 24); i += 33999) {
+  for (uint32_t i = (1u << 21); i < (1u << 24); i += 33999) {
     EXPECT_EQ(4, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 28); i < (1 << 31); i += 33997779) {
+  for (uint32_t i = (1u << 28); i < (1u << 31); i += 33997779u) {
     EXPECT_EQ(5, LEBHelper::sizeof_u32v(i));
   }
 

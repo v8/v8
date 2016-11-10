@@ -1184,7 +1184,7 @@ TEST_F(AstDecoderTest, LoadMemAlignment) {
       {kExprF64LoadMem, 3},     // --
   };
 
-  for (int i = 0; i < arraysize(values); i++) {
+  for (size_t i = 0; i < arraysize(values); i++) {
     for (byte alignment = 0; alignment <= 4; alignment++) {
       byte code[] = {WASM_ZERO, static_cast<byte>(values[i].instruction),
                      alignment, ZERO_OFFSET, WASM_DROP};
@@ -1697,7 +1697,7 @@ TEST_F(AstDecoderTest, AsmJsBinOpsCheckOrigin) {
     TestModuleEnv module_env;
     module = &module_env;
     module->origin = kAsmJsOrigin;
-    for (int i = 0; i < arraysize(AsmJsBinOps); i++) {
+    for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       TestBinop(AsmJsBinOps[i].op, AsmJsBinOps[i].sig);
     }
   }
@@ -1706,7 +1706,7 @@ TEST_F(AstDecoderTest, AsmJsBinOpsCheckOrigin) {
     TestModuleEnv module_env;
     module = &module_env;
     module->origin = kWasmOrigin;
-    for (int i = 0; i < arraysize(AsmJsBinOps); i++) {
+    for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       byte code[] = {
           WASM_BINOP(AsmJsBinOps[i].op, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
       EXPECT_FAILURE_SC(AsmJsBinOps[i].sig, code);
@@ -1745,7 +1745,7 @@ TEST_F(AstDecoderTest, AsmJsUnOpsCheckOrigin) {
     TestModuleEnv module_env;
     module = &module_env;
     module->origin = kAsmJsOrigin;
-    for (int i = 0; i < arraysize(AsmJsUnOps); i++) {
+    for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       TestUnop(AsmJsUnOps[i].op, AsmJsUnOps[i].sig);
     }
   }
@@ -1754,7 +1754,7 @@ TEST_F(AstDecoderTest, AsmJsUnOpsCheckOrigin) {
     TestModuleEnv module_env;
     module = &module_env;
     module->origin = kWasmOrigin;
-    for (int i = 0; i < arraysize(AsmJsUnOps); i++) {
+    for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       byte code[] = {WASM_UNOP(AsmJsUnOps[i].op, WASM_GET_LOCAL(0))};
       EXPECT_FAILURE_SC(AsmJsUnOps[i].sig, code);
     }

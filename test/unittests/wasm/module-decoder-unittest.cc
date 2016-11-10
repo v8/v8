@@ -1298,7 +1298,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
       FUNC_INDEX(0),  // --
   };
 
-  for (int length = 33; length < sizeof(data); length++) {
+  for (size_t length = 33; length < sizeof(data); length++) {
     ModuleResult result = DecodeModule(data, data + length);
     EXPECT_FALSE(result.ok());
     if (result.val) delete result.val;

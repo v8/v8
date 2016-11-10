@@ -567,7 +567,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   module_name_ = fun->name();
 
   // Allowed parameters: Stdlib, FFI, Mem
-  static const uint32_t MaxModuleParameters = 3;
+  static const int MaxModuleParameters = 3;
   if (scope->num_parameters() > MaxModuleParameters) {
     FAIL(fun, "asm.js modules may not have more than three parameters.");
   }
@@ -1017,7 +1017,7 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
     FAIL(assign, "Identifier redefined (function table name).");
   }
 
-  if (target_info_table->length() != pointers->length()) {
+  if (static_cast<int>(target_info_table->length()) != pointers->length()) {
     FAIL(assign, "Function table size mismatch.");
   }
 
@@ -1071,7 +1071,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     }
     auto* param = proxy->var();
     if (param->location() != VariableLocation::PARAMETER ||
-        param->index() != annotated_parameters) {
+        param->index() != static_cast<int>(annotated_parameters)) {
       // Done with parameters.
       break;
     }
@@ -1093,7 +1093,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     SetTypeOf(expr, type);
   }
 
-  if (annotated_parameters != fun->parameter_count()) {
+  if (static_cast<int>(annotated_parameters) != fun->parameter_count()) {
     FAIL(fun_decl, "Incorrect parameter type annotations.");
   }
 

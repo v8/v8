@@ -1470,7 +1470,7 @@ class WasmInstanceBuilder {
 
           // TODO(titzer): import table size must match exactly for now.
           int table_size = table_instance.js_wrappers->length();
-          if (table_size != table.min_size) {
+          if (table_size != static_cast<int>(table.min_size)) {
             thrower_->TypeError(
                 "table import %d is wrong size (%d), expected %u", index,
                 table_size, table.min_size);

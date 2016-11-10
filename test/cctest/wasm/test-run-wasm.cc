@@ -1210,7 +1210,7 @@ WASM_EXEC_TEST(Block_empty_brif2) {
   WasmRunner<uint32_t> r(execution_mode, MachineType::Uint32(),
                          MachineType::Uint32());
   BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_GET_LOCAL(1))), WASM_GET_LOCAL(0));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i, *i + 1)); }
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i, *i + 1)); }
 }
 
 WASM_EXEC_TEST(Block_i) {
@@ -1234,7 +1234,7 @@ WASM_EXEC_TEST(Block_d) {
 WASM_EXEC_TEST(Block_br2) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Int32());
   BUILD(r, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0))));
-  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, static_cast<uint32_t>(r.Call(*i))); }
 }
 
 WASM_EXEC_TEST(Block_If_P) {
@@ -1596,7 +1596,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
       BUILD(r,
             WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset, WASM_I8(index)));
 
-      if ((offset + index) <= (kMemSize - sizeof(int32_t))) {
+      if ((offset + index) <= static_cast<int>((kMemSize - sizeof(int32_t)))) {
         CHECK_EQ(module.raw_val_at<int32_t>(offset + index), r.Call());
       } else {
         CHECK_TRAP(r.Call());
@@ -1618,7 +1618,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob) {
       BUILD(r,
             WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset, WASM_I8(index)));
 
-      if ((offset + index) <= (kMemSize - sizeof(int32_t))) {
+      if ((offset + index) <= static_cast<int>((kMemSize - sizeof(int32_t)))) {
         CHECK_EQ(module.raw_val_at<int32_t>(offset + index), r.Call());
       } else {
         CHECK_TRAP(r.Call());
