@@ -303,7 +303,12 @@ class DebugWrapper {
                                 : params.callFrames[0]),
                       frameCount : () => params.callFrames.length
                     };
+
     let eventData = this.execStateFrame(params.callFrames[0]);
+    if (debugEvent == this.DebugEvent.Exception) {
+      eventData.uncaught = () => params.data.uncaught;
+    }
+
     this.invokeListener(debugEvent, execState, eventData);
   }
 
