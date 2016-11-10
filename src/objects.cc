@@ -2215,8 +2215,12 @@ static bool AnWord(String* str) {
 
 Handle<String> String::SlowFlatten(Handle<ConsString> cons,
                                    PretenureFlag pretenure) {
-  DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(cons->second()->length() != 0);
+
+  // TurboFan can create cons strings with empty first parts.
+  if (cons->first()->length() == 0) return handle(cons->second());
+
+  DCHECK(AllowHeapAllocation::IsAllowed());
   Isolate* isolate = cons->GetIsolate();
   int length = cons->length();
   PretenureFlag tenure = isolate->heap()->InNewSpace(*cons) ? pretenure
