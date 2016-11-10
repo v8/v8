@@ -2606,16 +2606,10 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
 
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  Handle<JSFunction> result =
-      InstallFunction(global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize,
-                      prototype, Builtins::kIllegal);
-
-  Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE,
-      JSTypedArray::kSizeWithInternalFields,
-      elements_kind);
-  JSFunction::SetInitialMap(result, initial_map,
-                            handle(initial_map->prototype(), isolate()));
+  Handle<JSFunction> result = InstallFunction(
+      global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields,
+      prototype, Builtins::kIllegal);
+  result->initial_map()->set_elements_kind(elements_kind);
 
   CHECK(JSObject::SetPrototype(result, typed_array_function, false,
                                Object::DONT_THROW)
