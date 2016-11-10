@@ -10386,28 +10386,23 @@ static Representation RepresentationFor(AstType* type) {
   return Representation::Tagged();
 }
 
-
-HInstruction* HOptimizedGraphBuilder::BuildIncrement(
-    bool returns_original_input,
-    CountOperation* expr) {
+HInstruction* HOptimizedGraphBuilder::BuildIncrement(CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
   Representation rep = RepresentationFor(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
 
-  if (returns_original_input) {
-    // We need an explicit HValue representing ToNumber(input).  The
-    // actual HChange instruction we need is (sometimes) added in a later
-    // phase, so it is not available now to be used as an input to HAdd and
-    // as the return value.
-    HInstruction* number_input = AddUncasted<HForceRepresentation>(Pop(), rep);
-    if (!rep.IsDouble()) {
-      number_input->SetFlag(HInstruction::kFlexibleRepresentation);
-      number_input->SetFlag(HInstruction::kCannotBeTagged);
-    }
-    Push(number_input);
+  // We need an explicit HValue representing ToNumber(input).  The
+  // actual HChange instruction we need is (sometimes) added in a later
+  // phase, so it is not available now to be used as an input to HAdd and
+  // as the return value.
+  HInstruction* number_input = AddUncasted<HForceRepresentation>(Pop(), rep);
+  if (!rep.IsDouble()) {
+    number_input->SetFlag(HInstruction::kFlexibleRepresentation);
+    number_input->SetFlag(HInstruction::kCannotBeTagged);
   }
+  Push(number_input);
 
   // The addition has no side effects, so we do not need
   // to simulate the expression stack after this instruction.
@@ -10466,7 +10461,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
     DCHECK(prop == NULL);
     CHECK_ALIVE(VisitForValue(target));
 
-    after = BuildIncrement(returns_original_input, expr);
+    after = BuildIncrement(expr);
     input = returns_original_input ? Top() : Pop();
     Push(after);
 
@@ -10519,7 +10514,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   CHECK_ALIVE(PushLoad(prop, object, key));
 
-  after = BuildIncrement(returns_original_input, expr);
+  after = BuildIncrement(expr);
 
   if (returns_original_input) {
     input = Pop();
