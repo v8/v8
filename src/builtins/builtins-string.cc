@@ -601,7 +601,7 @@ BUILTIN(StringFromCodePoint) {
   List<uc16> two_byte_buffer(length - index);
 
   while (true) {
-    if (code <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    if (code <= static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       two_byte_buffer.Add(code);
     } else {
       two_byte_buffer.Add(unibrow::Utf16::LeadSurrogate(code));

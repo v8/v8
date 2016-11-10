@@ -1317,9 +1317,9 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       factory->sloppy_arguments_elements_map(),
   };
 
-  for (int name_index = 0; name_index < arraysize(names); name_index++) {
+  for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
     Handle<Name> name = names[name_index];
-    for (int map_index = 0; map_index < arraysize(maps); map_index++) {
+    for (size_t map_index = 0; map_index < arraysize(maps); map_index++) {
       Handle<Map> map = maps[map_index];
 
       int expected_result;
@@ -1665,7 +1665,7 @@ TEST(AllocateJSObjectFromMap) {
 
   {
     Handle<Object> empty_fixed_array = factory->empty_fixed_array();
-    for (int i = 0; i < arraysize(maps); i++) {
+    for (size_t i = 0; i < arraysize(maps); i++) {
       Handle<Map> map = maps[i];
       Handle<JSObject> result = Handle<JSObject>::cast(
           ft.Call(map, empty_fixed_array, empty_fixed_array).ToHandleChecked());

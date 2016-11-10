@@ -1312,7 +1312,7 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
       elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
     }
 
-    if (num_elems == limit) break;
+    if (static_cast<uint32_t>(num_elems) == limit) break;
 
     for (int i = 2; i < match_indices->NumberOfCaptureRegisters(); i += 2) {
       const int start = match_indices->Capture(i);
@@ -1326,7 +1326,7 @@ MaybeHandle<JSArray> RegExpSplit(Isolate* isolate, Handle<JSRegExp> regexp,
                                        factory->undefined_value());
       }
 
-      if (num_elems == limit) {
+      if (static_cast<uint32_t>(num_elems) == limit) {
         return NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }
@@ -1500,7 +1500,7 @@ BUILTIN(RegExpPrototypeSplit) {
       Handle<String> substr =
           factory->NewSubString(string, prev_string_index, string_index);
       elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
-      if (num_elems == limit) {
+      if (static_cast<uint32_t>(num_elems) == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }
@@ -1522,7 +1522,7 @@ BUILTIN(RegExpPrototypeSplit) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, i));
       elems = FixedArray::SetAndGrow(elems, num_elems++, capture);
-      if (num_elems == limit) {
+      if (static_cast<uint32_t>(num_elems) == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }

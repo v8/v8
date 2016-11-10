@@ -1139,7 +1139,7 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
   // is successfully consumed.
   if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
     Vector<const uint8_t> chars = flat.ToOneByteVector();
-    if (byte_length == chars.length() &&
+    if (byte_length == static_cast<size_t>(chars.length()) &&
         String::IsAscii(chars.begin(), chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;

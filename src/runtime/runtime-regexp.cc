@@ -391,7 +391,7 @@ List<int>* GetRewoundRegexpIndicesList(Isolate* isolate) {
 void TruncateRegexpIndicesList(Isolate* isolate) {
   // Same size as smallest zone segment, preserving behavior from the
   // runtime zone.
-  static const size_t kMaxRegexpIndicesListCapacity = 8 * KB;
+  static const int kMaxRegexpIndicesListCapacity = 8 * KB;
   if (isolate->regexp_indices()->capacity() > kMaxRegexpIndicesListCapacity) {
     isolate->regexp_indices()->Clear();  //  Throw away backing storage
   }

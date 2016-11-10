@@ -369,14 +369,15 @@ class Scanner {
     INLINE(void AddChar(uc32 code_unit)) {
       if (position_ >= backing_store_.length()) ExpandBuffer();
       if (is_one_byte_) {
-        if (code_unit <= unibrow::Latin1::kMaxChar) {
+        if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
           backing_store_[position_] = static_cast<byte>(code_unit);
           position_ += kOneByteSize;
           return;
         }
         ConvertToTwoByte();
       }
-      if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      if (code_unit <=
+          static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
         *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
         position_ += kUC16Size;
       } else {
