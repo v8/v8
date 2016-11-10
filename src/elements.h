@@ -170,10 +170,6 @@ class ElementsAccessor {
                                       Handle<Object> value, uint32_t start,
                                       uint32_t length) = 0;
 
-  virtual void CopyElements(Handle<FixedArrayBase> source,
-                            ElementsKind source_kind,
-                            Handle<FixedArrayBase> destination, int size) = 0;
-
  protected:
   friend class LookupIterator;
 

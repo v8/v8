@@ -973,12 +973,6 @@ class ElementsAccessorBase : public ElementsAccessor {
                                packed_size, copy_size);
   }
 
-  void CopyElements(Handle<FixedArrayBase> source, ElementsKind source_kind,
-                    Handle<FixedArrayBase> destination, int size) {
-    Subclass::CopyElementsImpl(*source, 0, *destination, source_kind, 0,
-                               kPackedSizeNotKnown, size);
-  }
-
   Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) final {
     return Subclass::NormalizeImpl(object, handle(object->elements()));
   }
