@@ -708,11 +708,6 @@ void BytecodeGraphBuilder::VisitLdaUndefined() {
   environment()->BindAccumulator(node);
 }
 
-void BytecodeGraphBuilder::VisitLdrUndefined() {
-  Node* node = jsgraph()->UndefinedConstant();
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node);
-}
-
 void BytecodeGraphBuilder::VisitLdaNull() {
   Node* node = jsgraph()->NullConstant();
   environment()->BindAccumulator(node);
@@ -767,14 +762,6 @@ void BytecodeGraphBuilder::VisitLdaGlobal() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitLdrGlobal() {
-  PrepareEagerCheckpoint();
-  Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
-                               TypeofMode::NOT_INSIDE_TYPEOF);
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), node,
-                              Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeof() {
   PrepareEagerCheckpoint();
   Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
@@ -803,7 +790,7 @@ void BytecodeGraphBuilder::VisitStaGlobalStrict() {
   BuildStoreGlobal(LanguageMode::STRICT);
 }
 
-Node* BytecodeGraphBuilder::BuildLoadContextSlot() {
+void BytecodeGraphBuilder::VisitLdaContextSlot() {
   // TODO(mythria): immutable flag is also set to false. This information is not
   // available in bytecode array. update this code when the implementation
   // changes.
@@ -812,37 +799,19 @@ Node* BytecodeGraphBuilder::BuildLoadContextSlot() {
       bytecode_iterator().GetIndexOperand(1), false);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  return NewNode(op, context);
+  Node* node = NewNode(op, context);
+  environment()->BindAccumulator(node);
 }
 
-Node* BytecodeGraphBuilder::BuildLoadCurrentContextSlot() {
+void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
   // TODO(mythria): immutable flag is also set to false. This information is not
   // available in bytecode array. update this code when the implementation
   // changes.
   const Operator* op = javascript()->LoadContext(
       0, bytecode_iterator().GetIndexOperand(0), false);
   Node* context = environment()->Context();
-  return NewNode(op, context);
-}
-
-void BytecodeGraphBuilder::VisitLdaContextSlot() {
-  Node* node = BuildLoadContextSlot();
+  Node* node = NewNode(op, context);
   environment()->BindAccumulator(node);
-}
-
-void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
-  Node* node = BuildLoadCurrentContextSlot();
-  environment()->BindAccumulator(node);
-}
-
-void BytecodeGraphBuilder::VisitLdrContextSlot() {
-  Node* node = BuildLoadContextSlot();
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3), node);
-}
-
-void BytecodeGraphBuilder::VisitLdrCurrentContextSlot() {
-  Node* node = BuildLoadCurrentContextSlot();
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), node);
 }
 
 void BytecodeGraphBuilder::VisitStaContextSlot() {

@@ -37,12 +37,8 @@ namespace interpreter {
   V(LdaFalse, AccumulatorUse::kWrite)                                          \
   V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                    \
                                                                                \
-  /* Loading registers */                                                      \
-  V(LdrUndefined, AccumulatorUse::kNone, OperandType::kRegOut)                 \
-                                                                               \
   /* Globals */                                                                \
   V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx)                      \
-  V(LdrGlobal, AccumulatorUse::kNone, OperandType::kIdx, OperandType::kRegOut) \
   V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)          \
   V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                 \
     OperandType::kIdx)                                                         \
@@ -55,10 +51,6 @@ namespace interpreter {
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdaCurrentContextSlot, AccumulatorUse::kWrite, OperandType::kIdx)          \
-  V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                  \
-    OperandType::kIdx, OperandType::kUImm, OperandType::kRegOut)               \
-  V(LdrCurrentContextSlot, AccumulatorUse::kNone, OperandType::kIdx,           \
-    OperandType::kRegOut)                                                      \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                  \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(StaCurrentContextSlot, AccumulatorUse::kRead, OperandType::kIdx)           \
@@ -430,15 +422,16 @@ class V8_EXPORT_PRIVATE Bytecodes final {
            bytecode == Bytecode::kLdaTrue || bytecode == Bytecode::kLdaFalse ||
            bytecode == Bytecode::kLdaUndefined ||
            bytecode == Bytecode::kLdaTheHole ||
-           bytecode == Bytecode::kLdaConstant;
+           bytecode == Bytecode::kLdaConstant ||
+           bytecode == Bytecode::kLdaContextSlot ||
+           bytecode == Bytecode::kLdaCurrentContextSlot;
   }
 
   // Return true if |bytecode| is a register load without effects,
-  // e.g. Mov, Star, LdrUndefined.
+  // e.g. Mov, Star.
   static CONSTEXPR bool IsRegisterLoadWithoutEffects(Bytecode bytecode) {
     return bytecode == Bytecode::kMov || bytecode == Bytecode::kPopContext ||
-           bytecode == Bytecode::kPushContext || bytecode == Bytecode::kStar ||
-           bytecode == Bytecode::kLdrUndefined;
+           bytecode == Bytecode::kPushContext || bytecode == Bytecode::kStar;
   }
 
   // Returns true if the bytecode is a conditional jump taking

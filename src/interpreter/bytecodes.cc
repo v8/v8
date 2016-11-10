@@ -211,8 +211,12 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaNull:
       case Bytecode::kLdaTheHole:
       case Bytecode::kLdaConstant:
+      case Bytecode::kLdaUndefined:
+      case Bytecode::kLdaGlobal:
       case Bytecode::kLdaNamedProperty:
       case Bytecode::kLdaKeyedProperty:
+      case Bytecode::kLdaContextSlot:
+      case Bytecode::kLdaCurrentContextSlot:
       case Bytecode::kAdd:
       case Bytecode::kSub:
       case Bytecode::kMul:

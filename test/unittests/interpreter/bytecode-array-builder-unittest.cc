@@ -54,7 +54,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadLiteral(factory->NewStringFromStaticChars("A constant"))
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
-      .Debugger()  // Prevent peephole optimization LdaNull, Star -> LdrNull.
+      .StoreAccumulatorInRegister(reg)
       .LoadNull()
       .StoreAccumulatorInRegister(reg)
       .LoadTheHole()
@@ -308,17 +308,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreLookupSlot(wide_name, LanguageMode::SLOPPY)
       .StoreLookupSlot(wide_name, LanguageMode::STRICT);
 
-  // Emit loads which will be transformed to Ldr equivalents by the peephole
-  // optimizer.
-  builder.LoadContextSlot(reg, 1, 0)
-      .StoreAccumulatorInRegister(reg)
-      .LoadContextSlot(Register::current_context(), 1, 0)
-      .StoreAccumulatorInRegister(reg)
-      .LoadGlobal(0, TypeofMode::NOT_INSIDE_TYPEOF)
-      .StoreAccumulatorInRegister(reg)
-      .LoadUndefined()
-      .StoreAccumulatorInRegister(reg);
-
   // CreateClosureWide
   builder.CreateClosure(1000, NOT_TENURED);
 
@@ -392,10 +381,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   if (!FLAG_ignition_peephole) {
     // Insert entries for bytecodes only emitted by peephole optimizer.
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrGlobal)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrContextSlot)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrCurrentContextSlot)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrUndefined)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kLogicalNot)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJump)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJumpIfTrue)] = 1;
