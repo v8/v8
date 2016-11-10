@@ -8,6 +8,8 @@ var v = 0;
 function foo(a) {
   v = a;
 }
+this.x = 0;
+delete x;
 
 foo(1);
 foo(2);

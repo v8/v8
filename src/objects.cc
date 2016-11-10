@@ -8004,6 +8004,7 @@ void DictionaryDetailsAtPut<GlobalDictionary>(
   Object* value = dictionary->ValueAt(entry);
   DCHECK(value->IsPropertyCell());
   value = PropertyCell::cast(value)->value();
+  if (value->IsTheHole(isolate)) return;
   PropertyCell::PrepareForValue(dictionary, entry, handle(value, isolate),
                                 details);
 }
