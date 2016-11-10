@@ -66,8 +66,8 @@ void LCodeGen::SaveCallerDoubles() {
   BitVector* doubles = chunk()->allocated_double_registers();
   BitVector::Iterator save_iterator(doubles);
   while (!save_iterator.Done()) {
-    __ std(DoubleRegister::from_code(save_iterator.Current()),
-           MemOperand(sp, count * kDoubleSize));
+    __ StoreDouble(DoubleRegister::from_code(save_iterator.Current()),
+                   MemOperand(sp, count * kDoubleSize));
     save_iterator.Advance();
     count++;
   }
@@ -81,8 +81,8 @@ void LCodeGen::RestoreCallerDoubles() {
   BitVector::Iterator save_iterator(doubles);
   int count = 0;
   while (!save_iterator.Done()) {
-    __ ld(DoubleRegister::from_code(save_iterator.Current()),
-          MemOperand(sp, count * kDoubleSize));
+    __ LoadDouble(DoubleRegister::from_code(save_iterator.Current()),
+                  MemOperand(sp, count * kDoubleSize));
     save_iterator.Advance();
     count++;
   }
@@ -2089,7 +2089,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, al);
     } else if (type.IsHeapNumber()) {
       DCHECK(!info()->IsStub());
-      __ ld(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+      __ LoadDouble(dbl_scratch,
+                    FieldMemOperand(reg, HeapNumber::kValueOffset));
       // Test the double value. Zero and NaN are false.
       __ lzdr(kDoubleRegZero);
       __ cdbr(dbl_scratch, kDoubleRegZero);
@@ -2678,7 +2679,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   if (instr->hydrogen()->representation().IsDouble()) {
     DCHECK(access.IsInobject());
     DoubleRegister result = ToDoubleRegister(instr->result());
-    __ ld(result, FieldMemOperand(object, offset));
+    __ LoadDouble(result, FieldMemOperand(object, offset));
     return;
   }
 
@@ -2816,9 +2817,10 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       }
     } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
       if (!use_scratch) {
-        __ ld(result, MemOperand(external_pointer, base_offset));
+        __ LoadDouble(result, MemOperand(external_pointer, base_offset));
       } else {
-        __ ld(result, MemOperand(scratch0(), external_pointer, base_offset));
+        __ LoadDouble(result,
+                      MemOperand(scratch0(), external_pointer, base_offset));
       }
     }
   } else {
@@ -2913,9 +2915,9 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   }
 
   if (!use_scratch) {
-    __ ld(result, MemOperand(elements, base_offset));
+    __ LoadDouble(result, MemOperand(elements, base_offset));
   } else {
-    __ ld(result, MemOperand(scratch, elements, base_offset));
+    __ LoadDouble(result, MemOperand(scratch, elements, base_offset));
   }
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3836,7 +3838,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     DCHECK(!hinstr->NeedsWriteBarrier());
     DoubleRegister value = ToDoubleRegister(instr->value());
     DCHECK(offset >= 0);
-    __ std(value, FieldMemOperand(object, offset));
+    __ StoreDouble(value, FieldMemOperand(object, offset));
     return;
   }
 
@@ -3861,7 +3863,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_unbox_double_fields && representation.IsDouble()) {
     DCHECK(access.IsInobject());
     DoubleRegister value = ToDoubleRegister(instr->value());
-    __ std(value, FieldMemOperand(object, offset));
+    __ StoreDouble(value, FieldMemOperand(object, offset));
     if (hinstr->NeedsWriteBarrier()) {
       record_value = ToRegister(instr->value());
     }
@@ -4090,14 +4092,15 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     __ CanonicalizeNaN(double_scratch, value);
     DCHECK(address_offset >= 0);
     if (use_scratch)
-      __ std(double_scratch, MemOperand(scratch, elements, address_offset));
+      __ StoreDouble(double_scratch,
+                     MemOperand(scratch, elements, address_offset));
     else
-      __ std(double_scratch, MemOperand(elements, address_offset));
+      __ StoreDouble(double_scratch, MemOperand(elements, address_offset));
   } else {
     if (use_scratch)
-      __ std(value, MemOperand(scratch, elements, address_offset));
+      __ StoreDouble(value, MemOperand(scratch, elements, address_offset));
     else
-      __ std(value, MemOperand(elements, address_offset));
+      __ StoreDouble(value, MemOperand(elements, address_offset));
   }
 }
 
@@ -4677,7 +4680,8 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       DeoptimizeIf(ne, instr, DeoptimizeReason::kNotAHeapNumber);
     }
     // load heap number
-    __ ld(result_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
+    __ LoadDouble(result_reg,
+                  FieldMemOperand(input_reg, HeapNumber::kValueOffset));
     if (deoptimize_on_minus_zero) {
       __ TestDoubleIsMinusZero(result_reg, scratch, ip);
       DeoptimizeIf(eq, instr, DeoptimizeReason::kMinusZero);
@@ -4689,7 +4693,8 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
       DeoptimizeIf(ne, instr, DeoptimizeReason::kNotAHeapNumberUndefined);
       __ LoadRoot(scratch, Heap::kNanValueRootIndex);
-      __ ld(result_reg, FieldMemOperand(scratch, HeapNumber::kValueOffset));
+      __ LoadDouble(result_reg,
+                    FieldMemOperand(scratch, HeapNumber::kValueOffset));
       __ b(&done, Label::kNear);
     }
   } else {
@@ -4731,8 +4736,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr, DeoptimizeReason::kNotAHeapNumber);
 
-    __ ld(double_scratch2,
-          FieldMemOperand(input_reg, HeapNumber::kValueOffset));
+    __ LoadDouble(double_scratch2,
+                  FieldMemOperand(input_reg, HeapNumber::kValueOffset));
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // preserve heap number pointer in scratch2 for minus zero check below
       __ LoadRR(scratch2, input_reg);
@@ -5046,7 +5051,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ ld(temp_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
+  __ LoadDouble(temp_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
   __ ClampDoubleToUint8(result_reg, temp_reg, double_scratch0());
   __ b(&done, Label::kNear);
 
