@@ -137,7 +137,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   uint32_t NextEquivalenceId() {
     equivalence_id_++;
-    CHECK_NE(equivalence_id_, kInvalidEquivalenceId);
+    // TODO(rmcilroy): use the same type for these and remove static_cast.
+    CHECK_NE(static_cast<size_t>(equivalence_id_), kInvalidEquivalenceId);
     return equivalence_id_;
   }
 

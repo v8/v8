@@ -35,8 +35,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   Handle<String> name = factory->NewStringFromStaticChars("abc");
-  int name_index = 2;
-  int feedback_slot = 97;
+  uint32_t name_index = 2;
+  uint32_t feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
       .StoreAccumulatorInRegister(reg_0)

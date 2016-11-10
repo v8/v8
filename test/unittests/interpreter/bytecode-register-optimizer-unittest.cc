@@ -70,7 +70,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForFlush) {
   optimizer()->Flush();
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), temp.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0), static_cast<uint32_t>(temp.ToOperand()));
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
@@ -81,7 +81,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
   optimizer()->PrepareForBytecode(Bytecode::kJump);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), temp.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0), static_cast<uint32_t>(temp.ToOperand()));
 }
 
 // Basic Register Optimizations
@@ -98,7 +98,8 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   CHECK_EQ(write_count(), 0);
   optimizer()->PrepareForBytecode(Bytecode::kReturn);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kLdar);
-  CHECK_EQ(output()->at(0).operand(0), parameter.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0),
+           static_cast<uint32_t>(parameter.ToOperand()));
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
@@ -111,7 +112,8 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
   optimizer()->PrepareForBytecode(Bytecode::kLdaSmi);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), temp1.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0),
+           static_cast<uint32_t>(temp1.ToOperand()));
   optimizer()->DoMov(temp1, temp0, BytecodeSourceInfo());
   CHECK_EQ(write_count(), 1);
   ReleaseTemporaries(temp1);
@@ -121,7 +123,8 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
   optimizer()->PrepareForBytecode(Bytecode::kReturn);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
-  CHECK_EQ(output()->at(1).operand(0), temp1.ToOperand());
+  CHECK_EQ(output()->at(1).operand(0),
+           static_cast<uint32_t>(temp1.ToOperand()));
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
@@ -137,7 +140,8 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
   optimizer()->Flush();
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), temp0.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0),
+           static_cast<uint32_t>(temp0.ToOperand()));
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
@@ -149,13 +153,16 @@ TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
   optimizer()->DoStar(local, BytecodeSourceInfo());
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kMov);
-  CHECK_EQ(output()->at(0).operand(0), parameter.ToOperand());
-  CHECK_EQ(output()->at(0).operand(1), local.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0),
+           static_cast<uint32_t>(parameter.ToOperand()));
+  CHECK_EQ(output()->at(0).operand(1),
+           static_cast<uint32_t>(local.ToOperand()));
 
   optimizer()->PrepareForBytecode(Bytecode::kReturn);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
-  CHECK_EQ(output()->at(1).operand(0), local.ToOperand());
+  CHECK_EQ(output()->at(1).operand(0),
+           static_cast<uint32_t>(local.ToOperand()));
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, SingleTemporaryNotMaterializedForInput) {
@@ -193,10 +200,13 @@ TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
   CHECK_EQ(2, reg_list.register_count());
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), temp0.ToOperand());
+  CHECK_EQ(output()->at(0).operand(0),
+           static_cast<uint32_t>(temp0.ToOperand()));
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kMov);
-  CHECK_EQ(output()->at(1).operand(0), parameter.ToOperand());
-  CHECK_EQ(output()->at(1).operand(1), temp1.ToOperand());
+  CHECK_EQ(output()->at(1).operand(0),
+           static_cast<uint32_t>(parameter.ToOperand()));
+  CHECK_EQ(output()->at(1).operand(1),
+           static_cast<uint32_t>(temp1.ToOperand()));
 }
 
 }  // namespace interpreter
