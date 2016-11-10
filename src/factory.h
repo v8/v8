@@ -310,6 +310,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
+  // Create a promise context.
+  Handle<Context> NewPromiseResolvingFunctionContext(int length);
 
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).

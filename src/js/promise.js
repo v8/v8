@@ -49,35 +49,8 @@ const kPending = 0;
 const kFulfilled = +1;
 const kRejected = +2;
 
-// ES#sec-createresolvingfunctions
-// CreateResolvingFunctions ( promise )
-function CreateResolvingFunctions(promise, debugEvent) {
-  var alreadyResolved = false;
-
-  // ES#sec-promise-resolve-functions
-  // Promise Resolve Functions
-  var resolve = value => {
-    if (alreadyResolved === true) return;
-    alreadyResolved = true;
-    ResolvePromise(promise, value);
-  };
-
-  // ES#sec-promise-reject-functions
-  // Promise Reject Functions
-  var reject = reason => {
-    if (alreadyResolved === true) return;
-    alreadyResolved = true;
-    %PromiseReject(promise, reason, debugEvent);
-    PromiseSet(promise, kRejected, reason);
-  };
-
-  return {
-    __proto__: null,
-    resolve: resolve,
-    reject: reject
-  };
-}
-
+const kResolveCallback = 0;
+const kRejectCallback = 1;
 
 // ES#sec-promise-executor
 // Promise ( executor )
@@ -92,13 +65,15 @@ var GlobalPromise = function Promise(executor) {
 
   var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
   // Calling the reject function would be a new exception, so debugEvent = true
-  var callbacks = CreateResolvingFunctions(promise, true);
+  // TODO(gsathya): Remove container for callbacks when this is moved
+  // to CPP/TF.
+  var callbacks = %create_resolving_functions(promise, true);
   var debug_is_active = DEBUG_IS_ACTIVE;
   try {
     if (debug_is_active) %DebugPushPromise(promise);
-    executor(callbacks.resolve, callbacks.reject);
+    executor(callbacks[kResolveCallback], callbacks[kRejectCallback]);
   } %catch (e) {  // Natives syntax to mark this catch block.
-    %_Call(callbacks.reject, UNDEFINED, e);
+    %_Call(callbacks[kRejectCallback], UNDEFINED, e);
   } finally {
     if (debug_is_active) %DebugPopPromise();
   }
@@ -291,13 +266,16 @@ function ResolvePromise(promise, resolution) {
     }
 
     if (IS_CALLABLE(then)) {
-      var callbacks = CreateResolvingFunctions(promise, false);
+      // TODO(gsathya): Remove container for callbacks when this is
+      // moved to CPP/TF.
+      var callbacks = %create_resolving_functions(promise, false);
       if (DEBUG_IS_ACTIVE && IsPromise(resolution)) {
           // Mark the dependency of the new promise on the resolution
         SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
       }
       %EnqueuePromiseResolveThenableJob(
-          resolution, then, callbacks.resolve, callbacks.reject);
+          resolution, then, callbacks[kResolveCallback],
+          callbacks[kRejectCallback]);
       return;
     }
   }
@@ -307,8 +285,8 @@ function ResolvePromise(promise, resolution) {
 }
 
 // Only used by async-await.js
-function RejectPromise(promise, reason) {
-  %PromiseReject(promise, reason, false);
+function RejectPromise(promise, reason, debugEvent) {
+  %PromiseReject(promise, reason, debugEvent);
   PromiseSet(promise, kRejected, reason);
 }
 
@@ -324,11 +302,13 @@ function NewPromiseCapability(C, debugEvent) {
   if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
     var promise = PromiseCreate();
-    var callbacks = CreateResolvingFunctions(promise, debugEvent);
+    // TODO(gsathya): Remove container for callbacks when this is
+    // moved to CPP/TF.
+    var callbacks = %create_resolving_functions(promise, debugEvent);
     return {
       promise: promise,
-      resolve: callbacks.resolve,
-      reject: callbacks.reject
+      resolve: callbacks[kResolveCallback],
+      reject: callbacks[kRejectCallback]
     };
   }
 
@@ -643,6 +623,8 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", DoRejectPromise,
+  // TODO(gsathya): Remove this once we update the promise builtin.
+  "promise_internal_reject", RejectPromise,
   "promise_resolve", ResolvePromise,
   "promise_then", PromiseThen,
   "promise_handle", PromiseHandle,

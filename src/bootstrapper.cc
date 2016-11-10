@@ -3582,6 +3582,33 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
         *isolate()->builtins()->JSBuiltinsConstructStub());
     InstallWithIntrinsicDefaultProto(isolate(), function,
                                      Context::PROMISE_FUNCTION_INDEX);
+
+    {
+      Handle<Code> code = handle(
+          isolate()->builtins()->builtin(Builtins::kPromiseResolveClosure),
+          isolate());
+      Handle<SharedFunctionInfo> info =
+          isolate()->factory()->NewSharedFunctionInfo(factory()->empty_string(),
+                                                      code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context()->set_promise_resolve_shared_fun(*info);
+
+      code = handle(
+          isolate()->builtins()->builtin(Builtins::kPromiseRejectClosure),
+          isolate());
+      info = isolate()->factory()->NewSharedFunctionInfo(
+          factory()->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(2);
+      info->set_length(1);
+      native_context()->set_promise_reject_shared_fun(*info);
+    }
+
+    Handle<JSFunction> create_resolving_functions =
+        SimpleCreateFunction(isolate(), factory()->empty_string(),
+                             Builtins::kCreateResolvingFunctions, 2, false);
+    native_context()->set_create_resolving_functions(
+        *create_resolving_functions);
   }
 
   InstallBuiltinFunctionIds();

@@ -130,7 +130,7 @@ function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
 
 // How the parser rejects promises from async/await desugaring
 function RejectPromiseNoDebugEvent(promise, reason) {
-  return RejectPromise(promise, reason);
+  return RejectPromise(promise, reason, false);
 }
 
 function AsyncFunctionPromiseCreate() {

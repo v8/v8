@@ -962,6 +962,14 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
   return context;
 }
 
+Handle<Context> Factory::NewPromiseResolvingFunctionContext(int length) {
+  DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
+  Handle<FixedArray> array = NewFixedArray(length);
+  array->set_map_no_write_barrier(*function_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_extension(*the_hole_value());
+  return context;
+}
 
 Handle<Struct> Factory::NewStruct(InstanceType type) {
   CALL_HEAP_FUNCTION(

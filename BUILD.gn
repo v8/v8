@@ -952,6 +952,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
+    "src/builtins/builtins-promise.cc",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
     "src/builtins/builtins-regexp.cc",

@@ -561,6 +561,11 @@ namespace internal {
   TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                          \
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
+  /* Promise */                                                               \
+  CPP(CreateResolvingFunctions)                                               \
+  CPP(PromiseResolveClosure)                                                  \
+  CPP(PromiseRejectClosure)                                                   \
+                                                                              \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \
   CPP(ProxyConstructor_ConstructStub)                                         \
