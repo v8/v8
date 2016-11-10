@@ -8880,22 +8880,16 @@ int DebugInterface::Script::ColumnOffset() const {
 }
 
 std::vector<int> DebugInterface::Script::LineEnds() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Script::InitLineEnds(Utils::OpenHandle(this));
-  i::Handle<i::Object> line_ends_obj(Utils::OpenHandle(this)->line_ends(),
-                                     isolate);
-  std::vector<int> result;
-  if (!line_ends_obj->IsFixedArray()) return result;
-  i::Handle<i::FixedArray> line_ends =
-      i::Handle<i::FixedArray>::cast(line_ends_obj);
+  i::Script::InitLineEnds(script);
+  CHECK(script->line_ends()->IsFixedArray());
+  i::Handle<i::FixedArray> line_ends(i::FixedArray::cast(script->line_ends()));
+  std::vector<int> result(line_ends->length());
   for (int i = 0; i < line_ends->length(); ++i) {
-    i::Handle<i::Object> line_end = i::FixedArray::get(*line_ends, i, isolate);
-    if (line_end->IsSmi()) {
-      result.push_back(i::Handle<i::Smi>::cast(line_end)->value());
-    } else {
-      result.push_back(0);
-    }
+    i::Smi* line_end = i::Smi::cast(line_ends->get(i));
+    result[i] = line_end->value();
   }
   return result;
 }
