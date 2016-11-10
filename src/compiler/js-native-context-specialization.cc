@@ -1280,7 +1280,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       element_type = Type::Number();
       element_machine_type = MachineType::Float64();
     } else if (IsFastSmiElementsKind(elements_kind)) {
-      element_type = type_cache_.kSmi;
+      element_type = Type::SignedSmall();
       element_machine_type = MachineType::TaggedSigned();
     }
     ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,

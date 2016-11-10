@@ -300,7 +300,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               MachineRepresentation::kTagged;
           MaybeHandle<Map> field_map;
           if (details_representation.IsSmi()) {
-            field_type = type_cache_.kSmi;
+            field_type = Type::SignedSmall();
             field_representation = MachineRepresentation::kTaggedSigned;
           } else if (details_representation.IsDouble()) {
             field_type = type_cache_.kFloat64;
@@ -497,7 +497,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     MaybeHandle<Map> field_map;
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (details_representation.IsSmi()) {
-      field_type = type_cache_.kSmi;
+      field_type = Type::SignedSmall();
       field_representation = MachineRepresentation::kTaggedSigned;
     } else if (details_representation.IsDouble()) {
       field_type = type_cache_.kFloat64;

@@ -1473,7 +1473,7 @@ Type* Typer::Visitor::TypeJSForInNext(Node* node) {
 Type* Typer::Visitor::TypeJSForInPrepare(Node* node) {
   STATIC_ASSERT(Map::EnumLengthBits::kMax <= FixedArray::kMaxLength);
   Type* const cache_type =
-      Type::Union(typer_->cache_.kSmi, Type::OtherInternal(), zone());
+      Type::Union(Type::SignedSmall(), Type::OtherInternal(), zone());
   Type* const cache_array = Type::OtherInternal();
   Type* const cache_length = typer_->cache_.kFixedArrayLengthType;
   return Type::Tuple(cache_type, cache_array, cache_length, zone());
@@ -1494,7 +1494,7 @@ Type* Typer::Visitor::TypeJSGeneratorStore(Node* node) {
 }
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
-  return typer_->cache_.kSmi;
+  return Type::SignedSmall();
 }
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
@@ -1569,8 +1569,7 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
 }
 
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
-  // TODO(bmeurer): We could do better here based on inputs.
-  return Type::Range(0, kMaxUInt16, zone());
+  return typer_->cache_.kUint16;
 }
 
 Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
@@ -1650,8 +1649,6 @@ Type* Typer::Visitor::TypeLoadField(Node* node) {
 }
 
 Type* Typer::Visitor::TypeLoadBuffer(Node* node) {
-  // TODO(bmeurer): This typing is not yet correct. Since we can still access
-  // out of bounds, the type in the general case has to include Undefined.
   switch (BufferAccessOf(node->op()).external_array_type()) {
 #define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
   case kExternal##ElemType##Array:                          \

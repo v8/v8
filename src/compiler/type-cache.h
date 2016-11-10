@@ -35,9 +35,8 @@ class TypeCache final {
   Type* const kFloat32 = Type::Number();
   Type* const kFloat64 = Type::Number();
 
-  Type* const kSmi = Type::SignedSmall();
-  Type* const kHoleySmi = Type::Union(kSmi, Type::Hole(), zone());
-  Type* const kHeapNumber = Type::Number();
+  Type* const kHoleySmi =
+      Type::Union(Type::SignedSmall(), Type::Hole(), zone());
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);

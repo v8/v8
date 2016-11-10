@@ -146,11 +146,10 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
-  TypeCache const& type_cache = TypeCache::Get();
   FieldAccess access = {kTaggedBase,
                         JSGeneratorObject::kContinuationOffset,
                         Handle<Name>(),
-                        type_cache.kSmi,
+                        Type::SignedSmall(),
                         MachineType::TaggedSigned(),
                         kNoWriteBarrier};
   return access;
@@ -180,10 +179,12 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
-  TypeCache const& type_cache = TypeCache::Get();
-  FieldAccess access = {
-      kTaggedBase,     JSGeneratorObject::kResumeModeOffset, Handle<Name>(),
-      type_cache.kSmi, MachineType::TaggedSigned(),          kNoWriteBarrier};
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kResumeModeOffset,
+                        Handle<Name>(),
+                        Type::SignedSmall(),
+                        MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
   return access;
 }
 
@@ -656,7 +657,7 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
                           MachineType::AnyTagged(), kFullWriteBarrier};
   switch (kind) {
     case FAST_SMI_ELEMENTS:
-      access.type = TypeCache::Get().kSmi;
+      access.type = Type::SignedSmall();
       access.machine_type = MachineType::TaggedSigned();
       access.write_barrier_kind = kNoWriteBarrier;
       break;
