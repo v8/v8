@@ -328,8 +328,9 @@ class WasmSerializationTest {
       v8::Local<v8::String> uncompiled_bytes =
           v8_compiled_module->GetWasmWireBytes();
       bytes_size = static_cast<size_t>(uncompiled_bytes->Length());
-      bytes = zone()->NewArray<uint8_t>(uncompiled_bytes->Length());
-      uncompiled_bytes->WriteOneByte(bytes);
+      bytes = zone()->NewArray<uint8_t>(bytes_size);
+      uncompiled_bytes->WriteOneByte(bytes, 0, uncompiled_bytes->Length(),
+                                     v8::String::NO_NULL_TERMINATION);
       // keep alive data_ until the end
       data_ = v8_compiled_module->Serialize();
     }
