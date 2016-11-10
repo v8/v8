@@ -116,6 +116,7 @@ namespace internal {
   ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndConstructFunction)                                \
   ASM(InterpreterPushArgsAndConstructArray)                                   \
+  ASM(InterpreterEnterBytecodeAdvance)                                        \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \

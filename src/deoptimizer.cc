@@ -1001,7 +1001,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
     }
   }
 
-  // Compute this frame's PC, state, and continuation.
+  // Compute this frame's PC and state.
   FixedArray* raw_data = non_optimized_code->deoptimization_data();
   DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
   Address start = non_optimized_code->instruction_start();
@@ -1243,7 +1243,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Translate the accumulator register (depending on frame position).
   if (is_topmost) {
-    // For topmost frmae, p ut the accumulator on the stack. The bailout state
+    // For topmost frame, put the accumulator on the stack. The bailout state
     // for interpreted frames is always set to {BailoutState::TOS_REGISTER} and
     // the {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
     // after materialization).
@@ -1268,9 +1268,15 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
   CHECK_EQ(0u, output_offset);
 
+  // Compute this frame's PC and state. The PC will be a special builtin that
+  // continues the bytecode dispatch. Note that non-topmost and lazy-style
+  // bailout handlers also advance the bytecode offset before dispatch, hence
+  // simulating what normal handlers do upon completion of the operation.
   Builtins* builtins = isolate_->builtins();
   Code* dispatch_builtin =
-      builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+      (!is_topmost || (bailout_type_ == LAZY)) && !goto_catch_handler
+          ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
+          : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
   // Restore accumulator (TOS) register.
   output_frame->SetState(
@@ -2758,11 +2764,8 @@ int Deoptimizer::ComputeSourcePositionFromBaselineCode(
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
     SharedFunctionInfo* shared, BailoutId node_id) {
   DCHECK(shared->HasBytecodeArray());
-  // BailoutId points to the next bytecode in the bytecode aray. Subtract
-  // 1 to get the end of current bytecode.
-  int code_offset = node_id.ToInt() - 1;
   return AbstractCode::cast(shared->bytecode_array())
-      ->SourcePosition(code_offset);
+      ->SourcePosition(node_id.ToInt());
 }
 
 // static

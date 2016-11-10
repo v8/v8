@@ -404,11 +404,15 @@ void StackFrame::SetReturnAddressLocationResolver(
 static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
   Code* interpreter_entry_trampoline =
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+  Code* interpreter_bytecode_advance =
+      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
 
   return (pc >= interpreter_entry_trampoline->instruction_start() &&
           pc < interpreter_entry_trampoline->instruction_end()) ||
+         (pc >= interpreter_bytecode_advance->instruction_start() &&
+          pc < interpreter_bytecode_advance->instruction_end()) ||
          (pc >= interpreter_bytecode_dispatch->instruction_start() &&
           pc < interpreter_bytecode_dispatch->instruction_end());
 }
@@ -1219,9 +1223,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
         abstract_code = AbstractCode::cast(code);
       } else {
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
-        // BailoutId points to the next bytecode in the bytecode aray. Subtract
-        // 1 to get the end of current bytecode.
-        code_offset = bailout_id.ToInt() - 1;
+        code_offset = bailout_id.ToInt();  // Points to current bytecode.
         abstract_code = AbstractCode::cast(shared_info->bytecode_array());
       }
       FrameSummary summary(receiver, function, abstract_code, code_offset,

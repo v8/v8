@@ -603,9 +603,9 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node)->opcode());
-    BailoutId bailout_id_before(bytecode_iterator().current_offset());
+    BailoutId bailout_id(bytecode_iterator().current_offset());
     Node* frame_state_before = environment()->Checkpoint(
-        bailout_id_before, OutputFrameStateCombine::Ignore(), false);
+        bailout_id, OutputFrameStateCombine::Ignore(), false);
     NodeProperties::ReplaceFrameStateInput(node, frame_state_before);
   }
 }
@@ -618,11 +618,10 @@ void BytecodeGraphBuilder::PrepareFrameState(Node* node,
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node)->opcode());
-    BailoutId bailout_id_after(bytecode_iterator().current_offset() +
-                               bytecode_iterator().current_bytecode_size());
+    BailoutId bailout_id(bytecode_iterator().current_offset());
     bool has_exception = NodeProperties::IsExceptionalCall(node);
     Node* frame_state_after =
-        environment()->Checkpoint(bailout_id_after, combine, has_exception);
+        environment()->Checkpoint(bailout_id, combine, has_exception);
     NodeProperties::ReplaceFrameStateInput(node, frame_state_after);
   }
 }
