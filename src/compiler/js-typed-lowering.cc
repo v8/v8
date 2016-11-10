@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-typed-lowering.h"
 
+#include "src/ast/modules.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
@@ -1489,6 +1490,81 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceJSLoadModule(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadModule, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  int32_t cell_index = OpParameter<int32_t>(node);
+  Node* module = NodeProperties::GetValueInput(node, 0);
+
+  Node* array;
+  int index;
+  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
+      ModuleDescriptor::kExport) {
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularExports()),
+        module, effect, control);
+    index = cell_index - 1;
+  } else {
+    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+              ModuleDescriptor::kImport);
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularImports()),
+        module, effect, control);
+    index = -cell_index - 1;
+  }
+
+  Node* cell = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)), array,
+      effect, control);
+
+  Node* value = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
+                       cell, effect, control);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Changed(value);
+}
+
+Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreModule, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  int32_t cell_index = OpParameter<int32_t>(node);
+  Node* module = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+
+  Node* array;
+  int index;
+  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
+      ModuleDescriptor::kExport) {
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularExports()),
+        module, effect, control);
+    index = cell_index - 1;
+  } else {
+    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+              ModuleDescriptor::kImport);
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularImports()),
+        module, effect, control);
+    index = -cell_index - 1;
+  }
+
+  Node* cell = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)), array,
+      effect, control);
+
+  effect =
+      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForCellValue()),
+                       cell, value, effect, control);
+
+  ReplaceWithValue(node, effect, effect, control);
+  return Changed(value);
+}
+
 Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConvertReceiver, node->opcode());
   ConvertReceiverMode mode = ConvertReceiverModeOf(node->op());
@@ -2126,6 +2202,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSLoadModule:
+      return ReduceJSLoadModule(node);
+    case IrOpcode::kJSStoreModule:
+      return ReduceJSStoreModule(node);
     case IrOpcode::kJSConvertReceiver:
       return ReduceJSConvertReceiver(node);
     case IrOpcode::kJSCallConstruct:

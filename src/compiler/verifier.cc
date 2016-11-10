@@ -660,6 +660,13 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSStoreMessage:
       break;
 
+    case IrOpcode::kJSLoadModule:
+      CheckTypeIs(node, Type::Any());
+      break;
+    case IrOpcode::kJSStoreModule:
+      CheckNotTyped(node);
+      break;
+
     case IrOpcode::kJSGeneratorStore:
       CheckNotTyped(node);
       break;

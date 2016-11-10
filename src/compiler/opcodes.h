@@ -158,6 +158,8 @@
   V(JSForInPrepare)                 \
   V(JSLoadMessage)                  \
   V(JSStoreMessage)                 \
+  V(JSLoadModule)                   \
+  V(JSStoreModule)                  \
   V(JSGeneratorStore)               \
   V(JSGeneratorRestoreContinuation) \
   V(JSGeneratorRestoreRegister)     \

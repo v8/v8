@@ -434,6 +434,27 @@ FieldAccess AccessBuilder::ForMapPrototype() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForModuleRegularExports() {
+  FieldAccess access = {kTaggedBase,
+                        Module::kRegularExportsOffset,
+                        Handle<Name>(),
+                        Type::OtherInternal(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForModuleRegularImports() {
+  FieldAccess access = {kTaggedBase,
+                        Module::kRegularImportsOffset,
+                        Handle<Name>(),
+                        Type::OtherInternal(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
@@ -610,6 +631,14 @@ FieldAccess AccessBuilder::ForFixedArraySlot(size_t index) {
   return access;
 }
 
+
+// static
+FieldAccess AccessBuilder::ForCellValue() {
+  FieldAccess access = {
+      kTaggedBase, Cell::kValueOffset,       Handle<Name>(),
+      Type::Any(), MachineType::AnyTagged(), kFullWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForContextSlot(size_t index) {

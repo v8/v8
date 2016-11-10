@@ -765,6 +765,23 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       access);                                   // parameter
 }
 
+const Operator* JSOperatorBuilder::LoadModule(int32_t cell_index) {
+  return new (zone()) Operator1<int32_t>(       // --
+      IrOpcode::kJSLoadModule,                  // opcode
+      Operator::kNoWrite | Operator::kNoThrow,  // flags
+      "JSLoadModule",                           // name
+      1, 1, 1, 1, 1, 0,                         // counts
+      cell_index);                              // parameter
+}
+
+const Operator* JSOperatorBuilder::StoreModule(int32_t cell_index) {
+  return new (zone()) Operator1<int32_t>(      // --
+      IrOpcode::kJSStoreModule,                // opcode
+      Operator::kNoRead | Operator::kNoThrow,  // flags
+      "JSStoreModule",                         // name
+      2, 1, 1, 0, 1, 0,                        // counts
+      cell_index);                             // parameter
+}
 
 const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
   return new (zone()) Operator1<CreateArgumentsType>(         // --

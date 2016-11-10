@@ -1117,22 +1117,23 @@ void BytecodeGraphBuilder::VisitStaKeyedPropertyStrict() {
 }
 
 void BytecodeGraphBuilder::VisitLdaModuleVariable() {
-  // TODO(neis): Don't call the runtime.
-  PrepareEagerCheckpoint();
-  Node* index = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
-  const Operator* op = javascript()->CallRuntime(Runtime::kLoadModuleVariable);
-  Node* value = NewNode(op, index);
-  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+  int32_t cell_index = bytecode_iterator().GetImmediateOperand(0);
+  uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(1);
+  Node* module =
+      NewNode(javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
+              environment()->Context());
+  Node* value = NewNode(javascript()->LoadModule(cell_index), module);
+  environment()->BindAccumulator(value);
 }
 
 void BytecodeGraphBuilder::VisitStaModuleVariable() {
-  // TODO(neis): Don't call the runtime.
-  PrepareEagerCheckpoint();
-  Node* index = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
+  int32_t cell_index = bytecode_iterator().GetImmediateOperand(0);
+  uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(1);
+  Node* module =
+      NewNode(javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
+              environment()->Context());
   Node* value = environment()->LookupAccumulator();
-  const Operator* op = javascript()->CallRuntime(Runtime::kStoreModuleVariable);
-  Node* store = NewNode(op, index, value);
-  environment()->RecordAfterState(store, Environment::kAttachFrameState);
+  NewNode(javascript()->StoreModule(cell_index), module, value);
 }
 
 void BytecodeGraphBuilder::VisitPushContext() {

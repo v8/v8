@@ -1488,6 +1488,13 @@ Type* Typer::Visitor::TypeJSStoreMessage(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeJSLoadModule(Node* node) { return Type::Any(); }
+
+Type* Typer::Visitor::TypeJSStoreModule(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeJSGeneratorStore(Node* node) {
   UNREACHABLE();
   return nullptr;
