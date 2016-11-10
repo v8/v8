@@ -6887,23 +6887,23 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
 
   Node* new_space_top_address = ExternalConstant(
       ExternalReference::new_space_allocation_top_address(isolate()));
-  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
+  const int kMementoMapOffset = JSArray::kSize;
   const int kMementoLastWordOffset =
       kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
 
   // Bail out if the object is not in new space.
   Node* object_page = PageFromAddress(object);
   {
-    const int mask =
-        (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
-    Node* page_flags = Load(MachineType::IntPtr(), object_page);
-    GotoIf(
-        WordEqual(WordAnd(page_flags, IntPtrConstant(mask)), IntPtrConstant(0)),
-        &no_memento_found);
+    Node* page_flags = Load(MachineType::IntPtr(), object_page,
+                            IntPtrConstant(Page::kFlagsOffset));
+    GotoIf(WordEqual(WordAnd(page_flags,
+                             IntPtrConstant(MemoryChunk::kIsInNewSpaceMask)),
+                     IntPtrConstant(0)),
+           &no_memento_found);
   }
 
-  Node* memento_last_word =
-      IntPtrAdd(object, IntPtrConstant(kMementoLastWordOffset));
+  Node* memento_last_word = IntPtrAdd(
+      object, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
   Node* memento_last_word_page = PageFromAddress(memento_last_word);
 
   Node* new_space_top = Load(MachineType::Pointer(), new_space_top_address);
