@@ -3800,8 +3800,9 @@ class HMathFloorOfDiv final : public HBinaryOperation {
 
 class HArithmeticBinaryOperation : public HBinaryOperation {
  public:
-  HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right, HType::TaggedNumber()) {
+  HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right,
+                             HType type = HType::TaggedNumber())
+      : HBinaryOperation(context, left, right, type) {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToNumber);
@@ -4326,7 +4327,7 @@ class HAdd final : public HArithmeticBinaryOperation {
  private:
   HAdd(HValue* context, HValue* left, HValue* right,
        ExternalAddType external_add_type = NoExternalAdd)
-      : HArithmeticBinaryOperation(context, left, right),
+      : HArithmeticBinaryOperation(context, left, right, HType::Tagged()),
         external_add_type_(external_add_type) {
     SetFlag(kCanOverflow);
     switch (external_add_type_) {
