@@ -107,7 +107,8 @@ class V8Debugger {
                           v8::Local<v8::Object> executionState,
                           v8::Local<v8::Value> exception,
                           v8::Local<v8::Array> hitBreakpoints,
-                          bool isPromiseRejection = false);
+                          bool isPromiseRejection = false,
+                          bool isUncaught = false);
   static void v8DebugEventCallback(const v8::DebugInterface::EventDetails&);
   v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
                                                   const char* functionName);

@@ -486,7 +486,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
                                     v8::Local<v8::Object> executionState,
                                     v8::Local<v8::Value> exception,
                                     v8::Local<v8::Array> hitBreakpointNumbers,
-                                    bool isPromiseRejection) {
+                                    bool isPromiseRejection, bool isUncaught) {
   // Don't allow nested breaks.
   if (m_runningNestedMessageLoop) return;
 
@@ -509,7 +509,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_pausedContext = pausedContext;
   m_executionState = executionState;
   V8DebuggerAgentImpl::SkipPauseRequest result = agent->didPause(
-      pausedContext, exception, breakpointIds, isPromiseRejection);
+      pausedContext, exception, breakpointIds, isPromiseRejection, isUncaught);
   if (result == V8DebuggerAgentImpl::RequestNoSkip) {
     m_runningNestedMessageLoop = true;
     int groupId = getGroupId(pausedContext);
@@ -595,14 +595,19 @@ void V8Debugger::handleV8DebugEvent(
           wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
           event == v8::AfterCompile);
     } else if (event == v8::Exception) {
+      v8::Local<v8::Context> context = debuggerContext();
       v8::Local<v8::Object> eventData = eventDetails.GetEventData();
       v8::Local<v8::Value> exception =
           callInternalGetterFunction(eventData, "exception");
       v8::Local<v8::Value> promise =
           callInternalGetterFunction(eventData, "promise");
       bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
+      v8::Local<v8::Value> uncaught =
+          callInternalGetterFunction(eventData, "uncaught");
+      bool isUncaught = uncaught->BooleanValue(context).FromJust();
       handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                         exception, v8::Local<v8::Array>(), isPromiseRejection);
+                         exception, v8::Local<v8::Array>(), isPromiseRejection,
+                         isUncaught);
     } else if (event == v8::Break) {
       v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
       v8::Local<v8::Value> hitBreakpoints =

@@ -1078,7 +1078,8 @@ void V8DebuggerAgentImpl::didParseSource(
 
 V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
     v8::Local<v8::Context> context, v8::Local<v8::Value> exception,
-    const std::vector<String16>& hitBreakpoints, bool isPromiseRejection) {
+    const std::vector<String16>& hitBreakpoints, bool isPromiseRejection,
+    bool isUncaught) {
   JavaScriptCallFrames callFrames = m_debugger->currentCallFrames(1);
   JavaScriptCallFrame* topCallFrame =
       !callFrames.empty() ? callFrames.begin()->get() : nullptr;
@@ -1120,7 +1121,12 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
       std::unique_ptr<protocol::Runtime::RemoteObject> obj;
       injectedScript->wrapObject(exception, kBacktraceObjectGroup, false, false,
                                  &obj);
-      m_breakAuxData = obj ? obj->serialize() : nullptr;
+      if (obj) {
+        m_breakAuxData = obj->serialize();
+        m_breakAuxData->setBoolean("uncaught", isUncaught);
+      } else {
+        m_breakAuxData = nullptr;
+      }
       // m_breakAuxData might be null after this.
     }
   }
