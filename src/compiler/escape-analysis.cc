@@ -420,7 +420,7 @@ bool IsEquivalentPhi(Node* node1, Node* node2) {
 
 bool IsEquivalentPhi(Node* phi, ZoneVector<Node*>& inputs) {
   if (phi->opcode() != IrOpcode::kPhi) return false;
-  if (phi->op()->ValueInputCount() != inputs.size()) {
+  if (static_cast<size_t>(phi->op()->ValueInputCount()) != inputs.size()) {
     return false;
   }
   for (size_t i = 0; i < inputs.size(); ++i) {
@@ -481,9 +481,9 @@ bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
       SetField(i, field);
       TRACE("    Field %zu agree on rep #%d\n", i, field->id());
     } else {
-      int arity = at->opcode() == IrOpcode::kEffectPhi
-                      ? at->op()->EffectInputCount()
-                      : at->op()->ValueInputCount();
+      size_t arity = at->opcode() == IrOpcode::kEffectPhi
+                         ? at->op()->EffectInputCount()
+                         : at->op()->ValueInputCount();
       if (cache->fields().size() == arity) {
         changed = MergeFields(i, at, cache, graph, common) || changed;
       } else {

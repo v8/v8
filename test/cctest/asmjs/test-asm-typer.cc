@@ -1123,7 +1123,8 @@ TEST(ValidateCallExpression) {
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
     const auto* test = kTests + ii;
     CHECK(v8::base::OS::SNPrintF(full_test, kFullTestSize, "fround(%s)",
-                                 test->expression) < kFullTestSize);
+                                 test->expression) <
+          static_cast<int>(kFullTestSize));
     if (!ValidationOf(Expression(full_test))
              ->WithImport(DynamicGlobal("fround"), iw::AsmTyper::kMathFround)
              ->WithGlobal(DynamicGlobal("a_float_function"), v2f)
@@ -1154,7 +1155,8 @@ TEST(ValidateCallExpression) {
   for (size_t ii = 0; ii < arraysize(kFailureTests); ++ii) {
     const auto* test = kFailureTests + ii;
     CHECK(v8::base::OS::SNPrintF(full_test, kFullTestSize, "fround(%s)",
-                                 test->expression) < kFullTestSize);
+                                 test->expression) <
+          static_cast<int>(kFullTestSize));
     if (!ValidationOf(Expression(full_test))
              ->WithImport(DynamicGlobal("fround"), iw::AsmTyper::kMathFround)
              ->WithLocal(DynamicGlobal("ilocal"), iw::AsmType::Int())

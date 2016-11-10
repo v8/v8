@@ -96,8 +96,10 @@ void UpdateBlockControl(BasicBlock* block,
 
   // Update all inputs to the given control node with the correct control.
   DCHECK(control->opcode() == IrOpcode::kMerge ||
-         control->op()->ControlInputCount() == block->PredecessorCount());
-  if (control->op()->ControlInputCount() != block->PredecessorCount()) {
+         static_cast<size_t>(control->op()->ControlInputCount()) ==
+             block->PredecessorCount());
+  if (static_cast<size_t>(control->op()->ControlInputCount()) !=
+      block->PredecessorCount()) {
     return;  // We already re-wired the control inputs of this node.
   }
   for (int i = 0; i < control->op()->ControlInputCount(); i++) {

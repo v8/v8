@@ -988,12 +988,13 @@ void TestRunOobCheckedLoad_pseudo(uint64_t x, bool length_is_immediate) {
   for (uint32_t i = 0; i < kNumElems; i++) {
     uint32_t offset = static_cast<uint32_t>(i * sizeof(int32_t));
     uint32_t expected = buffer[i];
-    CHECK_EQ(expected, m.Call(offset + pseudo_base, kLength));
+    CHECK_EQ(expected,
+             static_cast<uint32_t>(m.Call(offset + pseudo_base, kLength)));
   }
 
   // slightly out-of-bounds accesses.
-  for (int32_t i = kNumElems; i < kNumElems + 30; i++) {
-    uint32_t offset = static_cast<uint32_t>(i * sizeof(int32_t));
+  for (uint32_t i = kNumElems; i < kNumElems + 30; i++) {
+    uint32_t offset = i * sizeof(int32_t);
     CheckOobValue(m.Call(offset + pseudo_base, kLength));
   }
 

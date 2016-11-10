@@ -4171,11 +4171,12 @@ TEST(RunInt32PairAddUseOnlyHighWord) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      CHECK_EQ(static_cast<uint32_t>((*i + *j) >> 32),
-               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
-                      static_cast<uint32_t>(*i >> 32),
-                      static_cast<uint32_t>(*j & 0xffffffff),
-                      static_cast<uint32_t>(*j >> 32)));
+      CHECK_EQ(
+          static_cast<uint32_t>((*i + *j) >> 32),
+          static_cast<uint32_t>(m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                                       static_cast<uint32_t>(*i >> 32),
+                                       static_cast<uint32_t>(*j & 0xffffffff),
+                                       static_cast<uint32_t>(*j >> 32))));
     }
   }
 }
@@ -4253,11 +4254,12 @@ TEST(RunInt32PairSubUseOnlyHighWord) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      CHECK_EQ(static_cast<uint32_t>((*i - *j) >> 32),
-               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
-                      static_cast<uint32_t>(*i >> 32),
-                      static_cast<uint32_t>(*j & 0xffffffff),
-                      static_cast<uint32_t>(*j >> 32)));
+      CHECK_EQ(
+          static_cast<uint32_t>((*i - *j) >> 32),
+          static_cast<uint32_t>(m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                                       static_cast<uint32_t>(*i >> 32),
+                                       static_cast<uint32_t>(*j & 0xffffffff),
+                                       static_cast<uint32_t>(*j >> 32))));
     }
   }
 }
@@ -4335,11 +4337,12 @@ TEST(RunInt32PairMulUseOnlyHighWord) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      CHECK_EQ(static_cast<uint32_t>((*i * *j) >> 32),
-               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
-                      static_cast<uint32_t>(*i >> 32),
-                      static_cast<uint32_t>(*j & 0xffffffff),
-                      static_cast<uint32_t>(*j >> 32)));
+      CHECK_EQ(
+          static_cast<uint32_t>((*i * *j) >> 32),
+          static_cast<uint32_t>(m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                                       static_cast<uint32_t>(*i >> 32),
+                                       static_cast<uint32_t>(*j & 0xffffffff),
+                                       static_cast<uint32_t>(*j >> 32))));
     }
   }
 }
@@ -4414,9 +4417,10 @@ TEST(RunWord32PairShlUseOnlyHighWord) {
 
   FOR_UINT64_INPUTS(i) {
     for (uint32_t j = 0; j < 64; j++) {
-      CHECK_EQ(static_cast<uint32_t>((*i << j) >> 32),
-               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
-                      static_cast<uint32_t>(*i >> 32), j));
+      CHECK_EQ(
+          static_cast<uint32_t>((*i << j) >> 32),
+          static_cast<uint32_t>(m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                                       static_cast<uint32_t>(*i >> 32), j)));
     }
   }
 }
@@ -4487,9 +4491,10 @@ TEST(RunWord32PairShrUseOnlyHighWord) {
 
   FOR_UINT64_INPUTS(i) {
     for (uint32_t j = 0; j < 64; j++) {
-      CHECK_EQ(static_cast<uint32_t>((*i >> j) >> 32),
-               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
-                      static_cast<uint32_t>(*i >> 32), j));
+      CHECK_EQ(
+          static_cast<uint32_t>((*i >> j) >> 32),
+          static_cast<uint32_t>(m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                                       static_cast<uint32_t>(*i >> 32), j)));
     }
   }
 }
@@ -4514,7 +4519,7 @@ TEST(RunWord32PairSar) {
     for (uint32_t j = 0; j < 64; j++) {
       m.Call(static_cast<uint32_t>(*i & 0xffffffff),
              static_cast<uint32_t>(*i >> 32), j);
-      CHECK_EQ(*i >> j, ToInt64(low, high));
+      CHECK_EQ(*i >> j, static_cast<int64_t>(ToInt64(low, high)));
     }
   }
 }
@@ -4528,9 +4533,10 @@ TEST(RunWord32PairSarUseOnlyHighWord) {
 
   FOR_INT64_INPUTS(i) {
     for (uint32_t j = 0; j < 64; j++) {
-      CHECK_EQ(static_cast<uint32_t>((*i >> j) >> 32),
-               m.Call(static_cast<uint32_t>(*i & 0xffffffff),
-                      static_cast<uint32_t>(*i >> 32), j));
+      CHECK_EQ(
+          static_cast<uint32_t>((*i >> j) >> 32),
+          static_cast<uint32_t>(m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+                                       static_cast<uint32_t>(*i >> 32), j)));
     }
   }
 }

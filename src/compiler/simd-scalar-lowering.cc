@@ -137,7 +137,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kStart: {
       int parameter_count = GetParameterCountAfterLowering();
       // Only exchange the node if the parameter count actually changed.
-      if (parameter_count != signature()->parameter_count()) {
+      if (parameter_count != static_cast<int>(signature()->parameter_count())) {
         int delta =
             parameter_count - static_cast<int>(signature()->parameter_count());
         int new_output_count = node->op()->ValueOutputCount() + delta;
@@ -151,7 +151,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
       // not even have to do the default lowering because the the start node,
       // the only input of a parameter node, only changes if the parameter count
       // changes.
-      if (GetParameterCountAfterLowering() != signature()->parameter_count()) {
+      if (GetParameterCountAfterLowering() !=
+          static_cast<int>(signature()->parameter_count())) {
         int old_index = ParameterIndexOf(node->op());
         int new_index = GetParameterIndexAfterLowering(signature(), old_index);
         if (old_index == new_index) {
@@ -177,7 +178,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kReturn: {
       DefaultLowering(node);
       int new_return_count = GetReturnCountAfterLowering(signature());
-      if (signature()->return_count() != new_return_count) {
+      if (static_cast<int>(signature()->return_count()) != new_return_count) {
         NodeProperties::ChangeOp(node, common()->Return(new_return_count));
       }
       break;
