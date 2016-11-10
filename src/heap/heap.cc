@@ -1633,10 +1633,8 @@ void Heap::Scavenge() {
 
   ScavengeVisitor scavenge_visitor(this);
 
-  if (FLAG_scavenge_reclaim_unmodified_objects) {
-    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-        &IsUnmodifiedHeapObject);
-  }
+  isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+      &IsUnmodifiedHeapObject);
 
   {
     // Copy roots.
@@ -1684,29 +1682,12 @@ void Heap::Scavenge() {
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
 
-  if (FLAG_scavenge_reclaim_unmodified_objects) {
-    isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
-        &IsUnscavengedHeapObject);
+  isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
+      &IsUnscavengedHeapObject);
 
-    isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-        &scavenge_visitor);
-    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  } else {
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
-    while (isolate()->global_handles()->IterateObjectGroups(
-        &scavenge_visitor, &IsUnscavengedHeapObject)) {
-      new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-    }
-    isolate()->global_handles()->RemoveObjectGroups();
-    isolate()->global_handles()->RemoveImplicitRefGroups();
-
-    isolate()->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
-        &IsUnscavengedHeapObject);
-
-    isolate()->global_handles()->IterateNewSpaceWeakIndependentRoots(
-        &scavenge_visitor);
-    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  }
+  isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
+      &scavenge_visitor);
+  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);

@@ -446,7 +446,6 @@ void GCTracer::PrintNVP() const {
           "roots=%.2f "
           "code=%.2f "
           "semispace=%.2f "
-          "object_groups=%.2f "
           "external.prologue=%.2f "
           "external.epilogue=%.2f "
           "external_weak_global_handles=%.2f "
@@ -483,7 +482,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::SCAVENGER_ROOTS],
           current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES],
           current_.scopes[Scope::SCAVENGER_SEMISPACE],
-          current_.scopes[Scope::SCAVENGER_OBJECT_GROUPS],
           current_.scopes[Scope::EXTERNAL_PROLOGUE],
           current_.scopes[Scope::EXTERNAL_EPILOGUE],
           current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
