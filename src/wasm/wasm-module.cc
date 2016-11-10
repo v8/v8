@@ -916,10 +916,14 @@ static Handle<Code> CompileImportWrapper(Isolate* isolate, int index,
                                          MaybeHandle<String> import_name) {
   Handle<Code> code;
   WasmFunction* other_func = GetWasmFunctionForImportWrapper(isolate, target);
-  if (other_func && sig->Equals(other_func->sig)) {
-    // Signature matched. Unwrap the JS->WASM wrapper and return the raw
-    // WASM function code.
-    return UnwrapImportWrapper(target);
+  if (other_func) {
+    if (sig->Equals(other_func->sig)) {
+      // Signature matched. Unwrap the JS->WASM wrapper and return the raw
+      // WASM function code.
+      return UnwrapImportWrapper(target);
+    } else {
+      return Handle<Code>::null();
+    }
   } else {
     // Signature mismatch. Compile a new wrapper for the new signature.
     return compiler::CompileWasmToJSWrapper(isolate, target, sig, index,
@@ -1449,6 +1453,11 @@ class WasmInstanceBuilder {
           Handle<Code> import_wrapper = CompileImportWrapper(
               isolate_, index, module_->functions[import.index].sig,
               Handle<JSReceiver>::cast(function), module_name, function_name);
+          if (import_wrapper.is_null()) {
+            ReportFFIError("imported function does not match the expected type",
+                           index, module_name, function_name);
+            return -1;
+          }
           code_table->set(num_imported_functions, *import_wrapper);
           RecordStats(isolate_, *import_wrapper);
           num_imported_functions++;

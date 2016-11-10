@@ -128,9 +128,9 @@ var expect_no_elison = 1;
 
 // function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
-// In this case, second_export has less params than first_import,
-// So that wrappers will not be removed
-(function TestWasmWrapperNoElisionLessParams() {
+// In this case, second_export has fewer params than first_import,
+// so instantiation should fail.
+assertThrows(function TestWasmWrapperNoElisionLessParams() {
     var imported = function (a) {
         return a;
     };
@@ -181,13 +181,13 @@ var expect_no_elison = 1;
     assertEquals(the_export(0, 2), 0);
     assertEquals(the_export(9.9, 4.3), 9);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
-})();
+});
 
 // function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
 // In this case, second_export has more params than first_import,
-// So that wrappers will not be removed
-(function TestWasmWrapperNoElisionMoreParams() {
+// so instantiation should fail.
+assertThrows(function TestWasmWrapperNoElisionMoreParams() {
     var imported = function (a, b, c) {
         return a+b+c;
     };
@@ -240,13 +240,13 @@ var expect_no_elison = 1;
     assertEquals(the_export(0, 0), 0);
     assertEquals(the_export(1.1, 2.7), 3);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
-})();
+});
 
 // function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
 // In this case, second_export has different params type with first_import,
-// So that wrappers will not be removed
-(function TestWasmWrapperNoElisionTypeMismatch() {
+// so instantiation should fail.
+assertThrows(function TestWasmWrapperNoElisionTypeMismatch() {
     var imported = function (a, b) {
         return a+b;
     };
@@ -298,4 +298,4 @@ var expect_no_elison = 1;
     assertEquals(the_export(0.0, 0.0), 0);
     assertEquals(the_export(2, -2), 0);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
-})();
+});
