@@ -9203,7 +9203,7 @@ class AllocationSite: public Struct {
   DECLARE_CAST(AllocationSite)
   static inline AllocationSiteMode GetMode(
       ElementsKind boilerplate_elements_kind);
-  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;

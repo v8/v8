@@ -123,6 +123,13 @@ Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
 // static
 Callable CodeFactory::KeyedStoreIC_Megamorphic(Isolate* isolate,
                                                LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    return Callable(
+        language_mode == STRICT
+            ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict_TF()
+            : isolate->builtins()->KeyedStoreIC_Megamorphic_TF(),
+        StoreWithVectorDescriptor(isolate));
+  }
   return Callable(language_mode == STRICT
                       ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
                       : isolate->builtins()->KeyedStoreIC_Megamorphic(),

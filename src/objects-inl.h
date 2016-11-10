@@ -1670,18 +1670,6 @@ AllocationSiteMode AllocationSite::GetMode(
   return DONT_TRACK_ALLOCATION_SITE;
 }
 
-
-AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
-                                           ElementsKind to) {
-  if (IsFastSmiElementsKind(from) &&
-      IsMoreGeneralElementsKindTransition(from, to)) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
-}
-
-
 inline bool AllocationSite::CanTrack(InstanceType type) {
   if (FLAG_allocation_site_pretenuring) {
     return type == JS_ARRAY_TYPE ||

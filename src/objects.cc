@@ -15937,6 +15937,14 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
   return result;
 }
 
+AllocationSiteMode AllocationSite::GetMode(ElementsKind from, ElementsKind to) {
+  if (IsFastSmiElementsKind(from) &&
+      IsMoreGeneralElementsKindTransition(from, to)) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
 
 const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
   switch (decision) {

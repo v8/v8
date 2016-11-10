@@ -833,6 +833,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
 
 Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
                                                  ExtraICState extra_state) {
+  DCHECK(!FLAG_tf_store_ic_stub);
   LanguageMode mode = StoreICState::GetLanguageMode(extra_state);
   return is_strict(mode)
              ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
@@ -1713,7 +1714,9 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     if ((object->IsJSObject() && key->IsSmi()) ||
         (object->IsString() && key->IsNumber())) {
       UpdateLoadElement(Handle<HeapObject>::cast(object));
-      TRACE_IC("LoadIC", key);
+      if (is_vector_set()) {
+        TRACE_IC("LoadIC", key);
+      }
     }
   }
 

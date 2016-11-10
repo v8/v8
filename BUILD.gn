@@ -1418,6 +1418,8 @@ v8_source_set("v8_base") {
     "src/ic/ic-state.h",
     "src/ic/ic.cc",
     "src/ic/ic.h",
+    "src/ic/keyed-store-generic.cc",
+    "src/ic/keyed-store-generic.h",
     "src/ic/stub-cache.cc",
     "src/ic/stub-cache.h",
     "src/icu_util.cc",

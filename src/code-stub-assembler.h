@@ -1118,6 +1118,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                          ElementsKind kind, ParameterMode mode,
                                          int base_size = 0);
 
+ protected:
+  void HandleStoreICHandlerCase(const StoreICParameters* p,
+                                compiler::Node* handler, Label* miss);
+
  private:
   friend class CodeStubArguments;
 
@@ -1158,9 +1162,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                    compiler::Node* holder,
                                    compiler::Node* value,
                                    bool transition_to_field, Label* miss);
-
-  void HandleStoreICHandlerCase(const StoreICParameters* p,
-                                compiler::Node* handler, Label* miss);
 
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
   void EmitFastElementsBoundsCheck(compiler::Node* object,

@@ -960,6 +960,8 @@
         'ic/ic.h',
         'ic/ic-compiler.cc',
         'ic/ic-compiler.h',
+        'ic/keyed-store-generic.cc',
+        'ic/keyed-store-generic.h',
         'identity-map.cc',
         'identity-map.h',
         'interface-descriptors.cc',

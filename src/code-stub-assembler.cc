@@ -2245,10 +2245,6 @@ Node* CodeStubAssembler::GrowElementsCapacity(
   // Allocate the new backing store.
   Node* new_elements = AllocateFixedArray(to_kind, new_capacity, mode);
 
-  // Fill in the added capacity in the new store with holes.
-  FillFixedArrayWithValue(to_kind, new_elements, capacity, new_capacity,
-                          Heap::kTheHoleValueRootIndex, mode);
-
   // Copy the elements from the old elements store to the new.
   // The size-check above guarantees that the |new_elements| is allocated
   // in new space so we can skip the write barrier.
@@ -5278,6 +5274,7 @@ void CodeStubAssembler::EmitFastElementsBoundsCheck(Node* object,
                                                     Node* is_jsarray_condition,
                                                     Label* miss) {
   Variable var_length(this, MachineType::PointerRepresentation());
+  Comment("Fast elements bounds check");
   Label if_array(this), length_loaded(this, &var_length);
   GotoIf(is_jsarray_condition, &if_array);
   {
@@ -5302,7 +5299,7 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
                                         Label* out_of_bounds, Label* miss) {
   Label if_typed_array(this), if_fast_packed(this), if_fast_holey(this),
       if_fast_double(this), if_fast_holey_double(this), if_nonfast(this),
-      if_dictionary(this), unreachable(this);
+      if_dictionary(this);
   GotoIf(
       IntPtrGreaterThan(elements_kind, IntPtrConstant(LAST_FAST_ELEMENTS_KIND)),
       &if_nonfast);
