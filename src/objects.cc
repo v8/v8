@@ -7985,12 +7985,30 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
   return object->map()->is_extensible();
 }
 
+namespace {
 
 template <typename Dictionary>
-static void ApplyAttributesToDictionary(Dictionary* dictionary,
-                                        const PropertyAttributes attributes) {
+void DictionaryDetailsAtPut(Isolate* isolate, Handle<Dictionary> dictionary,
+                            int entry, PropertyDetails details) {
+  dictionary->DetailsAtPut(entry, details);
+}
+
+template <>
+void DictionaryDetailsAtPut<GlobalDictionary>(
+    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
+    PropertyDetails details) {
+  Object* value = dictionary->ValueAt(entry);
+  DCHECK(value->IsPropertyCell());
+  value = PropertyCell::cast(value)->value();
+  PropertyCell::PrepareForValue(dictionary, entry, handle(value, isolate),
+                                details);
+}
+
+template <typename Dictionary>
+void ApplyAttributesToDictionary(Isolate* isolate,
+                                 Handle<Dictionary> dictionary,
+                                 const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
-  Isolate* isolate = dictionary->GetIsolate();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
     if (dictionary->IsKey(isolate, k) &&
@@ -8005,11 +8023,12 @@ static void ApplyAttributesToDictionary(Dictionary* dictionary,
       }
       details = details.CopyAddAttributes(
           static_cast<PropertyAttributes>(attrs));
-      dictionary->DetailsAtPut(i, details);
+      DictionaryDetailsAtPut<Dictionary>(isolate, dictionary, i, details);
     }
   }
 }
 
+}  // namespace
 
 template <PropertyAttributes attrs>
 Maybe<bool> JSObject::PreventExtensionsWithTransition(
@@ -8098,9 +8117,13 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
     if (attrs != NONE) {
       if (object->IsJSGlobalObject()) {
-        ApplyAttributesToDictionary(object->global_dictionary(), attrs);
+        Handle<GlobalDictionary> dictionary(object->global_dictionary(),
+                                            isolate);
+        ApplyAttributesToDictionary(isolate, dictionary, attrs);
       } else {
-        ApplyAttributesToDictionary(object->property_dictionary(), attrs);
+        Handle<NameDictionary> dictionary(object->property_dictionary(),
+                                          isolate);
+        ApplyAttributesToDictionary(isolate, dictionary, attrs);
       }
     }
   }
@@ -8124,11 +8147,12 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (object->elements() != isolate->heap()->empty_slow_element_dictionary()) {
-    SeededNumberDictionary* dictionary = object->element_dictionary();
+    Handle<SeededNumberDictionary> dictionary(object->element_dictionary(),
+                                              isolate);
     // Make sure we never go back to the fast case
-    object->RequireSlowElements(dictionary);
+    object->RequireSlowElements(*dictionary);
     if (attrs != NONE) {
-      ApplyAttributesToDictionary(dictionary, attrs);
+      ApplyAttributesToDictionary(isolate, dictionary, attrs);
     }
   }
 
