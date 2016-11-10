@@ -2341,7 +2341,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   __ LoadSmiLiteral(r5, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ LoadP(r3, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
   __ mov(r2, Operand(arg_count));
-  __ Call(code, RelocInfo::CODE_TARGET);
+  CallIC(code);
   OperandStackDepthDecrement(arg_count + 1);
 
   RecordJSReturnSite(expr);
@@ -2488,7 +2488,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ LoadSmiLiteral(r5, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate());
-  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+  CallIC(stub.GetCode());
   OperandStackDepthDecrement(arg_count + 1);
   PrepareForBailoutForId(expr->ReturnId(), BailoutState::TOS_REGISTER);
   RestoreContext();
