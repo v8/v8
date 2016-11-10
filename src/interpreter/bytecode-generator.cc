@@ -2839,7 +2839,7 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
 
-    if (left->ToBooleanIsTrue() || right->ToBooleanIsTrue()) {
+    if (left->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
     } else if (left->ToBooleanIsFalse() && right->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
@@ -2874,7 +2874,7 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
 
-    if (left->ToBooleanIsFalse() || right->ToBooleanIsFalse()) {
+    if (left->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
     } else if (left->ToBooleanIsTrue() && right->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
