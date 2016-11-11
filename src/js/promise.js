@@ -266,16 +266,11 @@ function ResolvePromise(promise, resolution) {
     }
 
     if (IS_CALLABLE(then)) {
-      // TODO(gsathya): Remove container for callbacks when this is
-      // moved to CPP/TF.
-      var callbacks = %create_resolving_functions(promise, false);
       if (DEBUG_IS_ACTIVE && IsPromise(resolution)) {
           // Mark the dependency of the new promise on the resolution
         SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
       }
-      %EnqueuePromiseResolveThenableJob(
-          resolution, then, callbacks[kResolveCallback],
-          callbacks[kRejectCallback]);
+      %EnqueuePromiseResolveThenableJob(promise, resolution, then);
       return;
     }
   }

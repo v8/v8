@@ -3257,9 +3257,8 @@ void Isolate::RunMicrotasksInternal() {
         if (microtask->IsJSFunction()) {
           context = Handle<JSFunction>::cast(microtask)->context();
         } else if (microtask->IsPromiseResolveThenableJobInfo()) {
-          context = Handle<PromiseResolveThenableJobInfo>::cast(microtask)
-                        ->resolve()
-                        ->context();
+          context =
+              Handle<PromiseResolveThenableJobInfo>::cast(microtask)->context();
         } else {
           context = Handle<PromiseReactionJobInfo>::cast(microtask)->context();
         }

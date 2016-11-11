@@ -71,7 +71,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(
       Handle<JSReceiver> thenable, Handle<JSReceiver> then,
       Handle<JSFunction> resolve, Handle<JSFunction> reject,
-      Handle<Object> debug_id, Handle<Object> debug_name);
+      Handle<Object> debug_id, Handle<Object> debug_name,
+      Handle<Context> context);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();

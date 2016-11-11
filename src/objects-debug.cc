@@ -972,6 +972,7 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
   CHECK(reject()->IsJSFunction());
   CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
   CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
+  CHECK(context()->IsContext());
 }
 
 void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {

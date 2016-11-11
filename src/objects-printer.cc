@@ -1171,6 +1171,7 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
   os << "\n - reject: " << Brief(reject());
   os << "\n - debug id: " << Brief(debug_id());
   os << "\n - debug name: " << Brief(debug_name());
+  os << "\n - context: " << Brief(context());
   os << "\n";
 }
 

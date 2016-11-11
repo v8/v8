@@ -6812,6 +6812,7 @@ class PromiseResolveThenableJobInfo : public Struct {
   DECL_ACCESSORS(reject, JSFunction)
   DECL_ACCESSORS(debug_id, Object)
   DECL_ACCESSORS(debug_name, Object)
+  DECL_ACCESSORS(context, Context)
 
   static const int kThenableOffset = Struct::kHeaderSize;
   static const int kThenOffset = kThenableOffset + kPointerSize;
@@ -6819,7 +6820,8 @@ class PromiseResolveThenableJobInfo : public Struct {
   static const int kRejectOffset = kResolveOffset + kPointerSize;
   static const int kDebugIdOffset = kRejectOffset + kPointerSize;
   static const int kDebugNameOffset = kDebugIdOffset + kPointerSize;
-  static const int kSize = kDebugNameOffset + kPointerSize;
+  static const int kContextOffset = kDebugNameOffset + kPointerSize;
+  static const int kSize = kContextOffset + kPointerSize;
 
   DECLARE_CAST(PromiseResolveThenableJobInfo)
   DECLARE_PRINTER(PromiseResolveThenableJobInfo)
