@@ -626,33 +626,44 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   // Check if we would overflow the allowed maximum string length.
   Node* check = graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
                                  jsgraph()->Constant(String::kMaxLength));
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  {
-    // Throw a RangeError in case of overflow.
-    Node* vfalse = efalse = graph()->NewNode(
-        javascript()->CallRuntime(Runtime::kThrowInvalidStringLength), context,
-        frame_state, efalse, if_false);
-    if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-    if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
-    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-    NodeProperties::MergeControlToEnd(graph(), common(), if_false);
-    Revisit(graph()->end());
+  if (isolate()->IsStringLengthOverflowIntact()) {
+    // Add a code dependency on the string length overflow protector.
+    dependencies()->AssumePropertyCell(factory()->string_length_protector());
 
-    // Update potential {IfException} uses of {node} to point to the
-    // %ThrowInvalidStringLength runtime call node instead.
-    for (Edge edge : node->use_edges()) {
-      if (edge.from()->opcode() == IrOpcode::kIfException) {
-        DCHECK(NodeProperties::IsControlEdge(edge) ||
-               NodeProperties::IsEffectEdge(edge));
-        edge.UpdateTo(vfalse);
-        Revisit(edge.from());
+    // We can just deoptimize if the {check} fails. Besides generating a
+    // shorter code sequence than the version below, this has the additional
+    // benefit of not holding on to the lazy {frame_state} and thus potentially
+    // reduces the number of live ranges and allows for more truncations.
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+  } else {
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = effect;
+    {
+      // Throw a RangeError in case of overflow.
+      Node* vfalse = efalse = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
+          context, frame_state, efalse, if_false);
+      if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+      if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), if_false);
+      Revisit(graph()->end());
+
+      // Update potential {IfException} uses of {node} to point to the
+      // %ThrowInvalidStringLength runtime call node instead.
+      for (Edge edge : node->use_edges()) {
+        if (edge.from()->opcode() == IrOpcode::kIfException) {
+          DCHECK(NodeProperties::IsControlEdge(edge) ||
+                 NodeProperties::IsEffectEdge(edge));
+          edge.UpdateTo(vfalse);
+          Revisit(edge.from());
+        }
       }
     }
+    control = graph()->NewNode(common()->IfTrue(), branch);
   }
-  control = graph()->NewNode(common()->IfTrue(), branch);
 
   // Figure out the map for the resulting ConsString.
   // TODO(turbofan): We currently just use the cons_string_map here for
