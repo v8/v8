@@ -396,26 +396,9 @@
   'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5051
-  'language/expressions/arrow-function/params-trailing-comma': [FAIL],
-  'language/expressions/arrow-function/params-trailing-comma-length': [FAIL],
-  'language/expressions/function/params-trailing-comma': [FAIL],
-  'language/expressions/function/params-trailing-comma-arguments': [FAIL],
-  'language/expressions/function/params-trailing-comma-length': [FAIL],
-  'language/expressions/generators/params-trailing-comma': [FAIL],
-  'language/expressions/generators/params-trailing-comma-arguments': [FAIL],
-  'language/expressions/generators/params-trailing-comma-length': [FAIL],
-  'language/expressions/object/method-definition/params-trailing-comma': [FAIL],
-  'language/expressions/object/method-definition/params-trailing-comma-arguments': [FAIL],
-  'language/expressions/object/method-definition/params-trailing-comma-length': [FAIL],
+  'language/expressions/call/trailing-comma': [FAIL],
   'language/statements/class/definition/params-trailing-comma': [FAIL],
   'language/statements/class/definition/params-trailing-comma-arguments': [FAIL],
-  'language/statements/class/definition/params-trailing-comma-length': [FAIL],
-  'language/statements/function/params-trailing-comma': [FAIL],
-  'language/statements/function/params-trailing-comma-arguments': [FAIL],
-  'language/statements/function/params-trailing-comma-length': [FAIL],
-  'language/statements/generators/params-trailing-comma': [FAIL],
-  'language/statements/generators/params-trailing-comma-arguments': [FAIL],
-  'language/statements/generators/params-trailing-comma-length': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5326
   'language/expressions/super/call-new-target-undef': [FAIL],

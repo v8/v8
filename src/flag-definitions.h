@@ -201,8 +201,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
-  V(harmony_trailing_commas,                                            \
-    "harmony trailing commas in function parameter lists")              \
   V(harmony_class_fields, "harmony public fields in class literals")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
@@ -211,6 +209,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_restrictive_generators,                         \
     "harmony restrictions on generator declarations")       \
   V(harmony_tailcalls, "harmony tail calls")                \
+  V(harmony_trailing_commas,                                \
+    "harmony trailing commas in function parameter lists")  \
   V(harmony_string_padding, "harmony String-padding methods")
 
 #ifdef V8_I18N_SUPPORT
