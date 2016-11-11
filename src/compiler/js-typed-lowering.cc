@@ -985,6 +985,17 @@ Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSToName(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Name())) {
+    // JSToName(x:name) => x
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
   Type* input_type = NodeProperties::GetType(input);
@@ -2193,6 +2204,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToInteger(node);
     case IrOpcode::kJSToLength:
       return ReduceJSToLength(node);
+    case IrOpcode::kJSToName:
+      return ReduceJSToName(node);
     case IrOpcode::kJSToNumber:
       return ReduceJSToNumber(node);
     case IrOpcode::kJSToString:

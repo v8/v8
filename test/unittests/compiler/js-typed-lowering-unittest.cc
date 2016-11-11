@@ -121,8 +121,42 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
 
 
 // -----------------------------------------------------------------------------
-// JSToNumber
+// JSToName
 
+TEST_F(JSTypedLoweringTest, JSToNameWithString) {
+  Node* const input = Parameter(Type::String(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(JSTypedLoweringTest, JSToNameWithSymbol) {
+  Node* const input = Parameter(Type::Symbol(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(JSTypedLoweringTest, JSToNameWithAny) {
+  Node* const input = Parameter(Type::Any(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_FALSE(r.Changed());
+}
+
+// -----------------------------------------------------------------------------
+// JSToNumber
 
 TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Node* const input = Parameter(Type::PlainPrimitive(), 0);
