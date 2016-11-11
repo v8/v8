@@ -1769,7 +1769,7 @@ WASM_EXEC_TEST(CheckMachIntsZero) {
         /**/ kExprI8Const, 0);           // --
 
   module.BlankMemory();
-  CHECK_EQ(0, r.Call((kNumElems - 1) * 4));
+  CHECK_EQ(0u, r.Call((kNumElems - 1) * 4));
 }
 
 WASM_EXEC_TEST(MemF32_Sum) {
@@ -1944,7 +1944,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
                       code + arraysize(code));
   } else {
-    CHECK_EQ(2, sig->parameter_count());
+    CHECK_EQ(2u, sig->parameter_count());
     byte code[] = {WASM_NO_LOCALS,           kExprGetLocal, 0, kExprGetLocal, 1,
                    static_cast<byte>(opcode)};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,

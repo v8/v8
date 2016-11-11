@@ -574,7 +574,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   // Decodes the locals declarations, if any, populating {local_type_vec_}.
   void DecodeLocalDecls() {
-    DCHECK_EQ(0, local_type_vec_.size());
+    DCHECK_EQ(0u, local_type_vec_.size());
     // Initialize {local_type_vec} from signature.
     if (sig_) {
       local_type_vec_.reserve(sig_->parameter_count());

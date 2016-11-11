@@ -1698,7 +1698,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
   WasmVal PopArity(size_t arity) {
     if (arity == 0) return WasmVal();
-    CHECK_EQ(1, arity);
+    CHECK_EQ(1u, arity);
     return Pop();
   }
 

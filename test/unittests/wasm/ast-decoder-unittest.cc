@@ -2246,7 +2246,7 @@ class BranchTableIteratorTest : public TestWithZone {
     Decoder decoder(start, end);
     BranchTableOperand operand(&decoder, start);
     BranchTableIterator iterator(&decoder, operand);
-    EXPECT_EQ(end - start - 1, iterator.length());
+    EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_TRUE(decoder.ok());
   }
   void CheckBrTableError(const byte* start, const byte* end) {
@@ -2304,16 +2304,18 @@ class WasmOpcodeLengthTest : public TestWithZone {
   WasmOpcodeLengthTest() : TestWithZone() {}
 };
 
-#define EXPECT_LENGTH(expected, opcode)                           \
-  {                                                               \
-    static const byte code[] = {opcode, 0, 0, 0, 0, 0, 0, 0, 0};  \
-    EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code))); \
+#define EXPECT_LENGTH(expected, opcode)                          \
+  {                                                              \
+    static const byte code[] = {opcode, 0, 0, 0, 0, 0, 0, 0, 0}; \
+    EXPECT_EQ(static_cast<unsigned>(expected),                   \
+              OpcodeLength(code, code + sizeof(code)));          \
   }
 
-#define EXPECT_LENGTH_N(expected, ...)                            \
-  {                                                               \
-    static const byte code[] = {__VA_ARGS__};                     \
-    EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code))); \
+#define EXPECT_LENGTH_N(expected, ...)                  \
+  {                                                     \
+    static const byte code[] = {__VA_ARGS__};           \
+    EXPECT_EQ(static_cast<unsigned>(expected),          \
+              OpcodeLength(code, code + sizeof(code))); \
   }
 
 TEST_F(WasmOpcodeLengthTest, Statements) {
@@ -2571,7 +2573,7 @@ TEST_F(LocalDeclDecoderTest, NoLocals) {
   AstLocalDecls decls(zone());
   bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
   EXPECT_TRUE(result);
-  EXPECT_EQ(0, decls.total_local_count);
+  EXPECT_EQ(0u, decls.total_local_count);
 }
 
 TEST_F(LocalDeclDecoderTest, OneLocal) {
@@ -2582,10 +2584,10 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
     AstLocalDecls decls(zone());
     bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
-    EXPECT_EQ(1, decls.total_local_count);
+    EXPECT_EQ(1u, decls.total_local_count);
 
     LocalTypeMap map = Expand(decls);
-    EXPECT_EQ(1, map.size());
+    EXPECT_EQ(1u, map.size());
     EXPECT_EQ(type, map[0]);
   }
 }
@@ -2599,10 +2601,10 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
     bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
     EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
-    EXPECT_EQ(5, decls.total_local_count);
+    EXPECT_EQ(5u, decls.total_local_count);
 
     LocalTypeMap map = Expand(decls);
-    EXPECT_EQ(5, map.size());
+    EXPECT_EQ(5u, map.size());
     ExpectRun(map, 0, type, 5);
   }
 }
@@ -2618,10 +2620,11 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
           bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
           EXPECT_TRUE(result);
           EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
-          EXPECT_EQ(a + b + c + d, decls.total_local_count);
+          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d),
+                    decls.total_local_count);
 
           LocalTypeMap map = Expand(decls);
-          EXPECT_EQ(a + b + c + d, map.size());
+          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d), map.size());
 
           size_t pos = 0;
           pos = ExpectRun(map, pos, kAstI32, a);
@@ -2647,7 +2650,7 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   AstLocalDecls decls(zone());
   bool result = DecodeLocalDecls(decls, data, end);
   EXPECT_TRUE(result);
-  EXPECT_EQ(5 + 1337 + 212, decls.total_local_count);
+  EXPECT_EQ(5u + 1337u + 212u, decls.total_local_count);
 
   LocalTypeMap map = Expand(decls);
   size_t pos = 0;
@@ -2699,8 +2702,8 @@ TEST_F(BytecodeIteratorTest, WithAstDecls) {
   AstLocalDecls decls(zone());
   BytecodeIterator iter(code, code + sizeof(code), &decls);
 
-  EXPECT_EQ(3, decls.decls_encoded_size);
-  EXPECT_EQ(3, iter.pc_offset());
+  EXPECT_EQ(3u, decls.decls_encoded_size);
+  EXPECT_EQ(3u, iter.pc_offset());
   EXPECT_TRUE(iter.has_next());
   EXPECT_EQ(kExprI8Const, iter.current());
   iter.next();

@@ -300,7 +300,7 @@ WASM_EXEC_TEST(I64DivU_Trap) {
   WasmRunner<uint64_t> r(execution_mode, MachineType::Uint64(),
                          MachineType::Uint64());
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(asu64(0), asu64(100)));
+  CHECK_EQ(0u, r.Call(asu64(0), asu64(100)));
   CHECK_TRAP64(r.Call(asu64(100), asu64(0)));
   CHECK_TRAP64(r.Call(asu64(1001), asu64(0)));
   CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
@@ -371,7 +371,7 @@ WASM_EXEC_TEST(I64RemU_Trap) {
   WasmRunner<uint64_t> r(execution_mode, MachineType::Uint64(),
                          MachineType::Uint64());
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(17, r.Call(asu64(217), asu64(100)));
+  CHECK_EQ(17u, r.Call(asu64(217), asu64(100)));
   CHECK_TRAP64(r.Call(asu64(100), asu64(0)));
   CHECK_TRAP64(r.Call(asu64(1001), asu64(0)));
   CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));

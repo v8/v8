@@ -12,10 +12,10 @@ namespace wasm {
 
 class WasmMacroGenTest : public TestWithZone {};
 
-#define EXPECT_SIZE(size, ...)     \
-  do {                             \
-    byte code[] = {__VA_ARGS__};   \
-    EXPECT_EQ(size, sizeof(code)); \
+#define EXPECT_SIZE(size, ...)                          \
+  do {                                                  \
+    byte code[] = {__VA_ARGS__};                        \
+    EXPECT_EQ(static_cast<size_t>(size), sizeof(code)); \
   } while (false)
 
 TEST_F(WasmMacroGenTest, Constants) {

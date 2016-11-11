@@ -100,7 +100,7 @@ class TestingModule : public ModuleEnv {
 
   byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
-    CHECK_EQ(0, instance->mem_size);
+    CHECK_EQ(0u, instance->mem_size);
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
     CHECK(instance->mem_start);
     memset(instance->mem_start, 0, size);

@@ -52,7 +52,7 @@ TEST(WasmRelocationX64MemoryReference) {
   byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
-  size_t offset = 1234;
+  int offset = 1234;
 
   // Relocating references by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
