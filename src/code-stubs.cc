@@ -318,29 +318,6 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
   }
 }
 
-
-std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
-  switch (flags) {
-    case STRING_ADD_CHECK_NONE:
-      return os << "CheckNone";
-    case STRING_ADD_CHECK_LEFT:
-      return os << "CheckLeft";
-    case STRING_ADD_CHECK_RIGHT:
-      return os << "CheckRight";
-    case STRING_ADD_CHECK_BOTH:
-      return os << "CheckBoth";
-    case STRING_ADD_CONVERT_LEFT:
-      return os << "ConvertLeft";
-    case STRING_ADD_CONVERT_RIGHT:
-      return os << "ConvertRight";
-    case STRING_ADD_CONVERT:
-      break;
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << "StringAddStub_" << flags() << "_" << pretenure_flag();
 }
@@ -2357,27 +2334,6 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   os << ": " << from << "=>" << to << "]" << std::endl;
 }
 
-
-// TODO(svenpanne) Make this a real infix_ostream_iterator.
-class SimpleListPrinter {
- public:
-  explicit SimpleListPrinter(std::ostream& os) : os_(os), first_(true) {}
-
-  void Add(const char* s) {
-    if (first_) {
-      first_ = false;
-    } else {
-      os_ << ",";
-    }
-    os_ << s;
-  }
-
- private:
-  std::ostream& os_;
-  bool first_;
-};
-
-
 void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state();
 }
@@ -3043,81 +2999,52 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
-  Types new_types = types();
-  Types old_types = new_types;
-  bool to_boolean_value = new_types.UpdateStatus(isolate(), object);
-  TraceTransition(old_types, new_types);
-  set_sub_minor_key(TypesBits::update(sub_minor_key(), new_types.ToIntegral()));
+  ToBooleanHints old_hints = hints();
+  ToBooleanHints new_hints = old_hints;
+  bool to_boolean_value = false;  // Dummy initialization.
+  if (object->IsUndefined(isolate())) {
+    new_hints |= ToBooleanHint::kUndefined;
+    to_boolean_value = false;
+  } else if (object->IsBoolean()) {
+    new_hints |= ToBooleanHint::kBoolean;
+    to_boolean_value = object->IsTrue(isolate());
+  } else if (object->IsNull(isolate())) {
+    new_hints |= ToBooleanHint::kNull;
+    to_boolean_value = false;
+  } else if (object->IsSmi()) {
+    new_hints |= ToBooleanHint::kSmallInteger;
+    to_boolean_value = Smi::cast(*object)->value() != 0;
+  } else if (object->IsJSReceiver()) {
+    new_hints |= ToBooleanHint::kReceiver;
+    to_boolean_value = !object->IsUndetectable();
+  } else if (object->IsString()) {
+    DCHECK(!object->IsUndetectable());
+    new_hints |= ToBooleanHint::kString;
+    to_boolean_value = String::cast(*object)->length() != 0;
+  } else if (object->IsSymbol()) {
+    new_hints |= ToBooleanHint::kSymbol;
+    to_boolean_value = true;
+  } else if (object->IsHeapNumber()) {
+    DCHECK(!object->IsUndetectable());
+    new_hints |= ToBooleanHint::kHeapNumber;
+    double value = HeapNumber::cast(*object)->value();
+    to_boolean_value = value != 0 && !std::isnan(value);
+  } else if (object->IsSimd128Value()) {
+    new_hints |= ToBooleanHint::kSimdValue;
+    to_boolean_value = true;
+  } else {
+    // We should never see an internal object at runtime here!
+    UNREACHABLE();
+    to_boolean_value = true;
+  }
+  TraceTransition(old_hints, new_hints);
+  set_sub_minor_key(HintsBits::update(sub_minor_key(), new_hints));
   return to_boolean_value;
 }
 
 void ToBooleanICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << types();
+  os << hints();
 }
-
-std::ostream& operator<<(std::ostream& os, const ToBooleanICStub::Types& s) {
-  os << "(";
-  SimpleListPrinter p(os);
-  if (s.IsEmpty()) p.Add("None");
-  if (s.Contains(ToBooleanICStub::UNDEFINED)) p.Add("Undefined");
-  if (s.Contains(ToBooleanICStub::BOOLEAN)) p.Add("Bool");
-  if (s.Contains(ToBooleanICStub::NULL_TYPE)) p.Add("Null");
-  if (s.Contains(ToBooleanICStub::SMI)) p.Add("Smi");
-  if (s.Contains(ToBooleanICStub::SPEC_OBJECT)) p.Add("SpecObject");
-  if (s.Contains(ToBooleanICStub::STRING)) p.Add("String");
-  if (s.Contains(ToBooleanICStub::SYMBOL)) p.Add("Symbol");
-  if (s.Contains(ToBooleanICStub::HEAP_NUMBER)) p.Add("HeapNumber");
-  if (s.Contains(ToBooleanICStub::SIMD_VALUE)) p.Add("SimdValue");
-  return os << ")";
-}
-
-bool ToBooleanICStub::Types::UpdateStatus(Isolate* isolate,
-                                          Handle<Object> object) {
-  if (object->IsUndefined(isolate)) {
-    Add(UNDEFINED);
-    return false;
-  } else if (object->IsBoolean()) {
-    Add(BOOLEAN);
-    return object->IsTrue(isolate);
-  } else if (object->IsNull(isolate)) {
-    Add(NULL_TYPE);
-    return false;
-  } else if (object->IsSmi()) {
-    Add(SMI);
-    return Smi::cast(*object)->value() != 0;
-  } else if (object->IsJSReceiver()) {
-    Add(SPEC_OBJECT);
-    return !object->IsUndetectable();
-  } else if (object->IsString()) {
-    DCHECK(!object->IsUndetectable());
-    Add(STRING);
-    return String::cast(*object)->length() != 0;
-  } else if (object->IsSymbol()) {
-    Add(SYMBOL);
-    return true;
-  } else if (object->IsHeapNumber()) {
-    DCHECK(!object->IsUndetectable());
-    Add(HEAP_NUMBER);
-    double value = HeapNumber::cast(*object)->value();
-    return value != 0 && !std::isnan(value);
-  } else if (object->IsSimd128Value()) {
-    Add(SIMD_VALUE);
-    return true;
-  } else {
-    // We should never see an internal object at runtime here!
-    UNREACHABLE();
-    return true;
-  }
-}
-
-bool ToBooleanICStub::Types::NeedsMap() const {
-  return Contains(ToBooleanICStub::SPEC_OBJECT) ||
-         Contains(ToBooleanICStub::STRING) ||
-         Contains(ToBooleanICStub::SYMBOL) ||
-         Contains(ToBooleanICStub::HEAP_NUMBER) ||
-         Contains(ToBooleanICStub::SIMD_VALUE);
-}
-
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
@@ -3310,22 +3237,6 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
-
-Representation RepresentationFromMachineType(MachineType type) {
-  if (type == MachineType::Int32()) {
-    return Representation::Integer32();
-  }
-
-  if (type == MachineType::TaggedSigned()) {
-    return Representation::Smi();
-  }
-
-  if (type == MachineType::Pointer()) {
-    return Representation::External();
-  }
-
-  return Representation::Tagged();
-}
 
 }  // namespace internal
 }  // namespace v8

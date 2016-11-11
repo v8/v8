@@ -12,12 +12,12 @@
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/bit-vector.h"
-#include "src/code-stubs.h"
 #include "src/conversions.h"
 #include "src/crankshaft/hydrogen-types.h"
 #include "src/crankshaft/unique.h"
 #include "src/deoptimizer.h"
 #include "src/globals.h"
+#include "src/interface-descriptors.h"
 #include "src/small-pointer-list.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
@@ -186,6 +186,7 @@ class SmallMapList;
 
 enum PropertyAccessType { LOAD, STORE };
 
+Representation RepresentationFromMachineType(MachineType type);
 
 class Range final : public ZoneObject {
  public:
@@ -1349,9 +1350,9 @@ class HUnaryControlInstruction : public HTemplateControlInstruction<2, 1> {
 class HBranch final : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HBranch, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*, ToBooleanICStub::Types);
-  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*, ToBooleanICStub::Types,
-                                 HBasicBlock*, HBasicBlock*);
+  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*, ToBooleanHints);
+  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*, ToBooleanHints, HBasicBlock*,
+                                 HBasicBlock*);
 
   Representation RequiredInputRepresentation(int index) override {
     return Representation::None();
@@ -1362,20 +1363,18 @@ class HBranch final : public HUnaryControlInstruction {
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
-  ToBooleanICStub::Types expected_input_types() const {
-    return expected_input_types_;
-  }
+  ToBooleanHints expected_input_types() const { return expected_input_types_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Branch)
 
  private:
-  HBranch(HValue* value, ToBooleanICStub::Types expected_input_types =
-                             ToBooleanICStub::Types(),
+  HBranch(HValue* value,
+          ToBooleanHints expected_input_types = ToBooleanHint::kNone,
           HBasicBlock* true_target = NULL, HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
         expected_input_types_(expected_input_types) {}
 
-  ToBooleanICStub::Types expected_input_types_;
+  ToBooleanHints expected_input_types_;
 };
 
 

@@ -14,6 +14,7 @@
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -821,24 +822,6 @@ class GetPropertyStub : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(GetProperty);
   DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
 };
-
-enum StringAddFlags {
-  // Omit both parameter checks.
-  STRING_ADD_CHECK_NONE = 0,
-  // Check left parameter.
-  STRING_ADD_CHECK_LEFT = 1 << 0,
-  // Check right parameter.
-  STRING_ADD_CHECK_RIGHT = 1 << 1,
-  // Check both parameters.
-  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT,
-  // Convert parameters when check fails (instead of throwing an exception).
-  STRING_ADD_CONVERT = 1 << 2,
-  STRING_ADD_CONVERT_LEFT = STRING_ADD_CHECK_LEFT | STRING_ADD_CONVERT,
-  STRING_ADD_CONVERT_RIGHT = STRING_ADD_CHECK_RIGHT | STRING_ADD_CONVERT
-};
-
-
-std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags);
 
 class NumberToStringStub final : public TurboFanCodeStub {
  public:
@@ -2575,45 +2558,15 @@ class StoreElementStub : public PlatformCodeStub {
 
 class ToBooleanICStub : public HydrogenCodeStub {
  public:
-  enum Type {
-    UNDEFINED,
-    BOOLEAN,
-    NULL_TYPE,
-    SMI,
-    SPEC_OBJECT,
-    STRING,
-    SYMBOL,
-    HEAP_NUMBER,
-    SIMD_VALUE,
-    NUMBER_OF_TYPES
-  };
-
-  // At most 16 different types can be distinguished, because the Code object
-  // only has room for two bytes to hold a set of these types. :-P
-  STATIC_ASSERT(NUMBER_OF_TYPES <= 16);
-
-  class Types : public EnumSet<Type, uint16_t> {
-   public:
-    Types() : EnumSet<Type, uint16_t>(0) {}
-    explicit Types(uint16_t bits) : EnumSet<Type, uint16_t>(bits) {}
-
-    bool UpdateStatus(Isolate* isolate, Handle<Object> object);
-    bool NeedsMap() const;
-    bool CanBeUndetectable() const {
-      return Contains(ToBooleanICStub::SPEC_OBJECT);
-    }
-    bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
-
-    static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
-  };
-
   ToBooleanICStub(Isolate* isolate, ExtraICState state)
       : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(TypesBits::encode(static_cast<uint16_t>(state)));
+    set_sub_minor_key(HintsBits::encode(static_cast<uint16_t>(state)));
   }
 
   bool UpdateStatus(Handle<Object> object);
-  Types types() const { return Types(TypesBits::decode(sub_minor_key())); }
+  ToBooleanHints hints() const {
+    return ToBooleanHints(HintsBits::decode(sub_minor_key()));
+  }
 
   Code::Kind GetCodeKind() const override { return Code::TO_BOOLEAN_IC; }
   void PrintState(std::ostream& os) const override;  // NOLINT
@@ -2624,10 +2577,10 @@ class ToBooleanICStub : public HydrogenCodeStub {
     return ToBooleanICStub(isolate, UNINITIALIZED).GetCode();
   }
 
-  ExtraICState GetExtraICState() const override { return types().ToIntegral(); }
+  ExtraICState GetExtraICState() const override { return hints(); }
 
   InlineCacheState GetICState() const {
-    if (types().IsEmpty()) {
+    if (hints() == ToBooleanHint::kNone) {
       return ::v8::internal::UNINITIALIZED;
     } else {
       return MONOMORPHIC;
@@ -2638,13 +2591,14 @@ class ToBooleanICStub : public HydrogenCodeStub {
   ToBooleanICStub(Isolate* isolate, InitializationState init_state)
       : HydrogenCodeStub(isolate, init_state) {}
 
-  class TypesBits : public BitField<uint16_t, 0, NUMBER_OF_TYPES> {};
+  static const int kNumHints = 9;
+  STATIC_ASSERT(static_cast<int>(ToBooleanHint::kAny) ==
+                ((1 << kNumHints) - 1));
+  class HintsBits : public BitField<uint16_t, 0, kNumHints> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_HYDROGEN_CODE_STUB(ToBooleanIC, HydrogenCodeStub);
 };
-
-std::ostream& operator<<(std::ostream& os, const ToBooleanICStub::Types& t);
 
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
  public:
@@ -2767,8 +2721,6 @@ class SubStringStub : public TurboFanCodeStub {
 #undef DEFINE_HYDROGEN_CODE_STUB
 #undef DEFINE_CODE_STUB
 #undef DEFINE_CODE_STUB_BASE
-
-extern Representation RepresentationFromMachineType(MachineType type);
 
 }  // namespace internal
 }  // namespace v8

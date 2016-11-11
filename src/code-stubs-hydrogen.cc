@@ -1124,7 +1124,7 @@ template <>
 HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
   ToBooleanICStub* stub = casted_stub();
   IfBuilder if_true(this);
-  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->types());
+  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->hints());
   if_true.Then();
   if_true.Return(graph()->GetConstantTrue());
   if_true.Else();
