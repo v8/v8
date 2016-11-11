@@ -104,19 +104,19 @@ void BytecodeArrayWriterUnittest::WriteJumpLoop(Bytecode bytecode,
 }
 
 TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
-  CHECK_EQ(bytecodes()->size(), 0);
+  CHECK_EQ(bytecodes()->size(), 0u);
 
   Write(Bytecode::kStackCheck, {10, false});
-  CHECK_EQ(bytecodes()->size(), 1);
+  CHECK_EQ(bytecodes()->size(), 1u);
 
   Write(Bytecode::kLdaSmi, 127, {55, true});
-  CHECK_EQ(bytecodes()->size(), 3);
+  CHECK_EQ(bytecodes()->size(), 3u);
 
   Write(Bytecode::kLdar, Register(200).ToOperand());
-  CHECK_EQ(bytecodes()->size(), 7);
+  CHECK_EQ(bytecodes()->size(), 7u);
 
   Write(Bytecode::kReturn, {70, true});
-  CHECK_EQ(bytecodes()->size(), 8);
+  CHECK_EQ(bytecodes()->size(), 8u);
 
   static const uint8_t bytes[] = {B(StackCheck), B(LdaSmi), U8(127),  B(Wide),
                                   B(Ldar),       R16(200),  B(Return)};

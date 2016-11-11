@@ -50,7 +50,7 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
     CHECK(builder.At(i)->SameValue(*object));
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
   }
@@ -66,7 +66,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
     CHECK(builder.At(i)->SameValue(*object));
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
   }
@@ -81,7 +81,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
                                 Smi::FromInt(static_cast<int>(i)));
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
   }

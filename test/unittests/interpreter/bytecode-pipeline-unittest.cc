@@ -159,7 +159,7 @@ TEST_F(BytecodeNodeTest, SetBytecode1) {
   clone.set_bytecode(Bytecode::kJump, 0x01aabbcc);
   CHECK_EQ(clone.bytecode(), Bytecode::kJump);
   CHECK_EQ(clone.operand_count(), 1);
-  CHECK_EQ(clone.operand(0), 0x01aabbcc);
+  CHECK_EQ(clone.operand(0), 0x01aabbccu);
   CHECK_EQ(clone.source_info(), source_info);
 }
 

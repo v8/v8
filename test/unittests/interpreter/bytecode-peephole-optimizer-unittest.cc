@@ -396,7 +396,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
     CHECK_EQ(write_count(), 1);
     CHECK_EQ(last_written().bytecode(), operator_replacement[1]);
     CHECK_EQ(last_written().operand_count(), 3);
-    CHECK_EQ(last_written().operand(0), 0);
+    CHECK_EQ(last_written().operand(0), 0u);
     CHECK_EQ(last_written().operand(1), reg_operand);
     CHECK_EQ(last_written().operand(2), idx_operand);
     Reset();

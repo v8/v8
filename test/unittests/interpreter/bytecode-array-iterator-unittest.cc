@@ -229,7 +229,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(iterator.GetRuntimeIdOperand(0), Runtime::kLoadLookupSlotForCall);
   CHECK_EQ(iterator.GetRegisterOperand(1).index(), param.index());
   CHECK_EQ(iterator.GetRegisterOperandRange(1), 1);
-  CHECK_EQ(iterator.GetRegisterCountOperand(2), 1);
+  CHECK_EQ(iterator.GetRegisterCountOperand(2), 1u);
   CHECK_EQ(iterator.GetRegisterOperand(3).index(), reg_0.index());
   CHECK_EQ(iterator.GetRegisterOperandRange(3), 2);
   CHECK(!iterator.done());
@@ -253,7 +253,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetRuntimeIdOperand(0), Runtime::kLoadIC_Miss);
   CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
-  CHECK_EQ(iterator.GetRegisterCountOperand(2), 1);
+  CHECK_EQ(iterator.GetRegisterCountOperand(2), 1u);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kCallRuntime, OperandScale::kSingle);
   iterator.Advance();
@@ -269,7 +269,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(iterator.current_offset(), offset);
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kQuadruple);
   CHECK_EQ(iterator.current_bytecode_size(), 6);
-  CHECK_EQ(iterator.GetIndexOperand(0), 0x10000000);
+  CHECK_EQ(iterator.GetIndexOperand(0), 0x10000000u);
   offset += Bytecodes::Size(Bytecode::kLdaGlobal, OperandScale::kQuadruple) +
             kPrefixByteSize;
   iterator.Advance();
