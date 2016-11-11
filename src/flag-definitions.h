@@ -269,7 +269,7 @@ DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_IMPLICATION(track_field_types, track_fields)
 DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
 DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
-DEFINE_BOOL(mark_shared_functions_for_tier_up, false,
+DEFINE_BOOL(mark_shared_functions_for_tier_up, true,
             "mark shared functions for tier up")
 
 // Flags for optimization types.
