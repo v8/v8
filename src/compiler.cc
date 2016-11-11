@@ -1586,34 +1586,36 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_debug()) info.MarkAsDebug();
 
-  // Generate code
-  TimerEventScope<TimerEventCompileCode> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
-
-  if (result->is_compiled()) {
-    // If this inner function is already compiled, we don't need to compile
-    // again. When compiling for debug, we are not interested in having debug
-    // break slots in inner functions, neither for setting break points nor
-    // for revealing inner functions.
-    // This is especially important for generators. We must not replace the
-    // code for generators, as there may be suspended generator objects.
-    return result;
-  } else if (!literal->ShouldEagerCompile()) {
-    info.SetCode(isolate->builtins()->CompileLazy());
-    Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
-    if (outer_scope) {
-      result->set_outer_scope_info(*outer_scope->scope_info());
+  // If this inner function is already compiled, we don't need to compile
+  // again. When compiling for debug, we are not interested in having debug
+  // break slots in inner functions, neither for setting break points nor
+  // for revealing inner functions.
+  // This is especially important for generators. We must not replace the
+  // code for generators, as there may be suspended generator objects.
+  if (!result->is_compiled()) {
+    if (!literal->ShouldEagerCompile()) {
+      info.SetCode(isolate->builtins()->CompileLazy());
+      Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
+      if (outer_scope) {
+        result->set_outer_scope_info(*outer_scope->scope_info());
+      }
+    } else {
+      // Generate code
+      TimerEventScope<TimerEventCompileCode> timer(isolate);
+      RuntimeCallTimerScope runtimeTimer(isolate,
+                                         &RuntimeCallStats::CompileCode);
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
+      if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
+        // Code generation will ensure that the feedback vector is present and
+        // appropriately sized.
+        DCHECK(!info.code().is_null());
+        if (literal->should_be_used_once_hint()) {
+          info.code()->MarkToBeExecutedOnce(isolate);
+        }
+      } else {
+        return Handle<SharedFunctionInfo>::null();
+      }
     }
-  } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
-    // Code generation will ensure that the feedback vector is present and
-    // appropriately sized.
-    DCHECK(!info.code().is_null());
-    if (literal->should_be_used_once_hint()) {
-      info.code()->MarkToBeExecutedOnce(isolate);
-    }
-  } else {
-    return Handle<SharedFunctionInfo>::null();
   }
 
   if (maybe_existing.is_null()) {
