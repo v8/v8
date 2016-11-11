@@ -415,7 +415,7 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   if (FLAG_validate_asm && info->scope()->asm_module() &&
-      !info->shared_info()->is_asm_wasm_broken()) {
+      !info->shared_info()->is_asm_wasm_broken() && !info->is_debug()) {
     EnsureFeedbackMetadata(info);
     MaybeHandle<FixedArray> wasm_data;
     wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
