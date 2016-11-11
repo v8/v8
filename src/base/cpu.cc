@@ -607,7 +607,7 @@ CPU::CPU()
   char* implementer = cpu_info.ExtractField("CPU implementer");
   if (implementer != NULL) {
     char* end;
-    implementer_ = strtol(implementer, &end, 0);
+    implementer_ = static_cast<int>(strtol(implementer, &end, 0));
     if (end == implementer) {
       implementer_ = 0;
     }
@@ -617,7 +617,7 @@ CPU::CPU()
   char* variant = cpu_info.ExtractField("CPU variant");
   if (variant != NULL) {
     char* end;
-    variant_ = strtol(variant, &end, 0);
+    variant_ = static_cast<int>(strtol(variant, &end, 0));
     if (end == variant) {
       variant_ = -1;
     }
@@ -628,7 +628,7 @@ CPU::CPU()
   char* part = cpu_info.ExtractField("CPU part");
   if (part != NULL) {
     char* end;
-    part_ = strtol(part, &end, 0);
+    part_ = static_cast<int>(strtol(part, &end, 0));
     if (end == part) {
       part_ = 0;
     }
