@@ -152,7 +152,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       SCAVENGER = 0,
       MARK_COMPACTOR = 1,
       INCREMENTAL_MARK_COMPACTOR = 2,
-      START = 3
+      MINOR_MARK_COMPACTOR = 3,
+      START = 4
     };
 
     Event(Type type, GarbageCollectionReason gc_reason,
@@ -413,8 +414,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Separate timer used for --runtime_call_stats
   RuntimeCallTimer timer_;
 
-  base::RingBuffer<BytesAndDuration> recorded_scavenges_total_;
-  base::RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
+  base::RingBuffer<BytesAndDuration> recorded_minor_gcs_total_;
+  base::RingBuffer<BytesAndDuration> recorded_minor_gcs_survived_;
   base::RingBuffer<BytesAndDuration> recorded_compactions_;
   base::RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
   base::RingBuffer<BytesAndDuration> recorded_mark_compacts_;

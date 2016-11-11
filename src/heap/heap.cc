@@ -286,7 +286,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
 
   // Default
   *reason = NULL;
-  return SCAVENGER;
+  return YoungGenerationCollector();
 }
 
 
@@ -822,7 +822,7 @@ void Heap::FinalizeIncrementalMarking(GarbageCollectionReason gc_reason) {
 
 
 HistogramTimer* Heap::GCTypeTimer(GarbageCollector collector) {
-  if (collector == SCAVENGER) {
+  if (IsYoungGenerationCollector(collector)) {
     return isolate_->counters()->gc_scavenger();
   } else {
     if (!incremental_marking()->IsStopped()) {
@@ -952,7 +952,8 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 
   EnsureFillerObjectAtTop();
 
-  if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
+  if (IsYoungGenerationCollector(collector) &&
+      !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
       isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Scavenge during marking.\n");
@@ -970,7 +971,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
         isolate()->PrintWithTimestamp(
             "[IncrementalMarking] Delaying MarkSweep.\n");
       }
-      collector = SCAVENGER;
+      collector = YoungGenerationCollector();
       collector_reason = "incremental marking delaying mark-sweep";
     }
   }
@@ -1035,7 +1036,8 @@ bool Heap::CollectGarbage(GarbageCollector collector,
   // generator needs incremental marking to stay off after it aborted.
   // We do this only for scavenger to avoid a loop where mark-compact
   // causes another mark-compact.
-  if (collector == SCAVENGER && !ShouldAbortIncrementalMarking()) {
+  if (IsYoungGenerationCollector(collector) &&
+      !ShouldAbortIncrementalMarking()) {
     StartIncrementalMarkingIfAllocationLimitIsReached(kNoGCFlags,
                                                       kNoGCCallbackFlags);
   }
@@ -1275,7 +1277,7 @@ bool Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   int freed_global_handles = 0;
 
-  if (collector != SCAVENGER) {
+  if (!IsYoungGenerationCollector(collector)) {
     PROFILE(isolate_, CodeMovingGCEvent());
   }
 
@@ -1306,18 +1308,25 @@ bool Heap::PerformGarbageCollection(
   {
     Heap::PretenuringScope pretenuring_scope(this);
 
-    if (collector == MARK_COMPACTOR) {
-      UpdateOldGenerationAllocationCounter();
-      // Perform mark-sweep with optional compaction.
-      MarkCompact();
-      old_generation_size_configured_ = true;
-      // This should be updated before PostGarbageCollectionProcessing, which
-      // can cause another GC. Take into account the objects promoted during GC.
-      old_generation_allocation_counter_at_last_gc_ +=
-          static_cast<size_t>(promoted_objects_size_);
-      old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
-    } else {
-      Scavenge();
+    switch (collector) {
+      case MARK_COMPACTOR:
+        UpdateOldGenerationAllocationCounter();
+        // Perform mark-sweep with optional compaction.
+        MarkCompact();
+        old_generation_size_configured_ = true;
+        // This should be updated before PostGarbageCollectionProcessing, which
+        // can cause another GC. Take into account the objects promoted during
+        // GC.
+        old_generation_allocation_counter_at_last_gc_ +=
+            static_cast<size_t>(promoted_objects_size_);
+        old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
+        break;
+      case MINOR_MARK_COMPACTOR:
+        MinorMarkCompact();
+        break;
+      case SCAVENGER:
+        Scavenge();
+        break;
     }
 
     ProcessPretenuringFeedback();
@@ -1440,6 +1449,7 @@ void Heap::MarkCompact() {
   }
 }
 
+void Heap::MinorMarkCompact() { UNREACHABLE(); }
 
 void Heap::MarkCompactEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);

@@ -684,6 +684,26 @@ class Heap {
 #endif
   }
 
+  static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
+    return collector == SCAVENGER || collector == MINOR_MARK_COMPACTOR;
+  }
+
+  static inline GarbageCollector YoungGenerationCollector() {
+    return (FLAG_minor_mc) ? MINOR_MARK_COMPACTOR : SCAVENGER;
+  }
+
+  static inline const char* CollectorName(GarbageCollector collector) {
+    switch (collector) {
+      case SCAVENGER:
+        return "Scavenger";
+      case MARK_COMPACTOR:
+        return "Mark-Compact";
+      case MINOR_MARK_COMPACTOR:
+        return "Minor Mark-Compact";
+    }
+    return "Unknown collector";
+  }
+
   V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
                                                     double mutator_speed);
 
@@ -1773,6 +1793,8 @@ class Heap {
 
   // Performs a major collection in the whole heap.
   void MarkCompact();
+  // Performs a minor collection of just the young generation.
+  void MinorMarkCompact();
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();

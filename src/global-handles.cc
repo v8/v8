@@ -1062,7 +1062,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
     // PostScavengeProcessing.
     return freed_nodes;
   }
-  if (collector == SCAVENGER) {
+  if (Heap::IsYoungGenerationCollector(collector)) {
     freed_nodes += PostScavengeProcessing(initial_post_gc_processing_count);
   } else {
     freed_nodes += PostMarkSweepProcessing(initial_post_gc_processing_count);
