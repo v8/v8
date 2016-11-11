@@ -520,10 +520,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
-  // If a ParseInfo* is passed, non-free variables will be resolved.
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
                                     bool try_to_resolve = true,
-                                    ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
   // Predicates.
