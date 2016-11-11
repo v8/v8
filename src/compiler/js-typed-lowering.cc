@@ -672,7 +672,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
                             value, value_map, effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForNameHashField()), value,
-      jsgraph()->Uint32Constant(Name::kEmptyHashField), effect, control);
+      jsgraph()->Constant(Name::kEmptyHashField), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForStringLength()), value, length,
       effect, control);
@@ -1849,7 +1849,7 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
       node->InsertInput(graph()->zone(), 0,
                         jsgraph()->HeapConstant(callable.code()));
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
       node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
       node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
       NodeProperties::ChangeOp(
@@ -1868,7 +1868,7 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
     node->InsertInput(graph()->zone(), 2, new_target);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
@@ -1939,7 +1939,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     }
 
     Node* new_target = jsgraph()->UndefinedConstant();
-    Node* argument_count = jsgraph()->Int32Constant(arity);
+    Node* argument_count = jsgraph()->Constant(arity);
     if (NeedsArgumentAdaptorFrame(shared, arity)) {
       // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
       Callable callable = CodeFactory::ArgumentAdaptor(isolate());
@@ -1949,7 +1949,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       node->InsertInput(graph()->zone(), 3, argument_count);
       node->InsertInput(
           graph()->zone(), 4,
-          jsgraph()->Int32Constant(shared->internal_formal_parameter_count()));
+          jsgraph()->Constant(shared->internal_formal_parameter_count()));
       NodeProperties::ChangeOp(
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
@@ -1981,7 +1981,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Int32Constant(arity));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
                   isolate(), graph()->zone(), callable.descriptor(), 1 + arity,

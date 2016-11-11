@@ -116,7 +116,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
           Replace(use, new_target);
         } else if (index == inlinee_arity_index) {
           // The projection is requesting the number of arguments.
-          Replace(use, jsgraph()->Int32Constant(inliner_inputs - 2));
+          Replace(use, jsgraph()->Constant(inliner_inputs - 2));
         } else if (index == inlinee_context_index) {
           // The projection is requesting the inlinee function context.
           Replace(use, context);

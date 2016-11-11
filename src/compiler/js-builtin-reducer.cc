@@ -1116,11 +1116,11 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
                                     index, if_true0);
 
       // branch1: if ((lead & 0xFC00) === 0xD800)
-      Node* check1 = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(simplified()->NumberBitwiseAnd(), lead,
-                           jsgraph()->Int32Constant(0xFC00)),
-          jsgraph()->Int32Constant(0xD800));
+      Node* check1 =
+          graph()->NewNode(simplified()->NumberEqual(),
+                           graph()->NewNode(simplified()->NumberBitwiseAnd(),
+                                            lead, jsgraph()->Constant(0xFC00)),
+                           jsgraph()->Constant(0xD800));
       Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                        check1, if_true0);
       Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
@@ -1142,8 +1142,8 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
           Node* check3 = graph()->NewNode(
               simplified()->NumberEqual(),
               graph()->NewNode(simplified()->NumberBitwiseAnd(), trail,
-                               jsgraph()->Int32Constant(0xFC00)),
-              jsgraph()->Int32Constant(0xDC00));
+                               jsgraph()->Constant(0xFC00)),
+              jsgraph()->Constant(0xDC00));
           Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                            check3, if_true2);
           Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
@@ -1154,11 +1154,11 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
                 graph()->NewNode(simplified()->NumberShiftLeft(), lead,
-                                 jsgraph()->Int32Constant(16)),
+                                 jsgraph()->Constant(16)),
                 trail);
 #else
                 graph()->NewNode(simplified()->NumberShiftLeft(), trail,
-                                 jsgraph()->Int32Constant(16)),
+                                 jsgraph()->Constant(16)),
                 lead);
 #endif
           }
