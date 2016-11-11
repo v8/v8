@@ -332,7 +332,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
 
   if (FLAG_debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
-    ASSERT_EQ(6, s.size());
+    ASSERT_EQ(6U, s.size());
 
     EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());

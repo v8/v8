@@ -5428,13 +5428,13 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
         UINT8_ELEMENTS,  UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
         UINT16_ELEMENTS, INT16_ELEMENTS,         UINT32_ELEMENTS,
         INT32_ELEMENTS,  FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS};
-    const int kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                        FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
-                                        1;
+    const size_t kTypedElementsKindCount =
+        LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+        FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
     DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
     DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
     Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
-           static_cast<size_t>(kTypedElementsKindCount));
+           kTypedElementsKindCount);
     Bind(&uint8_elements);
     {
       Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.

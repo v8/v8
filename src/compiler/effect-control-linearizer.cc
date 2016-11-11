@@ -74,7 +74,8 @@ void UpdateEffectPhi(Node* node, BasicBlock* block,
   // Update all inputs to an effect phi with the effects from the given
   // block->effect map.
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
-  DCHECK_EQ(node->op()->EffectInputCount(), block->PredecessorCount());
+  DCHECK_EQ(static_cast<size_t>(node->op()->EffectInputCount()),
+            block->PredecessorCount());
   for (int i = 0; i < node->op()->EffectInputCount(); i++) {
     Node* input = node->InputAt(i);
     BasicBlock* predecessor = block->PredecessorAt(static_cast<size_t>(i));
@@ -248,7 +249,7 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
     merge_true->AppendInput(graph->zone(), merge_true_inputs[i]);
     merge_false->AppendInput(graph->zone(), merge_false_inputs[i]);
   }
-  DCHECK_EQ(2, block->SuccessorCount());
+  DCHECK_EQ(2u, block->SuccessorCount());
   NodeProperties::ChangeOp(matcher.IfTrue(), common->Merge(input_count));
   NodeProperties::ChangeOp(matcher.IfFalse(), common->Merge(input_count));
   int const true_index =

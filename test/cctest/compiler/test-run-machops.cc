@@ -6359,7 +6359,7 @@ TEST(RunTryTruncateFloat64ToUint64WithCheck) {
   FOR_FLOAT64_INPUTS(i) {
     if (*i < 18446744073709551616.0 && *i > -1) {
       // Conversions within this range should succeed.
-      CHECK_EQ(static_cast<uint64_t>(*i), m.Call(*i));
+      CHECK_EQ(static_cast<uint64_t>(*i), static_cast<uint64_t>(m.Call(*i)));
       CHECK_NE(0, success);
     } else {
       m.Call(*i);

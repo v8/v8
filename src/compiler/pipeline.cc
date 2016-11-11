@@ -274,8 +274,8 @@ class PipelineData {
     if (descriptor && descriptor->RequiresFrameAsIncoming()) {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
     } else {
-      DCHECK_EQ(0, descriptor->CalleeSavedFPRegisters());
-      DCHECK_EQ(0, descriptor->CalleeSavedRegisters());
+      DCHECK_EQ(0u, descriptor->CalleeSavedFPRegisters());
+      DCHECK_EQ(0u, descriptor->CalleeSavedRegisters());
     }
   }
 

@@ -2456,7 +2456,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ VerifyX87StackDepth(1);
   }
   bool clear_stack = true;
-  for (int i = 0; i < descriptor->ReturnCount(); i++) {
+  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
     MachineRepresentation rep = descriptor->GetReturnType(i).representation();
     LinkageLocation loc = descriptor->GetReturnLocation(i);
     if (IsFloatingPoint(rep) && loc == LinkageLocation::ForRegister(0)) {
