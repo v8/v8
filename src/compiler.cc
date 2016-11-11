@@ -1591,7 +1591,15 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
 
-  if (!literal->ShouldEagerCompile()) {
+  if (result->is_compiled()) {
+    // If this inner function is already compiled, we don't need to compile
+    // again. When compiling for debug, we are not interested in having debug
+    // break slots in inner functions, neither for setting break points nor
+    // for revealing inner functions.
+    // This is especially important for generators. We must not replace the
+    // code for generators, as there may be suspended generator objects.
+    return result;
+  } else if (!literal->ShouldEagerCompile()) {
     info.SetCode(isolate->builtins()->CompileLazy());
     Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
     if (outer_scope) {
