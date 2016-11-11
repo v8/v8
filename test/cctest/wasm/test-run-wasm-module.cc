@@ -811,3 +811,106 @@ TEST(InitDataAtTheUpperLimit) {
   }
   Cleanup();
 }
+
+TEST(EmptyMemoryNonEmptyDataSegment) {
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,     // --
+        kMemorySectionCode,     // --
+        U32V_1(4),              // section size
+        ENTRY_COUNT(1),         // --
+        kResizableMaximumFlag,  // --
+        0,                      // initial size
+        0,                      // maximum size
+        kDataSectionCode,       // --
+        U32V_1(7),              // section size
+        ENTRY_COUNT(1),         // --
+        0,                      // linear memory index
+        WASM_I32V_1(8),         // destination offset
+        kExprEnd,
+        U32V_1(1),  // source size
+        'c'         // data bytes
+    };
+
+    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
+                                                    data + arraysize(data),
+                                                    ModuleOrigin::kWasmOrigin);
+    // It should not be possible to instantiate this module.
+    CHECK(thrower.error());
+  }
+  Cleanup();
+}
+
+TEST(EmptyMemoryEmptyDataSegment) {
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,     // --
+        kMemorySectionCode,     // --
+        U32V_1(4),              // section size
+        ENTRY_COUNT(1),         // --
+        kResizableMaximumFlag,  // --
+        0,                      // initial size
+        0,                      // maximum size
+        kDataSectionCode,       // --
+        U32V_1(6),              // section size
+        ENTRY_COUNT(1),         // --
+        0,                      // linear memory index
+        WASM_I32V_1(24),        // destination offset
+        kExprEnd,
+        U32V_1(0),  // source size
+    };
+
+    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
+                                                    data + arraysize(data),
+                                                    ModuleOrigin::kWasmOrigin);
+    // It should be possible to instantiate this module.
+    CHECK(!thrower.error());
+  }
+  Cleanup();
+}
+
+TEST(MemoryWithOOBEmptyDataSegment) {
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,      // --
+        kMemorySectionCode,      // --
+        U32V_1(4),               // section size
+        ENTRY_COUNT(1),          // --
+        kResizableMaximumFlag,   // --
+        1,                       // initial size
+        1,                       // maximum size
+        kDataSectionCode,        // --
+        U32V_1(9),               // section size
+        ENTRY_COUNT(1),          // --
+        0,                       // linear memory index
+        WASM_I32V_4(0x2468ace),  // destination offset
+        kExprEnd,
+        U32V_1(0),  // source size
+    };
+
+    testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
+                                                    data + arraysize(data),
+                                                    ModuleOrigin::kWasmOrigin);
+    // It should be possible to instantiate this module.
+    CHECK(!thrower.error());
+  }
+  Cleanup();
+}

@@ -1078,6 +1078,8 @@ class WasmInstanceBuilder {
       RelocateMemoryReferencesInCode(code_table, old_mem_start, mem_start,
                                      old_mem_size, mem_size);
       compiled_module_->set_memory(memory_);
+    } else {
+      LoadDataSegments(nullptr, 0);
     }
 
     //--------------------------------------------------------------------------
@@ -1273,7 +1275,7 @@ class WasmInstanceBuilder {
     return result;
   }
 
-  uint32_t EvalUint32InitExpr(WasmInitExpr& expr) {
+  uint32_t EvalUint32InitExpr(const WasmInitExpr& expr) {
     switch (expr.kind) {
       case WasmInitExpr::kI32Const:
         return expr.val.i32_const;
@@ -1290,15 +1292,18 @@ class WasmInstanceBuilder {
   // Load data segments into the memory.
   void LoadDataSegments(Address mem_addr, size_t mem_size) {
     Handle<SeqOneByteString> module_bytes = compiled_module_->module_bytes();
-    for (auto segment : module_->data_segments) {
-      uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
+    for (const WasmDataSegment& segment : module_->data_segments) {
       uint32_t source_size = segment.source_size;
+      // Segments of size == 0 are just nops.
+      if (source_size == 0) continue;
+      uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
       if (dest_offset >= mem_size || source_size >= mem_size ||
           dest_offset > (mem_size - source_size)) {
-        thrower_->RangeError(
-            "data segment (start = %u, size = %u) does not fit into memory "
-            "(size = %zu)",
-            dest_offset, source_size, mem_size);
+        thrower_->TypeError("data segment (start = %" PRIu32 ", size = %" PRIu32
+                            ") does not fit into memory "
+                            "(size = %" PRIu64 ")",
+                            dest_offset, source_size,
+                            static_cast<uint64_t>(mem_size));
         return;
       }
       byte* dest = mem_addr + dest_offset;
