@@ -1506,7 +1506,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ lbz(r8, FieldMemOperand(entry,
                              SharedFunctionInfo::kMarkedForTierUpByteOffset));
   __ TestBit(r8, SharedFunctionInfo::kMarkedForTierUpBitWithinByte, r0);
-  __ beq(&gotta_call_runtime);
+  __ bne(&gotta_call_runtime);
   // Is the full code valid?
   __ LoadP(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ lwz(r8, FieldMemOperand(entry, Code::kFlagsOffset));

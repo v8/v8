@@ -268,6 +268,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (function->IsOptimized() && function->code()->is_turbofanned()) {
     return Smi::FromInt(7);  // 7 == "TurboFan compiler".
   }
+  if (function->IsInterpreted()) {
+    return Smi::FromInt(8);  // 8 == "Interpreted".
+  }
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".
 }
