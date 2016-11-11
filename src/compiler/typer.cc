@@ -598,15 +598,13 @@ Type* Typer::Visitor::TypeRetain(Node* node) {
 }
 
 Type* Typer::Visitor::TypeInt32Constant(Node* node) {
-  double number = OpParameter<int32_t>(node);
-  return Type::Intersect(Type::Range(number, number, zone()),
-                         Type::Integral32(), zone());
+  UNREACHABLE();
+  return nullptr;
 }
 
-
 Type* Typer::Visitor::TypeInt64Constant(Node* node) {
-  // TODO(rossberg): This actually seems to be a PointerConstant so far...
-  return Type::Internal();  // TODO(rossberg): Add int64 bitset type?
+  UNREACHABLE();
+  return nullptr;
 }
 
 Type* Typer::Visitor::TypeRelocatableInt32Constant(Node* node) {
@@ -624,12 +622,10 @@ Type* Typer::Visitor::TypeFloat32Constant(Node* node) {
   return nullptr;
 }
 
-
 Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
   UNREACHABLE();
   return nullptr;
 }
-
 
 Type* Typer::Visitor::TypeNumberConstant(Node* node) {
   double number = OpParameter<double>(node);
@@ -640,11 +636,13 @@ Type* Typer::Visitor::TypeHeapConstant(Node* node) {
   return TypeConstant(OpParameter<Handle<HeapObject>>(node));
 }
 
-
 Type* Typer::Visitor::TypeExternalConstant(Node* node) {
-  return Type::Internal();
+  return Type::ExternalPointer();
 }
 
+Type* Typer::Visitor::TypePointerConstant(Node* node) {
+  return Type::ExternalPointer();
+}
 
 Type* Typer::Visitor::TypeSelect(Node* node) {
   return Type::Union(Operand(node, 1), Operand(node, 2), zone());

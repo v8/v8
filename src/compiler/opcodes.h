@@ -41,6 +41,7 @@
   V(Float64Constant)          \
   V(ExternalConstant)         \
   V(NumberConstant)           \
+  V(PointerConstant)          \
   V(HeapConstant)             \
   V(RelocatableInt32Constant) \
   V(RelocatableInt64Constant)

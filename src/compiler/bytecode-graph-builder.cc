@@ -1734,7 +1734,7 @@ void BytecodeGraphBuilder::VisitStackCheck() {
 
 void BytecodeGraphBuilder::VisitReturn() {
   BuildLoopExitsForFunctionExit();
-  Node* pop_node = jsgraph()->Int32Constant(0);
+  Node* pop_node = jsgraph()->ZeroConstant();
   Node* control =
       NewNode(common()->Return(), pop_node, environment()->LookupAccumulator());
   MergeControlToLeaveFunction(control);

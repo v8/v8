@@ -674,8 +674,8 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
       handle(Map::cast(native_context()->get(function_map_index)), isolate()));
   // Note that it is only safe to embed the raw entry point of the compile
   // lazy stub into the code, because that stub is immortal and immovable.
-  Node* compile_entry = jsgraph()->IntPtrConstant(reinterpret_cast<intptr_t>(
-      jsgraph()->isolate()->builtins()->CompileLazy()->entry()));
+  Node* compile_entry = jsgraph()->PointerConstant(
+      jsgraph()->isolate()->builtins()->CompileLazy()->entry());
   Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
   Node* empty_literals_array = jsgraph()->EmptyLiteralsArrayConstant();
   Node* the_hole = jsgraph()->TheHoleConstant();

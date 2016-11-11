@@ -224,6 +224,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Float64Constant(volatile double);
   const Operator* ExternalConstant(const ExternalReference&);
   const Operator* NumberConstant(volatile double);
+  const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
 
   const Operator* RelocatableInt32Constant(int32_t value,

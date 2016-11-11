@@ -357,7 +357,7 @@ FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
   FieldAccess access = {kTaggedBase,
                         FixedTypedArrayBase::kExternalPointerOffset,
                         MaybeHandle<Name>(),
-                        Type::OtherInternal(),
+                        Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;
@@ -512,7 +512,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
   FieldAccess access = {kTaggedBase,
                         ExternalString::kResourceDataOffset,
                         Handle<Name>(),
-                        Type::OtherInternal(),
+                        Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;

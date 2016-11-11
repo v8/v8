@@ -119,7 +119,7 @@ class EscapeAnalysisTest : public TypedGraphTest {
     if (!control) {
       control = control_;
     }
-    Node* zero = graph()->NewNode(common()->Int32Constant(0));
+    Node* zero = graph()->NewNode(common()->NumberConstant(0));
     return control_ = graph()->NewNode(common()->Return(), zero, value, effect,
                                        control);
   }

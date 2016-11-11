@@ -880,6 +880,13 @@ const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
       value);                                      // parameter
 }
 
+const Operator* CommonOperatorBuilder::PointerConstant(intptr_t value) {
+  return new (zone()) Operator1<intptr_t>(          // --
+      IrOpcode::kPointerConstant, Operator::kPure,  // opcode
+      "PointerConstant",                            // name
+      0, 0, 0, 1, 0, 0,                             // counts
+      value);                                       // parameter
+}
 
 const Operator* CommonOperatorBuilder::HeapConstant(
     const Handle<HeapObject>& value) {
