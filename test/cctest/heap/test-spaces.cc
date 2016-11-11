@@ -742,7 +742,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   CcTest::heap()->old_space()->EmptyAllocationInfo();
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
@@ -768,7 +768,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
@@ -794,7 +794,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 }  // namespace internal

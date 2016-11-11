@@ -10555,7 +10555,7 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
                                       v8::PropertyFilter::ALL_PROPERTIES |
                                       v8::PropertyFilter::SKIP_SYMBOLS))
             .ToLocal(&properties));
-  CHECK_EQ(5, properties->Length());
+  CHECK_EQ(5u, properties->Length());
   v8::Local<v8::Value> property;
   CHECK(properties->Get(context.local(), 4).ToLocal(&property) &&
         property->IsString());
@@ -10571,7 +10571,7 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
 
   CHECK(value->GetOwnPropertyNames(context.local(), v8::ONLY_ENUMERABLE)
             .ToLocal(&properties));
-  CHECK_EQ(4, properties->Length());
+  CHECK_EQ(4u, properties->Length());
   for (int i = 0; i < 4; ++i) {
     v8::Local<v8::Value> property;
     CHECK(properties->Get(context.local(), i).ToLocal(&property) &&

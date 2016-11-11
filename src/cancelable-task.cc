@@ -44,7 +44,7 @@ void CancelableTaskManager::RemoveFinishedTask(uint32_t id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   size_t removed = cancelable_tasks_.erase(id);
   USE(removed);
-  DCHECK_NE(0, removed);
+  DCHECK_NE(0u, removed);
   cancelable_tasks_barrier_.NotifyOne();
 }
 

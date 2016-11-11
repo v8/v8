@@ -269,7 +269,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     ResetIncrementalMarkingCounters();
     combined_mark_compact_speed_cache_ = 0.0;
   } else {
-    DCHECK_EQ(0, current_.incremental_marking_bytes);
+    DCHECK_EQ(0u, current_.incremental_marking_bytes);
     DCHECK_EQ(0, current_.incremental_marking_duration);
     recorded_mark_compacts_.Push(
         MakeBytesAndDuration(current_.start_object_size, duration));

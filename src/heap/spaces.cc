@@ -314,7 +314,7 @@ void MemoryAllocator::TearDown() {
   unmapper()->TearDown();
 
   // Check that spaces were torn down before MemoryAllocator.
-  DCHECK_EQ(size_.Value(), 0);
+  DCHECK_EQ(size_.Value(), 0u);
   // TODO(gc) this will be true again when we fix FreeMemory.
   // DCHECK(size_executable_ == 0);
   capacity_ = 0;
@@ -619,7 +619,7 @@ void MemoryChunk::Unlink() {
 
 void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
   DCHECK_GE(bytes_to_shrink, static_cast<size_t>(base::OS::CommitPageSize()));
-  DCHECK_EQ(0, bytes_to_shrink % base::OS::CommitPageSize());
+  DCHECK_EQ(0u, bytes_to_shrink % base::OS::CommitPageSize());
   Address free_start = chunk->area_end_ - bytes_to_shrink;
   // Don't adjust the size of the page. The area is just uncomitted but not
   // released.

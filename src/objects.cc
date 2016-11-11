@@ -20310,7 +20310,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
     DCHECK(exports->ValueAt(i)->IsCell());
     names.push_back(Handle<String>::cast(key));
   }
-  DCHECK_EQ(names.size(), exports->NumberOfElements());
+  DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());
 
   // Sort them alphabetically.
   struct {

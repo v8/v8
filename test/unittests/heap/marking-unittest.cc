@@ -118,8 +118,8 @@ TEST(Marking, SetAndClearRange) {
     CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffffu << i);
     CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], (1u << i) - 1);
     bitmap->ClearRange(i, Bitmap::kBitsPerCell + i);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0x0);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0x0);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0x0u);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0x0u);
   }
   free(bitmap);
 }
@@ -139,7 +139,7 @@ TEST(Marking, ClearMultipleRanges) {
   bitmap->ClearRange(Bitmap::kBitsPerCell * 2 + 8,
                      Bitmap::kBitsPerCell * 2 + 16);
   bitmap->ClearRange(Bitmap::kBitsPerCell * 2 + 24, Bitmap::kBitsPerCell * 3);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffff);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffu);
   CHECK(bitmap->AllBitsSetInRange(0, Bitmap::kBitsPerCell / 2));
   CHECK(bitmap->AllBitsClearInRange(Bitmap::kBitsPerCell / 2,
                                     Bitmap::kBitsPerCell));

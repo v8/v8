@@ -127,7 +127,7 @@ class AtomicValue {
   }
 
   V8_INLINE void SetBits(T bits, T mask) {
-    DCHECK_EQ(bits & ~mask, 0);
+    DCHECK_EQ(bits & ~mask, static_cast<T>(0));
     T old_value;
     T new_value;
     do {

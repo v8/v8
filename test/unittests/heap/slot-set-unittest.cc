@@ -168,8 +168,8 @@ TEST(TypedSlotSet, Iterate) {
         uint32_t j =
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
         EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
-        EXPECT_EQ(0, i % kDelta);
-        EXPECT_EQ(0, j % kHostDelta);
+        EXPECT_EQ(0u, i % kDelta);
+        EXPECT_EQ(0u, j % kHostDelta);
         ++iterated;
         return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
       },
@@ -179,7 +179,7 @@ TEST(TypedSlotSet, Iterate) {
   set.Iterate(
       [&iterated](SlotType type, Address host_addr, Address addr) {
         uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
-        EXPECT_EQ(0, i % 2);
+        EXPECT_EQ(0u, i % 2);
         ++iterated;
         return KEEP_SLOT;
       },
