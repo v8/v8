@@ -20,6 +20,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
 typedef uint8_t byte;

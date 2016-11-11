@@ -12,6 +12,7 @@
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
@@ -60,7 +61,7 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
   // Although we decoded the module for some pre-validation, run the bytes
   // again through the normal pipeline.
   // TODO(wasm): Use {module} instead of decoding the module bytes again.
-  MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
+  MaybeHandle<WasmModuleObject> module_object = CreateModuleObjectFromBytes(
       isolate, module->module_start, module->module_end, thrower,
       ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr, nullptr);
   if (module_object.is_null()) {

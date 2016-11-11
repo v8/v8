@@ -13,6 +13,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -219,8 +220,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
 std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
     Isolate* isolate, Handle<FixedArray> input) {
-  Handle<wasm::WasmCompiledModule> compiled_module =
-      Handle<wasm::WasmCompiledModule>::cast(input);
+  Handle<WasmCompiledModule> compiled_module =
+      Handle<WasmCompiledModule>::cast(input);
   WasmCompiledModuleSerializer wasm_cs(isolate, 0);
   wasm_cs.reference_map()->AddAttachedReference(*isolate->native_context());
   wasm_cs.reference_map()->AddAttachedReference(
@@ -261,10 +262,10 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
 
   MaybeHandle<HeapObject> obj = deserializer.DeserializeObject(isolate);
   if (obj.is_null() || !obj.ToHandleChecked()->IsFixedArray()) return nothing;
-  Handle<wasm::WasmCompiledModule> compiled_module =
-      Handle<wasm::WasmCompiledModule>::cast(obj.ToHandleChecked());
+  Handle<WasmCompiledModule> compiled_module =
+      Handle<WasmCompiledModule>::cast(obj.ToHandleChecked());
 
-  wasm::WasmCompiledModule::RecreateModuleWrapper(isolate, compiled_module);
+  WasmCompiledModule::RecreateModuleWrapper(isolate, compiled_module);
   return compiled_module;
 }
 

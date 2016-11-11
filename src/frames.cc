@@ -15,8 +15,8 @@
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
-#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -1520,8 +1520,8 @@ Script* WasmFrame::script() const {
   if (wasm::WasmIsAsmJs(*instance, isolate())) {
     return *wasm::GetAsmWasmScript(instance);
   }
-  Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
-  return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
+  Handle<WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
+  return WasmDebugInfo::GetFunctionScript(debug_info, function_index());
 }
 
 int WasmFrame::position() const {

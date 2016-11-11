@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/wasm-debug.h"
-
 #include "src/assert-scope.h"
 #include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 using namespace v8::internal;
 using namespace v8::internal::wasm;

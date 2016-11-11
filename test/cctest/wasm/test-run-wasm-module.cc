@@ -11,6 +11,7 @@
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #include "test/cctest/cctest.h"
@@ -317,9 +318,8 @@ class WasmSerializationTest {
           decoding_result.val->CompileFunctions(serialization_isolate,
                                                 module_wrapper, &thrower);
       CHECK(!compiled_module.is_null());
-      Handle<JSObject> module_obj = CreateWasmModuleObject(
-          serialization_isolate, compiled_module.ToHandleChecked(),
-          ModuleOrigin::kWasmOrigin);
+      Handle<JSObject> module_obj = WasmModuleObject::New(
+          serialization_isolate, compiled_module.ToHandleChecked());
       v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
       CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 

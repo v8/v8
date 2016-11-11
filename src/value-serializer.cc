@@ -17,6 +17,7 @@
 #include "src/snapshot/code-serializer.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
@@ -739,8 +740,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
 }
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
-  Handle<wasm::WasmCompiledModule> compiled_part(
-      wasm::WasmCompiledModule::cast(object->GetInternalField(0)), isolate_);
+  Handle<WasmCompiledModule> compiled_part(
+      WasmCompiledModule::cast(object->GetInternalField(0)), isolate_);
   WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
@@ -1508,9 +1509,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   if (WasmCompiledModuleSerializer::DeserializeWasmModule(
           isolate_, &script_data, wire_bytes)
           .ToHandle(&compiled_part)) {
-    return wasm::CreateWasmModuleObject(
-        isolate_, Handle<wasm::WasmCompiledModule>::cast(compiled_part),
-        wasm::ModuleOrigin::kWasmOrigin);
+    return WasmModuleObject::New(
+        isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
   }
 
   // If that fails, recompile.

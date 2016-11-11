@@ -27,7 +27,6 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/snapshot/natives.h"
-#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
 
 #include "include/v8-debug.h"

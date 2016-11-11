@@ -25,37 +25,10 @@ class WasmJs {
                                       Handle<Context> context);
 
   // WebAssembly.Table.
-  static Handle<JSObject> CreateWasmTableObject(
-      Isolate* isolate, uint32_t initial, bool has_maximum, uint32_t maximum,
-      Handle<FixedArray>* js_functions);
-
   static bool IsWasmTableObject(Isolate* isolate, Handle<Object> value);
 
-  static Handle<FixedArray> GetWasmTableFunctions(Isolate* isolate,
-                                                  Handle<JSObject> object);
-
-  static Handle<FixedArray> AddWasmTableDispatchTable(
-      Isolate* isolate, Handle<JSObject> table_obj, Handle<JSObject> instance,
-      int table_index, Handle<FixedArray> dispatch_table);
-
   // WebAssembly.Memory
-  static Handle<JSObject> CreateWasmMemoryObject(Isolate* isolate,
-                                                 Handle<JSArrayBuffer> buffer,
-                                                 bool has_maximum, int maximum);
-
   static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
-
-  static Handle<JSArrayBuffer> GetWasmMemoryArrayBuffer(Isolate* isolate,
-                                                        Handle<Object> value);
-
-  static void SetWasmMemoryArrayBuffer(Isolate* isolate, Handle<Object> value,
-                                       Handle<JSArrayBuffer> buffer);
-
-  static uint32_t GetWasmMemoryMaximumSize(Isolate* isolate,
-                                           Handle<Object> value);
-
-  static void SetWasmMemoryInstance(Isolate* isolate, Handle<Object> value,
-                                    Handle<JSObject> instance);
 };
 
 }  // namespace internal

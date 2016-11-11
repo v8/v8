@@ -73,6 +73,7 @@
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
@@ -7237,8 +7238,8 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::wasm::WasmCompiledModule> compiled_part =
-      i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+  i::Handle<i::WasmCompiledModule> compiled_part =
+      i::handle(i::WasmCompiledModule::cast(obj->GetInternalField(0)));
   i::Handle<i::String> wire_bytes = compiled_part->module_bytes();
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
@@ -7246,8 +7247,8 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::wasm::WasmCompiledModule> compiled_part =
-      i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+  i::Handle<i::WasmCompiledModule> compiled_part =
+      i::handle(i::WasmCompiledModule::cast(obj->GetInternalField(0)));
 
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
@@ -7273,11 +7274,11 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();
   }
-  i::Handle<i::wasm::WasmCompiledModule> compiled_module =
-      handle(i::wasm::WasmCompiledModule::cast(*compiled_part));
+  i::Handle<i::WasmCompiledModule> compiled_module =
+      handle(i::WasmCompiledModule::cast(*compiled_part));
   return Local<WasmCompiledModule>::Cast(
-      Utils::ToLocal(i::wasm::CreateWasmModuleObject(
-          i_isolate, compiled_module, i::wasm::ModuleOrigin::kWasmOrigin)));
+      Utils::ToLocal(i::Handle<i::JSObject>::cast(
+          i::WasmModuleObject::New(i_isolate, compiled_module))));
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(

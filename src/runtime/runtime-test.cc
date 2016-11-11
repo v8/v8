@@ -17,6 +17,7 @@
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -783,9 +784,8 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
   }
-  return *wasm::CreateWasmModuleObject(
-      isolate, Handle<wasm::WasmCompiledModule>::cast(compiled_module),
-      wasm::kWasmOrigin);
+  return *WasmModuleObject::New(
+      isolate, Handle<WasmCompiledModule>::cast(compiled_module));
 }
 
 RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {

@@ -25,6 +25,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #include "src/zone/zone.h"
@@ -206,14 +207,15 @@ class TestingModule : public ModuleEnv {
   Handle<JSFunction> WrapCode(uint32_t index) {
     // Wrap the code so it can be called as a JS function.
     Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
-    Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
+    Handle<WasmInstanceObject> instance_obj(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
-    Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
-        isolate_, ret_code, name, this->module->functions[index].sig,
-        static_cast<int>(index), module_object);
+    Handle<JSFunction> ret = WasmExportedFunction::New(
+        isolate_, instance_obj, name, ret_code,
+        static_cast<int>(this->module->functions[index].sig->parameter_count()),
+        static_cast<int>(index));
     return ret;
   }
 

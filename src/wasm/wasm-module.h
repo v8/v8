@@ -19,6 +19,10 @@
 namespace v8 {
 namespace internal {
 
+class WasmCompiledModule;
+class WasmDebugInfo;
+class WasmModuleObject;
+
 namespace compiler {
 class CallDescriptor;
 class WasmCompilationUnit;
@@ -57,8 +61,6 @@ inline bool IsValidSectionCode(uint8_t byte) {
 }
 
 const char* SectionName(WasmSectionCode code);
-
-class WasmDebugInfo;
 
 // Constants for fixed-size elements within a module.
 static const uint32_t kMaxReturnCount = 1;
@@ -169,8 +171,6 @@ struct WasmExport {
 };
 
 enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
-
-class WasmCompiledModule;
 
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
@@ -353,125 +353,6 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
-class WasmCompiledModule : public FixedArray {
- public:
-  static WasmCompiledModule* cast(Object* fixed_array) {
-    SLOW_DCHECK(IsWasmCompiledModule(fixed_array));
-    return reinterpret_cast<WasmCompiledModule*>(fixed_array);
-  }
-
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID)                           \
-  Handle<TYPE> NAME() const { return handle(ptr_to_##NAME()); }      \
-                                                                     \
-  MaybeHandle<TYPE> maybe_##NAME() const {                           \
-    if (has_##NAME()) return NAME();                                 \
-    return MaybeHandle<TYPE>();                                      \
-  }                                                                  \
-                                                                     \
-  TYPE* ptr_to_##NAME() const {                                      \
-    Object* obj = get(ID);                                           \
-    if (!obj->Is##TYPE()) return nullptr;                            \
-    return TYPE::cast(obj);                                          \
-  }                                                                  \
-                                                                     \
-  void set_##NAME(Handle<TYPE> value) { set_ptr_to_##NAME(*value); } \
-                                                                     \
-  void set_ptr_to_##NAME(TYPE* value) { set(ID, value); }            \
-                                                                     \
-  bool has_##NAME() const { return get(ID)->Is##TYPE(); }            \
-                                                                     \
-  void reset_##NAME() { set_undefined(ID); }
-
-#define WCM_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME)
-
-#define WCM_SMALL_NUMBER(TYPE, NAME)                               \
-  TYPE NAME() const {                                              \
-    return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
-  }                                                                \
-  void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
-
-#define WCM_WEAK_LINK(TYPE, NAME)                        \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME); \
-                                                         \
-  Handle<TYPE> NAME() const {                            \
-    return handle(TYPE::cast(weak_##NAME()->value()));   \
-  }
-
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                \
-  MACRO(OBJECT, FixedArray, code_table)               \
-  MACRO(OBJECT, Foreign, module_wrapper)              \
-  MACRO(OBJECT, SeqOneByteString, module_bytes)       \
-  MACRO(OBJECT, Script, asm_js_script)                \
-  MACRO(OBJECT, FixedArray, function_tables)          \
-  MACRO(OBJECT, FixedArray, empty_function_tables)    \
-  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
-  MACRO(OBJECT, JSArrayBuffer, memory)                \
-  MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)        \
-  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)        \
-  MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
-  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
-  MACRO(WEAK_LINK, JSObject, owning_instance)         \
-  MACRO(WEAK_LINK, JSObject, wasm_module)
-
-#if DEBUG
-#define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_NUMBER, uint32_t, instance_id)
-#else
-#define DEBUG_ONLY_TABLE(IGNORE)
-  uint32_t instance_id() const { return -1; }
-#endif
-
-#define WCM_PROPERTY_TABLE(MACRO) \
-  CORE_WCM_PROPERTY_TABLE(MACRO)  \
-  DEBUG_ONLY_TABLE(MACRO)
-
- private:
-  enum PropertyIndices {
-#define INDICES(IGNORE1, IGNORE2, NAME) kID_##NAME,
-    WCM_PROPERTY_TABLE(INDICES) Count
-#undef INDICES
-  };
-
- public:
-  static Handle<WasmCompiledModule> New(
-      Isolate* isolate, Handle<Managed<WasmModule>> module_wrapper);
-
-  static Handle<WasmCompiledModule> Clone(Isolate* isolate,
-                                          Handle<WasmCompiledModule> module) {
-    Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
-        isolate->factory()->CopyFixedArray(module));
-    ret->InitId();
-    ret->reset_weak_owning_instance();
-    ret->reset_weak_next_instance();
-    ret->reset_weak_prev_instance();
-    return ret;
-  }
-
-  uint32_t mem_size() const {
-    return has_memory() ? memory()->byte_length()->Number()
-                        : default_mem_size();
-  }
-
-  uint32_t default_mem_size() const {
-    return min_mem_pages() * WasmModule::kPageSize;
-  }
-
-#define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
-  WCM_PROPERTY_TABLE(DECLARATION)
-#undef DECLARATION
-
-  static bool IsWasmCompiledModule(Object* obj);
-
-  void PrintInstancesChain();
-
-  static void RecreateModuleWrapper(Isolate* isolate,
-                                    Handle<FixedArray> compiled_module);
-
- private:
-  void InitId();
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
-};
-
 // Extract a function name from the given wasm object.
 // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
 // valid UTF-8 string.
@@ -522,21 +403,7 @@ Handle<Script> GetAsmWasmScript(Handle<JSObject> instance);
 int GetAsmWasmSourcePosition(Handle<JSObject> instance, int func_index,
                              int byte_offset);
 
-// Constructs a single function table as a FixedArray of double size,
-// populating it with function signature indices and function indices.
-Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
-                                      const WasmModule* module);
-
-// Populates a function table by replacing function indices with handles to
-// the compiled code.
-void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
-                           const std::vector<Handle<Code>>* code_table);
-
-Handle<JSObject> CreateWasmModuleObject(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    ModuleOrigin origin);
-
-V8_EXPORT_PRIVATE MaybeHandle<JSObject> CreateModuleObjectFromBytes(
+V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
     ModuleOrigin origin, Handle<Script> asm_js_script,
     const byte* asm_offset_tables_start, const byte* asm_offset_tables_end);
