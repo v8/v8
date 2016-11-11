@@ -1136,37 +1136,6 @@ StubCache* IC::stub_cache() {
 }
 
 void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* handler) {
-  if (FLAG_store_ic_smi_handlers && handler->IsSmi() &&
-      (kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC)) {
-    // TODO(ishell, jkummerow): Implement data handlers support in
-    // KeyedStoreIC_Megamorphic.
-    Handle<Map> map_handle(map, isolate());
-    Handle<Name> name_handle(name, isolate());
-    int config = Smi::cast(handler)->value();
-    int value_index = StoreHandler::DescriptorValueIndexBits::decode(config);
-    int descriptor = (value_index - DescriptorArray::kDescriptorValue -
-                      DescriptorArray::kFirstIndex) /
-                     DescriptorArray::kDescriptorSize;
-    if (map->instance_descriptors()->length()) {
-      PropertyDetails details =
-          map->instance_descriptors()->GetDetails(descriptor);
-      DCHECK_EQ(DATA, details.type());
-      DCHECK_EQ(name, map->instance_descriptors()->GetKey(descriptor));
-      Representation representation = details.representation();
-      FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
-      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
-      StoreFieldStub stub(isolate(), index, representation);
-      handler = *stub.GetCode();
-    } else {
-      // It must be a prototype map that some prototype used to have. This map
-      // check will never succeed so write a dummy smi to the cache.
-      DCHECK(!map->is_dictionary_map());
-      DCHECK(map->is_prototype_map());
-      handler = Smi::FromInt(1);
-    }
-    stub_cache()->Set(*name_handle, *map_handle, handler);
-    return;
-  }
   stub_cache()->Set(name, map, handler);
 }
 
@@ -2007,20 +1976,20 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
-        bool use_stub = true;
-        if (lookup->representation().IsHeapObject()) {
-          // Only use a generic stub if no types need to be tracked.
-          Handle<FieldType> field_type = lookup->GetFieldType();
-          use_stub = !field_type->IsClass();
-        }
-        if (use_stub) {
-          if (FLAG_store_ic_smi_handlers) {
-            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
-            int descriptor = lookup->GetFieldDescriptorIndex();
-            FieldIndex index = lookup->GetFieldIndex();
-            return StoreHandler::StoreField(isolate(), descriptor, index,
-                                            lookup->representation());
-          } else {
+        if (FLAG_tf_store_ic_stub) {
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
+          int descriptor = lookup->GetFieldDescriptorIndex();
+          FieldIndex index = lookup->GetFieldIndex();
+          return StoreHandler::StoreField(isolate(), descriptor, index,
+                                          lookup->representation());
+        } else {
+          bool use_stub = true;
+          if (lookup->representation().IsHeapObject()) {
+            // Only use a generic stub if no types need to be tracked.
+            Handle<FieldType> field_type = lookup->GetFieldType();
+            use_stub = !field_type->IsClass();
+          }
+          if (use_stub) {
             TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
             StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
                                 lookup->representation());
@@ -2140,6 +2109,7 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
 
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
+        DCHECK(!FLAG_tf_store_ic_stub);
 #ifdef DEBUG
         bool use_stub = true;
         if (lookup->representation().IsHeapObject()) {
