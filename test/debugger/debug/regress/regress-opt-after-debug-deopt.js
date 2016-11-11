@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,45 +25,51 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
+
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
+  quit();
+}
 
 Debug = debug.Debug;
 
-Debug.setListener(listener);
-var exception = null;
-var fourteen;
-var four_in_debugger = [];
-
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    try {
-      for (var i = 0; i < exec_state.frameCount() - 1; i++) {
-        var frame = exec_state.frame(i);
-        four_in_debugger[i] = frame.evaluate("four", false).value();
-      }
-    } catch (e) {
-      exception = e;
-    }
-  }
+  if (event != Debug.DebugEvent.Break) return;
+  try {
+    assertEquals("foo", exec_state.frame(0).evaluate("a").value());
+  } catch (e) {
+    exception = e;
+  };
+  listened++;
+};
+
+var exception = null;
+var listened = 0;
+
+var f = function() {
+  var a = "foo";
+  var b = a.substring("1");
+  [a, b].sort();
+  return a;
 }
 
-function f1() {
-  var three = 3;
-  var four = 4;
-  (function f2() {
-     var seven = 7;
-     (function f3() {
-        debugger;
-        fourteen = three + four + seven;
-     })();
-  })();
-}
+f();
+f();
+%OptimizeFunctionOnNextCall(f, "concurrent");  // Mark with builtin.
+f();                           // Kick off concurrent recompilation.
 
-f1();
-assertEquals(14, fourteen);
-assertEquals(4, four_in_debugger[0]);
-assertEquals(4, four_in_debugger[1]);
-assertEquals(4, four_in_debugger[2]);
+// After compile graph has been created...
+Debug.setListener(listener);   // Activate debugger.
+Debug.setBreakPoint(f, 2, 0);  // Force deopt.
 
-Debug.setListener(null);
+// At this point, concurrent recompilation is still being blocked.
+assertUnoptimized(f, "no sync");
+// Let concurrent recompilation proceed.
+%UnblockConcurrentRecompilation();
+// Sync with optimization thread.  But no optimized code is installed.
+assertUnoptimized(f, "sync");
+
+f();                           // Trigger break point.
+assertEquals(1, listened);
 assertNull(exception);

@@ -45,25 +45,6 @@ function listener(event, exec_state, event_data, data) {
     break_count++;
     if (break_count == 1) {
       Debug.setBreakPoint(g, 3);
-
-      for (var i = 0; i < exec_state.frameCount(); i++) {
-        var frame = exec_state.frame(i);
-        // When function f is optimized (1 means YES, see runtime.cc) we
-        // expect an optimized frame for f and g.
-        if (%GetOptimizationStatus(f) == 1) {
-          if (i == 1) {
-            assertTrue(frame.isOptimizedFrame());
-            assertTrue(frame.isInlinedFrame());
-            assertEquals(4 - i, frame.inlinedFrameIndex());
-          } else if (i == 2) {
-            assertTrue(frame.isOptimizedFrame());
-            assertFalse(frame.isInlinedFrame());
-          } else {
-            assertFalse(frame.isOptimizedFrame());
-            assertFalse(frame.isInlinedFrame());
-          }
-        }
-      }
     }
   }
 }

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,45 +25,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 
-// Test that a variable in the local scope that shadows a context-allocated
-// variable is correctly resolved when being evaluated in the debugger.
+// Test debug evaluation for functions without local context, but with
+// nested catch contexts.
 
-Debug = debug.Debug;
+function f() {
+  var i = 1;          // Line 1.
+  {                   // Line 2.
+    try {             // Line 3.
+      throw 'stuff';  // Line 4.
+    } catch (e) {     // Line 5.
+      x = 2;          // Line 6.
+    }
+  }
+};
 
-var exception = false;
+Debug = debug.Debug
 
 function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
-  var breakpoint = exec_state.frame(0);
-  try {
-    // Assert correct break point.
-    assertTrue(breakpoint.sourceLineText().indexOf("// Break") > -1);
-    // Assert correct value.
-    assertEquals(3, breakpoint.evaluate('x').value());
-  } catch (e) {
-    exception = e;
+  if (event == Debug.DebugEvent.Break) {
+    result = exec_state.frame().evaluate("i").value();
   }
-}
+};
 
+// Add the debug event listener.
 Debug.setListener(listener);
 
-function h() {
-  var x;  // Context-allocated due to g().
+//Set breakpoint on line 6.
+var bp = Debug.setBreakPoint(f, 6);
 
-  var g = function g() {
-    x = -7;
-  };
+result = -1;
+f();
+assertEquals(1, result);
 
-  var f = function f() {
-    var x = 3;  // Allocated in the local scope.
-    debugger;  // Break.
-  };
-
-  f();
-}
-
-h();
-
-assertFalse(exception);
+// Clear breakpoint.
+Debug.clearBreakPoint(bp);
+// Get rid of the debug event listener.
+Debug.setListener(null);

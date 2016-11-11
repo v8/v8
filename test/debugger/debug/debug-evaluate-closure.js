@@ -25,45 +25,67 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 
-// If a function parameter is forced to be context allocated,
-// debug evaluate need to resolve it to a context slot instead of
-// parameter slot on the stack.
-
-var Debug = debug.Debug;
-
-var expected;
-var exception = null;
+Debug = debug.Debug;
+var listened = false;
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
-    assertEquals(expected, exec_state.frame(0).evaluate('arg').value());
-    exec_state.frame(0).evaluate('arg = "evaluated";');  // no effect
+    assertEquals("goo", exec_state.frame(0).evaluate("goo").value());
+    exec_state.frame(0).evaluate("goo = 'goo foo'");
+    assertEquals("bar return", exec_state.frame(0).evaluate("bar()").value());
+    assertEquals("inner bar", exec_state.frame(0).evaluate("inner").value());
+    assertEquals("outer bar", exec_state.frame(0).evaluate("outer").value());
+
+    assertEquals("baz inner", exec_state.frame(0).evaluate("baz").value());
+    assertEquals("baz outer", exec_state.frame(1).evaluate("baz").value());
+    exec_state.frame(0).evaluate("w = 'w foo'");
+    exec_state.frame(0).evaluate("inner = 'inner foo'");
+    exec_state.frame(0).evaluate("outer = 'outer foo'");
+    exec_state.frame(0).evaluate("baz = 'baz inner foo'");
+    exec_state.frame(1).evaluate("baz = 'baz outer foo'");
+    listened = true;
   } catch (e) {
-    exception = e;
+    print(e);
+    print(e.stack);
   }
 }
 
 Debug.setListener(listener);
 
-function f(arg) {
-  expected = arg;
-  debugger;
-  assertEquals("evaluated", arg);
+var outer = "outer";
+var baz = "baz outer";
 
-  arg = "value";
-  expected = arg;
-  debugger;
-  assertEquals("evaluated", arg);
+function foo() {
+  var inner = "inner";
+  var baz = "baz inner";
+  var goo = "goo";
+  var withw = { w: "w" };
+  var withv = { v: "v" };
 
-  // Forces arg to be context allocated even though a parameter.
-  function g() { arg; }
+  with (withv) {
+    var bar = function bar() {
+      assertEquals("goo foo", goo);
+      inner = "inner bar";
+      outer = "outer bar";
+      v = "v bar";
+      return "bar return";
+    };
+  }
+
+  with (withw) {
+    debugger;
+  }
+
+  assertEquals("inner foo", inner);
+  assertEquals("baz inner foo", baz);
+  assertEquals("w foo", withw.w);
+  assertEquals("v bar", withv.v);
 }
 
-f();
-f(1);
-f(1, 2);
-
-assertNull(exception);
+foo();
+assertEquals("outer foo", outer);
+assertEquals("baz outer foo", baz);
+assertTrue(listened);
+Debug.setListener(null);

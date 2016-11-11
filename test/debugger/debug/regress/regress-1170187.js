@@ -25,12 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 
 // Make sure that the retreival of local variables are performed correctly even
 // when an adapter frame is present.
 
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 listenerCalled = false;
@@ -38,7 +36,8 @@ exception = false;
 
 
 function checkName(name) {
-  assertTrue(name == 'a' || name == 'b' || name == 'c');
+  const validNames = new Set([ 'a', 'b', 'c', 'x', 'y' ]);
+  assertTrue(validNames.has(name));
 }
 
 

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
 
 function f() {
   for (var i = 10; i < 14; i++) {  // 1

@@ -22,4 +22,23 @@
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['variant == turbofan_opt', {
+  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
+  'debug/regress/regress-crbug-323936': [FAIL],
+
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug/debug-evaluate-closure': [FAIL],
+}],  # variant == turbofan_opt
+
+##############################################################################
+['gc_stress == True', {
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
+}],  # 'gc_stress == True'
 ]

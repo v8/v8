@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,42 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 
-// Test debug evaluation for functions without local context, but with
-// nested catch contexts.
+// If a function parameter is forced to be context allocated,
+// debug evaluate need to resolve it to a context slot instead of
+// parameter slot on the stack.
 
-function f() {
-  var i = 1;          // Line 1.
-  {                   // Line 2.
-    try {             // Line 3.
-      throw 'stuff';  // Line 4.
-    } catch (e) {     // Line 5.
-      x = 2;          // Line 6.
-    }
-  }
-};
+var Debug = debug.Debug;
 
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
+var expected;
+var exception = null;
 
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    result = exec_state.frame().evaluate("i").value();
+  if (event != Debug.DebugEvent.Break) return;
+  try {
+    assertEquals(expected, exec_state.frame(0).evaluate('arg').value());
+    exec_state.frame(0).evaluate('arg = "evaluated";');  // no effect
+  } catch (e) {
+    exception = e;
   }
-};
+}
 
-// Add the debug event listener.
 Debug.setListener(listener);
 
-//Set breakpoint on line 6.
-var bp = Debug.setBreakPoint(f, 6);
+function f(arg) {
+  expected = arg;
+  debugger;
+  assertEquals("evaluated", arg);
 
-result = -1;
+  arg = "value";
+  expected = arg;
+  debugger;
+  assertEquals("evaluated", arg);
+
+  // Forces arg to be context allocated even though a parameter.
+  function g() { arg; }
+}
+
 f();
-assertEquals(1, result);
+f(1);
+f(1, 2);
 
-// Clear breakpoint.
-Debug.clearBreakPoint(bp);
-// Get rid of the debug event listener.
-Debug.setListener(null);
+assertNull(exception);

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,69 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
 
-listenerComplete = false;
-exception = false;
+// Test that a variable in the local scope that shadows a context-allocated
+// variable is correctly resolved when being evaluated in the debugger.
 
-function checkArguments(frame, names, values) {
-  var argc = Math.max(names.length, values.length);
-  assertEquals(argc, frame.argumentCount());
-  for (var i = 0; i < argc; i++) {
-    if (i < names.length) {
-      assertEquals(names[i], frame.argumentName(i));
-    } else {
-      assertEquals(void 0, frame.argumentName(i));
-    }
+Debug = debug.Debug;
 
-    if (i < values.length) {
-      assertEquals(values[i], frame.argumentValue(i).value());
-    } else {
-      assertEquals(void 0, frame.argumentValue(i).value());
-    }
+var exception = false;
+
+function listener(event, exec_state, event_data, data) {
+  if (event != Debug.DebugEvent.Break) return;
+  var breakpoint = exec_state.frame(0);
+  try {
+    // Assert correct break point.
+    assertTrue(breakpoint.sourceLineText().indexOf("// Break") > -1);
+    // Assert correct value.
+    assertEquals(3, breakpoint.evaluate('x').value());
+  } catch (e) {
+    exception = e;
   }
 }
 
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break)
-    {
-      // Frame 0 - called with less parameters than arguments.
-      checkArguments(exec_state.frame(0), ['x', 'y'], [1]);
-
-      // Frame 1 - called with more parameters than arguments.
-      checkArguments(exec_state.frame(1), ['x', 'y'], [1, 2, 3]);
-
-      // Frame 2 - called with same number of parameters than arguments.
-      checkArguments(exec_state.frame(2), ['x', 'y', 'z'], [1, 2, 3]);
-
-      // Indicate that all was processed.
-      listenerComplete = true;
-    }
-  } catch (e) {
-    exception = e
-  };
-};
-
-// Add the debug event listener.
 Debug.setListener(listener);
 
-function h(x, y) {
-  debugger;  // Breakpoint.
-};
+function h() {
+  var x;  // Context-allocated due to g().
 
-function g(x, y) {
-  h(x);
-};
+  var g = function g() {
+    x = -7;
+  };
 
-function f(x, y, z) {
-  g.apply(null, [x, y, z]);
-};
+  var f = function f() {
+    var x = 3;  // Allocated in the local scope.
+    debugger;  // Break.
+  };
 
-f(1, 2, 3);
+  f();
+}
 
-// Make sure that the debug event listener vas invoked.
-assertTrue(listenerComplete);
-assertFalse(exception, "exception in listener")
+h();
+
+assertFalse(exception);

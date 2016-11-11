@@ -119,7 +119,6 @@ class DebugWrapper {
     assertFalse(%FunctionIsAPIFunction(func));
 
     // TODO(jgruber): We handle only script breakpoints for now.
-    // TODO(jgruber): Handle conditions.
 
     const scriptid = %FunctionGetScriptId(func);
     assertTrue(scriptid != -1);
@@ -128,13 +127,17 @@ class DebugWrapper {
     const loc =
       %ScriptLocationFromLine2(scriptid, opt_line, opt_column, offset);
 
+    const params = { location :
+                       { scriptId : scriptid.toString(),
+                         lineNumber : loc.line,
+                         columnNumber : loc.column,
+                       }};
+    if (!!opt_condition) {
+      params.condition = opt_condition;
+    }
+
     const {msgid, msg} = this.createMessage(
-        "Debugger.setBreakpoint",
-        { location : { scriptId : scriptid.toString(),
-                       lineNumber : loc.line,
-                       columnNumber : loc.column
-                     }
-        });
+        "Debugger.setBreakpoint", params);
     this.sendMessage(msg);
 
     const reply = this.takeReplyChecked(msgid);
@@ -237,17 +240,94 @@ class DebugWrapper {
   // This is in contrast to the original API, which simply passed object
   // mirrors.
   execStateScopeObject(obj) {
-    const {msgid, msg} = this.createMessage(
-        "Runtime.getProperties", { objectId : obj.objectId });
-    this.sendMessage(msg);
-    const reply = this.takeReplyChecked(msgid);
-    return { value : () => reply.result.result };
+    const serialized_scope = this.getProperties(obj.objectId);
+    const scope = {}
+    const scope_tuples = serialized_scope.forEach((elem) => {
+      const key = elem.name;
+
+      let value;
+      if (elem.value) {
+        // Some properties (e.g. with getters/setters) don't have a value.
+        switch (elem.value.type) {
+          case "undefined": value = undefined; break;
+          default: value = elem.value.value; break;
+        }
+      }
+
+      scope[key] = value;
+    })
+
+    return { value : () => scope };
   }
 
   execStateScope(scope) {
     return { scopeType : () => this.execStateScopeType(scope.type),
              scopeObject : () => this.execStateScopeObject(scope.object)
            };
+  }
+
+  getProperties(objectId) {
+    const {msgid, msg} = this.createMessage(
+        "Runtime.getProperties", { objectId : objectId });
+    this.sendMessage(msg);
+    const reply = this.takeReplyChecked(msgid);
+    return reply.result.result;
+  }
+
+  getLocalScopeDetails(frame) {
+    const scopes = frame.scopeChain;
+    for (let i = 0; i < scopes.length; i++) {
+      const scope = scopes[i]
+      if (scope.type == "local") {
+        return this.getProperties(scope.object.objectId);
+      }
+    }
+
+    return undefined;
+  }
+
+  execStateFrameLocalCount(frame) {
+    const scope_details = this.getLocalScopeDetails(frame);
+    return scope_details ? scope_details.length : 0;
+  }
+
+  execStateFrameLocalName(frame, index) {
+    const scope_details = this.getLocalScopeDetails(frame);
+    if (index < 0 || index >= scope_details.length) return undefined;
+    return scope_details[index].name;
+  }
+
+  execStateFrameLocalValue(frame, index) {
+    const scope_details = this.getLocalScopeDetails(frame);
+    if (index < 0 || index >= scope_details.length) return undefined;
+
+    const local = scope_details[index];
+
+    let localValue;
+    switch (local.value.type) {
+      case "undefined": localValue = undefined; break;
+      default: localValue = local.value.value; break;
+    }
+
+    return { value : () => localValue };
+  }
+
+  execStateFrameEvaluate(frame, expr) {
+    const frameid = frame.callFrameId;
+    const {msgid, msg} = this.createMessage(
+        "Debugger.evaluateOnCallFrame",
+        { callFrameId : frameid,
+          expression : expr
+        });
+    this.sendMessage(msg);
+    const reply = this.takeReplyChecked(msgid);
+
+    const result = reply.result.result;
+    if (result.subtype == "error") {
+      throw new Error(result.description);
+    }
+
+    return { value : () => result.value };
   }
 
   execStateFrame(frame) {
@@ -257,8 +337,12 @@ class DebugWrapper {
     const loc = %ScriptLocationFromLine2(scriptid, line, column, 0);
     const func = { name : () => frame.functionName };
     return { sourceLineText : () => loc.sourceText,
+             evaluate : (expr) => this.execStateFrameEvaluate(frame, expr),
              functionName : () => frame.functionName,
              func : () => func,
+             localCount : () => this.execStateFrameLocalCount(frame),
+             localName : (ix) => this.execStateFrameLocalName(frame, ix),
+             localValue: (ix) => this.execStateFrameLocalValue(frame, ix),
              scopeCount : () => frame.scopeChain.length,
              scope : (index) => this.execStateScope(frame.scopeChain[index]),
              allScopes : () => frame.scopeChain.map(

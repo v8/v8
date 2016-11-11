@@ -219,10 +219,6 @@
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
   'harmony/async-function-debug-scopes': [SKIP],
-  'harmony/async-debug-caught-exception-cases0': [SKIP],
-  'harmony/async-debug-caught-exception-cases1': [SKIP],
-  'harmony/async-debug-caught-exception-cases2': [SKIP],
-  'harmony/async-debug-caught-exception-cases3': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
@@ -238,9 +234,6 @@
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
-
-  # Issue 3723.
-  'regress/regress-3717': [SKIP],
 
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
@@ -595,8 +588,6 @@
 
 ##############################################################################
 ['variant == stress', {
-  'debug-evaluate-locals-optimized': [FAIL],
-  'debug-evaluate-locals-optimized-double': [FAIL],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress
@@ -605,19 +596,13 @@
 ['variant == turbofan_opt', {
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-closure': [FAIL],
   'debug-evaluate-locals': [FAIL],
   'debug-set-variable-value': [FAIL],
-  'debug-evaluate-locals-optimized': [FAIL],
-  'debug-evaluate-locals-optimized-double': [FAIL],
   'debug-liveedit-double-call': [FAIL],
   'es6/debug-evaluate-blockscopes': [FAIL],
 
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
-
-  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
-  'regress/regress-crbug-323936': [FAIL],
 
   # Too slow.
   'big-object-literal': [SKIP],
