@@ -139,7 +139,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   {
     if (IsFastDoubleElementsKind(from_kind) !=
         IsFastDoubleElementsKind(to_kind)) {
-      Node* capacity = LoadFixedArrayBaseLength(elements);
+      Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
                            capacity, INTPTR_PARAMETERS, bailout);
     }
