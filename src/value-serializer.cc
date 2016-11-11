@@ -1730,7 +1730,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
 
 MaybeHandle<Object>
 ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
-  DCHECK_EQ(version_, 0);
+  DCHECK_EQ(version_, 0u);
   HandleScope scope(isolate_);
   std::vector<Handle<Object>> stack;
   while (position_ < end_) {

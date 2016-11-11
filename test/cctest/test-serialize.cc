@@ -1962,19 +1962,19 @@ TEST(SnapshotCreatorMultipleContexts) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       CompileRun("var f = function() { return 1; }");
-      CHECK_EQ(0, creator.AddContext(context));
+      CHECK_EQ(0u, creator.AddContext(context));
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       CompileRun("var f = function() { return 2; }");
-      CHECK_EQ(1, creator.AddContext(context));
+      CHECK_EQ(1u, creator.AddContext(context));
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
-      CHECK_EQ(2, creator.AddContext(context));
+      CHECK_EQ(2u, creator.AddContext(context));
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -2044,7 +2044,7 @@ TEST(SnapshotCreatorExternalReferences) {
           callback->GetFunction(context).ToLocalChecked();
       CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
       ExpectInt32("f()", 42);
-      CHECK_EQ(0, creator.AddContext(context));
+      CHECK_EQ(0u, creator.AddContext(context));
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -2104,7 +2104,7 @@ TEST(SnapshotCreatorUnknownExternalReferences) {
     CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
     ExpectInt32("f()", 42);
 
-    CHECK_EQ(0, creator.AddContext(context));
+    CHECK_EQ(0u, creator.AddContext(context));
   }
   v8::StartupData blob =
       creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -2177,9 +2177,9 @@ TEST(SnapshotCreatorTemplates) {
       c->SetAlignedPointerInInternalField(1, c1);
       CHECK(context->Global()->Set(context, v8_str("a"), a).FromJust());
 
-      CHECK_EQ(0, creator.AddContext(context));
-      CHECK_EQ(0, creator.AddTemplate(callback));
-      CHECK_EQ(1, creator.AddTemplate(global_template));
+      CHECK_EQ(0u, creator.AddContext(context));
+      CHECK_EQ(0u, creator.AddTemplate(callback));
+      CHECK_EQ(1u, creator.AddTemplate(global_template));
     }
     blob = creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear,
                               SerializeInternalFields);
@@ -2248,10 +2248,10 @@ TEST(SnapshotCreatorTemplates) {
         InternalFieldData* c1 = reinterpret_cast<InternalFieldData*>(
             c->GetAlignedPointerFromInternalField(1));
 
-        CHECK_EQ(11, a1->data);
-        CHECK_EQ(20, b0->data);
-        CHECK_EQ(30, c0->data);
-        CHECK_EQ(31, c1->data);
+        CHECK_EQ(11u, a1->data);
+        CHECK_EQ(20u, b0->data);
+        CHECK_EQ(30u, c0->data);
+        CHECK_EQ(31u, c1->data);
 
         // Accessing out of bound returns empty MaybeHandle.
         CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());

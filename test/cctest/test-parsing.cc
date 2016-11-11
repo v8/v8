@@ -6120,7 +6120,7 @@ TEST(ModuleParsingInternals) {
   i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
 
-  CHECK_EQ(5, descriptor->module_requests().size());
+  CHECK_EQ(5u, descriptor->module_requests().size());
   for (const auto& elem : descriptor->module_requests()) {
     if (elem.first->IsOneByteEqualTo("m.js"))
       CHECK_EQ(elem.second, 0);
@@ -6142,7 +6142,7 @@ TEST(ModuleParsingInternals) {
   CheckEntry(descriptor->special_exports().at(2), "bb", nullptr, "aa",
              0);  // !!!
 
-  CHECK_EQ(8, descriptor->regular_exports().size());
+  CHECK_EQ(8u, descriptor->regular_exports().size());
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(3)->proxy()->raw_name())
               ->second;
@@ -6169,7 +6169,7 @@ TEST(ModuleParsingInternals) {
   CheckEntry(entry, "foob", "foob", nullptr, -1);
   // TODO(neis): The next lines are terrible. Find a better way.
   auto name_x = declarations->AtForTest(0)->proxy()->raw_name();
-  CHECK_EQ(2, descriptor->regular_exports().count(name_x));
+  CHECK_EQ(2u, descriptor->regular_exports().count(name_x));
   auto it = descriptor->regular_exports().equal_range(name_x).first;
   entry = it->second;
   if (entry->export_name->IsOneByteEqualTo("y")) {
@@ -6187,7 +6187,7 @@ TEST(ModuleParsingInternals) {
   CheckEntry(descriptor->namespace_imports().at(1), nullptr, "foob", nullptr,
              4);
 
-  CHECK_EQ(4, descriptor->regular_imports().size());
+  CHECK_EQ(4u, descriptor->regular_imports().size());
   entry = descriptor->regular_imports()
               .find(declarations->AtForTest(1)->proxy()->raw_name())
               ->second;

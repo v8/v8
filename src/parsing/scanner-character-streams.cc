@@ -349,9 +349,9 @@ void Utf8ExternalStreamingStream::SearchPosition(size_t position) {
 
   // No chunks. Fetch at least one, so we can assume !chunks_.empty() below.
   if (chunks_.empty()) {
-    DCHECK_EQ(current_.chunk_no, 0);
-    DCHECK_EQ(current_.pos.bytes, 0);
-    DCHECK_EQ(current_.pos.chars, 0);
+    DCHECK_EQ(current_.chunk_no, 0u);
+    DCHECK_EQ(current_.pos.bytes, 0u);
+    DCHECK_EQ(current_.pos.chars, 0u);
     FetchChunk();
   }
 
@@ -438,7 +438,8 @@ size_t Utf8ExternalStreamingStream::FillBuffer(size_t position) {
     FillBufferFromCurrentChunk();
   }
 
-  DCHECK_EQ(current_.pos.chars - position, buffer_end_ - buffer_cursor_);
+  DCHECK_EQ(current_.pos.chars - position,
+            static_cast<size_t>(buffer_end_ - buffer_cursor_));
   return buffer_end_ - buffer_cursor_;
 }
 
@@ -497,7 +498,7 @@ size_t FindChunk(Chunks& chunks, ScriptCompiler::ExternalSourceStream* source_,
   // let's look at chunks back-to-front.
   size_t chunk_no = chunks.size() - 1;
   while (chunks[chunk_no].byte_pos > position) {
-    DCHECK_NE(chunk_no, 0);
+    DCHECK_NE(chunk_no, 0u);
     chunk_no--;
   }
   DCHECK_LE(chunks[chunk_no].byte_pos, position);
@@ -593,7 +594,7 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
   // one_char_buffer_ to hold the full character.
   bool lonely_byte = (chunks_[chunk_no].byte_pos == (2 * position + 1));
   if (lonely_byte) {
-    DCHECK_NE(chunk_no, 0);
+    DCHECK_NE(chunk_no, 0u);
     Chunk& previous_chunk = chunks_[chunk_no - 1];
 #ifdef V8_TARGET_BIG_ENDIAN
     uc16 character = current.data[0] |
@@ -715,7 +716,7 @@ bool TwoByteExternalBufferedStream::ReadBlock() {
 
 size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
                                                  size_t chunk_no) {
-  DCHECK_EQ(chunks_[chunk_no].byte_pos % 2, 1);
+  DCHECK_EQ(chunks_[chunk_no].byte_pos % 2, 1u);
   bool odd_start = true;
   // Align buffer_pos_ to the size of the buffer.
   {
@@ -738,7 +739,7 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
   size_t totalLength = 0;
   bool lonely_byte = (current->byte_pos == (2 * position + 1));
   if (lonely_byte) {
-    DCHECK_NE(chunk_no, 0);
+    DCHECK_NE(chunk_no, 0u);
     Chunk& previous_chunk = chunks_[chunk_no - 1];
     *reinterpret_cast<uint8_t*>(buffer_) =
         previous_chunk.data[previous_chunk.byte_length - 1];
