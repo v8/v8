@@ -555,6 +555,11 @@
   # Too slow.
   'es6/tail-call-megatest*': [SKIP],
 
+  # Forced optimisation path tests.
+  'shared-function-tier-up-default': [SKIP],
+  'shared-function-tier-up-ignition': [SKIP],
+  'shared-function-tier-up-turbo': [SKIP],
+
   # Ongoing implementation of modules.
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
   # The deopt fuzzer currently does not respect the 'variant != ignition' rule

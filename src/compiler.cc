@@ -879,7 +879,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
         }
 
         Handle<Code> code;
-        if (!GetBaselineCode(function).ToHandle(&code)) {
+        if (GetBaselineCode(function).ToHandle(&code)) {
           return code;
         }
         break;
@@ -893,8 +893,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
         Handle<Code> code;
         // TODO(leszeks): Look into performing this compilation concurrently.
-        if (!GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
-                 .ToHandle(&code)) {
+        if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
+                .ToHandle(&code)) {
           return code;
         }
         break;
