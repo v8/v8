@@ -1484,7 +1484,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ ldrb(r5, FieldMemOperand(entry,
                               SharedFunctionInfo::kMarkedForTierUpByteOffset));
   __ tst(r5, Operand(1 << SharedFunctionInfo::kMarkedForTierUpBitWithinByte));
-  __ b(ne, &gotta_call_runtime_no_stack);
+  __ b(eq, &gotta_call_runtime_no_stack);
   // Is the full code valid?
   __ ldr(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ ldr(r5, FieldMemOperand(entry, Code::kFlagsOffset));
