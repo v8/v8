@@ -111,7 +111,10 @@ class ValueSerializerTest : public TestWithIsolate {
       return Nothing<std::vector<uint8_t>>();
     }
     AfterEncode();
-    return Just(serializer.ReleaseBuffer());
+    std::pair<uint8_t*, size_t> buffer = serializer.Release();
+    std::vector<uint8_t> result(buffer.first, buffer.first + buffer.second);
+    free(buffer.first);
+    return Just(std::move(result));
   }
 
   template <typename InputFunctor, typename EncodedDataFunctor>

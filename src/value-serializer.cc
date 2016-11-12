@@ -148,7 +148,15 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
       id_map_(isolate->heap(), &zone_),
       array_buffer_transfer_map_(isolate->heap(), &zone_) {}
 
-ValueSerializer::~ValueSerializer() {}
+ValueSerializer::~ValueSerializer() {
+  if (buffer_) {
+    if (delegate_) {
+      delegate_->FreeBufferMemory(buffer_);
+    } else {
+      free(buffer_);
+    }
+  }
+}
 
 void ValueSerializer::WriteHeader() {
   WriteTag(SerializationTag::kVersion);
@@ -156,7 +164,8 @@ void ValueSerializer::WriteHeader() {
 }
 
 void ValueSerializer::WriteTag(SerializationTag tag) {
-  buffer_.push_back(static_cast<uint8_t>(tag));
+  uint8_t raw_tag = static_cast<uint8_t>(tag);
+  WriteRawBytes(&raw_tag, sizeof(raw_tag));
 }
 
 template <typename T>
@@ -175,7 +184,7 @@ void ValueSerializer::WriteVarint(T value) {
     value >>= 7;
   } while (value);
   *(next_byte - 1) &= 0x7f;
-  buffer_.insert(buffer_.end(), stack_buffer, next_byte);
+  WriteRawBytes(stack_buffer, next_byte - stack_buffer);
 }
 
 template <typename T>
@@ -193,32 +202,48 @@ void ValueSerializer::WriteZigZag(T value) {
 
 void ValueSerializer::WriteDouble(double value) {
   // Warning: this uses host endianness.
-  buffer_.insert(buffer_.end(), reinterpret_cast<const uint8_t*>(&value),
-                 reinterpret_cast<const uint8_t*>(&value + 1));
+  WriteRawBytes(&value, sizeof(value));
 }
 
 void ValueSerializer::WriteOneByteString(Vector<const uint8_t> chars) {
   WriteVarint<uint32_t>(chars.length());
-  buffer_.insert(buffer_.end(), chars.begin(), chars.end());
+  WriteRawBytes(chars.begin(), chars.length() * sizeof(uint8_t));
 }
 
 void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
   // Warning: this uses host endianness.
   WriteVarint<uint32_t>(chars.length() * sizeof(uc16));
-  buffer_.insert(buffer_.end(), reinterpret_cast<const uint8_t*>(chars.begin()),
-                 reinterpret_cast<const uint8_t*>(chars.end()));
+  WriteRawBytes(chars.begin(), chars.length() * sizeof(uc16));
 }
 
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
-  const uint8_t* begin = reinterpret_cast<const uint8_t*>(source);
-  buffer_.insert(buffer_.end(), begin, begin + length);
+  memcpy(ReserveRawBytes(length), source, length);
 }
 
 uint8_t* ValueSerializer::ReserveRawBytes(size_t bytes) {
-  if (!bytes) return nullptr;
-  auto old_size = buffer_.size();
-  buffer_.resize(buffer_.size() + bytes);
+  size_t old_size = buffer_size_;
+  size_t new_size = old_size + bytes;
+  if (new_size > buffer_capacity_) ExpandBuffer(new_size);
+  buffer_size_ = new_size;
   return &buffer_[old_size];
+}
+
+void ValueSerializer::ExpandBuffer(size_t required_capacity) {
+  DCHECK_GT(required_capacity, buffer_capacity_);
+  size_t requested_capacity =
+      std::max(required_capacity, buffer_capacity_ * 2) + 64;
+  size_t provided_capacity = 0;
+  void* new_buffer = nullptr;
+  if (delegate_) {
+    new_buffer = delegate_->ReallocateBufferMemory(buffer_, requested_capacity,
+                                                   &provided_capacity);
+  } else {
+    new_buffer = realloc(buffer_, requested_capacity);
+    provided_capacity = requested_capacity;
+  }
+  DCHECK_GE(provided_capacity, requested_capacity);
+  buffer_ = reinterpret_cast<uint8_t*>(new_buffer);
+  buffer_capacity_ = provided_capacity;
 }
 
 void ValueSerializer::WriteUint32(uint32_t value) {
@@ -227,6 +252,18 @@ void ValueSerializer::WriteUint32(uint32_t value) {
 
 void ValueSerializer::WriteUint64(uint64_t value) {
   WriteVarint<uint64_t>(value);
+}
+
+std::vector<uint8_t> ValueSerializer::ReleaseBuffer() {
+  return std::vector<uint8_t>(buffer_, buffer_ + buffer_size_);
+}
+
+std::pair<uint8_t*, size_t> ValueSerializer::Release() {
+  auto result = std::make_pair(buffer_, buffer_size_);
+  buffer_ = nullptr;
+  buffer_size_ = 0;
+  buffer_capacity_ = 0;
+  return result;
 }
 
 void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
@@ -339,7 +376,7 @@ void ValueSerializer::WriteString(Handle<String> string) {
     Vector<const uc16> chars = flat.ToUC16Vector();
     uint32_t byte_length = chars.length() * sizeof(uc16);
     // The existing reading code expects 16-byte strings to be aligned.
-    if ((buffer_.size() + 1 + BytesNeededForVarint(byte_length)) & 1)
+    if ((buffer_size_ + 1 + BytesNeededForVarint(byte_length)) & 1)
       WriteTag(SerializationTag::kPadding);
     WriteTag(SerializationTag::kTwoByteString);
     WriteTwoByteString(chars);

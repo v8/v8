@@ -2973,6 +2973,17 @@ Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
   return Nothing<bool>();
 }
 
+void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
+                                                        size_t size,
+                                                        size_t* actual_size) {
+  *actual_size = size;
+  return realloc(old_buffer, size);
+}
+
+void ValueSerializer::Delegate::FreeBufferMemory(void* buffer) {
+  return free(buffer);
+}
+
 struct ValueSerializer::PrivateData {
   explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate)
       : isolate(i), serializer(i, delegate) {}
@@ -3003,6 +3014,10 @@ Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
 
 std::vector<uint8_t> ValueSerializer::ReleaseBuffer() {
   return private_->serializer.ReleaseBuffer();
+}
+
+std::pair<uint8_t*, size_t> ValueSerializer::Release() {
+  return private_->serializer.Release();
 }
 
 void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,

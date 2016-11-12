@@ -1711,6 +1711,19 @@ class V8_EXPORT ValueSerializer {
      * Nothing<bool>() returned.
      */
     virtual Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object);
+
+    /*
+     * Allocates memory for the buffer of at least the size provided. The actual
+     * size (which may be greater or equal) is written to |actual_size|. If no
+     * buffer has been allocated yet, nullptr will be provided.
+     */
+    virtual void* ReallocateBufferMemory(void* old_buffer, size_t size,
+                                         size_t* actual_size);
+
+    /*
+     * Frees a buffer allocated with |ReallocateBufferMemory|.
+     */
+    virtual void FreeBufferMemory(void* buffer);
   };
 
   explicit ValueSerializer(Isolate* isolate);
@@ -1732,7 +1745,15 @@ class V8_EXPORT ValueSerializer {
    * Returns the stored data. This serializer should not be used once the buffer
    * is released. The contents are undefined if a previous write has failed.
    */
-  std::vector<uint8_t> ReleaseBuffer();
+  V8_DEPRECATE_SOON("Use Release()", std::vector<uint8_t> ReleaseBuffer());
+
+  /*
+   * Returns the stored data (allocated using the delegate's
+   * AllocateBufferMemory) and its size. This serializer should not be used once
+   * the buffer is released. The contents are undefined if a previous write has
+   * failed.
+   */
+  V8_WARN_UNUSED_RESULT std::pair<uint8_t*, size_t> Release();
 
   /*
    * Marks an ArrayBuffer as havings its contents transferred out of band.
