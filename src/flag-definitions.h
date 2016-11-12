@@ -248,6 +248,11 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
+DEFINE_BOOL(future, false,
+            "Implies all staged features that we want to ship in the "
+            "not-too-far future")
+DEFINE_IMPLICATION(future, ignition_staging)
+
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
