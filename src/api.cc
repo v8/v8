@@ -3115,11 +3115,6 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
   return Just(true);
 }
 
-Maybe<bool> ValueDeserializer::ReadHeader() {
-  Isolate* isolate = reinterpret_cast<Isolate*>(private_->isolate);
-  return ReadHeader(isolate->GetEnteredContext());
-}
-
 void ValueDeserializer::SetSupportsLegacyWireFormat(
     bool supports_legacy_wire_format) {
   private_->supports_legacy_wire_format = supports_legacy_wire_format;
