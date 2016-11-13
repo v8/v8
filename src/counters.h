@@ -800,6 +800,7 @@ class RuntimeCallTimer {
   V(StoreIC_StoreNormal)                         \
   V(StoreIC_StoreScriptContextFieldStub)         \
   V(StoreIC_StoreTransition)                     \
+  V(StoreIC_StoreTransitionDH)                   \
   V(StoreIC_StoreViaSetter)
 
 class RuntimeCallStats {

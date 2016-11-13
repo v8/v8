@@ -24,6 +24,7 @@ enum class IterationKind { kKeys, kValues, kEntries };
 
 #define HEAP_CONSTANT_LIST(V)                 \
   V(BooleanMap, BooleanMap)                   \
+  V(CodeMap, CodeMap)                         \
   V(empty_string, EmptyString)                \
   V(EmptyFixedArray, EmptyFixedArray)         \
   V(FalseValue, False)                        \
@@ -1152,16 +1153,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void NameDictionaryNegativeLookup(compiler::Node* object,
                                     compiler::Node* name, Label* miss);
 
+  // If |transition| is nullptr then the normal field store is generated or
+  // transitioning store otherwise.
   void HandleStoreFieldAndReturn(compiler::Node* handler_word,
                                  compiler::Node* holder,
                                  Representation representation,
                                  compiler::Node* value,
-                                 bool transition_to_field, Label* miss);
+                                 compiler::Node* transition, Label* miss);
 
+  // If |transition| is nullptr then the normal field store is generated or
+  // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(compiler::Node* handler_word,
                                    compiler::Node* holder,
                                    compiler::Node* value,
-                                   bool transition_to_field, Label* miss);
+                                   compiler::Node* transition, Label* miss);
+
+  void HandleStoreICProtoHandler(const StoreICParameters* p,
+                                 compiler::Node* handler, Label* miss);
 
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
   void EmitFastElementsBoundsCheck(compiler::Node* object,

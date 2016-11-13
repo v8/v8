@@ -852,10 +852,10 @@ Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
 
 namespace {
 
-template <bool fill_array>
+template <bool fill_array = true>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                         Handle<JSObject> holder, Handle<FixedArray> array,
-                        Handle<Name> name) {
+                        Handle<Name> name, int first_index) {
   DCHECK(holder.is_null() || holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
@@ -898,8 +898,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
             global, name, PropertyCellType::kInvalidated);
         DCHECK(cell->value()->IsTheHole(isolate));
         Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
-        array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
-                   *weak_cell);
+        array->set(first_index + checks_count, *weak_cell);
       }
       checks_count++;
 
@@ -910,8 +909,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                   current->property_dictionary()->FindEntry(name));
         Handle<WeakCell> weak_cell =
             Map::GetOrCreatePrototypeWeakCell(current, isolate);
-        array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
-                   *weak_cell);
+        array->set(first_index + checks_count, *weak_cell);
       }
       checks_count++;
     }
@@ -919,19 +917,25 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
   return checks_count;
 }
 
-}  // namespace
-
-int LoadIC::GetPrototypeCheckCount(Handle<Map> receiver_map,
-                                   Handle<JSObject> holder) {
-  return InitPrototypeChecks<false>(isolate(), receiver_map, holder,
-                                    Handle<FixedArray>(), Handle<Name>());
+// Returns 0 if the validity cell check is enough to ensure that the
+// prototype chain from |receiver_map| till |holder| did not change.
+// If the |holder| is an empty handle then the full prototype chain is
+// checked.
+// Returns -1 if the handler has to be compiled or the number of prototype
+// checks otherwise.
+int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
+                           Handle<JSObject> holder) {
+  return InitPrototypeChecks<false>(isolate, receiver_map, holder,
+                                    Handle<FixedArray>(), Handle<Name>(), 0);
 }
+
+}  // namespace
 
 Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
                                          Handle<Object> smi_handler) {
-  int checks_count = GetPrototypeCheckCount(receiver_map, holder);
+  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, holder);
   DCHECK_LE(0, checks_count);
   DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
@@ -961,15 +965,15 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
   handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
   handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
   handler_array->set(LoadHandler::kHolderCellIndex, *holder_cell);
-  InitPrototypeChecks<true>(isolate(), receiver_map, holder, handler_array,
-                            name);
+  InitPrototypeChecks(isolate(), receiver_map, holder, handler_array, name,
+                      LoadHandler::kFirstPrototypeIndex);
   return handler_array;
 }
 
 Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
                                        Handle<Name> name) {
   Handle<JSObject> holder;  // null handle
-  int checks_count = GetPrototypeCheckCount(receiver_map, holder);
+  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, holder);
   DCHECK_LE(0, checks_count);
   DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
@@ -1003,8 +1007,8 @@ Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
   handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
   handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
   handler_array->set(LoadHandler::kHolderCellIndex, *factory->null_value());
-  InitPrototypeChecks<true>(isolate(), receiver_map, holder, handler_array,
-                            name);
+  InitPrototypeChecks(isolate(), receiver_map, holder, handler_array, name,
+                      LoadHandler::kFirstPrototypeIndex);
   return handler_array;
 }
 
@@ -1861,6 +1865,62 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   TRACE_IC("StoreIC", lookup->name());
 }
 
+Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
+                                        Handle<JSObject> holder,
+                                        Handle<Map> transition,
+                                        Handle<Name> name) {
+  int descriptor = transition->LastAdded();
+  Handle<DescriptorArray> descriptors(transition->instance_descriptors());
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+  Representation representation = details.representation();
+  DCHECK(!representation.IsNone());
+
+  // Declarative handlers don't support access checks.
+  DCHECK(!transition->is_access_check_needed());
+
+  Handle<Object> smi_handler;
+  if (details.type() == DATA_CONSTANT) {
+    smi_handler = StoreHandler::TransitionToConstant(isolate(), descriptor);
+
+  } else {
+    DCHECK_EQ(DATA, details.type());
+    bool extend_storage =
+        Map::cast(transition->GetBackPointer())->unused_property_fields() == 0;
+
+    FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
+    smi_handler = StoreHandler::TransitionToField(
+        isolate(), descriptor, index, representation, extend_storage);
+  }
+
+  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, holder);
+  DCHECK_LE(0, checks_count);
+  DCHECK(!receiver_map->IsJSGlobalObjectMap());
+
+  Handle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+  if (validity_cell.is_null()) {
+    // This must be a case when receiver's prototype is null.
+    DCHECK_EQ(*isolate()->factory()->null_value(),
+              receiver_map->GetPrototypeChainRootMap(isolate())->prototype());
+    DCHECK_EQ(0, checks_count);
+    validity_cell = handle(Smi::FromInt(0), isolate());
+  }
+
+  Handle<WeakCell> transition_cell = Map::WeakCellForMap(transition);
+
+  Factory* factory = isolate()->factory();
+  if (checks_count == 0) {
+    return factory->NewTuple3(transition_cell, smi_handler, validity_cell);
+  }
+  Handle<FixedArray> handler_array(factory->NewFixedArray(
+      StoreHandler::kFirstPrototypeIndex + checks_count, TENURED));
+  handler_array->set(StoreHandler::kSmiHandlerIndex, *smi_handler);
+  handler_array->set(StoreHandler::kValidityCellIndex, *validity_cell);
+  handler_array->set(StoreHandler::kTransitionCellIndex, *transition_cell);
+  InitPrototypeChecks(isolate(), receiver_map, holder, handler_array, name,
+                      StoreHandler::kFirstPrototypeIndex);
+  return handler_array;
+}
 
 static Handle<Code> PropertyCellStoreHandler(
     Isolate* isolate, Handle<JSObject> receiver, Handle<JSGlobalObject> holder,
@@ -1897,8 +1957,13 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
         return slow_stub();
       }
-
       DCHECK(lookup->IsCacheableTransition());
+      if (FLAG_tf_store_ic_stub) {
+        Handle<Map> transition = lookup->transition_map();
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
+        return StoreTransition(receiver_map(), holder, transition,
+                               lookup->name());
+      }
       break;  // Custom-compiled handler.
     }
 
@@ -2038,6 +2103,7 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
         cell->set_value(isolate()->heap()->the_hole_value());
         return code;
       }
+      DCHECK(!FLAG_tf_store_ic_stub);
       Handle<Map> transition = lookup->transition_map();
       // Currently not handled by CompileStoreTransition.
       DCHECK(holder->HasFastProperties());

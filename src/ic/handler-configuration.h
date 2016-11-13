@@ -37,6 +37,7 @@ class LoadHandler {
 
   class IsAccessorInfoBits
       : public BitField<bool, DoNegativeLookupOnReceiverBits::kNext, 1> {};
+  // Index of a value entry in the descriptor array.
   // +2 here is because each descriptor entry occupies 3 slots in array.
   class DescriptorValueIndexBits
       : public BitField<unsigned, IsAccessorInfoBits::kNext,
@@ -117,32 +118,83 @@ class LoadHandler {
 // A set of bit fields representing Smi handlers for stores.
 class StoreHandler {
  public:
-  enum Kind { kForElements, kForFields };
-  class KindBits : public BitField<Kind, 0, 1> {};
+  enum Kind {
+    kStoreElement,
+    kStoreField,
+    kTransitionToField,
+    kTransitionToConstant
+  };
+  class KindBits : public BitField<Kind, 0, 2> {};
 
   enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
 
-  //
-  // Encoding when KindBits contains kForFields.
-  //
-  class IsInobjectBits : public BitField<bool, KindBits::kNext, 1> {};
-  class FieldRepresentationBits
-      : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
+  // Applicable to kStoreField, kTransitionToField and kTransitionToConstant
+  // kinds.
+
+  // Index of a value entry in the descriptor array.
   // +2 here is because each descriptor entry occupies 3 slots in array.
   class DescriptorValueIndexBits
-      : public BitField<unsigned, FieldRepresentationBits::kNext,
+      : public BitField<unsigned, KindBits::kNext,
                         kDescriptorIndexBitCount + 2> {};
+  //
+  // Encoding when KindBits contains kTransitionToConstant.
+  //
+
+  // Make sure we don't overflow the smi.
+  STATIC_ASSERT(DescriptorValueIndexBits::kNext <= kSmiValueSize);
+
+  //
+  // Encoding when KindBits contains kStoreField or kTransitionToField.
+  //
+  class ExtendStorageBits
+      : public BitField<bool, DescriptorValueIndexBits::kNext, 1> {};
+  class IsInobjectBits : public BitField<bool, ExtendStorageBits::kNext, 1> {};
+  class FieldRepresentationBits
+      : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
   // +1 here is to cover all possible JSObject header sizes.
   class FieldOffsetBits
-      : public BitField<unsigned, DescriptorValueIndexBits::kNext,
+      : public BitField<unsigned, FieldRepresentationBits::kNext,
                         kDescriptorIndexBitCount + 1 + kPointerSizeLog2> {};
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
+
+  // The layout of an Tuple3 handler representing a transitioning store
+  // when prototype chain checks do not include non-existing lookups or access
+  // checks.
+  static const int kTransitionCellOffset = Tuple3::kValue1Offset;
+  static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
+  static const int kValidityCellOffset = Tuple3::kValue3Offset;
+
+  // The layout of an array handler representing a transitioning store
+  // when prototype chain checks include non-existing lookups and access checks.
+  static const int kSmiHandlerIndex = 0;
+  static const int kValidityCellIndex = 1;
+  static const int kTransitionCellIndex = 2;
+  static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Object> StoreField(Isolate* isolate, int descriptor,
                                           FieldIndex field_index,
                                           Representation representation);
+
+  // Creates a Smi-handler for transitioning store to a field.
+  static inline Handle<Object> TransitionToField(Isolate* isolate,
+                                                 int descriptor,
+                                                 FieldIndex field_index,
+                                                 Representation representation,
+                                                 bool extend_storage);
+
+  // Creates a Smi-handler for transitioning store to a constant field (in this
+  // case the only thing that needs to be done is an update of a map).
+  static inline Handle<Object> TransitionToConstant(Isolate* isolate,
+                                                    int descriptor);
+
+ private:
+  static inline Handle<Object> StoreField(Isolate* isolate, Kind kind,
+                                          int descriptor,
+                                          FieldIndex field_index,
+                                          Representation representation,
+                                          bool extend_storage);
 };
 
 }  // namespace internal

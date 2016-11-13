@@ -5635,8 +5635,7 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
 
   Bind(&try_proto_handler);
   {
-    GotoIf(WordEqual(LoadMap(handler), LoadRoot(Heap::kCodeMapRootIndex)),
-           &call_handler);
+    GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
     HandleLoadICProtoHandler(p, handler, &var_holder, &var_smi_handler,
                              &if_smi_handler, miss);
   }
@@ -6086,10 +6085,25 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   }
 }
 
-void CodeStubAssembler::HandleStoreFieldAndReturn(
-    Node* handler_word, Node* holder, Representation representation,
-    Node* value, bool transition_to_field, Label* miss) {
+void CodeStubAssembler::HandleStoreFieldAndReturn(Node* handler_word,
+                                                  Node* holder,
+                                                  Representation representation,
+                                                  Node* value, Node* transition,
+                                                  Label* miss) {
+  bool transition_to_field = transition != nullptr;
   Node* prepared_value = PrepareValueForWrite(value, representation, miss);
+
+  if (transition_to_field) {
+    Label storage_extended(this);
+    GotoUnless(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
+               &storage_extended);
+    Comment("[ Extend storage");
+    ExtendPropertiesBackingStore(holder);
+    Comment("] Extend storage");
+    Goto(&storage_extended);
+
+    Bind(&storage_extended);
+  }
 
   Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
   Label if_inobject(this), if_out_of_object(this);
@@ -6100,6 +6114,9 @@ void CodeStubAssembler::HandleStoreFieldAndReturn(
   {
     StoreNamedField(holder, offset, true, representation, prepared_value,
                     transition_to_field);
+    if (transition_to_field) {
+      StoreObjectField(holder, JSObject::kMapOffset, transition);
+    }
     Return(value);
   }
 
@@ -6107,15 +6124,33 @@ void CodeStubAssembler::HandleStoreFieldAndReturn(
   {
     StoreNamedField(holder, offset, false, representation, prepared_value,
                     transition_to_field);
+    if (transition_to_field) {
+      StoreObjectField(holder, JSObject::kMapOffset, transition);
+    }
     Return(value);
   }
 }
 
 void CodeStubAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
                                                     Node* holder, Node* value,
-                                                    bool transition_to_field,
+                                                    Node* transition,
                                                     Label* miss) {
-  Comment(transition_to_field ? "transitioning field store" : "field store");
+  Comment(transition ? "transitioning field store" : "field store");
+
+#ifdef DEBUG
+  Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
+  if (transition) {
+    CSA_ASSERT(
+        this,
+        WordOr(WordEqual(handler_kind,
+                         IntPtrConstant(StoreHandler::kTransitionToField)),
+               WordEqual(handler_kind,
+                         IntPtrConstant(StoreHandler::kTransitionToConstant))));
+  } else {
+    CSA_ASSERT(this, WordEqual(handler_kind,
+                               IntPtrConstant(StoreHandler::kStoreField)));
+  }
+#endif
 
   Node* field_representation =
       DecodeWord<StoreHandler::FieldRepresentationBits>(handler_word);
@@ -6138,14 +6173,14 @@ void CodeStubAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
   {
     Comment("store tagged field");
     HandleStoreFieldAndReturn(handler_word, holder, Representation::Tagged(),
-                              value, transition_to_field, miss);
+                              value, transition, miss);
   }
 
   Bind(&if_double_field);
   {
     Comment("store double field");
     HandleStoreFieldAndReturn(handler_word, holder, Representation::Double(),
-                              value, transition_to_field, miss);
+                              value, transition, miss);
   }
 
   Bind(&if_heap_object_field);
@@ -6156,7 +6191,8 @@ void CodeStubAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
         PrepareValueForWrite(value, Representation::HeapObject(), miss);
     Node* value_index_in_descriptor =
         DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
-    Node* descriptors = LoadMapDescriptors(LoadMap(holder));
+    Node* descriptors =
+        LoadMapDescriptors(transition ? transition : LoadMap(holder));
     Node* maybe_field_type = LoadFixedArrayElement(
         descriptors, value_index_in_descriptor, 0, INTPTR_PARAMETERS);
     Label do_store(this);
@@ -6168,22 +6204,23 @@ void CodeStubAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
     }
     Bind(&do_store);
     HandleStoreFieldAndReturn(handler_word, holder, Representation::Tagged(),
-                              prepared_value, transition_to_field, miss);
+                              prepared_value, transition, miss);
   }
 
   Bind(&if_smi_field);
   {
     Comment("store smi field");
     HandleStoreFieldAndReturn(handler_word, holder, Representation::Smi(),
-                              value, transition_to_field, miss);
+                              value, transition, miss);
   }
 }
 
 void CodeStubAssembler::HandleStoreICHandlerCase(const StoreICParameters* p,
                                                  Node* handler, Label* miss) {
-  Label if_smi_handler(this), call_handler(this);
+  Label if_smi_handler(this);
+  Label try_proto_handler(this), call_handler(this);
 
-  Branch(TaggedIsSmi(handler), &if_smi_handler, &call_handler);
+  Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_handler);
 
   // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
@@ -6192,8 +6229,14 @@ void CodeStubAssembler::HandleStoreICHandlerCase(const StoreICParameters* p,
     Node* holder = p->receiver;
     Node* handler_word = SmiUntag(handler);
 
-    // Handle non-transitioning stores.
-    HandleStoreICSmiHandlerCase(handler_word, holder, p->value, false, miss);
+    // Handle non-transitioning field stores.
+    HandleStoreICSmiHandlerCase(handler_word, holder, p->value, nullptr, miss);
+  }
+
+  Bind(&try_proto_handler);
+  {
+    GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
+    HandleStoreICProtoHandler(p, handler, miss);
   }
 
   // |handler| is a heap object. Must be code, call it.
@@ -6202,6 +6245,99 @@ void CodeStubAssembler::HandleStoreICHandlerCase(const StoreICParameters* p,
     StoreWithVectorDescriptor descriptor(isolate());
     TailCallStub(descriptor, handler, p->context, p->receiver, p->name,
                  p->value, p->slot, p->vector);
+  }
+}
+
+void CodeStubAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
+                                                  Node* handler, Label* miss) {
+  // IC dispatchers rely on these assumptions to be held.
+  STATIC_ASSERT(FixedArray::kLengthOffset ==
+                StoreHandler::kTransitionCellOffset);
+  DCHECK_EQ(FixedArray::OffsetOfElementAt(StoreHandler::kSmiHandlerIndex),
+            StoreHandler::kSmiHandlerOffset);
+  DCHECK_EQ(FixedArray::OffsetOfElementAt(StoreHandler::kValidityCellIndex),
+            StoreHandler::kValidityCellOffset);
+
+  // Both FixedArray and Tuple3 handlers have validity cell at the same offset.
+  Label validity_cell_check_done(this);
+  Node* validity_cell =
+      LoadObjectField(handler, StoreHandler::kValidityCellOffset);
+  GotoIf(WordEqual(validity_cell, IntPtrConstant(0)),
+         &validity_cell_check_done);
+  Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
+  GotoIf(WordNotEqual(cell_value,
+                      SmiConstant(Smi::FromInt(Map::kPrototypeChainValid))),
+         miss);
+  Goto(&validity_cell_check_done);
+
+  Bind(&validity_cell_check_done);
+  Node* smi_handler = LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
+  CSA_ASSERT(this, TaggedIsSmi(smi_handler));
+
+  Node* maybe_transition_cell =
+      LoadObjectField(handler, StoreHandler::kTransitionCellOffset);
+  Label array_handler(this), tuple_handler(this);
+  Branch(TaggedIsSmi(maybe_transition_cell), &array_handler, &tuple_handler);
+
+  Variable var_transition(this, MachineRepresentation::kTagged);
+  Label if_transition(this), if_transition_to_constant(this);
+  Bind(&tuple_handler);
+  {
+    Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
+    var_transition.Bind(transition);
+    Goto(&if_transition);
+  }
+
+  Bind(&array_handler);
+  {
+    Node* length = SmiUntag(maybe_transition_cell);
+    BuildFastLoop(MachineType::PointerRepresentation(),
+                  IntPtrConstant(StoreHandler::kFirstPrototypeIndex), length,
+                  [this, p, handler, miss](CodeStubAssembler*, Node* current) {
+                    Node* prototype_cell = LoadFixedArrayElement(
+                        handler, current, 0, INTPTR_PARAMETERS);
+                    CheckPrototype(prototype_cell, p->name, miss);
+                  },
+                  1, IndexAdvanceMode::kPost);
+
+    Node* maybe_transition_cell = LoadFixedArrayElement(
+        handler, IntPtrConstant(StoreHandler::kTransitionCellIndex), 0,
+        INTPTR_PARAMETERS);
+    Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
+    var_transition.Bind(transition);
+    Goto(&if_transition);
+  }
+
+  Bind(&if_transition);
+  {
+    Node* holder = p->receiver;
+    Node* transition = var_transition.value();
+    Node* handler_word = SmiUntag(smi_handler);
+
+    GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(transition)), miss);
+
+    Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
+    GotoIf(WordEqual(handler_kind,
+                     IntPtrConstant(StoreHandler::kTransitionToConstant)),
+           &if_transition_to_constant);
+
+    // Handle transitioning field stores.
+    HandleStoreICSmiHandlerCase(handler_word, holder, p->value, transition,
+                                miss);
+
+    Bind(&if_transition_to_constant);
+    {
+      // Check that constant matches value.
+      Node* value_index_in_descriptor =
+          DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
+      Node* descriptors = LoadMapDescriptors(transition);
+      Node* constant = LoadFixedArrayElement(
+          descriptors, value_index_in_descriptor, 0, INTPTR_PARAMETERS);
+      GotoIf(WordNotEqual(p->value, constant), miss);
+
+      StoreObjectField(p->receiver, JSObject::kMapOffset, transition);
+      Return(p->value);
+    }
   }
 }
 
