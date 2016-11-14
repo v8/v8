@@ -249,6 +249,9 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+
+  # BUG(chromium:664490)
+  'debug-scopes': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
