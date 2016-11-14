@@ -772,9 +772,26 @@ void JSArray::JSArrayVerify() {
   CHECK(length()->IsNumber() || length()->IsUndefined(isolate));
   // If a GC was caused while constructing this array, the elements
   // pointer may point to a one pointer filler map.
-  if (ElementsAreSafeToExamine()) {
-    CHECK(elements()->IsUndefined(isolate) || elements()->IsFixedArray() ||
-          elements()->IsFixedDoubleArray());
+  if (!ElementsAreSafeToExamine()) return;
+  if (elements()->IsUndefined(isolate)) return;
+  CHECK(elements()->IsFixedArray() || elements()->IsFixedDoubleArray());
+  if (!length()->IsNumber()) return;
+  // Verify that the length and the elements backing store are in sync.
+  if (length()->IsSmi() && HasFastElements()) {
+    int size = Smi::cast(length())->value();
+    // Holey / Packed backing stores might have slack or might have not been
+    // properly initialized yet.
+    CHECK(size <= elements()->length() ||
+          elements() == isolate->heap()->empty_fixed_array());
+  } else {
+    CHECK(HasDictionaryElements());
+    uint32_t size;
+    CHECK(length()->ToArrayLength(&size));
+    if (size != 0) {
+      SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements());
+      // The dictionary can never have more elements than the array length.
+      CHECK(static_cast<uint32_t>(dict->NumberOfElements()) <= size);
+    }
   }
 }
 
