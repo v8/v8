@@ -8,6 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
+#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +16,6 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class FeedbackNexus;
 
 namespace compiler {
 
@@ -78,7 +78,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
-                              Node* index = nullptr);
+                              Handle<TypeFeedbackVector> vector,
+                              FeedbackVectorSlot slot, Node* index = nullptr);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
@@ -99,12 +100,12 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   };
 
   // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
-                                         Node* context, Node* frame_state,
-                                         Node* effect, Node* control,
-                                         Handle<Name> name,
-                                         PropertyAccessInfo const& access_info,
-                                         AccessMode access_mode);
+  ValueEffectControl BuildPropertyAccess(
+      Node* receiver, Node* value, Node* context, Node* frame_state,
+      Node* effect, Node* control, Handle<Name> name,
+      PropertyAccessInfo const& access_info, AccessMode access_mode,
+      LanguageMode language_mode, Handle<TypeFeedbackVector> vector,
+      FeedbackVectorSlot slot);
 
   // Construct the appropriate subgraph for element access.
   ValueEffectControl BuildElementAccess(Node* receiver, Node* index,

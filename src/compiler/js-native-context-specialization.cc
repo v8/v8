@@ -102,7 +102,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
     Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Node* index) {
+    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -127,10 +127,20 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // TODO(turbofan): Add support for inlining into try blocks.
-  if (NodeProperties::IsExceptionalCall(node) ||
-      !(flags() & kAccessorInliningEnabled)) {
-    for (auto access_info : access_infos) {
-      if (access_info.IsAccessorConstant()) return NoChange();
+  bool is_exceptional = NodeProperties::IsExceptionalCall(node);
+  for (auto access_info : access_infos) {
+    if (access_info.IsAccessorConstant()) {
+      // Accessor in try-blocks are not supported yet.
+      if (is_exceptional || !(flags() & kAccessorInliningEnabled)) {
+        return NoChange();
+      }
+    } else if (access_info.IsGeneric()) {
+      // We do not handle generic calls in try blocks.
+      if (is_exceptional) return NoChange();
+      // We only handle the generic store IC case.
+      if (vector->GetKind(slot) != FeedbackVectorSlotKind::STORE_IC) {
+        return NoChange();
+      }
     }
   }
 
@@ -168,9 +178,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     }
 
     // Generate the actual property access.
-    ValueEffectControl continuation =
-        BuildPropertyAccess(receiver, value, context, frame_state_lazy, effect,
-                            control, name, access_info, access_mode);
+    ValueEffectControl continuation = BuildPropertyAccess(
+        receiver, value, context, frame_state_lazy, effect, control, name,
+        access_info, access_mode, language_mode, vector, slot);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -282,7 +292,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Generate the actual property access.
       ValueEffectControl continuation = BuildPropertyAccess(
           this_receiver, this_value, context, frame_state_lazy, this_effect,
-          this_control, name, access_info, access_mode);
+          this_control, name, access_info, access_mode, language_mode, vector,
+          slot);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -349,7 +360,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                           language_mode);
+                           language_mode, nexus.vector_handle(), nexus.slot());
 }
 
 
@@ -758,16 +769,17 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
       } else {
         name = factory()->InternalizeName(name);
         return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                                 language_mode);
+                                 language_mode, nexus.vector_handle(),
+                                 nexus.slot());
       }
     }
   }
 
   // Check if we have feedback for a named access.
   if (Name* name = nexus.FindFirstName()) {
-    return ReduceNamedAccess(node, value, receiver_maps,
-                             handle(name, isolate()), access_mode,
-                             language_mode, index);
+    return ReduceNamedAccess(
+        node, value, receiver_maps, handle(name, isolate()), access_mode,
+        language_mode, nexus.vector_handle(), nexus.slot(), index);
   } else if (nexus.GetKeyType() != ELEMENT) {
     // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
     // that the {index} is a valid array index, thus we just let the IC continue
@@ -841,7 +853,8 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
-    AccessMode access_mode) {
+    AccessMode access_mode, LanguageMode language_mode,
+    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -943,8 +956,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         break;
       }
     }
-  } else {
-    DCHECK(access_info.IsDataField());
+  } else if (access_info.IsDataField()) {
     FieldIndex const field_index = access_info.field_index();
     Type* const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -1096,6 +1108,28 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                                   jsgraph()->UndefinedConstant(), effect);
       }
     }
+  } else {
+    DCHECK(access_info.IsGeneric());
+    DCHECK_EQ(AccessMode::kStore, access_mode);
+    DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
+    Callable callable =
+        CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
+    const CallInterfaceDescriptor& descriptor = callable.descriptor();
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), descriptor,
+        descriptor.GetStackParameterCount(), CallDescriptor::kNeedsFrameState,
+        Operator::kNoProperties);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* name_node = jsgraph()->HeapConstant(name);
+    Node* slot_node = jsgraph()->Constant(vector->GetIndex(slot));
+    Node* vector_node = jsgraph()->HeapConstant(vector);
+
+    Node* inputs[] = {stub_code,   receiver, name_node,   value,  slot_node,
+                      vector_node, context,  frame_state, effect, control};
+
+    value = effect = control =
+        graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
+    control = graph()->NewNode(common()->IfSuccess(), control);
   }
 
   return ValueEffectControl(value, effect, control);
