@@ -681,16 +681,11 @@ void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
   Node* elements_kind = LoadMapElementsKind(map);
 
   // Bailout if receiver has slow elements.
-  GotoIf(
-      Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-      if_false);
+  GotoUnless(IsFastElementsKind(elements_kind), if_false);
 
   // Check prototype chain if receiver does not have packed elements.
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == (FAST_ELEMENTS | 1));
-  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == (FAST_DOUBLE_ELEMENTS | 1));
-  Node* holey_elements = Word32And(elements_kind, Int32Constant(1));
-  GotoIf(Word32Equal(holey_elements, Int32Constant(0)), if_true);
+  GotoUnless(IsHoleyFastElementsKind(elements_kind), if_true);
+
   BranchIfPrototypesHaveNoElements(map, if_true, if_false);
 }
 
@@ -8898,19 +8893,59 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
 
       Bind(&if_isfast);
       {
-        Node* map_index =
-            IntPtrAdd(IntPtrConstant(kBaseMapIndex + kFastIteratorOffset),
-                      LoadMapElementsKind(array_map));
-        CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
-                             map_index, IntPtrConstant(kBaseMapIndex +
-                                                       kFastIteratorOffset)));
-        CSA_ASSERT(this, IntPtrLessThan(map_index,
-                                        IntPtrConstant(kBaseMapIndex +
-                                                       kSlowIteratorOffset)));
+        Label if_ispacked(this), if_isholey(this);
+        Node* elements_kind = LoadMapElementsKind(array_map);
+        Branch(IsHoleyFastElementsKind(elements_kind), &if_isholey,
+               &if_ispacked);
 
-        var_map_index.Bind(map_index);
-        var_array_map.Bind(array_map);
-        Goto(&allocate_iterator);
+        Bind(&if_isholey);
+        {
+          // Fast holey JSArrays can treat the hole as undefined if the
+          // protector cell is valid, and the prototype chain is unchanged from
+          // its initial state (because the protector cell is only tracked for
+          // initial the Array and Object prototypes). Check these conditions
+          // here, and take the slow path if any fail.
+          Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
+          DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
+          GotoUnless(
+              WordEqual(
+                  LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                  SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+              &if_isslow);
+
+          Node* native_context = LoadNativeContext(context);
+
+          Node* prototype = LoadMapPrototype(array_map);
+          Node* array_prototype = LoadContextElement(
+              native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+          GotoUnless(WordEqual(prototype, array_prototype), &if_isslow);
+
+          Node* map = LoadMap(prototype);
+          prototype = LoadMapPrototype(map);
+          Node* object_prototype = LoadContextElement(
+              native_context, Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+          GotoUnless(WordEqual(prototype, object_prototype), &if_isslow);
+
+          map = LoadMap(prototype);
+          prototype = LoadMapPrototype(map);
+          Branch(IsNull(prototype), &if_ispacked, &if_isslow);
+        }
+        Bind(&if_ispacked);
+        {
+          Node* map_index =
+              IntPtrAdd(IntPtrConstant(kBaseMapIndex + kFastIteratorOffset),
+                        LoadMapElementsKind(array_map));
+          CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
+                               map_index, IntPtrConstant(kBaseMapIndex +
+                                                         kFastIteratorOffset)));
+          CSA_ASSERT(this, IntPtrLessThan(map_index,
+                                          IntPtrConstant(kBaseMapIndex +
+                                                         kSlowIteratorOffset)));
+
+          var_map_index.Bind(map_index);
+          var_array_map.Bind(array_map);
+          Goto(&allocate_iterator);
+        }
       }
 
       Bind(&if_isslow);
@@ -9049,6 +9084,25 @@ void CodeStubArguments::PopAndReturn(compiler::Node* value) {
   assembler_->PopAndReturn(
       assembler_->IntPtrAddFoldConstants(argc_, assembler_->IntPtrConstant(1)),
       value);
+}
+
+compiler::Node* CodeStubAssembler::IsFastElementsKind(
+    compiler::Node* elements_kind) {
+  return Uint32LessThanOrEqual(elements_kind,
+                               Int32Constant(LAST_FAST_ELEMENTS_KIND));
+}
+
+compiler::Node* CodeStubAssembler::IsHoleyFastElementsKind(
+    compiler::Node* elements_kind) {
+  CSA_ASSERT(this, IsFastElementsKind(elements_kind));
+
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == (FAST_ELEMENTS | 1));
+  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == (FAST_DOUBLE_ELEMENTS | 1));
+
+  // Check prototype chain if receiver does not have packed elements.
+  Node* holey_elements = Word32And(elements_kind, Int32Constant(1));
+  return Word32Equal(holey_elements, Int32Constant(1));
 }
 
 }  // namespace internal

@@ -20,8 +20,6 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-enum class IterationKind { kKeys, kValues, kEntries };
-
 #define HEAP_CONSTANT_LIST(V)                 \
   V(BooleanMap, BooleanMap)                   \
   V(CodeMap, CodeMap)                         \
@@ -633,6 +631,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* IsHashTable(compiler::Node* object);
   compiler::Node* IsDictionary(compiler::Node* object);
   compiler::Node* IsUnseededNumberDictionary(compiler::Node* object);
+
+  // ElementsKind helpers:
+  compiler::Node* IsFastElementsKind(compiler::Node* elements_kind);
+  compiler::Node* IsHoleyFastElementsKind(compiler::Node* elements_kind);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).

@@ -158,6 +158,7 @@ namespace compiler {
   V(DetectableReceiver,         kFunction | kOtherObject | kProxy) \
   V(Object,                     kFunction | kOtherObject | kOtherUndetectable) \
   V(Receiver,                   kObject | kProxy) \
+  V(ReceiverOrUndefined,        kReceiver | kUndefined) \
   V(StringOrReceiver,           kString | kReceiver) \
   V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
                                 kReceiver) \

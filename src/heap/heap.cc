@@ -2850,6 +2850,10 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
   set_string_length_protector(*cell);
 
+  Handle<Cell> fast_array_iteration_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
+  set_fast_array_iteration_protector(*fast_array_iteration_cell);
+
   set_serialized_templates(empty_fixed_array());
 
   set_weak_stack_trace_list(Smi::kZero);

@@ -458,6 +458,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
+  const Operator* CreateKeyValueArray();
   const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
                                      int literal_flags, int literal_index,
                                      int number_of_elements);

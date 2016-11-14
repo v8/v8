@@ -463,6 +463,9 @@ void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kCreateIterResultObject);
 }
 
+void JSGenericLowering::LowerJSCreateKeyValueArray(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kCreateKeyValueArray);
+}
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());

@@ -20345,5 +20345,47 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   return MaybeHandle<Name>();
 }
 
+// static
+ElementsKind JSArrayIterator::ElementsKindForInstanceType(InstanceType type) {
+  DCHECK_GE(type, FIRST_ARRAY_ITERATOR_TYPE);
+  DCHECK_LE(type, LAST_ARRAY_ITERATOR_TYPE);
+
+  if (type <= LAST_ARRAY_KEY_ITERATOR_TYPE) {
+    // Should be ignored for key iterators.
+    return FAST_ELEMENTS;
+  } else {
+    ElementsKind kind;
+    if (type < FIRST_ARRAY_VALUE_ITERATOR_TYPE) {
+      // Convert `type` to a value iterator from an entries iterator
+      type = static_cast<InstanceType>(type +
+                                       (FIRST_ARRAY_VALUE_ITERATOR_TYPE -
+                                        FIRST_ARRAY_KEY_VALUE_ITERATOR_TYPE));
+      DCHECK_GE(type, FIRST_ARRAY_VALUE_ITERATOR_TYPE);
+      DCHECK_LE(type, LAST_ARRAY_ITERATOR_TYPE);
+    }
+
+    if (type <= JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE) {
+      kind =
+          static_cast<ElementsKind>(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                                    (type - FIRST_ARRAY_VALUE_ITERATOR_TYPE));
+      DCHECK_LE(kind, LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    } else if (type < JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE) {
+      kind = static_cast<ElementsKind>(
+          FIRST_FAST_ELEMENTS_KIND +
+          (type - JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE));
+      DCHECK_LE(kind, LAST_FAST_ELEMENTS_KIND);
+    } else {
+      // For any slow element cases, the actual elements kind is not known.
+      // Simply
+      // return a slow elements kind in this case. Users of this function must
+      // not
+      // depend on this.
+      return DICTIONARY_ELEMENTS;
+    }
+    DCHECK_LE(kind, LAST_ELEMENTS_KIND);
+    return kind;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

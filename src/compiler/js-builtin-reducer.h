@@ -45,6 +45,16 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceArrayIterator(Node* node, IterationKind kind);
+  Reduction ReduceTypedArrayIterator(Node* node, IterationKind kind);
+  Reduction ReduceArrayIterator(Handle<Map> receiver_map, Node* node,
+                                IterationKind kind,
+                                ArrayIteratorKind iter_kind);
+  Reduction ReduceArrayIteratorNext(Node* node);
+  Reduction ReduceFastArrayIteratorNext(Handle<Map> iterator_map, Node* node,
+                                        IterationKind kind);
+  Reduction ReduceTypedArrayIteratorNext(Handle<Map> iterator_map, Node* node,
+                                         IterationKind kind);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
   Reduction ReduceDateGetTime(Node* node);

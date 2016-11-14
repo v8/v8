@@ -1103,6 +1103,9 @@ Type* Typer::Visitor::TypeJSCreateIterResultObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
+  return Type::OtherObject();
+}
 
 Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
   return Type::OtherObject();
@@ -1382,6 +1385,15 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
 
         case kStringIterator:
         case kStringIteratorNext:
+          return Type::OtherObject();
+
+        case kArrayEntries:
+        case kArrayKeys:
+        case kArrayValues:
+        case kTypedArrayEntries:
+        case kTypedArrayKeys:
+        case kTypedArrayValues:
+        case kArrayIteratorNext:
           return Type::OtherObject();
 
         // Array functions.

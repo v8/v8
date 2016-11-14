@@ -997,6 +997,9 @@ class Isolate {
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
 
+  // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
+  inline bool IsFastArrayIterationIntact();
+
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
   // object prototype. Also ensure that changes to prototype chain between

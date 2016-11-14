@@ -128,6 +128,7 @@
   V(JSCreateArray)            \
   V(JSCreateClosure)          \
   V(JSCreateIterResultObject) \
+  V(JSCreateKeyValueArray)    \
   V(JSCreateLiteralArray)     \
   V(JSCreateLiteralObject)    \
   V(JSCreateLiteralRegExp)    \

@@ -7279,6 +7279,10 @@ enum BuiltinFunctionId {
   kMathPowHalf,
   // These are manually assigned to special getters during bootstrapping.
   kArrayBufferByteLength,
+  kArrayEntries,
+  kArrayKeys,
+  kArrayValues,
+  kArrayIteratorNext,
   kDataViewBuffer,
   kDataViewByteLength,
   kDataViewByteOffset,
@@ -7292,7 +7296,10 @@ enum BuiltinFunctionId {
   kGlobalIsNaN,
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
+  kTypedArrayEntries,
+  kTypedArrayKeys,
   kTypedArrayLength,
+  kTypedArrayValues,
   kSharedArrayBufferByteLength,
   kStringIterator,
   kStringIteratorNext,
@@ -10708,6 +10715,10 @@ class JSArrayIterator : public JSObject {
   // [map]: The Map of the [[IteratedObject]] field at the time the iterator is
   // allocated.
   DECL_ACCESSORS(object_map, Object)
+
+  // Return the ElementsKind that a JSArrayIterator's [[IteratedObject]] is
+  // expected to have, based on its instance type.
+  static ElementsKind ElementsKindForInstanceType(InstanceType instance_type);
 
   static const int kIteratedObjectOffset = JSObject::kHeaderSize;
   static const int kNextIndexOffset = kIteratedObjectOffset + kPointerSize;

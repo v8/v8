@@ -210,6 +210,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
+    case IrOpcode::kJSCreateKeyValueArray:
+      return ReduceJSCreateKeyValueArray(node);
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
       return ReduceJSCreateLiteral(node);
@@ -717,6 +719,36 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   a.Store(AccessBuilder::ForJSIteratorResultValue(), value);
   a.Store(AccessBuilder::ForJSIteratorResultDone(), done);
   STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateKeyValueArray, node->opcode());
+  Node* key = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  Node* array_map = jsgraph()->HeapConstant(
+      handle(native_context()->js_array_fast_elements_map_index()));
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+  Node* length = jsgraph()->Constant(2);
+
+  AllocationBuilder aa(jsgraph(), effect, graph()->start());
+  aa.AllocateArray(2, factory()->fixed_array_map());
+  aa.Store(AccessBuilder::ForFixedArrayElement(FAST_ELEMENTS),
+           jsgraph()->Constant(0), key);
+  aa.Store(AccessBuilder::ForFixedArrayElement(FAST_ELEMENTS),
+           jsgraph()->Constant(1), value);
+  Node* elements = aa.Finish();
+
+  AllocationBuilder a(jsgraph(), elements, graph()->start());
+  a.Allocate(JSArray::kSize);
+  a.Store(AccessBuilder::ForMap(), array_map);
+  a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(), elements);
+  a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), length);
+  STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
   a.FinishAndChange(node);
   return Changed(node);
 }

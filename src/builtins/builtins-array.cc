@@ -2301,6 +2301,8 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
 
     assembler->Bind(&if_isgeneric);
     {
+      Label if_wasfastarray(assembler);
+
       Node* length = nullptr;
       {
         Variable var_length(assembler, MachineRepresentation::kTagged);
@@ -2314,7 +2316,35 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
         {
           var_length.Bind(
               assembler->LoadObjectField(array, JSArray::kLengthOffset));
-          assembler->Goto(&done);
+
+          // Invalidate protector cell if needed
+          assembler->Branch(
+              assembler->WordNotEqual(orig_map, assembler->UndefinedConstant()),
+              &if_wasfastarray, &done);
+
+          assembler->Bind(&if_wasfastarray);
+          {
+            Label if_invalid(assembler, Label::kDeferred);
+            // A fast array iterator transitioned to a slow iterator during
+            // iteration. Invalidate fast_array_iteration_prtoector cell to
+            // prevent potential deopt loops.
+            assembler->StoreObjectFieldNoWriteBarrier(
+                iterator, JSArrayIterator::kIteratedObjectMapOffset,
+                assembler->UndefinedConstant());
+            assembler->GotoIf(
+                assembler->Uint32LessThanOrEqual(
+                    instance_type, assembler->Int32Constant(
+                                       JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)),
+                &done);
+
+            Node* invalid = assembler->SmiConstant(
+                Smi::FromInt(Isolate::kArrayProtectorInvalid));
+            Node* cell = assembler->LoadRoot(
+                Heap::kFastArrayIterationProtectorRootIndex);
+            assembler->StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset,
+                                                      invalid);
+            assembler->Goto(&done);
+          }
         }
 
         assembler->Bind(&if_isnotarray);
@@ -2377,6 +2407,8 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
 
         assembler->Bind(&if_isdetached);
         {
+          // TODO(caitp): If IsDetached(buffer) is true, throw a TypeError, per
+          // https://github.com/tc39/ecma262/issues/713
           var_length.Bind(assembler->SmiConstant(Smi::kZero));
           assembler->Goto(&done);
         }

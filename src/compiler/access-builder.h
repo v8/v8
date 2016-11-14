@@ -191,6 +191,16 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGlobalObject::native_context() field.
   static FieldAccess ForJSGlobalObjectNativeContext();
 
+  // Provides access to JSArrayIterator::object() field.
+  static FieldAccess ForJSArrayIteratorObject();
+
+  // Provides access to JSArrayIterator::index() field.
+  static FieldAccess ForJSArrayIteratorIndex(InstanceType type = JS_OBJECT_TYPE,
+                                             ElementsKind kind = NO_ELEMENTS);
+
+  // Provides access to JSArrayIterator::object_map() field.
+  static FieldAccess ForJSArrayIteratorObjectMap();
+
   // Provides access to JSStringIterator::string() field.
   static FieldAccess ForJSStringIteratorString();
 

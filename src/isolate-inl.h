@@ -143,6 +143,11 @@ bool Isolate::IsStringLengthOverflowIntact() {
   return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
 }
 
+bool Isolate::IsFastArrayIterationIntact() {
+  Cell* fast_iteration = heap()->fast_array_iteration_protector();
+  return fast_iteration->value() == Smi::FromInt(kArrayProtectorValid);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -31,8 +31,10 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
   return Smi::kZero;
 }
 
-static void InstallCode(Isolate* isolate, Handle<JSObject> holder,
-                        const char* name, Handle<Code> code, int argc = -1) {
+static void InstallCode(
+    Isolate* isolate, Handle<JSObject> holder, const char* name,
+    Handle<Code> code, int argc = -1,
+    BuiltinFunctionId id = static_cast<BuiltinFunctionId>(-1)) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunctionWithoutPrototype(key, code);
@@ -41,15 +43,19 @@ static void InstallCode(Isolate* isolate, Handle<JSObject> holder,
   } else {
     optimized->shared()->set_internal_formal_parameter_count(argc);
   }
+  if (id >= 0) {
+    optimized->shared()->set_builtin_function_id(id);
+  }
   JSObject::AddProperty(holder, key, optimized, NONE);
 }
 
-static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
-                           const char* name, Builtins::Name builtin_name,
-                           int argc = -1) {
+static void InstallBuiltin(
+    Isolate* isolate, Handle<JSObject> holder, const char* name,
+    Builtins::Name builtin_name, int argc = -1,
+    BuiltinFunctionId id = static_cast<BuiltinFunctionId>(-1)) {
   InstallCode(isolate, holder, name,
-              handle(isolate->builtins()->builtin(builtin_name), isolate),
-              argc);
+              handle(isolate->builtins()->builtin(builtin_name), isolate), argc,
+              id);
 }
 
 RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
@@ -71,10 +77,12 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
   InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes, 2);
   InstallBuiltin(isolate, holder, "indexOf", Builtins::kArrayIndexOf, 2);
-  InstallBuiltin(isolate, holder, "keys", Builtins::kArrayPrototypeKeys, 0);
-  InstallBuiltin(isolate, holder, "values", Builtins::kArrayPrototypeValues, 0);
+  InstallBuiltin(isolate, holder, "keys", Builtins::kArrayPrototypeKeys, 0,
+                 kArrayKeys);
+  InstallBuiltin(isolate, holder, "values", Builtins::kArrayPrototypeValues, 0,
+                 kArrayValues);
   InstallBuiltin(isolate, holder, "entries", Builtins::kArrayPrototypeEntries,
-                 0);
+                 0, kArrayEntries);
 
   return *holder;
 }

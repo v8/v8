@@ -595,13 +595,21 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
+['variant == nocrankshaft', {
+  'es6/array-iterator-turbo': [SKIP],
+}],  # variant == nocranshaft
+
+##############################################################################
 ['variant == stress', {
+  'es6/array-iterator-turbo': [SKIP],
+
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
 ['variant == turbofan_opt', {
+  'es6/array-iterator-turbo': [SKIP],
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-locals': [FAIL],

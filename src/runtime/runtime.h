@@ -426,6 +426,7 @@ namespace internal {
   F(Compare, 3, 1)                                   \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
+  F(CreateKeyValueArray, 2, 1)                       \
   F(IsAccessCheckNeeded, 1, 1)                       \
   F(CreateDataProperty, 3, 1)
 
