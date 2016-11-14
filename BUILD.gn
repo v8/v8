@@ -43,10 +43,6 @@ declare_args() {
   # Sets -dENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = true
 
-  # Enable ECMAScript Internationalization API. Enabling this feature will
-  # add a dependency on the ICU library.
-  v8_enable_i18n_support = true
-
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
 

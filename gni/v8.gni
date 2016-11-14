@@ -26,6 +26,10 @@ declare_args() {
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
+
+  # Enable ECMAScript Internationalization API. Enabling this feature will
+  # add a dependency on the ICU library.
+  v8_enable_i18n_support = true
 }
 
 if (v8_use_external_startup_data == "") {

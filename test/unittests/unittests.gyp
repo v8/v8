@@ -231,6 +231,12 @@
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
         }],
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
         ['os_posix == 1', {
           # TODO(svenpanne): This is a temporary work-around to fix the warnings
           # that show up because we use -std=gnu++0x instead of -std=c++11.
