@@ -916,14 +916,13 @@ const MemoryAccessImm kMemoryAccessesImm[] = {
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}}};
 
-
 const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
     {MachineType::Int8(),
      kMipsLb,
      kMipsSb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
-    {MachineType::Int8(),
+    {MachineType::Uint8(),
      kMipsLbu,
      kMipsSb,
      &InstructionSelectorTest::Stream::IsInteger,
@@ -933,7 +932,7 @@ const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
      kMipsSh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
-    {MachineType::Int16(),
+    {MachineType::Uint16(),
      kMipsLhu,
      kMipsSh,
      &InstructionSelectorTest::Stream::IsInteger,
@@ -1065,11 +1064,9 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
     StreamBuilder m(this, memacc.type, MachineType::Pointer());
     m.Return(m.Load(memacc.type, m.Parameter(0), m.Int32Constant(index)));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // kMipsAdd is expected opcode.
-    // size more than 16 bits wide.
-    EXPECT_EQ(kMipsAdd, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.load_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -1086,13 +1083,11 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
             m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // kMipsAdd is expected opcode
-    // size more than 16 bits wide
-    EXPECT_EQ(kMipsAdd, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    EXPECT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.store_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0, s[0]->OutputCount());
   }
 }
 

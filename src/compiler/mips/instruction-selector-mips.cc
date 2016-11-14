@@ -46,12 +46,33 @@ class MipsOperandGenerator final : public OperandGenerator {
       case kMipsSub:
       case kMipsXor:
         return is_uint16(value);
+      case kMipsLb:
+      case kMipsLbu:
+      case kMipsSb:
+      case kMipsLh:
+      case kMipsLhu:
+      case kMipsSh:
+      case kMipsLw:
+      case kMipsSw:
+      case kMipsLwc1:
+      case kMipsSwc1:
       case kMipsLdc1:
       case kMipsSdc1:
+      case kCheckedLoadInt8:
+      case kCheckedLoadUint8:
+      case kCheckedLoadInt16:
+      case kCheckedLoadUint16:
+      case kCheckedLoadWord32:
+      case kCheckedStoreWord8:
+      case kCheckedStoreWord16:
+      case kCheckedStoreWord32:
+      case kCheckedLoadFloat32:
       case kCheckedLoadFloat64:
+      case kCheckedStoreFloat32:
       case kCheckedStoreFloat64:
-        return std::numeric_limits<int16_t>::min() <= (value + kIntSize) &&
-               std::numeric_limits<int16_t>::max() >= (value + kIntSize);
+        // true even for 32b values, offsets > 16b
+        // are handled in assembler-mips.cc
+        return is_int32(value);
       default:
         return is_int16(value);
     }
@@ -1765,6 +1786,7 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+
   if (g.CanBeImmediate(index, opcode)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
          g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
