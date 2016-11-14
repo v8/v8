@@ -2391,7 +2391,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
-    case Call::LOOKUP_SLOT_CALL:
+    case Call::WITH_CALL:
     case Call::POSSIBLY_EVAL_CALL: {
       if (callee_expr->AsVariableProxy()->var()->IsLookupSlot()) {
         RegisterAllocationScope inner_register_scope(this);

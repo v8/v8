@@ -1902,7 +1902,7 @@ class Call final : public Expression {
   enum CallType {
     POSSIBLY_EVAL_CALL,
     GLOBAL_CALL,
-    LOOKUP_SLOT_CALL,
+    WITH_CALL,
     NAMED_PROPERTY_CALL,
     KEYED_PROPERTY_CALL,
     NAMED_SUPER_PROPERTY_CALL,

@@ -1673,8 +1673,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     case Call::GLOBAL_CALL:
       EmitCallWithLoadIC(expr);
       break;
-    case Call::LOOKUP_SLOT_CALL:
-      // Call to a lookup slot (dynamically introduced variable).
+    case Call::WITH_CALL:
+      // Call to a lookup slot looked up through a with scope.
       PushCalleeAndWithBaseObject(expr);
       EmitCall(expr);
       break;

@@ -2297,7 +2297,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       receiver_value = jsgraph()->UndefinedConstant();
       break;
     }
-    case Call::LOOKUP_SLOT_CALL: {
+    case Call::WITH_CALL: {
       Variable* variable = callee->AsVariableProxy()->var();
       DCHECK(variable->location() == VariableLocation::LOOKUP);
       Node* name = jsgraph()->Constant(variable->name());
