@@ -204,7 +204,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK(OperandSize::kByte == operand_size);
-    CHECK_EQ(builder.size(), 0);
+    CHECK_EQ(builder.size(), 0u);
   }
   for (size_t i = 0; i < k8BitCapacity; i++) {
     builder.CommitReservedEntry(builder.CreateReservedEntry(),
@@ -217,7 +217,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
     CHECK_EQ(builder.size(), 2 * k8BitCapacity);
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), 2 * k8BitCapacity);
+  CHECK_EQ(constant_array->length(), static_cast<int>(2 * k8BitCapacity));
   for (size_t i = 0; i < k8BitCapacity; i++) {
     Object* original = constant_array->get(static_cast<int>(k8BitCapacity + i));
     Object* duplicate = constant_array->get(static_cast<int>(i));
@@ -233,7 +233,7 @@ TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK(OperandSize::kByte == operand_size);
-    CHECK_EQ(builder.size(), 0);
+    CHECK_EQ(builder.size(), 0u);
   }
   for (size_t i = 0; i < k8BitCapacity; i++) {
     Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
@@ -265,7 +265,7 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
     CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(i)),
              static_cast<size_t>(i));
   }
-  CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(256)), 256);
+  CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(256)), 256u);
 
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), 257);
@@ -291,11 +291,12 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
   for (int i = 65536; i < 131072; ++i) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kQuad);
   }
-  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kByte, Smi::FromInt(1)), 0);
+  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kByte, Smi::FromInt(1)),
+           0u);
   CHECK_EQ(builder.CommitReservedEntry(OperandSize::kShort, Smi::FromInt(2)),
-           256);
+           256u);
   CHECK_EQ(builder.CommitReservedEntry(OperandSize::kQuad, Smi::FromInt(3)),
-           65536);
+           65536u);
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), 65537);
   int count = 1;

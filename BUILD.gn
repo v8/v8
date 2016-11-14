@@ -370,6 +370,8 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [
+      "-Wsign-compare",
+
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
