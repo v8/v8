@@ -416,6 +416,16 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
   return return_value;
 }
 
+Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
+                                 Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                                 Node* arg5) {
+  CallPrologue();
+  Node* return_value = raw_assembler_->CallRuntime5(function_id, arg1, arg2,
+                                                    arg3, arg4, arg5, context);
+  CallEpilogue();
+  return return_value;
+}
+
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context) {
   return raw_assembler_->TailCallRuntime0(function_id, context);
