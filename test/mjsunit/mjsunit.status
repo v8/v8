@@ -569,6 +569,10 @@
   # further down in this file, so we have to duplicate this here.
   # https://bugs.chromium.org/p/v8/issues/detail?id=5374
   'modules-*': [SKIP],
+
+  # Fails deopt_fuzzer due to --deopt_every_n_times or
+  # deopt_every_n_garbage_collections
+  'es6/array-iterator-turbo': [SKIP]
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
