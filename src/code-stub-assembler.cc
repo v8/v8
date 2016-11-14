@@ -8850,34 +8850,37 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
     // There are only two key iterator maps, branch depending on whether or not
     // the receiver is a TypedArray or not.
 
-    Label if_isarray(this), if_istypedarray(this), if_isgeneric(this);
-    Label* kInstanceTypeHandlers[] = {&if_isarray, &if_istypedarray};
+    Label if_istypedarray(this), if_isgeneric(this);
 
-    static int32_t kInstanceType[] = {JS_ARRAY_TYPE, JS_TYPED_ARRAY_TYPE};
+    Branch(Word32Equal(array_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
+           &if_istypedarray, &if_isgeneric);
 
-    Switch(array_type, &if_isgeneric, kInstanceType, kInstanceTypeHandlers,
-           arraysize(kInstanceType));
-
-    Bind(&if_isarray);
+    Bind(&if_isgeneric);
     {
-      var_map_index.Bind(
-          IntPtrConstant(Context::FAST_ARRAY_KEY_ITERATOR_MAP_INDEX));
-      var_array_map.Bind(array_map);
-      Goto(&allocate_iterator);
+      Label if_isfast(this), if_isslow(this);
+      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
+
+      Bind(&if_isfast);
+      {
+        var_map_index.Bind(
+            IntPtrConstant(Context::FAST_ARRAY_KEY_ITERATOR_MAP_INDEX));
+        var_array_map.Bind(array_map);
+        Goto(&allocate_iterator);
+      }
+
+      Bind(&if_isslow);
+      {
+        var_map_index.Bind(
+            IntPtrConstant(Context::GENERIC_ARRAY_KEY_ITERATOR_MAP_INDEX));
+        var_array_map.Bind(UndefinedConstant());
+        Goto(&allocate_iterator);
+      }
     }
 
     Bind(&if_istypedarray);
     {
       var_map_index.Bind(
           IntPtrConstant(Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX));
-      var_array_map.Bind(UndefinedConstant());
-      Goto(&allocate_iterator);
-    }
-
-    Bind(&if_isgeneric);
-    {
-      var_map_index.Bind(
-          IntPtrConstant(Context::GENERIC_ARRAY_KEY_ITERATOR_MAP_INDEX));
       var_array_map.Bind(UndefinedConstant());
       Goto(&allocate_iterator);
     }
