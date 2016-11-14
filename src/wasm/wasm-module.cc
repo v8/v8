@@ -1300,10 +1300,8 @@ class WasmInstanceBuilder {
       if (dest_offset >= mem_size || source_size >= mem_size ||
           dest_offset > (mem_size - source_size)) {
         thrower_->TypeError("data segment (start = %" PRIu32 ", size = %" PRIu32
-                            ") does not fit into memory "
-                            "(size = %" PRIu64 ")",
-                            dest_offset, source_size,
-                            static_cast<uint64_t>(mem_size));
+                            ") does not fit into memory (size = %" PRIuS ")",
+                            dest_offset, source_size, mem_size);
         return;
       }
       byte* dest = mem_addr + dest_offset;
