@@ -1912,7 +1912,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
     MaybeHandle<Object> result =
         Execution::Call(isolate_, Handle<JSFunction>::cast(event_listener_),
                         global, arraysize(argv), argv);
-    CHECK(!result.is_null());  // Listeners may not throw.
+    CHECK(!result.is_null());  // Listeners must not throw.
   }
   in_debug_event_listener_ = previous;
 }
