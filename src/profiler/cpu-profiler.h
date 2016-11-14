@@ -123,7 +123,7 @@ class CodeEventsContainer {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
     CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
-#undef DECLARE_TYPE
+#undef DECLARE_CLASS
   };
 };
 

@@ -318,12 +318,6 @@ class HLoopInformation final : public ZoneObject {
   HStackCheck* stack_check_;
 };
 
-struct HInlinedFunctionInfo {
-  explicit HInlinedFunctionInfo(int start_position)
-      : start_position(start_position) {}
-  int start_position;
-};
-
 class HGraph final : public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor);
@@ -475,14 +469,6 @@ class HGraph final : public ZoneObject {
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                            SourcePosition position);
 
-  // Converts given SourcePosition to the absolute offset from the start of
-  // the corresponding script.
-  int SourcePositionToScriptPosition(SourcePosition position);
-
-  ZoneVector<HInlinedFunctionInfo>& inlined_function_infos() {
-    return inlined_function_infos_;
-  }
-
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
@@ -527,8 +513,6 @@ class HGraph final : public ZoneObject {
   int maximum_environment_size_;
   int no_side_effects_scope_count_;
   bool disallow_adding_new_values_;
-
-  ZoneVector<HInlinedFunctionInfo> inlined_function_infos_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -1073,7 +1057,6 @@ class HGraphBuilder {
         current_block_(NULL),
         scope_(info->scope()),
         position_(SourcePosition::Unknown()),
-        start_position_(0),
         track_positions_(track_positions) {}
   virtual ~HGraphBuilder() {}
 
@@ -1844,28 +1827,25 @@ class HGraphBuilder {
  protected:
   void SetSourcePosition(int position) {
     if (position != kNoSourcePosition) {
-      position_.set_position(position - start_position_);
+      position_.SetScriptOffset(position);
     }
     // Otherwise position remains unknown.
   }
 
-  void EnterInlinedSource(int start_position, int id) {
+  void EnterInlinedSource(int inlining_id) {
     if (is_tracking_positions()) {
-      start_position_ = start_position;
-      position_.set_inlining_id(id);
+      position_.SetInliningId(inlining_id);
     }
   }
 
   // Convert the given absolute offset from the start of the script to
   // the SourcePosition assuming that this position corresponds to the
-  // same function as current position_.
+  // same function as position_.
   SourcePosition ScriptPositionToSourcePosition(int position) {
     if (position == kNoSourcePosition) {
       return SourcePosition::Unknown();
     }
-    SourcePosition pos = position_;
-    pos.set_position(position - start_position_);
-    return pos;
+    return SourcePosition(position, position_.InliningId());
   }
 
   SourcePosition source_position() { return position_; }
@@ -1873,8 +1853,8 @@ class HGraphBuilder {
 
   bool is_tracking_positions() { return track_positions_; }
 
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position);
+  void TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                            SourcePosition position, int inlining_id);
 
   HValue* BuildAllocateEmptyArrayBuffer(HValue* byte_length);
   template <typename ViewClass>
@@ -1897,7 +1877,6 @@ class HGraphBuilder {
   HBasicBlock* current_block_;
   Scope* scope_;
   SourcePosition position_;
-  int start_position_;
   bool track_positions_;
 };
 

@@ -219,7 +219,7 @@ void BytecodeExpectationsPrinter::PrintSourcePosition(
   if (!source_iterator.done() &&
       source_iterator.code_offset() == bytecode_offset) {
     stream << "/* " << std::setw(kPositionWidth)
-           << source_iterator.source_position();
+           << source_iterator.source_position().ScriptOffset();
     if (source_iterator.is_statement()) {
       stream << " S> */ ";
     } else {

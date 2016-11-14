@@ -9,6 +9,7 @@
 #include "src/checks.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/source-position.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -23,11 +24,11 @@ class Zone;
 struct PositionTableEntry {
   PositionTableEntry()
       : code_offset(0), source_position(0), is_statement(false) {}
-  PositionTableEntry(int offset, int source, bool statement)
+  PositionTableEntry(int offset, int64_t source, bool statement)
       : code_offset(offset), source_position(source), is_statement(statement) {}
 
   int code_offset;
-  int source_position;
+  int64_t source_position;
   bool is_statement;
 };
 
@@ -38,7 +39,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   SourcePositionTableBuilder(Zone* zone,
                              RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
-  void AddPosition(size_t code_offset, int source_position, bool is_statement);
+  void AddPosition(size_t code_offset, SourcePosition source_position,
+                   bool is_statement);
 
   Handle<ByteArray> ToSourcePositionTable(Isolate* isolate,
                                           Handle<AbstractCode> code);
@@ -66,9 +68,9 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
     DCHECK(!done());
     return current_.code_offset;
   }
-  int source_position() const {
+  SourcePosition source_position() const {
     DCHECK(!done());
-    return current_.source_position;
+    return SourcePosition::FromRaw(current_.source_position);
   }
   bool is_statement() const {
     DCHECK(!done());

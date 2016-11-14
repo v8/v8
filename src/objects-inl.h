@@ -3371,6 +3371,24 @@ CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
 
+template <class T>
+PodArray<T>* PodArray<T>::cast(Object* object) {
+  SLOW_DCHECK(object->IsByteArray());
+  return reinterpret_cast<PodArray<T>*>(object);
+}
+template <class T>
+const PodArray<T>* PodArray<T>::cast(const Object* object) {
+  SLOW_DCHECK(object->IsByteArray());
+  return reinterpret_cast<const PodArray<T>*>(object);
+}
+
+// static
+template <class T>
+Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
+                                     PretenureFlag pretenure) {
+  return Handle<PodArray<T>>::cast(
+      isolate->factory()->NewByteArray(length * sizeof(T), pretenure));
+}
 
 // static
 template <class Traits>
@@ -3413,6 +3431,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(WeakCellCache, Object)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 #undef DEFINE_DEOPT_ELEMENT_ACCESSORS
 

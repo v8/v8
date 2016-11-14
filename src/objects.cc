@@ -13418,72 +13418,107 @@ void Script::InitLineEnds(Handle<Script> script) {
   DCHECK(script->line_ends()->IsFixedArray());
 }
 
+bool Script::GetPositionInfo(Handle<Script> script, int position,
+                             PositionInfo* info, OffsetFlag offset_flag) {
+  InitLineEnds(script);
+  return script->GetPositionInfo(position, info, offset_flag);
+}
+
+namespace {
+bool GetPositionInfoSlow(const Script* script, int position,
+                         Script::PositionInfo* info) {
+  if (!script->source()->IsString()) return false;
+  if (position < 0) position = 0;
+
+  String* source_string = String::cast(script->source());
+  int line = 0;
+  int line_start = 0;
+  int len = source_string->length();
+  for (int pos = 0; pos <= len; ++pos) {
+    if (pos == len || source_string->Get(pos) == '\n') {
+      if (position <= pos) {
+        info->line = line;
+        info->column = position - line_start;
+        info->line_start = line_start;
+        info->line_end = pos;
+        return true;
+      }
+      line++;
+      line_start = pos + 1;
+    }
+  }
+  return false;
+}
+}  // namespace
+
 #define SMI_VALUE(x) (Smi::cast(x)->value())
 bool Script::GetPositionInfo(int position, PositionInfo* info,
-                             OffsetFlag offset_flag) {
-  Handle<Script> script(this);
-  InitLineEnds(script);
-
+                             OffsetFlag offset_flag) const {
   DisallowHeapAllocation no_allocation;
 
-  DCHECK(script->line_ends()->IsFixedArray());
-  FixedArray* ends = FixedArray::cast(script->line_ends());
-
-  const int ends_len = ends->length();
-  if (ends_len == 0) return false;
-
-  // Return early on invalid positions. Negative positions behave as if 0 was
-  // passed, and positions beyond the end of the script return as failure.
-  if (position < 0) {
-    position = 0;
-  } else if (position > SMI_VALUE(ends->get(ends_len - 1))) {
-    return false;
-  }
-
-  // Determine line number by doing a binary search on the line ends array.
-  if (SMI_VALUE(ends->get(0)) >= position) {
-    info->line = 0;
-    info->line_start = 0;
-    info->column = position;
+  if (line_ends()->IsUndefined(GetIsolate())) {
+    // Slow mode: we do not have line_ends. We have to iterate through source.
+    if (!GetPositionInfoSlow(this, position, info)) return false;
   } else {
-    int left = 0;
-    int right = ends_len - 1;
+    DCHECK(line_ends()->IsFixedArray());
+    FixedArray* ends = FixedArray::cast(line_ends());
 
-    while (right > 0) {
-      DCHECK_LE(left, right);
-      const int mid = (left + right) / 2;
-      if (position > SMI_VALUE(ends->get(mid))) {
-        left = mid + 1;
-      } else if (position <= SMI_VALUE(ends->get(mid - 1))) {
-        right = mid - 1;
-      } else {
-        info->line = mid;
-        break;
-      }
+    const int ends_len = ends->length();
+    if (ends_len == 0) return false;
+
+    // Return early on invalid positions. Negative positions behave as if 0 was
+    // passed, and positions beyond the end of the script return as failure.
+    if (position < 0) {
+      position = 0;
+    } else if (position > SMI_VALUE(ends->get(ends_len - 1))) {
+      return false;
     }
-    DCHECK(SMI_VALUE(ends->get(info->line)) >= position &&
-           SMI_VALUE(ends->get(info->line - 1)) < position);
-    info->line_start = SMI_VALUE(ends->get(info->line - 1)) + 1;
-    info->column = position - info->line_start;
-  }
 
-  // Line end is position of the linebreak character.
-  info->line_end = SMI_VALUE(ends->get(info->line));
-  if (info->line_end > 0) {
-    DCHECK(script->source()->IsString());
-    Handle<String> src(String::cast(script->source()));
-    if (src->length() >= info->line_end &&
-        src->Get(info->line_end - 1) == '\r') {
-      info->line_end--;
+    // Determine line number by doing a binary search on the line ends array.
+    if (SMI_VALUE(ends->get(0)) >= position) {
+      info->line = 0;
+      info->line_start = 0;
+      info->column = position;
+    } else {
+      int left = 0;
+      int right = ends_len - 1;
+
+      while (right > 0) {
+        DCHECK_LE(left, right);
+        const int mid = (left + right) / 2;
+        if (position > SMI_VALUE(ends->get(mid))) {
+          left = mid + 1;
+        } else if (position <= SMI_VALUE(ends->get(mid - 1))) {
+          right = mid - 1;
+        } else {
+          info->line = mid;
+          break;
+        }
+      }
+      DCHECK(SMI_VALUE(ends->get(info->line)) >= position &&
+             SMI_VALUE(ends->get(info->line - 1)) < position);
+      info->line_start = SMI_VALUE(ends->get(info->line - 1)) + 1;
+      info->column = position - info->line_start;
+    }
+
+    // Line end is position of the linebreak character.
+    info->line_end = SMI_VALUE(ends->get(info->line));
+    if (info->line_end > 0) {
+      DCHECK(source()->IsString());
+      String* src = String::cast(source());
+      if (src->length() >= info->line_end &&
+          src->Get(info->line_end - 1) == '\r') {
+        info->line_end--;
+      }
     }
   }
 
   // Add offsets if requested.
   if (offset_flag == WITH_OFFSET) {
     if (info->line == 0) {
-      info->column += script->column_offset();
+      info->column += column_offset();
     }
-    info->line += script->line_offset();
+    info->line += line_offset();
   }
 
   return true;
@@ -13492,48 +13527,27 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
 int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
   PositionInfo info;
-  if (!script->GetPositionInfo(code_pos, &info, WITH_OFFSET)) {
-    return -1;
-  }
-
+  GetPositionInfo(script, code_pos, &info, WITH_OFFSET);
   return info.column;
 }
 
-int Script::GetLineNumberWithArray(int code_pos) {
+int Script::GetColumnNumber(int code_pos) const {
   PositionInfo info;
-  if (!GetPositionInfo(code_pos, &info, WITH_OFFSET)) {
-    return -1;
-  }
+  GetPositionInfo(code_pos, &info, WITH_OFFSET);
+  return info.column;
+}
 
+int Script::GetLineNumber(Handle<Script> script, int code_pos) {
+  PositionInfo info;
+  GetPositionInfo(script, code_pos, &info, WITH_OFFSET);
   return info.line;
 }
 
-
-int Script::GetLineNumber(Handle<Script> script, int code_pos) {
-  InitLineEnds(script);
-  return script->GetLineNumberWithArray(code_pos);
+int Script::GetLineNumber(int code_pos) const {
+  PositionInfo info;
+  GetPositionInfo(code_pos, &info, WITH_OFFSET);
+  return info.line;
 }
-
-
-int Script::GetLineNumber(int code_pos) {
-  DisallowHeapAllocation no_allocation;
-  if (!line_ends()->IsUndefined(GetIsolate())) {
-    return GetLineNumberWithArray(code_pos);
-  }
-
-  // Slow mode: we do not have line_ends. We have to iterate through source.
-  if (!source()->IsString()) return -1;
-
-  String* source_string = String::cast(source());
-  int line = 0;
-  int len = source_string->length();
-  for (int pos = 0; pos < len; pos++) {
-    if (pos == code_pos) break;
-    if (source_string->Get(pos) == '\n') line++;
-  }
-  return line;
-}
-
 
 Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
@@ -14290,7 +14304,7 @@ int AbstractCode::SourcePosition(int offset) {
   for (SourcePositionTableIterator iterator(source_position_table());
        !iterator.done() && iterator.code_offset() <= offset;
        iterator.Advance()) {
-    position = iterator.source_position();
+    position = iterator.source_position().ScriptOffset();
   }
   return position;
 }
@@ -14303,7 +14317,7 @@ int AbstractCode::SourceStatementPosition(int offset) {
   for (SourcePositionTableIterator it(source_position_table()); !it.done();
        it.Advance()) {
     if (it.is_statement()) {
-      int p = it.source_position();
+      int p = it.source_position().ScriptOffset();
       if (statement_position < p && p <= position) {
         statement_position = p;
       }
@@ -14521,14 +14535,15 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 void Code::PrintDeoptLocation(FILE* out, Address pc) {
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
   class SourcePosition pos = info.position;
-  if (info.deopt_reason != DeoptimizeReason::kNoReason || !pos.IsUnknown()) {
+  if (info.deopt_reason != DeoptimizeReason::kNoReason || pos.IsKnown()) {
     if (FLAG_hydrogen_track_positions) {
-      PrintF(out, "            ;;; deoptimize at %d_%d: %s\n",
-             pos.inlining_id(), pos.position(),
-             DeoptimizeReasonToString(info.deopt_reason));
+      PrintF(out, "            ;;; deoptimize at %d_%d: %s\n", pos.InliningId(),
+             pos.ScriptOffset(), DeoptimizeReasonToString(info.deopt_reason));
     } else {
-      PrintF(out, "            ;;; deoptimize at %d: %s\n", pos.raw(),
-             DeoptimizeReasonToString(info.deopt_reason));
+      PrintF(out, "            ;;; deoptimize at ");
+      OFStream outstr(out);
+      pos.Print(outstr, this);
+      PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
     }
   }
 }
@@ -14967,8 +14982,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     os << "Source positions:\n pc offset  position\n";
     for (; !it.done(); it.Advance()) {
       os << std::setw(10) << it.code_offset() << std::setw(10)
-         << it.source_position() << (it.is_statement() ? "  statement" : "")
-         << "\n";
+         << it.source_position().ScriptOffset()
+         << (it.is_statement() ? "  statement" : "") << "\n";
     }
     os << "\n";
   }
@@ -15070,7 +15085,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   while (!iterator.done()) {
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {
-      os << std::setw(5) << source_positions.source_position();
+      os << std::setw(5) << source_positions.source_position().ScriptOffset();
       os << (source_positions.is_statement() ? " S> " : " E> ");
       source_positions.Advance();
     } else {
@@ -19411,7 +19426,8 @@ int JSMessageObject::GetLineNumber() const {
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!the_script->GetPositionInfo(start_position(), &info, offset_flag)) {
+  if (!Script::GetPositionInfo(the_script, start_position(), &info,
+                               offset_flag)) {
     return Message::kNoLineNumberInfo;
   }
 
@@ -19425,7 +19441,8 @@ int JSMessageObject::GetColumnNumber() const {
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!the_script->GetPositionInfo(start_position(), &info, offset_flag)) {
+  if (!Script::GetPositionInfo(the_script, start_position(), &info,
+                               offset_flag)) {
     return -1;
   }
 
@@ -19442,7 +19459,8 @@ Handle<String> JSMessageObject::GetSourceLine() const {
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!the_script->GetPositionInfo(start_position(), &info, offset_flag)) {
+  if (!Script::GetPositionInfo(the_script, start_position(), &info,
+                               offset_flag)) {
     return isolate->factory()->empty_string();
   }
 

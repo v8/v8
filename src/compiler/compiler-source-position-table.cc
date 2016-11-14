@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/source-position.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-aux-data.h"
 
@@ -24,13 +24,11 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
   SourcePositionTable* source_positions_;
 };
 
-
 SourcePositionTable::SourcePositionTable(Graph* graph)
     : graph_(graph),
       decorator_(nullptr),
       current_position_(SourcePosition::Unknown()),
       table_(graph->zone()) {}
-
 
 void SourcePositionTable::AddDecorator() {
   DCHECK_NULL(decorator_);
@@ -38,13 +36,11 @@ void SourcePositionTable::AddDecorator() {
   graph_->AddDecorator(decorator_);
 }
 
-
 void SourcePositionTable::RemoveDecorator() {
   DCHECK_NOT_NULL(decorator_);
   graph_->RemoveDecorator(decorator_);
   decorator_ = nullptr;
 }
-
 
 SourcePosition SourcePositionTable::GetSourcePosition(Node* node) const {
   return table_.Get(node);
@@ -65,7 +61,7 @@ void SourcePositionTable::Print(std::ostream& os) const {
         os << ",";
       }
       os << "\"" << i.first << "\""
-         << ":" << pos.raw();
+         << ":" << pos.ScriptOffset();
       needs_comma = true;
     }
   }

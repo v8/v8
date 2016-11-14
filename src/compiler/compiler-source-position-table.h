@@ -2,42 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_SOURCE_POSITION_H_
-#define V8_COMPILER_SOURCE_POSITION_H_
+#ifndef V8_COMPILER_COMPILER_SOURCE_POSITION_TABLE_H_
+#define V8_COMPILER_COMPILER_SOURCE_POSITION_TABLE_H_
 
 #include "src/base/compiler-specific.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/globals.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-// Encapsulates encoding and decoding of sources positions from which Nodes
-// originated.
-class SourcePosition final {
- public:
-  explicit SourcePosition(int raw = kUnknownPosition) : raw_(raw) {}
-
-  static SourcePosition Unknown() { return SourcePosition(kUnknownPosition); }
-  bool IsUnknown() const { return raw() == kUnknownPosition; }
-  bool IsKnown() const { return raw() != kUnknownPosition; }
-
-  int raw() const { return raw_; }
-
- private:
-  static const int kUnknownPosition = kNoSourcePosition;
-  int raw_;
-};
-
-
-inline bool operator==(const SourcePosition& lhs, const SourcePosition& rhs) {
-  return lhs.raw() == rhs.raw();
-}
-
-inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
-  return !(lhs == rhs);
-}
 
 class V8_EXPORT_PRIVATE SourcePositionTable final
     : public NON_EXPORTED_BASE(ZoneObject) {
@@ -74,8 +49,8 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   SourcePosition GetSourcePosition(Node* node) const;
   void SetSourcePosition(Node* node, SourcePosition position);
 
-  void set_current_position(int position) {
-    current_position_ = SourcePosition(position);
+  void SetCurrentPosition(const SourcePosition& pos) {
+    current_position_ = pos;
   }
 
   void Print(std::ostream& os) const;
@@ -86,7 +61,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   Graph* const graph_;
   Decorator* decorator_;
   SourcePosition current_position_;
-  NodeAuxData<SourcePosition> table_;
+  NodeAuxData<SourcePosition, SourcePosition::Unknown> table_;
 
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
@@ -95,4 +70,4 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_SOURCE_POSITION_H_
+#endif  // V8_COMPILER_COMPILER_SOURCE_POSITION_TABLE_H_

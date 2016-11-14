@@ -9,7 +9,6 @@
 #include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/liveness-analyzer.h"
-#include "src/compiler/source-position.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -24,13 +23,16 @@ class CompilationInfo;
 
 namespace compiler {
 
+class SourcePositionTable;
+
 // The BytecodeGraphBuilder produces a high-level IR graph based on
 // interpreter bytecodes.
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(Zone* local_zone, CompilationInfo* info,
                        JSGraph* jsgraph, float invocation_frequency,
-                       SourcePositionTable* source_positions);
+                       SourcePositionTable* source_positions,
+                       int inlining_id = SourcePosition::kNotInlined);
 
   // Creates a graph by visiting bytecodes.
   bool CreateGraph(bool stack_check = true);
@@ -312,6 +314,8 @@ class BytecodeGraphBuilder {
 
   // The Turbofan source position table, to be populated.
   SourcePositionTable* source_positions_;
+
+  SourcePosition const start_position_;
 
   // Update [source_positions_]'s current position to that of the bytecode at
   // [offset], if any.

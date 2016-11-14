@@ -760,8 +760,10 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case INTERNAL_REFERENCE_ENCODED:
       return "encoded internal reference";
-    case DEOPT_POSITION:
-      return "deopt position";
+    case DEOPT_SCRIPT_OFFSET:
+      return "deopt script offset";
+    case DEOPT_INLINING_ID:
+      return "deopt inlining id";
     case DEOPT_REASON:
       return "deopt reason";
     case DEOPT_ID:
@@ -801,7 +803,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
-  } else if (rmode_ == DEOPT_POSITION) {
+  } else if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
     os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
     os << "  ("
@@ -872,7 +874,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case RUNTIME_ENTRY:
     case COMMENT:
     case EXTERNAL_REFERENCE:
-    case DEOPT_POSITION:
+    case DEOPT_SCRIPT_OFFSET:
+    case DEOPT_INLINING_ID:
     case DEOPT_REASON:
     case DEOPT_ID:
     case CONST_POOL:
@@ -1891,11 +1894,12 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 // Platform specific but identical code for all the platforms.
 
-void Assembler::RecordDeoptReason(DeoptimizeReason reason, int raw_position,
-                                  int id) {
+void Assembler::RecordDeoptReason(DeoptimizeReason reason,
+                                  SourcePosition position, int id) {
   if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::DEOPT_POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
+    RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
     RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
     RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }

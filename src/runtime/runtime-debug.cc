@@ -1638,7 +1638,7 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
                                         Script::OffsetFlag offset_flag,
                                         Isolate* isolate) {
   Script::PositionInfo info;
-  if (!script->GetPositionInfo(position, &info, offset_flag)) {
+  if (!Script::GetPositionInfo(script, position, &info, offset_flag)) {
     return isolate->factory()->null_value();
   }
 
@@ -1705,7 +1705,7 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
     position = offset + column;
   } else {
     Script::PositionInfo info;
-    if (!script->GetPositionInfo(offset, &info, Script::NO_OFFSET) ||
+    if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET) ||
         info.line + line >= line_count) {
       return isolate->factory()->null_value();
     }

@@ -8,6 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/compilation-info.h"
 #include "src/compiler/bytecode-branch-analysis.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
 #include "src/interpreter/bytecodes.h"
@@ -491,7 +492,8 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-    float invocation_frequency, SourcePositionTable* source_positions)
+    float invocation_frequency, SourcePositionTable* source_positions,
+    int inlining_id)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
@@ -516,7 +518,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       liveness_analyzer_(
           static_cast<size_t>(bytecode_array()->register_count()), true,
           local_zone),
-      source_positions_(source_positions) {}
+      source_positions_(source_positions),
+      start_position_(info->shared_info()->start_position(), inlining_id) {}
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
   if (!new_target_.is_set()) {
@@ -570,6 +573,8 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
 }
 
 bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
+  SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
+
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
   // context and closure.
@@ -2197,13 +2202,11 @@ Node* BytecodeGraphBuilder::MergeValue(Node* value, Node* other,
 
 void BytecodeGraphBuilder::UpdateCurrentSourcePosition(
     SourcePositionTableIterator* it, int offset) {
-  // TODO(neis): Remove this once inlining supports source positions.
-  if (source_positions_ == nullptr) return;
-
   if (it->done()) return;
 
   if (it->code_offset() == offset) {
-    source_positions_->set_current_position(it->source_position());
+    source_positions_->SetCurrentPosition(SourcePosition(
+        it->source_position().ScriptOffset(), start_position_.InliningId()));
     it->Advance();
   } else {
     DCHECK_GT(it->code_offset(), offset);

@@ -94,7 +94,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     int end_position = shared->end_position();
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
          !it.done(); it.Advance()) {
-      int position = it.source_position();
+      int position = it.source_position().ScriptOffset();
       // TODO(alph): in case of inlining the position may correspond to an
       // inlined function source code. Do not collect positions that fall
       // beyond the function source code. There's however a chance the

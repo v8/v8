@@ -665,12 +665,14 @@ void FullCodeGenerator::EmitHasProperty() {
 
 void FullCodeGenerator::RecordStatementPosition(int pos) {
   DCHECK_NE(kNoSourcePosition, pos);
-  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, true);
+  source_position_table_builder_.AddPosition(masm_->pc_offset(),
+                                             SourcePosition(pos), true);
 }
 
 void FullCodeGenerator::RecordPosition(int pos) {
   DCHECK_NE(kNoSourcePosition, pos);
-  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
+  source_position_table_builder_.AddPosition(masm_->pc_offset(),
+                                             SourcePosition(pos), false);
 }
 
 

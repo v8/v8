@@ -211,7 +211,7 @@ void CodeBreakIterator::Next() {
   int offset = code_offset();
   while (!source_position_iterator_.done() &&
          source_position_iterator_.code_offset() <= offset) {
-    position_ = source_position_iterator_.source_position();
+    position_ = source_position_iterator_.source_position().ScriptOffset();
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
     }
@@ -295,7 +295,7 @@ void BytecodeArrayBreakIterator::Next() {
     if (!first) source_position_iterator_.Advance();
     first = false;
     if (Done()) return;
-    position_ = source_position_iterator_.source_position();
+    position_ = source_position_iterator_.source_position().ScriptOffset();
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
     }

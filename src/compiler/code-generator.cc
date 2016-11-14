@@ -88,9 +88,10 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
-  for (const CompilationInfo::InlinedFunctionHolder& inlined :
+  for (CompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
     if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+      inlined.RegisterInlinedFunctionId(deoptimization_literals_.size());
       DefineDeoptimizationLiteral(inlined.shared_info);
     }
   }
@@ -469,29 +470,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
 
 void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
-  SourcePosition source_position;
+  SourcePosition source_position = SourcePosition::Unknown();
   if (!code()->GetSourcePosition(instr, &source_position)) return;
   if (source_position == current_source_position_) return;
   current_source_position_ = source_position;
-  if (source_position.IsUnknown()) return;
-  int code_pos = source_position.raw();
-  source_position_table_builder_.AddPosition(masm()->pc_offset(), code_pos,
-                                             false);
+  if (!source_position.IsKnown()) return;
+  source_position_table_builder_.AddPosition(masm()->pc_offset(),
+                                             source_position, false);
   if (FLAG_code_comments) {
     CompilationInfo* info = this->info();
     if (!info->parse_info()) return;
-    Vector<char> buffer = Vector<char>::New(256);
-    int ln = Script::GetLineNumber(info->script(), code_pos);
-    int cn = Script::GetColumnNumber(info->script(), code_pos);
-    if (info->script()->name()->IsString()) {
-      Handle<String> file(String::cast(info->script()->name()));
-      base::OS::SNPrintF(buffer.start(), buffer.length(), "-- %s:%d:%d --",
-                         file->ToCString().get(), ln, cn);
-    } else {
-      base::OS::SNPrintF(buffer.start(), buffer.length(),
-                         "-- <unknown>:%d:%d --", ln, cn);
-    }
-    masm()->RecordComment(buffer.start());
+    std::ostringstream buffer;
+    buffer << "-- " << source_position.InliningStack(info) << " --";
+    masm()->RecordComment(StrDup(buffer.str().c_str()));
   }
 }
 
@@ -516,6 +507,26 @@ void CodeGenerator::AssembleGaps(Instruction* instr) {
   }
 }
 
+namespace {
+
+Handle<PodArray<InliningPosition>> CreateInliningPositions(
+    CompilationInfo* info) {
+  const CompilationInfo::InlinedFunctionList& inlined_functions =
+      info->inlined_functions();
+  if (inlined_functions.size() == 0) {
+    return Handle<PodArray<InliningPosition>>::cast(
+        info->isolate()->factory()->empty_byte_array());
+  }
+  Handle<PodArray<InliningPosition>> inl_positions =
+      PodArray<InliningPosition>::New(
+          info->isolate(), static_cast<int>(inlined_functions.size()), TENURED);
+  for (size_t i = 0; i < inlined_functions.size(); ++i) {
+    inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
+  }
+  return inl_positions;
+}
+
+}  // namespace
 
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = this->info();
@@ -547,6 +558,9 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     }
     data->SetLiteralArray(*literals);
   }
+
+  Handle<PodArray<InliningPosition>> inl_pos = CreateInliningPositions(info);
+  data->SetInliningPositions(*inl_pos);
 
   if (info->is_osr()) {
     DCHECK(osr_pc_offset_ >= 0);

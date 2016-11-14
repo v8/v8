@@ -2727,16 +2727,19 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   int last_deopt_id = kNoDeoptimizationId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
-             RelocInfo::ModeMask(RelocInfo::DEOPT_POSITION);
+             RelocInfo::ModeMask(RelocInfo::DEOPT_SCRIPT_OFFSET) |
+             RelocInfo::ModeMask(RelocInfo::DEOPT_INLINING_ID);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->pc() >= pc) {
       return DeoptInfo(last_position, last_reason, last_deopt_id);
     }
-    if (info->rmode() == RelocInfo::DEOPT_POSITION) {
-      int raw_position = static_cast<int>(info->data());
-      last_position = raw_position ? SourcePosition::FromRaw(raw_position)
-                                   : SourcePosition::Unknown();
+    if (info->rmode() == RelocInfo::DEOPT_SCRIPT_OFFSET) {
+      int script_offset = static_cast<int>(info->data());
+      it.next();
+      DCHECK(it.rinfo()->rmode() == RelocInfo::DEOPT_INLINING_ID);
+      int inlining_id = static_cast<int>(it.rinfo()->data());
+      last_position = SourcePosition(script_offset, inlining_id);
     } else if (info->rmode() == RelocInfo::DEOPT_ID) {
       last_deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {

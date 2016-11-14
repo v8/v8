@@ -11,6 +11,7 @@
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -151,7 +152,7 @@ class JSONGraphNodeWriter {
     }
     SourcePosition position = positions_->GetSourcePosition(node);
     if (position.IsKnown()) {
-      os_ << ",\"pos\":" << position.raw();
+      os_ << ",\"pos\":" << position.ScriptOffset();
     }
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
@@ -496,7 +497,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         if (positions != nullptr) {
           SourcePosition position = positions->GetSourcePosition(node);
           if (position.IsKnown()) {
-            os_ << " pos:" << position.raw();
+            os_ << " pos:" << position.ScriptOffset();
           }
         }
         os_ << " <|@\n";

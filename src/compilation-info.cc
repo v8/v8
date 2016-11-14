@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
@@ -218,10 +219,12 @@ void CompilationInfo::SetOptimizing() {
   code_flags_ = Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
 }
 
-void CompilationInfo::AddInlinedFunction(
-    Handle<SharedFunctionInfo> inlined_function) {
+int CompilationInfo::AddInlinedFunction(
+    Handle<SharedFunctionInfo> inlined_function, SourcePosition pos) {
+  int id = static_cast<int>(inlined_functions_.size());
   inlined_functions_.push_back(InlinedFunctionHolder(
-      inlined_function, handle(inlined_function->code())));
+      inlined_function, handle(inlined_function->code()), pos));
+  return id;
 }
 
 Code::Kind CompilationInfo::output_code_kind() const {

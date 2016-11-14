@@ -13,6 +13,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
@@ -25,7 +26,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
-#include "src/compiler/source-position.h"
 #include "src/compiler/zone-stats.h"
 
 #include "src/code-factory.h"
@@ -3086,9 +3086,8 @@ void WasmGraphBuilder::SimdScalarLoweringForTesting() {
 void WasmGraphBuilder::SetSourcePosition(Node* node,
                                          wasm::WasmCodePosition position) {
   DCHECK_NE(position, wasm::kNoCodePosition);
-  compiler::SourcePosition pos(position);
   if (source_position_table_)
-    source_position_table_->SetSourcePosition(node, pos);
+    source_position_table_->SetSourcePosition(node, SourcePosition(position));
 }
 
 Node* WasmGraphBuilder::CreateS128Value(int32_t value) {

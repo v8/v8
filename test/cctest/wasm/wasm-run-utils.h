@@ -13,6 +13,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/zone/accounting-allocator.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"

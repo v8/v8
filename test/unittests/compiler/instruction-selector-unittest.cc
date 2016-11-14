@@ -5,6 +5,7 @@
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
 #include "src/code-factory.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
 #include "src/flags.h"

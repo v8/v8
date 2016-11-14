@@ -4367,6 +4367,16 @@ Node* AstGraphBuilder::MergeValue(Node* value, Node* other, Node* control) {
   return value;
 }
 
+AstGraphBuilderWithPositions::AstGraphBuilderWithPositions(
+    Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
+    float invocation_frequency, LoopAssignmentAnalysis* loop_assignment,
+    TypeHintAnalysis* type_hint_analysis, SourcePositionTable* source_positions,
+    int inlining_id)
+    : AstGraphBuilder(local_zone, info, jsgraph, invocation_frequency,
+                      loop_assignment, type_hint_analysis),
+      source_positions_(source_positions),
+      start_position_(info->shared_info()->start_position(), inlining_id) {}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

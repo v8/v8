@@ -367,8 +367,8 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
         builder.AppendString(Handle<String>::cast(name_obj));
 
         Script::PositionInfo info;
-        if (eval_from_script->GetPositionInfo(script->GetEvalPosition(), &info,
-                                              Script::NO_OFFSET)) {
+        if (Script::GetPositionInfo(eval_from_script, script->GetEvalPosition(),
+                                    &info, Script::NO_OFFSET)) {
           builder.AppendCString(":");
 
           Handle<String> str = isolate->factory()->NumberToString(

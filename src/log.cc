@@ -1149,12 +1149,13 @@ void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
          iter.Advance()) {
       if (iter.is_statement()) {
         jit_logger_->AddCodeLinePosInfoEvent(
-            jit_handler_data, iter.code_offset(), iter.source_position(),
+            jit_handler_data, iter.code_offset(),
+            iter.source_position().ScriptOffset(),
             JitCodeEvent::STATEMENT_POSITION);
       }
-      jit_logger_->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                           iter.source_position(),
-                                           JitCodeEvent::POSITION);
+      jit_logger_->AddCodeLinePosInfoEvent(
+          jit_handler_data, iter.code_offset(),
+          iter.source_position().ScriptOffset(), JitCodeEvent::POSITION);
     }
     jit_logger_->EndCodePosInfoEvent(code, jit_handler_data);
   }

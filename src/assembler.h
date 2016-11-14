@@ -52,6 +52,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class SourcePosition;
 class StatsCounter;
 
 // -----------------------------------------------------------------------------
@@ -420,9 +421,10 @@ class RelocInfo {
     CONST_POOL,
     VENEER_POOL,
 
-    DEOPT_POSITION,  // Deoptimization source position.
-    DEOPT_REASON,    // Deoptimization reason index.
-    DEOPT_ID,        // Deoptimization inlining id.
+    DEOPT_SCRIPT_OFFSET,
+    DEOPT_INLINING_ID,  // Deoptimization source position.
+    DEOPT_REASON,       // Deoptimization reason index.
+    DEOPT_ID,           // Deoptimization inlining id.
 
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
@@ -480,7 +482,7 @@ class RelocInfo {
     return mode == VENEER_POOL;
   }
   static inline bool IsDeoptPosition(Mode mode) {
-    return mode == DEOPT_POSITION;
+    return mode == DEOPT_SCRIPT_OFFSET || mode == DEOPT_INLINING_ID;
   }
   static inline bool IsDeoptReason(Mode mode) {
     return mode == DEOPT_REASON;

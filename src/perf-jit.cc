@@ -299,7 +299,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   for (SourcePositionTableIterator iterator(code->source_position_table());
        !iterator.done(); iterator.Advance()) {
-    int position = iterator.source_position();
+    int position = iterator.source_position().ScriptOffset();
     int line_number = Script::GetLineNumber(script, position);
     // Compute column.
     int relative_line_number = line_number - script_line_offset;

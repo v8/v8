@@ -634,7 +634,7 @@ class CaptureStackTraceHelper {
     if (!line_key_.is_null()) {
       Script::PositionInfo info;
       bool valid_pos =
-          script->GetPositionInfo(position, &info, Script::WITH_OFFSET);
+          Script::GetPositionInfo(script, position, &info, Script::WITH_OFFSET);
 
       if (!column_key_.is_null() && valid_pos) {
         JSObject::AddProperty(stack_frame, column_key_,
@@ -2269,7 +2269,6 @@ void Isolate::Deinit() {
 
   delete interpreter_;
   interpreter_ = NULL;
-
 
   delete compiler_dispatcher_tracer_;
   compiler_dispatcher_tracer_ = nullptr;

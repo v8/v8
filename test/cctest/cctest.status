@@ -383,10 +383,6 @@
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
 
-  # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
-
   # TODO(vogelheim,5548): Turbofan does support cached accessors.
   'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
 

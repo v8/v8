@@ -486,9 +486,6 @@ class HValue : public ZoneObject {
   virtual ~HValue() {}
 
   virtual SourcePosition position() const { return SourcePosition::Unknown(); }
-  virtual SourcePosition operand_position(int index) const {
-    return position();
-  }
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
@@ -948,99 +945,6 @@ std::ostream& operator<<(std::ostream& os, const ChangesOf& v);
     return new (zone) I(context, p1, p2, p3, p4, p5, p6);                      \
   }
 
-
-// A helper class to represent per-operand position information attached to
-// the HInstruction in the compact form. Uses tagging to distinguish between
-// case when only instruction's position is available and case when operands'
-// positions are also available.
-// In the first case it contains intruction's position as a tagged value.
-// In the second case it points to an array which contains instruction's
-// position and operands' positions.
-class HPositionInfo {
- public:
-  explicit HPositionInfo(int pos) : data_(TagPosition(pos)) { }
-
-  SourcePosition position() const {
-    if (has_operand_positions()) {
-      return operand_positions()[kInstructionPosIndex];
-    }
-    return SourcePosition::FromRaw(static_cast<int>(UntagPosition(data_)));
-  }
-
-  void set_position(SourcePosition pos) {
-    if (has_operand_positions()) {
-      operand_positions()[kInstructionPosIndex] = pos;
-    } else {
-      data_ = TagPosition(pos.raw());
-    }
-  }
-
-  void ensure_storage_for_operand_positions(Zone* zone, int operand_count) {
-    if (has_operand_positions()) {
-      return;
-    }
-
-    const int length = kFirstOperandPosIndex + operand_count;
-    SourcePosition* positions = zone->NewArray<SourcePosition>(length);
-    for (int i = 0; i < length; i++) {
-      positions[i] = SourcePosition::Unknown();
-    }
-
-    const SourcePosition pos = position();
-    data_ = reinterpret_cast<intptr_t>(positions);
-    set_position(pos);
-
-    DCHECK(has_operand_positions());
-  }
-
-  SourcePosition operand_position(int idx) const {
-    if (!has_operand_positions()) {
-      return position();
-    }
-    return *operand_position_slot(idx);
-  }
-
-  void set_operand_position(int idx, SourcePosition pos) {
-    *operand_position_slot(idx) = pos;
-  }
-
- private:
-  static const intptr_t kInstructionPosIndex = 0;
-  static const intptr_t kFirstOperandPosIndex = 1;
-
-  SourcePosition* operand_position_slot(int idx) const {
-    DCHECK(has_operand_positions());
-    return &(operand_positions()[kFirstOperandPosIndex + idx]);
-  }
-
-  bool has_operand_positions() const {
-    return !IsTaggedPosition(data_);
-  }
-
-  SourcePosition* operand_positions() const {
-    DCHECK(has_operand_positions());
-    return reinterpret_cast<SourcePosition*>(data_);
-  }
-
-  static const intptr_t kPositionTag = 1;
-  static const intptr_t kPositionShift = 1;
-  static bool IsTaggedPosition(intptr_t val) {
-    return (val & kPositionTag) != 0;
-  }
-  static intptr_t UntagPosition(intptr_t val) {
-    DCHECK(IsTaggedPosition(val));
-    return val >> kPositionShift;
-  }
-  static intptr_t TagPosition(intptr_t val) {
-    const intptr_t result = (val << kPositionShift) | kPositionTag;
-    DCHECK(UntagPosition(result) == val);
-    return result;
-  }
-
-  intptr_t data_;
-};
-
-
 class HInstruction : public HValue {
  public:
   HInstruction* next() const { return next_; }
@@ -1067,26 +971,11 @@ class HInstruction : public HValue {
   }
 
   // The position is a write-once variable.
-  SourcePosition position() const override {
-    return SourcePosition(position_.position());
-  }
-  bool has_position() const {
-    return !position().IsUnknown();
-  }
+  SourcePosition position() const override { return position_; }
+  bool has_position() const { return position_.IsKnown(); }
   void set_position(SourcePosition position) {
-    DCHECK(!has_position());
-    DCHECK(!position.IsUnknown());
-    position_.set_position(position);
-  }
-
-  SourcePosition operand_position(int index) const override {
-    const SourcePosition pos = position_.operand_position(index);
-    return pos.IsUnknown() ? position() : pos;
-  }
-  void set_operand_position(Zone* zone, int index, SourcePosition pos) {
-    DCHECK(0 <= index && index < OperandCount());
-    position_.ensure_storage_for_operand_positions(zone, OperandCount());
-    position_.set_operand_position(index, pos);
+    DCHECK(position.IsKnown());
+    position_ = position;
   }
 
   bool Dominates(HInstruction* other);
@@ -1111,7 +1000,7 @@ class HInstruction : public HValue {
       : HValue(type),
         next_(NULL),
         previous_(NULL),
-        position_(kNoSourcePosition) {
+        position_(SourcePosition::Unknown()) {
     SetDependsOnFlag(kOsrEntries);
   }
 
@@ -1125,7 +1014,7 @@ class HInstruction : public HValue {
 
   HInstruction* next_;
   HInstruction* previous_;
-  HPositionInfo position_;
+  SourcePosition position_;
 
   friend class HBasicBlock;
 };
@@ -1920,7 +1809,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
         function_(function),
         inlining_kind_(inlining_kind),
         syntactic_tail_call_mode_(syntactic_tail_call_mode),
-        inlining_id_(0),
+        inlining_id_(-1),
         arguments_var_(arguments_var),
         arguments_object_(arguments_object),
         return_targets_(2, zone) {}
@@ -3474,12 +3363,6 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return representation();
   }
 
-  void SetOperandPositions(Zone* zone, SourcePosition left_pos,
-                           SourcePosition right_pos) {
-    set_operand_position(zone, 1, left_pos);
-    set_operand_position(zone, 2, right_pos);
-  }
-
   bool RightIsPowerOf2() {
     if (!right()->IsInteger32Constant()) return false;
     int32_t value = right()->GetInteger32Constant();
@@ -3891,12 +3774,6 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
   bool KnownSuccessorBlock(HBasicBlock** block) override;
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  void SetOperandPositions(Zone* zone, SourcePosition left_pos,
-                           SourcePosition right_pos) {
-    set_operand_position(zone, 0, left_pos);
-    set_operand_position(zone, 1, right_pos);
-  }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 

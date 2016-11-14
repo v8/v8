@@ -41,12 +41,6 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
     new_value = new (graph()->zone())
         HChange(value, to, is_truncating_to_smi, is_truncating_to_int,
                 is_truncating_to_number);
-    if (!use_value->operand_position(use_index).IsUnknown()) {
-      new_value->set_position(use_value->operand_position(use_index));
-    } else {
-      DCHECK(!FLAG_hydrogen_track_positions ||
-             !graph()->info()->IsOptimizing());
-    }
   }
 
   new_value->InsertBefore(next);

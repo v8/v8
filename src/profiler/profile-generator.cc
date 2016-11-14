@@ -181,17 +181,18 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
   CpuProfileDeoptInfo info;
   info.deopt_reason = deopt_reason_;
   DCHECK_NE(kNoDeoptimizationId, deopt_id_);
+  size_t position = static_cast<size_t>(deopt_position_.ScriptOffset());
   if (deopt_inlined_frames_.find(deopt_id_) == deopt_inlined_frames_.end()) {
-    info.stack.push_back(CpuProfileDeoptFrame(
-        {script_id_, position_ + deopt_position_.position()}));
+    info.stack.push_back(CpuProfileDeoptFrame({script_id_, position}));
   } else {
-    size_t deopt_position = deopt_position_.raw();
     // Copy stack of inlined frames where the deopt happened.
     std::vector<DeoptInlinedFrame>& frames = deopt_inlined_frames_[deopt_id_];
+    bool first = true;
     for (DeoptInlinedFrame& inlined_frame : base::Reversed(frames)) {
-      info.stack.push_back(CpuProfileDeoptFrame(
-          {inlined_frame.script_id, deopt_position + inlined_frame.position}));
-      deopt_position = 0;  // Done with innermost frame.
+      info.stack.push_back(
+          CpuProfileDeoptFrame({inlined_frame.script_id,
+                                first ? position : inlined_frame.position}));
+      first = false;  // Done with innermost frame.
     }
   }
   return info;
