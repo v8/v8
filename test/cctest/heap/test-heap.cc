@@ -2339,7 +2339,7 @@ TEST(GrowAndShrinkNewSpace) {
   }
 
   // Explicitly growing should double the space capacity.
-  intptr_t old_capacity, new_capacity;
+  size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   new_capacity = new_space->TotalCapacity();
@@ -2387,7 +2387,7 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 
   v8::HandleScope scope(CcTest::isolate());
   NewSpace* new_space = heap->new_space();
-  intptr_t old_capacity, new_capacity;
+  size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   new_capacity = new_space->TotalCapacity();
@@ -5678,7 +5678,8 @@ UNINITIALIZED_TEST(PromotionQueue) {
 
 
     CHECK(new_space->IsAtMaximumCapacity());
-    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
+    CHECK_EQ(static_cast<size_t>(i::FLAG_min_semi_space_size * MB),
+             new_space->TotalCapacity());
 
     // Call the scavenger two times to get an empty new space
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
@@ -5694,7 +5695,8 @@ UNINITIALIZED_TEST(PromotionQueue) {
     }
 
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
-    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
+    CHECK_EQ(static_cast<size_t>(i::FLAG_min_semi_space_size * MB),
+             new_space->TotalCapacity());
 
     // Fill-up the first semi-space page.
     heap::FillUpOnePage(new_space);

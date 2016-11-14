@@ -15,10 +15,8 @@ static size_t CountTotalHolesSize(Heap* heap) {
   size_t holes_size = 0;
   OldSpaces spaces(heap);
   for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
-    DCHECK_GE(space->Waste(), 0);
-    DCHECK_GE(space->Available(), 0);
     DCHECK_GE(holes_size + space->Waste() + space->Available(), holes_size);
-    holes_size += static_cast<size_t>(space->Waste() + space->Available());
+    holes_size += space->Waste() + space->Available();
   }
   return holes_size;
 }
@@ -469,9 +467,9 @@ void GCTracer::PrintNVP() const {
           " "
           "allocated=%" PRIuS
           " "
-          "promoted=%" V8PRIdPTR
+          "promoted=%" PRIuS
           " "
-          "semi_space_copied=%" V8PRIdPTR
+          "semi_space_copied=%" PRIuS
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
@@ -591,9 +589,9 @@ void GCTracer::PrintNVP() const {
           " "
           "allocated=%" PRIuS
           " "
-          "promoted=%" V8PRIdPTR
+          "promoted=%" PRIuS
           " "
-          "semi_space_copied=%" V8PRIdPTR
+          "semi_space_copied=%" PRIuS
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "

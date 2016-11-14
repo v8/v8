@@ -869,17 +869,17 @@ class Space : public Malloced {
   virtual size_t MaximumCommittedMemory() { return max_committed_; }
 
   // Returns allocated size.
-  virtual intptr_t Size() = 0;
+  virtual size_t Size() = 0;
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see LargeObjectSpace).
-  virtual intptr_t SizeOfObjects() { return Size(); }
+  virtual size_t SizeOfObjects() { return Size(); }
 
   // Approximate amount of physical memory committed for this space.
   virtual size_t CommittedPhysicalMemory() = 0;
 
   // Return the available bytes without growing.
-  virtual intptr_t Available() = 0;
+  virtual size_t Available() = 0;
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
     if (id_ == CODE_SPACE) {
@@ -1213,8 +1213,8 @@ class MemoryAllocator {
 
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
-  bool SetUp(intptr_t max_capacity, intptr_t capacity_executable,
-             intptr_t code_range_size);
+  bool SetUp(size_t max_capacity, size_t capacity_executable,
+             size_t code_range_size);
 
   void TearDown();
 
@@ -1927,7 +1927,7 @@ class PagedSpace : public Space {
   void PrepareForMarkCompact();
 
   // Current capacity without growing (Size() + Available()).
-  intptr_t Capacity() { return accounting_stats_.Capacity(); }
+  size_t Capacity() { return accounting_stats_.Capacity(); }
 
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() override;
@@ -1949,21 +1949,21 @@ class PagedSpace : public Space {
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
   // immediately added to the free list so they show up here.
-  intptr_t Available() override { return free_list_.Available(); }
+  size_t Available() override { return free_list_.Available(); }
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
   // concurrent sweeping are counted as being allocated!  The bytes in the
   // current linear allocation area (between top and limit) are also counted
   // here.
-  intptr_t Size() override { return accounting_stats_.Size(); }
+  size_t Size() override { return accounting_stats_.Size(); }
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
   // in the current linear allocation area are not included.
-  intptr_t SizeOfObjects() override;
+  size_t SizeOfObjects() override;
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
-  virtual intptr_t Waste() { return free_list_.wasted_bytes(); }
+  virtual size_t Waste() { return free_list_.wasted_bytes(); }
 
   // Returns the allocation pointer in this space.
   Address top() { return allocation_info_.top(); }
@@ -2190,7 +2190,7 @@ class SemiSpace : public Space {
   inline bool Contains(Object* o);
   inline bool ContainsSlow(Address a);
 
-  void SetUp(int initial_capacity, int maximum_capacity);
+  void SetUp(size_t initial_capacity, size_t maximum_capacity);
   void TearDown();
   bool HasBeenSetUp() { return maximum_capacity_ != 0; }
 
@@ -2200,12 +2200,12 @@ class SemiSpace : public Space {
 
   // Grow the semispace to the new capacity.  The new capacity requested must
   // be larger than the current capacity and less than the maximum capacity.
-  bool GrowTo(int new_capacity);
+  bool GrowTo(size_t new_capacity);
 
   // Shrinks the semispace to the new capacity.  The new capacity requested
   // must be more than the amount of used memory in the semispace and less
   // than the current capacity.
-  bool ShrinkTo(int new_capacity);
+  bool ShrinkTo(size_t new_capacity);
 
   bool EnsureCurrentCapacity();
 
@@ -2253,13 +2253,13 @@ class SemiSpace : public Space {
   void set_age_mark(Address mark);
 
   // Returns the current capacity of the semispace.
-  int current_capacity() { return current_capacity_; }
+  size_t current_capacity() { return current_capacity_; }
 
   // Returns the maximum capacity of the semispace.
-  int maximum_capacity() { return maximum_capacity_; }
+  size_t maximum_capacity() { return maximum_capacity_; }
 
   // Returns the initial capacity of the semispace.
-  int minimum_capacity() { return minimum_capacity_; }
+  size_t minimum_capacity() { return minimum_capacity_; }
 
   SemiSpaceId id() { return id_; }
 
@@ -2269,14 +2269,14 @@ class SemiSpace : public Space {
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called:
 
-  intptr_t Size() override {
+  size_t Size() override {
     UNREACHABLE();
     return 0;
   }
 
-  intptr_t SizeOfObjects() override { return Size(); }
+  size_t SizeOfObjects() override { return Size(); }
 
-  intptr_t Available() override {
+  size_t Available() override {
     UNREACHABLE();
     return 0;
   }
@@ -2305,20 +2305,22 @@ class SemiSpace : public Space {
   void RewindPages(Page* start, int num_pages);
 
   inline Page* anchor() { return &anchor_; }
-  inline int max_pages() { return current_capacity_ / Page::kPageSize; }
+  inline int max_pages() {
+    return static_cast<int>(current_capacity_ / Page::kPageSize);
+  }
 
   // Copies the flags into the masked positions on all pages in the space.
   void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
 
   // The currently committed space capacity.
-  int current_capacity_;
+  size_t current_capacity_;
 
   // The maximum capacity that can be used by this space. A space cannot grow
   // beyond that size.
-  int maximum_capacity_;
+  size_t maximum_capacity_;
 
   // The minimum capacity for the space. A space cannot shrink below this size.
-  int minimum_capacity_;
+  size_t minimum_capacity_;
 
   // Used to govern object promotion during mark-compact collection.
   Address age_mark_;
@@ -2379,7 +2381,7 @@ class NewSpace : public Space {
   inline bool ContainsSlow(Address a);
   inline bool Contains(Object* o);
 
-  bool SetUp(int initial_semispace_capacity, int max_semispace_capacity);
+  bool SetUp(size_t initial_semispace_capacity, size_t max_semispace_capacity);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -2401,15 +2403,16 @@ class NewSpace : public Space {
   void Shrink();
 
   // Return the allocated bytes in the active semispace.
-  intptr_t Size() override {
+  size_t Size() override {
+    DCHECK_GE(top(), to_space_.page_low());
     return to_space_.pages_used() * Page::kAllocatableMemory +
-           static_cast<int>(top() - to_space_.page_low());
+           static_cast<size_t>(top() - to_space_.page_low());
   }
 
-  intptr_t SizeOfObjects() override { return Size(); }
+  size_t SizeOfObjects() override { return Size(); }
 
   // Return the allocatable capacity of a semispace.
-  intptr_t Capacity() {
+  size_t Capacity() {
     SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
     return (to_space_.current_capacity() / Page::kPageSize) *
            Page::kAllocatableMemory;
@@ -2417,7 +2420,7 @@ class NewSpace : public Space {
 
   // Return the current size of a semispace, allocatable and non-allocatable
   // memory.
-  intptr_t TotalCapacity() {
+  size_t TotalCapacity() {
     DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
     return to_space_.current_capacity();
   }
@@ -2437,7 +2440,10 @@ class NewSpace : public Space {
   size_t CommittedPhysicalMemory() override;
 
   // Return the available bytes without growing.
-  intptr_t Available() override { return Capacity() - Size(); }
+  size_t Available() override {
+    DCHECK_GE(Capacity(), Size());
+    return Capacity() - Size();
+  }
 
   size_t AllocatedSinceLastGC() {
     bool seen_age_mark = false;
@@ -2463,17 +2469,18 @@ class NewSpace : public Space {
       // Top was reset at some point, invalidating this metric.
       return 0;
     }
-    intptr_t allocated = age_mark_page->area_end() - age_mark;
+    DCHECK_GE(age_mark_page->area_end(), age_mark);
+    size_t allocated = age_mark_page->area_end() - age_mark;
     DCHECK_EQ(current_page, age_mark_page);
     current_page = age_mark_page->next_page();
     while (current_page != last_page) {
       allocated += Page::kAllocatableMemory;
       current_page = current_page->next_page();
     }
+    DCHECK_GE(top(), current_page->area_start());
     allocated += top() - current_page->area_start();
-    DCHECK_LE(0, allocated);
     DCHECK_LE(allocated, Size());
-    return static_cast<size_t>(allocated);
+    return allocated;
   }
 
   void MovePageFromSpaceToSpace(Page* page) {
@@ -2485,7 +2492,7 @@ class NewSpace : public Space {
   bool Rebalance();
 
   // Return the maximum capacity of a semispace.
-  int MaximumCapacity() {
+  size_t MaximumCapacity() {
     DCHECK(to_space_.maximum_capacity() == from_space_.maximum_capacity());
     return to_space_.maximum_capacity();
   }
@@ -2493,7 +2500,7 @@ class NewSpace : public Space {
   bool IsAtMaximumCapacity() { return TotalCapacity() == MaximumCapacity(); }
 
   // Returns the initial capacity of a semispace.
-  int InitialTotalCapacity() {
+  size_t InitialTotalCapacity() {
     DCHECK(to_space_.minimum_capacity() == from_space_.minimum_capacity());
     return to_space_.minimum_capacity();
   }
@@ -2785,7 +2792,7 @@ class LargeObjectSpace : public Space {
   // Releases internal resources, frees objects in this space.
   void TearDown();
 
-  static intptr_t ObjectSizeFor(intptr_t chunk_size) {
+  static size_t ObjectSizeFor(size_t chunk_size) {
     if (chunk_size <= (Page::kPageSize + Page::kObjectStartOffset)) return 0;
     return chunk_size - Page::kPageSize - Page::kObjectStartOffset;
   }
@@ -2796,11 +2803,11 @@ class LargeObjectSpace : public Space {
       AllocateRaw(int object_size, Executability executable);
 
   // Available bytes for objects in this space.
-  inline intptr_t Available() override;
+  inline size_t Available() override;
 
-  intptr_t Size() override { return size_; }
+  size_t Size() override { return size_; }
 
-  intptr_t SizeOfObjects() override { return objects_size_; }
+  size_t SizeOfObjects() override { return objects_size_; }
 
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() override;
@@ -2858,9 +2865,9 @@ class LargeObjectSpace : public Space {
  private:
   // The head of the linked list of large object chunks.
   LargePage* first_page_;
-  intptr_t size_;          // allocated bytes
+  size_t size_;            // allocated bytes
   int page_count_;         // number of chunks
-  intptr_t objects_size_;  // size of objects
+  size_t objects_size_;    // size of objects
   // Map MemoryChunk::kAlignment-aligned chunks to large pages covering them
   base::HashMap chunk_map_;
 

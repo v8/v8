@@ -7770,7 +7770,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
 
   FlagAndPersistent object_a, object_b;
 
-  intptr_t big_heap_size;
+  size_t big_heap_size;
 
   {
     v8::HandleScope handle_scope(iso);

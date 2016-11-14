@@ -294,8 +294,8 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       highest_ever_allocated_(reinterpret_cast<void*>(0)),
       unmapper_(this) {}
 
-bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
-                            intptr_t code_range_size) {
+bool MemoryAllocator::SetUp(size_t capacity, size_t capacity_executable,
+                            size_t code_range_size) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
   capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
   DCHECK_GE(capacity_, capacity_executable_);
@@ -304,7 +304,7 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
   size_executable_ = 0;
 
   code_range_ = new CodeRange(isolate_);
-  if (!code_range_->SetUp(static_cast<size_t>(code_range_size))) return false;
+  if (!code_range_->SetUp(code_range_size)) return false;
 
   return true;
 }
@@ -1480,10 +1480,11 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-bool NewSpace::SetUp(int initial_semispace_capacity,
-                     int maximum_semispace_capacity) {
+bool NewSpace::SetUp(size_t initial_semispace_capacity,
+                     size_t maximum_semispace_capacity) {
   DCHECK(initial_semispace_capacity <= maximum_semispace_capacity);
-  DCHECK(base::bits::IsPowerOfTwo32(maximum_semispace_capacity));
+  DCHECK(base::bits::IsPowerOfTwo32(
+      static_cast<uint32_t>(maximum_semispace_capacity)));
 
   to_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);
   from_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);
@@ -1528,9 +1529,9 @@ void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
 void NewSpace::Grow() {
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
-  int new_capacity =
+  size_t new_capacity =
       Min(MaximumCapacity(),
-          FLAG_semi_space_growth_factor * static_cast<int>(TotalCapacity()));
+          static_cast<size_t>(FLAG_semi_space_growth_factor) * TotalCapacity());
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
@@ -1548,8 +1549,8 @@ void NewSpace::Grow() {
 
 
 void NewSpace::Shrink() {
-  int new_capacity = Max(InitialTotalCapacity(), 2 * static_cast<int>(Size()));
-  int rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
+  size_t new_capacity = Max(InitialTotalCapacity(), 2 * Size());
+  size_t rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {
     // Only shrink from-space if we managed to shrink to-space.
@@ -1576,7 +1577,8 @@ bool NewSpace::Rebalance() {
 
 bool SemiSpace::EnsureCurrentCapacity() {
   if (is_committed()) {
-    const int expected_pages = current_capacity_ / Page::kPageSize;
+    const int expected_pages =
+        static_cast<int>(current_capacity_ / Page::kPageSize);
     int actual_pages = 0;
     Page* current_page = anchor()->next_page();
     while (current_page != anchor()) {
@@ -1877,8 +1879,8 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-void SemiSpace::SetUp(int initial_capacity, int maximum_capacity) {
-  DCHECK_GE(maximum_capacity, Page::kPageSize);
+void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
+  DCHECK_GE(maximum_capacity, static_cast<size_t>(Page::kPageSize));
   minimum_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   current_capacity_ = minimum_capacity_;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
@@ -1901,7 +1903,7 @@ void SemiSpace::TearDown() {
 bool SemiSpace::Commit() {
   DCHECK(!is_committed());
   Page* current = anchor();
-  const int num_pages = current_capacity_ / Page::kPageSize;
+  const int num_pages = static_cast<int>(current_capacity_ / Page::kPageSize);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
@@ -1947,17 +1949,16 @@ size_t SemiSpace::CommittedPhysicalMemory() {
   return size;
 }
 
-
-bool SemiSpace::GrowTo(int new_capacity) {
+bool SemiSpace::GrowTo(size_t new_capacity) {
   if (!is_committed()) {
     if (!Commit()) return false;
   }
-  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0);
+  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0u);
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, current_capacity_);
-  const int delta = new_capacity - current_capacity_;
+  const size_t delta = new_capacity - current_capacity_;
   DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
-  const int delta_pages = delta / Page::kPageSize;
+  const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   Page* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
@@ -1992,14 +1993,14 @@ void SemiSpace::RewindPages(Page* start, int num_pages) {
   }
 }
 
-bool SemiSpace::ShrinkTo(int new_capacity) {
-  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0);
+bool SemiSpace::ShrinkTo(size_t new_capacity) {
+  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0u);
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, current_capacity_);
   if (is_committed()) {
-    const int delta = current_capacity_ - new_capacity;
+    const size_t delta = current_capacity_ - new_capacity;
     DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
-    int delta_pages = delta / Page::kPageSize;
+    int delta_pages = static_cast<int>(delta / Page::kPageSize);
     Page* new_last_page;
     Page* last_page;
     while (delta_pages > 0) {
@@ -2771,13 +2772,10 @@ void PagedSpace::PrepareForMarkCompact() {
   free_list_.Reset();
 }
 
-
-intptr_t PagedSpace::SizeOfObjects() {
-  const intptr_t size = Size() - (limit() - top());
+size_t PagedSpace::SizeOfObjects() {
   CHECK_GE(limit(), top());
-  CHECK_GE(size, 0);
-  USE(size);
-  return size;
+  DCHECK_GE(Size(), static_cast<size_t>(limit() - top()));
+  return Size() - (limit() - top());
 }
 
 
@@ -2824,6 +2822,7 @@ HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
 }
 
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
+  DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
 
   // Allocation in this space has failed.

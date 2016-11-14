@@ -599,8 +599,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   return static_cast<LargePage*>(chunk);
 }
 
-
-intptr_t LargeObjectSpace::Available() {
+size_t LargeObjectSpace::Available() {
   return ObjectSizeFor(heap()->memory_allocator()->Available());
 }
 

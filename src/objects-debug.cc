@@ -383,8 +383,8 @@ void Map::MapVerify() {
   CHECK(!heap->InNewSpace(this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
-         (kPointerSize <= instance_size() &&
-          instance_size() < heap->Capacity()));
+        (kPointerSize <= instance_size() &&
+         static_cast<size_t>(instance_size()) < heap->Capacity()));
   CHECK(GetBackPointer()->IsUndefined(heap->isolate()) ||
         !Map::cast(GetBackPointer())->is_stable());
   VerifyHeapPointer(prototype());
