@@ -136,7 +136,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
       i_isolate, &interpreter_thrower, buffer.begin(), buffer.end(),
-      v8::internal::wasm::ModuleOrigin::kWasmOrigin));
+      v8::internal::wasm::ModuleOrigin::kWasmOrigin, true));
 
   if (module == nullptr) {
     return 0;

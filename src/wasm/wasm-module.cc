@@ -1925,7 +1925,7 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
 bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
                                const byte* end, ErrorThrower* thrower,
                                ModuleOrigin origin) {
-  ModuleResult result = DecodeWasmModule(isolate, start, end, false, origin);
+  ModuleResult result = DecodeWasmModule(isolate, start, end, true, origin);
   if (result.val) {
     delete result.val;
   } else {

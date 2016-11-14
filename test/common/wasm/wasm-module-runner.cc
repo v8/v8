@@ -24,15 +24,13 @@ uint32_t GetMinModuleMemSize(const WasmModule* module) {
   return WasmModule::kPageSize * module->min_mem_pages;
 }
 
-const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate,
-                                             ErrorThrower* thrower,
-                                             const byte* module_start,
-                                             const byte* module_end,
-                                             ModuleOrigin origin) {
+const WasmModule* DecodeWasmModuleForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin, bool verify_functions) {
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
-  ModuleResult decoding_result =
-      DecodeWasmModule(isolate, module_start, module_end, false, origin);
+  ModuleResult decoding_result = DecodeWasmModule(
+      isolate, module_start, module_end, verify_functions, origin);
 
   if (decoding_result.failed()) {
     // Module verification failed. throw.
@@ -129,22 +127,6 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
 
   if (thrower->error()) return -1;
 
-  ModuleEnv module_env;
-  module_env.module = module;
-  module_env.origin = module->origin;
-
-  for (size_t i = 0; i < module->functions.size(); i++) {
-    FunctionBody body = {
-        &module_env, module->functions[i].sig, module->module_start,
-        module->module_start + module->functions[i].code_start_offset,
-        module->module_start + module->functions[i].code_end_offset};
-    DecodeResult result = VerifyWasmCode(isolate->allocator(), body);
-    if (result.failed()) {
-      thrower->CompileError("Function did not verify");
-      return -1;
-    }
-  }
-
   // The code verifies, we create an instance to run it in the interpreter.
   WasmInstance instance(module);
   instance.context = isolate->native_context();
@@ -154,7 +136,6 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   instance.mem_start =
       static_cast<byte*>(calloc(GetMinModuleMemSize(module), 1));
   instance.globals_start = nullptr;
-  module_env.instance = &instance;
 
   WasmInterpreter interpreter(&instance, isolate->allocator());
 

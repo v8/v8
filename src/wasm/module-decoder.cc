@@ -586,6 +586,14 @@ class ModuleDecoder : public Decoder {
         uint32_t size = consume_u32v("body size");
         function->code_start_offset = pc_offset();
         function->code_end_offset = pc_offset() + size;
+        if (verify_functions) {
+          ModuleEnv module_env;
+          module_env.module = module;
+          module_env.origin = module->origin;
+
+          VerifyFunctionBody(i + module->num_imported_functions, &module_env,
+                             function);
+        }
         consume_bytes(size, "function body");
       }
       section_iter.advance();
@@ -646,6 +654,9 @@ class ModuleDecoder : public Decoder {
     }
     const WasmModule* finished_module = module;
     ModuleResult result = toResult(finished_module);
+    if (verify_functions && result.ok()) {
+      result.MoveFrom(result_);  // Copy error code and location.
+    }
     if (FLAG_dump_wasm_module) DumpModule(module, result);
     return result;
   }

@@ -19,11 +19,9 @@ namespace wasm {
 namespace testing {
 
 // Decodes the given encoded module.
-const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate,
-                                             ErrorThrower* thrower,
-                                             const byte* module_start,
-                                             const byte* module_end,
-                                             ModuleOrigin origin);
+const WasmModule* DecodeWasmModuleForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 
 // Instantiates a module without any imports and exports.
 const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
