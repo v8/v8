@@ -1247,7 +1247,7 @@ Scope* Scope::GetOuterScopeWithContext() {
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(
     ParseInfo* info, Handle<StringSet> non_locals) {
-  VariableProxy* free_variables = FetchFreeVariables(this, true);
+  VariableProxy* free_variables = FetchFreeVariables(this, true, info);
   for (VariableProxy* proxy = free_variables; proxy != nullptr;
        proxy = proxy->next_unresolved()) {
     non_locals = StringSet::Add(non_locals, proxy->name());
@@ -1734,7 +1734,7 @@ void Scope::ResolveVariablesRecursively(ParseInfo* info) {
 }
 
 VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                         bool try_to_resolve,
+                                         bool try_to_resolve, ParseInfo* info,
                                          VariableProxy* stack) {
   for (VariableProxy *proxy = unresolved_, *next = nullptr; proxy != nullptr;
        proxy = next) {
@@ -1747,6 +1747,8 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
     if (var == nullptr) {
       proxy->set_next_unresolved(stack);
       stack = proxy;
+    } else if (info != nullptr) {
+      ResolveTo(info, proxy, var);
     } else {
       var->set_is_used();
     }
@@ -1756,7 +1758,8 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
   unresolved_ = nullptr;
 
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    stack = scope->FetchFreeVariables(max_outer_scope, try_to_resolve, stack);
+    stack =
+        scope->FetchFreeVariables(max_outer_scope, try_to_resolve, info, stack);
   }
 
   return stack;
