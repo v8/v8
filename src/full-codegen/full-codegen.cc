@@ -1666,47 +1666,48 @@ void FullCodeGenerator::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   Call::CallType call_type = expr->GetCallType();
 
-  switch (call_type) {
-    case Call::POSSIBLY_EVAL_CALL:
-      EmitPossiblyEvalCall(expr);
-      break;
-    case Call::GLOBAL_CALL:
-      EmitCallWithLoadIC(expr);
-      break;
-    case Call::WITH_CALL:
-      // Call to a lookup slot looked up through a with scope.
-      PushCalleeAndWithBaseObject(expr);
-      EmitCall(expr);
-      break;
-    case Call::NAMED_PROPERTY_CALL: {
-      Property* property = callee->AsProperty();
-      VisitForStackValue(property->obj());
-      EmitCallWithLoadIC(expr);
-      break;
+  if (expr->is_possibly_eval()) {
+    EmitPossiblyEvalCall(expr);
+  } else {
+    switch (call_type) {
+      case Call::GLOBAL_CALL:
+        EmitCallWithLoadIC(expr);
+        break;
+      case Call::WITH_CALL:
+        // Call to a lookup slot looked up through a with scope.
+        PushCalleeAndWithBaseObject(expr);
+        EmitCall(expr);
+        break;
+      case Call::NAMED_PROPERTY_CALL: {
+        Property* property = callee->AsProperty();
+        VisitForStackValue(property->obj());
+        EmitCallWithLoadIC(expr);
+        break;
+      }
+      case Call::KEYED_PROPERTY_CALL: {
+        Property* property = callee->AsProperty();
+        VisitForStackValue(property->obj());
+        EmitKeyedCallWithLoadIC(expr, property->key());
+        break;
+      }
+      case Call::NAMED_SUPER_PROPERTY_CALL:
+        EmitSuperCallWithLoadIC(expr);
+        break;
+      case Call::KEYED_SUPER_PROPERTY_CALL:
+        EmitKeyedSuperCallWithLoadIC(expr);
+        break;
+      case Call::SUPER_CALL:
+        EmitSuperConstructorCall(expr);
+        break;
+      case Call::OTHER_CALL:
+        // Call to an arbitrary expression not handled specially above.
+        VisitForStackValue(callee);
+        OperandStackDepthIncrement(1);
+        __ PushRoot(Heap::kUndefinedValueRootIndex);
+        // Emit function call.
+        EmitCall(expr);
+        break;
     }
-    case Call::KEYED_PROPERTY_CALL: {
-      Property* property = callee->AsProperty();
-      VisitForStackValue(property->obj());
-      EmitKeyedCallWithLoadIC(expr, property->key());
-      break;
-    }
-    case Call::NAMED_SUPER_PROPERTY_CALL:
-      EmitSuperCallWithLoadIC(expr);
-      break;
-    case Call::KEYED_SUPER_PROPERTY_CALL:
-      EmitKeyedSuperCallWithLoadIC(expr);
-      break;
-    case Call::SUPER_CALL:
-      EmitSuperConstructorCall(expr);
-      break;
-    case Call::OTHER_CALL:
-      // Call to an arbitrary expression not handled specially above.
-      VisitForStackValue(callee);
-      OperandStackDepthIncrement(1);
-      __ PushRoot(Heap::kUndefinedValueRootIndex);
-      // Emit function call.
-      EmitCall(expr);
-      break;
   }
 
 #ifdef DEBUG

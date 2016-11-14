@@ -2391,31 +2391,26 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
-    case Call::WITH_CALL:
-    case Call::POSSIBLY_EVAL_CALL: {
-      if (callee_expr->AsVariableProxy()->var()->IsLookupSlot()) {
-        RegisterAllocationScope inner_register_scope(this);
-        Register name = register_allocator()->NewRegister();
+    case Call::WITH_CALL: {
+      DCHECK(callee_expr->AsVariableProxy()->var()->IsLookupSlot());
+      RegisterAllocationScope inner_register_scope(this);
+      Register name = register_allocator()->NewRegister();
 
-        // Call %LoadLookupSlotForCall to get the callee and receiver.
-        DCHECK(Register::AreContiguous(callee, receiver));
-        RegisterList result_pair(callee.index(), 2);
-        Variable* variable = callee_expr->AsVariableProxy()->var();
-        builder()
-            ->LoadLiteral(variable->name())
-            .StoreAccumulatorInRegister(name)
-            .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name,
-                                result_pair);
-        break;
-      }
-      // Fall through.
-      DCHECK_EQ(call_type, Call::POSSIBLY_EVAL_CALL);
+      // Call %LoadLookupSlotForCall to get the callee and receiver.
+      DCHECK(Register::AreContiguous(callee, receiver));
+      RegisterList result_pair(callee.index(), 2);
+      Variable* variable = callee_expr->AsVariableProxy()->var();
+      builder()
+          ->LoadLiteral(variable->name())
+          .StoreAccumulatorInRegister(name)
+          .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name,
+                              result_pair);
+      break;
     }
-    case Call::OTHER_CALL: {
+    case Call::OTHER_CALL:
       builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
       VisitForRegisterValue(callee_expr, callee);
       break;
-    }
     case Call::NAMED_SUPER_PROPERTY_CALL: {
       Property* property = callee_expr->AsProperty();
       VisitNamedSuperPropertyLoad(property, receiver);
@@ -2439,8 +2434,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // Resolve callee for a potential direct eval call. This block will mutate the
   // callee value.
-  if (call_type == Call::POSSIBLY_EVAL_CALL &&
-      expr->arguments()->length() > 0) {
+  if (expr->is_possibly_eval() && expr->arguments()->length() > 0) {
     RegisterAllocationScope inner_register_scope(this);
     // Set up arguments for ResolvePossiblyDirectEval by copying callee, source
     // strings and function closure, and loading language and

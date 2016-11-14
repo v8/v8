@@ -903,7 +903,7 @@ bytecodes: [
   /* 3435 E> */ B(StaCurrentContextSlot), U8(255),
   /* 3438 S> */ B(LdaUndefined),
                 B(Star), R(2),
-  /* 3438 E> */ B(LdaGlobal), U8(4),
+                B(LdaGlobal), U8(4),
                 B(Star), R(1),
   /* 3438 E> */ B(Call), R(1), R(2), U8(1), U8(2),
   /* 3454 S> */ B(LdaSmi), U8(100),

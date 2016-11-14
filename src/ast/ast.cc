@@ -900,9 +900,7 @@ void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
 Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
-    if (is_possibly_eval()) {
-      return POSSIBLY_EVAL_CALL;
-    } else if (proxy->var()->IsUnallocated()) {
+    if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
       // Calls going through 'with' always use DYNAMIC rather than DYNAMIC_LOCAL

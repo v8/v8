@@ -1900,7 +1900,6 @@ class Call final : public Expression {
   void MarkTail() { bit_field_ = IsTailField::update(bit_field_, true); }
 
   enum CallType {
-    POSSIBLY_EVAL_CALL,
     GLOBAL_CALL,
     WITH_CALL,
     NAMED_PROPERTY_CALL,

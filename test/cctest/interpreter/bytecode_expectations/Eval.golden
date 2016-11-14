@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 62
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(0),
@@ -22,9 +22,10 @@ bytecodes: [
                 B(Ldar), R(new_target),
                 B(StaCurrentContextSlot), U8(5),
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaConstant), U8(0),
-                B(Star), R(4),
-                B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall), R(4), U8(1), R(1),
+  /*   34 S> */ B(LdaUndefined),
+                B(Star), R(2),
+  /*   41 E> */ B(LdaLookupGlobalSlot), U8(0), U8(4), U8(1),
+                B(Star), R(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(LdaZero),
