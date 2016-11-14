@@ -706,13 +706,14 @@ class CaptureStackTraceHelper {
           frame->function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
-    // Encode the function index as line number.
+    // Encode the function index as line number (1-based).
     if (!line_key_.is_null()) {
       JSObject::AddProperty(
           stack_frame, line_key_,
-          isolate_->factory()->NewNumberFromInt(frame->function_index()), NONE);
+          isolate_->factory()->NewNumberFromInt(frame->function_index() + 1),
+          NONE);
     }
-    // Encode the byte offset as column.
+    // Encode the byte offset as column (1-based).
     if (!column_key_.is_null()) {
       Code* code = frame->LookupCode();
       int offset = static_cast<int>(frame->pc() - code->instruction_start());
