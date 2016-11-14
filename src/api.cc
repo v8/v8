@@ -1240,7 +1240,6 @@ Local<FunctionTemplate> FunctionTemplate::NewWithFastHandler(
     experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
     v8::Local<Signature> signature, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(!i_isolate->serializer_enabled());
   LOG_API(i_isolate, FunctionTemplate, NewWithFastHandler);
   ENTER_V8(i_isolate);
   return FunctionTemplateNew(i_isolate, callback, fast_handler, data, signature,
@@ -1251,7 +1250,6 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCache(
     Isolate* isolate, FunctionCallback callback, Local<Private> cache_property,
     Local<Value> data, Local<Signature> signature, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(!i_isolate->serializer_enabled());
   LOG_API(i_isolate, FunctionTemplate, NewWithFastHandler);
   ENTER_V8(i_isolate);
   return FunctionTemplateNew(i_isolate, callback, nullptr, data, signature,

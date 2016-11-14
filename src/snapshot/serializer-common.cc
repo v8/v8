@@ -18,27 +18,24 @@ namespace internal {
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = isolate->external_reference_map();
-  if (map_ != NULL) return;
-  map_ = new base::HashMap();
+  if (map_ != nullptr) return;
+  map_ = new AddressToIndexHashMap();
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
-  for (int i = 0; i < table->size(); ++i) {
+  for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
-    if (addr == ExternalReferenceTable::NotAvailable()) continue;
     // We expect no duplicate external references entries in the table.
     // AccessorRefTable getter may have duplicates, indicated by an empty string
     // as name.
-    DCHECK(table->name(i)[0] == '\0' ||
-           map_->Lookup(addr, Hash(addr)) == nullptr);
-    map_->LookupOrInsert(addr, Hash(addr))->value = reinterpret_cast<void*>(i);
+    DCHECK(table->name(i)[0] == '\0' || map_->Get(addr).IsNothing());
+    map_->Set(addr, i);
+    DCHECK(map_->Get(addr).IsJust());
   }
   isolate->set_external_reference_map(map_);
 }
 
 uint32_t ExternalReferenceEncoder::Encode(Address address) const {
-  DCHECK_NOT_NULL(address);
-  base::HashMap::Entry* entry =
-      const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
-  if (entry == nullptr) {
+  Maybe<uint32_t> maybe_index = map_->Get(address);
+  if (maybe_index.IsNothing()) {
     void* function_addr = address;
     v8::base::OS::PrintError("Unknown external reference %p.\n", function_addr);
 #ifdef SYMBOLIZE_FUNCTION
@@ -46,16 +43,15 @@ uint32_t ExternalReferenceEncoder::Encode(Address address) const {
 #endif  // SYMBOLIZE_FUNCTION
     v8::base::OS::Abort();
   }
-  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
+  return maybe_index.FromJust();
 }
 
 const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
-  base::HashMap::Entry* entry =
-      const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
-  if (entry == NULL) return "<unknown>";
-  uint32_t i = static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
-  return ExternalReferenceTable::instance(isolate)->name(i);
+  Maybe<uint32_t> maybe_index = map_->Get(address);
+  if (maybe_index.IsNothing()) return "<unknown>";
+  return ExternalReferenceTable::instance(isolate)->name(
+      maybe_index.FromJust());
 }
 
 void SerializedData::AllocateData(int size) {

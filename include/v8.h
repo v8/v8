@@ -7575,7 +7575,7 @@ class V8_EXPORT V8 {
 /**
  * Helper class to create a snapshot data blob.
  */
-class SnapshotCreator {
+class V8_EXPORT SnapshotCreator {
  public:
   enum class FunctionCodeHandling { kClear, kKeep };
 

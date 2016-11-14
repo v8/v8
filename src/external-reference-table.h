@@ -19,11 +19,9 @@ class ExternalReferenceTable {
  public:
   static ExternalReferenceTable* instance(Isolate* isolate);
 
-  int size() const { return refs_.length(); }
-  Address address(int i) { return refs_[i].address; }
-  const char* name(int i) { return refs_[i].name; }
-
-  inline static Address NotAvailable() { return NULL; }
+  uint32_t size() const { return static_cast<uint32_t>(refs_.length()); }
+  Address address(uint32_t i) { return refs_[i].address; }
+  const char* name(uint32_t i) { return refs_[i].name; }
 
   static const int kDeoptTableSerializeEntryCount = 64;
 
@@ -43,7 +41,6 @@ class ExternalReferenceTable {
   void AddReferences(Isolate* isolate);
   void AddBuiltins(Isolate* isolate);
   void AddRuntimeFunctions(Isolate* isolate);
-  void AddStatCounters(Isolate* isolate);
   void AddIsolateAddresses(Isolate* isolate);
   void AddAccessors(Isolate* isolate);
   void AddStubCache(Isolate* isolate);

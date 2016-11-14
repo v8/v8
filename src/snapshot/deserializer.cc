@@ -528,7 +528,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int skip = source_.GetInt();                                           \
         current = reinterpret_cast<Object**>(                                  \
             reinterpret_cast<Address>(current) + skip);                        \
-        int reference_id = source_.GetInt();                                   \
+        uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());       \
         Address address = external_reference_table_->address(reference_id);    \
         new_object = reinterpret_cast<Object*>(address);                       \
       } else if (where == kAttachedReference) {                                \

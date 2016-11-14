@@ -623,6 +623,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
   sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
   sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = rinfo->target_external_reference();
+  DCHECK_NOT_NULL(target);  // Code does not reference null.
   sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }

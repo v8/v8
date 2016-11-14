@@ -23,12 +23,7 @@ class ExternalReferenceEncoder {
   const char* NameOfAddress(Isolate* isolate, Address address) const;
 
  private:
-  static uint32_t Hash(Address key) {
-    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key) >>
-                                 kPointerSizeLog2);
-  }
-
-  base::HashMap* map_;
+  AddressToIndexHashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };

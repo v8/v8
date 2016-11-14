@@ -118,6 +118,7 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
   DCHECK(!o->IsScript());
   return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
          o->IsCode() || o->IsScopeInfo() || o->IsAccessorInfo() ||
+         o->IsTemplateInfo() ||
          o->map() ==
              startup_serializer_->isolate()->heap()->fixed_cow_array_map();
 }
