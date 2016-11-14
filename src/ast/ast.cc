@@ -14,6 +14,7 @@
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
+#include "src/elements.h"
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
@@ -580,11 +581,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   if (!constant_elements_.is_null()) return;
 
   int constants_length = values()->length();
-
-  // Allocate a fixed array to hold all the object literals.
-  Handle<JSArray> array = isolate->factory()->NewJSArray(
-      FAST_HOLEY_SMI_ELEMENTS, constants_length, constants_length,
-      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  ElementsKind kind = FIRST_FAST_ELEMENTS_KIND;
+  Handle<FixedArray> fixed_array =
+      isolate->factory()->NewFixedArrayWithHoles(constants_length);
 
   // Fill in the literals.
   bool is_simple = true;
@@ -615,29 +614,34 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       is_simple = false;
     }
 
-    JSObject::AddDataElement(array, array_index, boilerplate_value, NONE)
-        .Assert();
+    kind = GetMoreGeneralElementsKind(kind,
+                                      boilerplate_value->OptimalElementsKind());
+    fixed_array->set(array_index, *boilerplate_value);
   }
 
-  JSObject::ValidateElements(array);
-  Handle<FixedArrayBase> element_values(array->elements());
+  if (is_holey) kind = GetHoleyElementsKind(kind);
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
   if (is_simple && depth_acc == 1 && array_index > 0 &&
-      array->HasFastSmiOrObjectElements()) {
-    element_values->set_map(isolate->heap()->fixed_cow_array_map());
+      IsFastSmiOrObjectElementsKind(kind)) {
+    fixed_array->set_map(isolate->heap()->fixed_cow_array_map());
+  }
+
+  Handle<FixedArrayBase> elements = fixed_array;
+  if (IsFastDoubleElementsKind(kind)) {
+    ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
+    elements = isolate->factory()->NewFixedDoubleArray(constants_length);
+    // We are copying from non-fast-double to fast-double.
+    ElementsKind from_kind = TERMINAL_FAST_ELEMENTS_KIND;
+    accessor->CopyElements(fixed_array, from_kind, elements, constants_length);
   }
 
   // Remember both the literal's constant values as well as the ElementsKind
   // in a 2-element FixedArray.
   Handle<FixedArray> literals = isolate->factory()->NewFixedArray(2, TENURED);
-
-  ElementsKind kind = array->GetElementsKind();
-  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
-
   literals->set(0, Smi::FromInt(kind));
-  literals->set(1, *element_values);
+  literals->set(1, *elements);
 
   constant_elements_ = literals;
   set_is_simple(is_simple);
