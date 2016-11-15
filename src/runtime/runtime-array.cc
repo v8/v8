@@ -636,5 +636,48 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   return Smi::FromInt(-1);
 }
 
+RUNTIME_FUNCTION(Runtime_SpreadIterablePrepare) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, spread, 0);
+
+  if (spread->IsJSArray()) {
+    // Check that the spread arg has fast elements
+    Handle<JSArray> spread_array = Handle<JSArray>::cast(spread);
+    ElementsKind array_kind = spread_array->GetElementsKind();
+
+    // And that it has the orignal ArrayPrototype
+    JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
+    Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
+
+    // Check that the iterator acts as expected.
+    // If IsArrayIteratorLookupChainIntact(), then we know that the initial
+    // ArrayIterator is being used. If the map of the prototype has changed,
+    // then take the slow path.
+
+    if (isolate->is_initial_array_prototype(array_proto) &&
+        isolate->IsArrayIteratorLookupChainIntact() &&
+        isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
+      if (IsFastPackedElementsKind(array_kind)) {
+        return *spread;
+      }
+      if (IsFastHoleyElementsKind(array_kind) &&
+          isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+        return *spread;
+      }
+    }
+  }
+
+  Handle<JSFunction> spread_iterable_function = isolate->spread_iterable();
+
+  Handle<Object> spreaded;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, spreaded,
+      Execution::Call(isolate, spread_iterable_function,
+                      isolate->factory()->undefined_value(), 1, &spread));
+
+  return *spreaded;
+}
+
 }  // namespace internal
 }  // namespace v8

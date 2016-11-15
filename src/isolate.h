@@ -987,8 +987,8 @@ class Isolate {
 
   Map* get_initial_js_array_map(ElementsKind kind);
 
-  static const int kArrayProtectorValid = 1;
-  static const int kArrayProtectorInvalid = 0;
+  static const int kProtectorValid = 1;
+  static const int kProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
   inline bool IsArraySpeciesLookupChainIntact();
@@ -996,6 +996,7 @@ class Isolate {
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
+  inline bool IsArrayIteratorLookupChainIntact();
 
   // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
   inline bool IsFastArrayIterationIntact();
@@ -1018,6 +1019,7 @@ class Isolate {
   void InvalidateHasInstanceProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
+  void InvalidateArrayIteratorProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

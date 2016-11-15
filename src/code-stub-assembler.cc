@@ -5570,7 +5570,7 @@ void CodeStubAssembler::HandleLoadICSmiHandlerCase(
       DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
       GotoUnless(
           WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                    SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+                    SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
           miss);
       Return(UndefinedConstant());
     }
@@ -8764,7 +8764,7 @@ compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
   GotoUnless(
       WordEqual(LoadObjectField(LoadRoot(Heap::kHasInstanceProtectorRootIndex),
                                 PropertyCell::kValueOffset),
-                SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+                SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
       &return_runtime);
 
   // Check if {callable} is a valid receiver.
@@ -8949,7 +8949,7 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
           GotoUnless(
               WordEqual(
                   LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+                  SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
               &if_isslow);
 
           Node* native_context = LoadNativeContext(context);

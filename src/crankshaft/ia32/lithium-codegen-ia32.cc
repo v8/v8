@@ -2625,11 +2625,11 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     __ j(not_equal, &done);
     if (info()->IsStub()) {
       // A stub can safely convert the hole to undefined only if the array
-      // protector cell contains (Smi) Isolate::kArrayProtectorValid.
+      // protector cell contains (Smi) Isolate::kProtectorValid.
       // Otherwise it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
       __ cmp(FieldOperand(result, PropertyCell::kValueOffset),
-             Immediate(Smi::FromInt(Isolate::kArrayProtectorValid)));
+             Immediate(Smi::FromInt(Isolate::kProtectorValid)));
       DeoptimizeIf(not_equal, instr, DeoptimizeReason::kHole);
     }
     __ mov(result, isolate()->factory()->undefined_value());

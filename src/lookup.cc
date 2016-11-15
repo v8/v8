@@ -194,6 +194,11 @@ void LookupIterator::InternalUpdateProtector() {
   } else if (*name_ == heap()->has_instance_symbol()) {
     if (!isolate_->IsHasInstanceLookupChainIntact()) return;
     isolate_->InvalidateHasInstanceProtector();
+  } else if (*name_ == heap()->iterator_symbol()) {
+    if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
+    if (holder_->IsJSArray()) {
+      isolate_->InvalidateArrayIteratorProtector();
+    }
   }
 }
 

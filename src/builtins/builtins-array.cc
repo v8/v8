@@ -2247,7 +2247,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
       Node* invalid =
-          assembler->SmiConstant(Smi::FromInt(Isolate::kArrayProtectorInvalid));
+          assembler->SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
       Node* cell = assembler->LoadRoot(Heap::kArrayProtectorRootIndex);
       Node* cell_value =
           assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
@@ -2268,7 +2268,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
       Node* invalid =
-          assembler->SmiConstant(Smi::FromInt(Isolate::kArrayProtectorInvalid));
+          assembler->SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
       Node* cell = assembler->LoadRoot(Heap::kArrayProtectorRootIndex);
       Node* cell_value =
           assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
@@ -2338,7 +2338,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
                 &done);
 
             Node* invalid = assembler->SmiConstant(
-                Smi::FromInt(Isolate::kArrayProtectorInvalid));
+                Smi::FromInt(Isolate::kProtectorInvalid));
             Node* cell = assembler->LoadRoot(
                 Heap::kFastArrayIterationProtectorRootIndex);
             assembler->StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset,

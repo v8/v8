@@ -2822,7 +2822,7 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   PropertyCell* no_elements_cell = heap()->array_protector();
   bool cell_reports_intact =
       no_elements_cell->value()->IsSmi() &&
-      Smi::cast(no_elements_cell->value())->value() == kArrayProtectorValid;
+      Smi::cast(no_elements_cell->value())->value() == kProtectorValid;
 
 #ifdef DEBUG
   Map* root_array_map =
@@ -2881,7 +2881,7 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   Cell* is_concat_spreadable_cell = heap()->is_concat_spreadable_protector();
   bool is_is_concat_spreadable_set =
       Smi::cast(is_concat_spreadable_cell->value())->value() ==
-      kArrayProtectorInvalid;
+      kProtectorInvalid;
 #ifdef DEBUG
   Map* root_array_map = get_initial_js_array_map(GetInitialFastElementsKind());
   if (root_array_map == NULL) {
@@ -2916,7 +2916,7 @@ void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
   if (!IsArrayOrObjectPrototype(*object)) return;
   PropertyCell::SetValueWithInvalidation(
       factory()->array_protector(),
-      handle(Smi::FromInt(kArrayProtectorInvalid), this));
+      handle(Smi::FromInt(kProtectorInvalid), this));
 }
 
 void Isolate::InvalidateHasInstanceProtector() {
@@ -2924,7 +2924,7 @@ void Isolate::InvalidateHasInstanceProtector() {
   DCHECK(IsHasInstanceLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
       factory()->has_instance_protector(),
-      handle(Smi::FromInt(kArrayProtectorInvalid), this));
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsHasInstanceLookupChainIntact());
 }
 
@@ -2932,15 +2932,14 @@ void Isolate::InvalidateIsConcatSpreadableProtector() {
   DCHECK(factory()->is_concat_spreadable_protector()->value()->IsSmi());
   DCHECK(IsIsConcatSpreadableLookupChainIntact());
   factory()->is_concat_spreadable_protector()->set_value(
-      Smi::FromInt(kArrayProtectorInvalid));
+      Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsIsConcatSpreadableLookupChainIntact());
 }
 
 void Isolate::InvalidateArraySpeciesProtector() {
   DCHECK(factory()->species_protector()->value()->IsSmi());
   DCHECK(IsArraySpeciesLookupChainIntact());
-  factory()->species_protector()->set_value(
-      Smi::FromInt(kArrayProtectorInvalid));
+  factory()->species_protector()->set_value(Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsArraySpeciesLookupChainIntact());
 }
 
@@ -2949,8 +2948,16 @@ void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(IsStringLengthOverflowIntact());
   PropertyCell::SetValueWithInvalidation(
       factory()->string_length_protector(),
-      handle(Smi::FromInt(kArrayProtectorInvalid), this));
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsStringLengthOverflowIntact());
+}
+
+void Isolate::InvalidateArrayIteratorProtector() {
+  DCHECK(factory()->array_iterator_protector()->value()->IsSmi());
+  DCHECK(IsArrayIteratorLookupChainIntact());
+  factory()->array_iterator_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
+  DCHECK(!IsArrayIteratorLookupChainIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {

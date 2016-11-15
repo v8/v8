@@ -3973,7 +3973,7 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
     ZoneList<Expression*>* spread_list =
         new (zone()) ZoneList<Expression*>(0, zone());
     spread_list->Add(list->at(0)->AsSpread()->expression(), zone());
-    args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
+    args->Add(factory()->NewCallRuntime(Runtime::kSpreadIterablePrepare,
                                         spread_list, kNoSourcePosition),
               zone());
     return args;

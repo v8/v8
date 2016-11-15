@@ -1350,6 +1350,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     array_iterator_function->shared()->set_instance_class_name(
         isolate->heap()->ArrayIterator_string());
 
+    native_context()->set_initial_array_iterator_prototype(
+        *array_iterator_prototype);
+    native_context()->set_initial_array_iterator_prototype_map(
+        array_iterator_prototype->map());
+
     Handle<Map> initial_map(array_iterator_function->initial_map(), isolate);
 
 #define ARRAY_ITERATOR_LIST(V)                                              \

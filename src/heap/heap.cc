@@ -2823,7 +2823,7 @@ void Heap::CreateInitialObjects() {
   set_empty_script(*script);
 
   Handle<PropertyCell> cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_protector(*cell);
 
   cell = factory->NewPropertyCell();
@@ -2831,24 +2831,28 @@ void Heap::CreateInitialObjects() {
   set_empty_property_cell(*cell);
 
   cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_has_instance_protector(*cell);
 
   Handle<Cell> is_concat_spreadable_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
+      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_is_concat_spreadable_protector(*is_concat_spreadable_cell);
 
   Handle<Cell> species_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
+      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_species_protector(*species_cell);
 
   cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_string_length_protector(*cell);
 
   Handle<Cell> fast_array_iteration_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
+      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_fast_array_iteration_protector(*fast_array_iteration_cell);
+
+  Handle<Cell> array_iterator_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
+  set_array_iterator_protector(*array_iterator_cell);
 
   set_serialized_templates(empty_fixed_array());
 
