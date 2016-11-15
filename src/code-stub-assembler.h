@@ -999,6 +999,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       ParameterMode mode, Label* bailout);
 
   void LoadIC(const LoadICParameters* p);
+  void LoadICProtoArray(const LoadICParameters* p, compiler::Node* handler);
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);

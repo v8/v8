@@ -455,6 +455,21 @@ void LoadICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->LoadIC(&p);
 }
 
+void LoadICProtoArrayStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* handler = assembler->Parameter(Descriptor::kHandler);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
+  assembler->LoadICProtoArray(&p, handler);
+}
+
 void LoadGlobalICTrampolineStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;

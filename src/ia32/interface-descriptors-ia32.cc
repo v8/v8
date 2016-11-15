@@ -31,6 +31,7 @@ const Register LoadDescriptor::SlotRegister() { return eax; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return ebx; }
 
+const Register LoadICProtoArrayDescriptor::HandlerRegister() { return edi; }
 
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }

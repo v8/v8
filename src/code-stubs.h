@@ -121,6 +121,7 @@ class ObjectLiteral;
   V(StringAdd)                                \
   V(GetProperty)                              \
   V(LoadIC)                                   \
+  V(LoadICProtoArray)                         \
   V(KeyedLoadICTF)                            \
   V(StoreFastElement)                         \
   V(StoreField)                               \
@@ -2101,6 +2102,16 @@ class LoadICStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_CODE_STUB(LoadIC, TurboFanCodeStub);
+};
+
+class LoadICProtoArrayStub : public TurboFanCodeStub {
+ public:
+  explicit LoadICProtoArrayStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadICProtoArray);
+  DEFINE_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
 };
 
 class LoadGlobalICStub : public TurboFanCodeStub {

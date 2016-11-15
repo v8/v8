@@ -5715,12 +5715,38 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
 
   Bind(&array_handler);
   {
-    Node* handler_length = SmiUntag(maybe_holder_cell);
-    Node* holder = EmitLoadICProtoArrayCheck(p, handler, handler_length,
-                                             handler_flags, miss);
-    var_holder->Bind(holder);
-    var_smi_handler->Bind(smi_handler);
-    Goto(if_smi_handler);
+    typedef LoadICProtoArrayDescriptor Descriptor;
+    LoadICProtoArrayStub stub(isolate());
+    Node* target = HeapConstant(stub.GetCode());
+    TailCallStub(Descriptor(isolate()), target, p->context,
+                 Arg(Descriptor::kReceiver, p->receiver),
+                 Arg(Descriptor::kName, p->name),
+                 Arg(Descriptor::kSlot, p->slot),
+                 Arg(Descriptor::kVector, p->vector),
+                 Arg(Descriptor::kHandler, handler));
+  }
+}
+
+void CodeStubAssembler::LoadICProtoArray(const LoadICParameters* p,
+                                         Node* handler) {
+  Label miss(this);
+  CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
+  CSA_ASSERT(this, IsFixedArrayMap(LoadMap(handler)));
+
+  Node* smi_handler = LoadObjectField(handler, LoadHandler::kSmiHandlerOffset);
+  Node* handler_flags = SmiUntag(smi_handler);
+
+  Node* handler_length = LoadAndUntagFixedArrayBaseLength(handler);
+
+  Node* holder = EmitLoadICProtoArrayCheck(p, handler, handler_length,
+                                           handler_flags, &miss);
+
+  HandleLoadICSmiHandlerCase(p, holder, smi_handler, &miss, kOnlyProperties);
+
+  Bind(&miss);
+  {
+    TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
+                    p->slot, p->vector);
   }
 }
 

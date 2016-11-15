@@ -21,6 +21,7 @@ class PlatformInterfaceDescriptor;
   V(ContextOnly)                          \
   V(Load)                                 \
   V(LoadWithVector)                       \
+  V(LoadICProtoArray)                     \
   V(LoadGlobal)                           \
   V(LoadGlobalWithVector)                 \
   V(Store)                                \
@@ -387,6 +388,15 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
                                                LoadDescriptor)
 
   static const Register VectorRegister();
+};
+
+class LoadICProtoArrayDescriptor : public LoadWithVectorDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector, kHandler)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadICProtoArrayDescriptor,
+                                               LoadWithVectorDescriptor)
+
+  static const Register HandlerRegister();
 };
 
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
