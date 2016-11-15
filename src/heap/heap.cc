@@ -1908,8 +1908,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // to new space.
         DCHECK(!target->IsMap());
 
-        IteratePromotedObject(target, static_cast<int>(size), was_marked_black,
-                              &Scavenger::ScavengeObject);
+        IterateAndScavengePromotedObject(target, static_cast<int>(size),
+                                         was_marked_black);
       }
     }
 
@@ -4727,51 +4727,44 @@ void Heap::ZapFromSpace() {
   }
 }
 
-void Heap::IteratePromotedObjectPointers(HeapObject* object, Address start,
-                                         Address end, bool record_slots,
-                                         ObjectSlotCallback callback) {
-  Address slot_address = start;
-  Page* page = Page::FromAddress(start);
-
-  while (slot_address < end) {
-    Object** slot = reinterpret_cast<Object**>(slot_address);
-    Object* target = *slot;
-    if (target->IsHeapObject()) {
-      if (Heap::InFromSpace(target)) {
-        callback(reinterpret_cast<HeapObject**>(slot),
-                 HeapObject::cast(target));
-        Object* new_target = *slot;
-        if (InNewSpace(new_target)) {
-          SLOW_DCHECK(Heap::InToSpace(new_target));
-          SLOW_DCHECK(new_target->IsHeapObject());
-          RememberedSet<OLD_TO_NEW>::Insert(page, slot_address);
-        }
-        SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_target));
-      } else if (record_slots &&
-                 MarkCompactCollector::IsOnEvacuationCandidate(target)) {
-        mark_compact_collector()->RecordSlot(object, slot, target);
-      }
-    }
-    slot_address += kPointerSize;
-  }
-}
-
-class IteratePromotedObjectsVisitor final : public ObjectVisitor {
+class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  public:
-  IteratePromotedObjectsVisitor(Heap* heap, HeapObject* target,
-                                bool record_slots, ObjectSlotCallback callback)
-      : heap_(heap),
-        target_(target),
-        record_slots_(record_slots),
-        callback_(callback) {}
+  IterateAndScavengePromotedObjectsVisitor(Heap* heap, HeapObject* target,
+                                           bool record_slots)
+      : heap_(heap), target_(target), record_slots_(record_slots) {}
 
-  V8_INLINE void VisitPointers(Object** start, Object** end) override {
-    heap_->IteratePromotedObjectPointers(
-        target_, reinterpret_cast<Address>(start),
-        reinterpret_cast<Address>(end), record_slots_, callback_);
+  inline void VisitPointers(Object** start, Object** end) override {
+    Address slot_address = reinterpret_cast<Address>(start);
+    Page* page = Page::FromAddress(slot_address);
+
+    while (slot_address < reinterpret_cast<Address>(end)) {
+      Object** slot = reinterpret_cast<Object**>(slot_address);
+      Object* target = *slot;
+
+      if (target->IsHeapObject()) {
+        if (heap_->InFromSpace(target)) {
+          Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(slot),
+                                    HeapObject::cast(target));
+          target = *slot;
+          if (heap_->InNewSpace(target)) {
+            SLOW_DCHECK(heap_->InToSpace(target));
+            SLOW_DCHECK(target->IsHeapObject());
+            RememberedSet<OLD_TO_NEW>::Insert(page, slot_address);
+          }
+          SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
+              HeapObject::cast(target)));
+        } else if (record_slots_ &&
+                   MarkCompactCollector::IsOnEvacuationCandidate(
+                       HeapObject::cast(target))) {
+          heap_->mark_compact_collector()->RecordSlot(target_, slot, target);
+        }
+      }
+
+      slot_address += kPointerSize;
+    }
   }
 
-  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {
+  inline void VisitCodeEntry(Address code_entry_slot) override {
     // Black allocation requires us to process objects referenced by
     // promoted objects.
     if (heap_->incremental_marking()->black_allocation()) {
@@ -4784,12 +4777,10 @@ class IteratePromotedObjectsVisitor final : public ObjectVisitor {
   Heap* heap_;
   HeapObject* target_;
   bool record_slots_;
-  ObjectSlotCallback callback_;
 };
 
-void Heap::IteratePromotedObject(HeapObject* target, int size,
-                                 bool was_marked_black,
-                                 ObjectSlotCallback callback) {
+void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
+                                            bool was_marked_black) {
   // We are not collecting slots on new space objects during mutation
   // thus we have to scan for pointers to evacuation candidates when we
   // promote objects. But we should not record any slots in non-black
@@ -4802,8 +4793,14 @@ void Heap::IteratePromotedObject(HeapObject* target, int size,
     record_slots = Marking::IsBlack(mark_bit);
   }
 
-  IteratePromotedObjectsVisitor visitor(this, target, record_slots, callback);
-  target->IterateBody(target->map()->instance_type(), size, &visitor);
+  IterateAndScavengePromotedObjectsVisitor visitor(this, target, record_slots);
+  if (target->IsJSFunction()) {
+    // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
+    // this links are recorded during processing of weak lists.
+    JSFunction::BodyDescriptorWeakCode::IterateBody(target, size, &visitor);
+  } else {
+    target->IterateBody(target->map()->instance_type(), size, &visitor);
+  }
 
   // When black allocations is on, we have to visit not already marked black
   // objects (in new space) promoted to black pages to keep their references

@@ -472,7 +472,7 @@ class MarkCompactCollector {
         ->ShouldSkipEvacuationSlotRecording();
   }
 
-  INLINE(static bool IsOnEvacuationCandidate(Object* obj)) {
+  static inline bool IsOnEvacuationCandidate(HeapObject* obj) {
     return Page::FromAddress(reinterpret_cast<Address>(obj))
         ->IsEvacuationCandidate();
   }

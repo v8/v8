@@ -1152,13 +1152,8 @@ class Heap {
   void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
   // Iterate pointers of promoted objects.
-  void IteratePromotedObject(HeapObject* target, int size,
-                             bool was_marked_black,
-                             ObjectSlotCallback callback);
-
-  void IteratePromotedObjectPointers(HeapObject* object, Address start,
-                                     Address end, bool record_slots,
-                                     ObjectSlotCallback callback);
+  void IterateAndScavengePromotedObject(HeapObject* target, int size,
+                                        bool was_marked_black);
 
   // ===========================================================================
   // Store buffer API. =========================================================
@@ -2337,7 +2332,6 @@ class Heap {
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
-  friend class IteratePromotedObjectsVisitor;
   friend class LargeObjectSpace;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
