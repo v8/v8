@@ -841,13 +841,6 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 }
 
 
-void AstGraphBuilder::Environment::UpdateStateValuesWithCache(
-    Node** state_values, int offset, int count) {
-  Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
-  *state_values = builder_->state_values_cache_.GetNodeForValues(
-      env_values, static_cast<size_t>(count));
-}
-
 Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id,
                                                OutputFrameStateCombine combine,
                                                bool owner_has_exception) {
@@ -856,7 +849,7 @@ Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id,
   }
 
   UpdateStateValues(&parameters_node_, 0, parameters_count());
-  UpdateStateValuesWithCache(&locals_node_, parameters_count(), locals_count());
+  UpdateStateValues(&locals_node_, parameters_count(), locals_count());
   UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
                     stack_height());
 

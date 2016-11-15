@@ -602,7 +602,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
                        LivenessAnalyzerBlock* liveness_block);
   Environment* CopyAndShareLiveness();
   void UpdateStateValues(Node** state_values, int offset, int count);
-  void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   AstGraphBuilder* builder() const { return builder_; }

@@ -82,7 +82,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   bool StateValuesRequireUpdate(Node** state_values, int offset, int count);
   void UpdateStateValues(Node** state_values, int offset, int count);
-  void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
 
   int RegisterToValuesIndex(interpreter::Register the_register) const;
 
@@ -453,19 +452,12 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
   }
 }
 
-void BytecodeGraphBuilder::Environment::UpdateStateValuesWithCache(
-    Node** state_values, int offset, int count) {
-  Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
-  *state_values = builder_->state_values_cache_.GetNodeForValues(
-      env_values, static_cast<size_t>(count));
-}
-
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BailoutId bailout_id, OutputFrameStateCombine combine,
     bool owner_has_exception) {
   UpdateStateValues(&parameters_state_values_, 0, parameter_count());
-  UpdateStateValuesWithCache(&registers_state_values_, register_base(),
-                             register_count());
+  UpdateStateValues(&registers_state_values_, register_base(),
+                    register_count());
   UpdateStateValues(&accumulator_state_values_, accumulator_base(), 1);
 
   const Operator* op = common()->FrameState(
