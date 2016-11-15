@@ -3622,6 +3622,7 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
   }
   do_block->set_scope(scope()->FinalizeBlockScope());
   do_expr->set_represented_function(class_info->constructor);
+  AddFunctionForNameInference(class_info->constructor);
 
   return do_expr;
 }
