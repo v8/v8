@@ -53,6 +53,14 @@ class MipsOperandConverter final : public InstructionOperandConverter {
     return ToDoubleRegister(op);
   }
 
+  Register InputOrZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK((InputInt32(index) == 0));
+      return zero_reg;
+    }
+    return InputRegister(index);
+  }
+
   DoubleRegister InputOrZeroDoubleRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) return kDoubleRegZero;
 
@@ -400,14 +408,20 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     Label done;                                                        \
     if (instr->InputAt(0)->IsRegister()) {                             \
       auto offset = i.InputRegister(0);                                \
-      auto value = i.Input##width##Register(2);                        \
+      auto value = i.InputOrZero##width##Register(2);                  \
+      if (value.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {      \
+        __ Move(kDoubleRegZero, 0.0);                                  \
+      }                                                                \
       __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
       __ And(kScratchReg, offset, Operand(0xffffffff));                \
       __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);          \
       __ asm_instr(value, MemOperand(kScratchReg, 0));                 \
     } else {                                                           \
       int offset = static_cast<int>(i.InputOperand(0).immediate());    \
-      auto value = i.Input##width##Register(2);                        \
+      auto value = i.InputOrZero##width##Register(2);                  \
+      if (value.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {      \
+        __ Move(kDoubleRegZero, 0.0);                                  \
+      }                                                                \
       __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
       __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
     }                                                                  \
@@ -419,14 +433,14 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     Label done;                                                        \
     if (instr->InputAt(0)->IsRegister()) {                             \
       auto offset = i.InputRegister(0);                                \
-      auto value = i.InputRegister(2);                                 \
+      auto value = i.InputOrZeroRegister(2);                           \
       __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
       __ And(kScratchReg, offset, Operand(0xffffffff));                \
       __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);          \
       __ asm_instr(value, MemOperand(kScratchReg, 0));                 \
     } else {                                                           \
       int offset = static_cast<int>(i.InputOperand(0).immediate());    \
-      auto value = i.InputRegister(2);                                 \
+      auto value = i.InputOrZeroRegister(2);                           \
       __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
       __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
     }                                                                  \
@@ -489,11 +503,11 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ sync();                                           \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)         \
-  do {                                                   \
-    __ sync();                                           \
-    __ asm_instr(i.InputRegister(2), i.MemoryOperand()); \
-    __ sync();                                           \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)               \
+  do {                                                         \
+    __ sync();                                                 \
+    __ asm_instr(i.InputOrZeroRegister(2), i.MemoryOperand()); \
+    __ sync();                                                 \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                          \
@@ -1683,7 +1697,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lb(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMips64Sb:
-      __ sb(i.InputRegister(2), i.MemoryOperand());
+      __ sb(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Lhu:
       __ lhu(i.OutputRegister(), i.MemoryOperand());
@@ -1698,10 +1712,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ulh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMips64Sh:
-      __ sh(i.InputRegister(2), i.MemoryOperand());
+      __ sh(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Ush:
-      __ Ush(i.InputRegister(2), i.MemoryOperand(), kScratchReg);
+      __ Ush(i.InputOrZeroRegister(2), i.MemoryOperand(), kScratchReg);
       break;
     case kMips64Lw:
       __ lw(i.OutputRegister(), i.MemoryOperand());
@@ -1722,16 +1736,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Uld(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMips64Sw:
-      __ sw(i.InputRegister(2), i.MemoryOperand());
+      __ sw(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Usw:
-      __ Usw(i.InputRegister(2), i.MemoryOperand());
+      __ Usw(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Sd:
-      __ sd(i.InputRegister(2), i.MemoryOperand());
+      __ sd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Usd:
-      __ Usd(i.InputRegister(2), i.MemoryOperand());
+      __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Lwc1: {
       __ lwc1(i.OutputSingleRegister(), i.MemoryOperand());
@@ -1744,13 +1758,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Swc1: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
-      __ swc1(i.InputSingleRegister(index), operand);
+      FPURegister ft = i.InputOrZeroSingleRegister(index);
+      if (ft.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+      __ swc1(ft, operand);
       break;
     }
     case kMips64Uswc1: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
-      __ Uswc1(i.InputSingleRegister(index), operand, kScratchReg);
+      FPURegister ft = i.InputOrZeroSingleRegister(index);
+      if (ft.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+      __ Uswc1(ft, operand, kScratchReg);
       break;
     }
     case kMips64Ldc1:
@@ -1759,12 +1781,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Uldc1:
       __ Uldc1(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
       break;
-    case kMips64Sdc1:
-      __ sdc1(i.InputDoubleRegister(2), i.MemoryOperand());
+    case kMips64Sdc1: {
+      FPURegister ft = i.InputOrZeroDoubleRegister(2);
+      if (ft.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+      __ sdc1(ft, i.MemoryOperand());
       break;
-    case kMips64Usdc1:
-      __ Usdc1(i.InputDoubleRegister(2), i.MemoryOperand(), kScratchReg);
+    }
+    case kMips64Usdc1: {
+      FPURegister ft = i.InputOrZeroDoubleRegister(2);
+      if (ft.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0);
+      }
+      __ Usdc1(ft, i.MemoryOperand(), kScratchReg);
       break;
+    }
     case kMips64Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
