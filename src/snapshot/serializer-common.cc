@@ -8,21 +8,25 @@
 #include "src/ic/stub-cache.h"
 #include "src/list-inl.h"
 
+#if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
+#define SYMBOLIZE_FUNCTION
+#include <execinfo.h>
+#endif  // DEBUG && V8_OS_LINUX && !V8_OS_ANDROID
+
 namespace v8 {
 namespace internal {
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = isolate->external_reference_map();
-#ifdef DEBUG
-  table_ = ExternalReferenceTable::instance(isolate);
-#endif  // DEBUG
   if (map_ != nullptr) return;
   map_ = new AddressToIndexHashMap();
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
-    DCHECK(map_->Get(addr).IsNothing() ||
-           strncmp(table->name(i), "Redirect to ", 12) == 0);
+    // We expect no duplicate external references entries in the table.
+    // AccessorRefTable getter may have duplicates, indicated by an empty string
+    // as name.
+    DCHECK(table->name(i)[0] == '\0' || map_->Get(addr).IsNothing());
     map_->Set(addr, i);
     DCHECK(map_->Get(addr).IsJust());
   }
@@ -32,14 +36,13 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
 uint32_t ExternalReferenceEncoder::Encode(Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) {
-    void* addr = address;
-    v8::base::OS::PrintError("Unknown external reference %p.\n", addr);
-    v8::base::OS::PrintError("%s", ExternalReferenceTable::ResolveSymbol(addr));
+    void* function_addr = address;
+    v8::base::OS::PrintError("Unknown external reference %p.\n", function_addr);
+#ifdef SYMBOLIZE_FUNCTION
+    v8::base::OS::PrintError("%s\n", backtrace_symbols(&function_addr, 1)[0]);
+#endif  // SYMBOLIZE_FUNCTION
     v8::base::OS::Abort();
   }
-#ifdef DEBUG
-  table_->increment_count(maybe_index.FromJust());
-#endif  // DEBUG
   return maybe_index.FromJust();
 }
 

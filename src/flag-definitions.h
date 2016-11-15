@@ -627,10 +627,6 @@ DEFINE_BOOL(serialize_toplevel, true, "enable caching of toplevel scripts")
 DEFINE_BOOL(serialize_eager, false, "compile eagerly when caching scripts")
 DEFINE_BOOL(serialize_age_code, false, "pre age code in the code cache")
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
-#ifdef DEBUG
-DEFINE_BOOL(external_reference_stats, false,
-            "print statistics on external references used during serialization")
-#endif  // DEBUG
 
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,
