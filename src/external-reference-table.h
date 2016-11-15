@@ -23,12 +23,24 @@ class ExternalReferenceTable {
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
 
+#ifdef DEBUG
+  void increment_count(uint32_t i) { refs_[i].count++; }
+  int count(uint32_t i) { return refs_[i].count; }
+  void ResetCount();
+  void PrintCount();
+#endif  // DEBUG
+
+  static const char* ResolveSymbol(void* address);
+
   static const int kDeoptTableSerializeEntryCount = 64;
 
  private:
   struct ExternalReferenceEntry {
     Address address;
     const char* name;
+#ifdef DEBUG
+    int count;
+#endif  // DEBUG
   };
 
   explicit ExternalReferenceTable(Isolate* isolate);
