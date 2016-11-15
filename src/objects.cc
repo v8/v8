@@ -8500,8 +8500,9 @@ bool JSObject::HasEnumerableElements() {
       int length = object->IsJSArray()
                        ? Smi::cast(JSArray::cast(object)->length())->value()
                        : elements->length();
+      Isolate* isolate = GetIsolate();
       for (int i = 0; i < length; i++) {
-        if (!elements->is_the_hole(i)) return true;
+        if (!elements->is_the_hole(isolate, i)) return true;
       }
       return false;
     }
@@ -16097,12 +16098,13 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 
 template <typename BackingStore>
 static int FastHoleyElementsUsage(JSObject* object, BackingStore* store) {
+  Isolate* isolate = store->GetIsolate();
   int limit = object->IsJSArray()
                   ? Smi::cast(JSArray::cast(object)->length())->value()
                   : store->length();
   int used = 0;
   for (int i = 0; i < limit; ++i) {
-    if (!store->is_the_hole(i)) ++used;
+    if (!store->is_the_hole(isolate, i)) ++used;
   }
   return used;
 }

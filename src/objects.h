@@ -2841,7 +2841,7 @@ class FixedArray: public FixedArrayBase {
 
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
-  inline bool is_the_hole(int index);
+  inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
   inline void set(int index, Smi* value);
@@ -2931,6 +2931,7 @@ class FixedDoubleArray: public FixedArrayBase {
   inline void set_the_hole(int index);
 
   // Checking for the hole.
+  inline bool is_the_hole(Isolate* isolate, int index);
   inline bool is_the_hole(int index);
 
   // Garbage collection support.

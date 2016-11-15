@@ -31,6 +31,14 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(int size,
                                    PretenureFlag pretenure = NOT_TENURED);
+  // Tries allocating a fixed array initialized with undefined values.
+  // In case of an allocation failure (OOM) an empty handle is returned.
+  // The caller has to manually signal an
+  // v8::internal::Heap::FatalProcessOutOfMemory typically by calling
+  // NewFixedArray as a fallback.
+  MUST_USE_RESULT
+  MaybeHandle<FixedArray> TryNewFixedArray(
+      int size, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(

@@ -1211,7 +1211,7 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
     Handle<FixedArray> elements =
         Handle<FixedArray>::cast(boilerplate_elements);
     for (int i = 0; i < elements_length; ++i) {
-      if (elements->is_the_hole(i)) {
+      if (elements->is_the_hole(isolate(), i)) {
         elements_values[i] = jsgraph()->TheHoleConstant();
       } else {
         Handle<Object> element_value(elements->get(i), isolate());

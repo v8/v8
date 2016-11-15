@@ -137,6 +137,15 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
       FixedArray);
 }
 
+MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
+                                                  PretenureFlag pretenure) {
+  DCHECK(0 <= size);
+  AllocationResult allocation =
+      isolate()->heap()->AllocateFixedArray(size, pretenure);
+  Object* array = NULL;
+  if (!allocation.To(&array)) return MaybeHandle<FixedArray>();
+  return Handle<FixedArray>(FixedArray::cast(array), isolate());
+}
 
 Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
                                                    PretenureFlag pretenure) {

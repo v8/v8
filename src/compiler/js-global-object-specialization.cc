@@ -72,7 +72,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   // Try to lookup the name on the script context table first (lexical scoping).
   ScriptContextTableLookupResult result;
   if (LookupInScriptContextTable(name, &result)) {
-    if (result.context->is_the_hole(result.index)) return NoChange();
+    if (result.context->is_the_hole(isolate(), result.index)) return NoChange();
     Node* context = jsgraph()->HeapConstant(result.context);
     Node* value = effect = graph()->NewNode(
         javascript()->LoadContext(0, result.index, result.immutable), context,
@@ -153,7 +153,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
   // Try to lookup the name on the script context table first (lexical scoping).
   ScriptContextTableLookupResult result;
   if (LookupInScriptContextTable(name, &result)) {
-    if (result.context->is_the_hole(result.index)) return NoChange();
+    if (result.context->is_the_hole(isolate(), result.index)) return NoChange();
     if (result.immutable) return NoChange();
     Node* context = jsgraph()->HeapConstant(result.context);
     effect = graph()->NewNode(javascript()->StoreContext(0, result.index),

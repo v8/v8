@@ -2357,9 +2357,8 @@ Handle<T> FixedArray::GetValueChecked(Isolate* isolate, int index) const {
   CHECK(!obj->IsUndefined(isolate));
   return Handle<T>(T::cast(obj), isolate);
 }
-
-bool FixedArray::is_the_hole(int index) {
-  return get(index) == GetHeap()->the_hole_value();
+bool FixedArray::is_the_hole(Isolate* isolate, int index) {
+  return get(index)->IsTheHole(isolate);
 }
 
 void FixedArray::set(int index, Smi* value) {
@@ -2429,6 +2428,9 @@ void FixedDoubleArray::set_the_hole(int index) {
   WRITE_UINT64_FIELD(this, offset, kHoleNanInt64);
 }
 
+bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
+  return is_the_hole(index);
+}
 
 bool FixedDoubleArray::is_the_hole(int index) {
   return get_representation(index) == kHoleNanInt64;
