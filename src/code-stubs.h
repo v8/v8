@@ -370,7 +370,6 @@ class CodeStub BASE_EMBEDDED {
  public:                                                   \
   inline Major MajorKey() const override { return NAME; }; \
                                                            \
- protected:                                                \
   DEFINE_CODE_STUB_BASE(NAME##Stub, SUPER)
 
 
@@ -386,59 +385,27 @@ class CodeStub BASE_EMBEDDED {
   Handle<Code> GenerateCode() override;                               \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                        \
- public:                                                              \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override; \
+#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                               \
+ public:                                                                     \
+  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(NAME, SUPER)                       \
- public:                                                                       \
-  static compiler::Node* Generate(CodeStubAssembler* assembler,                \
-                                  compiler::Node* left, compiler::Node* right, \
-                                  compiler::Node* context);                    \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {         \
-    assembler->Return(Generate(assembler, assembler->Parameter(0),             \
-                               assembler->Parameter(1),                        \
-                               assembler->Parameter(2)));                      \
-  }                                                                            \
+#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)       \
+ public:                                                                     \
+  static compiler::Node* Generate(                                           \
+      CodeStubAssembler* assembler, compiler::Node* left,                    \
+      compiler::Node* right, compiler::Node* slot_id,                        \
+      compiler::Node* type_feedback_vector, compiler::Node* context);        \
+  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)        \
- public:                                                                      \
-  static compiler::Node* Generate(                                            \
-      CodeStubAssembler* assembler, compiler::Node* left,                     \
-      compiler::Node* right, compiler::Node* slot_id,                         \
-      compiler::Node* type_feedback_vector, compiler::Node* context);         \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
-    assembler->Return(                                                        \
-        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
-                 assembler->Parameter(2), assembler->Parameter(3),            \
-                 assembler->Parameter(4)));                                   \
-  }                                                                           \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
-#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(NAME, SUPER)                \
- public:                                                               \
-  static compiler::Node* Generate(CodeStubAssembler* assembler,        \
-                                  compiler::Node* value,               \
-                                  compiler::Node* context);            \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override { \
-    assembler->Return(Generate(assembler, assembler->Parameter(0),     \
-                               assembler->Parameter(1)));              \
-  }                                                                    \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
-#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)         \
- public:                                                                      \
-  static compiler::Node* Generate(                                            \
-      CodeStubAssembler* assembler, compiler::Node* value,                    \
-      compiler::Node* context, compiler::Node* type_feedback_vector,          \
-      compiler::Node* slot_id);                                               \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
-    assembler->Return(                                                        \
-        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
-                 assembler->Parameter(2), assembler->Parameter(3)));          \
-  }                                                                           \
+#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)        \
+ public:                                                                     \
+  static compiler::Node* Generate(                                           \
+      CodeStubAssembler* assembler, compiler::Node* value,                   \
+      compiler::Node* context, compiler::Node* type_feedback_vector,         \
+      compiler::Node* slot_id);                                              \
+  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
@@ -638,7 +605,7 @@ class TurboFanCodeStub : public CodeStub {
  protected:
   explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
 
-  virtual void GenerateAssembly(CodeStubAssembler* assembler) const = 0;
+  virtual void GenerateAssembly(compiler::CodeAssemblerState* state) const = 0;
 
  private:
   DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
@@ -794,13 +761,11 @@ class StoreInterceptorStub : public TurboFanCodeStub {
  public:
   explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  void GenerateAssembly(CodeStubAssembler* assember) const override;
-
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
 };
 
 class LoadIndexedInterceptorStub : public TurboFanCodeStub {
@@ -1975,12 +1940,10 @@ class LoadICTrampolineStub : public TurboFanCodeStub {
  public:
   explicit LoadICTrampolineStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_CODE_STUB(LoadICTrampoline, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadICTrampoline, TurboFanCodeStub);
 };
 
 class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
@@ -1991,8 +1954,6 @@ class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
     minor_key_ = state.GetExtraICState();
   }
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
   ExtraICState GetExtraICState() const final {
@@ -2000,7 +1961,7 @@ class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
-  DEFINE_CODE_STUB(LoadGlobalICTrampoline, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadGlobalICTrampoline, TurboFanCodeStub);
 };
 
 class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
@@ -2008,11 +1969,9 @@ class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
   explicit KeyedLoadICTrampolineTFStub(Isolate* isolate)
       : LoadICTrampolineStub(isolate) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
 
-  DEFINE_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineStub);
+  DEFINE_TURBOFAN_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineStub);
 };
 
 class StoreICTrampolineStub : public TurboFanCodeStub {
@@ -2021,8 +1980,6 @@ class StoreICTrampolineStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
 
@@ -2034,7 +1991,7 @@ class StoreICTrampolineStub : public TurboFanCodeStub {
   StoreICState state() const { return StoreICState(GetExtraICState()); }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
-  DEFINE_CODE_STUB(StoreICTrampoline, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreICTrampoline, TurboFanCodeStub);
 };
 
 class KeyedStoreICTrampolineStub : public PlatformCodeStub {
@@ -2063,11 +2020,9 @@ class KeyedStoreICTrampolineTFStub : public StoreICTrampolineStub {
   KeyedStoreICTrampolineTFStub(Isolate* isolate, const StoreICState& state)
       : StoreICTrampolineStub(isolate, state) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
 
-  DEFINE_CODE_STUB(KeyedStoreICTrampolineTF, StoreICTrampolineStub);
+  DEFINE_TURBOFAN_CODE_STUB(KeyedStoreICTrampolineTF, StoreICTrampolineStub);
 };
 
 class CallICTrampolineStub : public PlatformCodeStub {
@@ -2096,22 +2051,18 @@ class LoadICStub : public TurboFanCodeStub {
  public:
   explicit LoadICStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_CODE_STUB(LoadIC, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadIC, TurboFanCodeStub);
 };
 
 class LoadICProtoArrayStub : public TurboFanCodeStub {
  public:
   explicit LoadICProtoArrayStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadICProtoArray);
-  DEFINE_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
 };
 
 class LoadGlobalICStub : public TurboFanCodeStub {
@@ -2121,8 +2072,6 @@ class LoadGlobalICStub : public TurboFanCodeStub {
     minor_key_ = state.GetExtraICState();
   }
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
   ExtraICState GetExtraICState() const final {
@@ -2130,18 +2079,16 @@ class LoadGlobalICStub : public TurboFanCodeStub {
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalWithVector);
-  DEFINE_CODE_STUB(LoadGlobalIC, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadGlobalIC, TurboFanCodeStub);
 };
 
 class KeyedLoadICTFStub : public LoadICStub {
  public:
   explicit KeyedLoadICTFStub(Isolate* isolate) : LoadICStub(isolate) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
 
-  DEFINE_CODE_STUB(KeyedLoadICTF, LoadICStub);
+  DEFINE_TURBOFAN_CODE_STUB(KeyedLoadICTF, LoadICStub);
 };
 
 class StoreICStub : public TurboFanCodeStub {
@@ -2151,15 +2098,13 @@ class StoreICStub : public TurboFanCodeStub {
     minor_key_ = state.GetExtraICState();
   }
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_CODE_STUB(StoreIC, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreIC, TurboFanCodeStub);
 };
 
 class KeyedStoreICStub : public PlatformCodeStub {
@@ -2189,11 +2134,9 @@ class KeyedStoreICTFStub : public StoreICStub {
   KeyedStoreICTFStub(Isolate* isolate, const StoreICState& state)
       : StoreICStub(isolate, state) {}
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
   Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
 
-  DEFINE_CODE_STUB(KeyedStoreICTF, StoreICStub);
+  DEFINE_TURBOFAN_CODE_STUB(KeyedStoreICTF, StoreICStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {
@@ -2398,23 +2341,22 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
-  DEFINE_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
 };
 
-#define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)     \
-  class Allocate##Type##Stub : public TurboFanCodeStub {                \
-   public:                                                              \
-    explicit Allocate##Type##Stub(Isolate* isolate)                     \
-        : TurboFanCodeStub(isolate) {}                                  \
-                                                                        \
-    void InitializeDescriptor(CodeStubDescriptor* descriptor) override; \
-    void GenerateAssembly(CodeStubAssembler* assembler) const override; \
-                                                                        \
-    DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                   \
-    DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                 \
+#define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)            \
+  class Allocate##Type##Stub : public TurboFanCodeStub {                       \
+   public:                                                                     \
+    explicit Allocate##Type##Stub(Isolate* isolate)                            \
+        : TurboFanCodeStub(isolate) {}                                         \
+                                                                               \
+    void InitializeDescriptor(CodeStubDescriptor* descriptor) override;        \
+    void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
+                                                                               \
+    DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                          \
+    DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                        \
   };
 SIMD128_TYPES(SIMD128_ALLOC_STUB)
 #undef SIMD128_ALLOC_STUB
@@ -2713,16 +2655,8 @@ class SubStringStub : public TurboFanCodeStub {
                                   compiler::Node* string, compiler::Node* from,
                                   compiler::Node* to, compiler::Node* context);
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {
-    assembler->Return(Generate(assembler,
-                               assembler->Parameter(Descriptor::kString),
-                               assembler->Parameter(Descriptor::kFrom),
-                               assembler->Parameter(Descriptor::kTo),
-                               assembler->Parameter(Descriptor::kContext)));
-  }
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(SubString);
-  DEFINE_CODE_STUB(SubString, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(SubString, TurboFanCodeStub);
 };
 
 

@@ -76,10 +76,16 @@ void Interpreter::Initialize() {
 #define GENERATE_CODE(Name, ...)                                               \
   {                                                                            \
     if (Bytecodes::BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {     \
-      InterpreterAssembler assembler(isolate_, &zone, Bytecode::k##Name,       \
+      InterpreterDispatchDescriptor descriptor(isolate_);                      \
+      compiler::CodeAssemblerState state(                                      \
+          isolate_, &zone, descriptor,                                         \
+          Code::ComputeFlags(Code::BYTECODE_HANDLER),                          \
+          Bytecodes::ToString(Bytecode::k##Name),                              \
+          Bytecodes::ReturnCount(Bytecode::k##Name));                          \
+      InterpreterAssembler assembler(&state, Bytecode::k##Name,                \
                                      operand_scale);                           \
       Do##Name(&assembler);                                                    \
-      Handle<Code> code = assembler.GenerateCode();                            \
+      Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);       \
       size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
       dispatch_table_[index] = code->entry();                                  \
       TraceCodegen(code);                                                      \

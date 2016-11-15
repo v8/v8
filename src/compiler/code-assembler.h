@@ -30,6 +30,7 @@ class Zone;
 namespace compiler {
 
 class CallDescriptor;
+class CodeAssemblerState;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
@@ -173,22 +174,17 @@ class RawMachineLabel;
 // clients, CodeAssembler also provides an abstraction for creating variables
 // and enhanced Label functionality to merge variable values along paths where
 // they have differing values, including loops.
+//
+// The CodeAssembler itself is stateless (and instances are expected to be
+// temporary-scoped and short-lived); all its state is encapsulated into
+// a CodeAssemblerState instance.
 class V8_EXPORT_PRIVATE CodeAssembler {
  public:
-  // Create with CallStub linkage.
-  // |result_size| specifies the number of results returned by the stub.
-  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
-  CodeAssembler(Isolate* isolate, Zone* zone,
-                const CallInterfaceDescriptor& descriptor, Code::Flags flags,
-                const char* name, size_t result_size = 1);
-
-  // Create with JSCall linkage.
-  CodeAssembler(Isolate* isolate, Zone* zone, int parameter_count,
-                Code::Flags flags, const char* name);
+  explicit CodeAssembler(CodeAssemblerState* state) : state_(state) {}
 
   virtual ~CodeAssembler();
 
-  Handle<Code> GenerateCode();
+  static Handle<Code> GenerateCode(CodeAssemblerState* state);
 
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;
@@ -207,9 +203,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
    private:
     friend class CodeAssembler;
+    friend class CodeAssemblerState;
     class Impl;
     Impl* impl_;
-    CodeAssembler* assembler_;
+    CodeAssemblerState* state_;
   };
 
   typedef ZoneList<Variable*> VariableList;
@@ -471,17 +468,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   virtual void CallEpilogue();
 
  private:
-  CodeAssembler(Isolate* isolate, Zone* zone, CallDescriptor* call_descriptor,
-                Code::Flags flags, const char* name);
-
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
 
-  std::unique_ptr<RawMachineAssembler> raw_assembler_;
-  Code::Flags flags_;
-  const char* name_;
-  bool code_generated_;
-  ZoneSet<Variable::Impl*> variables_;
+  RawMachineAssembler* raw_assembler() const;
+
+  CodeAssemblerState* state_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
@@ -513,7 +505,7 @@ class CodeAssembler::Label {
 
   bool bound_;
   size_t merge_count_;
-  CodeAssembler* assembler_;
+  CodeAssemblerState* state_;
   RawMachineLabel* label_;
   // Map of variables that need to be merged to their phi nodes (or placeholders
   // for those phis).
@@ -521,6 +513,38 @@ class CodeAssembler::Label {
   // Map of variables to the list of value nodes that have been added from each
   // merge path in their order of merging.
   std::map<Variable::Impl*, std::vector<Node*>> variable_merges_;
+};
+
+class V8_EXPORT_PRIVATE CodeAssemblerState {
+ public:
+  // Create with CallStub linkage.
+  // |result_size| specifies the number of results returned by the stub.
+  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
+  CodeAssemblerState(Isolate* isolate, Zone* zone,
+                     const CallInterfaceDescriptor& descriptor,
+                     Code::Flags flags, const char* name,
+                     size_t result_size = 1);
+
+  // Create with JSCall linkage.
+  CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
+                     Code::Flags flags, const char* name);
+
+  ~CodeAssemblerState();
+
+ private:
+  friend class CodeAssembler;
+
+  CodeAssemblerState(Isolate* isolate, Zone* zone,
+                     CallDescriptor* call_descriptor, Code::Flags flags,
+                     const char* name);
+
+  std::unique_ptr<RawMachineAssembler> raw_assembler_;
+  Code::Flags flags_;
+  const char* name_;
+  bool code_generated_;
+  ZoneSet<CodeAssembler::Variable::Impl*> variables_;
+
+  DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };
 
 }  // namespace compiler

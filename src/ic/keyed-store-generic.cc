@@ -4,8 +4,9 @@
 
 #include "src/ic/keyed-store-generic.h"
 
-#include "src/compiler/code-assembler.h"
+#include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -15,6 +16,9 @@ using compiler::Node;
 
 class KeyedStoreGenericAssembler : public CodeStubAssembler {
  public:
+  explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
   void KeyedStoreGeneric(const StoreICParameters* p,
                          LanguageMode language_mode);
 
@@ -59,17 +63,23 @@ class KeyedStoreGenericAssembler : public CodeStubAssembler {
                                 Node* current_elements_kind, Node* context,
                                 ElementsKind packed_kind,
                                 ElementsKind packed_kind_2, Label* bailout);
-
-  // Do not add fields, so that this is safe to reinterpret_cast to CSA.
 };
 
-void KeyedStoreGenericGenerator::Generate(
-    CodeStubAssembler* assembler, const CodeStubAssembler::StoreICParameters* p,
-    LanguageMode language_mode) {
-  STATIC_ASSERT(sizeof(CodeStubAssembler) ==
-                sizeof(KeyedStoreGenericAssembler));
-  auto assm = reinterpret_cast<KeyedStoreGenericAssembler*>(assembler);
-  assm->KeyedStoreGeneric(p, language_mode);
+void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
+                                          LanguageMode language_mode) {
+  typedef StoreWithVectorDescriptor Descriptor;
+  KeyedStoreGenericAssembler assembler(state);
+
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler.KeyedStoreGeneric(&p, language_mode);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
