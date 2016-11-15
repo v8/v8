@@ -24,6 +24,9 @@ class ExternalReferenceEncoder {
 
  private:
   AddressToIndexHashMap* map_;
+#ifdef DEBUG
+  ExternalReferenceTable* table_;
+#endif  // DEBUG
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };
