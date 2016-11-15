@@ -785,12 +785,19 @@ void JSArray::JSArrayVerify() {
           elements() == isolate->heap()->empty_fixed_array());
   } else {
     CHECK(HasDictionaryElements());
-    uint32_t size;
-    CHECK(length()->ToArrayLength(&size));
-    if (size != 0) {
+    uint32_t array_length;
+    CHECK(length()->ToArrayLength(&array_length));
+    if (array_length == 0xffffffff) {
+      CHECK(length()->ToArrayLength(&array_length));
+    }
+    if (array_length != 0) {
       SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements());
-      // The dictionary can never have more elements than the array length.
-      CHECK(static_cast<uint32_t>(dict->NumberOfElements()) <= size);
+      // The dictionary can never have more elements than the array length + 1.
+      // If the backing store grows the verification might be triggered with
+      // the old length in place.
+      uint32_t nof_elements = static_cast<uint32_t>(dict->NumberOfElements());
+      if (nof_elements != 0) nof_elements--;
+      CHECK_LE(nof_elements, array_length);
     }
   }
 }
