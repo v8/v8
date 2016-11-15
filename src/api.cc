@@ -6386,7 +6386,16 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
 bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
   auto self = Utils::OpenHandle(this);
   auto obj = Utils::OpenHandle(*value);
-  return obj->IsJSObject() && self->IsTemplateFor(i::JSObject::cast(*obj));
+  if (obj->IsJSObject() && self->IsTemplateFor(i::JSObject::cast(*obj))) {
+    return true;
+  }
+  if (obj->IsJSGlobalProxy()) {
+    // If it's a global proxy object, then test with the global object.
+    i::PrototypeIterator iter(i::JSObject::cast(*obj)->map());
+    if (iter.IsAtEnd()) return false;
+    return self->IsTemplateFor(iter.GetCurrent<i::JSGlobalObject>());
+  }
+  return false;
 }
 
 
