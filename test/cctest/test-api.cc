@@ -26156,3 +26156,31 @@ THREADED_TEST(MutableProtoGlobal) {
   CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 0))
             .FromJust());
 }
+
+TEST(InternalFieldsOnTypedArray) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  Context::Scope context_scope(context);
+  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, 1);
+  v8::Local<v8::Uint8Array> array = v8::Uint8Array::New(buffer, 0, 1);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    CHECK_EQ(static_cast<void*>(nullptr),
+             array->GetAlignedPointerFromInternalField(i));
+  }
+}
+
+TEST(InternalFieldsOnDataView) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  Context::Scope context_scope(context);
+  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, 1);
+  v8::Local<v8::DataView> array = v8::DataView::New(buffer, 0, 1);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    CHECK_EQ(static_cast<void*>(nullptr),
+             array->GetAlignedPointerFromInternalField(i));
+  }
+}

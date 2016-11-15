@@ -2010,6 +2010,12 @@ void SetupArrayBufferView(i::Isolate* isolate,
   DCHECK(byte_offset + byte_length <=
          static_cast<size_t>(buffer->byte_length()->Number()));
 
+  DCHECK_EQ(obj->GetInternalFieldCount(),
+            v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    obj->SetInternalField(i, Smi::kZero);
+  }
+
   obj->set_buffer(*buffer);
 
   i::Handle<i::Object> byte_offset_object =
@@ -2079,6 +2085,11 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
                                               size_t number_of_elements,
                                               PretenureFlag pretenure) {
   Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, pretenure);
+  DCHECK_EQ(obj->GetInternalFieldCount(),
+            v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    obj->SetInternalField(i, Smi::kZero);
+  }
 
   size_t element_size = GetFixedTypedArraysElementSize(elements_kind);
   ExternalArrayType array_type = GetArrayTypeFromElementsKind(elements_kind);
