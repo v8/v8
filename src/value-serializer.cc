@@ -1797,8 +1797,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_object, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
-          isolate_->Throw(*isolate_->factory()->NewError(
-              MessageTemplate::kDataCloneDeserializationError));
+          DCHECK(isolate_->has_pending_exception());
           return MaybeHandle<Object>();
         }
 
@@ -1829,8 +1828,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_array, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
-          isolate_->Throw(*isolate_->factory()->NewError(
-              MessageTemplate::kDataCloneDeserializationError));
+          DCHECK(isolate_->has_pending_exception());
           return MaybeHandle<Object>();
         }
 
