@@ -936,6 +936,10 @@ struct EscapeAnalysisPhase {
                                          &escape_analysis, temp_zone);
     AddReducer(data, &graph_reducer, &escape_reducer);
     graph_reducer.ReduceGraph();
+    if (escape_reducer.compilation_failed()) {
+      data->set_compilation_failed();
+      return;
+    }
     escape_reducer.VerifyReplacement();
   }
 };
@@ -1550,6 +1554,11 @@ bool PipelineImpl::CreateGraph() {
 
       if (FLAG_turbo_escape) {
         Run<EscapeAnalysisPhase>();
+        if (data->compilation_failed()) {
+          info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
+          data->EndPhaseKind();
+          return false;
+        }
         RunPrintAndVerify("Escape Analysed");
       }
     }

@@ -61,6 +61,8 @@ namespace internal {
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \
+  V(kCyclicObjectStateDetectedInEscapeAnalysis,                                \
+    "Cyclic object state detected by escape analysis")                         \
   V(kEval, "eval")                                                             \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
   V(kExpectedBooleanValue, "Expected boolean value")                           \

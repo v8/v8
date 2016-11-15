@@ -30,6 +30,8 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   // after this reducer has been applied. Has no effect in release mode.
   void VerifyReplacement() const;
 
+  bool compilation_failed() const { return compilation_failed_; }
+
  private:
   Reduction ReduceLoad(Node* node);
   Reduction ReduceStore(Node* node);
@@ -55,6 +57,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   // and nodes that do not need a visit from ReduceDeoptState etc.
   BitVector fully_reduced_;
   bool exists_virtual_allocate_;
+  bool compilation_failed_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);
 };
