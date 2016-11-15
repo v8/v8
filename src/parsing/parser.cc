@@ -68,7 +68,6 @@ bool ParseData::IsSane() {
   if (data_length < PreparseDataConstants::kHeaderSize) return false;
   if (Magic() != PreparseDataConstants::kMagicNumber) return false;
   if (Version() != PreparseDataConstants::kCurrentVersion) return false;
-  if (HasError()) return false;
   // Check that the space allocated for function entries is sane.
   int functions_size = FunctionsSize();
   if (functions_size < 0) return false;
@@ -87,11 +86,6 @@ void ParseData::Initialize() {
   if (data_length >= PreparseDataConstants::kHeaderSize) {
     function_index_ = PreparseDataConstants::kHeaderSize;
   }
-}
-
-
-bool ParseData::HasError() {
-  return Data()[PreparseDataConstants::kHasErrorOffset];
 }
 
 
@@ -2788,14 +2782,11 @@ Parser::LazyParsingResult Parser::SkipFunction(
     *ok = false;
     return kLazyParsingComplete;
   }
-  PreParserLogger* logger = reusable_preparser_->logger();
-  if (logger->has_error()) {
-    ReportMessageAt(Scanner::Location(logger->start(), logger->end()),
-                    logger->message(), logger->argument_opt(),
-                    logger->error_type());
+  if (pending_error_handler_.has_pending_error()) {
     *ok = false;
     return kLazyParsingComplete;
   }
+  PreParserLogger* logger = reusable_preparser_->logger();
   function_scope->set_end_position(logger->end());
   Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
   total_preparse_skipped_ +=
@@ -3292,8 +3283,8 @@ PreParser::PreParseResult Parser::ParseFunctionWithPreParser(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   if (reusable_preparser_ == NULL) {
-    reusable_preparser_ =
-        new PreParser(zone(), &scanner_, ast_value_factory(), stack_limit_);
+    reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
+                                        &pending_error_handler_, stack_limit_);
     reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);

@@ -102,8 +102,6 @@ class ParseData {
   FunctionEntry GetFunctionEntry(int start);
   int FunctionCount();
 
-  bool HasError();
-
   unsigned* Data() {  // Writable data as unsigned int array.
     return reinterpret_cast<unsigned*>(const_cast<byte*>(script_data_->data()));
   }

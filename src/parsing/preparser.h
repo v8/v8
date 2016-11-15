@@ -839,11 +839,13 @@ class PreParser : public ParserBase<PreParser> {
   };
 
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
+            PendingCompilationErrorHandler* pending_error_handler,
             uintptr_t stack_limit)
       : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
                               ast_value_factory),
         use_counts_(nullptr),
-        track_unresolved_variables_(false) {}
+        track_unresolved_variables_(false),
+        pending_error_handler_(pending_error_handler) {}
 
   PreParserLogger* logger() { return &log_; }
 
@@ -1274,8 +1276,9 @@ class PreParser : public ParserBase<PreParser> {
                                  MessageTemplate::Template message,
                                  const char* arg = NULL,
                                  ParseErrorType error_type = kSyntaxError) {
-    log_.LogMessage(source_location.beg_pos, source_location.end_pos, message,
-                    arg, error_type);
+    pending_error_handler_->ReportMessageAt(source_location.beg_pos,
+                                            source_location.end_pos, message,
+                                            arg, error_type);
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
@@ -1509,6 +1512,7 @@ class PreParser : public ParserBase<PreParser> {
   int* use_counts_;
   bool track_unresolved_variables_;
   PreParserLogger log_;
+  PendingCompilationErrorHandler* pending_error_handler_;
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,

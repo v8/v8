@@ -173,11 +173,13 @@ TEST(ScanHTMLEndComments) {
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory, stack_limit);
+    i::PendingCompilationErrorHandler pending_error_handler;
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                           &pending_error_handler, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(!preparser.logger()->has_error());
+    CHECK(!pending_error_handler.has_pending_error());
   }
 
   for (int i = 0; fail_tests[i]; i++) {
@@ -188,12 +190,14 @@ TEST(ScanHTMLEndComments) {
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory, stack_limit);
+    i::PendingCompilationErrorHandler pending_error_handler;
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                           &pending_error_handler, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(preparser.logger()->has_error());
+    CHECK(pending_error_handler.has_pending_error());
   }
 }
 
@@ -360,12 +364,14 @@ TEST(StandAlonePreParser) {
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory, stack_limit);
+    i::PendingCompilationErrorHandler pending_error_handler;
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                           &pending_error_handler, stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(!preparser.logger()->has_error());
+    CHECK(!pending_error_handler.has_pending_error());
   }
 }
 
@@ -392,11 +398,13 @@ TEST(StandAlonePreParserNoNatives) {
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory, stack_limit);
+    i::PendingCompilationErrorHandler pending_error_handler;
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                           &pending_error_handler, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(preparser.logger()->has_error());
+    CHECK(pending_error_handler.has_pending_error());
   }
 }
 
@@ -457,13 +465,15 @@ TEST(RegressChromium62639) {
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
+  i::PendingCompilationErrorHandler pending_error_handler;
   i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                         &pending_error_handler,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  CHECK(preparser.logger()->has_error());
+  CHECK(pending_error_handler.has_pending_error());
 }
 
 
@@ -530,7 +540,9 @@ TEST(PreParseOverflow) {
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
-  i::PreParser preparser(&zone, &scanner, &ast_value_factory, stack_limit);
+  i::PendingCompilationErrorHandler pending_error_handler;
+  i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                         &pending_error_handler, stack_limit);
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
@@ -1270,27 +1282,6 @@ const char* ReadString(unsigned* start) {
 }
 
 
-i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  int message = data[i::PreparseDataConstants::kMessageTemplatePos];
-  int arg_count = data[i::PreparseDataConstants::kMessageArgCountPos];
-  i::Handle<i::Object> arg_object;
-  if (arg_count == 1) {
-    // Position after text found by skipping past length field and
-    // length field content words.
-    const char* arg =
-        ReadString(&data[i::PreparseDataConstants::kMessageArgPos]);
-    arg_object = v8::Utils::OpenHandle(*v8_str(arg));
-    i::DeleteArray(arg);
-  } else {
-    CHECK_EQ(0, arg_count);
-    arg_object = isolate->factory()->undefined_value();
-  }
-
-  data.Dispose();
-  return i::MessageTemplate::FormatMessage(isolate, message, arg_object);
-}
-
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
@@ -1338,7 +1329,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   int parser_materialized_literals = -2;
 
   // Preparse the data.
-  i::ParserLogger log;
+  i::PendingCompilationErrorHandler pending_error_handler;
   if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
     std::unique_ptr<i::Utf16CharacterStream> stream(
@@ -1346,20 +1337,14 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory, stack_limit);
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
+                           &pending_error_handler, stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(stream.get());
     i::PreParser::PreParseResult result =
         preparser.PreParseProgram(&preparser_materialized_literals, is_module);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::PreParserLogger* logger = preparser.logger();
-    // Convert to complete log.
-    if (logger->has_error()) {
-      log.LogMessage(logger->start(), logger->end(), logger->message(),
-                     logger->argument_opt(), logger->error_type());
-    }
   }
-  bool preparse_error = log.HasError();
 
   // Parse the data
   i::FunctionLiteral* function;
@@ -1399,7 +1384,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
 
-    if (test_preparser && !preparse_error) {
+    if (test_preparser && !pending_error_handler.has_pending_error()) {
       v8::base::OS::Print(
           "Parser failed on:\n"
           "\t%s\n"
@@ -1412,7 +1397,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Check that preparser and parser produce the same error.
     if (test_preparser) {
       i::Handle<i::String> preparser_message =
-          FormatMessage(log.ErrorMessageData());
+          pending_error_handler.FormatMessage(CcTest::i_isolate());
       if (!i::String::Equals(message_string, preparser_message)) {
         v8::base::OS::Print(
             "Expected parser and preparser to produce the same error on:\n"
@@ -1425,7 +1410,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         CHECK(false);
       }
     }
-  } else if (test_preparser && preparse_error) {
+  } else if (test_preparser && pending_error_handler.has_pending_error()) {
     v8::base::OS::Print(
         "Preparser failed on:\n"
         "\t%s\n"
@@ -1433,7 +1418,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "\t%s\n"
         "However, the parser succeeded",
         source->ToCString().get(),
-        FormatMessage(log.ErrorMessageData())->ToCString().get());
+        pending_error_handler.FormatMessage(CcTest::i_isolate())
+            ->ToCString()
+            .get());
     CHECK(false);
   } else if (result == kError) {
     v8::base::OS::Print(
