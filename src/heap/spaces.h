@@ -667,7 +667,7 @@ class Page : public MemoryChunk {
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
-  static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
+  static inline Page* ConvertNewToOld(Page* old_page);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
@@ -1133,6 +1133,7 @@ class MemoryAllocator {
 
     void FreeQueuedChunks();
     bool WaitUntilCompleted();
+    void TearDown();
 
    private:
     enum ChunkQueueType {
@@ -1642,7 +1643,7 @@ class FreeList {
  public:
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
-  static inline int GuaranteedAllocatable(int maximum_freed) {
+  static inline size_t GuaranteedAllocatable(size_t maximum_freed) {
     if (maximum_freed <= kTiniestListMax) {
       // Since we are not iterating over all list entries, we cannot guarantee
       // that we can find the maximum freed block in that free list.
@@ -1684,8 +1685,8 @@ class FreeList {
   }
 
   // Return the number of bytes available on the free list.
-  intptr_t Available() {
-    intptr_t available = 0;
+  size_t Available() {
+    size_t available = 0;
     ForAllFreeListCategories([&available](FreeListCategory* category) {
       available += category->available();
     });
@@ -2065,8 +2066,6 @@ class PagedSpace : public Space {
 
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
-
-  void EvictEvacuationCandidatesFromLinearAllocationArea();
 
   bool CanExpand(size_t size);
 

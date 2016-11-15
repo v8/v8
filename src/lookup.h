@@ -263,6 +263,11 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     }
   }
 
+  // Lookup a 'cached' private property for an accessor.
+  // If not found returns false and leaves the LookupIterator unmodified.
+  bool TryLookupCachedProperty();
+  bool LookupCachedProperty();
+
  private:
   void InternalUpdateProtector();
 

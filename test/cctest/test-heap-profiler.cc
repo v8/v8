@@ -360,7 +360,7 @@ TEST(HeapSnapshotCodeObjects) {
     }
   }
   CHECK(compiled_references_x);
-  if (i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager)) {
+  if (i::FLAG_lazy) {
     CHECK(!lazy_references_x);
   }
 }

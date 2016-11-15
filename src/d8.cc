@@ -22,7 +22,6 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
-#include "include/v8-tracing.h"
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/debug/stack_trace.h"
@@ -153,7 +152,6 @@ class PredictablePlatform : public Platform {
 
 
 v8::Platform* g_platform = NULL;
-std::unique_ptr<tracing::TracingCategoryObserver> g_tracing_category_observer;
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
@@ -1571,16 +1569,6 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   return handle_scope.Escape(context);
 }
 
-
-void Shell::Exit(int exit_code) {
-  // Use _exit instead of exit to avoid races between isolate
-  // threads and static destructors.
-  fflush(stdout);
-  fflush(stderr);
-  _exit(exit_code);
-}
-
-
 struct CounterAndKey {
   Counter* counter;
   const char* key;
@@ -2823,6 +2811,20 @@ int Shell::Main(int argc, char* argv[]) {
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform();
 
+  platform::tracing::TracingController* tracing_controller;
+  if (options.trace_enabled) {
+    trace_file.open("v8_trace.json");
+    tracing_controller = new platform::tracing::TracingController();
+    platform::tracing::TraceBuffer* trace_buffer =
+        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+            platform::tracing::TraceBuffer::kRingBufferChunks,
+            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+    tracing_controller->Initialize(trace_buffer);
+    if (!i::FLAG_verify_predictable) {
+      platform::SetTracingController(g_platform, tracing_controller);
+    }
+  }
+
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
@@ -2852,11 +2854,12 @@ int Shell::Main(int argc, char* argv[]) {
       base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
-  if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {
+  if (i::FLAG_dump_counters || i::FLAG_gc_stats) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
+
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope scope(isolate);
@@ -2864,14 +2867,6 @@ int Shell::Main(int argc, char* argv[]) {
     PerIsolateData data(isolate);
 
     if (options.trace_enabled) {
-      trace_file.open("v8_trace.json");
-      platform::tracing::TracingController* tracing_controller =
-          new platform::tracing::TracingController();
-      platform::tracing::TraceBuffer* trace_buffer =
-          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
-              platform::tracing::TraceBuffer::kRingBufferChunks,
-              platform::tracing::TraceWriter::CreateJSONTraceWriter(
-                  trace_file));
       platform::tracing::TraceConfig* trace_config;
       if (options.trace_config) {
         int size = 0;
@@ -2884,14 +2879,6 @@ int Shell::Main(int argc, char* argv[]) {
         trace_config =
             platform::tracing::TraceConfig::CreateDefaultTraceConfig();
       }
-      tracing_controller->Initialize(trace_buffer);
-      if (!i::FLAG_verify_predictable) {
-        platform::SetTracingController(g_platform, tracing_controller);
-      }
-      g_tracing_category_observer = tracing::TracingCategoryObserver::Create();
-      g_platform->AddTraceStateObserver(
-          reinterpret_cast<Platform::TraceStateObserver*>(
-              g_tracing_category_observer.get()));
       tracing_controller->StartTracing(trace_config);
     }
 
@@ -2953,10 +2940,10 @@ int Shell::Main(int argc, char* argv[]) {
   isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
-  g_platform->RemoveTraceStateObserver(
-      reinterpret_cast<Platform::TraceStateObserver*>(
-          g_tracing_category_observer.get()));
   delete g_platform;
+  if (i::FLAG_verify_predictable) {
+    delete tracing_controller;
+  }
 
   return result;
 }

@@ -116,24 +116,6 @@ bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
 
 namespace {
 
-void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
-                               BytecodeNode* const current) {
-  DCHECK_EQ(current->bytecode(), Bytecode::kStar);
-
-  //
-  // An example transformation here would be:
-  //
-  //   LdaGlobal i0, i1  ____\  LdrGlobal i0, i1, R
-  //   Star R            ====/  Ldar R
-  //
-  // which loads a global value into both a register and the
-  // accumulator. However, in the second form the Ldar can often be
-  // peephole optimized away unlike the Star in the first form.
-  //
-  last->Transform(new_bytecode, current->operand(0));
-  current->set_bytecode(Bytecode::kLdar, current->operand(0));
-}
-
 void TransformLdaSmiBinaryOpToBinaryOpWithSmi(Bytecode new_bytecode,
                                               BytecodeNode* const last,
                                               BytecodeNode* const current) {
@@ -236,17 +218,6 @@ void BytecodePeepholeOptimizer::ChangeBytecodeAction(
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
 
   node->replace_bytecode(action_data->bytecode);
-  DefaultAction(node);
-}
-
-void BytecodePeepholeOptimizer::TransformLdaStarToLdrLdarAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (!node->source_info().is_statement()) {
-    TransformLdaStarToLdrLdar(action_data->bytecode, last(), node);
-  }
   DefaultAction(node);
 }
 

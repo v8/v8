@@ -8,6 +8,7 @@ import re
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
+FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class DebuggerTestSuite(testsuite.TestSuite):
@@ -38,9 +39,21 @@ class DebuggerTestSuite(testsuite.TestSuite):
     for match in flags_match:
       flags += match.strip().split()
 
+    files_list = []  # List of file names to append to command arguments.
+    files_match = FILES_PATTERN.search(source);
+    # Accept several lines of 'Files:'.
+    while True:
+      if files_match:
+        files_list += files_match.group(1).strip().split()
+        files_match = FILES_PATTERN.search(source, files_match.end())
+      else:
+        break
+
     files = []
     files.append(os.path.normpath(os.path.join(self.root, "..", "mjsunit", "mjsunit.js")))
     files.append(os.path.join(self.root, "test-api.js"))
+    files.extend([ os.path.normpath(os.path.join(self.root, '..', '..', f))
+                  for f in files_list ])
     files.append(os.path.join(self.root, testcase.path + self.suffix()))
 
     flags += files

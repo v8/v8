@@ -502,6 +502,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
 
+  const Operator* LoadModule(int32_t cell_index);
+  const Operator* StoreModule(int32_t cell_index);
+
   const Operator* TypeOf();
   const Operator* InstanceOf();
 

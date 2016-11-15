@@ -5,7 +5,6 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_DispatcherBase_h
 #define {{"_".join(config.protocol.namespace)}}_DispatcherBase_h
 
-//#include "BackendCallback.h"
 //#include "Collections.h"
 //#include "ErrorSupport.h"
 //#include "Forward.h"
@@ -17,10 +16,44 @@ namespace {{namespace}} {
 
 class WeakPtr;
 
+class {{config.lib.export_macro}} DispatchResponse {
+public:
+    enum Status {
+        kSuccess = 0,
+        kError = 1,
+        kFallThrough = 2,
+        kAsync = 3
+    };
+
+    enum ErrorCode {
+        kParseError = -32700,
+        kInvalidRequest = -32600,
+        kMethodNotFound = -32601,
+        kInvalidParams = -32602,
+        kInternalError = -32603,
+        kServerError = -32000,
+    };
+
+    Status status() const { return m_status; }
+    const String& errorMessage() const { return m_errorMessage; }
+    ErrorCode errorCode() const { return m_errorCode; }
+    bool isSuccess() const { return m_status == kSuccess; }
+
+    static DispatchResponse OK();
+    static DispatchResponse Error(const String&);
+    static DispatchResponse InternalError();
+    static DispatchResponse FallThrough();
+
+private:
+    Status m_status;
+    String m_errorMessage;
+    ErrorCode m_errorCode;
+};
+
 class {{config.lib.export_macro}} DispatcherBase {
     PROTOCOL_DISALLOW_COPY(DispatcherBase);
 public:
-    static const char kInvalidRequest[];
+    static const char kInvalidParamsString[];
     class {{config.lib.export_macro}} WeakPtr {
     public:
         explicit WeakPtr(DispatcherBase*);
@@ -32,14 +65,14 @@ public:
         DispatcherBase* m_dispatcher;
     };
 
-    class {{config.lib.export_macro}} Callback : public protocol::BackendCallback {
+    class {{config.lib.export_macro}} Callback {
     public:
         Callback(std::unique_ptr<WeakPtr> backendImpl, int callId);
         virtual ~Callback();
         void dispose();
 
     protected:
-        void sendIfActive(std::unique_ptr<protocol::DictionaryValue> partialMessage, const ErrorString& invocationError);
+        void sendIfActive(std::unique_ptr<protocol::DictionaryValue> partialMessage, const DispatchResponse& response);
 
     private:
         std::unique_ptr<WeakPtr> m_backendImpl;
@@ -49,24 +82,14 @@ public:
     explicit DispatcherBase(FrontendChannel*);
     virtual ~DispatcherBase();
 
-    enum CommonErrorCode {
-        ParseError = -32700,
-        InvalidRequest = -32600,
-        MethodNotFound = -32601,
-        InvalidParams = -32602,
-        InternalError = -32603,
-        ServerError = -32000,
-    };
-
     static bool getCommandName(const String& message, String* result);
 
-    virtual void dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
+    virtual DispatchResponse::Status dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
 
-    void sendResponse(int callId, const ErrorString&, ErrorSupport*, std::unique_ptr<protocol::DictionaryValue> result);
-    void sendResponse(int callId, const ErrorString&, std::unique_ptr<protocol::DictionaryValue> result);
-    void sendResponse(int callId, const ErrorString&);
+    void sendResponse(int callId, const DispatchResponse&, std::unique_ptr<protocol::DictionaryValue> result);
+    void sendResponse(int callId, const DispatchResponse&);
 
-    void reportProtocolError(int callId, CommonErrorCode, const String& errorMessage, ErrorSupport* errors);
+    void reportProtocolError(int callId, DispatchResponse::ErrorCode, const String& errorMessage, ErrorSupport* errors);
     void clearFrontend();
 
     std::unique_ptr<WeakPtr> weakPtr();
@@ -81,7 +104,7 @@ class {{config.lib.export_macro}} UberDispatcher {
 public:
     explicit UberDispatcher(FrontendChannel*);
     void registerBackend(const String& name, std::unique_ptr<protocol::DispatcherBase>);
-    void dispatch(std::unique_ptr<Value> message);
+    DispatchResponse::Status dispatch(std::unique_ptr<Value> message);
     FrontendChannel* channel() { return m_frontendChannel; }
     virtual ~UberDispatcher();
 

@@ -30,7 +30,7 @@ class SimdScalarLowering {
 
   enum class SimdType : uint8_t { kInt32, kFloat32 };
 
-  static const size_t kMaxLanes = 4;
+  static const int kMaxLanes = 4;
 
   struct Replacement {
     Node* node[kMaxLanes];

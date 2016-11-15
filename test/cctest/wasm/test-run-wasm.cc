@@ -905,6 +905,15 @@ WASM_EXEC_TEST(Br_height) {
   }
 }
 
+WASM_EXEC_TEST(Regression_660262) {
+  TestingModule module(execution_mode);
+  module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module);
+  BUILD(r, kExprI8Const, 0x00, kExprI8Const, 0x00, kExprI32LoadMem, 0x00, 0x0f,
+        kExprBrTable, 0x00, 0x80, 0x00);  // entries=0
+  r.Call();
+}
+
 WASM_EXEC_TEST(BrTable0a) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Int32());
   BUILD(r, B1(B1(WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(0)))),
@@ -1100,6 +1109,20 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
   }
 }
 
+WASM_EXEC_TEST(LoadMaxUint32Offset) {
+  TestingModule module(execution_mode);
+  module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module);
+
+  BUILD(r, kExprI8Const, 0,  // index
+        static_cast<byte>(v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(
+            MachineType::Int32(), false)),  // --
+        0,                                  // alignment
+        U32V_5(0xffffffff));                // offset
+
+  CHECK_TRAP32(r.Call());
+}
+
 WASM_EXEC_TEST(LoadStoreLoad) {
   TestingModule module(execution_mode);
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
@@ -1187,7 +1210,7 @@ WASM_EXEC_TEST(Block_empty_brif2) {
   WasmRunner<uint32_t> r(execution_mode, MachineType::Uint32(),
                          MachineType::Uint32());
   BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_GET_LOCAL(1))), WASM_GET_LOCAL(0));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i, *i + 1)); }
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i, *i + 1)); }
 }
 
 WASM_EXEC_TEST(Block_i) {
@@ -1211,7 +1234,7 @@ WASM_EXEC_TEST(Block_d) {
 WASM_EXEC_TEST(Block_br2) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Int32());
   BUILD(r, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0))));
-  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, static_cast<uint32_t>(r.Call(*i))); }
 }
 
 WASM_EXEC_TEST(Block_If_P) {
@@ -1573,7 +1596,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
       BUILD(r,
             WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset, WASM_I8(index)));
 
-      if ((offset + index) <= (kMemSize - sizeof(int32_t))) {
+      if ((offset + index) <= static_cast<int>((kMemSize - sizeof(int32_t)))) {
         CHECK_EQ(module.raw_val_at<int32_t>(offset + index), r.Call());
       } else {
         CHECK_TRAP(r.Call());
@@ -1595,7 +1618,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob) {
       BUILD(r,
             WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset, WASM_I8(index)));
 
-      if ((offset + index) <= (kMemSize - sizeof(int32_t))) {
+      if ((offset + index) <= static_cast<int>((kMemSize - sizeof(int32_t)))) {
         CHECK_EQ(module.raw_val_at<int32_t>(offset + index), r.Call());
       } else {
         CHECK_TRAP(r.Call());
@@ -1746,7 +1769,7 @@ WASM_EXEC_TEST(CheckMachIntsZero) {
         /**/ kExprI8Const, 0);           // --
 
   module.BlankMemory();
-  CHECK_EQ(0, r.Call((kNumElems - 1) * 4));
+  CHECK_EQ(0u, r.Call((kNumElems - 1) * 4));
 }
 
 WASM_EXEC_TEST(MemF32_Sum) {
@@ -1921,7 +1944,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
                       code + arraysize(code));
   } else {
-    CHECK_EQ(2, sig->parameter_count());
+    CHECK_EQ(2u, sig->parameter_count());
     byte code[] = {WASM_NO_LOCALS,           kExprGetLocal, 0, kExprGetLocal, 1,
                    static_cast<byte>(opcode)};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
@@ -2661,28 +2684,6 @@ WASM_EXEC_TEST(MultipleCallIndirect) {
   CHECK_TRAP(r.Call(1, 2, 0));
   CHECK_TRAP(r.Call(2, 0, 1));
   CHECK_TRAP(r.Call(2, 1, 0));
-}
-
-WASM_EXEC_TEST(CallIndirect_NoTable) {
-  TestSignatures sigs;
-  TestingModule module(execution_mode);
-
-  // One function.
-  WasmFunctionCompiler t1(sigs.i_ii(), &module);
-  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  t1.CompileAndAdd(/*sig_index*/ 1);
-
-  // Signature table.
-  module.AddSignature(sigs.f_ff());
-  module.AddSignature(sigs.i_ii());
-
-  // Builder the caller function.
-  WasmRunner<int32_t> r(&module, MachineType::Int32());
-  BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I8(66), WASM_I8(22)));
-
-  CHECK_TRAP(r.Call(0));
-  CHECK_TRAP(r.Call(1));
-  CHECK_TRAP(r.Call(2));
 }
 
 WASM_EXEC_TEST(CallIndirect_EmptyTable) {

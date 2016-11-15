@@ -199,3 +199,33 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(10*kPageSize, memory.buffer.byteLength);
   assertThrows(() => memory.grow(1));
 })();
+
+(function TestGrowMemoryExportedMaximum() {
+  print("TestGrowMemoryExportedMaximum");
+  let initial_size = 1, maximum_size = 10;
+  var exp_instance;
+  {
+    let builder = new WasmModuleBuilder();
+    builder.addMemory(initial_size, maximum_size, true);
+    builder.exportMemoryAs("exported_mem");
+    exp_instance = builder.instantiate();
+  }
+  var instance;
+  {
+    var builder = new WasmModuleBuilder();
+    builder.addImportedMemory("imported_mem");
+    builder.addFunction("mem_size", kSig_i_v)
+      .addBody([kExprMemorySize, kMemoryZero])
+      .exportFunc();
+    builder.addFunction("grow", kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .exportFunc();
+    instance = builder.instantiate({
+      imported_mem: exp_instance.exports.exported_mem});
+  }
+  for (var i = initial_size; i < maximum_size; i++) {
+    assertEquals(i, instance.exports.grow(1));
+    assertEquals((i+1), instance.exports.mem_size());
+  }
+  assertEquals(-1, instance.exports.grow(1));
+})();

@@ -20,12 +20,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 13
 bytecodes: [
   /*   97 E> */ B(StackCheck),
-  /*  102 S> */ B(LdrContextSlot), R(context), U8(4), U8(1), R(0),
-  /*  120 E> */ B(LdaCurrentContextSlot), U8(4),
-                B(Mul), R(0), U8(2),
+  /*  102 S> */ B(LdaContextSlot), R(context), U8(4), U8(1),
+                B(Star), R(0),
+                B(LdaCurrentContextSlot), U8(4),
+  /*  120 E> */ B(Mul), R(0), U8(2),
   /*  130 S> */ B(Return),
 ]
 constant pool: [

@@ -273,7 +273,7 @@ void BytecodeArrayWriter::PatchJump(size_t jump_target, size_t jump_location) {
 
 void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
   DCHECK(Bytecodes::IsJump(node->bytecode()));
-  DCHECK_EQ(0, node->operand(0));
+  DCHECK_EQ(0u, node->operand(0));
 
   size_t current_offset = bytecodes()->size();
 

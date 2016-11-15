@@ -64,17 +64,18 @@ class AsmTyperHarnessBuilder {
     }
 
     outer_scope_ = info.script_scope();
-    module_ =
-        info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
+    module_ = info.scope()
+                  ->declarations()
+                  ->AtForTest(0)
+                  ->AsFunctionDeclaration()
+                  ->fun();
     typer_.reset(new AsmTyper(isolate_, zone_, *script_, module_));
 
     if (validation_type_ == ValidateStatement ||
         validation_type_ == ValidateExpression) {
       fun_scope_.reset(new AsmTyper::FunctionScope(typer_.get()));
 
-      auto* decls = module_->scope()->declarations();
-      for (int ii = 0; ii < decls->length(); ++ii) {
-        Declaration* decl = decls->at(ii);
+      for (Declaration* decl : *module_->scope()->declarations()) {
         if (FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration()) {
           fun_decl_ = fun_decl;
           break;
@@ -1122,7 +1123,8 @@ TEST(ValidateCallExpression) {
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
     const auto* test = kTests + ii;
     CHECK(v8::base::OS::SNPrintF(full_test, kFullTestSize, "fround(%s)",
-                                 test->expression) < kFullTestSize);
+                                 test->expression) <
+          static_cast<int>(kFullTestSize));
     if (!ValidationOf(Expression(full_test))
              ->WithImport(DynamicGlobal("fround"), iw::AsmTyper::kMathFround)
              ->WithGlobal(DynamicGlobal("a_float_function"), v2f)
@@ -1153,7 +1155,8 @@ TEST(ValidateCallExpression) {
   for (size_t ii = 0; ii < arraysize(kFailureTests); ++ii) {
     const auto* test = kFailureTests + ii;
     CHECK(v8::base::OS::SNPrintF(full_test, kFullTestSize, "fround(%s)",
-                                 test->expression) < kFullTestSize);
+                                 test->expression) <
+          static_cast<int>(kFullTestSize));
     if (!ValidationOf(Expression(full_test))
              ->WithImport(DynamicGlobal("fround"), iw::AsmTyper::kMathFround)
              ->WithLocal(DynamicGlobal("ilocal"), iw::AsmType::Int())
@@ -2019,6 +2022,33 @@ TEST(B640194) {
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
     if (!ValidationOf(Module(kTests[ii]))
              ->FailsWithMessage("Can't assign to immutable symbol")) {
+      std::cerr << "Test:\n" << kTests[ii];
+      CHECK(false);
+    }
+  }
+}
+
+TEST(B660813) {
+  const char* kTests[] = {
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  const i = 0xffffffff;\n"
+      "  function f() {\n"
+      "    return i;\n"
+      "  }\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  const i = -(-2147483648);\n"
+      "  function f() {\n"
+      "    return i;\n"
+      "  }\n"
+      "}",
+  };
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage(
+                 "Constant in return must be signed, float, or double.")) {
       std::cerr << "Test:\n" << kTests[ii];
       CHECK(false);
     }

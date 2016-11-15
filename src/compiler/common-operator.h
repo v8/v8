@@ -181,6 +181,9 @@ size_t hash_value(OsrGuardType type);
 std::ostream& operator<<(std::ostream&, OsrGuardType);
 OsrGuardType OsrGuardTypeOf(Operator const*);
 
+ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
+    WARN_UNUSED_RESULT;
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -221,6 +224,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Float64Constant(volatile double);
   const Operator* ExternalConstant(const ExternalReference&);
   const Operator* NumberConstant(volatile double);
+  const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
 
   const Operator* RelocatableInt32Constant(int32_t value,
@@ -240,8 +244,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* BeginRegion(RegionObservability);
   const Operator* FinishRegion();
   const Operator* StateValues(int arguments);
-  const Operator* ObjectState(int pointer_slots, int id);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types);
+  const Operator* ObjectState(int pointer_slots);
+  const Operator* TypedObjectState(const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);

@@ -27,7 +27,6 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/snapshot/natives.h"
-#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
 
 #include "include/v8-debug.h"
@@ -1329,8 +1328,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
   // We do not need to recompile to debug bytecode.
   if (baseline_exists && !shared->code()->has_debug_break_slots()) {
-    DCHECK(functions.length() > 0);
-    if (!Compiler::CompileDebugCode(functions.first())) return false;
+    if (!Compiler::CompileDebugCode(shared)) return false;
   }
 
   for (Handle<JSFunction> const function : functions) {
@@ -1350,6 +1348,86 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
 
   return true;
+}
+
+namespace {
+template <typename Iterator>
+void GetBreakablePositions(Iterator* it, int start_position, int end_position,
+                           BreakPositionAlignment alignment,
+                           std::set<int>* positions) {
+  it->SkipToPosition(start_position, alignment);
+  while (!it->Done() && it->position() < end_position &&
+         it->position() >= start_position) {
+    positions->insert(alignment == STATEMENT_ALIGNED ? it->statement_position()
+                                                     : it->position());
+    it->Next();
+  }
+}
+
+void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
+                            int end_position, BreakPositionAlignment alignment,
+                            std::set<int>* positions) {
+  if (debug_info->HasDebugCode()) {
+    CodeBreakIterator it(debug_info, ALL_BREAK_LOCATIONS);
+    GetBreakablePositions(&it, start_position, end_position, alignment,
+                          positions);
+  } else {
+    DCHECK(debug_info->HasDebugBytecodeArray());
+    BytecodeArrayBreakIterator it(debug_info, ALL_BREAK_LOCATIONS);
+    GetBreakablePositions(&it, start_position, end_position, alignment,
+                          positions);
+  }
+}
+}  // namespace
+
+bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
+                                   int end_position, std::set<int>* positions) {
+  while (true) {
+    if (!script->shared_function_infos()->IsWeakFixedArray()) return false;
+
+    WeakFixedArray* infos =
+        WeakFixedArray::cast(script->shared_function_infos());
+    HandleScope scope(isolate_);
+    List<Handle<SharedFunctionInfo>> candidates;
+    {
+      WeakFixedArray::Iterator iterator(infos);
+      SharedFunctionInfo* info;
+      while ((info = iterator.Next<SharedFunctionInfo>())) {
+        if (info->end_position() < start_position ||
+            info->start_position() >= end_position) {
+          continue;
+        }
+        if (!info->IsSubjectToDebugging()) continue;
+        if (!info->HasDebugCode() && !info->allows_lazy_compilation()) continue;
+        candidates.Add(i::handle(info));
+      }
+    }
+
+    bool was_compiled = false;
+    for (int i = 0; i < candidates.length(); ++i) {
+      // Code that cannot be compiled lazily are internal and not debuggable.
+      DCHECK(candidates[i]->allows_lazy_compilation());
+      if (!candidates[i]->HasDebugCode()) {
+        if (!Compiler::CompileDebugCode(candidates[i])) {
+          return false;
+        } else {
+          was_compiled = true;
+        }
+      }
+      if (!candidates[i]->HasDebugInfo()) CreateDebugInfo(candidates[i]);
+    }
+    if (was_compiled) continue;
+
+    for (int i = 0; i < candidates.length(); ++i) {
+      CHECK(candidates[i]->HasDebugInfo());
+      Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
+      FindBreakablePositions(debug_info, start_position, end_position,
+                             STATEMENT_ALIGNED, positions);
+    }
+    return true;
+  }
+  UNREACHABLE();
+  return false;
 }
 
 void Debug::RecordAsyncFunction(Handle<JSGeneratorObject> generator_object) {
@@ -1450,44 +1528,11 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
         return shared_handle;
       }
     }
-    // If not, compile to reveal inner functions, if possible.
-    if (shared->allows_lazy_compilation()) {
-      HandleScope scope(isolate_);
-      if (!Compiler::CompileDebugCode(handle(shared))) break;
-      continue;
-    }
-
-    // If not possible, comb the heap for the best suitable compile target.
-    JSFunction* closure;
-    {
-      HeapIterator it(isolate_->heap());
-      SharedFunctionInfoFinder finder(position);
-      while (HeapObject* object = it.next()) {
-        JSFunction* candidate_closure = NULL;
-        SharedFunctionInfo* candidate = NULL;
-        if (object->IsJSFunction()) {
-          candidate_closure = JSFunction::cast(object);
-          candidate = candidate_closure->shared();
-        } else if (object->IsSharedFunctionInfo()) {
-          candidate = SharedFunctionInfo::cast(object);
-          if (!candidate->allows_lazy_compilation()) continue;
-        } else {
-          continue;
-        }
-        if (candidate->script() == *script) {
-          finder.NewCandidate(candidate, candidate_closure);
-        }
-      }
-      closure = finder.ResultClosure();
-      shared = finder.Result();
-    }
-    if (shared == NULL) break;
+    // If not, compile to reveal inner functions.
     HandleScope scope(isolate_);
-    if (closure == NULL) {
-      if (!Compiler::CompileDebugCode(handle(shared))) break;
-    } else {
-      if (!Compiler::CompileDebugCode(handle(closure))) break;
-    }
+    // Code that cannot be compiled lazily are internal and not debuggable.
+    DCHECK(shared->allows_lazy_compilation());
+    if (!Compiler::CompileDebugCode(handle(shared))) break;
   }
   return isolate_->factory()->undefined_value();
 }
@@ -1699,6 +1744,11 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
 
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
+  // We cannot generate debug events when JS execution is disallowed.
+  // TODO(5530): Reenable debug events within DisallowJSScopes once relevant
+  // code (MakeExceptionEvent and ProcessDebugEvent) have been moved to C++.
+  if (!AllowJavascriptExecution::IsAllowed(isolate_)) return;
+
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
   // Don't notify listener of exceptions that are internal to a desugaring.

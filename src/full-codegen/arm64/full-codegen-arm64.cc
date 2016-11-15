@@ -2120,16 +2120,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   context()->Plug(x0);
 }
 
-
-void FullCodeGenerator::CallIC(Handle<Code> code,
-                               TypeFeedbackId ast_id) {
-  ic_total_count_++;
-  // All calls must have a predictable size in full-codegen code to ensure that
-  // the debugger can patch them correctly.
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
-}
-
-
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitCallWithLoadIC");
@@ -2297,7 +2287,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   __ Mov(x3, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ Peek(x1, (arg_count + 1) * kXRegSize);
   __ Mov(x0, arg_count);
-  __ Call(code, RelocInfo::CODE_TARGET);
+  CallIC(code);
   OperandStackDepthDecrement(arg_count + 1);
 
   RecordJSReturnSite(expr);
@@ -2450,7 +2440,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Mov(x3, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate());
-  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+  CallIC(stub.GetCode());
   OperandStackDepthDecrement(arg_count + 1);
   PrepareForBailoutForId(expr->ReturnId(), BailoutState::TOS_REGISTER);
   RestoreContext();

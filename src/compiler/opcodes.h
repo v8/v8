@@ -41,6 +41,7 @@
   V(Float64Constant)          \
   V(ExternalConstant)         \
   V(NumberConstant)           \
+  V(PointerConstant)          \
   V(HeapConstant)             \
   V(RelocatableInt32Constant) \
   V(RelocatableInt64Constant)
@@ -57,6 +58,7 @@
   V(StateValues)          \
   V(TypedStateValues)     \
   V(ObjectState)          \
+  V(TypedObjectState)     \
   V(Call)                 \
   V(Parameter)            \
   V(OsrValue)             \
@@ -157,6 +159,8 @@
   V(JSForInPrepare)                 \
   V(JSLoadMessage)                  \
   V(JSStoreMessage)                 \
+  V(JSLoadModule)                   \
+  V(JSStoreModule)                  \
   V(JSGeneratorStore)               \
   V(JSGeneratorRestoreContinuation) \
   V(JSGeneratorRestoreRegister)     \
@@ -179,6 +183,7 @@
   V(ChangeInt32ToTagged)             \
   V(ChangeUint32ToTagged)            \
   V(ChangeFloat64ToTagged)           \
+  V(ChangeFloat64ToTaggedPointer)    \
   V(ChangeTaggedToBit)               \
   V(ChangeBitToTagged)               \
   V(TruncateTaggedToWord32)          \
@@ -201,7 +206,8 @@
   V(CheckedTaggedToInt32)             \
   V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)           \
-  V(CheckedTaggedToTaggedSigned)
+  V(CheckedTaggedToTaggedSigned)      \
+  V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -278,6 +284,7 @@
   V(NumberToBoolean)                   \
   V(NumberToInt32)                     \
   V(NumberToUint32)                    \
+  V(NumberToUint8Clamped)              \
   V(NumberSilenceNaN)
 
 #define SIMPLIFIED_OTHER_OP_LIST(V) \

@@ -33,12 +33,12 @@ class BytecodeGraphBuilder {
                        SourcePositionTable* source_positions);
 
   // Creates a graph by visiting bytecodes.
-  bool CreateGraph();
+  bool CreateGraph(bool stack_check = true);
 
  private:
   class Environment;
 
-  void VisitBytecodes();
+  void VisitBytecodes(bool stack_check);
 
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
@@ -134,13 +134,9 @@ class BytecodeGraphBuilder {
   void ClearNonLiveSlotsInFrameStates();
 
   void BuildCreateArguments(CreateArgumentsType type);
-  Node* BuildLoadContextSlot();
-  Node* BuildLoadCurrentContextSlot();
   Node* BuildLoadGlobal(uint32_t feedback_slot_index, TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  Node* BuildNamedLoad();
   void BuildNamedStore(LanguageMode language_mode);
-  Node* BuildKeyedLoad();
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);

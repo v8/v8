@@ -51,9 +51,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
         pipeline_);
   }
 
-  return_position_ =
-      literal ? std::max(literal->start_position(), literal->end_position() - 1)
-              : kNoSourcePosition;
+  return_position_ = literal ? literal->return_position() : kNoSourcePosition;
 }
 
 Register BytecodeArrayBuilder::first_context_register() const {
@@ -789,6 +787,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInStep(Register index) {
   OutputForInStep(index);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreModuleVariable(int cell_index,
+                                                                int depth) {
+  OutputStaModuleVariable(cell_index, depth);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadModuleVariable(int cell_index,
+                                                               int depth) {
+  OutputLdaModuleVariable(cell_index, depth);
   return *this;
 }
 

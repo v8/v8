@@ -364,7 +364,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_u8(1);  // memory count
     buffer.write_u32v(kResizableMaximumFlag);
     buffer.write_u32v(16);  // min memory size
-    buffer.write_u32v(16);  // max memory size
+    buffer.write_u32v(32);  // max memory size
     FixupSection(buffer, start);
   }
 

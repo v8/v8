@@ -84,11 +84,11 @@ PreParserIdentifier PreParser::GetSymbol() const {
 }
 
 PreParser::PreParseResult PreParser::PreParseFunction(
-    DeclarationScope* function_scope, bool parsing_module, SingletonLogger* log,
-    bool is_inner_function, bool may_abort, int* use_counts) {
+    FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
+    bool is_inner_function, bool may_abort, int* use_counts,
+    typesystem::TypeFlags type_flags) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
-  log_ = log;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
@@ -98,24 +98,79 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   // PreParser.
   DCHECK_NULL(scope_state_);
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
-  DCHECK_EQ(Token::LBRACE, scanner()->current_token());
-  bool ok = true;
-  int start_position = peek_position();
-  LazyParsingResult result = ParseStatementListAndLogFunction(may_abort, &ok);
+  // This indirection is needed so that we can use the CHECK_OK macros.
+  bool ok_holder = true;
+  bool* ok = &ok_holder;
+
+  PreParserFormalParameters formals(function_scope);
+  bool has_duplicate_parameters = false;
+  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  std::unique_ptr<ExpressionClassifier> formals_classifier;
+
+  // Parse non-arrow function parameters. For arrow functions, the parameters
+  // have already been parsed.
+  if (!IsArrowFunction(kind)) {
+    formals_classifier.reset(new ExpressionClassifier(this, &duplicate_finder));
+    // We return kPreParseSuccess in failure cases too - errors are retrieved
+    // separately by Parser::SkipLazyFunctionBody.
+    ParseFormalParameterList(&formals, true, CHECK_OK_VALUE(kPreParseSuccess));
+    Expect(Token::RPAREN, CHECK_OK_VALUE(kPreParseSuccess));
+    int formals_end_position = scanner()->location().end_pos;
+
+    CheckArityRestrictions(
+        formals.arity, kind, formals.has_rest, function_scope->start_position(),
+        formals_end_position, CHECK_OK_VALUE(kPreParseSuccess));
+    has_duplicate_parameters =
+        !classifier()->is_valid_formal_parameter_list_without_duplicates();
+
+    // Parse optional type annotation.
+    typename TypeSystem::Type result_type = EmptyType();
+    if (typed() && !(type_flags & typesystem::kDisallowTypeAnnotation) &&
+        Check(Token::COLON)) {  // Braces required here.
+      result_type = ParseValidType(CHECK_OK_VALUE(kPreParseSuccess));
+    }
+    USE(result_type);  // TODO(nikolaos): really use it!
+
+    // Allow or even enforce a function signature (i.e., literal without body),
+    // In that case, abort preparsing.
+    if ((type_flags & typesystem::kDisallowBody) ||
+        (peek() != Token::LBRACE && typed() &&
+         (type_flags & typesystem::kAllowSignature))) {
+      ExpectSemicolon(CHECK_OK_VALUE(kPreParseSuccess));
+      return kPreParseAbort;
+    }
+  }
+
+  Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
+  LazyParsingResult result = ParseStatementListAndLogFunction(
+      &formals, has_duplicate_parameters, may_abort, ok);
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
   if (result == kLazyParsingAborted) {
     return kPreParseAbort;
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
-  } else if (!ok) {
-    DCHECK(log->has_error());
+  } else if (!*ok) {
+    DCHECK(log_.has_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
+
+    if (!IsArrowFunction(kind)) {
+      // Validate parameter names. We can do this only after parsing the
+      // function, since the function can declare itself strict.
+      const bool allow_duplicate_parameters =
+          is_sloppy(function_scope->language_mode()) && formals.is_simple &&
+          !IsConciseMethod(kind);
+      ValidateFormalParameters(function_scope->language_mode(),
+                               allow_duplicate_parameters,
+                               CHECK_OK_VALUE(kPreParseSuccess));
+    }
+
     if (is_strict(function_scope->language_mode())) {
       int end_pos = scanner()->location().end_pos;
-      CheckStrictOctalLiteral(start_position, end_pos, &ok);
-      CheckDecimalLiteralWithLeadingZero(start_position, end_pos);
+      CheckStrictOctalLiteral(function_scope->start_position(), end_pos, ok);
+      CheckDecimalLiteralWithLeadingZero(function_scope->start_position(),
+                                         end_pos);
     }
   }
   return kPreParseSuccess;
@@ -219,8 +274,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 }
 
 PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
+    PreParserFormalParameters* formals, bool has_duplicate_parameters,
     bool may_abort, bool* ok) {
-  int body_start = position();
   PreParserStatementList body;
   LazyParsingResult result = ParseStatementList(
       body, Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
@@ -229,12 +284,11 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
-  DeclarationScope* scope = this->scope()->AsDeclarationScope();
-  DCHECK(scope->is_function_scope());
-  log_->LogFunction(body_start, body_end,
-                    function_state_->materialized_literal_count(),
-                    function_state_->expected_property_count(), language_mode(),
-                    scope->uses_super_property(), scope->calls_eval());
+  DCHECK(this->scope()->is_function_scope());
+  log_.LogFunction(body_end, formals->num_parameters(),
+                   formals->function_length, has_duplicate_parameters,
+                   function_state_->materialized_literal_count(),
+                   function_state_->expected_property_count());
   return kLazyParsingComplete;
 }
 

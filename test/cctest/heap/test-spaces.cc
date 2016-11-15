@@ -530,7 +530,8 @@ TEST(SizeOfInitialHeap) {
   }
 
   // No large objects required to perform the above steps.
-  CHECK_EQ(initial_lo_space, isolate->heap()->lo_space()->Size());
+  CHECK_EQ(initial_lo_space,
+           static_cast<size_t>(isolate->heap()->lo_space()->Size()));
 }
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
@@ -741,7 +742,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   CcTest::heap()->old_space()->EmptyAllocationInfo();
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
@@ -767,7 +768,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
@@ -793,7 +794,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 }  // namespace internal

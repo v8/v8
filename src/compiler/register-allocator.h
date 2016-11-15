@@ -982,6 +982,8 @@ class RegisterAllocator : public ZoneObject {
   const int* allocatable_register_codes() const {
     return allocatable_register_codes_;
   }
+  // Returns true iff. we must check float register aliasing.
+  bool check_fp_aliasing() const { return check_fp_aliasing_; }
 
   // TODO(mtrofin): explain why splitting in gap START is always OK.
   LifetimePosition GetSplitPositionForInstruction(const LiveRange* range,
@@ -1032,6 +1034,7 @@ class RegisterAllocator : public ZoneObject {
   const int num_registers_;
   int num_allocatable_registers_;
   const int* allocatable_register_codes_;
+  bool check_fp_aliasing_;
 
  private:
   bool no_combining_;

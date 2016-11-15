@@ -12,44 +12,36 @@ namespace v8 {
 namespace internal {
 
 MemoryReducer::State DoneState() {
-  return MemoryReducer::State(MemoryReducer::kDone, 0, 0.0, 1.0, 0);
+  return MemoryReducer::State(MemoryReducer::kDone, 0, 0.0, 1.0);
 }
 
-MemoryReducer::State DoneState(size_t committed_memory) {
-  return MemoryReducer::State(MemoryReducer::kDone, 0, 0.0, 1.0,
-                              committed_memory);
-}
 
 MemoryReducer::State WaitState(int started_gcs, double next_gc_start_ms) {
   return MemoryReducer::State(MemoryReducer::kWait, started_gcs,
-                              next_gc_start_ms, 1.0, 0);
+                              next_gc_start_ms, 1.0);
 }
 
 
 MemoryReducer::State RunState(int started_gcs, double next_gc_start_ms) {
   return MemoryReducer::State(MemoryReducer::kRun, started_gcs,
-                              next_gc_start_ms, 1.0, 0);
+                              next_gc_start_ms, 1.0);
 }
 
 MemoryReducer::Event MarkCompactEvent(double time_ms,
-                                      bool next_gc_likely_to_collect_more,
-                                      size_t committed_memory) {
+                                      bool next_gc_likely_to_collect_more) {
   MemoryReducer::Event event;
   event.type = MemoryReducer::kMarkCompact;
   event.time_ms = time_ms;
   event.next_gc_likely_to_collect_more = next_gc_likely_to_collect_more;
-  event.committed_memory = committed_memory;
   return event;
 }
 
-MemoryReducer::Event MarkCompactEventGarbageLeft(double time_ms,
-                                                 size_t committed_memory) {
-  return MarkCompactEvent(time_ms, true, committed_memory);
+MemoryReducer::Event MarkCompactEventGarbageLeft(double time_ms) {
+  return MarkCompactEvent(time_ms, true);
 }
 
-MemoryReducer::Event MarkCompactEventNoGarbageLeft(double time_ms,
-                                                   size_t committed_memory) {
-  return MarkCompactEvent(time_ms, false, committed_memory);
+MemoryReducer::Event MarkCompactEventNoGarbageLeft(double time_ms) {
+  return MarkCompactEvent(time_ms, false);
 }
 
 
@@ -98,19 +90,6 @@ TEST(MemoryReducer, FromDoneToDone) {
 
   state1 = MemoryReducer::Step(state0, TimerEventPendingGC(0));
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
-
-  state1 = MemoryReducer::Step(
-      state0,
-      MarkCompactEventGarbageLeft(0, MemoryReducer::kCommittedMemoryDelta - 1));
-  EXPECT_EQ(MemoryReducer::kDone, state1.action);
-
-  state0 = DoneState(1000 * MB);
-  state1 = MemoryReducer::Step(
-      state0, MarkCompactEventGarbageLeft(
-                  0, static_cast<size_t>(
-                         1000 * MB * MemoryReducer::kCommittedMemoryFactor) -
-                         1));
-  EXPECT_EQ(MemoryReducer::kDone, state1.action);
 }
 
 
@@ -119,17 +98,13 @@ TEST(MemoryReducer, FromDoneToWait) {
 
   MemoryReducer::State state0(DoneState()), state1(DoneState());
 
-  state1 = MemoryReducer::Step(
-      state0,
-      MarkCompactEventGarbageLeft(2, MemoryReducer::kCommittedMemoryDelta));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(2, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(
-      state0,
-      MarkCompactEventNoGarbageLeft(2, MemoryReducer::kCommittedMemoryDelta));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
@@ -140,16 +115,6 @@ TEST(MemoryReducer, FromDoneToWait) {
   EXPECT_EQ(MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(state0.last_gc_time_ms, state1.last_gc_time_ms);
-
-  state0 = DoneState(1000 * MB);
-  state1 = MemoryReducer::Step(
-      state0, MarkCompactEventGarbageLeft(
-                  2, static_cast<size_t>(
-                         1000 * MB * MemoryReducer::kCommittedMemoryFactor)));
-  EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms);
-  EXPECT_EQ(0, state1.started_gcs);
-  EXPECT_EQ(2, state1.last_gc_time_ms);
 }
 
 
@@ -179,13 +144,13 @@ TEST(MemoryReducer, FromWaitToWait) {
   EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
   EXPECT_EQ(2000, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000, 0));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
@@ -294,7 +259,7 @@ TEST(MemoryReducer, FromRunToDone) {
 
   MemoryReducer::State state0(RunState(2, 0.0)), state1(DoneState());
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000, 0));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000));
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
   EXPECT_EQ(0, state1.next_gc_start_ms);
   EXPECT_EQ(MemoryReducer::kMaxNumberOfGCs, state1.started_gcs);
@@ -302,7 +267,7 @@ TEST(MemoryReducer, FromRunToDone) {
 
   state0.started_gcs = MemoryReducer::kMaxNumberOfGCs;
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000));
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
   EXPECT_EQ(0, state1.next_gc_start_ms);
   EXPECT_EQ(2000, state1.last_gc_time_ms);
@@ -314,7 +279,7 @@ TEST(MemoryReducer, FromRunToWait) {
 
   MemoryReducer::State state0(RunState(2, 0.0)), state1(DoneState());
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(2000 + MemoryReducer::kShortDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
@@ -322,7 +287,7 @@ TEST(MemoryReducer, FromRunToWait) {
 
   state0.started_gcs = 1;
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000, 0));
+  state1 = MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(2000 + MemoryReducer::kShortDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);

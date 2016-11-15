@@ -37,7 +37,6 @@ class AccessorInfo;
   V(ScriptEvalFromScriptPosition) \
   V(ScriptEvalFromFunctionName)   \
   V(ScriptId)                     \
-  V(ScriptLineEnds)               \
   V(ScriptLineOffset)             \
   V(ScriptName)                   \
   V(ScriptSource)                 \

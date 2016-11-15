@@ -156,7 +156,6 @@ Heap::Heap()
       strong_roots_list_(NULL),
       heap_iterator_depth_(0),
       embedder_heap_tracer_(nullptr),
-      embedder_reference_reporter_(new TracePossibleWrapperReporter(this)),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
@@ -287,7 +286,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
 
   // Default
   *reason = NULL;
-  return SCAVENGER;
+  return YoungGenerationCollector();
 }
 
 
@@ -440,7 +439,7 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
-  store_buffer()->MoveEntriesToRememberedSet();
+  store_buffer()->MoveAllEntriesToRememberedSet();
 }
 
 
@@ -823,7 +822,7 @@ void Heap::FinalizeIncrementalMarking(GarbageCollectionReason gc_reason) {
 
 
 HistogramTimer* Heap::GCTypeTimer(GarbageCollector collector) {
-  if (collector == SCAVENGER) {
+  if (IsYoungGenerationCollector(collector)) {
     return isolate_->counters()->gc_scavenger();
   } else {
     if (!incremental_marking()->IsStopped()) {
@@ -953,7 +952,8 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 
   EnsureFillerObjectAtTop();
 
-  if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
+  if (IsYoungGenerationCollector(collector) &&
+      !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
       isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Scavenge during marking.\n");
@@ -971,7 +971,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
         isolate()->PrintWithTimestamp(
             "[IncrementalMarking] Delaying MarkSweep.\n");
       }
-      collector = SCAVENGER;
+      collector = YoungGenerationCollector();
       collector_reason = "incremental marking delaying mark-sweep";
     }
   }
@@ -1017,7 +1017,6 @@ bool Heap::CollectGarbage(GarbageCollector collector,
           (committed_memory_before - committed_memory_after) > MB ||
           HasHighFragmentation(used_memory_after, committed_memory_after) ||
           (detached_contexts()->length() > 0);
-      event.committed_memory = committed_memory_after;
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
       }
@@ -1037,7 +1036,8 @@ bool Heap::CollectGarbage(GarbageCollector collector,
   // generator needs incremental marking to stay off after it aborted.
   // We do this only for scavenger to avoid a loop where mark-compact
   // causes another mark-compact.
-  if (collector == SCAVENGER && !ShouldAbortIncrementalMarking()) {
+  if (IsYoungGenerationCollector(collector) &&
+      !ShouldAbortIncrementalMarking()) {
     StartIncrementalMarkingIfAllocationLimitIsReached(kNoGCFlags,
                                                       kNoGCCallbackFlags);
   }
@@ -1277,7 +1277,7 @@ bool Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   int freed_global_handles = 0;
 
-  if (collector != SCAVENGER) {
+  if (!IsYoungGenerationCollector(collector)) {
     PROFILE(isolate_, CodeMovingGCEvent());
   }
 
@@ -1294,9 +1294,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), collector == MARK_COMPACTOR
-                             ? GCTracer::Scope::MC_EXTERNAL_PROLOGUE
-                             : GCTracer::Scope::SCAVENGER_EXTERNAL_PROLOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
@@ -1310,18 +1308,25 @@ bool Heap::PerformGarbageCollection(
   {
     Heap::PretenuringScope pretenuring_scope(this);
 
-    if (collector == MARK_COMPACTOR) {
-      UpdateOldGenerationAllocationCounter();
-      // Perform mark-sweep with optional compaction.
-      MarkCompact();
-      old_generation_size_configured_ = true;
-      // This should be updated before PostGarbageCollectionProcessing, which
-      // can cause another GC. Take into account the objects promoted during GC.
-      old_generation_allocation_counter_at_last_gc_ +=
-          static_cast<size_t>(promoted_objects_size_);
-      old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
-    } else {
-      Scavenge();
+    switch (collector) {
+      case MARK_COMPACTOR:
+        UpdateOldGenerationAllocationCounter();
+        // Perform mark-sweep with optional compaction.
+        MarkCompact();
+        old_generation_size_configured_ = true;
+        // This should be updated before PostGarbageCollectionProcessing, which
+        // can cause another GC. Take into account the objects promoted during
+        // GC.
+        old_generation_allocation_counter_at_last_gc_ +=
+            static_cast<size_t>(promoted_objects_size_);
+        old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
+        break;
+      case MINOR_MARK_COMPACTOR:
+        MinorMarkCompact();
+        break;
+      case SCAVENGER:
+        Scavenge();
+        break;
     }
 
     ProcessPretenuringFeedback();
@@ -1365,9 +1370,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), collector == MARK_COMPACTOR
-                             ? GCTracer::Scope::MC_EXTERNAL_EPILOGUE
-                             : GCTracer::Scope::SCAVENGER_EXTERNAL_EPILOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
@@ -1446,6 +1449,7 @@ void Heap::MarkCompact() {
   }
 }
 
+void Heap::MinorMarkCompact() { UNREACHABLE(); }
 
 void Heap::MarkCompactEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
@@ -1639,10 +1643,8 @@ void Heap::Scavenge() {
 
   ScavengeVisitor scavenge_visitor(this);
 
-  if (FLAG_scavenge_reclaim_unmodified_objects) {
-    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-        &IsUnmodifiedHeapObject);
-  }
+  isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+      &IsUnmodifiedHeapObject);
 
   {
     // Copy roots.
@@ -1674,8 +1676,6 @@ void Heap::Scavenge() {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_WEAK);
     // Copy objects reachable from the encountered weak collections list.
     scavenge_visitor.VisitPointer(&encountered_weak_collections_);
-    // Copy objects reachable from the encountered weak cells.
-    scavenge_visitor.VisitPointer(&encountered_weak_cells_);
   }
 
   {
@@ -1692,29 +1692,12 @@ void Heap::Scavenge() {
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
 
-  if (FLAG_scavenge_reclaim_unmodified_objects) {
-    isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
-        &IsUnscavengedHeapObject);
+  isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
+      &IsUnscavengedHeapObject);
 
-    isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-        &scavenge_visitor);
-    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  } else {
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
-    while (isolate()->global_handles()->IterateObjectGroups(
-        &scavenge_visitor, &IsUnscavengedHeapObject)) {
-      new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-    }
-    isolate()->global_handles()->RemoveObjectGroups();
-    isolate()->global_handles()->RemoveImplicitRefGroups();
-
-    isolate()->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
-        &IsUnscavengedHeapObject);
-
-    isolate()->global_handles()->IterateNewSpaceWeakIndependentRoots(
-        &scavenge_visitor);
-    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  }
+  isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
+      &scavenge_visitor);
+  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -2266,7 +2249,6 @@ bool Heap::CreateInitialMaps() {
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info_entry)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
@@ -5473,7 +5455,7 @@ bool Heap::SetUp() {
   mark_compact_collector_ = new MarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
-  if (FLAG_track_gc_object_stats) {
+  if (V8_UNLIKELY(FLAG_gc_stats)) {
     live_object_stats_ = new ObjectStats(this);
     dead_object_stats_ = new ObjectStats(this);
   }
@@ -5552,8 +5534,7 @@ void Heap::NotifyDeserializationComplete() {
 }
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  DCHECK_NOT_NULL(tracer);
-  CHECK_NULL(embedder_heap_tracer_);
+  DCHECK_EQ(gc_state_, HeapState::NOT_IN_GC);
   embedder_heap_tracer_ = tracer;
 }
 
@@ -5711,9 +5692,6 @@ void Heap::TearDown() {
 
   delete memory_allocator_;
   memory_allocator_ = nullptr;
-
-  delete embedder_reference_reporter_;
-  embedder_reference_reporter_ = nullptr;
 }
 
 
@@ -5906,10 +5884,10 @@ void Heap::CheckHandleCount() {
 
 void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
   if (!InNewSpace(object)) {
-    store_buffer()->MoveEntriesToRememberedSet();
     Address slot_addr = reinterpret_cast<Address>(slot);
     Page* page = Page::FromAddress(slot_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
+    store_buffer()->MoveAllEntriesToRememberedSet();
     RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
     RememberedSet<OLD_TO_OLD>::Remove(page, slot_addr);
   }
@@ -5918,8 +5896,8 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
   Page* page = Page::FromAddress(start);
   if (!page->InNewSpace()) {
-    store_buffer()->MoveEntriesToRememberedSet();
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
+    store_buffer()->MoveAllEntriesToRememberedSet();
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                            SlotSet::PREFREE_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end,

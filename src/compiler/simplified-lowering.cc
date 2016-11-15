@@ -858,26 +858,8 @@ class RepresentationSelector {
       return MachineRepresentation::kTagged;
     } else if (type->Is(Type::Number())) {
       return MachineRepresentation::kFloat64;
-    } else if (type->Is(Type::Internal())) {
-      // We mark (u)int64 as Type::Internal.
-      // TODO(jarin) This is a workaround for our lack of (u)int64
-      // types. This can be removed once we can represent (u)int64
-      // unambiguously. (At the moment internal objects, such as the hole,
-      // are also Type::Internal()).
-      bool is_word64 = GetInfo(node->InputAt(0))->representation() ==
-                       MachineRepresentation::kWord64;
-#ifdef DEBUG
-      if (node->opcode() != IrOpcode::kTypeGuard) {
-        // Check that all the inputs agree on being Word64.
-        DCHECK_EQ(IrOpcode::kPhi, node->opcode());  // This only works for phis.
-        for (int i = 1; i < node->op()->ValueInputCount(); i++) {
-          DCHECK_EQ(is_word64, GetInfo(node->InputAt(i))->representation() ==
-                                   MachineRepresentation::kWord64);
-        }
-      }
-#endif
-      return is_word64 ? MachineRepresentation::kWord64
-                       : MachineRepresentation::kTagged;
+    } else if (type->Is(Type::ExternalPointer())) {
+      return MachineType::PointerRepresentation();
     }
     return MachineRepresentation::kTagged;
   }
@@ -1008,6 +990,53 @@ class RepresentationSelector {
       }
       NodeProperties::ChangeOp(node,
                                jsgraph_->common()->TypedStateValues(types));
+    }
+    SetOutput(node, MachineRepresentation::kTagged);
+  }
+
+  void VisitObjectState(Node* node) {
+    if (propagate()) {
+      for (int i = 0; i < node->InputCount(); i++) {
+        Node* input = node->InputAt(i);
+        Type* input_type = TypeOf(input);
+        // TODO(turbofan): Special treatment for ExternalPointer here,
+        // to avoid incompatible truncations. We really need a story
+        // for the JSFunction::entry field.
+        UseInfo use_info = input_type->Is(Type::ExternalPointer())
+                               ? UseInfo::PointerInt()
+                               : UseInfo::Any();
+        EnqueueInput(node, i, use_info);
+      }
+    } else if (lower()) {
+      Zone* zone = jsgraph_->zone();
+      ZoneVector<MachineType>* types =
+          new (zone->New(sizeof(ZoneVector<MachineType>)))
+              ZoneVector<MachineType>(node->InputCount(), zone);
+      for (int i = 0; i < node->InputCount(); i++) {
+        Node* input = node->InputAt(i);
+        NodeInfo* input_info = GetInfo(input);
+        Type* input_type = TypeOf(input);
+        // TODO(turbofan): Special treatment for ExternalPointer here,
+        // to avoid incompatible truncations. We really need a story
+        // for the JSFunction::entry field.
+        if (input_type->Is(Type::ExternalPointer())) {
+          (*types)[i] = MachineType::Pointer();
+        } else {
+          MachineRepresentation rep = input_type->IsInhabited()
+                                          ? input_info->representation()
+                                          : MachineRepresentation::kNone;
+          MachineType machine_type(rep, DeoptValueSemanticOf(input_type));
+          DCHECK(machine_type.representation() !=
+                     MachineRepresentation::kWord32 ||
+                 machine_type.semantic() == MachineSemantic::kInt32 ||
+                 machine_type.semantic() == MachineSemantic::kUint32);
+          DCHECK(machine_type.representation() != MachineRepresentation::kBit ||
+                 input_type->Is(Type::Boolean()));
+          (*types)[i] = machine_type;
+        }
+      }
+      NodeProperties::ChangeOp(node,
+                               jsgraph_->common()->TypedObjectState(types));
     }
     SetOutput(node, MachineRepresentation::kTagged);
   }
@@ -1353,7 +1382,15 @@ class RepresentationSelector {
       case IrOpcode::kNumberConstant:
         return VisitLeaf(node, MachineRepresentation::kTagged);
       case IrOpcode::kHeapConstant:
-        return VisitLeaf(node, MachineRepresentation::kTagged);
+        return VisitLeaf(node, MachineRepresentation::kTaggedPointer);
+      case IrOpcode::kPointerConstant: {
+        VisitLeaf(node, MachineType::PointerRepresentation());
+        if (lower()) {
+          intptr_t const value = OpParameter<intptr_t>(node);
+          DeferReplacement(node, lowering->jsgraph()->IntPtrConstant(value));
+        }
+        return;
+      }
 
       case IrOpcode::kBranch:
         ProcessInput(node, 0, UseInfo::Bool());
@@ -1381,7 +1418,7 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           VisitInputs(node);
-          SetOutput(node, MachineRepresentation::kTagged);
+          SetOutput(node, MachineRepresentation::kTaggedPointer);
         }
         return;
       }
@@ -2081,6 +2118,31 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
+      case IrOpcode::kNumberToUint8Clamped: {
+        Type* const input_type = TypeOf(node->InputAt(0));
+        if (input_type->Is(type_cache_.kUint8OrMinusZeroOrNaN)) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if (input_type->Is(Type::Unsigned32OrMinusZeroOrNaN())) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) lowering->DoUnsigned32ToUint8Clamped(node);
+        } else if (input_type->Is(Type::Signed32OrMinusZeroOrNaN())) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) lowering->DoSigned32ToUint8Clamped(node);
+        } else if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) lowering->DoIntegerToUint8Clamped(node);
+        } else {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) lowering->DoNumberToUint8Clamped(node);
+        }
+        return;
+      }
       case IrOpcode::kReferenceEqual: {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower()) {
@@ -2092,7 +2154,7 @@ class RepresentationSelector {
       case IrOpcode::kStringLessThan:
       case IrOpcode::kStringLessThanOrEqual: {
         return VisitBinop(node, UseInfo::AnyTagged(),
-                          MachineRepresentation::kTagged);
+                          MachineRepresentation::kTaggedPointer);
       }
       case IrOpcode::kStringCharCodeAt: {
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
@@ -2101,12 +2163,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringFromCharCode: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
-                  MachineRepresentation::kTagged);
+                  MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kStringFromCodePoint: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
-                  MachineRepresentation::kTagged);
+                  MachineRepresentation::kTaggedPointer);
         return;
       }
 
@@ -2130,11 +2192,13 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckHeapObject: {
         if (InputCannotBe(node, Type::SignedSmall())) {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
         } else {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
+                    MachineRepresentation::kTaggedPointer);
         }
+        if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
       case IrOpcode::kCheckIf: {
@@ -2175,10 +2239,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckString: {
         if (InputIs(node, Type::String())) {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
         }
         return;
       }
@@ -2186,7 +2252,7 @@ class RepresentationSelector {
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, UseInfo::TruncatingWord32());
         ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kTagged);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kLoadField: {
@@ -2400,7 +2466,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckTaggedHole: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kConvertTaggedHoleToUndefined: {
@@ -2433,14 +2500,14 @@ class RepresentationSelector {
       }
       case IrOpcode::kEnsureWritableFastElements:
         return VisitBinop(node, UseInfo::AnyTagged(),
-                          MachineRepresentation::kTagged);
+                          MachineRepresentation::kTaggedPointer);
       case IrOpcode::kMaybeGrowFastElements: {
         ProcessInput(node, 0, UseInfo::AnyTagged());         // object
         ProcessInput(node, 1, UseInfo::AnyTagged());         // elements
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 3, UseInfo::TruncatingWord32());  // length
         ProcessRemainingInputs(node, 4);
-        SetOutput(node, MachineRepresentation::kTagged);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
 
@@ -2451,6 +2518,8 @@ class RepresentationSelector {
         return;
       case IrOpcode::kStateValues:
         return VisitStateValues(node);
+      case IrOpcode::kObjectState:
+        return VisitObjectState(node);
       case IrOpcode::kTypeGuard: {
         // We just get rid of the sigma here. In principle, it should be
         // possible to refine the truncation and representation based on
@@ -2464,6 +2533,11 @@ class RepresentationSelector {
 
       case IrOpcode::kOsrGuard:
         return VisitOsrGuard(node);
+
+      case IrOpcode::kFinishRegion:
+        VisitInputs(node);
+        // Assume the output is tagged pointer.
+        return SetOutput(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kReturn:
         VisitReturn(node);
@@ -2486,9 +2560,7 @@ class RepresentationSelector {
       case IrOpcode::kMerge:
       case IrOpcode::kThrow:
       case IrOpcode::kBeginRegion:
-      case IrOpcode::kFinishRegion:
       case IrOpcode::kProjection:
-      case IrOpcode::kObjectState:
       case IrOpcode::kOsrValue:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
@@ -3252,6 +3324,71 @@ void SimplifiedLowering::DoNumberToBit(Node* node) {
   node->AppendInput(graph()->zone(),
                     graph()->NewNode(machine()->Float64Abs(), input));
   NodeProperties::ChangeOp(node, machine()->Float64LessThan());
+}
+
+void SimplifiedLowering::DoIntegerToUint8Clamped(Node* node) {
+  Node* const input = node->InputAt(0);
+  Node* const min = jsgraph()->Float64Constant(0.0);
+  Node* const max = jsgraph()->Float64Constant(255.0);
+
+  node->ReplaceInput(
+      0, graph()->NewNode(machine()->Float64LessThan(), min, input));
+  node->AppendInput(
+      graph()->zone(),
+      graph()->NewNode(
+          common()->Select(MachineRepresentation::kFloat64),
+          graph()->NewNode(machine()->Float64LessThan(), input, max), input,
+          max));
+  node->AppendInput(graph()->zone(), min);
+  NodeProperties::ChangeOp(node,
+                           common()->Select(MachineRepresentation::kFloat64));
+}
+
+void SimplifiedLowering::DoNumberToUint8Clamped(Node* node) {
+  Node* const input = node->InputAt(0);
+  Node* const min = jsgraph()->Float64Constant(0.0);
+  Node* const max = jsgraph()->Float64Constant(255.0);
+
+  node->ReplaceInput(
+      0, graph()->NewNode(
+             common()->Select(MachineRepresentation::kFloat64),
+             graph()->NewNode(machine()->Float64LessThan(), min, input),
+             graph()->NewNode(
+                 common()->Select(MachineRepresentation::kFloat64),
+                 graph()->NewNode(machine()->Float64LessThan(), input, max),
+                 input, max),
+             min));
+  NodeProperties::ChangeOp(node,
+                           machine()->Float64RoundTiesEven().placeholder());
+}
+
+void SimplifiedLowering::DoSigned32ToUint8Clamped(Node* node) {
+  Node* const input = node->InputAt(0);
+  Node* const min = jsgraph()->Int32Constant(0);
+  Node* const max = jsgraph()->Int32Constant(255);
+
+  node->ReplaceInput(
+      0, graph()->NewNode(machine()->Int32LessThanOrEqual(), input, max));
+  node->AppendInput(
+      graph()->zone(),
+      graph()->NewNode(common()->Select(MachineRepresentation::kWord32),
+                       graph()->NewNode(machine()->Int32LessThan(), input, min),
+                       min, input));
+  node->AppendInput(graph()->zone(), max);
+  NodeProperties::ChangeOp(node,
+                           common()->Select(MachineRepresentation::kWord32));
+}
+
+void SimplifiedLowering::DoUnsigned32ToUint8Clamped(Node* node) {
+  Node* const input = node->InputAt(0);
+  Node* const max = jsgraph()->Uint32Constant(255u);
+
+  node->ReplaceInput(
+      0, graph()->NewNode(machine()->Uint32LessThanOrEqual(), input, max));
+  node->AppendInput(graph()->zone(), input);
+  node->AppendInput(graph()->zone(), max);
+  NodeProperties::ChangeOp(node,
+                           common()->Select(MachineRepresentation::kWord32));
 }
 
 Node* SimplifiedLowering::ToNumberCode() {

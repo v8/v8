@@ -663,7 +663,7 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
 
   // Save caller-saved registers, which includes js_function.
   DCHECK((kCallerSaved & js_function.bit()) != 0);
-  DCHECK_EQ(kCallerSaved & code_entry.bit(), 0);
+  DCHECK_EQ(kCallerSaved & code_entry.bit(), 0u);
   stm(db_w, sp, (kCallerSaved | lr.bit()));
 
   int argument_count = 3;
@@ -1051,66 +1051,151 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
   }
 }
 
-void MacroAssembler::VmovExtended(Register dst, int src_code) {
-  DCHECK_LE(32, src_code);
-  DCHECK_GT(64, src_code);
-  if (src_code & 0x1) {
-    VmovHigh(dst, DwVfpRegister::from_code(src_code / 2));
-  } else {
-    VmovLow(dst, DwVfpRegister::from_code(src_code / 2));
-  }
-}
-
-void MacroAssembler::VmovExtended(int dst_code, Register src) {
-  DCHECK_LE(32, dst_code);
-  DCHECK_GT(64, dst_code);
-  if (dst_code & 0x1) {
-    VmovHigh(DwVfpRegister::from_code(dst_code / 2), src);
-  } else {
-    VmovLow(DwVfpRegister::from_code(dst_code / 2), src);
-  }
-}
-
-void MacroAssembler::VmovExtended(int dst_code, int src_code,
-                                  Register scratch) {
+void MacroAssembler::VmovExtended(int dst_code, int src_code) {
   if (src_code < 32 && dst_code < 32) {
     // src and dst are both s-registers.
     vmov(SwVfpRegister::from_code(dst_code),
          SwVfpRegister::from_code(src_code));
   } else if (src_code < 32) {
-    // src is an s-register.
-    vmov(scratch, SwVfpRegister::from_code(src_code));
-    VmovExtended(dst_code, scratch);
+    // src is s-register, dst is in high d-register. Move dst into scratch
+    // d-register to do the s-register move, then back.
+    DCHECK_GT(64, dst_code);
+    DwVfpRegister dst_reg = DwVfpRegister::from_code(dst_code / 2);
+    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
+    vmov(kScratchDoubleReg, dst_reg);
+    vmov(SwVfpRegister::from_code(dst_s_code),
+         SwVfpRegister::from_code(src_code));
+    vmov(dst_reg, kScratchDoubleReg);
   } else if (dst_code < 32) {
-    // dst is an s-register.
-    VmovExtended(scratch, src_code);
-    vmov(SwVfpRegister::from_code(dst_code), scratch);
+    // src is in high d-register, dst is an s-register. Move src into scratch
+    // d-register, do the s-register move.
+    DCHECK_GT(64, src_code);
+    DwVfpRegister src_reg = DwVfpRegister::from_code(src_code / 2);
+    int src_s_code = kScratchDoubleReg.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, src_reg);
+    vmov(SwVfpRegister::from_code(dst_code),
+         SwVfpRegister::from_code(src_s_code));
   } else {
-    // Neither src or dst are s-registers.
+    // src and dst are in high d-registers. Move both into free registers,
+    // do the s-register move, then move dst back.
     DCHECK_GT(64, src_code);
     DCHECK_GT(64, dst_code);
-    VmovExtended(scratch, src_code);
-    VmovExtended(dst_code, scratch);
+    DwVfpRegister dst_reg = DwVfpRegister::from_code(dst_code / 2);
+    DwVfpRegister src_reg = DwVfpRegister::from_code(src_code / 2);
+    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
+    int src_s_code = kDoubleRegZero.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, dst_reg);
+    vmov(kDoubleRegZero, src_reg);
+    vmov(SwVfpRegister::from_code(dst_s_code),
+         SwVfpRegister::from_code(src_s_code));
+    vmov(dst_reg, kScratchDoubleReg);
+    vmov(kDoubleRegZero, 0.0);  // restore zero register
   }
 }
 
-void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
-                                  Register scratch) {
-  if (dst_code >= 32) {
-    ldr(scratch, src);
-    VmovExtended(dst_code, scratch);
-  } else {
+void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src) {
+  if (dst_code < 32) {
     vldr(SwVfpRegister::from_code(dst_code), src);
+  } else {
+    // dst is in high d-register, move it down, load src, then move it back up.
+    DCHECK_GT(64, dst_code);
+    DwVfpRegister dst_reg = DwVfpRegister::from_code(dst_code / 2);
+    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
+    vmov(kScratchDoubleReg, dst_reg);
+    vldr(SwVfpRegister::from_code(dst_s_code), src);
+    vmov(dst_reg, kScratchDoubleReg);
+  }
+}
+void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code) {
+  if (src_code < 32) {
+    vstr(SwVfpRegister::from_code(src_code), dst);
+  } else {
+    // src is in high d-register, move it down, store src.
+    DCHECK_GT(64, src_code);
+    DwVfpRegister src_reg = DwVfpRegister::from_code(src_code / 2);
+    int src_s_code = kScratchDoubleReg.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, src_reg);
+    vstr(SwVfpRegister::from_code(src_s_code), dst);
   }
 }
 
-void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
-                                  Register scratch) {
-  if (src_code >= 32) {
-    VmovExtended(scratch, src_code);
-    str(scratch, dst);
+void MacroAssembler::VswpExtended(int dst_code, int src_code) {
+  if (src_code < 32 && dst_code < 32) {
+    // src and dst are both s-registers.
+    vmov(kScratchDoubleReg.low(), SwVfpRegister::from_code(dst_code));
+    vmov(SwVfpRegister::from_code(dst_code),
+         SwVfpRegister::from_code(src_code));
+    vmov(SwVfpRegister::from_code(src_code), kScratchDoubleReg.low());
+  } else if (src_code < 32) {
+    // src is s-register, dst is in high d-register. Move dst into scratch
+    // d-register to do the s-register swap, then back.
+    DCHECK_GT(64, dst_code);
+    DwVfpRegister dst_reg = DwVfpRegister::from_code(dst_code / 2);
+    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
+    int dst_s_temp = kDoubleRegZero.low().code() + (dst_code & 1);
+    vmov(kScratchDoubleReg, dst_reg);
+    vmov(kDoubleRegZero, dst_reg);
+    vmov(SwVfpRegister::from_code(dst_s_code),
+         SwVfpRegister::from_code(src_code));
+    vmov(dst_reg, kScratchDoubleReg);
+    vmov(SwVfpRegister::from_code(src_code),
+         SwVfpRegister::from_code(dst_s_temp));
+    vmov(kDoubleRegZero, 0.0);  // restore zero register
+  } else if (dst_code < 32) {
+    // src is in high d-register, dst is an s-register. Move src into scratch
+    // d-register, do the s-register swap.
+    DCHECK_GT(64, src_code);
+    DwVfpRegister src_reg = DwVfpRegister::from_code(src_code / 2);
+    int src_s_code = kScratchDoubleReg.low().code() + (src_code & 1);
+    int src_s_temp = kDoubleRegZero.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, src_reg);
+    vmov(kDoubleRegZero, src_reg);
+    vmov(SwVfpRegister::from_code(src_s_code),
+         SwVfpRegister::from_code(dst_code));
+    vmov(src_reg, kScratchDoubleReg);
+    vmov(SwVfpRegister::from_code(dst_code),
+         SwVfpRegister::from_code(src_s_temp));
+    vmov(kDoubleRegZero, 0.0);  // restore zero register
   } else {
+    // src and dst are in high d-registers. Move both into free registers,
+    // do the s-register swap, then move both back.
+    DCHECK_GT(64, src_code);
+    DCHECK_GT(64, dst_code);
+    DwVfpRegister dst_reg = DwVfpRegister::from_code(dst_code / 2);
+    DwVfpRegister src_reg = DwVfpRegister::from_code(src_code / 2);
+    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
+    int src_s_code = kDoubleRegZero.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, dst_reg);
+    vmov(kDoubleRegZero, src_reg);
+    vmov(SwVfpRegister::from_code(src_s_code ^ 1),
+         SwVfpRegister::from_code(dst_s_code));
+    vmov(SwVfpRegister::from_code(dst_s_code),
+         SwVfpRegister::from_code(src_s_code));
+    vmov(dst_reg, kScratchDoubleReg);
+    vmov(kScratchDoubleReg, src_reg);
+    vmov(SwVfpRegister::from_code(dst_s_code),
+         SwVfpRegister::from_code(src_s_code ^ 1));
+    vmov(src_reg, kScratchDoubleReg);
+    vmov(kDoubleRegZero, 0.0);  // restore zero register
+  }
+}
+
+void MacroAssembler::VswpExtended(const MemOperand& dst, int src_code) {
+  if (src_code < 32) {
+    vldr(kScratchDoubleReg.low(), dst);
     vstr(SwVfpRegister::from_code(src_code), dst);
+    vmov(SwVfpRegister::from_code(src_code), kScratchDoubleReg.low());
+  } else {
+    // src is in high d-register, move it down, do the swap, move src back up.
+    DCHECK_GT(64, src_code);
+    DwVfpRegister src_reg = DwVfpRegister::from_code(src_code / 2);
+    int src_s_code = kScratchDoubleReg.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, src_reg);
+    vldr(kDoubleRegZero.low(), dst);
+    vstr(SwVfpRegister::from_code(src_s_code), dst);
+    vmov(SwVfpRegister::from_code(src_s_code), kDoubleRegZero.low());
+    vmov(src_reg, kScratchDoubleReg);
+    vmov(kDoubleRegZero, 0.0);  // restore zero register
   }
 }
 
@@ -1946,7 +2031,6 @@ void MacroAssembler::Allocate(int object_size,
   // point, so we cannot just use add().
   DCHECK(object_size > 0);
   Register source = result;
-  Condition cond = al;
   int shift = 0;
   while (object_size != 0) {
     if (((object_size >> shift) & 0x03) == 0) {
@@ -1957,9 +2041,8 @@ void MacroAssembler::Allocate(int object_size,
       shift += 8;
       Operand bits_operand(bits);
       DCHECK(bits_operand.instructions_required(this) == 1);
-      add(result_end, source, bits_operand, LeaveCC, cond);
+      add(result_end, source, bits_operand);
       source = result_end;
-      cond = cc;
     }
   }
 
@@ -2158,7 +2241,6 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   // this point, so we cannot just use add().
   DCHECK(object_size > 0);
   Register source = result;
-  Condition cond = al;
   int shift = 0;
   while (object_size != 0) {
     if (((object_size >> shift) & 0x03) == 0) {
@@ -2169,9 +2251,8 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
       shift += 8;
       Operand bits_operand(bits);
       DCHECK(bits_operand.instructions_required(this) == 1);
-      add(result_end, source, bits_operand, LeaveCC, cond);
+      add(result_end, source, bits_operand);
       source = result_end;
-      cond = cc;
     }
   }
 

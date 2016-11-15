@@ -17,30 +17,21 @@ RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
   return *Module::GetModuleNamespace(module, module_request);
 }
 
-RUNTIME_FUNCTION(Runtime_LoadModuleExport) {
+RUNTIME_FUNCTION(Runtime_LoadModuleVariable) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 0);
   Handle<Module> module(isolate->context()->module());
-  return *Module::LoadExport(module, name);
+  return *Module::LoadVariable(module, index);
 }
 
-RUNTIME_FUNCTION(Runtime_LoadModuleImport) {
+RUNTIME_FUNCTION(Runtime_StoreModuleVariable) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_SMI_ARG_CHECKED(module_request, 1);
-  Handle<Module> module(isolate->context()->module());
-  return *Module::LoadImport(module, name, module_request);
-}
-
-RUNTIME_FUNCTION(Runtime_StoreModuleExport) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   Handle<Module> module(isolate->context()->module());
-  Module::StoreExport(module, name, value);
+  Module::StoreVariable(module, index, value);
   return isolate->heap()->undefined_value();
 }
 

@@ -32,7 +32,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list and statements are overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void VisitStatements(ZoneList<Statement*>* statments);
 
  private:

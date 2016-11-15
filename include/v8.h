@@ -463,16 +463,6 @@ class WeakCallbackInfo {
 enum class WeakCallbackType { kParameter, kInternalFields, kFinalizer };
 
 /**
- * A reporter class that embedder will use to report reachable references found
- * by EmbedderHeapTracer.
- */
-class V8_EXPORT EmbedderReachableReferenceReporter {
- public:
-  virtual void ReportExternalReference(Value* object) = 0;
-  virtual ~EmbedderReachableReferenceReporter() = default;
-};
-
-/**
  * An object reference that is independent of any handle scope.  Where
  * a Local handle only lives as long as the HandleScope in which it was
  * allocated, a PersistentBase handle remains valid until it is explicitly
@@ -569,18 +559,11 @@ template <class T> class PersistentBase {
   V8_INLINE void ClearWeak() { ClearWeak<void>(); }
 
   /**
-   * Deprecated.
-   * TODO(hlopko): remove once migration to reporter is finished.
-   */
-  V8_INLINE void RegisterExternalReference(Isolate* isolate) const {}
-
-  /**
    * Allows the embedder to tell the v8 garbage collector that a certain object
    * is alive. Only allowed when the embedder is asked to trace its heap by
    * EmbedderHeapTracer.
    */
-  V8_INLINE void RegisterExternalReference(
-      EmbedderReachableReferenceReporter* reporter) const;
+  V8_INLINE void RegisterExternalReference(Isolate* isolate) const;
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -589,18 +572,6 @@ template <class T> class PersistentBase {
    * GC prologue callback or followed by a global GC epilogue callback.
    */
   V8_INLINE void MarkIndependent();
-
-  /**
-   * Marks the reference to this object partially dependent. Partially dependent
-   * handles only depend on other partially dependent handles and these
-   * dependencies are provided through object groups. It provides a way to build
-   * smaller object groups for young objects that represent only a subset of all
-   * external dependencies. This mark is automatically cleared after each
-   * garbage collection.
-   */
-  V8_INLINE V8_DEPRECATED(
-      "deprecated optimization, do not use partially dependent groups",
-      void MarkPartiallyDependent());
 
   /**
    * Marks the reference to this object as active. The scavenge garbage
@@ -1740,6 +1711,19 @@ class V8_EXPORT ValueSerializer {
      * Nothing<bool>() returned.
      */
     virtual Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object);
+
+    /*
+     * Allocates memory for the buffer of at least the size provided. The actual
+     * size (which may be greater or equal) is written to |actual_size|. If no
+     * buffer has been allocated yet, nullptr will be provided.
+     */
+    virtual void* ReallocateBufferMemory(void* old_buffer, size_t size,
+                                         size_t* actual_size);
+
+    /*
+     * Frees a buffer allocated with |ReallocateBufferMemory|.
+     */
+    virtual void FreeBufferMemory(void* buffer);
   };
 
   explicit ValueSerializer(Isolate* isolate);
@@ -1761,7 +1745,15 @@ class V8_EXPORT ValueSerializer {
    * Returns the stored data. This serializer should not be used once the buffer
    * is released. The contents are undefined if a previous write has failed.
    */
-  std::vector<uint8_t> ReleaseBuffer();
+  V8_DEPRECATE_SOON("Use Release()", std::vector<uint8_t> ReleaseBuffer());
+
+  /*
+   * Returns the stored data (allocated using the delegate's
+   * AllocateBufferMemory) and its size. This serializer should not be used once
+   * the buffer is released. The contents are undefined if a previous write has
+   * failed.
+   */
+  V8_WARN_UNUSED_RESULT std::pair<uint8_t*, size_t> Release();
 
   /*
    * Marks an ArrayBuffer as havings its contents transferred out of band.
@@ -1827,7 +1819,6 @@ class V8_EXPORT ValueDeserializer {
    * May, for example, reject an invalid or unsupported wire format.
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> ReadHeader(Local<Context> context);
-  V8_DEPRECATE_SOON("Use Local<Context> version", Maybe<bool> ReadHeader());
 
   /*
    * Deserializes a JavaScript value from the buffer.
@@ -4634,6 +4625,8 @@ class V8_EXPORT Template : public Data {
    */
   void Set(Local<Name> name, Local<Data> value,
            PropertyAttribute attributes = None);
+  void SetPrivate(Local<Private> name, Local<Data> value,
+                  PropertyAttribute attributes = None);
   V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value);
 
   void SetAccessorProperty(
@@ -5112,6 +5105,14 @@ class V8_EXPORT FunctionTemplate : public Template {
       Isolate* isolate, FunctionCallback callback,
       experimental::FastAccessorBuilder* fast_handler = nullptr,
       Local<Value> data = Local<Value>(),
+      Local<Signature> signature = Local<Signature>(), int length = 0);
+
+  /**
+   * Creates a function template backed/cached by a private property.
+   */
+  static Local<FunctionTemplate> NewWithCache(
+      Isolate* isolate, FunctionCallback callback,
+      Local<Private> cache_property, Local<Value> data = Local<Value>(),
       Local<Signature> signature = Local<Signature>(), int length = 0);
 
   /** Returns the unique function instance in the current execution context.*/
@@ -6169,11 +6170,11 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
- * Interface for tracing through the embedder heap. During the v8 garbage
+ * Interface for tracing through the embedder heap. During a v8 garbage
  * collection, v8 collects hidden fields of all potential wrappers, and at the
  * end of its marking phase iterates the collection and asks the embedder to
- * trace through its heap and use reporter to report each js object reachable
- * from any of the given wrappers.
+ * trace through its heap and use reporter to report each JavaScript object
+ * reachable from any of the given wrappers.
  *
  * Before the first call to the TraceWrappersFrom function TracePrologue will be
  * called. When the garbage collection cycle is finished, TraceEpilogue will be
@@ -6191,30 +6192,26 @@ class V8_EXPORT EmbedderHeapTracer {
   };
 
   /**
-   * V8 will call this method with internal fields of found wrappers. The
-   * embedder is expected to store them in its marking deque and trace
-   * reachable wrappers from them when called through |AdvanceTracing|.
+   * Called by v8 to register internal fields of found wrappers.
+   *
+   * The embedder is expected to store them somewhere and trace reachable
+   * wrappers from them when called through |AdvanceTracing|.
    */
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
 
   /**
-   * Deprecated.
-   * TODO(hlopko) Remove once the migration to reporter is finished.
+   * Called at the beginning of a GC cycle.
    */
-  virtual void TracePrologue() {}
+  virtual void TracePrologue() = 0;
 
   /**
-   * V8 will call this method at the beginning of a GC cycle. Embedder is
-   * expected to use EmbedderReachableReferenceReporter for reporting all
-   * reachable v8 objects.
-   */
-  virtual void TracePrologue(EmbedderReachableReferenceReporter* reporter) {}
-
-  /**
-   * Embedder is expected to trace its heap starting from wrappers reported by
-   * RegisterV8References method, and use reporter for all reachable wrappers.
-   * Embedder is expected to stop tracing by the given deadline.
+   * Called to to make a tracing step in the embedder.
+   *
+   * The embedder is expected to trace its heap starting from wrappers reported
+   * by RegisterV8References method, and report back all reachable wrappers.
+   * Furthermore, the embedder is expected to stop tracing by the given
+   * deadline.
    *
    * Returns true if there is still work to do.
    */
@@ -6222,22 +6219,25 @@ class V8_EXPORT EmbedderHeapTracer {
                               AdvanceTracingActions actions) = 0;
 
   /**
-   * V8 will call this method at the end of a GC cycle.
+   * Called at the end of a GC cycle.
    *
    * Note that allocation is *not* allowed within |TraceEpilogue|.
    */
   virtual void TraceEpilogue() = 0;
 
   /**
-   * Let embedder know v8 entered final marking pause (no more incremental steps
-   * will follow).
+   * Called upon entering the final marking pause. No more incremental marking
+   * steps will follow this call.
    */
-  virtual void EnterFinalPause() {}
+  virtual void EnterFinalPause() = 0;
 
   /**
-   * Throw away all intermediate data and reset to the initial state.
+   * Called when tracing is aborted.
+   *
+   * The embedder is expected to throw away all intermediate data and reset to
+   * the initial state.
    */
-  virtual void AbortTracing() {}
+  virtual void AbortTracing() = 0;
 
   /**
    * Returns the number of wrappers that are still to be traced by the embedder.
@@ -7550,6 +7550,9 @@ class V8_EXPORT V8 {
                          int* index);
   static Local<Value> GetEternal(Isolate* isolate, int index);
 
+  static void RegisterExternallyReferencedObject(internal::Object** object,
+                                                 internal::Isolate* isolate);
+
   template <class K, class V, class T>
   friend class PersistentValueMapBase;
 
@@ -7572,7 +7575,7 @@ class V8_EXPORT V8 {
 /**
  * Helper class to create a snapshot data blob.
  */
-class SnapshotCreator {
+class V8_EXPORT SnapshotCreator {
  public:
   enum class FunctionCodeHandling { kClear, kKeep };
 
@@ -7870,12 +7873,6 @@ class V8_EXPORT ExtensionConfiguration {
   const char** names_;
 };
 
-#ifndef V8_CONTEXT_PROXY_INTERNAL_FIELD_COUNT
-// The number of required internal fields for global proxy objects can be
-// defined by embedder.
-#define V8_CONTEXT_PROXY_INTERNAL_FIELD_COUNT 2
-#endif
-
 /**
  * A sandboxed execution context with its own set of built-in objects
  * and functions.
@@ -8072,9 +8069,6 @@ class V8_EXPORT Context {
    private:
     Local<Context> context_;
   };
-
-  static const int kProxyInternalFieldCount =
-      V8_CONTEXT_PROXY_INTERNAL_FIELD_COUNT;
 
  private:
   friend class Value;
@@ -8340,11 +8334,10 @@ class Internals {
   static const int kNodeStateIsPendingValue = 3;
   static const int kNodeStateIsNearDeathValue = 4;
   static const int kNodeIsIndependentShift = 3;
-  static const int kNodeIsPartiallyDependentShift = 4;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSObjectType = 0xbb;
-  static const int kJSApiObjectType = 0xba;
+  static const int kJSObjectType = 0xbc;
+  static const int kJSApiObjectType = 0xbb;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;
@@ -8620,10 +8613,11 @@ P* PersistentBase<T>::ClearWeak() {
 }
 
 template <class T>
-void PersistentBase<T>::RegisterExternalReference(
-    EmbedderReachableReferenceReporter* reporter) const {
+void PersistentBase<T>::RegisterExternalReference(Isolate* isolate) const {
   if (IsEmpty()) return;
-  reporter->ReportExternalReference(this->val_);
+  V8::RegisterExternallyReferencedObject(
+      reinterpret_cast<internal::Object**>(this->val_),
+      reinterpret_cast<internal::Isolate*>(isolate));
 }
 
 template <class T>
@@ -8634,17 +8628,6 @@ void PersistentBase<T>::MarkIndependent() {
                     true,
                     I::kNodeIsIndependentShift);
 }
-
-
-template <class T>
-void PersistentBase<T>::MarkPartiallyDependent() {
-  typedef internal::Internals I;
-  if (this->IsEmpty()) return;
-  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
-                    true,
-                    I::kNodeIsPartiallyDependentShift);
-}
-
 
 template <class T>
 void PersistentBase<T>::MarkActive() {

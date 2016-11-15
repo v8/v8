@@ -1690,6 +1690,9 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ Push(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
@@ -1699,7 +1702,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -1894,10 +1898,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFloatRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(dst_code, src_code, kScratchReg);
+        __ VmovExtended(dst_code, src_code);
       } else {
         DCHECK(destination->IsFloatStackSlot());
-        __ VmovExtended(g.ToMemOperand(destination), src_code, kScratchReg);
+        __ VmovExtended(g.ToMemOperand(destination), src_code);
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -1912,7 +1916,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         // GapResolver may give us reg codes that don't map to actual
         // s-registers. Generate code to work around those cases.
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(dst_code, src, kScratchReg);
+        __ VmovExtended(dst_code, src);
       }
     } else {
       DCHECK(destination->IsFPStackSlot());
@@ -1984,15 +1988,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFPRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
-        __ VmovExtended(src_code, dst_code, kScratchReg);
-        __ VmovExtended(dst_code, temp.low().code(), kScratchReg);
+        __ VswpExtended(dst_code, src_code);
       } else {
         DCHECK(destination->IsFPStackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
-        __ VmovExtended(src_code, dst, kScratchReg);
-        __ vstr(temp.low(), dst);
+        __ VswpExtended(dst, src_code);
       }
     }
   } else if (source->IsFPStackSlot()) {

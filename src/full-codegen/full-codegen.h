@@ -354,7 +354,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
 
@@ -616,10 +616,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
-                  TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name,
-                   TypeFeedbackId id = TypeFeedbackId::None());
+  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name);
+  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name);
   void CallKeyedStoreIC(FeedbackVectorSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);

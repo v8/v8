@@ -20,7 +20,6 @@
 #include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/globals.h"
@@ -416,7 +415,7 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   if (FLAG_validate_asm && info->scope()->asm_module() &&
-      !info->shared_info()->is_asm_wasm_broken()) {
+      !info->shared_info()->is_asm_wasm_broken() && !info->is_debug()) {
     EnsureFeedbackMetadata(info);
     MaybeHandle<FixedArray> wasm_data;
     wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
@@ -778,72 +777,6 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
   return CompilationJob::FAILED;
 }
 
-class InterpreterActivationsFinder : public ThreadVisitor,
-                                     public OptimizedFunctionVisitor {
- public:
-  explicit InterpreterActivationsFinder(SharedFunctionInfo* shared)
-      : shared_(shared), has_activations_(false) {}
-
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    Address* activation_pc_address = nullptr;
-    JavaScriptFrameIterator it(isolate, top);
-    for (; !it.done(); it.Advance()) {
-      JavaScriptFrame* frame = it.frame();
-      if (FLAG_ignition_osr && frame->is_optimized() &&
-          frame->function()->shared() == shared_) {
-        // There might be optimized OSR code active on the stack that is not
-        // reachable through a function. We count this as an activation.
-        has_activations_ = true;
-      }
-      if (frame->is_interpreted() && frame->function()->shared() == shared_) {
-        has_activations_ = true;
-        activation_pc_address = frame->pc_address();
-      }
-    }
-
-    if (activation_pc_address) {
-      activation_pc_addresses_.push_back(activation_pc_address);
-    }
-  }
-
-  void VisitFunction(JSFunction* function) {
-    if (function->Inlines(shared_)) has_activations_ = true;
-  }
-
-  void EnterContext(Context* context) {}
-  void LeaveContext(Context* context) {}
-
-  bool MarkActivationsForBaselineOnReturn(Isolate* isolate) {
-    if (activation_pc_addresses_.empty()) return false;
-
-    for (Address* activation_pc_address : activation_pc_addresses_) {
-      DCHECK(isolate->inner_pointer_to_code_cache()
-                 ->GetCacheEntry(*activation_pc_address)
-                 ->code->is_interpreter_trampoline_builtin());
-      *activation_pc_address =
-          isolate->builtins()->InterpreterMarkBaselineOnReturn()->entry();
-    }
-    return true;
-  }
-
-  bool has_activations() { return has_activations_; }
-
- private:
-  SharedFunctionInfo* shared_;
-  bool has_activations_;
-  std::vector<Address*> activation_pc_addresses_;
-};
-
-bool HasInterpreterActivations(
-    Isolate* isolate, InterpreterActivationsFinder* activations_finder) {
-  activations_finder->VisitThread(isolate, isolate->thread_local_top());
-  isolate->thread_manager()->IterateArchivedThreads(activations_finder);
-  // There might be optimized functions that rely on bytecode being around. We
-  // need to prevent switching the given function to baseline code.
-  Deoptimizer::VisitAllOptimizedFunctions(isolate, activations_finder);
-  return activations_finder->has_activations();
-}
-
 MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   VMState<COMPILER> state(isolate);
@@ -879,31 +812,6 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
     return MaybeHandle<Code>();
   }
 
-  // TODO(4280): For now we disable switching to baseline code in the presence
-  // of interpreter activations of the given function. The reasons is that the
-  // underlying bytecode is cleared below. Note that this only applies in case
-  // the --ignition-preserve-bytecode flag is not passed.
-  if (!FLAG_ignition_preserve_bytecode) {
-    InterpreterActivationsFinder activations_finder(function->shared());
-    if (HasInterpreterActivations(isolate, &activations_finder)) {
-      if (FLAG_trace_opt) {
-        OFStream os(stdout);
-        os << "[unable to switch " << Brief(*function) << " due to activations]"
-           << std::endl;
-      }
-
-      if (activations_finder.MarkActivationsForBaselineOnReturn(isolate)) {
-        if (FLAG_trace_opt) {
-          OFStream os(stdout);
-          os << "[marking " << Brief(function->shared())
-             << " for baseline recompilation on return]" << std::endl;
-        }
-      }
-
-      return MaybeHandle<Code>();
-    }
-  }
-
   if (FLAG_trace_opt) {
     OFStream os(stdout);
     os << "[switching method " << Brief(*function) << " to baseline code]"
@@ -921,12 +829,6 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return MaybeHandle<Code>();
   }
-
-  // TODO(4280): For now we play it safe and remove the bytecode array when we
-  // switch to baseline code. We might consider keeping around the bytecode so
-  // that it can be used as the "source of truth" eventually. Note that this
-  // only applies in case the --ignition-preserve-bytecode flag is not passed.
-  if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
 
   // Update the shared function info with the scope info.
   InstallSharedScopeInfo(&info, shared);
@@ -977,7 +879,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
         }
 
         Handle<Code> code;
-        if (!GetBaselineCode(function).ToHandle(&code)) {
+        if (GetBaselineCode(function).ToHandle(&code)) {
           return code;
         }
         break;
@@ -991,8 +893,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
         Handle<Code> code;
         // TODO(leszeks): Look into performing this compilation concurrently.
-        if (!GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
-                 .ToHandle(&code)) {
+        if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
+                .ToHandle(&code)) {
           return code;
         }
         break;
@@ -1218,10 +1120,6 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   return true;
 }
 
-bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
-  return CompileDebugCode(handle(function->shared()));
-}
-
 bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   Isolate* isolate = shared->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
@@ -1312,19 +1210,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // TurboFan in this case.
     if (IsResumableFunction(shared->kind())) return false;
 
-    // TODO(4280): For now we disable switching to baseline code in the presence
-    // of interpreter activations of the given function. The reasons is that the
-    // underlying bytecode is cleared below. The expensive check for activations
-    // only needs to be done when the given function has bytecode, otherwise we
-    // can be sure there are no activations. Note that this only applies in case
-    // the --ignition-preserve-bytecode flag is not passed.
-    if (!FLAG_ignition_preserve_bytecode && shared->HasBytecodeArray()) {
-      InterpreterActivationsFinder activations_finder(*shared);
-      if (HasInterpreterActivations(info->isolate(), &activations_finder)) {
-        return false;
-      }
-    }
-
     // When we call PrepareForSerializing below, we will change the shared
     // ParseInfo. Make sure to reset it.
     bool old_will_serialize_value = info->parse_info()->will_serialize();
@@ -1340,14 +1225,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
     info->parse_info()->set_will_serialize(old_will_serialize_value);
-
-    // TODO(4280): For now we play it safe and remove the bytecode array when we
-    // switch to baseline code. We might consider keeping around the bytecode so
-    // that it can be used as the "source of truth" eventually. Note that this
-    // only applies in case the --ignition-preserve-bytecode flag is not passed.
-    if (!FLAG_ignition_preserve_bytecode && shared->HasBytecodeArray()) {
-      shared->ClearBytecodeArray();
-    }
 
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.
@@ -1368,7 +1245,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 // static
 Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  if (shared->code()->is_interpreter_trampoline_builtin()) {
+  if (shared->IsInterpreted()) {
     if (UseTurboFan(shared)) {
       return OPTIMIZED;
     } else {
@@ -1709,26 +1586,36 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_debug()) info.MarkAsDebug();
 
-  // Generate code
-  TimerEventScope<TimerEventCompileCode> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
-
-  if (!literal->ShouldEagerCompile()) {
-    info.SetCode(isolate->builtins()->CompileLazy());
-    Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
-    if (outer_scope) {
-      result->set_outer_scope_info(*outer_scope->scope_info());
+  // If this inner function is already compiled, we don't need to compile
+  // again. When compiling for debug, we are not interested in having debug
+  // break slots in inner functions, neither for setting break points nor
+  // for revealing inner functions.
+  // This is especially important for generators. We must not replace the
+  // code for generators, as there may be suspended generator objects.
+  if (!result->is_compiled()) {
+    if (!literal->ShouldEagerCompile()) {
+      info.SetCode(isolate->builtins()->CompileLazy());
+      Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
+      if (outer_scope) {
+        result->set_outer_scope_info(*outer_scope->scope_info());
+      }
+    } else {
+      // Generate code
+      TimerEventScope<TimerEventCompileCode> timer(isolate);
+      RuntimeCallTimerScope runtimeTimer(isolate,
+                                         &RuntimeCallStats::CompileCode);
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
+      if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
+        // Code generation will ensure that the feedback vector is present and
+        // appropriately sized.
+        DCHECK(!info.code().is_null());
+        if (literal->should_be_used_once_hint()) {
+          info.code()->MarkToBeExecutedOnce(isolate);
+        }
+      } else {
+        return Handle<SharedFunctionInfo>::null();
+      }
     }
-  } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
-    // Code generation will ensure that the feedback vector is present and
-    // appropriately sized.
-    DCHECK(!info.code().is_null());
-    if (literal->should_be_used_once_hint()) {
-      info.code()->MarkToBeExecutedOnce(isolate);
-    }
-  } else {
-    return Handle<SharedFunctionInfo>::null();
   }
 
   if (maybe_existing.is_null()) {

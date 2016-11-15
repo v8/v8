@@ -308,6 +308,11 @@ void LookupIterator::PrepareTransitionToDataProperty(
     PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
   if (state_ == TRANSITION) return;
+
+  if (!IsElement() && name()->IsPrivate()) {
+    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
+  }
+
   DCHECK(state_ != LookupIterator::ACCESSOR ||
          (GetAccessors()->IsAccessorInfo() &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
@@ -442,6 +447,9 @@ void LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
+  if (!IsElement() && name()->IsPrivate()) {
+    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
+  }
 
   if (!IsElement() && !receiver->map()->is_dictionary_map()) {
     Handle<Map> old_map(receiver->map(), isolate_);
@@ -840,6 +848,28 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     }
   }
   return Handle<InterceptorInfo>();
+}
+
+bool LookupIterator::TryLookupCachedProperty() {
+  return state() == LookupIterator::ACCESSOR &&
+         GetAccessors()->IsAccessorPair() && LookupCachedProperty();
+}
+
+bool LookupIterator::LookupCachedProperty() {
+  DCHECK_EQ(state(), LookupIterator::ACCESSOR);
+  DCHECK(GetAccessors()->IsAccessorPair());
+
+  AccessorPair* accessor_pair = AccessorPair::cast(*GetAccessors());
+  Handle<Object> getter(accessor_pair->getter(), isolate());
+  MaybeHandle<Name> maybe_name =
+      FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
+  if (maybe_name.is_null()) return false;
+
+  // We have found a cached property! Modify the iterator accordingly.
+  name_ = maybe_name.ToHandleChecked();
+  Restart();
+  CHECK_EQ(state(), LookupIterator::DATA);
+  return true;
 }
 
 }  // namespace internal

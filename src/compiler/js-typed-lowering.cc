@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-typed-lowering.h"
 
+#include "src/ast/modules.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
@@ -625,33 +626,44 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   // Check if we would overflow the allowed maximum string length.
   Node* check = graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
                                  jsgraph()->Constant(String::kMaxLength));
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  {
-    // Throw a RangeError in case of overflow.
-    Node* vfalse = efalse = graph()->NewNode(
-        javascript()->CallRuntime(Runtime::kThrowInvalidStringLength), context,
-        frame_state, efalse, if_false);
-    if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-    if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
-    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-    NodeProperties::MergeControlToEnd(graph(), common(), if_false);
-    Revisit(graph()->end());
+  if (isolate()->IsStringLengthOverflowIntact()) {
+    // Add a code dependency on the string length overflow protector.
+    dependencies()->AssumePropertyCell(factory()->string_length_protector());
 
-    // Update potential {IfException} uses of {node} to point to the
-    // %ThrowInvalidStringLength runtime call node instead.
-    for (Edge edge : node->use_edges()) {
-      if (edge.from()->opcode() == IrOpcode::kIfException) {
-        DCHECK(NodeProperties::IsControlEdge(edge) ||
-               NodeProperties::IsEffectEdge(edge));
-        edge.UpdateTo(vfalse);
-        Revisit(edge.from());
+    // We can just deoptimize if the {check} fails. Besides generating a
+    // shorter code sequence than the version below, this has the additional
+    // benefit of not holding on to the lazy {frame_state} and thus potentially
+    // reduces the number of live ranges and allows for more truncations.
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+  } else {
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = effect;
+    {
+      // Throw a RangeError in case of overflow.
+      Node* vfalse = efalse = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
+          context, frame_state, efalse, if_false);
+      if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+      if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), if_false);
+      Revisit(graph()->end());
+
+      // Update potential {IfException} uses of {node} to point to the
+      // %ThrowInvalidStringLength runtime call node instead.
+      for (Edge edge : node->use_edges()) {
+        if (edge.from()->opcode() == IrOpcode::kIfException) {
+          DCHECK(NodeProperties::IsControlEdge(edge) ||
+                 NodeProperties::IsEffectEdge(edge));
+          edge.UpdateTo(vfalse);
+          Revisit(edge.from());
+        }
       }
     }
+    control = graph()->NewNode(common()->IfTrue(), branch);
   }
-  control = graph()->NewNode(common()->IfTrue(), branch);
 
   // Figure out the map for the resulting ConsString.
   // TODO(turbofan): We currently just use the cons_string_map here for
@@ -671,7 +683,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
                             value, value_map, effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForNameHashField()), value,
-      jsgraph()->Uint32Constant(Name::kEmptyHashField), effect, control);
+      jsgraph()->Constant(Name::kEmptyHashField), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForStringLength()), value, length,
       effect, control);
@@ -967,6 +979,17 @@ Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZero)) {
     // JSToInteger(x:integer) => x
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSToName(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Name())) {
+    // JSToName(x:name) => x
     ReplaceWithValue(node, input);
     return Replace(input);
   }
@@ -1489,6 +1512,81 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceJSLoadModule(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadModule, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  int32_t cell_index = OpParameter<int32_t>(node);
+  Node* module = NodeProperties::GetValueInput(node, 0);
+
+  Node* array;
+  int index;
+  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
+      ModuleDescriptor::kExport) {
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularExports()),
+        module, effect, control);
+    index = cell_index - 1;
+  } else {
+    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+              ModuleDescriptor::kImport);
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularImports()),
+        module, effect, control);
+    index = -cell_index - 1;
+  }
+
+  Node* cell = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)), array,
+      effect, control);
+
+  Node* value = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
+                       cell, effect, control);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Changed(value);
+}
+
+Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreModule, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  int32_t cell_index = OpParameter<int32_t>(node);
+  Node* module = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+
+  Node* array;
+  int index;
+  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
+      ModuleDescriptor::kExport) {
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularExports()),
+        module, effect, control);
+    index = cell_index - 1;
+  } else {
+    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+              ModuleDescriptor::kImport);
+    array = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForModuleRegularImports()),
+        module, effect, control);
+    index = -cell_index - 1;
+  }
+
+  Node* cell = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)), array,
+      effect, control);
+
+  effect =
+      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForCellValue()),
+                       cell, value, effect, control);
+
+  ReplaceWithValue(node, effect, effect, control);
+  return Changed(value);
+}
+
 Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConvertReceiver, node->opcode());
   ConvertReceiverMode mode = ConvertReceiverModeOf(node->op());
@@ -1773,7 +1871,7 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
       node->InsertInput(graph()->zone(), 0,
                         jsgraph()->HeapConstant(callable.code()));
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
       node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
       node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
       NodeProperties::ChangeOp(
@@ -1792,7 +1890,7 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
     node->InsertInput(graph()->zone(), 2, new_target);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
@@ -1863,7 +1961,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     }
 
     Node* new_target = jsgraph()->UndefinedConstant();
-    Node* argument_count = jsgraph()->Int32Constant(arity);
+    Node* argument_count = jsgraph()->Constant(arity);
     if (NeedsArgumentAdaptorFrame(shared, arity)) {
       // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
       Callable callable = CodeFactory::ArgumentAdaptor(isolate());
@@ -1873,7 +1971,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       node->InsertInput(graph()->zone(), 3, argument_count);
       node->InsertInput(
           graph()->zone(), 4,
-          jsgraph()->Int32Constant(shared->internal_formal_parameter_count()));
+          jsgraph()->Constant(shared->internal_formal_parameter_count()));
       NodeProperties::ChangeOp(
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
@@ -1905,7 +2003,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Int32Constant(arity));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
                   isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
@@ -2106,6 +2204,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToInteger(node);
     case IrOpcode::kJSToLength:
       return ReduceJSToLength(node);
+    case IrOpcode::kJSToName:
+      return ReduceJSToName(node);
     case IrOpcode::kJSToNumber:
       return ReduceJSToNumber(node);
     case IrOpcode::kJSToString:
@@ -2126,6 +2226,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSLoadModule:
+      return ReduceJSLoadModule(node);
+    case IrOpcode::kJSStoreModule:
+      return ReduceJSStoreModule(node);
     case IrOpcode::kJSConvertReceiver:
       return ReduceJSConvertReceiver(node);
     case IrOpcode::kJSCallConstruct:

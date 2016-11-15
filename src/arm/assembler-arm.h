@@ -1585,7 +1585,8 @@ class Assembler : public AssemblerBase {
       // Check the constant pool hasn't been blocked for too long.
       DCHECK(pending_32_bit_constants_.empty() ||
              (start + pending_64_bit_constants_.size() * kDoubleSize <
-              (first_const_pool_32_use_ + kMaxDistToIntPool)));
+              static_cast<size_t>(first_const_pool_32_use_ +
+                                  kMaxDistToIntPool)));
       DCHECK(pending_64_bit_constants_.empty() ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif

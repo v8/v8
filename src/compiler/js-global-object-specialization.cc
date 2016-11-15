@@ -120,12 +120,10 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   if (property_details.cell_type() == PropertyCellType::kConstantType) {
     // Compute proper type based on the current value in the cell.
     if (property_cell_value->IsSmi()) {
-      property_cell_value_type = type_cache_.kSmi;
+      property_cell_value_type = Type::SignedSmall();
       representation = MachineRepresentation::kTaggedSigned;
     } else if (property_cell_value->IsNumber()) {
-      // TODO(mvstanton): Remove kHeapNumber from type cache, it's just
-      // Type::Number().
-      property_cell_value_type = type_cache_.kHeapNumber;
+      property_cell_value_type = Type::Number();
       representation = MachineRepresentation::kTaggedPointer;
     } else {
       // TODO(turbofan): Track the property_cell_value_map on the FieldAccess

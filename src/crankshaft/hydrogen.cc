@@ -1087,8 +1087,7 @@ void HGraphBuilder::IfBuilder::Then() {
     // so that the graph builder visits it and sees any live range extending
     // constructs within it.
     HConstant* constant_false = builder()->graph()->GetConstantFalse();
-    ToBooleanICStub::Types boolean_type = ToBooleanICStub::Types();
-    boolean_type.Add(ToBooleanICStub::BOOLEAN);
+    ToBooleanHints boolean_type = ToBooleanHint::kBoolean;
     HBranch* branch = builder()->New<HBranch>(
         constant_false, boolean_type, first_true_block_, first_false_block_);
     builder()->FinishCurrentBlock(branch);
@@ -3935,7 +3934,7 @@ void TestContext::BuildBranch(HValue* value) {
   if (value != NULL && value->CheckFlag(HValue::kIsArguments)) {
     builder->Bailout(kArgumentsObjectValueInATestContext);
   }
-  ToBooleanICStub::Types expected(condition()->to_boolean_types());
+  ToBooleanHints expected(condition()->to_boolean_types());
   ReturnControl(owner()->New<HBranch>(value, expected), BailoutId::None());
 }
 
@@ -5045,7 +5044,7 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
   }
 
   HBasicBlock* body_exit = JoinContinue(
-      stmt, stmt->ContinueId(), current_block(), break_info.continue_block());
+      stmt, stmt->IncrementId(), current_block(), break_info.continue_block());
 
   if (body_exit != NULL) {
     set_current_block(body_exit);
@@ -5340,6 +5339,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       LookupIterator it(global, variable->name(), LookupIterator::OWN);
+      it.TryLookupCachedProperty();
       if (CanInlineGlobalPropertyAccess(variable, &it, LOAD)) {
         InlineGlobalPropertyLoad(&it, expr->id());
         return;
@@ -6151,6 +6151,18 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
   }
 
   if (info->IsAccessorConstant()) {
+    MaybeHandle<Name> maybe_name =
+        FunctionTemplateInfo::TryGetCachedPropertyName(isolate(),
+                                                       info->accessor());
+    if (!maybe_name.is_null()) {
+      Handle<Name> name = maybe_name.ToHandleChecked();
+      PropertyAccessInfo cache_info(this, LOAD, info->map(), name);
+      // Load new target.
+      if (cache_info.CanAccessMonomorphic()) {
+        return BuildLoadNamedField(&cache_info, checked_object);
+      }
+    }
+
     Push(checked_object);
     int argument_count = 1;
     if (!info->IsLoad()) {
@@ -7408,6 +7420,16 @@ void HOptimizedGraphBuilder::EnsureArgumentsArePushedForAccess() {
   function_state()->set_arguments_elements(arguments_elements);
 }
 
+bool HOptimizedGraphBuilder::IsAnyParameterContextAllocated() {
+  int count = current_info()->scope()->num_parameters();
+  for (int i = 0; i < count; ++i) {
+    if (current_info()->scope()->parameter(i)->location() ==
+        VariableLocation::CONTEXT) {
+      return true;
+    }
+  }
+  return false;
+}
 
 bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   VariableProxy* proxy = expr->obj()->AsVariableProxy();
@@ -7439,6 +7461,10 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       result = New<HConstant>(argument_count);
     }
   } else {
+    // We need to take into account the KEYED_LOAD_IC feedback to guard the
+    // HBoundsCheck instructions below.
+    if (!expr->IsMonomorphic()) return false;
+    if (IsAnyParameterContextAllocated()) return false;
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->obj(), ARGUMENTS_ALLOWED), true);
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->key()), true);
     HValue* key = Pop();
@@ -8117,11 +8143,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   }
 
   // All declarations must be inlineable.
-  ZoneList<Declaration*>* decls = target_info.scope()->declarations();
-  int decl_count = decls->length();
-  for (int i = 0; i < decl_count; ++i) {
-    if (decls->at(i)->IsFunctionDeclaration() ||
-        !decls->at(i)->proxy()->var()->IsStackAllocated()) {
+  Declaration::List* decls = target_info.scope()->declarations();
+  for (Declaration* decl : *decls) {
+    if (decl->IsFunctionDeclaration() ||
+        !decl->proxy()->var()->IsStackAllocated()) {
       TraceInline(target, caller, "target has non-trivial declaration");
       return false;
     }
@@ -8894,7 +8919,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 
 bool HOptimizedGraphBuilder::TryInlineApiFunctionCall(Call* expr,
                                                       HValue* receiver) {
-  if (FLAG_runtime_call_stats) return false;
+  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
   Handle<JSFunction> function = expr->target();
   int argc = expr->arguments()->length();
   SmallMapList receiver_maps;
@@ -8907,7 +8932,7 @@ bool HOptimizedGraphBuilder::TryInlineApiMethodCall(
     Call* expr,
     HValue* receiver,
     SmallMapList* receiver_maps) {
-  if (FLAG_runtime_call_stats) return false;
+  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
   Handle<JSFunction> function = expr->target();
   int argc = expr->arguments()->length();
   return TryInlineApiCall(function, receiver, receiver_maps, argc, expr->id(),
@@ -8917,7 +8942,7 @@ bool HOptimizedGraphBuilder::TryInlineApiMethodCall(
 bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<Object> function,
                                                 Handle<Map> receiver_map,
                                                 BailoutId ast_id) {
-  if (FLAG_runtime_call_stats) return false;
+  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
   SmallMapList receiver_maps(1, zone());
   receiver_maps.Add(receiver_map, zone());
   return TryInlineApiCall(function,
@@ -8941,7 +8966,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
     Handle<Object> function, HValue* receiver, SmallMapList* receiver_maps,
     int argc, BailoutId ast_id, ApiCallType call_type,
     TailCallMode syntactic_tail_call_mode) {
-  if (FLAG_runtime_call_stats) return false;
+  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
   if (function->IsJSFunction() &&
       Handle<JSFunction>::cast(function)->context()->native_context() !=
           top_info()->closure()->context()->native_context()) {
@@ -10360,28 +10385,23 @@ static Representation RepresentationFor(AstType* type) {
   return Representation::Tagged();
 }
 
-
-HInstruction* HOptimizedGraphBuilder::BuildIncrement(
-    bool returns_original_input,
-    CountOperation* expr) {
+HInstruction* HOptimizedGraphBuilder::BuildIncrement(CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
   Representation rep = RepresentationFor(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
 
-  if (returns_original_input) {
-    // We need an explicit HValue representing ToNumber(input).  The
-    // actual HChange instruction we need is (sometimes) added in a later
-    // phase, so it is not available now to be used as an input to HAdd and
-    // as the return value.
-    HInstruction* number_input = AddUncasted<HForceRepresentation>(Pop(), rep);
-    if (!rep.IsDouble()) {
-      number_input->SetFlag(HInstruction::kFlexibleRepresentation);
-      number_input->SetFlag(HInstruction::kCannotBeTagged);
-    }
-    Push(number_input);
+  // We need an explicit HValue representing ToNumber(input).  The
+  // actual HChange instruction we need is (sometimes) added in a later
+  // phase, so it is not available now to be used as an input to HAdd and
+  // as the return value.
+  HInstruction* number_input = AddUncasted<HForceRepresentation>(Pop(), rep);
+  if (!rep.IsDouble()) {
+    number_input->SetFlag(HInstruction::kFlexibleRepresentation);
+    number_input->SetFlag(HInstruction::kCannotBeTagged);
   }
+  Push(number_input);
 
   // The addition has no side effects, so we do not need
   // to simulate the expression stack after this instruction.
@@ -10440,7 +10460,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
     DCHECK(prop == NULL);
     CHECK_ALIVE(VisitForValue(target));
 
-    after = BuildIncrement(returns_original_input, expr);
+    after = BuildIncrement(expr);
     input = returns_original_input ? Top() : Pop();
     Push(after);
 
@@ -10456,21 +10476,6 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         break;
 
       case VariableLocation::CONTEXT: {
-        // Bail out if we try to mutate a parameter value in a function
-        // using the arguments object.  We do not (yet) correctly handle the
-        // arguments property of the function.
-        if (current_info()->scope()->arguments() != NULL) {
-          // Parameters will rewrite to context slots.  We have no direct
-          // way to detect that the variable is a parameter so we use a
-          // linear search of the parameter list.
-          int count = current_info()->scope()->num_parameters();
-          for (int i = 0; i < count; ++i) {
-            if (var == current_info()->scope()->parameter(i)) {
-              return Bailout(kAssignmentToParameterInArgumentsObject);
-            }
-          }
-        }
-
         HValue* context = BuildContextChainWalk(var);
         HStoreContextSlot::Mode mode = IsLexicalVariableMode(var->mode())
             ? HStoreContextSlot::kCheckDeoptimize : HStoreContextSlot::kNoCheck;
@@ -10508,7 +10513,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   CHECK_ALIVE(PushLoad(prop, object, key));
 
-  after = BuildIncrement(returns_original_input, expr);
+  after = BuildIncrement(expr);
 
   if (returns_original_input) {
     input = Pop();
@@ -11061,7 +11066,7 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // We need an extra block to maintain edge-split form.
     HBasicBlock* empty_block = graph()->CreateBasicBlock();
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
-    ToBooleanICStub::Types expected(expr->left()->to_boolean_types());
+    ToBooleanHints expected(expr->left()->to_boolean_types());
     HBranch* test = is_logical_and
         ? New<HBranch>(left_value, expected, eval_right, empty_block)
         : New<HBranch>(left_value, expected, empty_block, eval_right);
@@ -11821,9 +11826,8 @@ void HOptimizedGraphBuilder::VisitSuperCallReference(SuperCallReference* expr) {
   return Bailout(kSuperReference);
 }
 
-
 void HOptimizedGraphBuilder::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
+    Declaration::List* declarations) {
   DCHECK(globals_.is_empty());
   AstVisitor<HOptimizedGraphBuilder>::VisitDeclarations(declarations);
   if (!globals_.is_empty()) {

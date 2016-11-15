@@ -858,10 +858,19 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           constant_object =
               handle(reinterpret_cast<Smi*>(constant.ToInt32()), isolate());
           DCHECK(constant_object->IsSmi());
+        } else if (type.representation() == MachineRepresentation::kBit) {
+          if (constant.ToInt32() == 0) {
+            constant_object = isolate()->factory()->false_value();
+          } else {
+            DCHECK_EQ(1, constant.ToInt32());
+            constant_object = isolate()->factory()->true_value();
+          }
         } else {
+          // TODO(jarin,bmeurer): We currently pass in raw pointers to the
+          // JSFunction::entry here. We should really consider fixing this.
           DCHECK(type == MachineType::Int32() ||
                  type == MachineType::Uint32() ||
-                 type.representation() == MachineRepresentation::kBit ||
+                 type.representation() == MachineRepresentation::kWord32 ||
                  type.representation() == MachineRepresentation::kNone);
           DCHECK(type.representation() != MachineRepresentation::kNone ||
                  constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
@@ -873,7 +882,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       case Constant::kInt64:
         // When pointers are 8 bytes, we can use int64 constants to represent
         // Smis.
-        DCHECK(type.representation() == MachineRepresentation::kTagged ||
+        // TODO(jarin,bmeurer): We currently pass in raw pointers to the
+        // JSFunction::entry here. We should really consider fixing this.
+        DCHECK(type.representation() == MachineRepresentation::kWord64 ||
+               type.representation() == MachineRepresentation::kTagged ||
                type.representation() == MachineRepresentation::kTaggedSigned);
         DCHECK_EQ(8, kPointerSize);
         constant_object =

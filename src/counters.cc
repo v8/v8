@@ -288,36 +288,38 @@ void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   RuntimeCallCounter* counter = &(stats->*counter_id);
-  timer->Start(counter, stats->current_timer_);
-  stats->current_timer_ = timer;
+  timer->Start(counter, stats->current_timer_.Value());
+  stats->current_timer_.SetValue(timer);
 }
 
 // static
 void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
-  if (stats->current_timer_ == timer) {
-    stats->current_timer_ = timer->Stop();
+  if (stats->current_timer_.Value() == timer) {
+    stats->current_timer_.SetValue(timer->Stop());
   } else {
     // Must be a Threading cctest. Walk the chain of Timers to find the
     // buried one that's leaving. We don't care about keeping nested timings
     // accurate, just avoid crashing by keeping the chain intact.
-    RuntimeCallTimer* next = stats->current_timer_;
-    while (next->parent_ != timer) next = next->parent_;
-    next->parent_ = timer->Stop();
+    RuntimeCallTimer* next = stats->current_timer_.Value();
+    while (next && next->parent() != timer) next = next->parent();
+    if (next == nullptr) return;
+    next->parent_.SetValue(timer->Stop());
   }
 }
 
 // static
 void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
                                                CounterId counter_id) {
-  DCHECK_NOT_NULL(stats->current_timer_);
-  RuntimeCallCounter* counter = &(stats->*counter_id);
-  stats->current_timer_->counter_ = counter;
+  RuntimeCallTimer* timer = stats->current_timer_.Value();
+  // When RCS are enabled dynamically there might be no current timer set up.
+  if (timer == nullptr) return;
+  timer->counter_ = &(stats->*counter_id);
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
-  if (current_timer_ != NULL) {
-    current_timer_->Elapsed();
+  if (current_timer_.Value() != nullptr) {
+    current_timer_.Value()->Elapsed();
   }
 
 #define PRINT_COUNTER(name) entries.Add(&this->name);
@@ -344,9 +346,16 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
-  if (!FLAG_runtime_call_stats &&
-      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())
-    return;
+  if (V8_LIKELY(FLAG_runtime_stats == 0)) return;
+
+  // In tracing, we only what to trace the time spent on top level trace events,
+  // if runtime counter stack is not empty, we should clear the whole runtime
+  // counter stack, and then reset counters so that we can dump counters into
+  // top level trace events accurately.
+  while (current_timer_.Value()) {
+    current_timer_.SetValue(current_timer_.Value()->Stop());
+  }
+
 #define RESET_COUNTER(name) this->name.Reset();
   FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
 #undef RESET_COUNTER
@@ -371,9 +380,6 @@ void RuntimeCallStats::Reset() {
 }
 
 void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
-  if (current_timer_ != NULL) {
-    current_timer_->Elapsed();
-  }
 #define DUMP_COUNTER(name) \
   if (this->name.count > 0) this->name.Dump(value);
   FOR_EACH_MANUAL_COUNTER(DUMP_COUNTER)

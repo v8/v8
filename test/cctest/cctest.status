@@ -68,7 +68,8 @@
   'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
-  'test-api/Threading*': [PASS, NO_VARIANTS],
+  # They are also slow in debug mode.
+  'test-api/Threading*': [PASS, NO_VARIANTS, ['mode == debug', SLOW]],
 
   # BUG(2999). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
@@ -94,10 +95,6 @@
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
@@ -134,8 +131,6 @@
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
-  'test-api/Threading1': [SKIP],
-  'test-api/Threading2': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -167,10 +162,7 @@
   'test-strings/CountBreakIterator': [SKIP],
 
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -229,10 +221,7 @@
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'arch == arm'
 
 ##############################################################################
@@ -256,7 +245,8 @@
 
   # TODO(mips-team): Currently fails on mips board.
   'test-parsing/TooManyArguments': [SKIP],
-  'test-api/Threading3': [SKIP],
+  'test-api/Threading5': [SKIP],
+  'test-api/Threading6': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -329,17 +319,13 @@
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
 ['variant == turbofan_opt', {
-  # TODO(mythria,4680): Lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [FAIL],
-
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
@@ -359,33 +345,16 @@
   'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
   'test-profile-generator/LineNumber': [FAIL],
   'test-sampler-api/StackFramesConsistent': [FAIL],
+
+  # BUG(v8:5457)
+  'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
 }],  # variant == turbofan_opt
 
 ##############################################################################
 ['variant == ignition', {
-  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(mythria,4680): Lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [FAIL],
-
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-
-  # BUG(4751). Flaky with ignition.
-  'test-cpu-profiler/JsNativeJsSample': [PASS, FAIL],
-
-  # TODO(ignition): Fails due to missing type info when optimizing from bytecode
-  # with crankshaft.
-  'test-cpu-profiler/TickLinesOptimized': [SKIP],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
@@ -396,11 +365,6 @@
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
-  'test-heap/Regress169209': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
@@ -408,16 +372,6 @@
 
 ##############################################################################
 ['variant == turbofan or variant == ignition_turbofan', {
-  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(mythria,4680): Lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [FAIL],
-
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
@@ -432,6 +386,9 @@
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
+
+  # TODO(vogelheim,5548): Turbofan does support cached accessors.
+  'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],

@@ -791,7 +791,7 @@ TEST(BytecodeArray) {
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.
   Page* evac_page = Page::FromAddress(constant_pool->address());
-  evac_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(evac_page);
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   // BytecodeArray should survive.
@@ -1279,8 +1279,10 @@ UNINITIALIZED_TEST(TestCodeFlushing) {
     }
 
     // foo should no longer be in the compilation cache
-    CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-    CHECK(!function->is_compiled() || function->IsOptimized());
+    CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+          function->IsInterpreted());
+    CHECK(!function->is_compiled() || function->IsOptimized() ||
+          function->IsInterpreted());
     // Call foo to get it recompiled.
     CompileRun("foo()");
     CHECK(function->shared()->is_compiled());
@@ -1327,7 +1329,8 @@ TEST(TestCodeFlushingPreAged) {
   // The code was only run once, so it should be pre-aged and collected on the
   // next GC.
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
 
   // Execute the function again twice, and ensure it is reset to the young age.
   { v8::HandleScope scope(CcTest::isolate());
@@ -1347,8 +1350,10 @@ TEST(TestCodeFlushingPreAged) {
   }
 
   // foo should no longer be in the compilation cache
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-  CHECK(!function->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
+  CHECK(!function->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
   // Call foo to get it recompiled.
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
@@ -1396,8 +1401,10 @@ TEST(TestCodeFlushingIncremental) {
     heap::SimulateIncrementalMarking(CcTest::heap());
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   }
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-  CHECK(!function->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
+  CHECK(!function->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
 
   // This compile will compile the function again.
   { v8::HandleScope scope(CcTest::isolate());
@@ -1490,8 +1497,10 @@ TEST(TestCodeFlushingIncrementalScavenge) {
 
   // Simulate one final GC to make sure the candidate queue is sane.
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
-  CHECK(!function->is_compiled() || function->IsOptimized());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
+  CHECK(!function->is_compiled() || function->IsOptimized() ||
+        function->IsInterpreted());
 }
 
 
@@ -1606,6 +1615,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this
   // test is invalid.
+  i::FLAG_allow_natives_syntax = true;
   if (!FLAG_flush_code || !FLAG_compilation_cache) {
     return;
   }
@@ -1622,7 +1632,7 @@ TEST(CompilationCacheCachingBehavior) {
       "  var y = 42;"
       "  var z = x + y;"
       "};"
-      "foo()";
+      "foo();";
   Handle<String> source = factory->InternalizeUtf8String(raw_source);
   Handle<Context> native_context = isolate->native_context();
 
@@ -4078,6 +4088,7 @@ TEST(Regress165495) {
 
 
 TEST(Regress169209) {
+  i::FLAG_always_opt = false;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 
@@ -4095,11 +4106,15 @@ TEST(Regress169209) {
   {
     HandleScope inner_scope(isolate);
     LocalContext env;
-    CompileRun("function f() { return 'foobar'; }"
-               "function g(x) { if (x) f(); }"
-               "f();"
-               "g(false);"
-               "g(false);");
+    CompileRun(
+        "function f() { return 'foobar'; }"
+        "function g(x) { if (x) f(); }"
+        "f();"
+        "%BaselineFunctionOnNextCall(f);"
+        "f();"
+        "g(false);"
+        "%BaselineFunctionOnNextCall(g);"
+        "g(false);");
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -4119,8 +4134,11 @@ TEST(Regress169209) {
   {
     HandleScope inner_scope(isolate);
     LocalContext env;
-    CompileRun("function flushMe() { return 0; }"
-               "flushMe(1);");
+    CompileRun(
+        "function flushMe() { return 0; }"
+        "flushMe(1);"
+        "%BaselineFunctionOnNextCall(flushMe);"
+        "flushMe(1);");
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CcTest::global()
@@ -4358,7 +4376,7 @@ TEST(Regress514122) {
   // Heap is ready, force {lit_page} to become an evacuation candidate and
   // simulate incremental marking to enqueue optimized code map.
   FLAG_manual_evacuation_candidates_selection = true;
-  evac_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(evac_page);
   heap::SimulateIncrementalMarking(heap);
 
   // No matter whether reachable or not, {boomer} is doomed.
@@ -4557,7 +4575,7 @@ TEST(LargeObjectSlotRecording) {
   heap::SimulateFullSpace(heap->old_space());
   Handle<FixedArray> lit = isolate->factory()->NewFixedArray(4, TENURED);
   Page* evac_page = Page::FromAddress(lit->address());
-  evac_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(evac_page);
   FixedArray* old_location = *lit;
 
   // Allocate a large object.
@@ -5563,8 +5581,7 @@ HEAP_TEST(Regress538257) {
                     heap->CanExpandOldGeneration(old_space->AreaSize());
          i++) {
       objects[i] = i_isolate->factory()->NewFixedArray(kFixedArrayLen, TENURED);
-      Page::FromAddress(objects[i]->address())
-          ->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      heap::ForceEvacuationCandidate(Page::FromAddress(objects[i]->address()));
     }
     heap::SimulateFullSpace(old_space);
     heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
@@ -5715,13 +5732,13 @@ TEST(Regress388880) {
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
-  int desired_offset = Page::kPageSize - map1->instance_size();
+  size_t desired_offset = Page::kPageSize - map1->instance_size();
 
   // Allocate padding objects in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
   heap::SimulateFullSpace(heap->old_space());
-  int padding_size = desired_offset - Page::kObjectStartOffset;
-  heap::CreatePadding(heap, padding_size, TENURED);
+  size_t padding_size = desired_offset - Page::kObjectStartOffset;
+  heap::CreatePadding(heap, static_cast<int>(padding_size), TENURED);
 
   Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
   o->set_properties(*factory->empty_fixed_array());
@@ -6409,30 +6426,6 @@ TEST(Regress519319) {
 }
 
 
-HEAP_TEST(TestMemoryReducerSampleJsCalls) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Heap* heap = CcTest::heap();
-  Isolate* isolate = CcTest::i_isolate();
-  MemoryReducer* memory_reducer = heap->memory_reducer_;
-  memory_reducer->SampleAndGetJsCallsPerMs(0);
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  double calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(1);
-  CheckDoubleEquals(3, calls_per_ms);
-
-  calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(2);
-  CheckDoubleEquals(0, calls_per_ms);
-
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  isolate->IncrementJsCallsFromApiCounter();
-  calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(4);
-  CheckDoubleEquals(2, calls_per_ms);
-}
-
 HEAP_TEST(Regress587004) {
   FLAG_concurrent_sweeping = false;
 #ifdef VERIFY_HEAP
@@ -6526,7 +6519,7 @@ HEAP_TEST(Regress589413) {
       AlwaysAllocateScope always_allocate(isolate);
       Handle<HeapObject> ec_obj = factory->NewFixedArray(5000, TENURED);
       Page* ec_page = Page::FromAddress(ec_obj->address());
-      ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      heap::ForceEvacuationCandidate(ec_page);
       // Make all arrays point to evacuation candidate so that
       // slots are recorded for them.
       for (size_t j = 0; j < arrays.size(); j++) {
@@ -6733,8 +6726,7 @@ TEST(Regress631969) {
   heap::SimulateFullSpace(heap->old_space());
   Handle<String> s1 = factory->NewStringFromStaticChars("123456789", TENURED);
   Handle<String> s2 = factory->NewStringFromStaticChars("01234", TENURED);
-  Page::FromAddress(s1->address())
-      ->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(Page::FromAddress(s1->address()));
 
   heap::SimulateIncrementalMarking(heap, false);
 

@@ -330,10 +330,12 @@ const AstValue* AstValueFactory::NewNumber(double number, bool with_dot) {
   return AddValue(value);
 }
 
+const AstValue* AstValueFactory::NewSmi(uint32_t number) {
+  bool cacheable_smi = number <= kMaxCachedSmi;
+  if (cacheable_smi && smis_[number] != nullptr) return smis_[number];
 
-const AstValue* AstValueFactory::NewSmi(int number) {
-  AstValue* value =
-      new (zone_) AstValue(AstValue::SMI, number);
+  AstValue* value = new (zone_) AstValue(AstValue::SMI, number);
+  if (cacheable_smi) smis_[number] = value;
   return AddValue(value);
 }
 

@@ -2238,6 +2238,9 @@ TEST(Modules) {
       "export {foo as goo} from \"bar\"\n",
 
       "export * from \"bar\"\n",
+
+      "import * as foo from \"bar\"\n"
+      "foo.f(foo, foo.x);\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

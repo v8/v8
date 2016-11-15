@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-const auto GetRegConfig = RegisterConfiguration::Turbofan;
+const RegisterConfiguration* (*GetRegConfig)() =
+    RegisterConfiguration::Turbofan;
 
 FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
   switch (condition) {
@@ -813,6 +814,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       next_virtual_register_(0),
       reference_maps_(zone()),
       representations_(zone()),
+      representation_mask_(0),
       deoptimization_entries_(zone()),
       current_block_(nullptr) {}
 
@@ -918,6 +920,7 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
   DCHECK_IMPLIES(representations_[virtual_register] != rep,
                  representations_[virtual_register] == DefaultRepresentation());
   representations_[virtual_register] = rep;
+  representation_mask_ |= 1 << static_cast<int>(rep);
 }
 
 int InstructionSequence::AddDeoptimizationEntry(
@@ -979,6 +982,11 @@ void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
 
 void InstructionSequence::PrintBlock(int block_id) const {
   PrintBlock(GetRegConfig(), block_id);
+}
+
+const RegisterConfiguration*
+InstructionSequence::GetRegisterConfigurationForTesting() {
+  return GetRegConfig();
 }
 
 FrameStateDescriptor::FrameStateDescriptor(

@@ -58,7 +58,6 @@ bool ScopeInfo::Equals(ScopeInfo* other) const {
 Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
                                     MaybeHandle<ScopeInfo> outer_scope) {
   // Collect variables.
-  ZoneList<Variable*>* locals = scope->locals();
   int stack_local_count = 0;
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -67,8 +66,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   // slot index indicates at which offset a particular scope starts in the
   // parent declaration scope.
   int first_slot_index = 0;
-  for (int i = 0; i < locals->length(); i++) {
-    Variable* var = locals->at(i);
+  for (Variable* var : *scope->locals()) {
     switch (var->location()) {
       case VariableLocation::LOCAL:
         if (stack_local_count == 0) first_slot_index = var->index();
@@ -199,8 +197,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   int context_local_info_base = context_local_base + context_local_count;
   int module_var_entry = scope_info->ModuleVariablesIndex();
 
-  for (int i = 0; i < locals->length(); ++i) {
-    Variable* var = locals->at(i);
+  for (Variable* var : *scope->locals()) {
     switch (var->location()) {
       case VariableLocation::LOCAL: {
         int local_index = var->index() - first_slot_index;
@@ -656,7 +653,7 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
     entry += kModuleVariableEntryLength;
   }
 
-  return -1;
+  return 0;
 }
 
 int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
@@ -808,6 +805,7 @@ void ScopeInfo::ModuleVariable(int i, String** name, int* index,
   }
   if (index != nullptr) {
     *index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+    DCHECK_NE(*index, 0);
   }
   if (mode != nullptr) {
     *mode = VariableModeField::decode(properties);
@@ -869,15 +867,17 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              Handle<Object> export_name,
                                              Handle<Object> local_name,
                                              Handle<Object> import_name,
-                                             Handle<Object> module_request,
+                                             int module_request, int cell_index,
                                              int beg_pos, int end_pos) {
-  Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
-  result->set(kExportNameIndex, *export_name);
-  result->set(kLocalNameIndex, *local_name);
-  result->set(kImportNameIndex, *import_name);
-  result->set(kModuleRequestIndex, *module_request);
-  result->set(kBegPosIndex, Smi::FromInt(beg_pos));
-  result->set(kEndPosIndex, Smi::FromInt(end_pos));
+  Handle<ModuleInfoEntry> result = Handle<ModuleInfoEntry>::cast(
+      isolate->factory()->NewStruct(MODULE_INFO_ENTRY_TYPE));
+  result->set_export_name(*export_name);
+  result->set_local_name(*local_name);
+  result->set_import_name(*import_name);
+  result->set_module_request(module_request);
+  result->set_cell_index(cell_index);
+  result->set_beg_pos(beg_pos);
+  result->set_end_pos(end_pos);
   return result;
 }
 
@@ -935,6 +935,27 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
   return result;
+}
+
+int ModuleInfo::RegularExportCount() const {
+  DCHECK_EQ(regular_exports()->length() % kRegularExportLength, 0);
+  return regular_exports()->length() / kRegularExportLength;
+}
+
+String* ModuleInfo::RegularExportLocalName(int i) const {
+  return String::cast(regular_exports()->get(i * kRegularExportLength +
+                                             kRegularExportLocalNameOffset));
+}
+
+int ModuleInfo::RegularExportCellIndex(int i) const {
+  return Smi::cast(regular_exports()->get(i * kRegularExportLength +
+                                          kRegularExportCellIndexOffset))
+      ->value();
+}
+
+FixedArray* ModuleInfo::RegularExportExportNames(int i) const {
+  return FixedArray::cast(regular_exports()->get(
+      i * kRegularExportLength + kRegularExportExportNamesOffset));
 }
 
 Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(

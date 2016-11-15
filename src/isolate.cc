@@ -42,6 +42,7 @@
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
 #include "src/snapshot/deserializer.h"
+#include "src/tracing/tracing-category-observer.h"
 #include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -1774,6 +1775,9 @@ void Isolate::PopPromise() {
 bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
   Handle<JSFunction> fun = promise_has_user_defined_reject_handler();
   Handle<Object> has_reject_handler;
+  // If we are, e.g., overflowing the stack, don't try to call out to JS
+  if (!AllowJavascriptExecution::IsAllowed(this)) return false;
+  // Call the registered function to check for a handler
   if (Execution::TryCall(this, fun, promise, 0, NULL)
           .ToHandle(&has_reject_handler)) {
     return has_reject_handler->IsTrue(this);
@@ -2119,7 +2123,6 @@ Isolate::Isolate(bool enable_serializer)
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
       next_optimization_id_(0),
-      js_calls_from_api_counter_(0),
 #if TRACE_MAPS
       next_unique_sfi_id_(0),
 #endif
@@ -2737,8 +2740,8 @@ void Isolate::DumpAndResetCompilationStats() {
   turbo_statistics_ = nullptr;
   delete hstatistics_;
   hstatistics_ = nullptr;
-  if (FLAG_runtime_call_stats &&
-      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED()) {
+  if (V8_UNLIKELY(FLAG_runtime_stats ==
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     OFStream os(stdout);
     counters()->runtime_call_stats()->Print(os);
     counters()->runtime_call_stats()->Reset();
@@ -3254,9 +3257,8 @@ void Isolate::RunMicrotasksInternal() {
         if (microtask->IsJSFunction()) {
           context = Handle<JSFunction>::cast(microtask)->context();
         } else if (microtask->IsPromiseResolveThenableJobInfo()) {
-          context = Handle<PromiseResolveThenableJobInfo>::cast(microtask)
-                        ->resolve()
-                        ->context();
+          context =
+              Handle<PromiseResolveThenableJobInfo>::cast(microtask)->context();
         } else {
           context = Handle<PromiseReactionJobInfo>::cast(microtask)->context();
         }

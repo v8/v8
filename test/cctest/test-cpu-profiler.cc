@@ -1030,7 +1030,6 @@ static void TickLines(bool optimize) {
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_turbo_source_positions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);

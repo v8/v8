@@ -227,16 +227,13 @@ class ParserBase {
   const Impl* impl() const { return static_cast<const Impl*>(this); }
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
-             v8::Extension* extension, AstValueFactory* ast_value_factory,
-             ParserRecorder* log)
+             v8::Extension* extension, AstValueFactory* ast_value_factory)
       : scope_state_(nullptr),
         function_state_(nullptr),
         extension_(extension),
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory),
-        log_(log),
-        mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         parsing_module_(false),
         stack_limit_(stack_limit),
         zone_(zone),
@@ -247,7 +244,6 @@ class ParserBase {
         allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
-        allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
@@ -263,7 +259,6 @@ class ParserBase {
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(tailcalls);
-  ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
@@ -296,8 +291,6 @@ class ParserBase {
     kAllowRestrictedIdentifiers,
     kDontAllowRestrictedIdentifiers
   };
-
-  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
 
   enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
 
@@ -633,22 +626,6 @@ class ParserBase {
     int expected_property_count_;
   };
 
-  class ParsingModeScope BASE_EMBEDDED {
-   public:
-    ParsingModeScope(ParserBase* parser, Mode mode)
-        : parser_(parser),
-          old_mode_(parser->mode()) {
-      parser_->mode_ = mode;
-    }
-    ~ParsingModeScope() {
-      parser_->mode_ = old_mode_;
-    }
-
-   private:
-    ParserBase* parser_;
-    Mode old_mode_;
-  };
-
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER };
     Scope* scope;
@@ -795,7 +772,6 @@ class ParserBase {
   int peek_position() const { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
-  Mode mode() const { return mode_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -1534,8 +1510,6 @@ class ParserBase {
   FuncNameInferrer* fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
-  ParserRecorder* log_;
-  Mode mode_;
   bool parsing_module_;
   uintptr_t stack_limit_;
 
@@ -1553,7 +1527,6 @@ class ParserBase {
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
-  bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
@@ -2533,7 +2506,7 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
       initializer_state.expected_property_count(), 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
-      initializer_scope->start_position());
+      initializer_scope->start_position(), true);
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
@@ -4049,13 +4022,10 @@ ParserBase<Impl>::ParseFunctionDeclaration(bool ambient, bool* ok) {
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
   if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-    if (allow_harmony_restrictive_declarations()) {
-      impl()->ReportMessageAt(scanner()->location(),
-                              MessageTemplate::kGeneratorInLegacyContext);
-      *ok = false;
-      return impl()->NullStatement();
-    }
+    impl()->ReportMessageAt(scanner()->location(),
+                            MessageTemplate::kGeneratorInLegacyContext);
+    *ok = false;
+    return impl()->NullStatement();
   }
   return ParseHoistableDeclaration(pos, flags, nullptr, false, ambient, ok);
 }
@@ -4314,13 +4284,14 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       default_eager_compile_hint_;
-  bool can_preparse = mode() == PARSE_LAZILY &&
+  bool can_preparse = impl()->parse_lazily() &&
                       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
   // handling in Scope::ResolveVariable needs to change.
   bool is_lazy_top_level_function =
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool should_be_used_once_hint = false;
+  bool has_braces = true;
   {
     FunctionState function_state(&function_state_, &scope_state_,
                                  formal_parameters.scope);
@@ -4334,14 +4305,24 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
     if (peek() == Token::LBRACE) {
       // Multiple statement body
-      Consume(Token::LBRACE);
       DCHECK_EQ(scope(), formal_parameters.scope);
       if (is_lazy_top_level_function) {
+        // FIXME(marja): Arrow function parameters will be parsed even if the
+        // body is preparsed; move relevant parts of parameter handling to
+        // simulate consistent parameter handling.
         Scanner::BookmarkScope bookmark(scanner());
         bookmark.Set();
-        LazyParsingResult result = impl()->SkipLazyFunctionBody(
-            &materialized_literal_count, &expected_property_count, false, true,
-            CHECK_OK);
+        // For arrow functions, we don't need to retrieve data about function
+        // parameters.
+        int dummy_num_parameters = -1;
+        int dummy_function_length = -1;
+        bool dummy_has_duplicate_parameters = false;
+        DCHECK((kind & FunctionKind::kArrowFunction) != 0);
+        LazyParsingResult result = impl()->SkipFunction(
+            kind, formal_parameters.scope, &dummy_num_parameters,
+            &dummy_function_length, &dummy_has_duplicate_parameters,
+            &materialized_literal_count, &expected_property_count, false,
+            typesystem::kNormalTypes, true, CHECK_OK);
         formal_parameters.scope->ResetAfterPreparsing(
             ast_value_factory_, result == kLazyParsingAborted);
 
@@ -4363,6 +4344,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         }
       }
       if (!is_lazy_top_level_function) {
+        Consume(Token::LBRACE);
         body = impl()->ParseEagerFunctionBody(
             impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
             kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
@@ -4372,6 +4354,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       }
     } else {
       // Single-expression body
+      has_braces = false;
       int pos = position();
       DCHECK(ReturnExprContext::kInsideValidBlock ==
              function_state_->return_expr_context());
@@ -4390,7 +4373,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         ExpressionT expression = ParseAssignmentExpression(
             accept_IN, typesystem::kNoCover, CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
-        body->Add(factory()->NewReturnStatement(expression, pos), zone());
+        body->Add(
+            factory()->NewReturnStatement(expression, expression->position()),
+            zone());
         if (allow_tailcalls() && !is_sloppy(language_mode())) {
           // ES6 14.6.1 Static Semantics: IsInTailPosition
           impl()->MarkTailPosition(expression);
@@ -4421,13 +4406,19 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     impl()->RewriteDestructuringAssignments();
   }
 
+  if (FLAG_trace_preparse) {
+    Scope* scope = formal_parameters.scope;
+    PrintF("  [%s]: %i-%i (arrow function)\n",
+           is_lazy_top_level_function ? "Preparse no-resolution" : "Full parse",
+           scope->start_position(), scope->end_position());
+  }
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
       materialized_literal_count, expected_property_count,
       formal_parameters.num_parameters(), formal_parameters.function_length,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, eager_compile_hint,
-      formal_parameters.scope->start_position());
+      formal_parameters.scope->start_position(), has_braces);
 
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());
@@ -4827,11 +4818,6 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
           *ok = false;
           return kLazyParsingComplete;
         }
-        // Because declarations in strict eval code don't leak into the scope
-        // of the eval call, it is likely that functions declared in strict
-        // eval code will be used within the eval code, so lazy parsing is
-        // probably not a win.
-        if (scope()->is_eval_scope()) mode_ = PARSE_EAGERLY;
       } else if (impl()->IsUseAsmDirective(stat) &&
                  token_loc.end_pos - token_loc.beg_pos ==
                      sizeof("use asm") + 1) {
@@ -5097,8 +5083,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     ZoneList<const AstRawString*>* labels, bool legacy, bool* ok) {
-  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
-      (legacy && allow_harmony_restrictive_declarations())) {
+  if (is_strict(language_mode()) || peek() != Token::FUNCTION || legacy) {
     return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
   } else {
     if (legacy) {

@@ -362,7 +362,7 @@ void BytecodeGenerator::ControlScope::PerformCommand(Command command,
       return;
     }
     current = current->outer();
-    if (current->context() != context) {
+    if (current->context() != context && context->ShouldPopContext()) {
       // Pop context to the expected depth.
       // TODO(rmcilroy): Only emit a single context pop.
       generator()->builder()->PopContext(current->context()->reg());
@@ -907,13 +907,12 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
   }
 }
 
-void BytecodeGenerator::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
+void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   RegisterAllocationScope register_scope(this);
   DCHECK(globals_builder()->empty());
-  for (int i = 0; i < declarations->length(); i++) {
+  for (Declaration* decl : *declarations) {
     RegisterAllocationScope register_scope(this);
-    Visit(declarations->at(i));
+    Visit(decl);
   }
   if (globals_builder()->empty()) return;
 
@@ -1866,26 +1865,8 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::MODULE: {
-      ModuleDescriptor* descriptor = scope()->GetModuleScope()->module();
-      if (variable->IsExport()) {
-        auto it = descriptor->regular_exports().find(variable->raw_name());
-        DCHECK(it != descriptor->regular_exports().end());
-        Register export_name = register_allocator()->NewRegister();
-        builder()
-            ->LoadLiteral(it->second->export_name->string())
-            .StoreAccumulatorInRegister(export_name)
-            .CallRuntime(Runtime::kLoadModuleExport, export_name);
-      } else {
-        auto it = descriptor->regular_imports().find(variable->raw_name());
-        DCHECK(it != descriptor->regular_imports().end());
-        RegisterList args = register_allocator()->NewRegisterList(2);
-        builder()
-            ->LoadLiteral(it->second->import_name->string())
-            .StoreAccumulatorInRegister(args[0])
-            .LoadLiteral(Smi::FromInt(it->second->module_request))
-            .StoreAccumulatorInRegister(args[1])
-            .CallRuntime(Runtime::kLoadModuleImport, args);
-      }
+      int depth = execution_context()->ContextChainDepth(variable->scope());
+      builder()->LoadModuleVariable(variable->index(), depth);
       if (hole_check_mode == HoleCheckMode::kRequired) {
         BuildThrowIfHole(variable->name());
       }
@@ -2053,24 +2034,16 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
       // assignments for them.
       DCHECK(variable->IsExport());
 
-      ModuleDescriptor* mod = scope()->GetModuleScope()->module();
-      // There may be several export names for this local name, but it doesn't
-      // matter which one we pick, as they all map to the same cell.
-      auto it = mod->regular_exports().find(variable->raw_name());
-      DCHECK(it != mod->regular_exports().end());
-
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->StoreAccumulatorInRegister(args[1])
-          .LoadLiteral(it->second->export_name->string())
-          .StoreAccumulatorInRegister(args[0]);
+      int depth = execution_context()->ContextChainDepth(variable->scope());
       if (hole_check_mode == HoleCheckMode::kRequired) {
-        builder()->CallRuntime(Runtime::kLoadModuleExport, args[0]);
+        Register value_temp = register_allocator()->NewRegister();
+        builder()
+            ->StoreAccumulatorInRegister(value_temp)
+            .LoadModuleVariable(variable->index(), depth);
         BuildHoleCheckForVariableAssignment(variable, op);
+        builder()->LoadAccumulatorWithRegister(value_temp);
       }
-      builder()
-          ->CallRuntime(Runtime::kStoreModuleExport, args)
-          .LoadAccumulatorWithRegister(args[1]);
+      builder()->StoreModuleVariable(variable->index(), depth);
       break;
     }
   }
@@ -2751,7 +2724,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (is_postfix) {
     // Convert old value into a number before saving it.
     old_value = register_allocator()->NewRegister();
-    builder()->ConvertAccumulatorToNumber(old_value);
+    builder()
+        ->ConvertAccumulatorToNumber(old_value)
+        .LoadAccumulatorWithRegister(old_value);
   }
 
   // Perform +1/-1 operation.
@@ -2864,7 +2839,7 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
 
-    if (left->ToBooleanIsTrue() || right->ToBooleanIsTrue()) {
+    if (left->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
     } else if (left->ToBooleanIsFalse() && right->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
@@ -2899,7 +2874,7 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
 
-    if (left->ToBooleanIsFalse() || right->ToBooleanIsFalse()) {
+    if (left->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
     } else if (left->ToBooleanIsTrue() && right->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());

@@ -241,7 +241,6 @@ var SourceLocation;
  *    source_mapping_url: (string|undefined),
  *    is_debugger_script: boolean,
  *    source: string,
- *    line_ends: !Array<number>,
  *    line_offset: number,
  *    column_offset: number,
  *    nameOrSourceURL: function():string,

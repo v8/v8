@@ -962,6 +962,14 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
   return context;
 }
 
+Handle<Context> Factory::NewPromiseResolvingFunctionContext(int length) {
+  DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
+  Handle<FixedArray> array = NewFixedArray(length);
+  array->set_map_no_write_barrier(*function_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_extension(*the_hole_value());
+  return context;
+}
 
 Handle<Struct> Factory::NewStruct(InstanceType type) {
   CALL_HEAP_FUNCTION(
@@ -973,7 +981,8 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
     Handle<JSReceiver> thenable, Handle<JSReceiver> then,
     Handle<JSFunction> resolve, Handle<JSFunction> reject,
-    Handle<Object> debug_id, Handle<Object> debug_name) {
+    Handle<Object> debug_id, Handle<Object> debug_name,
+    Handle<Context> context) {
   Handle<PromiseResolveThenableJobInfo> result =
       Handle<PromiseResolveThenableJobInfo>::cast(
           NewStruct(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE));
@@ -983,6 +992,7 @@ Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
   result->set_reject(*reject);
   result->set_debug_id(*debug_id);
   result->set_debug_name(*debug_name);
+  result->set_context(*context);
   return result;
 }
 
@@ -1512,12 +1522,6 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   return scope_info;
 }
 
-Handle<ModuleInfoEntry> Factory::NewModuleInfoEntry() {
-  Handle<FixedArray> array = NewFixedArray(ModuleInfoEntry::kLength, TENURED);
-  array->set_map_no_write_barrier(*module_info_entry_map());
-  return Handle<ModuleInfoEntry>::cast(array);
-}
-
 Handle<ModuleInfo> Factory::NewModuleInfo() {
   Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
   array->set_map_no_write_barrier(*module_info_map());
@@ -1637,16 +1641,6 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
 }
 
-
-Handle<JSObject> Factory::NewJSObjectWithMemento(
-    Handle<JSFunction> constructor,
-    Handle<AllocationSite> site) {
-  JSFunction::EnsureHasInitialMap(constructor);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObject(*constructor, NOT_TENURED, *site),
-      JSObject);
-}
 
 Handle<JSObject> Factory::NewJSObjectWithNullProto() {
   Handle<JSObject> result = NewJSObject(isolate()->object_function());
@@ -1822,7 +1816,11 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   Handle<ModuleInfo> module_info(code->scope_info()->ModuleDescriptorInfo(),
                                  isolate());
   Handle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate(), module_info->regular_exports()->length());
+      ObjectHashTable::New(isolate(), module_info->RegularExportCount());
+  Handle<FixedArray> regular_exports =
+      NewFixedArray(module_info->RegularExportCount());
+  Handle<FixedArray> regular_imports =
+      NewFixedArray(module_info->regular_imports()->length());
   int requested_modules_length = module_info->module_requests()->length();
   Handle<FixedArray> requested_modules =
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
@@ -1831,6 +1829,8 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
   module->set_exports(*exports);
+  module->set_regular_exports(*regular_exports);
+  module->set_regular_imports(*regular_imports);
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
@@ -2178,12 +2178,10 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
   return result;
 }
 
-
-Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy() {
+Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
   // via ReinitializeJSGlobalProxy later.
-  Handle<Map> map =
-      NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSizeWithInternalFields);
+  Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, size);
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
   CALL_HEAP_FUNCTION(

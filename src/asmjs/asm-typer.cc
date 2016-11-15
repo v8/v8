@@ -567,7 +567,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   module_name_ = fun->name();
 
   // Allowed parameters: Stdlib, FFI, Mem
-  static const uint32_t MaxModuleParameters = 3;
+  static const int MaxModuleParameters = 3;
   if (scope->num_parameters() > MaxModuleParameters) {
     FAIL(fun, "asm.js modules may not have more than three parameters.");
   }
@@ -647,11 +647,8 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
     FAIL(current, "Invalid top-level statement in asm.js module.");
   }
 
-  ZoneList<Declaration*>* decls = scope->declarations();
-
-  for (int ii = 0; ii < decls->length(); ++ii) {
-    Declaration* decl = decls->at(ii);
-
+  Declaration::List* decls = scope->declarations();
+  for (Declaration* decl : *decls) {
     if (FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration()) {
       RECURSE(ValidateFunction(fun_decl));
       source_layout.AddFunction(*fun_decl);
@@ -664,9 +661,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
     source_layout.AddTable(*function_table);
   }
 
-  for (int ii = 0; ii < decls->length(); ++ii) {
-    Declaration* decl = decls->at(ii);
-
+  for (Declaration* decl : *decls) {
     if (decl->IsFunctionDeclaration()) {
       continue;
     }
@@ -1022,7 +1017,7 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
     FAIL(assign, "Identifier redefined (function table name).");
   }
 
-  if (target_info_table->length() != pointers->length()) {
+  if (static_cast<int>(target_info_table->length()) != pointers->length()) {
     FAIL(assign, "Function table size mismatch.");
   }
 
@@ -1076,7 +1071,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     }
     auto* param = proxy->var();
     if (param->location() != VariableLocation::PARAMETER ||
-        param->index() != annotated_parameters) {
+        param->index() != static_cast<int>(annotated_parameters)) {
       // Done with parameters.
       break;
     }
@@ -1098,7 +1093,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     SetTypeOf(expr, type);
   }
 
-  if (annotated_parameters != fun->parameter_count()) {
+  if (static_cast<int>(annotated_parameters) != fun->parameter_count()) {
     FAIL(fun_decl, "Incorrect parameter type annotations.");
   }
 
@@ -1161,7 +1156,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
 
   DCHECK(return_type_->IsReturnType());
 
-  for (auto* decl : *fun->scope()->declarations()) {
+  for (Declaration* decl : *fun->scope()->declarations()) {
     auto* var_decl = decl->AsVariableDeclaration();
     if (var_decl == nullptr) {
       FAIL(decl, "Functions may only define inner variables.");
@@ -2716,6 +2711,10 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
 
     if (var_info->mutability() != VariableInfo::kConstGlobal) {
       FAIL(statement, "Identifier in return statement is not const.");
+    }
+
+    if (!var_info->type()->IsReturnType()) {
+      FAIL(statement, "Constant in return must be signed, float, or double.");
     }
 
     return var_info->type();

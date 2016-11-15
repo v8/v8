@@ -85,10 +85,8 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
                     store_.LookupBounds(parameter_index(i)).lower);
     }
 
-    ZoneList<Variable*>* local_vars = scope_->locals();
     int local_index = 0;
-    for (int i = 0; i < local_vars->length(); i++) {
-      Variable* var = local_vars->at(i);
+    for (Variable* var : *scope_->locals()) {
       if (var->IsStackLocal()) {
         PrintObserved(
             var, frame->GetExpression(local_index),
@@ -781,9 +779,8 @@ int AstTyper::variable_index(Variable* var) {
              : var->IsParameter() ? parameter_index(var->index()) : kNoVar;
 }
 
-void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
-  for (int i = 0; i < decls->length(); ++i) {
-    Declaration* decl = decls->at(i);
+void AstTyper::VisitDeclarations(Declaration::List* decls) {
+  for (Declaration* decl : *decls) {
     RECURSE(Visit(decl));
   }
 }

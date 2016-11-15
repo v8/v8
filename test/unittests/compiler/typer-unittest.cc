@@ -373,20 +373,6 @@ TEST_BINARY_MONOTONICITY(Divide)
 TEST_BINARY_MONOTONICITY(Modulus)
 #undef TEST_BINARY_MONOTONICITY
 
-
-//------------------------------------------------------------------------------
-// Regression tests
-
-
-TEST_F(TyperTest, TypeRegressInt32Constant) {
-  int values[] = {-5, 10};
-  for (auto i : values) {
-    Node* c = graph()->NewNode(common()->Int32Constant(i));
-    Type* type = NodeProperties::GetType(c);
-    EXPECT_TRUE(type->Is(NewRange(i, i)));
-  }
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

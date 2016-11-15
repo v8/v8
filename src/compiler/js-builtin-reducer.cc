@@ -96,14 +96,29 @@ class JSCallReduction {
 
 JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
                                    Flags flags,
-                                   CompilationDependencies* dependencies)
+                                   CompilationDependencies* dependencies,
+                                   Handle<Context> native_context)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      native_context_(native_context),
       type_cache_(TypeCache::Get()) {}
 
 namespace {
+
+// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
+// alias analyzer?
+bool IsSame(Node* a, Node* b) {
+  if (a == b) {
+    return true;
+  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a->InputAt(0), b);
+  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a, b->InputAt(0));
+  }
+  return false;
+}
 
 MaybeHandle<Map> GetMapWitness(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -112,7 +127,7 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   // for the {receiver}, and if so use that map for the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       if (dominator->op()->ValueInputCount() == 2) {
         HeapObjectMatcher m(dominator->InputAt(1));
         if (m.HasValue()) return Handle<Map>::cast(m.Value());
@@ -329,7 +344,7 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
                             InstanceType instance_type) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       // Check if all maps have the given {instance_type}.
       for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
         Node* const map = NodeProperties::GetValueInput(dominator, i);
@@ -920,7 +935,7 @@ Node* GetStringWitness(Node* node) {
   // the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckString &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
     if (dominator->op()->EffectInputCount() != 1) {
@@ -1033,21 +1048,16 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
-    Node* context = NodeProperties::GetContextInput(node);
 
-    Node* native_context = effect = graph()->NewNode(
-        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-        context, context, effect);
-    Node* map = effect = graph()->NewNode(
-        javascript()->LoadContext(0, Context::STRING_ITERATOR_MAP_INDEX, true),
-        native_context, native_context, effect);
+    Node* map = jsgraph()->HeapConstant(
+        handle(native_context()->string_iterator_map(), isolate()));
 
     // allocate new iterator
     effect = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
     Node* value = effect = graph()->NewNode(
         simplified()->Allocate(NOT_TENURED),
-        jsgraph()->Int32Constant(JSStringIterator::kSize), effect, control);
+        jsgraph()->Constant(JSStringIterator::kSize), effect, control);
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
@@ -1106,11 +1116,11 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
                                     index, if_true0);
 
       // branch1: if ((lead & 0xFC00) === 0xD800)
-      Node* check1 = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(simplified()->NumberBitwiseAnd(), lead,
-                           jsgraph()->Int32Constant(0xFC00)),
-          jsgraph()->Int32Constant(0xD800));
+      Node* check1 =
+          graph()->NewNode(simplified()->NumberEqual(),
+                           graph()->NewNode(simplified()->NumberBitwiseAnd(),
+                                            lead, jsgraph()->Constant(0xFC00)),
+                           jsgraph()->Constant(0xD800));
       Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                        check1, if_true0);
       Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
@@ -1132,8 +1142,8 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
           Node* check3 = graph()->NewNode(
               simplified()->NumberEqual(),
               graph()->NewNode(simplified()->NumberBitwiseAnd(), trail,
-                               jsgraph()->Int32Constant(0xFC00)),
-              jsgraph()->Int32Constant(0xDC00));
+                               jsgraph()->Constant(0xFC00)),
+              jsgraph()->Constant(0xDC00));
           Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                            check3, if_true2);
           Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
@@ -1144,11 +1154,11 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
                 graph()->NewNode(simplified()->NumberShiftLeft(), lead,
-                                 jsgraph()->Int32Constant(16)),
+                                 jsgraph()->Constant(16)),
                 trail);
 #else
                 graph()->NewNode(simplified()->NumberShiftLeft(), trail,
-                                 jsgraph()->Int32Constant(16)),
+                                 jsgraph()->Constant(16)),
                 lead);
 #endif
           }

@@ -91,8 +91,7 @@ class BuiltinArguments : public Arguments {
   MUST_USE_RESULT Object* Builtin_##name(                                     \
       int args_length, Object** args_object, Isolate* isolate) {              \
     DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||       \
-                    FLAG_runtime_call_stats)) {                               \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);    \
     }                                                                         \
     BuiltinArguments args(args_length, args_object);                          \

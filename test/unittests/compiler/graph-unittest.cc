@@ -103,10 +103,8 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
   return IsHeapConstant(factory()->undefined_value());
 }
 
-
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(isolate(), graph()) {}
-
+    : GraphTest(num_parameters), typer_(isolate(), Typer::kNoFlags, graph()) {}
 
 TypedGraphTest::~TypedGraphTest() {}
 

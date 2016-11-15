@@ -329,11 +329,11 @@ void V8Debugger::clearStepping() {
   v8::DebugInterface::ClearStepping(m_isolate);
 }
 
-bool V8Debugger::setScriptSource(
+Response V8Debugger::setScriptSource(
     const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
-    ErrorString* error,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails,
-    JavaScriptCallFrames* newCallFrames, Maybe<bool>* stackChanged) {
+    JavaScriptCallFrames* newCallFrames, Maybe<bool>* stackChanged,
+    bool* compileError) {
   class EnableLiveEditScope {
    public:
     explicit EnableLiveEditScope(v8::Isolate* isolate) : m_isolate(isolate) {
@@ -349,6 +349,7 @@ bool V8Debugger::setScriptSource(
     v8::Isolate* m_isolate;
   };
 
+  *compileError = false;
   DCHECK(enabled());
   v8::HandleScope scope(m_isolate);
 
@@ -369,10 +370,9 @@ bool V8Debugger::setScriptSource(
     if (tryCatch.HasCaught()) {
       v8::Local<v8::Message> message = tryCatch.Message();
       if (!message.IsEmpty())
-        *error = toProtocolStringWithTypeCheck(message->Get());
+        return Response::Error(toProtocolStringWithTypeCheck(message->Get()));
       else
-        *error = "Unknown error.";
-      return false;
+        return Response::InternalError();
     }
     v8result = maybeResult.ToLocalChecked();
   }
@@ -397,7 +397,7 @@ bool V8Debugger::setScriptSource(
         JavaScriptCallFrames frames = currentCallFrames();
         newCallFrames->swap(frames);
       }
-      return true;
+      return Response::OK();
     }
     // Compile error.
     case 1: {
@@ -419,11 +419,11 @@ bool V8Debugger::setScriptSource(
                                                     ->Value()) -
                                1)
               .build();
-      return false;
+      *compileError = true;
+      return Response::OK();
     }
   }
-  *error = "Unknown error.";
-  return false;
+  return Response::InternalError();
 }
 
 JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
@@ -486,7 +486,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
                                     v8::Local<v8::Object> executionState,
                                     v8::Local<v8::Value> exception,
                                     v8::Local<v8::Array> hitBreakpointNumbers,
-                                    bool isPromiseRejection) {
+                                    bool isPromiseRejection, bool isUncaught) {
   // Don't allow nested breaks.
   if (m_runningNestedMessageLoop) return;
 
@@ -509,7 +509,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_pausedContext = pausedContext;
   m_executionState = executionState;
   V8DebuggerAgentImpl::SkipPauseRequest result = agent->didPause(
-      pausedContext, exception, breakpointIds, isPromiseRejection);
+      pausedContext, exception, breakpointIds, isPromiseRejection, isUncaught);
   if (result == V8DebuggerAgentImpl::RequestNoSkip) {
     m_runningNestedMessageLoop = true;
     int groupId = getGroupId(pausedContext);
@@ -595,14 +595,19 @@ void V8Debugger::handleV8DebugEvent(
           wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
           event == v8::AfterCompile);
     } else if (event == v8::Exception) {
+      v8::Local<v8::Context> context = debuggerContext();
       v8::Local<v8::Object> eventData = eventDetails.GetEventData();
       v8::Local<v8::Value> exception =
           callInternalGetterFunction(eventData, "exception");
       v8::Local<v8::Value> promise =
           callInternalGetterFunction(eventData, "promise");
       bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
+      v8::Local<v8::Value> uncaught =
+          callInternalGetterFunction(eventData, "uncaught");
+      bool isUncaught = uncaught->BooleanValue(context).FromJust();
       handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                         exception, v8::Local<v8::Array>(), isPromiseRejection);
+                         exception, v8::Local<v8::Array>(), isPromiseRejection,
+                         isUncaught);
     } else if (event == v8::Break) {
       v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
       v8::Local<v8::Value> hitBreakpoints =

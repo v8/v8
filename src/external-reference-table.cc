@@ -31,10 +31,11 @@ ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
 }
 
 ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
+  // nullptr is preserved through serialization/deserialization.
+  Add(nullptr, "nullptr");
   AddReferences(isolate);
   AddBuiltins(isolate);
   AddRuntimeFunctions(isolate);
-  AddStatCounters(isolate);
   AddIsolateAddresses(isolate);
   AddAccessors(isolate);
   AddStubCache(isolate);
@@ -73,8 +74,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
-  Add(ExternalReference::interpreter_dispatch_counters(isolate).address(),
-      "Interpreter::interpreter_dispatch_counters");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
@@ -312,32 +311,6 @@ void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
     ExternalReference ref(runtime_functions[i].id, isolate);
     Add(ref.address(), runtime_functions[i].name);
-  }
-}
-
-void ExternalReferenceTable::AddStatCounters(Isolate* isolate) {
-  // Stat counters
-  struct StatsRefTableEntry {
-    StatsCounter* (Counters::*counter)();
-    const char* name;
-  };
-
-  static const StatsRefTableEntry stats_ref_table[] = {
-#define COUNTER_ENTRY(name, caption) {&Counters::name, "Counters::" #name},
-      STATS_COUNTER_LIST_1(COUNTER_ENTRY) STATS_COUNTER_LIST_2(COUNTER_ENTRY)
-#undef COUNTER_ENTRY
-  };
-
-  Counters* counters = isolate->counters();
-  for (unsigned i = 0; i < arraysize(stats_ref_table); ++i) {
-    // To make sure the indices are not dependent on whether counters are
-    // enabled, use a dummy address as filler.
-    Address address = NotAvailable();
-    StatsCounter* counter = (counters->*(stats_ref_table[i].counter))();
-    if (counter->Enabled()) {
-      address = reinterpret_cast<Address>(counter->GetInternalPointer());
-    }
-    Add(address, stats_ref_table[i].name);
   }
 }
 

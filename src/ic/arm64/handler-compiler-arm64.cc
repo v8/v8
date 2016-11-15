@@ -437,6 +437,31 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(FieldType* field_type,
   }
 }
 
+void PropertyHandlerCompiler::GenerateAccessCheck(
+    Handle<WeakCell> native_context_cell, Register scratch1, Register scratch2,
+    Label* miss, bool compare_native_contexts_only) {
+  Label done;
+  // Load current native context.
+  __ Ldr(scratch1, NativeContextMemOperand());
+  // Load expected native context.
+  __ LoadWeakValue(scratch2, native_context_cell, miss);
+  __ Cmp(scratch1, scratch2);
+
+  if (!compare_native_contexts_only) {
+    __ B(eq, &done);
+
+    // Compare security tokens of current and expected native contexts.
+    __ Ldr(scratch1,
+           ContextMemOperand(scratch1, Context::SECURITY_TOKEN_INDEX));
+    __ Ldr(scratch2,
+           ContextMemOperand(scratch2, Context::SECURITY_TOKEN_INDEX));
+    __ Cmp(scratch1, scratch2);
+  }
+  __ B(ne, miss);
+
+  __ bind(&done);
+}
+
 Register PropertyHandlerCompiler::CheckPrototypes(
     Register object_reg, Register holder_reg, Register scratch1,
     Register scratch2, Handle<Name> name, Label* miss,

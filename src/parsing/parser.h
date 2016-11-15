@@ -31,11 +31,11 @@ class FunctionEntry BASE_EMBEDDED {
   enum {
     kStartPositionIndex,
     kEndPositionIndex,
+    kNumParametersIndex,
+    kFunctionLengthIndex,
     kLiteralCountIndex,
     kPropertyCountIndex,
-    kLanguageModeIndex,
-    kUsesSuperPropertyIndex,
-    kCallsEvalIndex,
+    kFlagsIndex,
     kSize
   };
 
@@ -44,18 +44,43 @@ class FunctionEntry BASE_EMBEDDED {
 
   FunctionEntry() : backing_() { }
 
-  int start_pos() { return backing_[kStartPositionIndex]; }
-  int end_pos() { return backing_[kEndPositionIndex]; }
-  int literal_count() { return backing_[kLiteralCountIndex]; }
-  int property_count() { return backing_[kPropertyCountIndex]; }
-  LanguageMode language_mode() {
-    DCHECK(is_valid_language_mode(backing_[kLanguageModeIndex]));
-    return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
-  }
-  bool uses_super_property() { return backing_[kUsesSuperPropertyIndex]; }
-  bool calls_eval() { return backing_[kCallsEvalIndex]; }
+  class LanguageModeField : public BitField<LanguageMode, 0, 1> {};
+  class UsesSuperPropertyField
+      : public BitField<bool, LanguageModeField::kNext, 1> {};
+  class CallsEvalField
+      : public BitField<bool, UsesSuperPropertyField::kNext, 1> {};
+  class HasDuplicateParametersField
+      : public BitField<bool, CallsEvalField::kNext, 1> {};
 
-  bool is_valid() { return !backing_.is_empty(); }
+  static uint32_t EncodeFlags(LanguageMode language_mode,
+                              bool uses_super_property, bool calls_eval,
+                              bool has_duplicate_parameters) {
+    return LanguageModeField::encode(language_mode) |
+           UsesSuperPropertyField::encode(uses_super_property) |
+           CallsEvalField::encode(calls_eval) |
+           HasDuplicateParametersField::encode(has_duplicate_parameters);
+  }
+
+  int start_pos() const { return backing_[kStartPositionIndex]; }
+  int end_pos() const { return backing_[kEndPositionIndex]; }
+  int num_parameters() const { return backing_[kNumParametersIndex]; }
+  int function_length() const { return backing_[kFunctionLengthIndex]; }
+  int literal_count() const { return backing_[kLiteralCountIndex]; }
+  int property_count() const { return backing_[kPropertyCountIndex]; }
+  LanguageMode language_mode() const {
+    return LanguageModeField::decode(backing_[kFlagsIndex]);
+  }
+  bool uses_super_property() const {
+    return UsesSuperPropertyField::decode(backing_[kFlagsIndex]);
+  }
+  bool calls_eval() const {
+    return CallsEvalField::decode(backing_[kFlagsIndex]);
+  }
+  bool has_duplicate_parameters() const {
+    return HasDuplicateParametersField::decode(backing_[kFlagsIndex]);
+  }
+
+  bool is_valid() const { return !backing_.is_empty(); }
 
  private:
   Vector<unsigned> backing_;
@@ -109,7 +134,6 @@ class ParseData {
 // JAVASCRIPT PARSING
 
 class Parser;
-class SingletonLogger;
 
 
 struct ParserFormalParameters : FormalParametersBase {
@@ -223,6 +247,22 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
         original_scope_);
   }
+
+  bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
+  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
+
+  class ParsingModeScope BASE_EMBEDDED {
+   public:
+    ParsingModeScope(Parser* parser, Mode mode)
+        : parser_(parser), old_mode_(parser->mode_) {
+      parser_->mode_ = mode;
+    }
+    ~ParsingModeScope() { parser_->mode_ = old_mode_; }
+
+   private:
+    Parser* parser_;
+    Mode old_mode_;
+  };
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -504,13 +544,16 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
-  LazyParsingResult SkipLazyFunctionBody(int* materialized_literal_count,
-                                         int* expected_property_count,
-                                         bool is_inner_function, bool may_abort,
-                                         bool* ok);
+  LazyParsingResult SkipFunction(
+      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, bool* has_duplicate_parameters,
+      int* materialized_literal_count, int* expected_property_count,
+      bool is_inner_function, typesystem::TypeFlags type_flags, bool may_abort,
+      bool* ok);
 
-  PreParser::PreParseResult ParseFunctionBodyWithPreParser(
-      SingletonLogger* logger, bool is_inner_function, bool may_abort);
+  PreParser::PreParseResult ParseFunctionWithPreParser(
+      FunctionKind kind, DeclarationScope* scope, bool is_inner_function,
+      typesystem::TypeFlags type_flags, bool may_abort);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -521,6 +564,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const AstRawString* function_name, int pos,
       const ParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
+
+  ZoneList<Statement*>* ParseFunction(
+      const AstRawString* function_name, int pos, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type,
+      DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, bool* has_duplicate_parameters,
+      int* materialized_literal_count, int* expected_property_count,
+      typesystem::TypeFlags type_flags, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -1143,6 +1194,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
+  Mode mode_;
 
   friend class ParserTarget;
   friend class ParserTargetScope;
@@ -1159,6 +1211,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int total_preparse_skipped_;
 
   bool parsing_on_main_thread_;
+  ParserLogger* log_;
 };
 
 // ----------------------------------------------------------------------------

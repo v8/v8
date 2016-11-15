@@ -447,7 +447,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     OutOfLineCode* ool;                                                      \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
-      DCHECK_EQ(0, index2);                                                  \
+      DCHECK_EQ(0u, index2);                                                 \
       __ cmpl(index1, length);                                               \
       ool = new (zone()) OutOfLineLoadNaN(this, result);                     \
     } else {                                                                 \
@@ -502,7 +502,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     OutOfLineCode* ool;                                                        \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
-      DCHECK_EQ(0, index2);                                                    \
+      DCHECK_EQ(0u, index2);                                                   \
       __ cmpl(index1, length);                                                 \
       ool = new (zone()) OutOfLineLoadZero(this, result);                      \
     } else {                                                                   \
@@ -559,7 +559,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     auto value = i.InputDoubleRegister(4);                                   \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
-      DCHECK_EQ(0, index2);                                                  \
+      DCHECK_EQ(0u, index2);                                                 \
       Label done;                                                            \
       __ cmpl(index1, length);                                               \
       __ j(above_equal, &done, Label::kNear);                                \
@@ -614,7 +614,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     auto index2 = i.InputUint32(2);                                            \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
-      DCHECK_EQ(0, index2);                                                    \
+      DCHECK_EQ(0u, index2);                                                   \
       Label done;                                                              \
       __ cmpl(index1, length);                                                 \
       __ j(above_equal, &done, Label::kNear);                                  \
@@ -2397,6 +2397,9 @@ void CodeGenerator::AssembleConstructFrame() {
       __ movq(rbp, rsp);
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ pushq(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
@@ -2405,7 +2408,8 @@ void CodeGenerator::AssembleConstructFrame() {
       unwinding_info_writer_.MarkFrameConstructed(pc_base);
     }
   }
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2504,7 +2508,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   if (pop->IsImmediate()) {
     DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
     pop_size += g.ToConstant(pop).ToInt32() * kPointerSize;
-    CHECK_LT(pop_size, std::numeric_limits<int>::max());
+    CHECK_LT(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), rcx);
   } else {
     Register pop_reg = g.ToRegister(pop);

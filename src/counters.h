@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
@@ -16,6 +17,7 @@
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -496,44 +498,47 @@ struct RuntimeCallCounter {
 // timers used for properly measuring the own time of a RuntimeCallCounter.
 class RuntimeCallTimer {
  public:
-  RuntimeCallTimer() {}
   RuntimeCallCounter* counter() { return counter_; }
   base::ElapsedTimer timer() { return timer_; }
-  RuntimeCallTimer* parent() const { return parent_; }
+  RuntimeCallTimer* parent() const { return parent_.Value(); }
 
  private:
   friend class RuntimeCallStats;
 
   inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
     counter_ = counter;
-    parent_ = parent;
-    timer_.Start();
+    parent_.SetValue(parent);
+    if (FLAG_runtime_stats !=
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
+      timer_.Start();
+    }
   }
 
   inline RuntimeCallTimer* Stop() {
+    if (!timer_.IsStarted()) return parent();
     base::TimeDelta delta = timer_.Elapsed();
     timer_.Stop();
     counter_->count++;
     counter_->time += delta;
-    if (parent_ != NULL) {
+    if (parent()) {
       // Adjust parent timer so that it does not include sub timer's time.
-      parent_->counter_->time -= delta;
+      parent()->counter_->time -= delta;
     }
-    return parent_;
+    return parent();
   }
 
   inline void Elapsed() {
     base::TimeDelta delta = timer_.Elapsed();
     counter_->time += delta;
-    if (parent_ != nullptr) {
-      parent_->counter_->time -= delta;
-      parent_->Elapsed();
+    if (parent()) {
+      parent()->counter_->time -= delta;
+      parent()->Elapsed();
     }
     timer_.Restart();
   }
 
   RuntimeCallCounter* counter_ = nullptr;
-  RuntimeCallTimer* parent_ = nullptr;
+  base::AtomicValue<RuntimeCallTimer*> parent_;
   base::ElapsedTimer timer_;
 };
 
@@ -730,67 +735,72 @@ class RuntimeCallTimer {
   /* Dummy counter for the unexpected stub miss. */ \
   V(UnexpectedStubMiss)
 
-#define FOR_EACH_HANDLER_COUNTER(V)             \
-  V(IC_HandlerCacheHit)                         \
-  V(KeyedLoadIC_LoadIndexedStringStub)          \
-  V(KeyedLoadIC_LoadIndexedInterceptorStub)     \
-  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)   \
-  V(KeyedLoadIC_LoadElementDH)                  \
-  V(KeyedLoadIC_LoadFastElementStub)            \
-  V(KeyedLoadIC_LoadDictionaryElementStub)      \
-  V(KeyedLoadIC_SlowStub)                       \
-  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub) \
-  V(KeyedStoreIC_StoreFastElementStub)          \
-  V(KeyedStoreIC_StoreElementStub)              \
-  V(KeyedStoreIC_Polymorphic)                   \
-  V(LoadIC_FunctionPrototypeStub)               \
-  V(LoadIC_HandlerCacheHit_AccessCheck)         \
-  V(LoadIC_HandlerCacheHit_Exotic)              \
-  V(LoadIC_HandlerCacheHit_Interceptor)         \
-  V(LoadIC_HandlerCacheHit_JSProxy)             \
-  V(LoadIC_HandlerCacheHit_NonExistent)         \
-  V(LoadIC_HandlerCacheHit_Accessor)            \
-  V(LoadIC_HandlerCacheHit_Data)                \
-  V(LoadIC_HandlerCacheHit_Transition)          \
-  V(LoadIC_LoadApiGetterStub)                   \
-  V(LoadIC_LoadCallback)                        \
-  V(LoadIC_LoadConstantDH)                      \
-  V(LoadIC_LoadConstantFromPrototypeDH)         \
-  V(LoadIC_LoadConstant)                        \
-  V(LoadIC_LoadConstantStub)                    \
-  V(LoadIC_LoadFieldDH)                         \
-  V(LoadIC_LoadFieldFromPrototypeDH)            \
-  V(LoadIC_LoadField)                           \
-  V(LoadIC_LoadFieldStub)                       \
-  V(LoadIC_LoadGlobal)                          \
-  V(LoadIC_LoadInterceptor)                     \
-  V(LoadIC_LoadNonexistent)                     \
-  V(LoadIC_LoadNormal)                          \
-  V(LoadIC_LoadScriptContextFieldStub)          \
-  V(LoadIC_LoadViaGetter)                       \
-  V(LoadIC_Premonomorphic)                      \
-  V(LoadIC_SlowStub)                            \
-  V(LoadIC_StringLengthStub)                    \
-  V(StoreIC_HandlerCacheHit_AccessCheck)        \
-  V(StoreIC_HandlerCacheHit_Exotic)             \
-  V(StoreIC_HandlerCacheHit_Interceptor)        \
-  V(StoreIC_HandlerCacheHit_JSProxy)            \
-  V(StoreIC_HandlerCacheHit_NonExistent)        \
-  V(StoreIC_HandlerCacheHit_Accessor)           \
-  V(StoreIC_HandlerCacheHit_Data)               \
-  V(StoreIC_HandlerCacheHit_Transition)         \
-  V(StoreIC_Premonomorphic)                     \
-  V(StoreIC_SlowStub)                           \
-  V(StoreIC_StoreCallback)                      \
-  V(StoreIC_StoreField)                         \
-  V(StoreIC_StoreFieldDH)                       \
-  V(StoreIC_StoreFieldStub)                     \
-  V(StoreIC_StoreGlobal)                        \
-  V(StoreIC_StoreGlobalTransition)              \
-  V(StoreIC_StoreInterceptorStub)               \
-  V(StoreIC_StoreNormal)                        \
-  V(StoreIC_StoreScriptContextFieldStub)        \
-  V(StoreIC_StoreTransition)                    \
+#define FOR_EACH_HANDLER_COUNTER(V)              \
+  V(IC_HandlerCacheHit)                          \
+  V(KeyedLoadIC_LoadIndexedStringStub)           \
+  V(KeyedLoadIC_LoadIndexedInterceptorStub)      \
+  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)    \
+  V(KeyedLoadIC_LoadElementDH)                   \
+  V(KeyedLoadIC_LoadFastElementStub)             \
+  V(KeyedLoadIC_LoadDictionaryElementStub)       \
+  V(KeyedLoadIC_SlowStub)                        \
+  V(KeyedStoreIC_ElementsTransitionAndStoreStub) \
+  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)  \
+  V(KeyedStoreIC_SlowStub)                       \
+  V(KeyedStoreIC_StoreFastElementStub)           \
+  V(KeyedStoreIC_StoreElementStub)               \
+  V(LoadIC_FunctionPrototypeStub)                \
+  V(LoadIC_HandlerCacheHit_AccessCheck)          \
+  V(LoadIC_HandlerCacheHit_Exotic)               \
+  V(LoadIC_HandlerCacheHit_Interceptor)          \
+  V(LoadIC_HandlerCacheHit_JSProxy)              \
+  V(LoadIC_HandlerCacheHit_NonExistent)          \
+  V(LoadIC_HandlerCacheHit_Accessor)             \
+  V(LoadIC_HandlerCacheHit_Data)                 \
+  V(LoadIC_HandlerCacheHit_Transition)           \
+  V(LoadIC_LoadApiGetterDH)                      \
+  V(LoadIC_LoadApiGetterFromPrototypeDH)         \
+  V(LoadIC_LoadApiGetterStub)                    \
+  V(LoadIC_LoadCallback)                         \
+  V(LoadIC_LoadConstantDH)                       \
+  V(LoadIC_LoadConstantFromPrototypeDH)          \
+  V(LoadIC_LoadConstant)                         \
+  V(LoadIC_LoadConstantStub)                     \
+  V(LoadIC_LoadFieldDH)                          \
+  V(LoadIC_LoadFieldFromPrototypeDH)             \
+  V(LoadIC_LoadField)                            \
+  V(LoadIC_LoadFieldStub)                        \
+  V(LoadIC_LoadGlobal)                           \
+  V(LoadIC_LoadInterceptor)                      \
+  V(LoadIC_LoadNonexistentDH)                    \
+  V(LoadIC_LoadNonexistent)                      \
+  V(LoadIC_LoadNormal)                           \
+  V(LoadIC_LoadScriptContextFieldStub)           \
+  V(LoadIC_LoadViaGetter)                        \
+  V(LoadIC_Premonomorphic)                       \
+  V(LoadIC_SlowStub)                             \
+  V(LoadIC_StringLengthStub)                     \
+  V(StoreIC_HandlerCacheHit_AccessCheck)         \
+  V(StoreIC_HandlerCacheHit_Exotic)              \
+  V(StoreIC_HandlerCacheHit_Interceptor)         \
+  V(StoreIC_HandlerCacheHit_JSProxy)             \
+  V(StoreIC_HandlerCacheHit_NonExistent)         \
+  V(StoreIC_HandlerCacheHit_Accessor)            \
+  V(StoreIC_HandlerCacheHit_Data)                \
+  V(StoreIC_HandlerCacheHit_Transition)          \
+  V(StoreIC_Premonomorphic)                      \
+  V(StoreIC_SlowStub)                            \
+  V(StoreIC_StoreCallback)                       \
+  V(StoreIC_StoreField)                          \
+  V(StoreIC_StoreFieldDH)                        \
+  V(StoreIC_StoreFieldStub)                      \
+  V(StoreIC_StoreGlobal)                         \
+  V(StoreIC_StoreGlobalTransition)               \
+  V(StoreIC_StoreInterceptorStub)                \
+  V(StoreIC_StoreNormal)                         \
+  V(StoreIC_StoreScriptContextFieldStub)         \
+  V(StoreIC_StoreTransition)                     \
+  V(StoreIC_StoreTransitionDH)                   \
   V(StoreIC_StoreViaSetter)
 
 class RuntimeCallStats {
@@ -842,24 +852,23 @@ class RuntimeCallStats {
     in_use_ = false;
   }
 
-  RuntimeCallTimer* current_timer() { return current_timer_; }
+  RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   bool InUse() { return in_use_; }
 
  private:
   // Counter to track recursive time events.
-  RuntimeCallTimer* current_timer_ = NULL;
+  base::AtomicValue<RuntimeCallTimer*> current_timer_;
   // Used to track nested tracing scopes.
   bool in_use_;
 };
 
-#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name)                 \
-  do {                                                                  \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() || \
-                    FLAG_runtime_call_stats)) {                         \
-      RuntimeCallStats::CorrectCurrentCounterId(                        \
-          isolate->counters()->runtime_call_stats(),                    \
-          &RuntimeCallStats::counter_name);                             \
-    }                                                                   \
+#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name) \
+  do {                                                  \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {              \
+      RuntimeCallStats::CorrectCurrentCounterId(        \
+          isolate->counters()->runtime_call_stats(),    \
+          &RuntimeCallStats::counter_name);             \
+    }                                                   \
   } while (false)
 
 #define TRACE_HANDLER_STATS(isolate, counter_name) \

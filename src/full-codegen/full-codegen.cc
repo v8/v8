@@ -223,20 +223,25 @@ void FullCodeGenerator::PrepareForBailout(Expression* node,
   PrepareForBailoutForId(node->id(), state);
 }
 
-void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
-                                   TypeFeedbackId id) {
+void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
+  ic_total_count_++;
+  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
+}
+
+void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot,
+                                   Handle<Object> name) {
   DCHECK(name->IsName());
   __ Move(LoadDescriptor::NameRegister(), name);
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
 
-  Handle<Code> ic = CodeFactory::LoadIC(isolate()).code();
-  CallIC(ic, id);
+  Handle<Code> code = CodeFactory::LoadIC(isolate()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   if (FLAG_tf_load_ic_stub) RestoreContext();
 }
 
 void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
-                                    Handle<Object> name, TypeFeedbackId id) {
+                                    Handle<Object> name) {
   DCHECK(name->IsName());
   __ Move(StoreDescriptor::NameRegister(), name);
 
@@ -249,8 +254,8 @@ void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
-  Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
-  CallIC(ic, id);
+  Handle<Code> code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 
@@ -264,9 +269,9 @@ void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
-  Handle<Code> ic =
+  Handle<Code> code =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-  CallIC(ic);
+  __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 
@@ -466,9 +471,7 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
          context->fall_through());
 }
 
-
-void FullCodeGenerator::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
+void FullCodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   ZoneList<Handle<Object> >* saved_globals = globals_;
   ZoneList<Handle<Object> > inner_globals(10, zone());
   globals_ = &inner_globals;
@@ -503,8 +506,8 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
 #endif
   EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(),
                proxy->VariableFeedbackSlot());
-  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
-  CallIC(ic);
+  Handle<Code> code = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
 }
 
 void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
@@ -679,8 +682,7 @@ void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
   // For default constructors, start position equals end position, and there
   // is no source code besides the class literal.
-  int pos = std::max(fun->start_position(), fun->end_position() - 1);
-  RecordStatementPosition(pos);
+  RecordStatementPosition(fun->return_position());
   if (info_->is_debug()) {
     // Always emit a debug break slot before a return.
     DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
@@ -1122,8 +1124,8 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
-  CallIC(ic);
+  Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 

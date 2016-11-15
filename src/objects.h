@@ -97,7 +97,6 @@
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
-//         - ModuleInfoEntry
 //         - ModuleInfo
 //         - ScriptContextTable
 //         - WeakFixedArray
@@ -159,6 +158,7 @@
 //       - CodeCache
 //       - PrototypeInfo
 //       - Module
+//       - ModuleInfoEntry
 //     - WeakCell
 //
 // Formats of Object*:
@@ -407,6 +407,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TUPLE3_TYPE)                                                \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
+  V(MODULE_INFO_ENTRY_TYPE)                                     \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
@@ -572,6 +573,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
   V(TUPLE3, Tuple3, tuple3)                                                  \
   V(MODULE, Module, module)                                                  \
+  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)
 
 // We use the full 8 bits of the instance_type field to encode heap object
@@ -751,6 +753,7 @@ enum InstanceType {
   TUPLE3_TYPE,
   CONTEXT_EXTENSION_TYPE,
   MODULE_TYPE,
+  MODULE_INFO_ENTRY_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -1102,7 +1105,6 @@ template <class C> inline bool Is(Object* obj);
   V(ScriptContextTable)          \
   V(NativeContext)               \
   V(ScopeInfo)                   \
-  V(ModuleInfoEntry)             \
   V(ModuleInfo)                  \
   V(JSBoundFunction)             \
   V(JSFunction)                  \
@@ -4549,8 +4551,9 @@ class ScopeInfo : public FixedArray {
                               VariableMode* mode, InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
-  // Lookup metadata of a MODULE-allocated variable.  Return a negative value if
-  // there is no module variable with the given name.
+  // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
+  // module variable with the given name (the index value of a MODULE variable
+  // is never 0).
   int ModuleIndex(Handle<String> name, VariableMode* mode,
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
@@ -4736,68 +4739,6 @@ class ScopeInfo : public FixedArray {
   class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
 
   friend class ScopeIterator;
-};
-
-class ModuleInfoEntry : public FixedArray {
- public:
-  DECLARE_CAST(ModuleInfoEntry)
-  static Handle<ModuleInfoEntry> New(Isolate* isolate,
-                                     Handle<Object> export_name,
-                                     Handle<Object> local_name,
-                                     Handle<Object> import_name,
-                                     Handle<Object> module_request, int beg_pos,
-                                     int end_pos);
-  inline Object* export_name() const;
-  inline Object* local_name() const;
-  inline Object* import_name() const;
-  inline Object* module_request() const;
-  inline int beg_pos() const;
-  inline int end_pos() const;
-
- private:
-  friend class Factory;
-  enum {
-    kExportNameIndex,
-    kLocalNameIndex,
-    kImportNameIndex,
-    kModuleRequestIndex,
-    kBegPosIndex,
-    kEndPosIndex,
-    kLength
-  };
-};
-
-// ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
-class ModuleInfo : public FixedArray {
- public:
-  DECLARE_CAST(ModuleInfo)
-
-  static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
-                                ModuleDescriptor* descr);
-
-  inline FixedArray* module_requests() const;
-  inline FixedArray* special_exports() const;
-  inline FixedArray* regular_exports() const;
-  inline FixedArray* namespace_imports() const;
-  inline FixedArray* regular_imports() const;
-
-  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
-                                                     Handle<String> local_name);
-
-#ifdef DEBUG
-  inline bool Equals(ModuleInfo* other) const;
-#endif
-
- private:
-  friend class Factory;
-  enum {
-    kModuleRequestsIndex,
-    kSpecialExportsIndex,
-    kRegularExportsIndex,
-    kNamespaceImportsIndex,
-    kRegularImportsIndex,
-    kLength
-  };
 };
 
 // The cache for maps used by normalized (dictionary mode) objects.
@@ -6876,6 +6817,7 @@ class PromiseResolveThenableJobInfo : public Struct {
   DECL_ACCESSORS(reject, JSFunction)
   DECL_ACCESSORS(debug_id, Object)
   DECL_ACCESSORS(debug_name, Object)
+  DECL_ACCESSORS(context, Context)
 
   static const int kThenableOffset = Struct::kHeaderSize;
   static const int kThenOffset = kThenableOffset + kPointerSize;
@@ -6883,7 +6825,8 @@ class PromiseResolveThenableJobInfo : public Struct {
   static const int kRejectOffset = kResolveOffset + kPointerSize;
   static const int kDebugIdOffset = kRejectOffset + kPointerSize;
   static const int kDebugNameOffset = kDebugIdOffset + kPointerSize;
-  static const int kSize = kDebugNameOffset + kPointerSize;
+  static const int kContextOffset = kDebugNameOffset + kPointerSize;
+  static const int kSize = kContextOffset + kPointerSize;
 
   DECLARE_CAST(PromiseResolveThenableJobInfo)
   DECLARE_PRINTER(PromiseResolveThenableJobInfo)
@@ -7382,6 +7325,14 @@ class SharedFunctionInfo: public HeapObject {
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
   inline AbstractCode* abstract_code();
+
+  // Tells whether or not this shared function info is interpreted.
+  //
+  // Note: function->IsInterpreted() does not necessarily return the same value
+  // as function->shared()->IsInterpreted() because the shared function info
+  // could tier up to baseline via a different function closure. The interpreter
+  // entry stub will "self-heal" this divergence when the function is executed.
+  inline bool IsInterpreted() const;
 
   inline void ReplaceCode(Code* code);
   inline bool HasBaselineCode() const;
@@ -8129,6 +8080,86 @@ class JSGeneratorObject: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
+class ModuleInfoEntry : public Struct {
+ public:
+  DECLARE_CAST(ModuleInfoEntry)
+  DECLARE_PRINTER(ModuleInfoEntry)
+  DECLARE_VERIFIER(ModuleInfoEntry)
+
+  DECL_ACCESSORS(export_name, Object)
+  DECL_ACCESSORS(local_name, Object)
+  DECL_ACCESSORS(import_name, Object)
+  DECL_INT_ACCESSORS(module_request)
+  DECL_INT_ACCESSORS(cell_index)
+  DECL_INT_ACCESSORS(beg_pos)
+  DECL_INT_ACCESSORS(end_pos)
+
+  static Handle<ModuleInfoEntry> New(Isolate* isolate,
+                                     Handle<Object> export_name,
+                                     Handle<Object> local_name,
+                                     Handle<Object> import_name,
+                                     int module_request, int cell_index,
+                                     int beg_pos, int end_pos);
+
+  static const int kExportNameOffset = HeapObject::kHeaderSize;
+  static const int kLocalNameOffset = kExportNameOffset + kPointerSize;
+  static const int kImportNameOffset = kLocalNameOffset + kPointerSize;
+  static const int kModuleRequestOffset = kImportNameOffset + kPointerSize;
+  static const int kCellIndexOffset = kModuleRequestOffset + kPointerSize;
+  static const int kBegPosOffset = kCellIndexOffset + kPointerSize;
+  static const int kEndPosOffset = kBegPosOffset + kPointerSize;
+  static const int kSize = kEndPosOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfoEntry);
+};
+
+// ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
+class ModuleInfo : public FixedArray {
+ public:
+  DECLARE_CAST(ModuleInfo)
+
+  static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
+                                ModuleDescriptor* descr);
+
+  inline FixedArray* module_requests() const;
+  inline FixedArray* special_exports() const;
+  inline FixedArray* regular_exports() const;
+  inline FixedArray* namespace_imports() const;
+  inline FixedArray* regular_imports() const;
+
+  // Accessors for [regular_exports].
+  int RegularExportCount() const;
+  String* RegularExportLocalName(int i) const;
+  int RegularExportCellIndex(int i) const;
+  FixedArray* RegularExportExportNames(int i) const;
+
+  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
+                                                     Handle<String> local_name);
+
+#ifdef DEBUG
+  inline bool Equals(ModuleInfo* other) const;
+#endif
+
+ private:
+  friend class Factory;
+  friend class ModuleDescriptor;
+  enum {
+    kModuleRequestsIndex,
+    kSpecialExportsIndex,
+    kRegularExportsIndex,
+    kNamespaceImportsIndex,
+    kRegularImportsIndex,
+    kLength
+  };
+  enum {
+    kRegularExportLocalNameOffset,
+    kRegularExportCellIndexOffset,
+    kRegularExportExportNamesOffset,
+    kRegularExportLength
+  };
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfo);
+};
 // When importing a module namespace (import * as foo from "bar"), a
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.
@@ -8167,7 +8198,15 @@ class Module : public Struct {
   // Module::ModuleVerify() for the precise invariant.
   DECL_ACCESSORS(code, Object)
 
-  // The export table.
+  // Arrays of cells corresponding to regular exports and regular imports.
+  // A cell's position in the array is determined by the cell index of the
+  // associated module entry (which coincides with the variable index of the
+  // associated variable).
+  DECL_ACCESSORS(regular_exports, FixedArray)
+  DECL_ACCESSORS(regular_imports, FixedArray)
+
+  // The complete export table, mapping an export name to its cell.
+  // TODO(neis): We may want to remove the regular exports from the table.
   DECL_ACCESSORS(exports, ObjectHashTable)
 
   // Hash for this object (a random non-zero Smi).
@@ -8198,12 +8237,9 @@ class Module : public Struct {
   // Implementation of spec operation ModuleEvaluation.
   static MUST_USE_RESULT MaybeHandle<Object> Evaluate(Handle<Module> module);
 
-  static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
-  static void StoreExport(Handle<Module> module, Handle<String> name,
-                          Handle<Object> value);
-
-  static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
-                                   int module_request);
+  static Handle<Object> LoadVariable(Handle<Module> module, int cell_index);
+  static void StoreVariable(Handle<Module> module, int cell_index,
+                            Handle<Object> value);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
@@ -8212,7 +8248,9 @@ class Module : public Struct {
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
-  static const int kHashOffset = kExportsOffset + kPointerSize;
+  static const int kRegularExportsOffset = kExportsOffset + kPointerSize;
+  static const int kRegularImportsOffset = kRegularExportsOffset + kPointerSize;
+  static const int kHashOffset = kRegularImportsOffset + kPointerSize;
   static const int kModuleNamespaceOffset = kHashOffset + kPointerSize;
   static const int kRequestedModulesOffset =
       kModuleNamespaceOffset + kPointerSize;
@@ -8221,7 +8259,8 @@ class Module : public Struct {
  private:
   enum { kEvaluatedBit };
 
-  static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
+  static void CreateExport(Handle<Module> module, int cell_index,
+                           Handle<FixedArray> names);
   static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
 
@@ -8332,6 +8371,14 @@ class JSFunction: public JSObject {
 
   // Tells whether this function inlines the given shared function info.
   bool Inlines(SharedFunctionInfo* candidate);
+
+  // Tells whether or not this function is interpreted.
+  //
+  // Note: function->IsInterpreted() does not necessarily return the same value
+  // as function->shared()->IsInterpreted() because the shared function info
+  // could tier up to baseline via a different function closure. The interpreter
+  // entry stub will "self-heal" this divergence when the function is executed.
+  inline bool IsInterpreted();
 
   // Tells whether or not this function has been optimized.
   inline bool IsOptimized();
@@ -8513,6 +8560,8 @@ class JSGlobalProxy : public JSObject {
 
   inline bool IsDetachedFrom(JSGlobalObject* global) const;
 
+  static int SizeWithInternalFields(int internal_field_count);
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalProxy)
   DECLARE_VERIFIER(JSGlobalProxy)
@@ -8521,8 +8570,6 @@ class JSGlobalProxy : public JSObject {
   static const int kNativeContextOffset = JSObject::kHeaderSize;
   static const int kHashOffset = kNativeContextOffset + kPointerSize;
   static const int kSize = kHashOffset + kPointerSize;
-  static const int kSizeWithInternalFields =
-      kSize + v8::Context::kProxyInternalFieldCount * kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
@@ -9167,7 +9214,7 @@ class AllocationSite: public Struct {
   DECLARE_CAST(AllocationSite)
   static inline AllocationSiteMode GetMode(
       ElementsKind boilerplate_elements_kind);
-  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
@@ -11481,6 +11528,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_BOOLEAN_ACCESSORS(do_not_cache)
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
 
+  DECL_ACCESSORS(cached_property_name, Object)
+
   DECLARE_CAST(FunctionTemplateInfo)
 
   // Dispatched behavior.
@@ -11507,7 +11556,8 @@ class FunctionTemplateInfo: public TemplateInfo {
       kAccessCheckInfoOffset + kPointerSize;
   static const int kFlagOffset = kSharedFunctionInfoOffset + kPointerSize;
   static const int kLengthOffset = kFlagOffset + kPointerSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+  static const int kCachedPropertyNameOffset = kLengthOffset + kPointerSize;
+  static const int kSize = kCachedPropertyNameOffset + kPointerSize;
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info);
@@ -11517,6 +11567,10 @@ class FunctionTemplateInfo: public TemplateInfo {
   inline bool IsTemplateFor(JSObject* object);
   bool IsTemplateFor(Map* map);
   inline bool instantiated();
+
+  // Helper function for cached accessors.
+  static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,
+                                                    Handle<Object> getter);
 
  private:
   // Bit position in the flag, from least significant bit position.

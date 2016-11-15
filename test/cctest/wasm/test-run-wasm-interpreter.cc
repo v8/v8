@@ -202,7 +202,8 @@ TEST(Breakpoint_I32Add) {
         thread->Run();  // run to next breakpoint
         // Check the thread stopped at the right pc.
         CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-        CHECK_EQ(kLocalsDeclSize + offsets[i], thread->GetBreakpointPc());
+        CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[i]),
+                 thread->GetBreakpointPc());
       }
 
       thread->Run();  // run to completion
@@ -280,7 +281,8 @@ TEST(Breakpoint_I32And_disable) {
           thread->Run();  // run to next breakpoint
           // Check the thread stopped at the right pc.
           CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-          CHECK_EQ(kLocalsDeclSize + offsets[0], thread->GetBreakpointPc());
+          CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[0]),
+                   thread->GetBreakpointPc());
         }
 
         thread->Run();  // run to completion

@@ -519,17 +519,15 @@ void IncrementalMarking::StartMarking() {
         "[IncrementalMarking] Start marking\n");
   }
 
-  is_compacting_ = !FLAG_never_compact &&
-                   heap_->mark_compact_collector()->StartCompaction(
-                       MarkCompactCollector::INCREMENTAL_COMPACTION);
+  is_compacting_ =
+      !FLAG_never_compact && heap_->mark_compact_collector()->StartCompaction();
 
   state_ = MARKING;
 
   if (heap_->UsingEmbedderHeapTracer()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
-    heap_->embedder_heap_tracer()->TracePrologue(
-        heap_->embedder_reachable_reference_reporter());
+    heap_->embedder_heap_tracer()->TracePrologue();
   }
 
   RecordWriteStub::Mode mode = is_compacting_

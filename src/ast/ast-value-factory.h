@@ -333,6 +333,7 @@ class AstValueFactory {
   AstValueFactory(Zone* zone, uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
         values_(nullptr),
+        smis_(),
         strings_(nullptr),
         strings_end_(&strings_),
         zone_(zone),
@@ -343,6 +344,7 @@ class AstValueFactory {
 #define F(name) name##_ = NULL;
     OTHER_CONSTANTS(F)
 #undef F
+    std::fill(smis_, smis_ + arraysize(smis_), nullptr);
   }
 
   Zone* zone() const { return zone_; }
@@ -382,7 +384,7 @@ class AstValueFactory {
   // A JavaScript symbol (ECMA-262 edition 6).
   const AstValue* NewSymbol(const char* name);
   const AstValue* NewNumber(double number, bool with_dot = false);
-  const AstValue* NewSmi(int number);
+  const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
   const AstValue* NewNull();
@@ -390,6 +392,10 @@ class AstValueFactory {
   const AstValue* NewTheHole();
 
  private:
+  static const uint32_t kMaxCachedSmi = 1 << 10;
+
+  STATIC_ASSERT(kMaxCachedSmi <= Smi::kMaxValue);
+
   AstValue* AddValue(AstValue* value) {
     value->set_next(values_);
     values_ = value;
@@ -417,6 +423,8 @@ class AstValueFactory {
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
   AstValue* values_;
+
+  AstValue* smis_[kMaxCachedSmi + 1];
   // We need to keep track of strings_ in order since cons strings require their
   // members to be internalized first.
   AstString* strings_;

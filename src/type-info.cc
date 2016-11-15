@@ -220,9 +220,8 @@ AstType* BinaryOpFeedbackToType(int hint) {
       return AstType::Number();
     case BinaryOperationFeedback::kString:
       return AstType::String();
-    // TODO(mythria): Merge Number and NumberOrOddball feedback, after
-    // fixing crankshaft to handle Oddballs along with Numbers.
     case BinaryOperationFeedback::kNumberOrOddball:
+      return AstType::NumberOrOddball();
     case BinaryOperationFeedback::kAny:
     default:
       return AstType::Any();
@@ -264,14 +263,33 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id, FeedbackVectorSlot slot,
     CompareICStub stub(code->stub_key(), isolate());
     AstType* left_type_from_ic =
         CompareICState::StateToType(zone(), stub.left());
-    *left_type = AstType::Union(*left_type, left_type_from_ic, zone());
     AstType* right_type_from_ic =
         CompareICState::StateToType(zone(), stub.right());
-    *right_type = AstType::Union(*right_type, right_type_from_ic, zone());
     AstType* combined_type_from_ic =
         CompareICState::StateToType(zone(), stub.state(), map);
-    *combined_type =
-        AstType::Union(*combined_type, combined_type_from_ic, zone());
+    // Full-codegen collects lhs and rhs feedback seperately and Crankshaft
+    // could use this information to optimize better. So if combining the
+    // feedback has made the feedback less precise, we should use the feedback
+    // only from Full-codegen. If the union of the feedback from Full-codegen
+    // is same as that of Ignition, there is no need to combine feedback from
+    // from Ignition.
+    AstType* combined_type_from_fcg = AstType::Union(
+        left_type_from_ic,
+        AstType::Union(right_type_from_ic, combined_type_from_ic, zone()),
+        zone());
+    if (combined_type_from_fcg == *left_type) {
+      // Full-codegen collects information about lhs, rhs and result types
+      // seperately. So just retain that information.
+      *left_type = left_type_from_ic;
+      *right_type = right_type_from_ic;
+      *combined_type = combined_type_from_ic;
+    } else {
+      // Combine Ignition and Full-codegen feedbacks.
+      *left_type = AstType::Union(*left_type, left_type_from_ic, zone());
+      *right_type = AstType::Union(*right_type, right_type_from_ic, zone());
+      *combined_type =
+          AstType::Union(*combined_type, combined_type_from_ic, zone());
+    }
   }
 }
 
@@ -313,9 +331,29 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot,
   BinaryOpICState state(isolate(), code->extra_ic_state());
   DCHECK_EQ(op, state.op());
 
-  *left = AstType::Union(*left, state.GetLeftType(), zone());
-  *right = AstType::Union(*right, state.GetRightType(), zone());
-  *result = AstType::Union(*result, state.GetResultType(), zone());
+  // Full-codegen collects lhs and rhs feedback seperately and Crankshaft
+  // could use this information to optimize better. So if combining the
+  // feedback has made the feedback less precise, we should use the feedback
+  // only from Full-codegen. If the union of the feedback from Full-codegen
+  // is same as that of Ignition, there is no need to combine feedback from
+  // from Ignition.
+  AstType* combined_type_from_fcg = AstType::Union(
+      state.GetLeftType(),
+      AstType::Union(state.GetRightType(), state.GetResultType(), zone()),
+      zone());
+  if (combined_type_from_fcg == *left) {
+    // Full-codegen collects information about lhs, rhs and result types
+    // seperately. So just retain that information.
+    *left = state.GetLeftType();
+    *right = state.GetRightType();
+    *result = state.GetResultType();
+  } else {
+    // Combine Ignition and Full-codegen feedback.
+    *left = AstType::Union(*left, state.GetLeftType(), zone());
+    *right = AstType::Union(*right, state.GetRightType(), zone());
+    *result = AstType::Union(*result, state.GetResultType(), zone());
+  }
+  // Ignition does not collect this feedback.
   *fixed_right_arg = state.fixed_right_arg();
 
   AllocationSite* first_allocation_site = code->FindFirstAllocationSite();

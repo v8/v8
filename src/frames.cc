@@ -15,8 +15,8 @@
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
-#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -404,17 +404,17 @@ void StackFrame::SetReturnAddressLocationResolver(
 static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
   Code* interpreter_entry_trampoline =
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+  Code* interpreter_bytecode_advance =
+      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-  Code* interpreter_baseline_on_return =
-      isolate->builtins()->builtin(Builtins::kInterpreterMarkBaselineOnReturn);
 
   return (pc >= interpreter_entry_trampoline->instruction_start() &&
           pc < interpreter_entry_trampoline->instruction_end()) ||
+         (pc >= interpreter_bytecode_advance->instruction_start() &&
+          pc < interpreter_bytecode_advance->instruction_end()) ||
          (pc >= interpreter_bytecode_dispatch->instruction_start() &&
-          pc < interpreter_bytecode_dispatch->instruction_end()) ||
-         (pc >= interpreter_baseline_on_return->instruction_start() &&
-          pc < interpreter_baseline_on_return->instruction_end());
+          pc < interpreter_bytecode_dispatch->instruction_end());
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
@@ -1223,9 +1223,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
         abstract_code = AbstractCode::cast(code);
       } else {
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
-        // BailoutId points to the next bytecode in the bytecode aray. Subtract
-        // 1 to get the end of current bytecode.
-        code_offset = bailout_id.ToInt() - 1;
+        code_offset = bailout_id.ToInt();  // Points to current bytecode.
         abstract_code = AbstractCode::cast(shared_info->bytecode_array());
       }
       FrameSummary summary(receiver, function, abstract_code, code_offset,
@@ -1285,6 +1283,19 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   return nullptr;
 }
 
+Object* OptimizedFrame::receiver() const {
+  Code* code = LookupCode();
+  if (code->kind() == Code::BUILTIN) {
+    Address argc_ptr = fp() + OptimizedBuiltinFrameConstants::kArgCOffset;
+    intptr_t argc = *reinterpret_cast<intptr_t*>(argc_ptr);
+    intptr_t args_size =
+        (StandardFrameConstants::kFixedSlotCountAboveFp + argc) * kPointerSize;
+    Address receiver_ptr = fp() + args_size;
+    return *reinterpret_cast<Object**>(receiver_ptr);
+  } else {
+    return JavaScriptFrame::receiver();
+  }
+}
 
 void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
   DCHECK(functions->length() == 0);
@@ -1509,8 +1520,8 @@ Script* WasmFrame::script() const {
   if (wasm::WasmIsAsmJs(*instance, isolate())) {
     return *wasm::GetAsmWasmScript(instance);
   }
-  Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
-  return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
+  Handle<WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
+  return WasmDebugInfo::GetFunctionScript(debug_info, function_index());
 }
 
 int WasmFrame::position() const {

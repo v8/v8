@@ -6,6 +6,7 @@
 
 #include "src/debug/debug.h"
 #include "src/elements.h"
+#include "src/promise-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -139,13 +140,19 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, resolve, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
-  Handle<Object> debug_id;
-  Handle<Object> debug_name;
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 2);
+
+  // TODO(gsathya): Add fast path for native promises with unmodified
+  // PromiseThen (which don't need these resolving functions, but
+  // instead can just call resolve/reject directly).
+  Handle<JSFunction> resolve, reject;
+  PromiseUtils::CreateResolvingFunctions(
+      isolate, promise, isolate->factory()->false_value(), &resolve, &reject);
+
+  Handle<Object> debug_id, debug_name;
   if (isolate->debug()->is_active()) {
     debug_id =
         handle(Smi::FromInt(isolate->GetNextDebugMicrotaskId()), isolate);
@@ -157,10 +164,13 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
     debug_id = isolate->factory()->undefined_value();
     debug_name = isolate->factory()->undefined_value();
   }
+
   Handle<PromiseResolveThenableJobInfo> info =
       isolate->factory()->NewPromiseResolveThenableJobInfo(
-          resolution, then, resolve, reject, debug_id, debug_name);
+          resolution, then, resolve, reject, debug_id, debug_name,
+          isolate->native_context());
   isolate->EnqueueMicrotask(info);
+
   return isolate->heap()->undefined_value();
 }
 

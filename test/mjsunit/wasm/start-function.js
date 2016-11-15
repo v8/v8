@@ -62,14 +62,31 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
 })();
 
 
-(function testRun() {
-  print("testRun");
+(function testRun1() {
+  print("testRun1");
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(12, 12, true);
 
   var func = builder.addFunction("", kSig_v_v)
-    .addBody([kExprI8Const, 0, kExprI8Const, 77, kExprI32StoreMem, 0, 0]);
+    .addBody([kExprI8Const, 0, kExprI8Const, 66, kExprI32StoreMem, 0, 0]);
+
+  builder.addStart(func.index);
+
+  var module = builder.instantiate();
+  var memory = module.exports.memory.buffer;
+  var view = new Int8Array(memory);
+  assertEquals(66, view[0]);
+})();
+
+(function testRun2() {
+  print("testRun2");
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(12, 12, true);
+
+  var func = builder.addFunction("", kSig_v_v)
+    .addBody([kExprI8Const, 0, kExprI8Const, 22, kExprI8Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 

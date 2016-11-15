@@ -34,6 +34,7 @@ class RandomNumberGenerator;
 namespace internal {
 
 class AccessCompilerData;
+class AddressToIndexHashMap;
 class BasicBlockProfiler;
 class Bootstrapper;
 class CancelableTaskManager;
@@ -59,6 +60,7 @@ class ExternalCallbackScope;
 class ExternalReferenceTable;
 class Factory;
 class HandleScopeImplementer;
+class HeapObjectToIndexHashMap;
 class HeapProfiler;
 class HStatistics;
 class HTracer;
@@ -400,8 +402,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(Object*, string_stream_current_security_token, nullptr)                   \
   V(ExternalReferenceTable*, external_reference_table, nullptr)               \
   V(intptr_t*, api_external_references, nullptr)                              \
-  V(base::HashMap*, external_reference_map, nullptr)                          \
-  V(base::HashMap*, root_index_map, nullptr)                                  \
+  V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
+  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
   V(v8::DeserializeInternalFieldsCallback,                                    \
     deserialize_internal_fields_callback, nullptr)                            \
   V(int, pending_microtask_count, 0)                                          \
@@ -1073,12 +1075,6 @@ class Isolate {
     return id;
   }
 
-  void IncrementJsCallsFromApiCounter() { ++js_calls_from_api_counter_; }
-
-  unsigned int js_calls_from_api_counter() {
-    return js_calls_from_api_counter_;
-  }
-
   // Get (and lazily initialize) the registry for per-isolate symbols.
   Handle<JSObject> GetSymbolRegistry();
 
@@ -1415,9 +1411,6 @@ class Isolate {
   unsigned int stress_deopt_count_;
 
   int next_optimization_id_;
-
-  // Counts javascript calls from the API. Wraps around on overflow.
-  unsigned int js_calls_from_api_counter_;
 
 #if TRACE_MAPS
   int next_unique_sfi_id_;

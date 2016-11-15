@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/safe_math.h"
+#include "src/codegen.h"
 #include "src/crankshaft/hydrogen-infer-representation.h"
 #include "src/double.h"
 #include "src/elements.h"
@@ -44,6 +45,21 @@ namespace internal {
 HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
+Representation RepresentationFromMachineType(MachineType type) {
+  if (type == MachineType::Int32()) {
+    return Representation::Integer32();
+  }
+
+  if (type == MachineType::TaggedSigned()) {
+    return Representation::Smi();
+  }
+
+  if (type == MachineType::Pointer()) {
+    return Representation::External();
+  }
+
+  return Representation::Tagged();
+}
 
 Isolate* HValue::isolate() const {
   DCHECK(block() != NULL);
@@ -1056,23 +1072,21 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  if (expected_input_types_.Contains(ToBooleanICStub::NULL_TYPE) ||
-      expected_input_types_.Contains(ToBooleanICStub::SPEC_OBJECT) ||
-      expected_input_types_.Contains(ToBooleanICStub::STRING) ||
-      expected_input_types_.Contains(ToBooleanICStub::SYMBOL) ||
-      expected_input_types_.Contains(ToBooleanICStub::SIMD_VALUE)) {
+  if (expected_input_types_ & (ToBooleanHint::kNull | ToBooleanHint::kReceiver |
+                               ToBooleanHint::kString | ToBooleanHint::kSymbol |
+                               ToBooleanHint::kSimdValue)) {
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanICStub::UNDEFINED)) {
-    if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
+  if (expected_input_types_ & ToBooleanHint::kUndefined) {
+    if (expected_input_types_ & ToBooleanHint::kHeapNumber) {
       return Representation::Double();
     }
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
+  if (expected_input_types_ & ToBooleanHint::kHeapNumber) {
     return Representation::Double();
   }
-  if (expected_input_types_.Contains(ToBooleanICStub::SMI)) {
+  if (expected_input_types_ & ToBooleanHint::kSmallInteger) {
     return Representation::Smi();
   }
   return Representation::None();
@@ -3572,16 +3586,21 @@ HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
-      if (c_right->DoubleValue() != 0) {
+      if (std::isnan(c_left->DoubleValue()) ||
+          std::isnan(c_right->DoubleValue())) {
+        return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
+      } else if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
         if (IsInt32Double(double_res)) {
           return H_CONSTANT_INT(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);
-      } else {
+      } else if (c_left->DoubleValue() != 0) {
         int sign = Double(c_left->DoubleValue()).Sign() *
                    Double(c_right->DoubleValue()).Sign();  // Right could be -0.
         return H_CONSTANT_DOUBLE(sign * V8_INFINITY);
+      } else {
+        return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
       }
     }
   }

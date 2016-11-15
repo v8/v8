@@ -11,6 +11,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -32,8 +33,9 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, Graph* graph)
+Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
     : isolate_(isolate),
+      flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
@@ -546,7 +548,34 @@ Type* Typer::Visitor::TypeIfException(Node* node) {
 
 // Common operators.
 
-Type* Typer::Visitor::TypeParameter(Node* node) { return Type::Any(); }
+Type* Typer::Visitor::TypeParameter(Node* node) {
+  Node* const start = node->InputAt(0);
+  DCHECK_EQ(IrOpcode::kStart, start->opcode());
+  int const parameter_count = start->op()->ValueOutputCount() - 4;
+  DCHECK_LE(1, parameter_count);
+  int const index = ParameterIndexOf(node->op());
+  if (index == Linkage::kJSCallClosureParamIndex) {
+    return Type::Function();
+  } else if (index == 0) {
+    if (typer_->flags() & Typer::kThisIsReceiver) {
+      return Type::Receiver();
+    } else {
+      // Parameter[this] can be the_hole for derived class constructors.
+      return Type::Union(Type::Hole(), Type::NonInternal(), typer_->zone());
+    }
+  } else if (index == Linkage::GetJSCallNewTargetParamIndex(parameter_count)) {
+    if (typer_->flags() & Typer::kNewTargetIsReceiver) {
+      return Type::Receiver();
+    } else {
+      return Type::Union(Type::Receiver(), Type::Undefined(), typer_->zone());
+    }
+  } else if (index == Linkage::GetJSCallArgCountParamIndex(parameter_count)) {
+    return Type::Range(0.0, Code::kMaxArguments, typer_->zone());
+  } else if (index == Linkage::GetJSCallContextParamIndex(parameter_count)) {
+    return Type::OtherInternal();
+  }
+  return Type::NonInternal();
+}
 
 Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 
@@ -569,15 +598,13 @@ Type* Typer::Visitor::TypeRetain(Node* node) {
 }
 
 Type* Typer::Visitor::TypeInt32Constant(Node* node) {
-  double number = OpParameter<int32_t>(node);
-  return Type::Intersect(Type::Range(number, number, zone()),
-                         Type::Integral32(), zone());
+  UNREACHABLE();
+  return nullptr;
 }
 
-
 Type* Typer::Visitor::TypeInt64Constant(Node* node) {
-  // TODO(rossberg): This actually seems to be a PointerConstant so far...
-  return Type::Internal();  // TODO(rossberg): Add int64 bitset type?
+  UNREACHABLE();
+  return nullptr;
 }
 
 Type* Typer::Visitor::TypeRelocatableInt32Constant(Node* node) {
@@ -595,12 +622,10 @@ Type* Typer::Visitor::TypeFloat32Constant(Node* node) {
   return nullptr;
 }
 
-
 Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
   UNREACHABLE();
   return nullptr;
 }
-
 
 Type* Typer::Visitor::TypeNumberConstant(Node* node) {
   double number = OpParameter<double>(node);
@@ -611,11 +636,13 @@ Type* Typer::Visitor::TypeHeapConstant(Node* node) {
   return TypeConstant(OpParameter<Handle<HeapObject>>(node));
 }
 
-
 Type* Typer::Visitor::TypeExternalConstant(Node* node) {
-  return Type::Internal();
+  return Type::ExternalPointer();
 }
 
+Type* Typer::Visitor::TypePointerConstant(Node* node) {
+  return Type::ExternalPointer();
+}
 
 Type* Typer::Visitor::TypeSelect(Node* node) {
   return Type::Union(Operand(node, 1), Operand(node, 2), zone());
@@ -791,12 +818,15 @@ Type* Typer::Visitor::TypeFrameState(Node* node) {
 
 Type* Typer::Visitor::TypeStateValues(Node* node) { return Type::Internal(); }
 
-Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
-
 Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeTypedObjectState(Node* node) {
+  return Type::Internal();
+}
 
 Type* Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
@@ -1441,7 +1471,7 @@ Type* Typer::Visitor::TypeJSForInNext(Node* node) {
 Type* Typer::Visitor::TypeJSForInPrepare(Node* node) {
   STATIC_ASSERT(Map::EnumLengthBits::kMax <= FixedArray::kMaxLength);
   Type* const cache_type =
-      Type::Union(typer_->cache_.kSmi, Type::OtherInternal(), zone());
+      Type::Union(Type::SignedSmall(), Type::OtherInternal(), zone());
   Type* const cache_array = Type::OtherInternal();
   Type* const cache_length = typer_->cache_.kFixedArrayLengthType;
   return Type::Tuple(cache_type, cache_array, cache_length, zone());
@@ -1456,13 +1486,20 @@ Type* Typer::Visitor::TypeJSStoreMessage(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeJSLoadModule(Node* node) { return Type::Any(); }
+
+Type* Typer::Visitor::TypeJSStoreModule(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeJSGeneratorStore(Node* node) {
   UNREACHABLE();
   return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
-  return typer_->cache_.kSmi;
+  return Type::SignedSmall();
 }
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
@@ -1537,8 +1574,7 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
 }
 
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
-  // TODO(bmeurer): We could do better here based on inputs.
-  return Type::Range(0, kMaxUInt16, zone());
+  return typer_->cache_.kUint16;
 }
 
 Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
@@ -1618,8 +1654,6 @@ Type* Typer::Visitor::TypeLoadField(Node* node) {
 }
 
 Type* Typer::Visitor::TypeLoadBuffer(Node* node) {
-  // TODO(bmeurer): This typing is not yet correct. Since we can still access
-  // out of bounds, the type in the general case has to include Undefined.
   switch (BufferAccessOf(node->op()).external_array_type()) {
 #define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
   case kExternal##ElemType##Array:                          \

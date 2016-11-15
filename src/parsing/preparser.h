@@ -847,7 +847,8 @@ class PreParserFactory {
       int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+      bool has_braces) {
     return PreParserExpression::Default();
   }
 
@@ -1139,11 +1140,13 @@ class PreParser : public ParserBase<PreParser> {
   };
 
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
-            ParserRecorder* log, uintptr_t stack_limit)
-      : ParserBase<PreParser>(zone, scanner, stack_limit, NULL,
-                              ast_value_factory, log),
+            uintptr_t stack_limit)
+      : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
+                              ast_value_factory),
         use_counts_(nullptr),
         track_unresolved_variables_(false) {}
+
+  PreParserLogger* logger() { return &log_; }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1188,10 +1191,12 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseFunction(DeclarationScope* function_scope,
-                                  bool parsing_module, SingletonLogger* log,
+  PreParseResult PreParseFunction(FunctionKind kind,
+                                  DeclarationScope* function_scope,
+                                  bool parsing_module,
                                   bool track_unresolved_variables,
-                                  bool may_abort, int* use_counts);
+                                  bool may_abort, int* use_counts,
+                                  typesystem::TypeFlags type_flags);
 
  private:
   // These types form an algebra over syntactic categories that is just
@@ -1209,11 +1214,17 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
+  // Indicates that we won't switch from the preparser to the preparser; we'll
+  // just stay where we are.
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
+  bool parse_lazily() const { return false; }
 
-  V8_INLINE LazyParsingResult SkipLazyFunctionBody(
-      int* materialized_literal_count, int* expected_property_count,
-      bool track_unresolved_variables, bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult
+  SkipFunction(FunctionKind kind, DeclarationScope* function_scope,
+               int* num_parameters, int* function_length,
+               bool* has_duplicate_parameters, int* materialized_literal_count,
+               int* expected_property_count, bool is_inner_function,
+               typesystem::TypeFlags type_flags, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -1224,7 +1235,9 @@ class PreParser : public ParserBase<PreParser> {
                                   FunctionLiteral::FunctionType function_type,
                                   LanguageMode language_mode, bool is_typed,
                                   typesystem::TypeFlags type_flags, bool* ok);
-  LazyParsingResult ParseStatementListAndLogFunction(bool may_abort, bool* ok);
+  LazyParsingResult ParseStatementListAndLogFunction(
+      PreParserFormalParameters* formals, bool has_duplicate_parameters,
+      bool may_abort, bool* ok);
 
   struct TemplateLiteralState {};
 
@@ -1570,8 +1583,8 @@ class PreParser : public ParserBase<PreParser> {
                                  MessageTemplate::Template message,
                                  const char* arg = NULL,
                                  ParseErrorType error_type = kSyntaxError) {
-    log_->LogMessage(source_location.beg_pos, source_location.end_pos, message,
-                     arg, error_type);
+    log_.LogMessage(source_location.beg_pos, source_location.end_pos, message,
+                    arg, error_type);
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
@@ -1850,6 +1863,7 @@ class PreParser : public ParserBase<PreParser> {
 
   int* use_counts_;
   bool track_unresolved_variables_;
+  PreParserLogger log_;
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,
@@ -1868,7 +1882,6 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos,
     const PreParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
   PreParserStatementList result;
 
   Scope* inner_scope = scope();

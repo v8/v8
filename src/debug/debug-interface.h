@@ -141,6 +141,27 @@ class DebugInterface {
   static void ClearStepping(Isolate* isolate);
 
   /**
+   * Defines location inside script.
+   * Lines and columns are 0-based.
+   */
+  class Location {
+   public:
+    Location(int lineNumber, int columnNumber);
+    /**
+     * Create empty location.
+     */
+    Location();
+
+    int GetLineNumber() const;
+    int GetColumnNumber() const;
+    bool IsEmpty() const;
+
+   private:
+    int lineNumber_;
+    int columnNumber_;
+  };
+
+  /**
    * Native wrapper around v8::internal::Script object.
    */
   class Script {
@@ -158,6 +179,8 @@ class DebugInterface {
     MaybeLocal<String> SourceMappingURL() const;
     MaybeLocal<String> ContextData() const;
     MaybeLocal<String> Source() const;
+    bool GetPossibleBreakpoints(const Location& start, const Location& end,
+                                std::vector<Location>* locations) const;
 
     /**
      * script parameter is a wrapper v8::internal::JSObject for
@@ -169,6 +192,9 @@ class DebugInterface {
      */
     static MaybeLocal<Script> Wrap(Isolate* isolate,
                                    v8::Local<v8::Object> script);
+
+   private:
+    int GetSourcePosition(const Location& location) const;
   };
 
   /**

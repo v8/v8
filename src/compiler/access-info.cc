@@ -25,8 +25,6 @@ bool CanInlineElementAccess(Handle<Map> map) {
   if (map->has_indexed_interceptor()) return false;
   ElementsKind const elements_kind = map->elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
-  // TODO(bmeurer): Add support for other elements kind.
-  if (elements_kind == UINT8_CLAMPED_ELEMENTS) return false;
   if (IsFixedTypedArrayElementsKind(elements_kind)) return true;
   return false;
 }
@@ -94,6 +92,12 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
     MapList const& receiver_maps, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::Generic(MapList const& receiver_maps) {
+  return PropertyAccessInfo(kGeneric, MaybeHandle<JSObject>(), Handle<Object>(),
+                            receiver_maps);
 }
 
 PropertyAccessInfo::PropertyAccessInfo()
@@ -168,6 +172,12 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
         return true;
       }
       return false;
+    }
+    case kGeneric: {
+      this->receiver_maps_.insert(this->receiver_maps_.end(),
+                                  that->receiver_maps_.begin(),
+                                  that->receiver_maps_.end());
+      return true;
     }
   }
 
@@ -302,7 +312,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               MachineRepresentation::kTagged;
           MaybeHandle<Map> field_map;
           if (details_representation.IsSmi()) {
-            field_type = type_cache_.kSmi;
+            field_type = Type::SignedSmall();
             field_representation = MachineRepresentation::kTaggedSigned;
           } else if (details_representation.IsDouble()) {
             field_type = type_cache_.kFloat64;
@@ -480,7 +490,10 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          MaybeHandle<JSObject> holder,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
-  if (map->unused_property_fields() == 0) return false;
+  if (map->unused_property_fields() == 0) {
+    *access_info = PropertyAccessInfo::Generic(MapList{map});
+    return true;
+  }
   Handle<Map> transition_map;
   if (TransitionArray::SearchTransition(map, kData, name, NONE)
           .ToHandle(&transition_map)) {
@@ -499,7 +512,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     MaybeHandle<Map> field_map;
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (details_representation.IsSmi()) {
-      field_type = type_cache_.kSmi;
+      field_type = Type::SignedSmall();
       field_representation = MachineRepresentation::kTaggedSigned;
     } else if (details_representation.IsDouble()) {
       field_type = type_cache_.kFloat64;

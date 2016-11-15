@@ -212,6 +212,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     CodeAssembler* assembler_;
   };
 
+  typedef ZoneList<Variable*> VariableList;
+
   // ===========================================================================
   // Base Assembler
   // ===========================================================================
@@ -492,12 +494,15 @@ class CodeAssembler::Label {
       CodeAssembler* assembler,
       CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
       : CodeAssembler::Label(assembler, 0, nullptr, type) {}
+  Label(CodeAssembler* assembler, const VariableList& merged_variables,
+        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
+      : CodeAssembler::Label(assembler, merged_variables.length(),
+                             &(merged_variables[0]), type) {}
+  Label(CodeAssembler* assembler, size_t count, Variable** vars,
+        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
   Label(CodeAssembler* assembler, CodeAssembler::Variable* merged_variable,
         CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, 1, &merged_variable, type) {}
-  Label(CodeAssembler* assembler, int merged_variable_count,
-        CodeAssembler::Variable** merged_variables,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
+      : Label(assembler, 1, &merged_variable, type) {}
   ~Label() {}
 
  private:

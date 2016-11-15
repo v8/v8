@@ -15,10 +15,6 @@ namespace v8 {
 namespace internal {
 namespace tracing {
 
-// A global flag used as a shortcut to check for the
-// v8.runtime-call-stats category due to its high frequency use.
-base::Atomic32 kRuntimeCallStatsTracingEnabled = false;
-
 v8::Platform* TraceEventHelper::GetCurrentPlatform() {
   return v8::internal::V8::GetCurrentPlatform();
 }
@@ -49,7 +45,7 @@ void CallStatsScopedTracer::Initialize(v8::internal::Isolate* isolate,
   p_data_ = &data_;
   RuntimeCallStats* table = isolate->counters()->runtime_call_stats();
   has_parent_scope_ = table->InUse();
-  if (!has_parent_scope_ && table->current_timer() == NULL) table->Reset();
+  if (!has_parent_scope_) table->Reset();
   v8::internal::tracing::AddTraceEvent(
       TRACE_EVENT_PHASE_BEGIN, category_group_enabled, name,
       v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId,

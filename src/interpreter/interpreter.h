@@ -139,24 +139,10 @@ class Interpreter {
   void DoStaLookupSlot(LanguageMode language_mode,
                        InterpreterAssembler* assembler);
 
-  // Generates code to load a context slot.
-  compiler::Node* BuildLoadContextSlot(InterpreterAssembler* assembler);
-
-  // Generates code to load a slot in the current context.
-  compiler::Node* BuildLoadCurrentContextSlot(InterpreterAssembler* assembler);
-
   // Generates code to load a global.
   compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
                                   compiler::Node* feedback_slot,
                                   InterpreterAssembler* assembler);
-
-  // Generates code to load a named property.
-  compiler::Node* BuildLoadNamedProperty(Callable ic,
-                                         InterpreterAssembler* assembler);
-
-  // Generates code to load a keyed property.
-  compiler::Node* BuildLoadKeyedProperty(Callable ic,
-                                         InterpreterAssembler* assembler);
 
   // Generates code to prepare the result for ForInPrepare. Cache data
   // are placed into the consecutive series of registers starting at

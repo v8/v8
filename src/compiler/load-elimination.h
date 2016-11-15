@@ -167,6 +167,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                   Zone* zone) const;
     AbstractState const* KillField(Node* object, size_t index,
                                    Zone* zone) const;
+    AbstractState const* KillFields(Node* object, Zone* zone) const;
     Node* LookupField(Node* object, size_t index) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,

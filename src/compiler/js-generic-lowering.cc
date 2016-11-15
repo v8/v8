@@ -625,6 +625,14 @@ void JSGenericLowering::LowerJSStoreMessage(Node* node) {
   NodeProperties::ChangeOp(node, machine()->Store(representation));
 }
 
+void JSGenericLowering::LowerJSLoadModule(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSStoreModule(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSGeneratorStore(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

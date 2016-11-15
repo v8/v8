@@ -65,6 +65,8 @@ using v8::MemoryPressureLevel;
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
+  /* Empty scope info */                                                       \
+  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   /* Oddballs */                                                               \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
@@ -90,7 +92,6 @@ using v8::MemoryPressureLevel;
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
-  V(Map, module_info_entry_map, ModuleInfoEntryMap)                            \
   V(Map, module_info_map, ModuleInfoMap)                                       \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
@@ -140,7 +141,6 @@ using v8::MemoryPressureLevel;
   V(Map, uint8x16_map, Uint8x16Map)                                            \
   V(Map, bool8x16_map, Bool8x16Map)                                            \
   /* Canonical empty values */                                                 \
-  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
@@ -276,7 +276,6 @@ using v8::MemoryPressureLevel;
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
   V(ScopeInfoMap)                       \
-  V(ModuleInfoEntryMap)                 \
   V(ModuleInfoMap)                      \
   V(FixedCOWArrayMap)                   \
   V(FixedDoubleArrayMap)                \
@@ -685,6 +684,26 @@ class Heap {
 #endif
   }
 
+  static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
+    return collector == SCAVENGER || collector == MINOR_MARK_COMPACTOR;
+  }
+
+  static inline GarbageCollector YoungGenerationCollector() {
+    return (FLAG_minor_mc) ? MINOR_MARK_COMPACTOR : SCAVENGER;
+  }
+
+  static inline const char* CollectorName(GarbageCollector collector) {
+    switch (collector) {
+      case SCAVENGER:
+        return "Scavenger";
+      case MARK_COMPACTOR:
+        return "Mark-Compact";
+      case MINOR_MARK_COMPACTOR:
+        return "Minor Mark-Compact";
+    }
+    return "Unknown collector";
+  }
+
   V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
                                                     double mutator_speed);
 
@@ -945,6 +964,9 @@ class Heap {
   // Returns whether it succeeded.
   bool CreateHeapObjects();
 
+  // Create ObjectStats if live_object_stats_ or dead_object_stats_ are nullptr.
+  V8_INLINE void CreateObjectStats();
+
   // Destroys all memory allocated by the heap.
   void TearDown();
 
@@ -1199,10 +1221,6 @@ class Heap {
   bool RequiresImmediateWrapperProcessing();
 
   EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
-
-  EmbedderReachableReferenceReporter* embedder_reachable_reference_reporter() {
-    return embedder_reference_reporter_;
-  }
 
   size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
 
@@ -1775,6 +1793,8 @@ class Heap {
 
   // Performs a major collection in the whole heap.
   void MarkCompact();
+  // Performs a minor collection of just the young generation.
+  void MinorMarkCompact();
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
@@ -2310,7 +2330,6 @@ class Heap {
   int heap_iterator_depth_;
 
   EmbedderHeapTracer* embedder_heap_tracer_;
-  EmbedderReachableReferenceReporter* embedder_reference_reporter_;
   std::vector<std::pair<void*, void*>> wrappers_to_trace_;
 
   // Used for testing purposes.
@@ -2632,18 +2651,6 @@ class AllocationObserver {
   friend class NewSpace;
   friend class PagedSpace;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
-};
-
-class TracePossibleWrapperReporter : public EmbedderReachableReferenceReporter {
- public:
-  explicit TracePossibleWrapperReporter(Heap* heap) : heap_(heap) {}
-  void ReportExternalReference(Value* object) override {
-    heap_->RegisterExternallyReferencedObject(
-        reinterpret_cast<Object**>(object));
-  }
-
- private:
-  Heap* heap_;
 };
 
 }  // namespace internal

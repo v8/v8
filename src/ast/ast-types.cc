@@ -284,6 +284,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
+    case MODULE_INFO_ENTRY_TYPE:
       return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do

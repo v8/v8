@@ -1790,6 +1790,10 @@ Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher) {
       new IsConstantMatcher<double>(IrOpcode::kNumberConstant, value_matcher));
 }
 
+Matcher<Node*> IsPointerConstant(const Matcher<intptr_t>& value_matcher) {
+  return MakeMatcher(new IsConstantMatcher<intptr_t>(IrOpcode::kPointerConstant,
+                                                     value_matcher));
+}
 
 Matcher<Node*> IsSelect(const Matcher<MachineRepresentation>& type_matcher,
                         const Matcher<Node*>& value0_matcher,

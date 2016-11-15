@@ -2404,12 +2404,16 @@ void CodeGenerator::AssembleConstructFrame() {
       __ mov(ebp, esp);
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ push(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
   }
 
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2452,7 +2456,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ VerifyX87StackDepth(1);
   }
   bool clear_stack = true;
-  for (int i = 0; i < descriptor->ReturnCount(); i++) {
+  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
     MachineRepresentation rep = descriptor->GetReturnType(i).representation();
     LinkageLocation loc = descriptor->GetReturnLocation(i);
     if (IsFloatingPoint(rep) && loc == LinkageLocation::ForRegister(0)) {

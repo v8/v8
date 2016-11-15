@@ -23,7 +23,7 @@ class V8DebuggerAgentImpl;
 class V8InspectorImpl;
 class V8StackTraceImpl;
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class V8Debugger {
  public:
@@ -53,12 +53,11 @@ class V8Debugger {
   void stepOutOfFunction();
   void clearStepping();
 
-  bool setScriptSource(const String16& sourceID,
-                       v8::Local<v8::String> newSource, bool dryRun,
-                       ErrorString*,
-                       protocol::Maybe<protocol::Runtime::ExceptionDetails>*,
-                       JavaScriptCallFrames* newCallFrames,
-                       protocol::Maybe<bool>* stackChanged);
+  Response setScriptSource(
+      const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
+      protocol::Maybe<protocol::Runtime::ExceptionDetails>*,
+      JavaScriptCallFrames* newCallFrames, protocol::Maybe<bool>* stackChanged,
+      bool* compileError);
   JavaScriptCallFrames currentCallFrames(int limit = 0);
 
   // Each script inherits debug data from v8::Context where it has been
@@ -108,7 +107,8 @@ class V8Debugger {
                           v8::Local<v8::Object> executionState,
                           v8::Local<v8::Value> exception,
                           v8::Local<v8::Array> hitBreakpoints,
-                          bool isPromiseRejection = false);
+                          bool isPromiseRejection = false,
+                          bool isUncaught = false);
   static void v8DebugEventCallback(const v8::DebugInterface::EventDetails&);
   v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
                                                   const char* functionName);

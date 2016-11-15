@@ -972,6 +972,7 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
   CHECK(reject()->IsJSFunction());
   CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
   CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
+  CHECK(context()->IsContext());
 }
 
 void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
@@ -998,6 +999,24 @@ void JSFixedArrayIterator::JSFixedArrayIteratorVerify() {
   VerifySmiField(kIndexOffset);
 
   CHECK_LE(index(), array()->length());
+}
+
+void ModuleInfoEntry::ModuleInfoEntryVerify() {
+  Isolate* isolate = GetIsolate();
+  CHECK(IsModuleInfoEntry());
+
+  CHECK(export_name()->IsUndefined(isolate) || export_name()->IsString());
+  CHECK(local_name()->IsUndefined(isolate) || local_name()->IsString());
+  CHECK(import_name()->IsUndefined(isolate) || import_name()->IsString());
+
+  VerifySmiField(kModuleRequestOffset);
+  VerifySmiField(kCellIndexOffset);
+  VerifySmiField(kBegPosOffset);
+  VerifySmiField(kEndPosOffset);
+
+  CHECK_IMPLIES(import_name()->IsString(), module_request() >= 0);
+  CHECK_IMPLIES(export_name()->IsString() && import_name()->IsString(),
+                local_name()->IsUndefined(isolate));
 }
 
 void Module::ModuleVerify() {
@@ -1114,6 +1133,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   VerifyPointer(instance_template());
   VerifyPointer(signature());
   VerifyPointer(access_check_info());
+  VerifyPointer(cached_property_name());
 }
 
 

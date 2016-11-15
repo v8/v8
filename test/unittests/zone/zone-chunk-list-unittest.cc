@@ -93,7 +93,7 @@ TEST(ZoneChunkList, RewindTest) {
     count++;
   }
 
-  EXPECT_EQ(count, 42);
+  EXPECT_EQ(count, 42u);
   EXPECT_EQ(count, zone_chunk_list.size());
 
   zone_chunk_list.Rewind(0);
@@ -105,7 +105,7 @@ TEST(ZoneChunkList, RewindTest) {
     count++;
   }
 
-  EXPECT_EQ(count, 0);
+  EXPECT_EQ(count, 0u);
   EXPECT_EQ(count, zone_chunk_list.size());
 
   zone_chunk_list.Rewind(100);
@@ -117,7 +117,7 @@ TEST(ZoneChunkList, RewindTest) {
     count++;
   }
 
-  EXPECT_EQ(count, 0);
+  EXPECT_EQ(count, 0u);
   EXPECT_EQ(count, zone_chunk_list.size());
 }
 
@@ -137,7 +137,70 @@ TEST(ZoneChunkList, FindTest) {
 
   *zone_chunk_list.Find(index) = 42;
 
-  EXPECT_EQ(*zone_chunk_list.Find(index), 42);
+  EXPECT_EQ(*zone_chunk_list.Find(index), 42u);
+}
+
+TEST(ZoneChunkList, CopyToTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  uintptr_t* array = zone.NewArray<uintptr_t>(kItemCount);
+
+  zone_chunk_list.CopyTo(array);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    EXPECT_EQ(array[i], static_cast<uintptr_t>(i));
+  }
+}
+
+TEST(ZoneChunkList, SmallCopyToTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uint8_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uint8_t>(i & 0xFF));
+  }
+
+  uint8_t* array = zone.NewArray<uint8_t>(kItemCount);
+
+  zone_chunk_list.CopyTo(array);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    EXPECT_EQ(array[i], static_cast<uint8_t>(i & 0xFF));
+  }
+}
+
+struct Fubar {
+  size_t a_;
+  size_t b_;
+};
+
+TEST(ZoneChunkList, BigCopyToTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<Fubar> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back({i, i + 5});
+  }
+
+  Fubar* array = zone.NewArray<Fubar>(kItemCount);
+
+  zone_chunk_list.CopyTo(array);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    EXPECT_EQ(array[i].a_, i);
+    EXPECT_EQ(array[i].b_, i + 5);
+  }
 }
 
 }  // namespace internal

@@ -98,6 +98,20 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss,
                                                   ReturnHolder return_what) {
+  if (map()->IsPrimitiveMap() || map()->IsJSGlobalProxyMap()) {
+    // If the receiver is a global proxy and if we get to this point then
+    // the compile-time (current) native context has access to global proxy's
+    // native context. Since access rights revocation is not supported at all,
+    // we can generate a check that an execution-time native context is either
+    // the same as compile-time native context or has the same access token.
+    Handle<Context> native_context = isolate()->native_context();
+    Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
+
+    bool compare_native_contexts_only = map()->IsPrimitiveMap();
+    GenerateAccessCheck(weak_cell, scratch1(), scratch2(), miss,
+                        compare_native_contexts_only);
+  }
+
   // Check that the maps starting from the prototype haven't changed.
   return CheckPrototypes(object_reg, scratch1(), scratch2(), scratch3(), name,
                          miss, return_what);
@@ -110,6 +124,12 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                                                    Handle<Name> name,
                                                    Label* miss,
                                                    ReturnHolder return_what) {
+  if (map()->IsJSGlobalProxyMap()) {
+    Handle<Context> native_context = isolate()->native_context();
+    Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
+    GenerateAccessCheck(weak_cell, scratch1(), scratch2(), miss, false);
+  }
+
   return CheckPrototypes(object_reg, this->name(), scratch1(), scratch2(), name,
                          miss, return_what);
 }
@@ -212,7 +232,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register reg = Frontend(name);
@@ -224,7 +244,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
     int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
@@ -578,7 +598,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization, int accessor_index,
     Handle<Code> slow_stub) {
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);

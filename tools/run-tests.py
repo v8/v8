@@ -66,10 +66,10 @@ TEST_MAP = {
   # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
     "mjsunit",
-    "debugger",
     "cctest",
-    "webkit",
+    "debugger",
     "inspector",
+    "webkit",
     "fuzzer",
     "message",
     "preparser",
@@ -79,8 +79,9 @@ TEST_MAP = {
   # This needs to stay in sync with test/default.isolate.
   "default": [
     "mjsunit",
-    "debugger",
     "cctest",
+    "debugger",
+    "inspector",
     "fuzzer",
     "message",
     "preparser",
@@ -90,10 +91,10 @@ TEST_MAP = {
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
     "mjsunit",
-    "debugger",
     "cctest",
-    "webkit",
+    "debugger",
     "inspector",
+    "webkit",
     "intl",
   ],
   "unittests": [
@@ -611,6 +612,7 @@ def ProcessOptions(options):
     TEST_MAP["bot_default"].remove("intl")
     TEST_MAP["default"].remove("intl")
   if not options.enable_inspector:
+    TEST_MAP["default"].remove("inspector")
     TEST_MAP["bot_default"].remove("inspector")
     TEST_MAP["optimize_for_size"].remove("inspector")
     TEST_MAP["default"].remove("debugger")

@@ -352,17 +352,6 @@ void Interpreter::DoLdaUndefined(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// LdrUndefined <reg>
-//
-// Loads undefined into the accumulator and |reg|.
-void Interpreter::DoLdrUndefined(InterpreterAssembler* assembler) {
-  Node* undefined_value =
-      __ HeapConstant(isolate_->factory()->undefined_value());
-  Node* destination = __ BytecodeOperandReg(0);
-  __ StoreRegister(undefined_value, destination);
-  __ Dispatch();
-}
-
 // LdaNull
 //
 // Load Null into the accumulator.
@@ -460,23 +449,6 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// LdrGlobal <slot> <reg>
-//
-// Load the global with name in constant pool entry <name_index> into
-// register <reg> using FeedBackVector slot <slot> outside of a typeof.
-void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
-
-  Node* context = __ GetContext();
-
-  Node* raw_slot = __ BytecodeOperandIdx(0);
-  Node* result = BuildLoadGlobal(ic, context, raw_slot, assembler);
-  Node* destination = __ BytecodeOperandReg(1);
-  __ StoreRegister(result, destination);
-  __ Dispatch();
-}
-
 // LdaGlobalInsideTypeof <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
@@ -497,9 +469,9 @@ void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
   typedef StoreWithVectorDescriptor Descriptor;
   // Get the global object.
   Node* context = __ GetContext();
-  Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
-  Node* global = __ LoadContextSlot(native_context, Context::EXTENSION_INDEX);
+  Node* native_context = __ LoadNativeContext(context);
+  Node* global =
+      __ LoadContextElement(native_context, Context::EXTENSION_INDEX);
 
   // Store the global via the StoreIC.
   Node* code_target = __ HeapConstant(ic.code());
@@ -534,29 +506,17 @@ void Interpreter::DoStaGlobalStrict(InterpreterAssembler* assembler) {
   DoStaGlobal(ic, assembler);
 }
 
-compiler::Node* Interpreter::BuildLoadContextSlot(
-    InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
-  Node* context = __ LoadRegister(reg_index);
-  Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* depth = __ BytecodeOperandUImm(2);
-  Node* slot_context = __ GetContextAtDepth(context, depth);
-  return __ LoadContextSlot(slot_context, slot_index);
-}
-
-compiler::Node* Interpreter::BuildLoadCurrentContextSlot(
-    InterpreterAssembler* assembler) {
-  Node* slot_index = __ BytecodeOperandIdx(0);
-  Node* slot_context = __ GetContext();
-  return __ LoadContextSlot(slot_context, slot_index);
-}
-
 // LdaContextSlot <context> <slot_index> <depth>
 //
 // Load the object in |slot_index| of the context at |depth| in the context
 // chain starting at |context| into the accumulator.
 void Interpreter::DoLdaContextSlot(InterpreterAssembler* assembler) {
-  Node* result = BuildLoadContextSlot(assembler);
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* context = __ LoadRegister(reg_index);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* depth = __ BytecodeOperandUImm(2);
+  Node* slot_context = __ GetContextAtDepth(context, depth);
+  Node* result = __ LoadContextElement(slot_context, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -565,29 +525,10 @@ void Interpreter::DoLdaContextSlot(InterpreterAssembler* assembler) {
 //
 // Load the object in |slot_index| of the current context into the accumulator.
 void Interpreter::DoLdaCurrentContextSlot(InterpreterAssembler* assembler) {
-  Node* result = BuildLoadCurrentContextSlot(assembler);
+  Node* slot_index = __ BytecodeOperandIdx(0);
+  Node* slot_context = __ GetContext();
+  Node* result = __ LoadContextElement(slot_context, slot_index);
   __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// LdrContextSlot <context> <slot_index> <depth> <reg>
-//
-// Load the object in |slot_index| of the context at |depth| in the context
-// chain of |context| into register |reg|.
-void Interpreter::DoLdrContextSlot(InterpreterAssembler* assembler) {
-  Node* result = BuildLoadContextSlot(assembler);
-  Node* destination = __ BytecodeOperandReg(3);
-  __ StoreRegister(result, destination);
-  __ Dispatch();
-}
-
-// LdrCurrentContextSlot <slot_index> <reg>
-//
-// Load the object in |slot_index| of the current context into register |reg|.
-void Interpreter::DoLdrCurrentContextSlot(InterpreterAssembler* assembler) {
-  Node* result = BuildLoadCurrentContextSlot(assembler);
-  Node* destination = __ BytecodeOperandReg(1);
-  __ StoreRegister(result, destination);
   __ Dispatch();
 }
 
@@ -602,7 +543,7 @@ void Interpreter::DoStaContextSlot(InterpreterAssembler* assembler) {
   Node* slot_index = __ BytecodeOperandIdx(1);
   Node* depth = __ BytecodeOperandUImm(2);
   Node* slot_context = __ GetContextAtDepth(context, depth);
-  __ StoreContextSlot(slot_context, slot_index, value);
+  __ StoreContextElement(slot_context, slot_index, value);
   __ Dispatch();
 }
 
@@ -614,7 +555,7 @@ void Interpreter::DoStaCurrentContextSlot(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* slot_index = __ BytecodeOperandIdx(0);
   Node* slot_context = __ GetContext();
-  __ StoreContextSlot(slot_context, slot_index, value);
+  __ StoreContextElement(slot_context, slot_index, value);
   __ Dispatch();
 }
 
@@ -659,7 +600,7 @@ void Interpreter::DoLdaLookupContextSlot(Runtime::FunctionId function_id,
   // Fast path does a normal load context.
   {
     Node* slot_context = __ GetContextAtDepth(context, depth);
-    Node* result = __ LoadContextSlot(slot_context, slot_index);
+    Node* result = __ LoadContextElement(slot_context, slot_index);
     __ SetAccumulator(result);
     __ Dispatch();
   }
@@ -771,9 +712,13 @@ void Interpreter::DoStaLookupSlotStrict(InterpreterAssembler* assembler) {
   DoStaLookupSlot(LanguageMode::STRICT, assembler);
 }
 
-Node* Interpreter::BuildLoadNamedProperty(Callable ic,
-                                          InterpreterAssembler* assembler) {
+// LdaNamedProperty <object> <name_index> <slot>
+//
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
+// constant pool entry <name_index>.
+void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
   typedef LoadWithVectorDescriptor Descriptor;
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* code_target = __ HeapConstant(ic.code());
   Node* register_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(register_index);
@@ -783,38 +728,21 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  return __ CallStub(
+  Node* result = __ CallStub(
       ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
       Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
       Arg(Descriptor::kVector, type_feedback_vector));
-}
-
-// LdaNamedProperty <object> <name_index> <slot>
-//
-// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
-// constant pool entry <name_index>.
-void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadNamedProperty(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// LdrNamedProperty <object> <name_index> <slot> <reg>
+// KeyedLoadIC <object> <slot>
 //
-// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
-// constant pool entry <name_index> and puts the result into register <reg>.
-void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadNamedProperty(ic, assembler);
-  Node* destination = __ BytecodeOperandReg(3);
-  __ StoreRegister(result, destination);
-  __ Dispatch();
-}
-
-Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
-                                          InterpreterAssembler* assembler) {
+// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
+// in the accumulator.
+void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
   typedef LoadWithVectorDescriptor Descriptor;
+  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
   Node* code_target = __ HeapConstant(ic.code());
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(reg_index);
@@ -823,32 +751,11 @@ Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  return __ CallStub(
+  Node* result = __ CallStub(
       ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
       Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
       Arg(Descriptor::kVector, type_feedback_vector));
-}
-
-// KeyedLoadIC <object> <slot>
-//
-// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
-// in the accumulator.
-void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadKeyedProperty(ic, assembler);
   __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// LdrKeyedProperty <object> <slot> <reg>
-//
-// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
-// in the accumulator and puts the result in register <reg>.
-void Interpreter::DoLdrKeyedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
-  Node* result = BuildLoadKeyedProperty(ic, assembler);
-  Node* destination = __ BytecodeOperandReg(2);
-  __ StoreRegister(result, destination);
   __ Dispatch();
 }
 
@@ -926,6 +833,88 @@ void Interpreter::DoStaKeyedPropertySloppy(InterpreterAssembler* assembler) {
 void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::KeyedStoreICInOptimizedCode(isolate_, STRICT);
   DoKeyedStoreIC(ic, assembler);
+}
+
+// LdaModuleVariable <cell_index> <depth>
+//
+// Load the contents of a module variable into the accumulator.  The variable is
+// identified by <cell_index>.  <depth> is the depth of the current context
+// relative to the module context.
+void Interpreter::DoLdaModuleVariable(InterpreterAssembler* assembler) {
+  Node* cell_index = __ BytecodeOperandImm(0);
+  Node* depth = __ BytecodeOperandUImm(1);
+
+  Node* module_context = __ GetContextAtDepth(__ GetContext(), depth);
+  Node* module =
+      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
+
+  Label if_export(assembler), if_import(assembler), end(assembler);
+  __ Branch(__ IntPtrGreaterThan(cell_index, __ IntPtrConstant(0)), &if_export,
+            &if_import);
+
+  __ Bind(&if_export);
+  {
+    Node* regular_exports =
+        __ LoadObjectField(module, Module::kRegularExportsOffset);
+    // The actual array index is (cell_index - 1).
+    Node* export_index = __ IntPtrSub(cell_index, __ IntPtrConstant(1));
+    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index);
+    __ SetAccumulator(__ LoadObjectField(cell, Cell::kValueOffset));
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_import);
+  {
+    Node* regular_imports =
+        __ LoadObjectField(module, Module::kRegularImportsOffset);
+    // The actual array index is (-cell_index - 1).
+    Node* import_index = __ IntPtrSub(__ IntPtrConstant(-1), cell_index);
+    Node* cell = __ LoadFixedArrayElement(regular_imports, import_index);
+    __ SetAccumulator(__ LoadObjectField(cell, Cell::kValueOffset));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
+}
+
+// StaModuleVariable <cell_index> <depth>
+//
+// Store accumulator to the module variable identified by <cell_index>.
+// <depth> is the depth of the current context relative to the module context.
+void Interpreter::DoStaModuleVariable(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Node* cell_index = __ BytecodeOperandImm(0);
+  Node* depth = __ BytecodeOperandUImm(1);
+
+  Node* module_context = __ GetContextAtDepth(__ GetContext(), depth);
+  Node* module =
+      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
+
+  Label if_export(assembler), if_import(assembler), end(assembler);
+  __ Branch(__ IntPtrGreaterThan(cell_index, __ IntPtrConstant(0)), &if_export,
+            &if_import);
+
+  __ Bind(&if_export);
+  {
+    Node* regular_exports =
+        __ LoadObjectField(module, Module::kRegularExportsOffset);
+    // The actual array index is (cell_index - 1).
+    Node* export_index = __ IntPtrSub(cell_index, __ IntPtrConstant(1));
+    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index);
+    __ StoreObjectField(cell, Cell::kValueOffset, value);
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_import);
+  {
+    // Not supported (probably never).
+    __ Abort(kUnsupportedModuleOperation);
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
 }
 
 // PushContext <context>
@@ -1757,9 +1746,8 @@ void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
 
   // Get the function to call from the native context.
   Node* context = __ GetContext();
-  Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
-  Node* function = __ LoadContextSlot(native_context, context_index);
+  Node* native_context = __ LoadNativeContext(context);
+  Node* function = __ LoadContextElement(native_context, context_index);
 
   // Call the function.
   Node* result = __ CallJS(function, context, first_arg, args_count,

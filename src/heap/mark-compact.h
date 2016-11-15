@@ -321,11 +321,15 @@ class LiveObjectIterator BASE_EMBEDDED {
   HeapObject* Next();
 
  private:
+  inline Heap* heap() { return chunk_->heap(); }
+
   MemoryChunk* chunk_;
   MarkBitCellIterator it_;
   Address cell_base_;
   MarkBit::CellType current_cell_;
 };
+
+enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 
 // -------------------------------------------------------------------------
 // Mark-Compact collector
@@ -427,9 +431,7 @@ class MarkCompactCollector {
   // Performs a global garbage collection.
   void CollectGarbage();
 
-  enum CompactionMode { INCREMENTAL_COMPACTION, NON_INCREMENTAL_COMPACTION };
-
-  bool StartCompaction(CompactionMode mode);
+  bool StartCompaction();
 
   void AbortCompaction();
 
@@ -524,6 +526,7 @@ class MarkCompactCollector {
   Sweeper& sweeper() { return sweeper_; }
 
  private:
+  template <PageEvacuationMode mode>
   class EvacuateNewSpacePageVisitor;
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;

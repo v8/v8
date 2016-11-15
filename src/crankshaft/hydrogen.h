@@ -2116,7 +2116,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   FunctionState* function_state() const { return function_state_; }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
 
   AstTypeBounds* bounds() { return &bounds_; }
 
@@ -2687,8 +2687,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       HValue* left,
       HValue* right,
       PushBeforeSimulateBehavior push_sim_result);
-  HInstruction* BuildIncrement(bool returns_original_input,
-                               CountOperation* expr);
+  HInstruction* BuildIncrement(CountOperation* expr);
   HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
                                   Expression* expr, FeedbackVectorSlot slot,
                                   HValue* object, HValue* key, HValue* value);
@@ -2799,6 +2798,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                                         TailCallMode tail_call_mode);
 
   bool CanBeFunctionApplyArguments(Call* expr);
+
+  bool IsAnyParameterContextAllocated();
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;

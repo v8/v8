@@ -1869,21 +1869,22 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
 // Shared routine for word comparison against zero.
 void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                           Node* value, FlagsContinuation* cont) {
-  while (selector->CanCover(user, value)) {
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (value->opcode() == IrOpcode::kWord32Equal &&
+         selector->CanCover(user, value)) {
+    Int32BinopMatcher m(value);
+    if (!m.right().Is(0)) break;
+
+    user = value;
+    value = m.left().node();
+    cont->Negate();
+  }
+
+  if (selector->CanCover(user, value)) {
     switch (value->opcode()) {
-      case IrOpcode::kWord32Equal: {
-        // Combine with comparisons against 0 by simply inverting the
-        // continuation.
-        Int32BinopMatcher m(value);
-        if (m.right().Is(0)) {
-          user = value;
-          value = m.left().node();
-          cont->Negate();
-          continue;
-        }
+      case IrOpcode::kWord32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitWordCompare(selector, value, kX64Cmp32, cont);
-      }
       case IrOpcode::kInt32LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWordCompare(selector, value, kX64Cmp32, cont);
@@ -1941,9 +1942,26 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       case IrOpcode::kFloat64Equal:
         cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
         return VisitFloat64Compare(selector, value, cont);
-      case IrOpcode::kFloat64LessThan:
+      case IrOpcode::kFloat64LessThan: {
+        Float64BinopMatcher m(value);
+        if (m.left().Is(0.0) && m.right().IsFloat64Abs()) {
+          // This matches the pattern
+          //
+          //   Float64LessThan(#0.0, Float64Abs(x))
+          //
+          // which TurboFan generates for NumberToBoolean in the general case,
+          // and which evaluates to false if x is 0, -0 or NaN. We can compile
+          // this to a simple (v)ucomisd using not_equal flags condition, which
+          // avoids the costly Float64Abs.
+          cont->OverwriteAndNegateIfEqual(kNotEqual);
+          InstructionCode const opcode =
+              selector->IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+          return VisitCompare(selector, opcode, m.left().node(),
+                              m.right().InputAt(0), cont, false);
+        }
         cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
         return VisitFloat64Compare(selector, value, cont);
+      }
       case IrOpcode::kFloat64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
         return VisitFloat64Compare(selector, value, cont);
@@ -1992,7 +2010,6 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       default:
         break;
     }
-    break;
   }
 
   // Branch could not be combined with a compare, emit compare against 0.
@@ -2205,13 +2222,27 @@ void InstructionSelector::VisitFloat64Equal(Node* node) {
   VisitFloat64Compare(this, node, &cont);
 }
 
-
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
+  Float64BinopMatcher m(node);
+  if (m.left().Is(0.0) && m.right().IsFloat64Abs()) {
+    // This matches the pattern
+    //
+    //   Float64LessThan(#0.0, Float64Abs(x))
+    //
+    // which TurboFan generates for NumberToBoolean in the general case,
+    // and which evaluates to false if x is 0, -0 or NaN. We can compile
+    // this to a simple (v)ucomisd using not_equal flags condition, which
+    // avoids the costly Float64Abs.
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
+    InstructionCode const opcode =
+        IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+    return VisitCompare(this, opcode, m.left().node(), m.right().InputAt(0),
+                        &cont, false);
+  }
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
-
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   FlagsContinuation cont =

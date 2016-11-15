@@ -794,7 +794,10 @@ class MacroAssembler: public Assembler {
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }
-  void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
+  void Call(Handle<Code> target, RelocInfo::Mode rmode,
+            TypeFeedbackId id = TypeFeedbackId::None()) {
+    call(target, rmode, id);
+  }
   void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
   void Push(Register src) { push(src); }
   void Push(const Operand& src) { push(src); }

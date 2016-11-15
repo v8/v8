@@ -1138,7 +1138,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
   s = String::Flatten(s);
   // First scan the string for uppercase and non-ASCII characters:
   if (s->HasOnlyOneByteChars()) {
-    unsigned first_index_to_lower = length;
+    int first_index_to_lower = length;
     for (int index = 0; index < length; ++index) {
       // Blink specializes this path for one-byte strings, so it
       // does not need to do a generic get, but can do the equivalent
@@ -1165,14 +1165,16 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
     String::FlatContent flat = s->GetFlatContent();
     if (flat.IsOneByte()) {
       const uint8_t* src = flat.ToOneByteVector().start();
-      CopyChars(result->GetChars(), src, first_index_to_lower);
+      CopyChars(result->GetChars(), src,
+                static_cast<size_t>(first_index_to_lower));
       for (int index = first_index_to_lower; index < length; ++index) {
         uint16_t ch = static_cast<uint16_t>(src[index]);
         result->SeqOneByteStringSet(index, ToLatin1Lower(ch));
       }
     } else {
       const uint16_t* src = flat.ToUC16Vector().start();
-      CopyChars(result->GetChars(), src, first_index_to_lower);
+      CopyChars(result->GetChars(), src,
+                static_cast<size_t>(first_index_to_lower));
       for (int index = first_index_to_lower; index < length; ++index) {
         uint16_t ch = src[index];
         result->SeqOneByteStringSet(index, ToLatin1Lower(ch));

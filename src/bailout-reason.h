@@ -172,6 +172,7 @@ namespace internal {
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                           \
     "Reference to a variable which requires dynamic lookup")                   \
   V(kReferenceToGlobalLexicalVariable, "Reference to global lexical variable") \
+  V(kReferenceToModuleVariable, "Reference to module-allocated variable")      \
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable")  \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \
   V(kRegisterWasClobbered, "Register was clobbered")                           \
@@ -243,6 +244,7 @@ namespace internal {
   V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \
   V(kUnsupportedLookupSlotInDeclaration,                                       \
     "Unsupported lookup slot in declaration")                                  \
+  V(kUnsupportedModuleOperation, "Unsupported module operation")               \
   V(kUnsupportedNonPrimitiveCompare, "Unsupported non-primitive compare")      \
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \

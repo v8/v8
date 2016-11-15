@@ -14,7 +14,6 @@ namespace {{namespace}} {
 class {{config.lib.export_macro}} ErrorSupport {
 public:
     ErrorSupport();
-    ErrorSupport(String* errorString);
     ~ErrorSupport();
 
     void push();
@@ -27,7 +26,6 @@ public:
 private:
     std::vector<String> m_path;
     std::vector<String> m_errors;
-    String* m_errorString;
 };
 
 {% for namespace in config.protocol.namespace %}

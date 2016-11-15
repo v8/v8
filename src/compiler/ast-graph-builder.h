@@ -61,7 +61,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
 
  private:
   class AstContext;

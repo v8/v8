@@ -109,7 +109,6 @@ namespace internal {
                                                                               \
   /* Interpreter */                                                           \
   ASM(InterpreterEntryTrampoline)                                             \
-  ASM(InterpreterMarkBaselineOnReturn)                                        \
   ASM(InterpreterPushArgsAndCall)                                             \
   ASM(InterpreterPushArgsAndCallFunction)                                     \
   ASM(InterpreterPushArgsAndTailCall)                                         \
@@ -117,6 +116,7 @@ namespace internal {
   ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndConstructFunction)                                \
   ASM(InterpreterPushArgsAndConstructArray)                                   \
+  ASM(InterpreterEnterBytecodeAdvance)                                        \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \
@@ -186,6 +186,10 @@ namespace internal {
   ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
   ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
       StoreICState::kStrictModeState)                                         \
+  TFS(KeyedStoreIC_Megamorphic_TF, KEYED_STORE_IC, kNoExtraICState,           \
+      StoreWithVector)                                                        \
+  TFS(KeyedStoreIC_Megamorphic_Strict_TF, KEYED_STORE_IC,                     \
+      StoreICState::kStrictModeState, StoreWithVector)                        \
   ASM(KeyedStoreIC_Miss)                                                      \
   ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                       \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
@@ -557,6 +561,11 @@ namespace internal {
   TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                          \
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
+  /* Promise */                                                               \
+  CPP(CreateResolvingFunctions)                                               \
+  CPP(PromiseResolveClosure)                                                  \
+  CPP(PromiseRejectClosure)                                                   \
+                                                                              \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \
   CPP(ProxyConstructor_ConstructStub)                                         \
@@ -621,7 +630,7 @@ namespace internal {
   ASM(StringConstructor_ConstructStub)                                        \
   CPP(StringFromCodePoint)                                                    \
   /* ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits ) */             \
-  TFJ(StringFromCharCode, 1)                                                  \
+  TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 section 21.1.3.1 String.prototype.charAt ( pos ) */                  \
   TFJ(StringPrototypeCharAt, 1)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \

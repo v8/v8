@@ -73,6 +73,7 @@
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
@@ -198,7 +199,6 @@ class CallDepthScope {
       : isolate_(isolate), context_(context), escaped_(false) {
     // TODO(dcarney): remove this when blink stops crashing.
     DCHECK(!isolate_->external_caught_exception());
-    isolate_->IncrementJsCallsFromApiCounter();
     isolate_->handle_scope_implementer()->IncrementCallDepth();
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
@@ -658,6 +658,7 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
 
 void V8::SetFlagsFromString(const char* str, int length) {
   i::FlagList::SetFlagsFromString(str, length);
+  i::FlagList::EnforceFlagImplications();
 }
 
 
@@ -810,6 +811,11 @@ i::Object** V8::CopyPersistent(i::Object** obj) {
   }
 #endif  // VERIFY_HEAP
   return result.location();
+}
+
+void V8::RegisterExternallyReferencedObject(i::Object** object,
+                                            i::Isolate* isolate) {
+  isolate->heap()->RegisterExternallyReferencedObject(object);
 }
 
 void V8::MakeWeak(i::Object** location, void* parameter,
@@ -1097,6 +1103,11 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
                                  static_cast<i::PropertyAttributes>(attribute));
 }
 
+void Template::SetPrivate(v8::Local<Private> name, v8::Local<Data> value,
+                          v8::PropertyAttribute attribute) {
+  Set(Utils::ToLocal(Utils::OpenHandle(reinterpret_cast<Name*>(*name))), value,
+      attribute);
+}
 
 void Template::SetAccessorProperty(
     v8::Local<v8::Name> name,
@@ -1160,11 +1171,11 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   info->set_parent_template(*Utils::OpenHandle(*value));
 }
 
-
 static Local<FunctionTemplate> FunctionTemplateNew(
     i::Isolate* isolate, FunctionCallback callback,
     experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
-    v8::Local<Signature> signature, int length, bool do_not_cache) {
+    v8::Local<Signature> signature, int length, bool do_not_cache,
+    v8::Local<Private> cached_property_name = v8::Local<Private>()) {
   i::Handle<i::Struct> struct_obj =
       isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1188,6 +1199,10 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   obj->set_accept_any_receiver(true);
   if (!signature.IsEmpty())
     obj->set_signature(*Utils::OpenHandle(*signature));
+  obj->set_cached_property_name(
+      cached_property_name.IsEmpty()
+          ? isolate->heap()->the_hole_value()
+          : *Utils::OpenHandle(*cached_property_name));
   return Utils::ToLocal(obj);
 }
 
@@ -1225,13 +1240,21 @@ Local<FunctionTemplate> FunctionTemplate::NewWithFastHandler(
     experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
     v8::Local<Signature> signature, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(!i_isolate->serializer_enabled());
   LOG_API(i_isolate, FunctionTemplate, NewWithFastHandler);
   ENTER_V8(i_isolate);
   return FunctionTemplateNew(i_isolate, callback, fast_handler, data, signature,
                              length, false);
 }
 
+Local<FunctionTemplate> FunctionTemplate::NewWithCache(
+    Isolate* isolate, FunctionCallback callback, Local<Private> cache_property,
+    Local<Value> data, Local<Signature> signature, int length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, FunctionTemplate, NewWithFastHandler);
+  ENTER_V8(i_isolate);
+  return FunctionTemplateNew(i_isolate, callback, nullptr, data, signature,
+                             length, false, cache_property);
+}
 
 Local<Signature> Signature::New(Isolate* isolate,
                                 Local<FunctionTemplate> receiver) {
@@ -2948,6 +2971,17 @@ Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
   return Nothing<bool>();
 }
 
+void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
+                                                        size_t size,
+                                                        size_t* actual_size) {
+  *actual_size = size;
+  return realloc(old_buffer, size);
+}
+
+void ValueSerializer::Delegate::FreeBufferMemory(void* buffer) {
+  return free(buffer);
+}
+
 struct ValueSerializer::PrivateData {
   explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate)
       : isolate(i), serializer(i, delegate) {}
@@ -2978,6 +3012,10 @@ Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
 
 std::vector<uint8_t> ValueSerializer::ReleaseBuffer() {
   return private_->serializer.ReleaseBuffer();
+}
+
+std::pair<uint8_t*, size_t> ValueSerializer::Release() {
+  return private_->serializer.Release();
 }
 
 void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
@@ -3073,11 +3111,6 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
   }
 
   return Just(true);
-}
-
-Maybe<bool> ValueDeserializer::ReadHeader() {
-  Isolate* isolate = reinterpret_cast<Isolate*>(private_->isolate);
-  return ReadHeader(isolate->GetEnteredContext());
 }
 
 void ValueDeserializer::SetSupportsLegacyWireFormat(
@@ -6076,7 +6109,7 @@ static i::Handle<ObjectType> CreateEnvironment(
           *Utils::OpenHandle(*global_template));
 
       proxy_template->SetInternalFieldCount(
-          v8::Context::kProxyInternalFieldCount);
+          global_template->InternalFieldCount());
 
       // Migrate security handlers from global_template to
       // proxy_template.  Temporarily removing access check
@@ -7213,8 +7246,8 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::wasm::WasmCompiledModule> compiled_part =
-      i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+  i::Handle<i::WasmCompiledModule> compiled_part =
+      i::handle(i::WasmCompiledModule::cast(obj->GetInternalField(0)));
   i::Handle<i::String> wire_bytes = compiled_part->module_bytes();
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
@@ -7222,8 +7255,8 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::wasm::WasmCompiledModule> compiled_part =
-      i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+  i::Handle<i::WasmCompiledModule> compiled_part =
+      i::handle(i::WasmCompiledModule::cast(obj->GetInternalField(0)));
 
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
@@ -7249,11 +7282,11 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();
   }
-  i::Handle<i::wasm::WasmCompiledModule> compiled_module =
-      handle(i::wasm::WasmCompiledModule::cast(*compiled_part));
+  i::Handle<i::WasmCompiledModule> compiled_module =
+      handle(i::WasmCompiledModule::cast(*compiled_part));
   return Local<WasmCompiledModule>::Cast(
-      Utils::ToLocal(i::wasm::CreateWasmModuleObject(
-          i_isolate, compiled_module, i::wasm::ModuleOrigin::kWasmOrigin)));
+      Utils::ToLocal(i::Handle<i::JSObject>::cast(
+          i::WasmModuleObject::New(i_isolate, compiled_module))));
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
@@ -8063,7 +8096,7 @@ size_t Isolate::NumberOfTrackedHeapObjectTypes() {
 bool Isolate::GetHeapObjectStatisticsAtLastGC(
     HeapObjectStatistics* object_statistics, size_t type_index) {
   if (!object_statistics) return false;
-  if (!i::FLAG_track_gc_object_stats) return false;
+  if (V8_LIKELY(!i::FLAG_gc_stats)) return false;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
@@ -8856,22 +8889,16 @@ int DebugInterface::Script::ColumnOffset() const {
 }
 
 std::vector<int> DebugInterface::Script::LineEnds() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Script::InitLineEnds(Utils::OpenHandle(this));
-  i::Handle<i::Object> line_ends_obj(Utils::OpenHandle(this)->line_ends(),
-                                     isolate);
-  std::vector<int> result;
-  if (!line_ends_obj->IsFixedArray()) return result;
-  i::Handle<i::FixedArray> line_ends =
-      i::Handle<i::FixedArray>::cast(line_ends_obj);
+  i::Script::InitLineEnds(script);
+  CHECK(script->line_ends()->IsFixedArray());
+  i::Handle<i::FixedArray> line_ends(i::FixedArray::cast(script->line_ends()));
+  std::vector<int> result(line_ends->length());
   for (int i = 0; i < line_ends->length(); ++i) {
-    i::Handle<i::Object> line_end = i::FixedArray::get(*line_ends, i, isolate);
-    if (line_end->IsSmi()) {
-      result.push_back(i::Handle<i::Smi>::cast(line_end)->value());
-    } else {
-      result.push_back(0);
-    }
+    i::Smi* line_end = i::Smi::cast(line_ends->get(i));
+    result[i] = line_end->value();
   }
   return result;
 }
@@ -8926,6 +8953,82 @@ MaybeLocal<String> DebugInterface::Script::Source() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
+namespace {
+int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
+  return i::Smi::cast(array->get(index))->value();
+}
+}  // namespace
+
+bool DebugInterface::Script::GetPossibleBreakpoints(
+    const Location& start, const Location& end,
+    std::vector<Location>* locations) const {
+  CHECK(!start.IsEmpty());
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+
+  i::Script::InitLineEnds(script);
+  CHECK(script->line_ends()->IsFixedArray());
+  i::Isolate* isolate = script->GetIsolate();
+  i::Handle<i::FixedArray> line_ends =
+      i::Handle<i::FixedArray>::cast(i::handle(script->line_ends(), isolate));
+  CHECK(line_ends->length());
+
+  int start_offset = GetSourcePosition(start);
+  int end_offset;
+  if (end.IsEmpty()) {
+    end_offset = GetSmiValue(line_ends, line_ends->length() - 1) + 1;
+  } else {
+    end_offset = GetSourcePosition(end);
+  }
+  if (start_offset >= end_offset) return true;
+
+  std::set<int> offsets;
+  if (!isolate->debug()->GetPossibleBreakpoints(script, start_offset,
+                                                end_offset, &offsets)) {
+    return false;
+  }
+
+  int current_line_end_index = 0;
+  for (const auto& it : offsets) {
+    int offset = it;
+    while (offset > GetSmiValue(line_ends, current_line_end_index)) {
+      ++current_line_end_index;
+      CHECK(current_line_end_index < line_ends->length());
+    }
+    int line_offset = 0;
+
+    if (current_line_end_index > 0) {
+      line_offset = GetSmiValue(line_ends, current_line_end_index - 1) + 1;
+    }
+    locations->push_back(Location(
+        current_line_end_index + script->line_offset(),
+        offset - line_offset +
+            (current_line_end_index == 0 ? script->column_offset() : 0)));
+  }
+  return true;
+}
+
+int DebugInterface::Script::GetSourcePosition(const Location& location) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+
+  int line = std::max(location.GetLineNumber() - script->line_offset(), 0);
+  int column = location.GetColumnNumber();
+  if (line == 0) {
+    column = std::max(0, column - script->column_offset());
+  }
+
+  i::Script::InitLineEnds(script);
+  CHECK(script->line_ends()->IsFixedArray());
+  i::Handle<i::FixedArray> line_ends = i::Handle<i::FixedArray>::cast(
+      i::handle(script->line_ends(), script->GetIsolate()));
+  CHECK(line_ends->length());
+  if (line >= line_ends->length())
+    return GetSmiValue(line_ends, line_ends->length() - 1);
+  int line_offset = GetSmiValue(line_ends, line);
+  if (line == 0) return std::min(column, line_offset);
+  int prev_line_offset = GetSmiValue(line_ends, line - 1);
+  return std::min(prev_line_offset + column + 1, line_offset);
+}
+
 MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
     v8::Isolate* v8_isolate, v8::Local<v8::Object> script) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -8944,18 +9047,48 @@ MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
       handle_scope.CloseAndEscape(script_obj));
 }
 
+DebugInterface::Location::Location(int lineNumber, int columnNumber)
+    : lineNumber_(lineNumber), columnNumber_(columnNumber) {
+  CHECK(lineNumber >= 0);
+  CHECK(columnNumber >= 0);
+}
+
+DebugInterface::Location::Location() : lineNumber_(-1), columnNumber_(-1) {}
+
+int DebugInterface::Location::GetLineNumber() const {
+  CHECK(lineNumber_ >= 0);
+  return lineNumber_;
+}
+
+int DebugInterface::Location::GetColumnNumber() const {
+  CHECK(columnNumber_ >= 0);
+  return columnNumber_;
+}
+
+bool DebugInterface::Location::IsEmpty() const {
+  return lineNumber_ == -1 && columnNumber_ == -1;
+}
+
 void DebugInterface::GetLoadedScripts(
     v8::Isolate* v8_isolate,
     PersistentValueVector<DebugInterface::Script>& scripts) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  i::HandleScope handle_scope(isolate);
-  i::Handle<i::FixedArray> instances = isolate->debug()->GetLoadedScripts();
-  for (int i = 0; i < instances->length(); i++) {
-    i::Handle<i::Script> script =
-        i::Handle<i::Script>(i::Script::cast(instances->get(i)));
-    if (script->type() != i::Script::TYPE_NORMAL) continue;
-    scripts.Append(ToApiHandle<Script>(script));
+  // TODO(kozyatinskiy): remove this GC once tests are dealt with.
+  isolate->heap()->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                                     i::GarbageCollectionReason::kDebugger);
+  {
+    i::DisallowHeapAllocation no_gc;
+    i::Script::Iterator iterator(isolate);
+    i::Script* script;
+    while ((script = iterator.Next())) {
+      if (script->type() != i::Script::TYPE_NORMAL) continue;
+      if (script->HasValidSource()) {
+        i::HandleScope handle_scope(isolate);
+        i::Handle<i::Script> script_handle(script, isolate);
+        scripts.Append(ToApiHandle<Script>(script_handle));
+      }
+    }
   }
 }
 

@@ -65,6 +65,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
 
+  static Callable StringFromCharCode(Isolate* isolate);
+
   static Callable GetProperty(Isolate* isolate);
 
   static Callable ToBoolean(Isolate* isolate);

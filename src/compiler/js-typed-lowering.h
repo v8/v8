@@ -55,12 +55,15 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
+  Reduction ReduceJSLoadModule(Node* node);
+  Reduction ReduceJSStoreModule(Node* node);
   Reduction ReduceJSEqualTypeOf(Node* node, bool invert);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToInteger(Node* node);
   Reduction ReduceJSToLength(Node* node);
+  Reduction ReduceJSToName(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
   Reduction ReduceJSToStringInput(Node* input);

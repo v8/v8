@@ -803,10 +803,6 @@ bool HeapObject::IsScopeInfo() const {
   return map() == GetHeap()->scope_info_map();
 }
 
-bool HeapObject::IsModuleInfoEntry() const {
-  return map() == GetHeap()->module_info_entry_map();
-}
-
 bool HeapObject::IsModuleInfo() const {
   return map() == GetHeap()->module_info_map();
 }
@@ -1673,18 +1669,6 @@ AllocationSiteMode AllocationSite::GetMode(
 
   return DONT_TRACK_ALLOCATION_SITE;
 }
-
-
-AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
-                                           ElementsKind to) {
-  if (IsFastSmiElementsKind(from) &&
-      IsMoreGeneralElementsKindTransition(from, to)) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
-}
-
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   if (FLAG_allocation_site_pretenuring) {
@@ -3351,7 +3335,6 @@ CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(Map)
-CAST_ACCESSOR(ModuleInfoEntry)
 CAST_ACCESSOR(ModuleInfo)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
@@ -5060,8 +5043,8 @@ inline bool Code::is_hydrogen_stub() {
 inline bool Code::is_interpreter_trampoline_builtin() {
   Builtins* builtins = GetIsolate()->builtins();
   return this == *builtins->InterpreterEntryTrampoline() ||
-         this == *builtins->InterpreterEnterBytecodeDispatch() ||
-         this == *builtins->InterpreterMarkBaselineOnReturn();
+         this == *builtins->InterpreterEnterBytecodeAdvance() ||
+         this == *builtins->InterpreterEnterBytecodeDispatch();
 }
 
 inline bool Code::has_unwinding_info() const {
@@ -5715,6 +5698,7 @@ ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, debug_id, Object, kDebugIdOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, debug_name, Object, kDebugNameOffset)
+ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
 
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
@@ -5787,6 +5771,8 @@ ACCESSORS(JSFixedArrayIterator, initial_next, JSFunction, kNextOffset)
 
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
+ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
+ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
@@ -5861,6 +5847,8 @@ ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
 ACCESSORS(FunctionTemplateInfo, shared_function_info, Object,
           kSharedFunctionInfoOffset)
+ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
+          kCachedPropertyNameOffset)
 
 SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 
@@ -6280,6 +6268,10 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
   if (is_compiled()) set_never_compiled(false);
 }
 
+bool SharedFunctionInfo::IsInterpreted() const {
+  return code()->is_interpreter_trampoline_builtin();
+}
+
 bool SharedFunctionInfo::HasBaselineCode() const {
   return code()->kind() == Code::FUNCTION;
 }
@@ -6521,6 +6513,10 @@ bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
 }
 
+bool JSFunction::IsInterpreted() {
+  return code()->is_interpreter_trampoline_builtin();
+}
+
 bool JSFunction::IsMarkedForBaseline() {
   return code() ==
          GetIsolate()->builtins()->builtin(Builtins::kCompileBaseline);
@@ -6566,11 +6562,10 @@ void Map::InobjectSlackTrackingStep() {
 }
 
 AbstractCode* JSFunction::abstract_code() {
-  Code* code = this->code();
-  if (code->is_interpreter_trampoline_builtin()) {
+  if (IsInterpreted()) {
     return AbstractCode::cast(shared()->bytecode_array());
   } else {
-    return AbstractCode::cast(code);
+    return AbstractCode::cast(code());
   }
 }
 
@@ -7691,6 +7686,11 @@ bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
   return iter.GetCurrent() != global;
 }
 
+inline int JSGlobalProxy::SizeWithInternalFields(int internal_field_count) {
+  DCHECK_GE(internal_field_count, 0);
+  return kSize + internal_field_count * kPointerSize;
+}
+
 Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate,
                                          Handle<JSReceiver> object) {
   return object->IsJSProxy() ? JSProxy::GetOrCreateIdentityHash(
@@ -8062,23 +8062,13 @@ bool ScopeInfo::HasSimpleParameters() {
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
 #undef SCOPE_INFO_FIELD_ACCESSORS
 
-Object* ModuleInfoEntry::export_name() const { return get(kExportNameIndex); }
-
-Object* ModuleInfoEntry::local_name() const { return get(kLocalNameIndex); }
-
-Object* ModuleInfoEntry::import_name() const { return get(kImportNameIndex); }
-
-Object* ModuleInfoEntry::module_request() const {
-  return get(kModuleRequestIndex);
-}
-
-int ModuleInfoEntry::beg_pos() const {
-  return Smi::cast(get(kBegPosIndex))->value();
-}
-
-int ModuleInfoEntry::end_pos() const {
-  return Smi::cast(get(kEndPosIndex))->value();
-}
+ACCESSORS(ModuleInfoEntry, export_name, Object, kExportNameOffset)
+ACCESSORS(ModuleInfoEntry, local_name, Object, kLocalNameOffset)
+ACCESSORS(ModuleInfoEntry, import_name, Object, kImportNameOffset)
+SMI_ACCESSORS(ModuleInfoEntry, module_request, kModuleRequestOffset)
+SMI_ACCESSORS(ModuleInfoEntry, cell_index, kCellIndexOffset)
+SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
+SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
 FixedArray* ModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));

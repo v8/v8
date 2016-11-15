@@ -69,7 +69,10 @@ class TaskRunner : public v8::base::Thread {
 
 class ExecuteStringTask : public TaskRunner::Task {
  public:
-  explicit ExecuteStringTask(const v8::internal::Vector<uint16_t>& expression);
+  ExecuteStringTask(const v8::internal::Vector<uint16_t>& expression,
+                    v8::Local<v8::String> name,
+                    v8::Local<v8::Integer> line_offset,
+                    v8::Local<v8::Integer> column_offset);
   explicit ExecuteStringTask(
       const v8::internal::Vector<const char>& expression);
   bool is_inspector_task() override { return false; }
@@ -80,6 +83,9 @@ class ExecuteStringTask : public TaskRunner::Task {
  private:
   v8::internal::Vector<uint16_t> expression_;
   v8::internal::Vector<const char> expression_utf8_;
+  v8::internal::Vector<uint16_t> name_;
+  int32_t line_offset_;
+  int32_t column_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
 };

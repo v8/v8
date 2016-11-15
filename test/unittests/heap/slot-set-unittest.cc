@@ -127,7 +127,7 @@ TEST(SlotSet, RemoveRange) {
     CheckRemoveRangeOn(start * kPointerSize, (start + 1) * kPointerSize);
     CheckRemoveRangeOn(start * kPointerSize, (start + 2) * kPointerSize);
     const uint32_t kEnds[] = {32, 64, 100, 128, 1024, 1500, 2048};
-    for (int i = 0; i < sizeof(kEnds) / sizeof(uint32_t); i++) {
+    for (size_t i = 0; i < sizeof(kEnds) / sizeof(uint32_t); i++) {
       for (int k = -3; k <= 3; k++) {
         uint32_t end = (kEnds[i] + k);
         if (start < end) {
@@ -168,8 +168,8 @@ TEST(TypedSlotSet, Iterate) {
         uint32_t j =
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
         EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
-        EXPECT_EQ(0, i % kDelta);
-        EXPECT_EQ(0, j % kHostDelta);
+        EXPECT_EQ(0u, i % kDelta);
+        EXPECT_EQ(0u, j % kHostDelta);
         ++iterated;
         return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
       },
@@ -179,7 +179,7 @@ TEST(TypedSlotSet, Iterate) {
   set.Iterate(
       [&iterated](SlotType type, Address host_addr, Address addr) {
         uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
-        EXPECT_EQ(0, i % 2);
+        EXPECT_EQ(0u, i % 2);
         ++iterated;
         return KEEP_SLOT;
       },

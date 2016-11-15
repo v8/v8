@@ -274,8 +274,8 @@ class PipelineData {
     if (descriptor && descriptor->RequiresFrameAsIncoming()) {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
     } else {
-      DCHECK_EQ(0, descriptor->CalleeSavedFPRegisters());
-      DCHECK_EQ(0, descriptor->CalleeSavedRegisters());
+      DCHECK_EQ(0u, descriptor->CalleeSavedFPRegisters());
+      DCHECK_EQ(0u, descriptor->CalleeSavedRegisters());
     }
   }
 
@@ -283,7 +283,7 @@ class PipelineData {
     DCHECK(frame_ == nullptr);
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
-      fixed_frame_size = CalculateFixedFrameSize(descriptor);
+      fixed_frame_size = descriptor->CalculateFixedFrameSize();
     }
     frame_ = new (instruction_zone()) Frame(fixed_frame_size);
   }
@@ -354,16 +354,6 @@ class PipelineData {
 
   // Source position output for --trace-turbo.
   std::string source_position_output_;
-
-  int CalculateFixedFrameSize(CallDescriptor* descriptor) {
-    if (descriptor->IsJSFunctionCall()) {
-      return StandardFrameConstants::kFixedSlotCount;
-    }
-    return descriptor->IsCFunctionCall()
-               ? (CommonFrameConstants::kFixedSlotCountAboveFp +
-                  CommonFrameConstants::kCPSlotCount)
-               : TypedFrameConstants::kFixedSlotCount;
-  }
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -609,11 +599,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
-  }
-  if (!info()->is_optimizing_from_bytecode()) {
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
+  }
+  if (!info()->is_optimizing_from_bytecode()) {
     if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
     }
@@ -868,7 +858,7 @@ struct OsrTyperPhase {
     // to compute loop variable bounds on OSR.
     LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
                                          data->common(), temp_zone);
-    Typer typer(data->isolate(), data->graph());
+    Typer typer(data->isolate(), Typer::kNoFlags, data->graph());
     typer.Run(roots, &induction_vars);
   }
 };
@@ -928,7 +918,7 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
-        data->info()->dependencies());
+        data->info()->dependencies(), data->native_context());
     Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
@@ -1545,10 +1535,22 @@ bool PipelineImpl::CreateGraph() {
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
+    // Determine the Typer operation flags.
+    Typer::Flags flags = Typer::kNoFlags;
+    if (is_sloppy(info()->shared_info()->language_mode()) &&
+        !info()->shared_info()->IsBuiltin()) {
+      // Sloppy mode functions always have an Object for this.
+      flags |= Typer::kThisIsReceiver;
+    }
+    if (IsClassConstructor(info()->shared_info()->kind())) {
+      // Class constructors cannot be [[Call]]ed.
+      flags |= Typer::kNewTargetIsReceiver;
+    }
+
     // Type the graph and keep the Typer running on newly created nodes within
     // this scope; the Typer is automatically unlinked from the Graph once we
     // leave this scope below.
-    Typer typer(isolate(), data->graph());
+    Typer typer(isolate(), flags, data->graph());
     Run<TyperPhase>(&typer);
     RunPrintAndVerify("Typed");
 

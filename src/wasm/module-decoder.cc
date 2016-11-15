@@ -316,7 +316,8 @@ class ModuleDecoder : public Decoder {
             WasmIndirectFunctionTable* table = &module->function_tables.back();
             consume_resizable_limits(
                 "element count", "elements", WasmModule::kV8MaxTableSize,
-                &table->min_size, &table->has_max, &table->max_size);
+                &table->min_size, &table->has_max, WasmModule::kV8MaxTableSize,
+                &table->max_size);
             break;
           }
           case kExternalMemory: {
@@ -324,7 +325,9 @@ class ModuleDecoder : public Decoder {
             bool has_max = false;
             consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
                                      &module->min_mem_pages, &has_max,
+                                     WasmModule::kSpecMaxPages,
                                      &module->max_mem_pages);
+            module->has_memory = true;
             break;
           }
           case kExternalGlobal: {
@@ -335,6 +338,9 @@ class ModuleDecoder : public Decoder {
             WasmGlobal* global = &module->globals.back();
             global->type = consume_value_type();
             global->mutability = consume_u8("mutability") != 0;
+            if (global->mutability) {
+              error("mutable globals cannot be imported");
+            }
             break;
           }
           default:
@@ -385,7 +391,8 @@ class ModuleDecoder : public Decoder {
         expect_u8("table type", kWasmAnyFunctionTypeForm);
         consume_resizable_limits("table elements", "elements",
                                  WasmModule::kV8MaxTableSize, &table->min_size,
-                                 &table->has_max, &table->max_size);
+                                 &table->has_max, WasmModule::kV8MaxTableSize,
+                                 &table->max_size);
       }
       section_iter.advance();
     }
@@ -401,10 +408,11 @@ class ModuleDecoder : public Decoder {
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
         bool has_max = false;
-        consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
-                                 &module->min_mem_pages, &has_max,
-                                 &module->max_mem_pages);
+        consume_resizable_limits(
+            "memory", "pages", WasmModule::kV8MaxPages, &module->min_mem_pages,
+            &has_max, WasmModule::kSpecMaxPages, &module->max_mem_pages);
       }
+      module->has_memory = true;
       section_iter.advance();
     }
 
@@ -472,7 +480,12 @@ class ModuleDecoder : public Decoder {
           case kExternalGlobal: {
             WasmGlobal* global = nullptr;
             exp->index = consume_global_index(module, &global);
-            if (global) global->exported = true;
+            if (global) {
+              if (global->mutability) {
+                error("mutable globals cannot be exported");
+              }
+              global->exported = true;
+            }
             break;
           }
           default:
@@ -583,6 +596,10 @@ class ModuleDecoder : public Decoder {
       uint32_t data_segments_count = consume_u32v("data segments count");
       module->data_segments.reserve(SafeReserve(data_segments_count));
       for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
+        if (!module->has_memory) {
+          error("cannot load data without memory");
+          break;
+        }
         TRACE("DecodeDataSegment[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
         module->data_segments.push_back({
@@ -843,26 +860,27 @@ class ModuleDecoder : public Decoder {
   }
 
   void consume_resizable_limits(const char* name, const char* units,
-                                uint32_t max_value, uint32_t* initial,
-                                bool* has_max, uint32_t* maximum) {
+                                uint32_t max_initial, uint32_t* initial,
+                                bool* has_max, uint32_t max_maximum,
+                                uint32_t* maximum) {
     uint32_t flags = consume_u32v("resizable limits flags");
     const byte* pos = pc();
     *initial = consume_u32v("initial size");
     *has_max = false;
-    if (*initial > max_value) {
+    if (*initial > max_initial) {
       error(pos, pos,
             "initial %s size (%u %s) is larger than implementation limit (%u)",
-            name, *initial, units, max_value);
+            name, *initial, units, max_initial);
     }
     if (flags & 1) {
       *has_max = true;
       pos = pc();
       *maximum = consume_u32v("maximum size");
-      if (*maximum > max_value) {
+      if (*maximum > max_maximum) {
         error(
             pos, pos,
             "maximum %s size (%u %s) is larger than implementation limit (%u)",
-            name, *maximum, units, max_value);
+            name, *maximum, units, max_maximum);
       }
       if (*maximum < *initial) {
         error(pos, pos, "maximum %s size (%u %s) is less than initial (%u %s)",
@@ -870,7 +888,7 @@ class ModuleDecoder : public Decoder {
       }
     } else {
       *has_max = false;
-      *maximum = max_value;
+      *maximum = max_initial;
     }
   }
 
@@ -892,6 +910,21 @@ class ModuleDecoder : public Decoder {
     switch (opcode) {
       case kExprGetGlobal: {
         GlobalIndexOperand operand(this, pc() - 1);
+        if (module->globals.size() <= operand.index) {
+          error("global index is out of bounds");
+          expr.kind = WasmInitExpr::kNone;
+          expr.val.i32_const = 0;
+          break;
+        }
+        WasmGlobal* global = &module->globals[operand.index];
+        if (global->mutability || !global->imported) {
+          error(
+              "only immutable imported globals can be used in initializer "
+              "expressions");
+          expr.kind = WasmInitExpr::kNone;
+          expr.val.i32_const = 0;
+          break;
+        }
         expr.kind = WasmInitExpr::kGlobalIndex;
         expr.val.global_index = operand.index;
         len = operand.length;

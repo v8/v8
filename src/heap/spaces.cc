@@ -311,16 +311,10 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
 
 
 void MemoryAllocator::TearDown() {
-  unmapper()->WaitUntilCompleted();
-
-  MemoryChunk* chunk = nullptr;
-  while ((chunk = unmapper()->TryGetPooledMemoryChunkSafe()) != nullptr) {
-    FreeMemory(reinterpret_cast<Address>(chunk), MemoryChunk::kPageSize,
-               NOT_EXECUTABLE);
-  }
+  unmapper()->TearDown();
 
   // Check that spaces were torn down before MemoryAllocator.
-  DCHECK_EQ(size_.Value(), 0);
+  DCHECK_EQ(size_.Value(), 0u);
   // TODO(gc) this will be true again when we fix FreeMemory.
   // DCHECK(size_executable_ == 0);
   capacity_ = 0;
@@ -382,6 +376,13 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
   while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
     allocator_->PerformFreeMemory(chunk);
   }
+}
+
+void MemoryAllocator::Unmapper::TearDown() {
+  WaitUntilCompleted();
+  ReconsiderDelayedChunks();
+  CHECK(delayed_regular_chunks_.empty());
+  PerformFreeMemoryOnQueuedChunks();
 }
 
 void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
@@ -618,7 +619,7 @@ void MemoryChunk::Unlink() {
 
 void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
   DCHECK_GE(bytes_to_shrink, static_cast<size_t>(base::OS::CommitPageSize()));
-  DCHECK_EQ(0, bytes_to_shrink % base::OS::CommitPageSize());
+  DCHECK_EQ(0u, bytes_to_shrink % base::OS::CommitPageSize());
   Address free_start = chunk->area_end_ - bytes_to_shrink;
   // Don't adjust the size of the page. The area is just uncomitted but not
   // released.
@@ -2799,20 +2800,6 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
 }
 
 
-void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
-  if (allocation_info_.top() >= allocation_info_.limit()) return;
-
-  if (!Page::FromAllocationAreaAddress(allocation_info_.top())->CanAllocate()) {
-    // Create filler object to keep page iterable if it was iterable.
-    int remaining =
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top());
-    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining,
-                                 ClearRecordedSlots::kNo);
-    allocation_info_.Reset(nullptr, nullptr);
-  }
-}
-
-
 HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -2865,7 +2852,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   if (heap()->ShouldExpandOldGenerationOnAllocationFailure() && Expand()) {
     DCHECK((CountTotalPages() > 1) ||
-           (size_in_bytes <= free_list_.Available()));
+           (static_cast<size_t>(size_in_bytes) <= free_list_.Available()));
     return free_list_.Allocate(static_cast<size_t>(size_in_bytes));
   }
 

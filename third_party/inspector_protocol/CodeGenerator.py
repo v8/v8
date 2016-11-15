@@ -339,7 +339,7 @@ def join_arrays(dict, keys):
 
 def has_disable(commands):
     for command in commands:
-        if command["name"] == "disable":
+        if command["name"] == "disable" and (not ("handlers" in command) or "renderer" in command["handlers"]):
             return True
     return False
 
@@ -420,7 +420,7 @@ def main():
             "resolve_type": functools.partial(resolve_type, protocol),
             "type_definition": functools.partial(type_definition, protocol),
             "has_disable": has_disable,
-            "format_include": format_include,
+            "format_include": format_include
         }
 
         if domain["domain"] in protocol.generate_domains:
@@ -448,7 +448,6 @@ def main():
             "ValueConversions_h.template",
             "Maybe_h.template",
             "Array_h.template",
-            "BackendCallback_h.template",
             "DispatcherBase_h.template",
             "Parser_h.template",
         ]

@@ -446,12 +446,14 @@ class MachineRepresentationChecker {
   void CheckValueInputRepresentationIs(Node const* node, int index,
                                        MachineRepresentation representation) {
     Node const* input = node->InputAt(index);
-    if (inferrer_->GetRepresentation(input) != representation) {
+    MachineRepresentation input_representation =
+        inferrer_->GetRepresentation(input);
+    if (input_representation != representation) {
       std::stringstream str;
-      str << "TypeError: node #" << node->id() << ":" << *node->op()
-          << " uses node #" << input->id() << ":" << *input->op()
-          << " which doesn't have a " << MachineReprToString(representation)
-          << " representation.";
+      str << "TypeError: node #" << node->id() << ":" << *node->op() << ":"
+          << MachineReprToString(input_representation) << " uses node #"
+          << input->id() << ":" << *input->op() << " which doesn't have a "
+          << MachineReprToString(representation) << " representation.";
       FATAL(str.str().c_str());
     }
   }
@@ -520,7 +522,9 @@ class MachineRepresentationChecker {
 
   void CheckValueInputForInt64Op(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    switch (inferrer_->GetRepresentation(input)) {
+    MachineRepresentation input_representation =
+        inferrer_->GetRepresentation(input);
+    switch (input_representation) {
       case MachineRepresentation::kWord64:
         return;
       case MachineRepresentation::kNone: {
@@ -535,9 +539,9 @@ class MachineRepresentationChecker {
         break;
     }
     std::ostringstream str;
-    str << "TypeError: node #" << node->id() << ":" << *node->op()
-        << " uses node #" << input->id() << ":" << *input->op()
-        << " which doesn't have a kWord64 representation.";
+    str << "TypeError: node #" << node->id() << ":" << *node->op() << ":"
+        << input_representation << " uses node #" << input->id() << ":"
+        << *input->op() << " which doesn't have a kWord64 representation.";
     FATAL(str.str().c_str());
   }
 

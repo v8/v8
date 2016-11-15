@@ -71,7 +71,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(
       Handle<JSReceiver> thenable, Handle<JSReceiver> then,
       Handle<JSFunction> resolve, Handle<JSFunction> reject,
-      Handle<Object> debug_id, Handle<Object> debug_name);
+      Handle<Object> debug_id, Handle<Object> debug_name,
+      Handle<Context> context);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
@@ -310,6 +311,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
+  // Create a promise context.
+  Handle<Context> NewPromiseResolvingFunctionContext(int length);
 
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
@@ -438,9 +441,6 @@ class V8_EXPORT_PRIVATE Factory final {
   // runtime.
   Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                PretenureFlag pretenure = NOT_TENURED);
-  // JSObject that should have a memento pointing to the allocation site.
-  Handle<JSObject> NewJSObjectWithMemento(Handle<JSFunction> constructor,
-                                          Handle<AllocationSite> site);
   // JSObject without a prototype.
   Handle<JSObject> NewJSObjectWithNullProto();
 
@@ -551,7 +551,7 @@ class V8_EXPORT_PRIVATE Factory final {
   void ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> global,
                                  Handle<JSFunction> constructor);
 
-  Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy();
+  Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy(int size);
 
   Handle<JSFunction> NewFunction(Handle<Map> map,
                                  Handle<SharedFunctionInfo> info,

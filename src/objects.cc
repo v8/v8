@@ -1362,6 +1362,11 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
     return reboxed_result;
   }
 
+  // AccessorPair with 'cached' private property.
+  if (it->TryLookupCachedProperty()) {
+    return Object::GetProperty(it);
+  }
+
   // Regular accessor.
   Handle<Object> getter(AccessorPair::cast(*structure)->getter(), isolate);
   if (getter->IsFunctionTemplateInfo()) {
@@ -2210,8 +2215,12 @@ static bool AnWord(String* str) {
 
 Handle<String> String::SlowFlatten(Handle<ConsString> cons,
                                    PretenureFlag pretenure) {
-  DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(cons->second()->length() != 0);
+
+  // TurboFan can create cons strings with empty first parts.
+  if (cons->first()->length() == 0) return handle(cons->second());
+
+  DCHECK(AllowHeapAllocation::IsAllowed());
   Isolate* isolate = cons->GetIsolate();
   int length = cons->length();
   PretenureFlag tenure = isolate->heap()->InNewSpace(*cons) ? pretenure
@@ -7980,12 +7989,31 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
   return object->map()->is_extensible();
 }
 
+namespace {
 
 template <typename Dictionary>
-static void ApplyAttributesToDictionary(Dictionary* dictionary,
-                                        const PropertyAttributes attributes) {
+void DictionaryDetailsAtPut(Isolate* isolate, Handle<Dictionary> dictionary,
+                            int entry, PropertyDetails details) {
+  dictionary->DetailsAtPut(entry, details);
+}
+
+template <>
+void DictionaryDetailsAtPut<GlobalDictionary>(
+    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
+    PropertyDetails details) {
+  Object* value = dictionary->ValueAt(entry);
+  DCHECK(value->IsPropertyCell());
+  value = PropertyCell::cast(value)->value();
+  if (value->IsTheHole(isolate)) return;
+  PropertyCell::PrepareForValue(dictionary, entry, handle(value, isolate),
+                                details);
+}
+
+template <typename Dictionary>
+void ApplyAttributesToDictionary(Isolate* isolate,
+                                 Handle<Dictionary> dictionary,
+                                 const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
-  Isolate* isolate = dictionary->GetIsolate();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
     if (dictionary->IsKey(isolate, k) &&
@@ -8000,11 +8028,12 @@ static void ApplyAttributesToDictionary(Dictionary* dictionary,
       }
       details = details.CopyAddAttributes(
           static_cast<PropertyAttributes>(attrs));
-      dictionary->DetailsAtPut(i, details);
+      DictionaryDetailsAtPut<Dictionary>(isolate, dictionary, i, details);
     }
   }
 }
 
+}  // namespace
 
 template <PropertyAttributes attrs>
 Maybe<bool> JSObject::PreventExtensionsWithTransition(
@@ -8093,9 +8122,13 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
     if (attrs != NONE) {
       if (object->IsJSGlobalObject()) {
-        ApplyAttributesToDictionary(object->global_dictionary(), attrs);
+        Handle<GlobalDictionary> dictionary(object->global_dictionary(),
+                                            isolate);
+        ApplyAttributesToDictionary(isolate, dictionary, attrs);
       } else {
-        ApplyAttributesToDictionary(object->property_dictionary(), attrs);
+        Handle<NameDictionary> dictionary(object->property_dictionary(),
+                                          isolate);
+        ApplyAttributesToDictionary(isolate, dictionary, attrs);
       }
     }
   }
@@ -8119,11 +8152,12 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (object->elements() != isolate->heap()->empty_slow_element_dictionary()) {
-    SeededNumberDictionary* dictionary = object->element_dictionary();
+    Handle<SeededNumberDictionary> dictionary(object->element_dictionary(),
+                                              isolate);
     // Make sure we never go back to the fast case
-    object->RequireSlowElements(dictionary);
+    object->RequireSlowElements(*dictionary);
     if (attrs != NONE) {
-      ApplyAttributesToDictionary(dictionary, attrs);
+      ApplyAttributesToDictionary(isolate, dictionary, attrs);
     }
   }
 
@@ -13370,23 +13404,17 @@ void Script::InitLineEnds(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   if (!script->line_ends()->IsUndefined(isolate)) return;
 
-  if (!script->source()->IsString()) {
-    DCHECK(script->source()->IsUndefined(isolate));
-    Handle<FixedArray> empty = isolate->factory()->NewFixedArray(0);
-    script->set_line_ends(*empty);
-    DCHECK(script->line_ends()->IsFixedArray());
-    return;
+  Object* src_obj = script->source();
+  if (!src_obj->IsString()) {
+    DCHECK(src_obj->IsUndefined(isolate));
+    script->set_line_ends(isolate->heap()->empty_fixed_array());
+  } else {
+    DCHECK(src_obj->IsString());
+    Handle<String> src(String::cast(src_obj), isolate);
+    Handle<FixedArray> array = String::CalculateLineEnds(src, true);
+    script->set_line_ends(*array);
   }
 
-  Handle<String> src(String::cast(script->source()), isolate);
-
-  Handle<FixedArray> array = String::CalculateLineEnds(src, true);
-
-  if (*array != isolate->heap()->empty_fixed_array()) {
-    array->set_map(isolate->heap()->fixed_cow_array_map());
-  }
-
-  script->set_line_ends(*array);
   DCHECK(script->line_ends()->IsFixedArray());
 }
 
@@ -13950,7 +13978,7 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
     }
     set_opt_count(0);
     set_deopt_count(0);
-  } else if (code()->is_interpreter_trampoline_builtin()) {
+  } else if (IsInterpreted()) {
     set_profiler_ticks(0);
     if (optimization_disabled() && opt_count() >= FLAG_max_opt_count) {
       // Re-enable optimizations if they were disabled due to opt_count limit.
@@ -15549,7 +15577,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   // Nothing to do if prototype is already set.
   if (map->prototype() == *value) return Just(true);
 
-  bool immutable_proto = object->map()->is_immutable_proto();
+  bool immutable_proto = map->is_immutable_proto();
   if (immutable_proto) {
     RETURN_FAILURE(
         isolate, should_throw,
@@ -15911,6 +15939,14 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
   return result;
 }
 
+AllocationSiteMode AllocationSite::GetMode(ElementsKind from, ElementsKind to) {
+  if (IsFastSmiElementsKind(from) &&
+      IsMoreGeneralElementsKindTransition(from, to)) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
 
 const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
   switch (decision) {
@@ -19822,6 +19858,22 @@ class Module::ResolveSet
   Zone* zone_;
 };
 
+namespace {
+
+int ExportIndex(int cell_index) {
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+            ModuleDescriptor::kExport);
+  return cell_index - 1;
+}
+
+int ImportIndex(int cell_index) {
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+            ModuleDescriptor::kImport);
+  return -cell_index - 1;
+}
+
+}  // anonymous namespace
+
 void Module::CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                   Handle<ModuleInfoEntry> entry) {
   Isolate* isolate = module->GetIsolate();
@@ -19831,11 +19883,15 @@ void Module::CreateIndirectExport(Handle<Module> module, Handle<String> name,
   module->set_exports(*exports);
 }
 
-void Module::CreateExport(Handle<Module> module, Handle<FixedArray> names) {
+void Module::CreateExport(Handle<Module> module, int cell_index,
+                          Handle<FixedArray> names) {
   DCHECK_LT(0, names->length());
   Isolate* isolate = module->GetIsolate();
+
   Handle<Cell> cell =
       isolate->factory()->NewCell(isolate->factory()->undefined_value());
+  module->regular_exports()->set(ExportIndex(cell_index), *cell);
+
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   for (int i = 0, n = names->length(); i < n; ++i) {
     Handle<String> name(String::cast(names->get(i)), isolate);
@@ -19845,24 +19901,33 @@ void Module::CreateExport(Handle<Module> module, Handle<FixedArray> names) {
   module->set_exports(*exports);
 }
 
-void Module::StoreExport(Handle<Module> module, Handle<String> name,
-                         Handle<Object> value) {
-  Handle<Cell> cell(Cell::cast(module->exports()->Lookup(name)));
-  cell->set_value(*value);
-}
-
-Handle<Object> Module::LoadExport(Handle<Module> module, Handle<String> name) {
+Handle<Object> Module::LoadVariable(Handle<Module> module, int cell_index) {
   Isolate* isolate = module->GetIsolate();
-  Handle<Object> object(module->exports()->Lookup(name), isolate);
+  Handle<Object> object;
+  switch (ModuleDescriptor::GetCellIndexKind(cell_index)) {
+    case ModuleDescriptor::kImport:
+      object = handle(module->regular_imports()->get(ImportIndex(cell_index)),
+                      isolate);
+      break;
+    case ModuleDescriptor::kExport:
+      object = handle(module->regular_exports()->get(ExportIndex(cell_index)),
+                      isolate);
+      break;
+    case ModuleDescriptor::kInvalid:
+      UNREACHABLE();
+      break;
+  }
   return handle(Handle<Cell>::cast(object)->value(), isolate);
 }
 
-Handle<Object> Module::LoadImport(Handle<Module> module, Handle<String> name,
-                                  int module_request) {
+void Module::StoreVariable(Handle<Module> module, int cell_index,
+                           Handle<Object> value) {
   Isolate* isolate = module->GetIsolate();
-  Handle<Module> requested_module(
-      Module::cast(module->requested_modules()->get(module_request)), isolate);
-  return Module::LoadExport(requested_module, name);
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
+            ModuleDescriptor::kExport);
+  Handle<Object> object(module->regular_exports()->get(ExportIndex(cell_index)),
+                        isolate);
+  Handle<Cell>::cast(object)->set_value(*value);
 }
 
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
@@ -19913,7 +19978,6 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
   if (object->IsModuleInfoEntry()) {
     // Not yet resolved indirect export.
     Handle<ModuleInfoEntry> entry = Handle<ModuleInfoEntry>::cast(object);
-    int module_request = Smi::cast(entry->module_request())->value();
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
     Handle<Script> script(
         Script::cast(JSFunction::cast(module->code())->shared()->script()),
@@ -19921,8 +19985,8 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
-    if (!ResolveImport(module, import_name, module_request, new_loc, true,
-                       resolve_set)
+    if (!ResolveImport(module, import_name, entry->module_request(), new_loc,
+                       true, resolve_set)
              .ToHandle(&cell)) {
       DCHECK(isolate->has_pending_exception());
       return MaybeHandle<Cell>();
@@ -19959,7 +20023,6 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       if (!entry->export_name()->IsUndefined(isolate)) {
         continue;  // Indirect export.
       }
-      int module_request = Smi::cast(entry->module_request())->value();
 
       Handle<Script> script(
           Script::cast(JSFunction::cast(module->code())->shared()->script()),
@@ -19967,7 +20030,7 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
-      if (ResolveImport(module, name, module_request, new_loc, false,
+      if (ResolveImport(module, name, entry->module_request(), new_loc, false,
                         resolve_set)
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
@@ -20019,11 +20082,12 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
                                  isolate);
 
   // Set up local exports.
-  Handle<FixedArray> regular_exports(module_info->regular_exports(), isolate);
-  for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
-    Handle<FixedArray> export_names(
-        FixedArray::cast(regular_exports->get(i + 1)), isolate);
-    CreateExport(module, export_names);
+  // TODO(neis): Create regular_exports array here instead of in factory method?
+  for (int i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
+    int cell_index = module_info->RegularExportCellIndex(i);
+    Handle<FixedArray> export_names(module_info->RegularExportExportNames(i),
+                                    isolate);
+    CreateExport(module, cell_index, export_names);
   }
 
   // Partially set up indirect exports.
@@ -20070,16 +20134,18 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
     Handle<ModuleInfoEntry> entry(
         ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
     Handle<String> name(String::cast(entry->import_name()), isolate);
-    int module_request = Smi::cast(entry->module_request())->value();
     Handle<Script> script(
         Script::cast(JSFunction::cast(module->code())->shared()->script()),
         isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(&zone);
-    if (ResolveImport(module, name, module_request, loc, true, &resolve_set)
-            .is_null()) {
+    Handle<Cell> cell;
+    if (!ResolveImport(module, name, entry->module_request(), loc, true,
+                       &resolve_set)
+             .ToHandle(&cell)) {
       return false;
     }
+    module->regular_imports()->set(ImportIndex(entry->cell_index()), *cell);
   }
 
   // Resolve indirect exports.
@@ -20160,9 +20226,8 @@ void FetchStarExports(Handle<Module> module, Zone* zone,
       continue;  // Indirect export.
     }
 
-    int module_request = Smi::cast(entry->module_request())->value();
     Handle<Module> requested_module(
-        Module::cast(module->requested_modules()->get(module_request)),
+        Module::cast(module->requested_modules()->get(entry->module_request())),
         isolate);
 
     // Recurse.
@@ -20246,7 +20311,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
     DCHECK(exports->ValueAt(i)->IsCell());
     names.push_back(Handle<String>::cast(key));
   }
-  DCHECK_EQ(names.size(), exports->NumberOfElements());
+  DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());
 
   // Sort them alphabetically.
   struct {
@@ -20266,6 +20331,19 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   JSObject::PreventExtensions(ns, THROW_ON_ERROR).ToChecked();
 
   return ns;
+}
+
+MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
+    Isolate* isolate, Handle<Object> getter) {
+  if (getter->IsFunctionTemplateInfo()) {
+    Handle<FunctionTemplateInfo> fti =
+        Handle<FunctionTemplateInfo>::cast(getter);
+    // Check if the accessor uses a cached property.
+    if (!fti->cached_property_name()->IsTheHole(isolate)) {
+      return handle(Name::cast(fti->cached_property_name()));
+    }
+  }
+  return MaybeHandle<Name>();
 }
 
 }  // namespace internal

@@ -8,6 +8,7 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kPageSize = 0x10000;
+var kV8MaxPages = 16384;
 
 function genGrowMemoryBuilder() {
   var builder = new WasmModuleBuilder();
@@ -42,7 +43,7 @@ function genGrowMemoryBuilder() {
 // current implementation.
 function testGrowMemoryReadWrite32() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -89,7 +90,7 @@ testGrowMemoryReadWrite32();
 
 function testGrowMemoryReadWrite16() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load16(offset); }
@@ -136,7 +137,7 @@ testGrowMemoryReadWrite16();
 
 function testGrowMemoryReadWrite8() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load8(offset); }
@@ -323,7 +324,7 @@ testGrowMemoryTrapsWithNonSmiInput();
 
 function testGrowMemoryCurrentMemory() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   builder.addFunction("memory_size", kSig_i_v)
       .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
@@ -339,7 +340,7 @@ testGrowMemoryCurrentMemory();
 
 function testGrowMemoryPreservesDataMemOp32() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }
@@ -362,7 +363,7 @@ testGrowMemoryPreservesDataMemOp32();
 
 function testGrowMemoryPreservesDataMemOp16() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load16(offset); }
@@ -385,7 +386,7 @@ testGrowMemoryPreservesDataMemOp16();
 
 function testGrowMemoryPreservesDataMemOp8() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset, val = 0;
   function peek() { return module.exports.load8(offset); }
@@ -412,7 +413,7 @@ testGrowMemoryPreservesDataMemOp8();
 
 function testGrowMemoryOutOfBoundsOffset() {
   var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }
@@ -458,3 +459,31 @@ function testGrowMemoryOutOfBoundsOffset2() {
 }
 
 testGrowMemoryOutOfBoundsOffset2();
+
+function testGrowMemoryDeclaredMaxTraps() {
+  var builder = genGrowMemoryBuilder();
+  builder.addMemory(1, 16, false);
+  var module = builder.instantiate();
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+  assertEquals(1, growMem(5));
+  assertEquals(6, growMem(5));
+  assertEquals(-1, growMem(6));
+}
+
+testGrowMemoryDeclaredMaxTraps();
+
+function testGrowMemoryDeclaredSpecMaxTraps() {
+  // The spec maximum is higher than the internal V8 maximum. This test only
+  // checks that grow_memory does not grow past the internally defined maximum
+  // to reflect the currentl implementation.
+  var builder = genGrowMemoryBuilder();
+  var kSpecMaxPages = 65535;
+  builder.addMemory(1, kSpecMaxPages, false);
+  var module = builder.instantiate();
+  function poke(value) { return module.exports.store(offset, value); }
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+  assertEquals(1, growMem(20));
+  assertEquals(-1, growMem(kV8MaxPages - 20));
+}
+
+testGrowMemoryDeclaredSpecMaxTraps();

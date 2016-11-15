@@ -146,11 +146,10 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
-  TypeCache const& type_cache = TypeCache::Get();
   FieldAccess access = {kTaggedBase,
                         JSGeneratorObject::kContinuationOffset,
                         Handle<Name>(),
-                        type_cache.kSmi,
+                        Type::SignedSmall(),
                         MachineType::TaggedSigned(),
                         kNoWriteBarrier};
   return access;
@@ -180,10 +179,12 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
-  TypeCache const& type_cache = TypeCache::Get();
-  FieldAccess access = {
-      kTaggedBase,     JSGeneratorObject::kResumeModeOffset, Handle<Name>(),
-      type_cache.kSmi, MachineType::TaggedSigned(),          kNoWriteBarrier};
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kResumeModeOffset,
+                        Handle<Name>(),
+                        Type::SignedSmall(),
+                        MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
   return access;
 }
 
@@ -356,7 +357,7 @@ FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
   FieldAccess access = {kTaggedBase,
                         FixedTypedArrayBase::kExternalPointerOffset,
                         MaybeHandle<Name>(),
-                        Type::OtherInternal(),
+                        Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;
@@ -433,6 +434,27 @@ FieldAccess AccessBuilder::ForMapPrototype() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForModuleRegularExports() {
+  FieldAccess access = {kTaggedBase,
+                        Module::kRegularExportsOffset,
+                        Handle<Name>(),
+                        Type::OtherInternal(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForModuleRegularImports() {
+  FieldAccess access = {kTaggedBase,
+                        Module::kRegularImportsOffset,
+                        Handle<Name>(),
+                        Type::OtherInternal(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
@@ -490,7 +512,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
   FieldAccess access = {kTaggedBase,
                         ExternalString::kResourceDataOffset,
                         Handle<Name>(),
-                        Type::OtherInternal(),
+                        Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;
@@ -611,6 +633,14 @@ FieldAccess AccessBuilder::ForFixedArraySlot(size_t index) {
 
 
 // static
+FieldAccess AccessBuilder::ForCellValue() {
+  FieldAccess access = {
+      kTaggedBase, Cell::kValueOffset,       Handle<Name>(),
+      Type::Any(), MachineType::AnyTagged(), kFullWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForContextSlot(size_t index) {
   int offset = Context::kHeaderSize + static_cast<int>(index) * kPointerSize;
   DCHECK_EQ(offset,
@@ -656,7 +686,7 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
                           MachineType::AnyTagged(), kFullWriteBarrier};
   switch (kind) {
     case FAST_SMI_ELEMENTS:
-      access.type = TypeCache::Get().kSmi;
+      access.type = Type::SignedSmall();
       access.machine_type = MachineType::TaggedSigned();
       access.write_barrier_kind = kNoWriteBarrier;
       break;

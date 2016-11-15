@@ -934,12 +934,13 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       return new(zone()) LBranch(UseRegister(value), TempRegister(), NULL);
     }
 
-    ToBooleanICStub::Types expected = instr->expected_input_types();
-    bool needs_temps = expected.NeedsMap() || expected.IsEmpty();
+    ToBooleanHints expected = instr->expected_input_types();
+    bool needs_temps = (expected & ToBooleanHint::kNeedsMap) ||
+                       expected == ToBooleanHint::kNone;
     LOperand* temp1 = needs_temps ? TempRegister() : NULL;
     LOperand* temp2 = needs_temps ? TempRegister() : NULL;
 
-    if (expected.IsGeneric() || expected.IsEmpty()) {
+    if (expected == ToBooleanHint::kAny || expected == ToBooleanHint::kNone) {
       // The generic case cannot deoptimize because it already supports every
       // possible input type.
       DCHECK(needs_temps);

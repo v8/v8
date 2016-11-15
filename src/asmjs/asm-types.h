@@ -94,7 +94,7 @@ class AsmValueType {
   }
 
   static AsmType* New(bitset_t bits) {
-    DCHECK_EQ((bits & kAsmValueTypeTag), 0);
+    DCHECK_EQ((bits & kAsmValueTypeTag), 0u);
     return reinterpret_cast<AsmType*>(
         static_cast<uintptr_t>(bits | kAsmValueTypeTag));
   }

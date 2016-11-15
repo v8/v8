@@ -437,9 +437,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           JSObject::GetProperty(parent_instance,
                                 isolate->factory()->prototype_string()),
           JSFunction);
-      MAYBE_RETURN(JSObject::SetPrototype(prototype, parent_prototype, false,
-                                          Object::THROW_ON_ERROR),
-                   MaybeHandle<JSFunction>());
+      JSObject::ForceSetPrototype(prototype, parent_prototype);
     }
   }
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
@@ -615,10 +613,12 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   int internal_field_count = 0;
+  bool immutable_proto = false;
   if (!obj->instance_template()->IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
         ObjectTemplateInfo::cast(obj->instance_template()));
     internal_field_count = instance_template->internal_field_count();
+    immutable_proto = instance_template->immutable_proto();
   }
 
   // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
@@ -643,7 +643,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     case GlobalProxyType:
       type = JS_GLOBAL_PROXY_TYPE;
       instance_size += JSGlobalProxy::kSize;
-      DCHECK_EQ(instance_size, JSGlobalProxy::kSizeWithInternalFields);
       break;
     default:
       UNREACHABLE();
@@ -678,6 +677,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     map->set_is_callable();
     map->set_is_constructor(true);
   }
+
+  if (immutable_proto) map->set_immutable_proto(true);
 
   return result;
 }
