@@ -1380,9 +1380,9 @@ static void PrintVar(int indent, Variable* var) {
       PrintF("forced context allocation");
       comma = true;
     }
-    if (var->maybe_assigned() == kMaybeAssigned) {
+    if (var->maybe_assigned() == kNotAssigned) {
       if (comma) PrintF(", ");
-      PrintF("maybe assigned");
+      PrintF("never assigned");
     }
     PrintF("\n");
   }
