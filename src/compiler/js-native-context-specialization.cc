@@ -867,13 +867,14 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     DCHECK_EQ(AccessMode::kLoad, access_mode);
     value = jsgraph()->UndefinedConstant();
   } else if (access_info.IsDataConstant()) {
-    value = jsgraph()->Constant(access_info.constant());
+    Node* constant_value = jsgraph()->Constant(access_info.constant());
     if (access_mode == AccessMode::kStore) {
-      Node* check =
-          graph()->NewNode(simplified()->ReferenceEqual(), value, value);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), value,
+                                     constant_value);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
     }
+    value = constant_value;
   } else if (access_info.IsAccessorConstant()) {
     // TODO(bmeurer): Properly rewire the IfException edge here if there's any.
     Node* target = jsgraph()->Constant(access_info.constant());
