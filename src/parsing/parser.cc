@@ -2782,10 +2782,32 @@ Parser::LazyParsingResult Parser::SkipFunction(
     }
     cached_parse_data_->Reject();
   }
+
   // With no cached data, we partially parse the function, without building an
   // AST. This gathers the data needed to build a lazy function.
-  PreParser::PreParseResult result = ParseFunctionWithPreParser(
-      kind, function_scope, is_inner_function, may_abort);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
+
+  if (reusable_preparser_ == NULL) {
+    reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
+                                        &pending_error_handler_,
+                                        runtime_call_stats_, stack_limit_);
+    reusable_preparser_->set_allow_lazy(true);
+#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
+    SET_ALLOW(natives);
+    SET_ALLOW(harmony_do_expressions);
+    SET_ALLOW(harmony_function_sent);
+    SET_ALLOW(harmony_async_await);
+    SET_ALLOW(harmony_trailing_commas);
+    SET_ALLOW(harmony_class_fields);
+#undef SET_ALLOW
+  }
+  // Aborting inner function preparsing would leave scopes in an inconsistent
+  // state; we don't parse inner functions in the abortable mode anyway.
+  DCHECK(!is_inner_function || !may_abort);
+
+  PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
+      kind, function_scope, parsing_module_, is_inner_function, may_abort,
+      use_counts_);
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
@@ -3287,35 +3309,6 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   }
 
   MarkCollectedTailCallExpressions();
-  return result;
-}
-
-PreParser::PreParseResult Parser::ParseFunctionWithPreParser(
-    FunctionKind kind, DeclarationScope* function_scope, bool is_inner_function,
-    bool may_abort) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
-
-  if (reusable_preparser_ == NULL) {
-    reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
-                                        &pending_error_handler_,
-                                        runtime_call_stats_, stack_limit_);
-    reusable_preparser_->set_allow_lazy(true);
-#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
-    SET_ALLOW(natives);
-    SET_ALLOW(harmony_do_expressions);
-    SET_ALLOW(harmony_function_sent);
-    SET_ALLOW(harmony_async_await);
-    SET_ALLOW(harmony_trailing_commas);
-    SET_ALLOW(harmony_class_fields);
-#undef SET_ALLOW
-  }
-  // Aborting inner function preparsing would leave scopes in an inconsistent
-  // state; we don't parse inner functions in the abortable mode anyway.
-  DCHECK(!is_inner_function || !may_abort);
-
-  PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
-      kind, function_scope, parsing_module_, is_inner_function, may_abort,
-      use_counts_);
   return result;
 }
 

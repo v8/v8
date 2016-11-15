@@ -536,11 +536,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int* materialized_literal_count, int* expected_property_count,
       bool is_inner_function, bool may_abort, bool* ok);
 
-  PreParser::PreParseResult ParseFunctionWithPreParser(FunctionKind kind,
-                                                       DeclarationScope* scope,
-                                                       bool is_inner_function,
-                                                       bool may_abort);
-
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
   Block* BuildRejectPromiseOnException(Block* block, bool* ok);
