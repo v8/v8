@@ -1030,6 +1030,8 @@ class RepresentationSelector {
                      MachineRepresentation::kWord32 ||
                  machine_type.semantic() == MachineSemantic::kInt32 ||
                  machine_type.semantic() == MachineSemantic::kUint32);
+          DCHECK(machine_type.representation() != MachineRepresentation::kBit ||
+                 input_type->Is(Type::Boolean()));
           (*types)[i] = machine_type;
         }
       }

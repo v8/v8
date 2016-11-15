@@ -872,12 +872,18 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           constant_object =
               handle(reinterpret_cast<Smi*>(constant.ToInt32()), isolate());
           DCHECK(constant_object->IsSmi());
+        } else if (type.representation() == MachineRepresentation::kBit) {
+          if (constant.ToInt32() == 0) {
+            constant_object = isolate()->factory()->false_value();
+          } else {
+            DCHECK_EQ(1, constant.ToInt32());
+            constant_object = isolate()->factory()->true_value();
+          }
         } else {
           // TODO(jarin,bmeurer): We currently pass in raw pointers to the
           // JSFunction::entry here. We should really consider fixing this.
           DCHECK(type == MachineType::Int32() ||
                  type == MachineType::Uint32() ||
-                 type.representation() == MachineRepresentation::kBit ||
                  type.representation() == MachineRepresentation::kWord32 ||
                  type.representation() == MachineRepresentation::kNone);
           DCHECK(type.representation() != MachineRepresentation::kNone ||
