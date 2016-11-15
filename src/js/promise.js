@@ -587,6 +587,10 @@ function PromiseHasUserDefinedRejectHandler() {
   return PromiseHasUserDefinedRejectHandlerRecursive(this);
 };
 
+function MarkPromiseAsHandled(promise) {
+  SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
+}
+
 
 function PromiseSpecies() {
   return this;
@@ -632,7 +636,8 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 utils.InstallFunctions(extrasUtils, 0, [
   "createPromise", PromiseCreate,
   "resolvePromise", ResolvePromise,
-  "rejectPromise", DoRejectPromise
+  "rejectPromise", DoRejectPromise,
+  "markPromiseAsHandled", MarkPromiseAsHandled
 ]);
 
 utils.Export(function(to) {

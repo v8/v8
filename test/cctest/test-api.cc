@@ -25396,6 +25396,12 @@ TEST(ExtrasUtilsObject) {
   rejected_promise->Catch(env.local(), store).ToLocalChecked();
   isolate->RunMicrotasks();
   CHECK_EQ(3, CompileRun("result")->Int32Value(env.local()).FromJust());
+
+  auto rejected_but_handled_promise =
+      result->Get(env.local(), v8_str("rejectedButHandledPromise"))
+          .ToLocalChecked()
+          .As<v8::Promise>();
+  CHECK_EQ(true, rejected_but_handled_promise->HasHandler());
 }
 
 
