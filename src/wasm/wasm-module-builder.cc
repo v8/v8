@@ -509,7 +509,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(4);
     buffer.write(reinterpret_cast<const byte*>("name"), 4);
     // Emit the names.
-    buffer.write_size(functions_.size());
+    size_t count = functions_.size() + imports_.size();
+    buffer.write_size(count);
+    for (size_t i = 0; i < imports_.size(); i++) {
+      buffer.write_u8(0);  // empty name for import
+      buffer.write_u8(0);  // no local variables
+    }
     for (auto function : functions_) {
       buffer.write_size(function->name_.size());
       if (function->name_.size() > 0) {

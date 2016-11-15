@@ -623,17 +623,16 @@ class ModuleDecoder : public Decoder {
 
     // ===== Name section ====================================================
     if (section_iter.section_code() == kNameSectionCode) {
-      const byte* pos = pc_;
       uint32_t functions_count = consume_u32v("functions count");
-      if (functions_count != module->num_declared_functions) {
-        error(pos, pos, "function name count %u mismatch (%u expected)",
-              functions_count, module->num_declared_functions);
-      }
 
       for (uint32_t i = 0; ok() && i < functions_count; ++i) {
-        WasmFunction* function =
-            &module->functions[i + module->num_imported_functions];
-        function->name_offset = consume_string(&function->name_length, false);
+        uint32_t function_name_length = 0;
+        uint32_t name_offset = consume_string(&function_name_length, false);
+        uint32_t func_index = i;
+        if (func_index < module->functions.size()) {
+          module->functions[func_index].name_offset = name_offset;
+          module->functions[func_index].name_length = function_name_length;
+        }
 
         uint32_t local_names_count = consume_u32v("local names count");
         for (uint32_t j = 0; ok() && j < local_names_count; j++) {
