@@ -1090,7 +1090,7 @@ class SkipList {
 
 // ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
-// allocator allocated and deallocates pages for the paged heap spaces and large
+// allocator allocates and deallocates pages for the paged heap spaces and large
 // pages for large object space.
 class MemoryAllocator {
  public:
@@ -1208,6 +1208,8 @@ class MemoryAllocator {
     return (space == CODE_SPACE) ? CodePageAreaSize()
                                  : Page::kAllocatableMemory;
   }
+
+  static intptr_t GetCommitPageSize();
 
   explicit MemoryAllocator(Isolate* isolate);
 

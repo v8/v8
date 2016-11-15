@@ -107,7 +107,7 @@ bool CodeRange::SetUp(size_t requested) {
   }
 
   const size_t reserved_area =
-      kReservedCodeRangePages * base::OS::CommitPageSize();
+      kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area))
     requested += reserved_area;
 
@@ -548,9 +548,9 @@ bool MemoryChunk::CommitArea(size_t requested) {
       IsFlagSet(IS_EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
   size_t header_size = area_start() - address() - guard_size;
   size_t commit_size =
-      RoundUp(header_size + requested, base::OS::CommitPageSize());
+      RoundUp(header_size + requested, MemoryAllocator::GetCommitPageSize());
   size_t committed_size = RoundUp(header_size + (area_end() - area_start()),
-                                  base::OS::CommitPageSize());
+                                  MemoryAllocator::GetCommitPageSize());
 
   if (commit_size > committed_size) {
     // Commit size should be less or equal than the reserved size.
@@ -618,8 +618,8 @@ void MemoryChunk::Unlink() {
 }
 
 void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
-  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(base::OS::CommitPageSize()));
-  DCHECK_EQ(0u, bytes_to_shrink % base::OS::CommitPageSize());
+  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(GetCommitPageSize()));
+  DCHECK_EQ(0u, bytes_to_shrink % GetCommitPageSize());
   Address free_start = chunk->area_end_ - bytes_to_shrink;
   // Don't adjust the size of the page. The area is just uncomitted but not
   // released.
@@ -629,7 +629,7 @@ void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
     if (chunk->reservation_.IsReserved())
       chunk->reservation_.Guard(chunk->area_end_);
     else
-      base::OS::Guard(chunk->area_end_, base::OS::CommitPageSize());
+      base::OS::Guard(chunk->area_end_, GetCommitPageSize());
   }
 }
 
@@ -678,7 +678,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
   if (executable == EXECUTABLE) {
     chunk_size = RoundUp(CodePageAreaStartOffset() + reserve_area_size,
-                         base::OS::CommitPageSize()) +
+                         GetCommitPageSize()) +
                  CodePageGuardSize();
 
     // Check executable memory limit.
@@ -690,7 +690,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
     // Size of header (not executable) plus area (executable).
     size_t commit_size = RoundUp(CodePageGuardStartOffset() + commit_area_size,
-                                 base::OS::CommitPageSize());
+                                 GetCommitPageSize());
     // Allocate executable memory either from code range or from the
     // OS.
 #ifdef V8_TARGET_ARCH_MIPS64
@@ -726,10 +726,10 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     area_end = area_start + commit_area_size;
   } else {
     chunk_size = RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
-                         base::OS::CommitPageSize());
+                         GetCommitPageSize());
     size_t commit_size =
         RoundUp(MemoryChunk::kObjectStartOffset + commit_area_size,
-                base::OS::CommitPageSize());
+                GetCommitPageSize());
     base =
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
                               executable, &reservation);
@@ -814,7 +814,7 @@ size_t Page::ShrinkToHighWaterMark() {
 
   size_t unused = RoundDown(
       static_cast<size_t>(area_end() - filler->address() - FreeSpace::kSize),
-      base::OS::CommitPageSize());
+      MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
@@ -1012,11 +1012,11 @@ void MemoryAllocator::ReportStatistics() {
 size_t MemoryAllocator::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
-  return RoundUp(Page::kObjectStartOffset, base::OS::CommitPageSize());
+  return RoundUp(Page::kObjectStartOffset, GetCommitPageSize());
 }
 
 size_t MemoryAllocator::CodePageGuardSize() {
-  return static_cast<int>(base::OS::CommitPageSize());
+  return static_cast<int>(GetCommitPageSize());
 }
 
 size_t MemoryAllocator::CodePageAreaStartOffset() {
@@ -1028,7 +1028,16 @@ size_t MemoryAllocator::CodePageAreaStartOffset() {
 size_t MemoryAllocator::CodePageAreaEndOffset() {
   // We are guarding code pages: the last OS page will be protected as
   // non-writable.
-  return Page::kPageSize - static_cast<int>(base::OS::CommitPageSize());
+  return Page::kPageSize - static_cast<int>(GetCommitPageSize());
+}
+
+intptr_t MemoryAllocator::GetCommitPageSize() {
+  if (FLAG_v8_os_page_size != 0) {
+    DCHECK(base::bits::IsPowerOfTwo32(FLAG_v8_os_page_size));
+    return FLAG_v8_os_page_size * KB;
+  } else {
+    return base::OS::CommitPageSize();
+  }
 }
 
 
@@ -2893,7 +2902,7 @@ Address LargePage::GetAddressToShrink() {
     return 0;
   }
   size_t used_size = RoundUp((object->address() - address()) + object->Size(),
-                             base::OS::CommitPageSize());
+                             MemoryAllocator::GetCommitPageSize());
   if (used_size < CommittedPhysicalMemory()) {
     return address() + used_size;
   }

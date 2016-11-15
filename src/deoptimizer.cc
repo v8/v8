@@ -24,9 +24,8 @@ namespace internal {
 
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
-                                  base::OS::CommitPageSize(),
-                                  EXECUTABLE,
-                                  NULL);
+                                  MemoryAllocator::GetCommitPageSize(),
+                                  EXECUTABLE, NULL);
 }
 
 
@@ -88,7 +87,7 @@ static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
 size_t Deoptimizer::GetMaxDeoptTableSize() {
   int entries_size =
       Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
-  int commit_page_size = static_cast<int>(base::OS::CommitPageSize());
+  int commit_page_size = static_cast<int>(MemoryAllocator::GetCommitPageSize());
   int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
                     commit_page_size) + 1;
   return static_cast<size_t>(commit_page_size * page_count);

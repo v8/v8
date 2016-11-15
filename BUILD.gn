@@ -61,6 +61,9 @@ declare_args() {
   # Switches off inlining in V8.
   v8_no_inline = false
 
+  # Override OS page size when generating snapshot
+  v8_os_page_size = "0"
+
   # Similar to vfp but on MIPS.
   v8_can_use_fpu_instructions = true
 
@@ -676,6 +679,13 @@ action("run_mksnapshot") {
     args += [
       "--random-seed",
       v8_random_seed,
+    ]
+  }
+
+  if (v8_os_page_size != "0") {
+    args += [
+      "--v8_os_page_size",
+      v8_os_page_size,
     ]
   }
 

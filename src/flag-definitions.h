@@ -767,6 +767,9 @@ DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
 
+// spaces.cc
+DEFINE_INT(v8_os_page_size, 0, "override OS page size (in KBytes)")
+
 // execution.cc, messages.cc
 DEFINE_BOOL(clear_exceptions_on_js_entry, false,
             "clear pending exceptions when entering JavaScript")
@@ -1019,7 +1022,6 @@ DEFINE_BOOL(collect_heap_spill_statistics, false,
             "(requires heap_stats)")
 DEFINE_BOOL(trace_live_bytes, false,
             "trace incrementing and resetting of live bytes")
-
 DEFINE_BOOL(trace_isolates, false, "trace isolate state changes")
 
 // Regexp

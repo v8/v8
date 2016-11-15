@@ -37,6 +37,7 @@
     'v8_enable_inspector%': 0,
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
+    'v8_os_page_size%': 0,
   },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
   'targets': [
@@ -305,6 +306,9 @@
                   }],
                   ['v8_vector_stores!=0', {
                     'mksnapshot_flags': ['--vector-stores'],
+                  }],
+                  ['v8_os_page_size!=0', {
+                    'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
                   }],
                 ],
               },
