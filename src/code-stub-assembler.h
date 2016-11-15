@@ -1144,10 +1144,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       const LoadICParameters* p, compiler::Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);
 
+  void HandleLoadICSmiHandlerCase(const LoadICParameters* p,
+                                  compiler::Node* holder,
+                                  compiler::Node* smi_handler, Label* miss,
+                                  ElementSupport support_elements);
+
   void HandleLoadICProtoHandler(const LoadICParameters* p,
                                 compiler::Node* handler, Variable* var_holder,
                                 Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss);
+
+  compiler::Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p,
+                                            compiler::Node* handler,
+                                            compiler::Node* handler_length,
+                                            compiler::Node* handler_flags,
+                                            Label* miss);
 
   void CheckPrototype(compiler::Node* prototype_cell, compiler::Node* name,
                       Label* miss);

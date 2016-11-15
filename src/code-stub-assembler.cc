@@ -5504,128 +5504,8 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
   // for the encoding format.
   Bind(&if_smi_handler);
   {
-    Variable var_double_value(this, MachineRepresentation::kFloat64);
-    Label rebox_double(this, &var_double_value);
-
-    Node* holder = var_holder.value();
-    Node* handler_word = SmiUntag(var_smi_handler.value());
-    Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
-    if (support_elements == kSupportElements) {
-      Label property(this);
-      GotoUnless(
-          WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForElements)),
-          &property);
-
-      Comment("element_load");
-      Node* intptr_index = TryToIntptr(p->name, miss);
-      Node* elements = LoadElements(holder);
-      Node* is_jsarray_condition =
-          IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
-      Node* elements_kind =
-          DecodeWord<LoadHandler::ElementsKindBits>(handler_word);
-      Label if_hole(this), unimplemented_elements_kind(this);
-      Label* out_of_bounds = miss;
-      EmitElementLoad(holder, elements, elements_kind, intptr_index,
-                      is_jsarray_condition, &if_hole, &rebox_double,
-                      &var_double_value, &unimplemented_elements_kind,
-                      out_of_bounds, miss);
-
-      Bind(&unimplemented_elements_kind);
-      {
-        // Smi handlers should only be installed for supported elements kinds.
-        // Crash if we get here.
-        DebugBreak();
-        Goto(miss);
-      }
-
-      Bind(&if_hole);
-      {
-        Comment("convert hole");
-        GotoUnless(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
-        Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
-        DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-        GotoUnless(
-            WordEqual(
-                LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
-            miss);
-        Return(UndefinedConstant());
-      }
-
-      Bind(&property);
-      Comment("property_load");
-    }
-
-    Label constant(this), field(this);
-    Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
-           &field, &constant);
-
-    Bind(&field);
-    {
-      Comment("field_load");
-      Node* offset = DecodeWord<LoadHandler::FieldOffsetBits>(handler_word);
-
-      Label inobject(this), out_of_object(this);
-      Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
-             &out_of_object);
-
-      Bind(&inobject);
-      {
-        Label is_double(this);
-        GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-        Return(LoadObjectField(holder, offset));
-
-        Bind(&is_double);
-        if (FLAG_unbox_double_fields) {
-          var_double_value.Bind(
-              LoadObjectField(holder, offset, MachineType::Float64()));
-        } else {
-          Node* mutable_heap_number = LoadObjectField(holder, offset);
-          var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
-        }
-        Goto(&rebox_double);
-      }
-
-      Bind(&out_of_object);
-      {
-        Label is_double(this);
-        Node* properties = LoadProperties(holder);
-        Node* value = LoadObjectField(properties, offset);
-        GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-        Return(value);
-
-        Bind(&is_double);
-        var_double_value.Bind(LoadHeapNumberValue(value));
-        Goto(&rebox_double);
-      }
-
-      Bind(&rebox_double);
-      Return(AllocateHeapNumberWithValue(var_double_value.value()));
-    }
-
-    Bind(&constant);
-    {
-      Comment("constant_load");
-      Node* descriptors = LoadMapDescriptors(LoadMap(holder));
-      Node* descriptor =
-          DecodeWord<LoadHandler::DescriptorValueIndexBits>(handler_word);
-#if defined(DEBUG)
-      CSA_ASSERT(
-          this, UintPtrLessThan(descriptor,
-                                LoadAndUntagFixedArrayBaseLength(descriptors)));
-#endif
-      Node* value =
-          LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS);
-
-      Label if_accessor_info(this);
-      GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
-             &if_accessor_info);
-      Return(value);
-
-      Bind(&if_accessor_info);
-      Callable callable = CodeFactory::ApiGetter(isolate());
-      TailCallStub(callable, p->context, p->receiver, holder, value);
-    }
+    HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
+                               miss, support_elements);
   }
 
   Bind(&try_proto_handler);
@@ -5643,6 +5523,129 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
                  Arg(Descriptor::kName, p->name),
                  Arg(Descriptor::kSlot, p->slot),
                  Arg(Descriptor::kVector, p->vector));
+  }
+}
+
+void CodeStubAssembler::HandleLoadICSmiHandlerCase(
+    const LoadICParameters* p, Node* holder, Node* smi_handler, Label* miss,
+    ElementSupport support_elements) {
+  Variable var_double_value(this, MachineRepresentation::kFloat64);
+  Label rebox_double(this, &var_double_value);
+
+  Node* handler_word = SmiUntag(smi_handler);
+  Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
+  if (support_elements == kSupportElements) {
+    Label property(this);
+    GotoUnless(
+        WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForElements)),
+        &property);
+
+    Comment("element_load");
+    Node* intptr_index = TryToIntptr(p->name, miss);
+    Node* elements = LoadElements(holder);
+    Node* is_jsarray_condition =
+        IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
+    Node* elements_kind =
+        DecodeWord<LoadHandler::ElementsKindBits>(handler_word);
+    Label if_hole(this), unimplemented_elements_kind(this);
+    Label* out_of_bounds = miss;
+    EmitElementLoad(holder, elements, elements_kind, intptr_index,
+                    is_jsarray_condition, &if_hole, &rebox_double,
+                    &var_double_value, &unimplemented_elements_kind,
+                    out_of_bounds, miss);
+
+    Bind(&unimplemented_elements_kind);
+    {
+      // Smi handlers should only be installed for supported elements kinds.
+      // Crash if we get here.
+      DebugBreak();
+      Goto(miss);
+    }
+
+    Bind(&if_hole);
+    {
+      Comment("convert hole");
+      GotoUnless(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
+      Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
+      DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
+      GotoUnless(
+          WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                    SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+          miss);
+      Return(UndefinedConstant());
+    }
+
+    Bind(&property);
+    Comment("property_load");
+  }
+
+  Label constant(this), field(this);
+  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
+         &field, &constant);
+
+  Bind(&field);
+  {
+    Comment("field_load");
+    Node* offset = DecodeWord<LoadHandler::FieldOffsetBits>(handler_word);
+
+    Label inobject(this), out_of_object(this);
+    Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
+           &out_of_object);
+
+    Bind(&inobject);
+    {
+      Label is_double(this);
+      GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+      Return(LoadObjectField(holder, offset));
+
+      Bind(&is_double);
+      if (FLAG_unbox_double_fields) {
+        var_double_value.Bind(
+            LoadObjectField(holder, offset, MachineType::Float64()));
+      } else {
+        Node* mutable_heap_number = LoadObjectField(holder, offset);
+        var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+      }
+      Goto(&rebox_double);
+    }
+
+    Bind(&out_of_object);
+    {
+      Label is_double(this);
+      Node* properties = LoadProperties(holder);
+      Node* value = LoadObjectField(properties, offset);
+      GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+      Return(value);
+
+      Bind(&is_double);
+      var_double_value.Bind(LoadHeapNumberValue(value));
+      Goto(&rebox_double);
+    }
+
+    Bind(&rebox_double);
+    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+  }
+
+  Bind(&constant);
+  {
+    Comment("constant_load");
+    Node* descriptors = LoadMapDescriptors(LoadMap(holder));
+    Node* descriptor =
+        DecodeWord<LoadHandler::DescriptorValueIndexBits>(handler_word);
+    CSA_ASSERT(this,
+               UintPtrLessThan(descriptor,
+                               LoadAndUntagFixedArrayBaseLength(descriptors)));
+    Node* value =
+        LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS);
+
+    Label if_accessor_info(this);
+    GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
+           &if_accessor_info);
+    Return(value);
+
+    Bind(&if_accessor_info);
+    Callable callable = CodeFactory::ApiGetter(isolate());
+    TailCallStub(callable, p->context, p->receiver, holder, value);
   }
 }
 
@@ -5712,67 +5715,74 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
 
   Bind(&array_handler);
   {
-    Node* length = SmiUntag(maybe_holder_cell);
-
-    Variable start_index(this, MachineType::PointerRepresentation());
-    start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
-
-    Label can_access(this);
-    GotoUnless(
-        IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
-        &can_access);
-    {
-      // Skip this entry of a handler.
-      start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex + 1));
-
-      int offset =
-          FixedArray::OffsetOfElementAt(LoadHandler::kFirstPrototypeIndex);
-      Node* expected_native_context =
-          LoadWeakCellValue(LoadObjectField(handler, offset), miss);
-      CSA_ASSERT(this, IsNativeContext(expected_native_context));
-
-      Node* native_context = LoadNativeContext(p->context);
-      GotoIf(WordEqual(expected_native_context, native_context), &can_access);
-      // If the receiver is not a JSGlobalProxy then we miss.
-      GotoUnless(IsJSGlobalProxy(p->receiver), miss);
-      // For JSGlobalProxy receiver try to compare security tokens of current
-      // and expected native contexts.
-      Node* expected_token = LoadContextElement(expected_native_context,
-                                                Context::SECURITY_TOKEN_INDEX);
-      Node* current_token =
-          LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
-      Branch(WordEqual(expected_token, current_token), &can_access, miss);
-    }
-    Bind(&can_access);
-
-    BuildFastLoop(MachineType::PointerRepresentation(), start_index.value(),
-                  length,
-                  [this, p, handler, miss](CodeStubAssembler*, Node* current) {
-                    Node* prototype_cell = LoadFixedArrayElement(
-                        handler, current, 0, INTPTR_PARAMETERS);
-                    CheckPrototype(prototype_cell, p->name, miss);
-                  },
-                  1, IndexAdvanceMode::kPost);
-
-    Node* maybe_holder_cell = LoadFixedArrayElement(
-        handler, IntPtrConstant(LoadHandler::kHolderCellIndex), 0,
-        INTPTR_PARAMETERS);
-    Label load_existent(this);
-    GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
-    // This is a handler for a load of a non-existent value.
-    Return(UndefinedConstant());
-
-    Bind(&load_existent);
-    Node* holder = LoadWeakCellValue(maybe_holder_cell);
-    // The |holder| is guaranteed to be alive at this point since we passed
-    // the receiver map check, the validity cell check and the prototype chain
-    // check.
-    CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
-
+    Node* handler_length = SmiUntag(maybe_holder_cell);
+    Node* holder = EmitLoadICProtoArrayCheck(p, handler, handler_length,
+                                             handler_flags, miss);
     var_holder->Bind(holder);
     var_smi_handler->Bind(smi_handler);
     Goto(if_smi_handler);
   }
+}
+
+Node* CodeStubAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
+                                                   Node* handler,
+                                                   Node* handler_length,
+                                                   Node* handler_flags,
+                                                   Label* miss) {
+  Variable start_index(this, MachineType::PointerRepresentation());
+  start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
+
+  Label can_access(this);
+  GotoUnless(IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
+             &can_access);
+  {
+    // Skip this entry of a handler.
+    start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex + 1));
+
+    int offset =
+        FixedArray::OffsetOfElementAt(LoadHandler::kFirstPrototypeIndex);
+    Node* expected_native_context =
+        LoadWeakCellValue(LoadObjectField(handler, offset), miss);
+    CSA_ASSERT(this, IsNativeContext(expected_native_context));
+
+    Node* native_context = LoadNativeContext(p->context);
+    GotoIf(WordEqual(expected_native_context, native_context), &can_access);
+    // If the receiver is not a JSGlobalProxy then we miss.
+    GotoUnless(IsJSGlobalProxy(p->receiver), miss);
+    // For JSGlobalProxy receiver try to compare security tokens of current
+    // and expected native contexts.
+    Node* expected_token = LoadContextElement(expected_native_context,
+                                              Context::SECURITY_TOKEN_INDEX);
+    Node* current_token =
+        LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
+    Branch(WordEqual(expected_token, current_token), &can_access, miss);
+  }
+  Bind(&can_access);
+
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), start_index.value(), handler_length,
+      [this, p, handler, miss](CodeStubAssembler*, Node* current) {
+        Node* prototype_cell =
+            LoadFixedArrayElement(handler, current, 0, INTPTR_PARAMETERS);
+        CheckPrototype(prototype_cell, p->name, miss);
+      },
+      1, IndexAdvanceMode::kPost);
+
+  Node* maybe_holder_cell = LoadFixedArrayElement(
+      handler, IntPtrConstant(LoadHandler::kHolderCellIndex), 0,
+      INTPTR_PARAMETERS);
+  Label load_existent(this);
+  GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
+  // This is a handler for a load of a non-existent value.
+  Return(UndefinedConstant());
+
+  Bind(&load_existent);
+  Node* holder = LoadWeakCellValue(maybe_holder_cell);
+  // The |holder| is guaranteed to be alive at this point since we passed
+  // the receiver map check, the validity cell check and the prototype chain
+  // check.
+  CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
+  return holder;
 }
 
 void CodeStubAssembler::CheckPrototype(Node* prototype_cell, Node* name,
