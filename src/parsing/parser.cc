@@ -581,7 +581,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
-                         info->extension(), info->ast_value_factory()),
+                         info->extension(), info->ast_value_factory(),
+                         info->isolate()->counters()->runtime_call_stats()),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       original_scope_(nullptr),
@@ -665,7 +666,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
 
-  RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseProgram);
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_, info->is_eval() ? &RuntimeCallStats::ParseEval
+                                           : &RuntimeCallStats::ParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
@@ -828,7 +831,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-  RuntimeCallTimerScope runtime_timer(isolate,
+  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
                                       &RuntimeCallStats::ParseFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   Handle<String> source(String::cast(info->script()->source()));
@@ -2575,6 +2578,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool is_lazy_top_level_function =
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
 
+  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
+                                      &RuntimeCallStats::ParseFunctionLiteral);
+
   // Determine whether we can still lazy parse the inner function.
   // The preconditions are:
   // - Lazy compilation has to be enabled.
@@ -2692,6 +2698,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                  : (use_temp_zone ? "Preparse resolution" : "Full parse"),
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
+      if (is_lazy_top_level_function) {
+        CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
+                                       PreParseNoVariableResolution);
+      } else if (use_temp_zone) {
+        CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
+                                       PreParseWithVariableResolution);
+      }
     }
 
     // Validate function name. We can do this only after parsing the function,
@@ -3284,7 +3297,8 @@ PreParser::PreParseResult Parser::ParseFunctionWithPreParser(
 
   if (reusable_preparser_ == NULL) {
     reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
-                                        &pending_error_handler_, stack_limit_);
+                                        &pending_error_handler_,
+                                        runtime_call_stats_, stack_limit_);
     reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
@@ -3758,6 +3772,15 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
   }
   isolate->counters()->total_preparse_skipped()->Increment(
       total_preparse_skipped_);
+  if (!parsing_on_main_thread_ &&
+      FLAG_runtime_stats ==
+          v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
+    // Copy over the counters from the background thread to the main counters on
+    // the isolate.
+    // TODO(cbruni,lpy): properly attach the runtime stats to the trace for
+    // background parsing.
+    isolate->counters()->runtime_call_stats()->Add(runtime_call_stats_);
+  }
 }
 
 
@@ -3803,6 +3826,10 @@ void Parser::ParseOnBackground(ParseInfo* info) {
 
   ParserLogger logger;
   if (produce_cached_parse_data()) log_ = &logger;
+  if (FLAG_runtime_stats) {
+    // Create separate runtime stats for background parsing.
+    runtime_call_stats_ = new (zone()) RuntimeCallStats();
+  }
 
   std::unique_ptr<Utf16CharacterStream> stream;
   Utf16CharacterStream* stream_ptr;
@@ -3841,6 +3868,10 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   if (produce_cached_parse_data()) {
     if (result != NULL) *info->cached_data() = logger.GetScriptData();
     log_ = NULL;
+  }
+  if (FLAG_runtime_stats) {
+    // TODO(cbruni,lpy): properly attach the runtime stats to the trace for
+    // background parsing.
   }
 }
 

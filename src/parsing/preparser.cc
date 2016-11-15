@@ -86,6 +86,11 @@ PreParserIdentifier PreParser::GetSymbol() const {
 PreParser::PreParseResult PreParser::PreParseFunction(
     FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
     bool is_inner_function, bool may_abort, int* use_counts) {
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      track_unresolved_variables_
+          ? &RuntimeCallStats::PreParseWithVariableResolution
+          : &RuntimeCallStats::PreParseNoVariableResolution);
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
   use_counts_ = use_counts;
@@ -179,6 +184,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     LanguageMode language_mode, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      track_unresolved_variables_
+          ? &RuntimeCallStats::PreParseWithVariableResolution
+          : &RuntimeCallStats::PreParseNoVariableResolution);
 
   // Parse function body.
   PreParserStatementList body;

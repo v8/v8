@@ -201,6 +201,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     cached_parse_data_ = NULL;
   }
 
+  static bool const IsPreParser() { return false; }
+
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
@@ -1148,7 +1150,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // parsing.
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
-
   bool parsing_on_main_thread_;
   ParserLogger* log_;
 };

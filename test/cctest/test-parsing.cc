@@ -174,8 +174,9 @@ TEST(ScanHTMLEndComments) {
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                           &pending_error_handler, stack_limit);
+    i::PreParser preparser(
+        &zone, &scanner, &ast_value_factory, &pending_error_handler,
+        CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -191,8 +192,9 @@ TEST(ScanHTMLEndComments) {
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                           &pending_error_handler, stack_limit);
+    i::PreParser preparser(
+        &zone, &scanner, &ast_value_factory, &pending_error_handler,
+        CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
@@ -365,8 +367,9 @@ TEST(StandAlonePreParser) {
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                           &pending_error_handler, stack_limit);
+    i::PreParser preparser(
+        &zone, &scanner, &ast_value_factory, &pending_error_handler,
+        CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -379,6 +382,7 @@ TEST(StandAlonePreParser) {
 TEST(StandAlonePreParserNoNatives) {
   v8::V8::Initialize();
 
+  i::Isolate* isolate = CcTest::i_isolate();
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
@@ -388,10 +392,10 @@ TEST(StandAlonePreParserNoNatives) {
       NULL
   };
 
-  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
+  uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(isolate->unicode_cache());
     scanner.Initialize(stream.get());
 
     // Preparser defaults to disallowing natives syntax.
@@ -399,8 +403,9 @@ TEST(StandAlonePreParserNoNatives) {
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                           &pending_error_handler, stack_limit);
+    i::PreParser preparser(
+        &zone, &scanner, &ast_value_factory, &pending_error_handler,
+        isolate->counters()->runtime_call_stats(), stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -468,6 +473,7 @@ TEST(RegressChromium62639) {
   i::PendingCompilationErrorHandler pending_error_handler;
   i::PreParser preparser(&zone, &scanner, &ast_value_factory,
                          &pending_error_handler,
+                         isolate->counters()->runtime_call_stats(),
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -522,27 +528,29 @@ TEST(Regress928) {
 
 TEST(PreParseOverflow) {
   v8::V8::Initialize();
+  i::Isolate* isolate = CcTest::i_isolate();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      i::GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
   std::unique_ptr<char[]> program(i::NewArray<char>(kProgramSize + 1));
   memset(program.get(), '(', kProgramSize);
   program[kProgramSize] = '\0';
 
-  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
+  uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(isolate->unicode_cache());
   scanner.Initialize(stream.get());
 
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   i::PendingCompilationErrorHandler pending_error_handler;
-  i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                         &pending_error_handler, stack_limit);
+  i::PreParser preparser(
+      &zone, &scanner, &ast_value_factory, &pending_error_handler,
+      isolate->counters()->runtime_call_stats(), stack_limit);
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
@@ -1337,8 +1345,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                           &pending_error_handler, stack_limit);
+    i::PreParser preparser(
+        &zone, &scanner, &ast_value_factory, &pending_error_handler,
+        isolate->counters()->runtime_call_stats(), stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(stream.get());
     i::PreParser::PreParseResult result =

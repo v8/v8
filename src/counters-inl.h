@@ -13,14 +13,19 @@ namespace internal {
 RuntimeCallTimerScope::RuntimeCallTimerScope(
     Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    Initialize(isolate, counter_id);
+    Initialize(isolate->counters()->runtime_call_stats(), counter_id);
   }
 }
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
     HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
+  RuntimeCallTimerScope(heap_object->GetIsolate(), counter_id);
+}
+
+RuntimeCallTimerScope::RuntimeCallTimerScope(
+    RuntimeCallStats* stats, RuntimeCallStats::CounterId counter_id) {
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    Initialize(heap_object->GetIsolate(), counter_id);
+    Initialize(stats, counter_id);
   }
 }
 

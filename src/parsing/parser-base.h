@@ -191,13 +191,15 @@ class ParserBase {
   const Impl* impl() const { return static_cast<const Impl*>(this); }
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
-             v8::Extension* extension, AstValueFactory* ast_value_factory)
+             v8::Extension* extension, AstValueFactory* ast_value_factory,
+             RuntimeCallStats* runtime_call_stats)
       : scope_state_(nullptr),
         function_state_(nullptr),
         extension_(extension),
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory),
+        runtime_call_stats_(runtime_call_stats),
         parsing_module_(false),
         stack_limit_(stack_limit),
         zone_(zone),
@@ -1420,6 +1422,7 @@ class ParserBase {
   FuncNameInferrer* fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
+  RuntimeCallStats* runtime_call_stats_;
   bool parsing_module_;
   uintptr_t stack_limit_;
 
@@ -3887,6 +3890,11 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
     bool accept_IN, const FormalParametersT& formal_parameters, bool* ok) {
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      Impl::IsPreParser() ? &RuntimeCallStats::ParseArrowFunctionLiteral
+                          : &RuntimeCallStats::PreParseArrowFunctionLiteral);
+
   if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.

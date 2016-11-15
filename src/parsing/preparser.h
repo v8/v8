@@ -840,12 +840,14 @@ class PreParser : public ParserBase<PreParser> {
 
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
             PendingCompilationErrorHandler* pending_error_handler,
-            uintptr_t stack_limit)
+            RuntimeCallStats* runtime_call_stats, uintptr_t stack_limit)
       : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
-                              ast_value_factory),
+                              ast_value_factory, runtime_call_stats),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
         pending_error_handler_(pending_error_handler) {}
+
+  static bool const IsPreParser() { return true; }
 
   PreParserLogger* logger() { return &log_; }
 
