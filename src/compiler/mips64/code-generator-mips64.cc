@@ -2026,8 +2026,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   if (instr->arch_opcode() == kMips64Tst) {
     cc = FlagsConditionToConditionTst(condition);
-    __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
-    __ Sltu(result, zero_reg, kScratchReg);
+    if (instr->InputAt(1)->IsImmediate() &&
+        base::bits::IsPowerOfTwo64(i.InputOperand(1).immediate())) {
+      uint16_t pos =
+          base::bits::CountTrailingZeros64(i.InputOperand(1).immediate());
+      __ ExtractBits(result, i.InputRegister(0), pos, 1);
+    } else {
+      __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
+      __ Sltu(result, zero_reg, kScratchReg);
+    }
     if (cc == eq) {
       // Sltu produces 0 for equality, invert the result.
       __ xori(result, result, 1);

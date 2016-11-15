@@ -65,6 +65,7 @@ class Mips64OperandGenerator final : public OperandGenerator {
       case kMips64Dadd:
       case kMips64Or32:
       case kMips64Or:
+      case kMips64Tst:
       case kMips64Xor:
         return is_uint16(value);
       case kMips64Ldc1:

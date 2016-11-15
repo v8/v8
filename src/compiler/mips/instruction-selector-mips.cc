@@ -43,6 +43,7 @@ class MipsOperandGenerator final : public OperandGenerator {
       case kMipsAdd:
       case kMipsAnd:
       case kMipsOr:
+      case kMipsTst:
       case kMipsSub:
       case kMipsXor:
         return is_uint16(value);

@@ -1758,11 +1758,27 @@ void MacroAssembler::Ext(Register rt,
   ext_(rt, rs, pos, size);
 }
 
+void MacroAssembler::ExtractBits(Register rt, Register rs, uint16_t pos,
+                                 uint16_t size) {
+  DCHECK(pos < 64);
+  DCHECK(size > 0 && size <= 64);
+  DCHECK(pos + size <= 64);
+  if (pos < 32) {
+    if (size <= 32) {
+      Dext(rt, rs, pos, size);
+    } else {
+      Dextm(rt, rs, pos, size);
+    }
+  } else if (pos < 64) {
+    DCHECK(size <= 32);
+    Dextu(rt, rs, pos, size);
+  }
+}
 
 void MacroAssembler::Dext(Register rt, Register rs, uint16_t pos,
                           uint16_t size) {
   DCHECK(pos < 32);
-  DCHECK(pos + size < 33);
+  DCHECK(size > 0 && size <= 32);
   dext_(rt, rs, pos, size);
 }
 
@@ -1770,7 +1786,8 @@ void MacroAssembler::Dext(Register rt, Register rs, uint16_t pos,
 void MacroAssembler::Dextm(Register rt, Register rs, uint16_t pos,
                            uint16_t size) {
   DCHECK(pos < 32);
-  DCHECK(size <= 64);
+  DCHECK(size > 32 && size <= 64);
+  DCHECK((pos + size) > 32 && (pos + size) <= 64);
   dextm(rt, rs, pos, size);
 }
 
@@ -1778,7 +1795,8 @@ void MacroAssembler::Dextm(Register rt, Register rs, uint16_t pos,
 void MacroAssembler::Dextu(Register rt, Register rs, uint16_t pos,
                            uint16_t size) {
   DCHECK(pos >= 32 && pos < 64);
-  DCHECK(size < 33);
+  DCHECK(size > 0 && size <= 32);
+  DCHECK((pos + size) > 32 && (pos + size) <= 64);
   dextu(rt, rs, pos, size);
 }
 
