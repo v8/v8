@@ -76,8 +76,14 @@ static String16 breakpointIdSuffix(
 static String16 generateBreakpointId(
     const String16& scriptId, int lineNumber, int columnNumber,
     V8DebuggerAgentImpl::BreakpointSource source) {
-  return scriptId + ":" + String16::fromInteger(lineNumber) + ":" +
-         String16::fromInteger(columnNumber) + breakpointIdSuffix(source);
+  String16Builder builder;
+  builder.append(scriptId);
+  builder.append(':');
+  builder.appendNumber(lineNumber);
+  builder.append(':');
+  builder.appendNumber(columnNumber);
+  builder.append(breakpointIdSuffix(source));
+  return builder.toString();
 }
 
 static bool positionComparator(const std::pair<int, int>& a,
