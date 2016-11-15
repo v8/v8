@@ -199,9 +199,7 @@ namespace internal {
   F(DebugNextMicrotaskId, 0, 1)                 \
   F(DebugAsyncTaskEvent, 3, 1)                  \
   F(DebugIsActive, 0, 1)                        \
-  F(DebugBreakInOptimizedCode, 0, 1)            \
-  F(GetWasmFunctionOffsetTable, 1, 1)           \
-  F(DisassembleWasmFunction, 1, 1)
+  F(DebugBreakInOptimizedCode, 0, 1)
 
 #define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
 

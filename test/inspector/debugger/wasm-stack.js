@@ -11,7 +11,7 @@ var builder = new WasmModuleBuilder();
 
 var imported_idx = builder.addImport("func", kSig_v_v);
 
-var call_imported_idx = builder.addFunction("main", kSig_v_v)
+var call_imported_idx = builder.addFunction("call_func", kSig_v_v)
   .addBody([kExprCallFunction, imported_idx])
   .index;
 

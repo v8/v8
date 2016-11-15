@@ -569,8 +569,20 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsLocalCountIndex, Smi::kZero);
 
     // Add the source position.
+    // For wasm, it is function-local, so translate it to a module-relative
+    // position, such that together with the script it uniquely identifies the
+    // position.
+    Handle<Object> positionValue;
     if (position != kNoSourcePosition) {
-      details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
+      int translated_position = position;
+      if (!wasm::WasmIsAsmJs(*wasm_instance, isolate)) {
+        Handle<WasmCompiledModule> compiled_module(
+            wasm::GetCompiledModule(JSObject::cast(*wasm_instance)), isolate);
+        translated_position +=
+            wasm::GetFunctionCodeOffset(compiled_module, func_index);
+      }
+      details->set(kFrameDetailsSourcePositionIndex,
+                   Smi::FromInt(translated_position));
     }
 
     // Add the constructor information.
@@ -1895,37 +1907,6 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
-}
-
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_GetWasmFunctionOffsetTable) {
-  DCHECK(args.length() == 1);
-  HandleScope scope(isolate);
-  CONVERT_ARG_CHECKED(JSValue, script_val, 0);
-
-  CHECK(script_val->value()->IsScript());
-  Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
-
-  Handle<WasmDebugInfo> debug_info =
-      wasm::GetDebugInfo(handle(script->wasm_instance(), isolate));
-  Handle<FixedArray> elements = WasmDebugInfo::GetFunctionOffsetTable(
-      debug_info, script->wasm_function_index());
-  return *isolate->factory()->NewJSArrayWithElements(elements);
-}
-
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_DisassembleWasmFunction) {
-  DCHECK(args.length() == 1);
-  HandleScope scope(isolate);
-  CONVERT_ARG_CHECKED(JSValue, script_val, 0);
-
-  CHECK(script_val->value()->IsScript());
-  Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
-
-  Handle<WasmDebugInfo> debug_info =
-      wasm::GetDebugInfo(handle(script->wasm_instance(), isolate));
-  return *WasmDebugInfo::DisassembleFunction(debug_info,
-                                             script->wasm_function_index());
 }
 
 }  // namespace internal

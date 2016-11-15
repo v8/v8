@@ -7084,13 +7084,9 @@ class Script: public Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   DECL_ACCESSORS(source_mapping_url, Object)
 
-  // [wasm_instance]: the wasm instance this script belongs to.
+  // [wasm_compiled_module]: the compiled wasm module this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_instance, JSObject)
-
-  // [wasm_function_index]: the wasm function index this script belongs to.
-  // This must only be called if the type of this script is TYPE_WASM.
-  DECL_INT_ACCESSORS(wasm_function_index)
+  DECL_ACCESSORS(wasm_compiled_module, Object)
 
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.

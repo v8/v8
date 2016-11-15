@@ -1163,9 +1163,8 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   return decoder.DecodeSingleFunction(module_env, function);
 }
 
-FunctionOffsetsResult DecodeWasmFunctionOffsets(
-    const byte* module_start, const byte* module_end,
-    uint32_t num_imported_functions) {
+FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
+                                                const byte* module_end) {
   // Find and decode the code section.
   Vector<const byte> code_section =
       FindSection(module_start, module_end, kCodeSectionCode);
@@ -1179,11 +1178,8 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Reserve space for the entries, taking care of invalid input.
   if (functions_count < static_cast<unsigned>(code_section.length()) / 2) {
-    table.reserve(num_imported_functions + functions_count);
+    table.reserve(functions_count);
   }
-
-  // Add null entries for the imported functions.
-  table.resize(num_imported_functions);
 
   int section_offset = static_cast<int>(code_section.start() - module_start);
   DCHECK_LE(0, section_offset);
@@ -1200,19 +1196,15 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
-                                      const byte* tables_end,
-                                      uint32_t num_imported_functions) {
+                                      const byte* tables_end) {
   AsmJsOffsets table;
 
   Decoder decoder(tables_start, tables_end);
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Reserve space for the entries, taking care of invalid input.
   if (functions_count < static_cast<unsigned>(tables_end - tables_start)) {
-    table.reserve(num_imported_functions + functions_count);
+    table.reserve(functions_count);
   }
-
-  // Add null entries for the imported functions.
-  table.resize(num_imported_functions);
 
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("table size");

@@ -353,17 +353,12 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
-// Extract a function name from the given wasm object.
-// Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
-// valid UTF-8 string.
-Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
+// Extract a function name from the given wasm instance.
+// Returns "<WASM UNNAMED>" if no instance is passed, the function is unnamed or
+// the name is not a valid UTF-8 string.
+// TODO(5620): Refactor once we always get a wasm instance.
+Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> instance,
                                    uint32_t func_index);
-
-// Extract a function name from the given wasm object.
-// Returns a null handle if the function is unnamed or the name is not a valid
-// UTF-8 string.
-Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
-                                         uint32_t func_index);
 
 // Return the binary source bytes of a wasm module.
 Handle<SeqOneByteString> GetWasmBytes(Handle<JSObject> wasm);
@@ -395,8 +390,10 @@ WasmCompiledModule* GetCompiledModule(Object* wasm_instance);
 // Check whether the wasm module was generated from asm.js code.
 bool WasmIsAsmJs(Object* instance, Isolate* isolate);
 
-// Get the script for the asm.js origin of the wasm module.
-Handle<Script> GetAsmWasmScript(Handle<JSObject> instance);
+// Get the script of the wasm module. If the origin of the module is asm.js, the
+// returned Script will be a JavaScript Script of Script::TYPE_NORMAL, otherwise
+// it's of type TYPE_WASM.
+Handle<Script> GetScript(Handle<JSObject> instance);
 
 // Get the asm.js source position for the given byte offset in the given
 // function.
@@ -413,8 +410,14 @@ V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            ErrorThrower* thrower,
                                            ModuleOrigin origin);
 
-// Get the number of imported functions for a WASM instance.
-int GetNumImportedFunctions(Handle<JSObject> instance);
+// Get the offset of the code of a function within a module.
+int GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
+                          int func_index);
+
+// Translate from byte offset in the module to function number and byte offset
+// within that function, encoded as line and column in the position info.
+bool GetPositionInfo(Handle<WasmCompiledModule> compiled_module,
+                     uint32_t position, Script::PositionInfo* info);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.

@@ -189,11 +189,13 @@ class WasmCompiledModule : public FixedArray {
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                \
   MACRO(OBJECT, FixedArray, code_table)               \
   MACRO(OBJECT, Foreign, module_wrapper)              \
+  /* For debugging: */                                \
   MACRO(OBJECT, SeqOneByteString, module_bytes)       \
-  MACRO(OBJECT, Script, asm_js_script)                \
+  MACRO(OBJECT, Script, script)                       \
+  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
+  /* End of debugging stuff */                        \
   MACRO(OBJECT, FixedArray, function_tables)          \
   MACRO(OBJECT, FixedArray, empty_function_tables)    \
-  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
   MACRO(OBJECT, JSArrayBuffer, memory)                \
   MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)        \
   MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)        \
@@ -250,6 +252,12 @@ class WasmCompiledModule : public FixedArray {
 
   static void RecreateModuleWrapper(Isolate* isolate,
                                     Handle<FixedArray> compiled_module);
+
+  // Extract a function name from the given wasm instance.
+  // Returns a null handle if the function is unnamed or the name is not a valid
+  // UTF-8 string.
+  static MaybeHandle<String> GetFunctionName(
+      Handle<WasmCompiledModule> compiled_module, uint32_t func_index);
 
  private:
   void InitId();

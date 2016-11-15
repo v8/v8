@@ -1517,11 +1517,7 @@ uint32_t WasmFrame::function_index() const {
 
 Script* WasmFrame::script() const {
   Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
-  if (wasm::WasmIsAsmJs(*instance, isolate())) {
-    return *wasm::GetAsmWasmScript(instance);
-  }
-  Handle<WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
-  return WasmDebugInfo::GetFunctionScript(debug_info, function_index());
+  return *wasm::GetScript(instance);
 }
 
 int WasmFrame::position() const {

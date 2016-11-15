@@ -858,16 +858,6 @@ Debug.debuggerFlags = function() {
   return debugger_flags;
 };
 
-Debug.getWasmFunctionOffsetTable = function(scriptId) {
-  var script = scriptById(scriptId);
-  return script ? %GetWasmFunctionOffsetTable(script) : UNDEFINED;
-}
-
-Debug.disassembleWasmFunction = function(scriptId) {
-  var script = scriptById(scriptId);
-  return script ? %DisassembleWasmFunction(script) : UNDEFINED;
-}
-
 Debug.MakeMirror = MakeMirror;
 
 function MakeExecutionState(break_id) {

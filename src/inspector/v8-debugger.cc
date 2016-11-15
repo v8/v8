@@ -550,7 +550,7 @@ v8::Local<v8::Value> V8Debugger::callInternalGetterFunction(
           .ToLocalChecked();
   DCHECK(!getterValue.IsEmpty() && getterValue->IsFunction());
   return v8::Local<v8::Function>::Cast(getterValue)
-      ->Call(m_isolate->GetCurrentContext(), object, 0, 0)
+      ->Call(m_isolate->GetCurrentContext(), object, 0, nullptr)
       .ToLocalChecked();
 }
 

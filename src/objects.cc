@@ -62,6 +62,7 @@
 #include "src/string-stream.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
 
 #ifdef ENABLE_DISASSEMBLER
@@ -13403,6 +13404,7 @@ int Script::GetEvalPosition() {
 void Script::InitLineEnds(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   if (!script->line_ends()->IsUndefined(isolate)) return;
+  DCHECK_NE(Script::TYPE_WASM, script->type());
 
   Object* src_obj = script->source();
   if (!src_obj->IsString()) {
@@ -13420,6 +13422,16 @@ void Script::InitLineEnds(Handle<Script> script) {
 
 bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
+  // For wasm, we do not create an artificial line_ends array, but do the
+  // translation directly.
+  if (script->type() == Script::TYPE_WASM) {
+    Handle<WasmCompiledModule> compiled_module(
+        WasmCompiledModule::cast(script->wasm_compiled_module()));
+    DCHECK_LE(0, position);
+    return wasm::GetPositionInfo(compiled_module,
+                                 static_cast<uint32_t>(position), info);
+  }
+
   InitLineEnds(script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
