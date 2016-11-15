@@ -640,8 +640,10 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   }
 
   // Reset profiler ticks, function is no longer considered hot.
-  if (shared->is_compiled()) {
+  if (shared->HasBaselineCode()) {
     shared->code()->set_profiler_ticks(0);
+  } else if (shared->HasBytecodeArray()) {
+    shared->set_profiler_ticks(0);
   }
 
   VMState<COMPILER> state(isolate);
@@ -734,7 +736,13 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
                "V8.RecompileSynchronous");
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  shared->code()->set_profiler_ticks(0);
+
+  // Reset profiler ticks, function is no longer considered hot.
+  if (shared->HasBaselineCode()) {
+    shared->code()->set_profiler_ticks(0);
+  } else if (shared->HasBytecodeArray()) {
+    shared->set_profiler_ticks(0);
+  }
 
   DCHECK(!shared->HasDebugInfo());
 

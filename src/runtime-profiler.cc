@@ -22,7 +22,7 @@ namespace internal {
 
 // Number of times a function has to be seen on the stack before it is
 // compiled for baseline.
-static const int kProfilerTicksBeforeBaseline = 1;
+static const int kProfilerTicksBeforeBaseline = 0;
 // Number of times a function has to be seen on the stack before it is
 // optimized.
 static const int kProfilerTicksBeforeOptimization = 2;
@@ -447,16 +447,6 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     JavaScriptFrame* frame = it.frame();
     JSFunction* function = frame->function();
 
-    List<JSFunction*> functions(4);
-    frame->GetFunctions(&functions);
-    for (int i = functions.length(); --i >= 0; ) {
-      SharedFunctionInfo* shared_function_info = functions[i]->shared();
-      int ticks = shared_function_info->profiler_ticks();
-      if (ticks < Smi::kMaxValue) {
-        shared_function_info->set_profiler_ticks(ticks + 1);
-      }
-    }
-
     Compiler::CompilationTier next_tier =
         Compiler::NextCompilationTier(function);
     if (function->shared()->IsInterpreted()) {
@@ -469,6 +459,19 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     } else {
       DCHECK_EQ(next_tier, Compiler::OPTIMIZED);
       MaybeOptimizeFullCodegen(function, frame, frame_count);
+    }
+
+    // Update shared function info ticks after checking for whether functions
+    // should be optimized to keep FCG (which updates ticks on code) and
+    // Ignition (which updates ticks on shared function info) in sync.
+    List<JSFunction*> functions(4);
+    frame->GetFunctions(&functions);
+    for (int i = functions.length(); --i >= 0;) {
+      SharedFunctionInfo* shared_function_info = functions[i]->shared();
+      int ticks = shared_function_info->profiler_ticks();
+      if (ticks < Smi::kMaxValue) {
+        shared_function_info->set_profiler_ticks(ticks + 1);
+      }
     }
   }
   any_ic_changed_ = false;
