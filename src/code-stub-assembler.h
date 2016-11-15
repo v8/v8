@@ -578,6 +578,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                    int base_allocation_size,
                                    compiler::Node* allocation_site);
 
+  compiler::Node* TryTaggedToFloat64(compiler::Node* value,
+                                     Label* if_valueisnotnumber);
   compiler::Node* TruncateTaggedToFloat64(compiler::Node* context,
                                           compiler::Node* value);
   compiler::Node* TruncateTaggedToWord32(compiler::Node* context,
@@ -1103,6 +1105,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* StrictEqual(ResultMode mode, compiler::Node* lhs,
                               compiler::Node* rhs, compiler::Node* context);
+
+  // ECMA#sec-samevalue
+  // Similar to StrictEqual except that NaNs are treated as equal and minus zero
+  // differs from positive zero.
+  // Unlike Equal and StrictEqual, returns a value suitable for use in Branch
+  // instructions, e.g. Branch(SameValue(...), &label).
+  compiler::Node* SameValue(compiler::Node* lhs, compiler::Node* rhs,
+                            compiler::Node* context);
 
   compiler::Node* HasProperty(
       compiler::Node* object, compiler::Node* key, compiler::Node* context,

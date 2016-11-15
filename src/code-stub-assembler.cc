@@ -2271,6 +2271,40 @@ void CodeStubAssembler::InitializeAllocationMemento(
   }
 }
 
+Node* CodeStubAssembler::TryTaggedToFloat64(Node* value,
+                                            Label* if_valueisnotnumber) {
+  Label out(this);
+  Variable var_result(this, MachineRepresentation::kFloat64);
+
+  // Check if the {value} is a Smi or a HeapObject.
+  Label if_valueissmi(this), if_valueisnotsmi(this);
+  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+  Bind(&if_valueissmi);
+  {
+    // Convert the Smi {value}.
+    var_result.Bind(SmiToFloat64(value));
+    Goto(&out);
+  }
+
+  Bind(&if_valueisnotsmi);
+  {
+    // Check if {value} is a HeapNumber.
+    Label if_valueisheapnumber(this);
+    Branch(IsHeapNumberMap(LoadMap(value)), &if_valueisheapnumber,
+           if_valueisnotnumber);
+
+    Bind(&if_valueisheapnumber);
+    {
+      // Load the floating point value.
+      var_result.Bind(LoadHeapNumberValue(value));
+      Goto(&out);
+    }
+  }
+  Bind(&out);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
   // We might need to loop once due to ToNumber conversion.
   Variable var_value(this, MachineRepresentation::kTagged),
@@ -2280,42 +2314,23 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
   Goto(&loop);
   Bind(&loop);
   {
+    Label if_valueisnotnumber(this, Label::kDeferred);
+
     // Load the current {value}.
     value = var_value.value();
 
-    // Check if the {value} is a Smi or a HeapObject.
-    Label if_valueissmi(this), if_valueisnotsmi(this);
-    Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+    // Convert {value} to Float64 if it is a number and convert it to a number
+    // otherwise.
+    Node* const result = TryTaggedToFloat64(value, &if_valueisnotnumber);
+    var_result.Bind(result);
+    Goto(&done_loop);
 
-    Bind(&if_valueissmi);
+    Bind(&if_valueisnotnumber);
     {
-      // Convert the Smi {value}.
-      var_result.Bind(SmiToFloat64(value));
-      Goto(&done_loop);
-    }
-
-    Bind(&if_valueisnotsmi);
-    {
-      // Check if {value} is a HeapNumber.
-      Label if_valueisheapnumber(this),
-          if_valueisnotheapnumber(this, Label::kDeferred);
-      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
-             &if_valueisheapnumber, &if_valueisnotheapnumber);
-
-      Bind(&if_valueisheapnumber);
-      {
-        // Load the floating point value.
-        var_result.Bind(LoadHeapNumberValue(value));
-        Goto(&done_loop);
-      }
-
-      Bind(&if_valueisnotheapnumber);
-      {
-        // Convert the {value} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
-        var_value.Bind(CallStub(callable, context, value));
-        Goto(&loop);
-      }
+      // Convert the {value} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      var_value.Bind(CallStub(callable, context, value));
+      Goto(&loop);
     }
   }
   Bind(&done_loop);
@@ -6574,24 +6589,7 @@ Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
                                               Representation representation,
                                               Label* bailout) {
   if (representation.IsDouble()) {
-    Variable var_value(this, MachineRepresentation::kFloat64);
-    Label if_smi(this), if_heap_object(this), done(this);
-    Branch(TaggedIsSmi(value), &if_smi, &if_heap_object);
-    Bind(&if_smi);
-    {
-      var_value.Bind(SmiToFloat64(value));
-      Goto(&done);
-    }
-    Bind(&if_heap_object);
-    {
-      GotoUnless(
-          Word32Equal(LoadInstanceType(value), Int32Constant(HEAP_NUMBER_TYPE)),
-          bailout);
-      var_value.Bind(LoadHeapNumberValue(value));
-      Goto(&done);
-    }
-    Bind(&done);
-    value = var_value.value();
+    value = TryTaggedToFloat64(value, bailout);
   } else if (representation.IsHeapObject()) {
     // Field type is checked by the handler, here we only check if the value
     // is a heap object.
@@ -8574,6 +8572,95 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
 
   Bind(&end);
   return result.value();
+}
+
+// ECMA#sec-samevalue
+// This algorithm differs from the Strict Equality Comparison Algorithm in its
+// treatment of signed zeroes and NaNs.
+compiler::Node* CodeStubAssembler::SameValue(compiler::Node* lhs,
+                                             compiler::Node* rhs,
+                                             compiler::Node* context) {
+  Variable var_result(this, MachineType::PointerRepresentation());
+  Label strict_equal(this), out(this);
+
+  Node* const int_false = IntPtrConstant(0);
+  Node* const int_true = IntPtrConstant(1);
+
+  Label if_equal(this), if_notequal(this);
+  Branch(WordEqual(lhs, rhs), &if_equal, &if_notequal);
+
+  Bind(&if_equal);
+  {
+    // This covers the case when {lhs} == {rhs}. We can simply return true
+    // because SameValue considers two NaNs to be equal.
+
+    var_result.Bind(int_true);
+    Goto(&out);
+  }
+
+  Bind(&if_notequal);
+  {
+    // This covers the case when {lhs} != {rhs}. We only handle numbers here
+    // and defer to StrictEqual for the rest.
+
+    Node* const lhs_float = TryTaggedToFloat64(lhs, &strict_equal);
+    Node* const rhs_float = TryTaggedToFloat64(rhs, &strict_equal);
+
+    Label if_lhsisnan(this), if_lhsnotnan(this);
+    BranchIfFloat64IsNaN(lhs_float, &if_lhsisnan, &if_lhsnotnan);
+
+    Bind(&if_lhsisnan);
+    {
+      // Return true iff {rhs} is NaN.
+
+      Node* const result =
+          Select(Float64Equal(rhs_float, rhs_float), int_false, int_true,
+                 MachineType::PointerRepresentation());
+      var_result.Bind(result);
+      Goto(&out);
+    }
+
+    Bind(&if_lhsnotnan);
+    {
+      Label if_floatisequal(this), if_floatnotequal(this);
+      Branch(Float64Equal(lhs_float, rhs_float), &if_floatisequal,
+             &if_floatnotequal);
+
+      Bind(&if_floatisequal);
+      {
+        // We still need to handle the case when {lhs} and {rhs} are -0.0 and
+        // 0.0 (or vice versa). Compare the high word to
+        // distinguish between the two.
+
+        Node* const lhs_hi_word = Float64ExtractHighWord32(lhs_float);
+        Node* const rhs_hi_word = Float64ExtractHighWord32(rhs_float);
+
+        // If x is +0 and y is -0, return false.
+        // If x is -0 and y is +0, return false.
+
+        Node* const result = Word32Equal(lhs_hi_word, rhs_hi_word);
+        var_result.Bind(result);
+        Goto(&out);
+      }
+
+      Bind(&if_floatnotequal);
+      {
+        var_result.Bind(int_false);
+        Goto(&out);
+      }
+    }
+  }
+
+  Bind(&strict_equal);
+  {
+    Node* const is_equal = StrictEqual(kDontNegateResult, lhs, rhs, context);
+    Node* const result = WordEqual(is_equal, TrueConstant());
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&out);
+  return var_result.value();
 }
 
 compiler::Node* CodeStubAssembler::ForInFilter(compiler::Node* key,

@@ -170,34 +170,45 @@ BUILTIN(RegExpPrototypeCompile) {
 
 namespace {
 
+compiler::Node* FastLoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
+                                  compiler::Node* regexp) {
+  // Load the in-object field.
+  static const int field_offset =
+      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+  return a->LoadObjectField(regexp, field_offset);
+}
+
+compiler::Node* SlowLoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
+                                  compiler::Node* regexp) {
+  // Load through the GetProperty stub.
+  typedef compiler::Node Node;
+
+  Node* const name =
+      a->HeapConstant(a->isolate()->factory()->lastIndex_string());
+  Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
+  return a->CallStub(getproperty_callable, context, regexp, name);
+}
+
 compiler::Node* LoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
                               compiler::Node* has_initialmap,
                               compiler::Node* regexp) {
   typedef CodeStubAssembler::Variable Variable;
   typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
 
   Variable var_value(a, MachineRepresentation::kTagged);
 
-  Label out(a), if_unmodified(a), if_modified(a, Label::kDeferred);
+  Label out(a), if_unmodified(a), if_modified(a);
   a->Branch(has_initialmap, &if_unmodified, &if_modified);
 
   a->Bind(&if_unmodified);
   {
-    // Load the in-object field.
-    static const int field_offset =
-        JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
-    var_value.Bind(a->LoadObjectField(regexp, field_offset));
+    var_value.Bind(FastLoadLastIndex(a, context, regexp));
     a->Goto(&out);
   }
 
   a->Bind(&if_modified);
   {
-    // Load through the GetProperty stub.
-    Node* const name =
-        a->HeapConstant(a->isolate()->factory()->lastIndex_string());
-    Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
-    var_value.Bind(a->CallStub(getproperty_callable, context, regexp, name));
+    var_value.Bind(SlowLoadLastIndex(a, context, regexp));
     a->Goto(&out);
   }
 
@@ -215,13 +226,25 @@ void FastStoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
   a->StoreObjectField(regexp, field_offset, value);
 }
 
+void SlowStoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
+                        compiler::Node* regexp, compiler::Node* value) {
+  // Store through runtime.
+  // TODO(ishell): Use SetPropertyStub here once available.
+  typedef compiler::Node Node;
+
+  Node* const name =
+      a->HeapConstant(a->isolate()->factory()->lastIndex_string());
+  Node* const language_mode = a->SmiConstant(Smi::FromInt(STRICT));
+  a->CallRuntime(Runtime::kSetProperty, context, regexp, name, value,
+                 language_mode);
+}
+
 void StoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
                     compiler::Node* has_initialmap, compiler::Node* regexp,
                     compiler::Node* value) {
   typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
 
-  Label out(a), if_unmodified(a), if_modified(a, Label::kDeferred);
+  Label out(a), if_unmodified(a), if_modified(a);
   a->Branch(has_initialmap, &if_unmodified, &if_modified);
 
   a->Bind(&if_unmodified);
@@ -232,13 +255,7 @@ void StoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
 
   a->Bind(&if_modified);
   {
-    // Store through runtime.
-    // TODO(ishell): Use SetPropertyStub here once available.
-    Node* const name =
-        a->HeapConstant(a->isolate()->factory()->lastIndex_string());
-    Node* const language_mode = a->SmiConstant(Smi::FromInt(STRICT));
-    a->CallRuntime(Runtime::kSetProperty, context, regexp, name, value,
-                   language_mode);
+    SlowStoreLastIndex(a, context, regexp, value);
     a->Goto(&out);
   }
 
@@ -1142,57 +1159,128 @@ BUILTIN(RegExpPrototypeMatch) {
   return *isolate->factory()->NewJSArrayWithElements(elems);
 }
 
-// ES#sec-regexp.prototype-@@search
-// RegExp.prototype [ @@search ] ( string )
-BUILTIN(RegExpPrototypeSearch) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSReceiver, recv, "RegExp.prototype.@@search");
+namespace {
 
-  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
+void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
+                                        compiler::Node* const receiver,
+                                        compiler::Node* const string,
+                                        compiler::Node* const context,
+                                        bool is_fastpath) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
 
-  Handle<String> string;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
-                                     Object::ToString(isolate, string_obj));
+  Isolate* const isolate = a->isolate();
 
-  Handle<Object> previous_last_index_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, previous_last_index_obj,
-                                     RegExpUtils::GetLastIndex(isolate, recv));
+  Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
-  if (!previous_last_index_obj->SameValue(Smi::kZero)) {
-    RETURN_FAILURE_ON_EXCEPTION(isolate,
-                                RegExpUtils::SetLastIndex(isolate, recv, 0));
+  // Grab the initial value of last index.
+  Node* const previous_last_index =
+      is_fastpath ? FastLoadLastIndex(a, context, receiver)
+                  : SlowLoadLastIndex(a, context, receiver);
+
+  // Ensure last index is 0.
+  if (is_fastpath) {
+    FastStoreLastIndex(a, context, receiver, smi_zero);
+  } else {
+    Label next(a);
+    a->GotoIf(a->SameValue(previous_last_index, smi_zero, context), &next);
+
+    SlowStoreLastIndex(a, context, receiver, smi_zero);
+    a->Goto(&next);
+    a->Bind(&next);
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      RegExpUtils::RegExpExec(isolate, recv, string,
-                              isolate->factory()->undefined_value()));
+  // Call exec.
+  Node* const match_indices =
+      is_fastpath ? RegExpPrototypeExecInternal(a, context, receiver, string)
+                  : RegExpExec(a, context, receiver, string);
 
-  Handle<Object> current_last_index_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, current_last_index_obj,
-                                     RegExpUtils::GetLastIndex(isolate, recv));
+  // Reset last index if necessary.
+  if (is_fastpath) {
+    FastStoreLastIndex(a, context, receiver, previous_last_index);
+  } else {
+    Label next(a);
+    Node* const current_last_index = SlowLoadLastIndex(a, context, receiver);
 
-  const bool is_last_index_unchanged =
-      current_last_index_obj->SameValue(*previous_last_index_obj);
-  if (!is_last_index_unchanged) {
-    if (previous_last_index_obj->IsSmi()) {
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate,
-          RegExpUtils::SetLastIndex(
-              isolate, recv, Smi::cast(*previous_last_index_obj)->value()));
-    } else {
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate,
-          Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
-                              previous_last_index_obj, STRICT));
+    a->GotoIf(a->SameValue(current_last_index, previous_last_index, context),
+              &next);
+
+    SlowStoreLastIndex(a, context, receiver, previous_last_index);
+    a->Goto(&next);
+    a->Bind(&next);
+  }
+
+  // Return -1 if no match was found.
+  {
+    Label next(a);
+    a->GotoUnless(a->WordEqual(match_indices, a->NullConstant()), &next);
+    a->Return(a->SmiConstant(-1));
+    a->Bind(&next);
+  }
+
+  // Return the index of the match.
+  {
+    Label fast_result(a), slow_result(a, Label::kDeferred);
+
+    Node* const native_context = a->LoadNativeContext(context);
+    Node* const initial_regexp_result_map =
+        a->LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
+    Node* const match_indices_map = a->LoadMap(match_indices);
+
+    a->Branch(a->WordEqual(match_indices_map, initial_regexp_result_map),
+              &fast_result, &slow_result);
+
+    a->Bind(&fast_result);
+    {
+      Node* const index =
+          a->LoadObjectField(match_indices, JSRegExpResult::kIndexOffset,
+                             MachineType::AnyTagged());
+      a->Return(index);
+    }
+
+    a->Bind(&slow_result);
+    {
+      Node* const name = a->HeapConstant(isolate->factory()->index_string());
+      Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
+      Node* const index =
+          a->CallStub(getproperty_callable, context, match_indices, name);
+      a->Return(index);
     }
   }
+}
 
-  if (result->IsNull(isolate)) return Smi::FromInt(-1);
+}  // namespace
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::GetProperty(result, isolate->factory()->index_string()));
+// ES#sec-regexp.prototype-@@search
+// RegExp.prototype [ @@search ] ( string )
+void Builtins::Generate_RegExpPrototypeSearch(CodeStubAssembler* a) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Isolate* const isolate = a->isolate();
+
+  Node* const maybe_receiver = a->Parameter(0);
+  Node* const maybe_string = a->Parameter(1);
+  Node* const context = a->Parameter(4);
+
+  // Ensure {maybe_receiver} is a JSReceiver.
+  Node* const map =
+      ThrowIfNotJSReceiver(a, isolate, context, maybe_receiver,
+                           MessageTemplate::kIncompatibleMethodReceiver,
+                           "RegExp.prototype.@@search");
+  Node* const receiver = maybe_receiver;
+
+  // Convert {maybe_string} to a String.
+  Node* const string = a->ToString(context, maybe_string);
+
+  Label fast_path(a), slow_path(a);
+  BranchIfFastPath(a, context, map, &fast_path, &slow_path);
+
+  a->Bind(&fast_path);
+  Generate_RegExpPrototypeSearchBody(a, receiver, string, context, true);
+
+  a->Bind(&slow_path);
+  Generate_RegExpPrototypeSearchBody(a, receiver, string, context, false);
 }
 
 namespace {

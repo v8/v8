@@ -1869,7 +1869,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       {
         Handle<JSFunction> fun = SimpleCreateFunction(
             isolate, factory->InternalizeUtf8String("[Symbol.search]"),
-            Builtins::kRegExpPrototypeSearch, 1, false);
+            Builtins::kRegExpPrototypeSearch, 1, true);
         InstallFunction(prototype, fun, factory->search_symbol(), DONT_ENUM);
       }
 
