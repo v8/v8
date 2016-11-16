@@ -1967,7 +1967,7 @@ bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
     os << "k" << WasmOpcodes::OpcodeName(opcode) << ",";
 
     for (size_t j = 1; j < length; ++j) {
-      os << " " << AsHex(i.pc()[j], 2) << ",";
+      os << " 0x" << AsHex(i.pc()[j], 2) << ",";
     }
 
     switch (opcode) {
