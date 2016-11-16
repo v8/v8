@@ -1289,7 +1289,8 @@ class WasmInstanceBuilder {
     }
 
     // Look up the module first.
-    MaybeHandle<Object> result = Object::GetProperty(ffi_, module_name);
+    MaybeHandle<Object> result =
+        Object::GetPropertyOrElement(ffi_, module_name);
     if (result.is_null()) {
       return ReportFFIError("module not found", index, module_name,
                             import_name);
@@ -1304,7 +1305,8 @@ class WasmInstanceBuilder {
                               module_name, import_name);
       }
 
-      result = Object::GetProperty(module, import_name.ToHandleChecked());
+      result =
+          Object::GetPropertyOrElement(module, import_name.ToHandleChecked());
       if (result.is_null()) {
         return ReportFFIError("import not found", index, module_name,
                               import_name);
