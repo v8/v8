@@ -98,6 +98,7 @@ v8_executable("cctest") {
     "profiler-extension.cc",
     "profiler-extension.h",
     "test-access-checks.cc",
+    "test-accessor-assembler.cc",
     "test-accessors.cc",
     "test-api-accessors.cc",
     "test-api-fast-accessor-builder.cc",

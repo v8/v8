@@ -6,6 +6,7 @@
 
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/ic/accessor-assembler-impl.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
 
@@ -14,13 +15,12 @@ namespace internal {
 
 using compiler::Node;
 
-class KeyedStoreGenericAssembler : public CodeStubAssembler {
+class KeyedStoreGenericAssembler : public AccessorAssemblerImpl {
  public:
   explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : AccessorAssemblerImpl(state) {}
 
-  void KeyedStoreGeneric(const StoreICParameters* p,
-                         LanguageMode language_mode);
+  void KeyedStoreGeneric(LanguageMode language_mode);
 
  private:
   enum UpdateLength {
@@ -67,19 +67,8 @@ class KeyedStoreGenericAssembler : public CodeStubAssembler {
 
 void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
                                           LanguageMode language_mode) {
-  typedef StoreWithVectorDescriptor Descriptor;
   KeyedStoreGenericAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
-                                         vector);
-  assembler.KeyedStoreGeneric(&p, language_mode);
+  assembler.KeyedStoreGeneric(language_mode);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -104,9 +93,7 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
            non_fast_elements);
     Node* elements_kind = LoadMapElementsKind(prototype_map);
     STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
-    GotoIf(Int32LessThanOrEqual(elements_kind,
-                                Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-           &loop_body);
+    GotoIf(IsFastElementsKind(elements_kind), &loop_body);
     GotoIf(Word32Equal(elements_kind, Int32Constant(NO_ELEMENTS)), &loop_body);
     Goto(non_fast_elements);
   }
@@ -409,14 +396,13 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 void KeyedStoreGenericAssembler::EmitGenericElementStore(
     Node* receiver, Node* receiver_map, Node* instance_type, Node* intptr_index,
     Node* value, Node* context, Label* slow) {
-  Label if_in_bounds(this), if_increment_length_by_one(this),
+  Label if_fast(this), if_in_bounds(this), if_increment_length_by_one(this),
       if_bump_length_with_gap(this), if_grow(this), if_nonfast(this),
       if_typed_array(this), if_dictionary(this);
   Node* elements = LoadElements(receiver);
   Node* elements_kind = LoadMapElementsKind(receiver_map);
-  GotoIf(
-      Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-      &if_nonfast);
+  Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
+  Bind(&if_fast);
 
   Label if_array(this);
   GotoIf(Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE)), &if_array);
@@ -517,12 +503,19 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   }
 }
 
-void KeyedStoreGenericAssembler::KeyedStoreGeneric(const StoreICParameters* p,
-                                                   LanguageMode language_mode) {
+void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
   Variable var_index(this, MachineType::PointerRepresentation());
   Label if_index(this), if_unique_name(this), slow(this);
 
-  Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
@@ -532,26 +525,28 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(const StoreICParameters* p,
                               Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
          &slow);
 
-  TryToName(p->name, &if_index, &var_index, &if_unique_name, &slow);
+  TryToName(name, &if_index, &var_index, &if_unique_name, &slow);
 
   Bind(&if_index);
   {
     Comment("integer index");
     EmitGenericElementStore(receiver, receiver_map, instance_type,
-                            var_index.value(), p->value, p->context, &slow);
+                            var_index.value(), value, context, &slow);
   }
 
   Bind(&if_unique_name);
   {
     Comment("key is unique name");
-    EmitGenericPropertyStore(receiver, receiver_map, p, &slow);
+    KeyedStoreGenericAssembler::StoreICParameters p(context, receiver, name,
+                                                    value, slot, vector);
+    EmitGenericPropertyStore(receiver, receiver_map, &p, &slow);
   }
 
   Bind(&slow);
   {
     Comment("KeyedStoreGeneric_slow");
-    TailCallRuntime(Runtime::kSetProperty, p->context, p->receiver, p->name,
-                    p->value, SmiConstant(language_mode));
+    TailCallRuntime(Runtime::kSetProperty, context, receiver, name, value,
+                    SmiConstant(language_mode));
   }
 }
 

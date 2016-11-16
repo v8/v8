@@ -12,6 +12,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
@@ -19,6 +20,7 @@
 namespace v8 {
 namespace internal {
 
+using compiler::CodeAssemblerState;
 
 RUNTIME_FUNCTION(UnexpectedStubMiss) {
   FATAL("Unexpected deopt of a stub");
@@ -430,174 +432,33 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   return compiler::CodeAssembler::GenerateCode(&state);
 }
 
-void LoadICTrampolineStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
+#define ACCESSOR_ASSEMBLER(Name)                                       \
+  void Name##Stub::GenerateAssembly(CodeAssemblerState* state) const { \
+    AccessorAssembler::Generate##Name(state);                          \
+  }
 
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
+ACCESSOR_ASSEMBLER(LoadIC)
+ACCESSOR_ASSEMBLER(LoadICTrampoline)
+ACCESSOR_ASSEMBLER(LoadICProtoArray)
+ACCESSOR_ASSEMBLER(LoadGlobalIC)
+ACCESSOR_ASSEMBLER(LoadGlobalICTrampoline)
+ACCESSOR_ASSEMBLER(KeyedLoadICTF)
+ACCESSOR_ASSEMBLER(KeyedLoadICTrampolineTF)
+ACCESSOR_ASSEMBLER(StoreIC)
+ACCESSOR_ASSEMBLER(StoreICTrampoline)
 
-  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler.LoadIC(&p);
-}
-
-void LoadICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler.LoadIC(&p);
-}
-
-void LoadICProtoArrayStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* handler = assembler.Parameter(Descriptor::kHandler);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler.LoadICProtoArray(&p, handler);
-}
-
-void LoadGlobalICTrampolineStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
-
-  CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
-                                        vector);
-  assembler.LoadGlobalIC(&p);
-}
-
-void LoadGlobalICStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
-                                        vector);
-  assembler.LoadGlobalIC(&p);
-}
-
-void KeyedLoadICTrampolineTFStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
-
-  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler.KeyedLoadIC(&p);
-}
-
-void KeyedLoadICTFStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler.KeyedLoadIC(&p);
-}
-
-void StoreICTrampolineStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
-
-  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
-                                         vector);
-  assembler.StoreIC(&p);
-}
-
-void StoreICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
-                                         vector);
-  assembler.StoreIC(&p);
-}
+#undef ACCESSOR_ASSEMBLER
 
 void KeyedStoreICTrampolineTFStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
-
-  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
-                                         vector);
-  assembler.KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
+    CodeAssemblerState* state) const {
+  LanguageMode language_mode = StoreICState::GetLanguageMode(GetExtraICState());
+  AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state, language_mode);
 }
 
 void KeyedStoreICTFStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
-                                         vector);
-  assembler.KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
+  LanguageMode language_mode = StoreICState::GetLanguageMode(GetExtraICState());
+  AccessorAssembler::GenerateKeyedStoreICTF(state, language_mode);
 }
 
 void StoreMapStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {

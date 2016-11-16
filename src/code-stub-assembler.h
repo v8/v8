@@ -861,33 +861,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* callable,
                                       compiler::Node* object);
 
-  // Load/StoreIC helpers.
-  struct LoadICParameters {
-    LoadICParameters(compiler::Node* context, compiler::Node* receiver,
-                     compiler::Node* name, compiler::Node* slot,
-                     compiler::Node* vector)
-        : context(context),
-          receiver(receiver),
-          name(name),
-          slot(slot),
-          vector(vector) {}
-
-    compiler::Node* context;
-    compiler::Node* receiver;
-    compiler::Node* name;
-    compiler::Node* slot;
-    compiler::Node* vector;
-  };
-
-  struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(compiler::Node* context, compiler::Node* receiver,
-                      compiler::Node* name, compiler::Node* value,
-                      compiler::Node* slot, compiler::Node* vector)
-        : LoadICParameters(context, receiver, name, slot, vector),
-          value(value) {}
-    compiler::Node* value;
-  };
-
   // Load type feedback vector from the stub caller's frame.
   compiler::Node* LoadTypeFeedbackVectorForStub();
 
@@ -897,43 +870,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                       compiler::Node* slot_id);
 
   compiler::Node* LoadReceiverMap(compiler::Node* receiver);
-
-  // Checks monomorphic case. Returns {feedback} entry of the vector.
-  compiler::Node* TryMonomorphicCase(compiler::Node* slot,
-                                     compiler::Node* vector,
-                                     compiler::Node* receiver_map,
-                                     Label* if_handler, Variable* var_handler,
-                                     Label* if_miss);
-  void HandlePolymorphicCase(compiler::Node* receiver_map,
-                             compiler::Node* feedback, Label* if_handler,
-                             Variable* var_handler, Label* if_miss,
-                             int unroll_count);
-  void HandleKeyedStorePolymorphicCase(compiler::Node* receiver_map,
-                                       compiler::Node* feedback,
-                                       Label* if_handler, Variable* var_handler,
-                                       Label* if_transition_handler,
-                                       Variable* var_transition_map_cell,
-                                       Label* if_miss);
-
-  compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
-                                         compiler::Node* map);
-
-  compiler::Node* StubCacheSecondaryOffset(compiler::Node* name,
-                                           compiler::Node* seed);
-
-  // This enum is used here as a replacement for StubCache::Table to avoid
-  // including stub cache header.
-  enum StubCacheTable : int;
-
-  void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
-                              compiler::Node* entry_offset,
-                              compiler::Node* name, compiler::Node* map,
-                              Label* if_handler, Variable* var_handler,
-                              Label* if_miss);
-
-  void TryProbeStubCache(StubCache* stub_cache, compiler::Node* receiver,
-                         compiler::Node* name, Label* if_handler,
-                         Variable* var_handler, Label* if_miss);
 
   // Extends properties backing store by JSObject::kFieldsAdded elements.
   void ExtendPropertiesBackingStore(compiler::Node* object);
@@ -990,14 +926,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* elements,
                                       ElementsKind kind, compiler::Node* length,
                                       ParameterMode mode, Label* bailout);
-
-  void LoadIC(const LoadICParameters* p);
-  void LoadICProtoArray(const LoadICParameters* p, compiler::Node* handler);
-  void LoadGlobalIC(const LoadICParameters* p);
-  void KeyedLoadIC(const LoadICParameters* p);
-  void KeyedLoadICGeneric(const LoadICParameters* p);
-  void StoreIC(const StoreICParameters* p);
-  void KeyedStoreIC(const StoreICParameters* p, LanguageMode language_mode);
 
   void TransitionElementsKind(compiler::Node* object, compiler::Node* map,
                               ElementsKind from_kind, ElementsKind to_kind,
@@ -1124,83 +1052,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                          int base_size = 0);
 
  protected:
-  void HandleStoreICHandlerCase(const StoreICParameters* p,
-                                compiler::Node* handler, Label* miss);
-
- private:
-  friend class CodeStubArguments;
-
-  enum ElementSupport { kOnlyProperties, kSupportElements };
-
   void DescriptorLookupLinear(compiler::Node* unique_name,
                               compiler::Node* descriptors, compiler::Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
+
   compiler::Node* CallGetterIfAccessor(compiler::Node* value,
                                        compiler::Node* details,
                                        compiler::Node* context,
                                        compiler::Node* receiver,
                                        Label* if_bailout);
 
-  void HandleLoadICHandlerCase(
-      const LoadICParameters* p, compiler::Node* handler, Label* miss,
-      ElementSupport support_elements = kOnlyProperties);
-
-  void HandleLoadICSmiHandlerCase(const LoadICParameters* p,
-                                  compiler::Node* holder,
-                                  compiler::Node* smi_handler, Label* miss,
-                                  ElementSupport support_elements);
-
-  void HandleLoadICProtoHandler(const LoadICParameters* p,
-                                compiler::Node* handler, Variable* var_holder,
-                                Variable* var_smi_handler,
-                                Label* if_smi_handler, Label* miss);
-
-  compiler::Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p,
-                                            compiler::Node* handler,
-                                            compiler::Node* handler_length,
-                                            compiler::Node* handler_flags,
-                                            Label* miss);
-
-  void CheckPrototype(compiler::Node* prototype_cell, compiler::Node* name,
-                      Label* miss);
-
-  void NameDictionaryNegativeLookup(compiler::Node* object,
-                                    compiler::Node* name, Label* miss);
-
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
-  void HandleStoreFieldAndReturn(compiler::Node* handler_word,
-                                 compiler::Node* holder,
-                                 Representation representation,
-                                 compiler::Node* value,
-                                 compiler::Node* transition, Label* miss);
-
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
-  void HandleStoreICSmiHandlerCase(compiler::Node* handler_word,
-                                   compiler::Node* holder,
-                                   compiler::Node* value,
-                                   compiler::Node* transition, Label* miss);
-
-  void HandleStoreICProtoHandler(const StoreICParameters* p,
-                                 compiler::Node* handler, Label* miss);
-
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
-  void EmitFastElementsBoundsCheck(compiler::Node* object,
-                                   compiler::Node* elements,
-                                   compiler::Node* intptr_index,
-                                   compiler::Node* is_jsarray_condition,
-                                   Label* miss);
-  void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
-                       compiler::Node* elements_kind, compiler::Node* key,
-                       compiler::Node* is_jsarray_condition, Label* if_hole,
-                       Label* rebox_double, Variable* var_double_value,
-                       Label* unimplemented_elements_kind, Label* out_of_bounds,
-                       Label* miss);
+
   void BranchIfPrototypesHaveNoElements(compiler::Node* receiver_map,
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
+
+ private:
+  friend class CodeStubArguments;
 
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
                                      AllocationFlags flags,

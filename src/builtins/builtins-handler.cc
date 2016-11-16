@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
@@ -13,18 +14,7 @@ namespace internal {
 
 void Builtins::Generate_KeyedLoadIC_Megamorphic_TF(
     compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef LoadWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler.KeyedLoadICGeneric(&p);
+  AccessorAssembler::GenerateKeyedLoadICMegamorphic(state);
 }
 
 void Builtins::Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
