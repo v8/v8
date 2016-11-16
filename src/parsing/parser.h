@@ -290,11 +290,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return compile_options_;
   }
   bool consume_cached_parse_data() const {
-    return allow_lazy() &&
+    return allow_lazy_ &&
            compile_options_ == ScriptCompiler::kConsumeParserCache;
   }
   bool produce_cached_parse_data() const {
-    return allow_lazy() &&
+    return allow_lazy_ &&
            compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
@@ -1146,6 +1146,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
   bool parsing_on_main_thread_;
+  bool allow_lazy_;
   ParserLogger* log_;
 };
 

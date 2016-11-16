@@ -615,9 +615,8 @@ Parser::Parser(ParseInfo* info)
   set_default_eager_compile_hint(can_compile_lazily
                                      ? FunctionLiteral::kShouldLazyCompile
                                      : FunctionLiteral::kShouldEagerCompile);
-  set_allow_lazy(FLAG_lazy && info->allow_lazy_parsing() &&
-                 !info->is_native() && info->extension() == nullptr &&
-                 can_compile_lazily);
+  allow_lazy_ = FLAG_lazy && info->allow_lazy_parsing() && !info->is_native() &&
+                info->extension() == nullptr && can_compile_lazily;
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
                       info->isolate()->is_tail_call_elimination_enabled());
@@ -730,7 +729,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
 
-  ParsingModeScope mode(this, allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY);
+  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionLiteral* result = NULL;
   {
@@ -2569,7 +2568,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // immediately). bar can be parsed lazily, but we need to parse it in a mode
   // that tracks unresolved variables.
   DCHECK_IMPLIES(parse_lazily(), FLAG_lazy);
-  DCHECK_IMPLIES(parse_lazily(), allow_lazy());
+  DCHECK_IMPLIES(parse_lazily(), allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
   bool can_preparse = parse_lazily() &&
@@ -2604,7 +2603,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       (FLAG_lazy_inner_functions
            ? can_preparse
            : (is_lazy_top_level_function ||
-              (allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
+              (allow_lazy_ && function_type == FunctionLiteral::kDeclaration &&
                eager_compile_hint == FunctionLiteral::kShouldLazyCompile))) &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
   bool is_lazy_inner_function =
@@ -2791,7 +2790,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
     reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
                                         &pending_error_handler_,
                                         runtime_call_stats_, stack_limit_);
-    reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
@@ -3160,7 +3158,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  ParsingModeScope mode(this, allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY);
+  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
 
   static const int kFunctionNameAssignmentIndex = 0;

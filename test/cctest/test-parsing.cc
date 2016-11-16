@@ -177,7 +177,6 @@ TEST(ScanHTMLEndComments) {
     i::PreParser preparser(
         &zone, &scanner, &ast_value_factory, &pending_error_handler,
         CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
-    preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     CHECK(!pending_error_handler.has_pending_error());
@@ -195,7 +194,6 @@ TEST(ScanHTMLEndComments) {
     i::PreParser preparser(
         &zone, &scanner, &ast_value_factory, &pending_error_handler,
         CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
-    preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -370,7 +368,6 @@ TEST(StandAlonePreParser) {
     i::PreParser preparser(
         &zone, &scanner, &ast_value_factory, &pending_error_handler,
         CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
-    preparser.set_allow_lazy(true);
     preparser.set_allow_natives(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -406,7 +403,6 @@ TEST(StandAlonePreParserNoNatives) {
     i::PreParser preparser(
         &zone, &scanner, &ast_value_factory, &pending_error_handler,
         isolate->counters()->runtime_call_stats(), stack_limit);
-    preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     CHECK(pending_error_handler.has_pending_error());
@@ -475,7 +471,6 @@ TEST(RegressChromium62639) {
                          &pending_error_handler,
                          isolate->counters()->runtime_call_stats(),
                          CcTest::i_isolate()->stack_guard()->real_climit());
-  preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -551,7 +546,6 @@ TEST(PreParseOverflow) {
   i::PreParser preparser(
       &zone, &scanner, &ast_value_factory, &pending_error_handler,
       isolate->counters()->runtime_call_stats(), stack_limit);
-  preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
@@ -1180,10 +1174,10 @@ TEST(ScopePositions) {
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
-    parser.set_allow_lazy(true);
     info.set_language_mode(source_data[i].language_mode);
+    info.set_allow_lazy_parsing();
     parser.Parse(&info);
-    CHECK(info.literal() != NULL);
+    CHECK_NOT_NULL(info.literal());
 
     // Check scope types and positions.
     i::Scope* scope = info.literal()->scope();
@@ -1298,7 +1292,6 @@ enum ParserSyncTestResult {
 template <typename Traits>
 void SetParserFlags(i::ParserBase<Traits>* parser,
                     i::EnumSet<ParserFlag> flags) {
-  parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
@@ -1350,6 +1343,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
+    info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
     i::Parser parser(&info);
     SetParserFlags(&parser, flags);
     if (is_module) info.set_module();

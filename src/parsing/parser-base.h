@@ -207,7 +207,6 @@ class ParserBase {
         scanner_(scanner),
         stack_overflow_(false),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
-        allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
         allow_harmony_do_expressions_(false),
@@ -221,7 +220,6 @@ class ParserBase {
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
 
-  ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_do_expressions);
@@ -1437,7 +1435,6 @@ class ParserBase {
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
 
-  bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
   bool allow_harmony_do_expressions_;
