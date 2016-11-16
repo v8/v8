@@ -135,8 +135,7 @@ void V8Debugger::getCompiledScripts(
   }
 }
 
-String16 V8Debugger::setBreakpoint(const String16& sourceID,
-                                   const ScriptBreakpoint& scriptBreakpoint,
+String16 V8Debugger::setBreakpoint(const ScriptBreakpoint& breakpoint,
                                    int* actualLineNumber,
                                    int* actualColumnNumber) {
   v8::HandleScope scope(m_isolate);
@@ -146,20 +145,20 @@ String16 V8Debugger::setBreakpoint(const String16& sourceID,
   v8::Local<v8::Object> info = v8::Object::New(m_isolate);
   bool success = false;
   success = info->Set(context, toV8StringInternalized(m_isolate, "sourceID"),
-                      toV8String(m_isolate, sourceID))
+                      toV8String(m_isolate, breakpoint.script_id))
                 .FromMaybe(false);
   DCHECK(success);
   success = info->Set(context, toV8StringInternalized(m_isolate, "lineNumber"),
-                      v8::Integer::New(m_isolate, scriptBreakpoint.lineNumber))
+                      v8::Integer::New(m_isolate, breakpoint.line_number))
                 .FromMaybe(false);
   DCHECK(success);
   success =
       info->Set(context, toV8StringInternalized(m_isolate, "columnNumber"),
-                v8::Integer::New(m_isolate, scriptBreakpoint.columnNumber))
+                v8::Integer::New(m_isolate, breakpoint.column_number))
           .FromMaybe(false);
   DCHECK(success);
   success = info->Set(context, toV8StringInternalized(m_isolate, "condition"),
-                      toV8String(m_isolate, scriptBreakpoint.condition))
+                      toV8String(m_isolate, breakpoint.condition))
                 .FromMaybe(false);
   DCHECK(success);
 
