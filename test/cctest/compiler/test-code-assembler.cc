@@ -12,9 +12,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+typedef CodeAssemblerTesterImpl<CodeAssembler> CodeAssemblerTester;
+
 namespace {
 
-Node* SmiTag(CodeAssembler& m, Node* value) {
+Node* SmiTag(CodeAssemblerTester& m, Node* value) {
   int32_t constant_value;
   if (m.ToInt32Constant(value, constant_value) &&
       Smi::IsValid(constant_value)) {
@@ -23,11 +25,11 @@ Node* SmiTag(CodeAssembler& m, Node* value) {
   return m.WordShl(value, m.IntPtrConstant(kSmiShiftSize + kSmiTagSize));
 }
 
-Node* UndefinedConstant(CodeAssembler& m) {
+Node* UndefinedConstant(CodeAssemblerTester& m) {
   return m.LoadRoot(Heap::kUndefinedValueRootIndex);
 }
 
-Node* LoadObjectField(CodeAssembler& m, Node* object, int offset,
+Node* LoadObjectField(CodeAssemblerTester& m, Node* object, int offset,
                       MachineType rep = MachineType::AnyTagged()) {
   return m.Load(rep, object, m.IntPtrConstant(offset - kHeapObjectTag));
 }
@@ -36,23 +38,23 @@ Node* LoadObjectField(CodeAssembler& m, Node* object, int offset,
 
 TEST(SimpleSmiReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   m.Return(SmiTag(m, m.Int32Constant(37)));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(37, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(SimpleIntPtrReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   int test;
   m.Return(m.IntPtrConstant(reinterpret_cast<intptr_t>(&test)));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(reinterpret_cast<intptr_t>(&test),
            reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
@@ -60,65 +62,65 @@ TEST(SimpleIntPtrReturn) {
 
 TEST(SimpleDoubleReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   m.Return(m.NumberConstant(0.5));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(0.5, Handle<HeapNumber>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(SimpleCallRuntime1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = SmiTag(m, m.Int32Constant(0));
   m.Return(m.CallRuntime(Runtime::kNumberToSmi, context, b));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(SimpleTailCallRuntime1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = SmiTag(m, m.Int32Constant(0));
   m.TailCallRuntime(Runtime::kNumberToSmi, context, b);
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(SimpleCallRuntime2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* a = SmiTag(m, m.Int32Constant(2));
   Node* b = SmiTag(m, m.Int32Constant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(6, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(SimpleTailCallRuntime2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* a = SmiTag(m, m.Int32Constant(2));
   Node* b = SmiTag(m, m.Int32Constant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(6, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
@@ -142,8 +144,7 @@ Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester& ft) {
 TEST(SimpleCallJSFunction0Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeAssembler m(data.state());
+  CodeAssemblerTester m(isolate, kNumParams);
   {
     Node* function = m.Parameter(0);
     Node* context = m.Parameter(kNumParams + 2);
@@ -154,7 +155,7 @@ TEST(SimpleCallJSFunction0Arg) {
     Node* result = m.CallJS(callable, context, function, receiver);
     m.Return(result);
   }
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
@@ -165,8 +166,7 @@ TEST(SimpleCallJSFunction0Arg) {
 TEST(SimpleCallJSFunction1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeAssembler m(data.state());
+  CodeAssemblerTester m(isolate, kNumParams);
   {
     Node* function = m.Parameter(0);
     Node* context = m.Parameter(1);
@@ -178,7 +178,7 @@ TEST(SimpleCallJSFunction1Arg) {
     Node* result = m.CallJS(callable, context, function, receiver, a);
     m.Return(result);
   }
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
@@ -189,8 +189,7 @@ TEST(SimpleCallJSFunction1Arg) {
 TEST(SimpleCallJSFunction2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeAssembler m(data.state());
+  CodeAssemblerTester m(isolate, kNumParams);
   {
     Node* function = m.Parameter(0);
     Node* context = m.Parameter(1);
@@ -203,7 +202,7 @@ TEST(SimpleCallJSFunction2Arg) {
     Node* result = m.CallJS(callable, context, function, receiver, a, b);
     m.Return(result);
   }
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
@@ -213,8 +212,8 @@ TEST(SimpleCallJSFunction2Arg) {
 
 TEST(VariableMerge1) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
   CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
@@ -232,8 +231,8 @@ TEST(VariableMerge1) {
 
 TEST(VariableMerge2) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
   CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
@@ -253,8 +252,8 @@ TEST(VariableMerge2) {
 
 TEST(VariableMerge3) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
   CodeStubAssembler::Variable var2(&m, MachineRepresentation::kTagged);
   CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
@@ -278,8 +277,8 @@ TEST(VariableMerge3) {
 
 TEST(VariableMergeBindFirst) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
   CodeStubAssembler::Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
   Node* temp = m.Int32Constant(0);
@@ -304,8 +303,8 @@ TEST(VariableMergeBindFirst) {
 
 TEST(VariableMergeSwitch) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
   CodeStubAssembler::Label l1(&m), l2(&m), default_label(&m);
   CodeStubAssembler::Label* labels[] = {&l1, &l2};
@@ -326,20 +325,20 @@ TEST(VariableMergeSwitch) {
 
 TEST(SplitEdgeBranchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Label l1(&m), merge(&m);
   m.Branch(m.Int32Constant(1), &l1, &merge);
   m.Bind(&l1);
   m.Goto(&merge);
   m.Bind(&merge);
-  USE(data.GenerateCode());
+  USE(m.GenerateCode());
 }
 
 TEST(SplitEdgeSwitchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   CodeStubAssembler::Label l1(&m), l2(&m), l3(&m), default_label(&m);
   CodeStubAssembler::Label* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
@@ -351,13 +350,13 @@ TEST(SplitEdgeSwitchMerge) {
   m.Bind(&l2);
   m.Goto(&default_label);
   m.Bind(&default_label);
-  USE(data.GenerateCode());
+  USE(m.GenerateCode());
 }
 
 TEST(TestToConstant) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   int32_t value32;
   int64_t value64;
   Node* a = m.Int32Constant(5);
@@ -386,8 +385,8 @@ TEST(DeferredCodePhiHints) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   Label block1(&m, Label::kDeferred);
   m.Goto(&block1);
   m.Bind(&block1);
@@ -403,15 +402,15 @@ TEST(DeferredCodePhiHints) {
       m.Goto(&loop);
     }
   }
-  CHECK(!data.GenerateCode().is_null());
+  CHECK(!m.GenerateCode().is_null());
 }
 
 TEST(TestOutOfScopeVariable) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeAssemblerTester m(isolate, descriptor);
   Label block1(&m);
   Label block2(&m);
   Label block3(&m);
@@ -432,7 +431,7 @@ TEST(TestOutOfScopeVariable) {
     m.Goto(&block1);
   }
   m.Bind(&block1);
-  CHECK(!data.GenerateCode().is_null());
+  CHECK(!m.GenerateCode().is_null());
 }
 
 }  // namespace compiler

@@ -44,8 +44,17 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 // from a compiler directory OWNER).
 class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
  public:
-  CodeStubAssembler(compiler::CodeAssemblerState* state)
-      : compiler::CodeAssembler(state) {}
+  // Create with CallStub linkage.
+  // |result_size| specifies the number of results returned by the stub.
+  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
+  CodeStubAssembler(Isolate* isolate, Zone* zone,
+                    const CallInterfaceDescriptor& descriptor,
+                    Code::Flags flags, const char* name,
+                    size_t result_size = 1);
+
+  // Create with JSCall linkage.
+  CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
+                    Code::Flags flags, const char* name);
 
   enum AllocationFlag : uint8_t {
     kNone = 0,

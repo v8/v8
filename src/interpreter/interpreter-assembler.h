@@ -20,7 +20,7 @@ namespace interpreter {
 
 class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
  public:
-  InterpreterAssembler(compiler::CodeAssemblerState* state, Bytecode bytecode,
+  InterpreterAssembler(Isolate* isolate, Zone* zone, Bytecode bytecode,
                        OperandScale operand_scale);
   virtual ~InterpreterAssembler();
 

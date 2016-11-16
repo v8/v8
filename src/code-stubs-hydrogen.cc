@@ -251,9 +251,8 @@ Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor interface_descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeAssemblerState state(isolate(), &zone, interface_descriptor,
-                                     GetCodeFlags(), name);
-  CodeStubAssembler assembler(&state);
+  CodeStubAssembler assembler(isolate(), &zone, interface_descriptor,
+                              GetCodeFlags(), name);
   int total_params = interface_descriptor.GetStackParameterCount() +
                      interface_descriptor.GetRegisterParameterCount();
   switch (total_params) {
@@ -285,7 +284,7 @@ Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
       UNIMPLEMENTED();
       break;
   }
-  return compiler::CodeAssembler::GenerateCode(&state);
+  return assembler.GenerateCode();
 }
 
 template <class Stub>

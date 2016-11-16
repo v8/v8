@@ -716,10 +716,8 @@ namespace internal {
                IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
 // Forward declarations.
+class CodeStubAssembler;
 class ObjectVisitor;
-namespace compiler {
-class CodeAssemblerState;
-}
 
 class Builtins {
  public:
@@ -818,13 +816,16 @@ class Builtins {
   static void Generate_InterpreterPushArgsAndConstructImpl(
       MacroAssembler* masm, CallableType function_type);
 
+  static void Generate_DatePrototype_GetField(CodeStubAssembler* masm,
+                                              int field_index);
+
   enum class MathMaxMinKind { kMax, kMin };
   static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
 
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
 #define DECLARE_TF(Name, ...) \
-  static void Generate_##Name(compiler::CodeAssemblerState* state);
+  static void Generate_##Name(CodeStubAssembler* csasm);
 
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
                DECLARE_ASM, DECLARE_ASM, DECLARE_ASM)

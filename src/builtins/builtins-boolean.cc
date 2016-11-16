@@ -34,32 +34,28 @@ BUILTIN(BooleanConstructor_ConstructStub) {
 }
 
 // ES6 section 19.3.3.2 Boolean.prototype.toString ( )
-void Builtins::Generate_BooleanPrototypeToString(
-    compiler::CodeAssemblerState* state) {
+void Builtins::Generate_BooleanPrototypeToString(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
+  Node* receiver = assembler->Parameter(0);
+  Node* context = assembler->Parameter(3);
 
-  Node* value = assembler.ToThisValue(
+  Node* value = assembler->ToThisValue(
       context, receiver, PrimitiveType::kBoolean, "Boolean.prototype.toString");
-  Node* result = assembler.LoadObjectField(value, Oddball::kToStringOffset);
-  assembler.Return(result);
+  Node* result = assembler->LoadObjectField(value, Oddball::kToStringOffset);
+  assembler->Return(result);
 }
 
 // ES6 section 19.3.3.3 Boolean.prototype.valueOf ( )
-void Builtins::Generate_BooleanPrototypeValueOf(
-    compiler::CodeAssemblerState* state) {
+void Builtins::Generate_BooleanPrototypeValueOf(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
+  Node* receiver = assembler->Parameter(0);
+  Node* context = assembler->Parameter(3);
 
-  Node* result = assembler.ToThisValue(
+  Node* result = assembler->ToThisValue(
       context, receiver, PrimitiveType::kBoolean, "Boolean.prototype.valueOf");
-  assembler.Return(result);
+  assembler->Return(result);
 }
 
 }  // namespace internal

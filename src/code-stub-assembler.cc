@@ -13,6 +13,18 @@ namespace internal {
 
 using compiler::Node;
 
+CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
+                                     const CallInterfaceDescriptor& descriptor,
+                                     Code::Flags flags, const char* name,
+                                     size_t result_size)
+    : compiler::CodeAssembler(isolate, zone, descriptor, flags, name,
+                              result_size) {}
+
+CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
+                                     int parameter_count, Code::Flags flags,
+                                     const char* name)
+    : compiler::CodeAssembler(isolate, zone, parameter_count, flags, name) {}
+
 void CodeStubAssembler::Assert(ConditionBody codition_body, const char* message,
                                const char* file, int line) {
 #if defined(DEBUG)

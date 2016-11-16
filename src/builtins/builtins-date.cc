@@ -908,10 +908,9 @@ BUILTIN(DatePrototypeToJson) {
   }
 }
 
-namespace {
-
-void Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
-                                     int field_index) {
+// static
+void Builtins::Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
+                                               int field_index) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
@@ -966,132 +965,100 @@ void Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
   }
 }
 
-}  // namespace
-
 // static
-void Builtins::Generate_DatePrototypeGetDate(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDay);
+void Builtins::Generate_DatePrototypeGetDate(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kDay);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetDay(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kWeekday);
+void Builtins::Generate_DatePrototypeGetDay(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kWeekday);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetFullYear(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kYear);
+void Builtins::Generate_DatePrototypeGetFullYear(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kYear);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetHours(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kHour);
+void Builtins::Generate_DatePrototypeGetHours(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kHour);
 }
 
 // static
 void Builtins::Generate_DatePrototypeGetMilliseconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMillisecond);
+    CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kMillisecond);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetMinutes(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMinute);
+void Builtins::Generate_DatePrototypeGetMinutes(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kMinute);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetMonth(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMonth);
+void Builtins::Generate_DatePrototypeGetMonth(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kMonth);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetSeconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kSecond);
+void Builtins::Generate_DatePrototypeGetSeconds(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kSecond);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetTime(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDateValue);
+void Builtins::Generate_DatePrototypeGetTime(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kDateValue);
 }
 
 // static
 void Builtins::Generate_DatePrototypeGetTimezoneOffset(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kTimezoneOffset);
+    CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kTimezoneOffset);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetUTCDate(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDayUTC);
+void Builtins::Generate_DatePrototypeGetUTCDate(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kDayUTC);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetUTCDay(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kWeekdayUTC);
+void Builtins::Generate_DatePrototypeGetUTCDay(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kWeekdayUTC);
 }
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCFullYear(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kYearUTC);
+    CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kYearUTC);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetUTCHours(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kHourUTC);
+void Builtins::Generate_DatePrototypeGetUTCHours(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kHourUTC);
 }
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCMilliseconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMillisecondUTC);
+    CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kMillisecondUTC);
 }
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCMinutes(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMinuteUTC);
+    CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kMinuteUTC);
 }
 
 // static
-void Builtins::Generate_DatePrototypeGetUTCMonth(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMonthUTC);
+void Builtins::Generate_DatePrototypeGetUTCMonth(CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kMonthUTC);
 }
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCSeconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kSecondUTC);
+    CodeStubAssembler* assembler) {
+  Generate_DatePrototype_GetField(assembler, JSDate::kSecondUTC);
 }
 
 }  // namespace internal

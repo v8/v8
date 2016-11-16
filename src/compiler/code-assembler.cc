@@ -26,10 +26,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-CodeAssemblerState::CodeAssemblerState(
-    Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Flags flags, const char* name, size_t result_size)
-    : CodeAssemblerState(
+CodeAssembler::CodeAssembler(Isolate* isolate, Zone* zone,
+                             const CallInterfaceDescriptor& descriptor,
+                             Code::Flags flags, const char* name,
+                             size_t result_size)
+    : CodeAssembler(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
               isolate, zone, descriptor, descriptor.GetStackParameterCount(),
@@ -37,20 +38,19 @@ CodeAssemblerState::CodeAssemblerState(
               MachineType::AnyTagged(), result_size),
           flags, name) {}
 
-CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       int parameter_count, Code::Flags flags,
-                                       const char* name)
-    : CodeAssemblerState(isolate, zone,
-                         Linkage::GetJSCallDescriptor(
-                             zone, false, parameter_count,
-                             Code::ExtractKindFromFlags(flags) == Code::BUILTIN
-                                 ? CallDescriptor::kPushArgumentCount
-                                 : CallDescriptor::kNoFlags),
-                         flags, name) {}
+CodeAssembler::CodeAssembler(Isolate* isolate, Zone* zone, int parameter_count,
+                             Code::Flags flags, const char* name)
+    : CodeAssembler(isolate, zone,
+                    Linkage::GetJSCallDescriptor(
+                        zone, false, parameter_count,
+                        Code::ExtractKindFromFlags(flags) == Code::BUILTIN
+                            ? CallDescriptor::kPushArgumentCount
+                            : CallDescriptor::kNoFlags),
+                    flags, name) {}
 
-CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       CallDescriptor* call_descriptor,
-                                       Code::Flags flags, const char* name)
+CodeAssembler::CodeAssembler(Isolate* isolate, Zone* zone,
+                             CallDescriptor* call_descriptor, Code::Flags flags,
+                             const char* name)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
@@ -61,56 +61,52 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
       code_generated_(false),
       variables_(zone) {}
 
-CodeAssemblerState::~CodeAssemblerState() {}
-
 CodeAssembler::~CodeAssembler() {}
 
 void CodeAssembler::CallPrologue() {}
 
 void CodeAssembler::CallEpilogue() {}
 
-// static
-Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
-  DCHECK(!state->code_generated_);
+Handle<Code> CodeAssembler::GenerateCode() {
+  DCHECK(!code_generated_);
 
-  RawMachineAssembler* rasm = state->raw_assembler_.get();
-  Schedule* schedule = rasm->Export();
+  Schedule* schedule = raw_assembler_->Export();
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
-      rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->flags_, state->name_);
+      isolate(), raw_assembler_->call_descriptor(), raw_assembler_->graph(),
+      schedule, flags_, name_);
 
-  state->code_generated_ = true;
+  code_generated_ = true;
   return code;
 }
 
-bool CodeAssembler::Is64() const { return raw_assembler()->machine()->Is64(); }
+bool CodeAssembler::Is64() const { return raw_assembler_->machine()->Is64(); }
 
 bool CodeAssembler::IsFloat64RoundUpSupported() const {
-  return raw_assembler()->machine()->Float64RoundUp().IsSupported();
+  return raw_assembler_->machine()->Float64RoundUp().IsSupported();
 }
 
 bool CodeAssembler::IsFloat64RoundDownSupported() const {
-  return raw_assembler()->machine()->Float64RoundDown().IsSupported();
+  return raw_assembler_->machine()->Float64RoundDown().IsSupported();
 }
 
 bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
-  return raw_assembler()->machine()->Float64RoundTruncate().IsSupported();
+  return raw_assembler_->machine()->Float64RoundTruncate().IsSupported();
 }
 
 Node* CodeAssembler::Int32Constant(int32_t value) {
-  return raw_assembler()->Int32Constant(value);
+  return raw_assembler_->Int32Constant(value);
 }
 
 Node* CodeAssembler::Int64Constant(int64_t value) {
-  return raw_assembler()->Int64Constant(value);
+  return raw_assembler_->Int64Constant(value);
 }
 
 Node* CodeAssembler::IntPtrConstant(intptr_t value) {
-  return raw_assembler()->IntPtrConstant(value);
+  return raw_assembler_->IntPtrConstant(value);
 }
 
 Node* CodeAssembler::NumberConstant(double value) {
-  return raw_assembler()->NumberConstant(value);
+  return raw_assembler_->NumberConstant(value);
 }
 
 Node* CodeAssembler::SmiConstant(Smi* value) {
@@ -122,19 +118,19 @@ Node* CodeAssembler::SmiConstant(int value) {
 }
 
 Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
-  return raw_assembler()->HeapConstant(object);
+  return raw_assembler_->HeapConstant(object);
 }
 
 Node* CodeAssembler::BooleanConstant(bool value) {
-  return raw_assembler()->BooleanConstant(value);
+  return raw_assembler_->BooleanConstant(value);
 }
 
 Node* CodeAssembler::ExternalConstant(ExternalReference address) {
-  return raw_assembler()->ExternalConstant(address);
+  return raw_assembler_->ExternalConstant(address);
 }
 
 Node* CodeAssembler::Float64Constant(double value) {
-  return raw_assembler()->Float64Constant(value);
+  return raw_assembler_->Float64Constant(value);
 }
 
 Node* CodeAssembler::NaNConstant() {
@@ -180,18 +176,18 @@ bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
 }
 
 Node* CodeAssembler::Parameter(int value) {
-  return raw_assembler()->Parameter(value);
+  return raw_assembler_->Parameter(value);
 }
 
 void CodeAssembler::Return(Node* value) {
-  return raw_assembler()->Return(value);
+  return raw_assembler_->Return(value);
 }
 
 void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
-  return raw_assembler()->PopAndReturn(pop, value);
+  return raw_assembler_->PopAndReturn(pop, value);
 }
 
-void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
+void CodeAssembler::DebugBreak() { raw_assembler_->DebugBreak(); }
 
 void CodeAssembler::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
@@ -210,81 +206,81 @@ void CodeAssembler::Comment(const char* format, ...) {
   MemCopy(copy + prefix_len, builder.Finalize(), length);
   copy[0] = ';';
   copy[1] = ' ';
-  raw_assembler()->Comment(copy);
+  raw_assembler_->Comment(copy);
 }
 
 void CodeAssembler::Bind(CodeAssembler::Label* label) { return label->Bind(); }
 
 Node* CodeAssembler::LoadFramePointer() {
-  return raw_assembler()->LoadFramePointer();
+  return raw_assembler_->LoadFramePointer();
 }
 
 Node* CodeAssembler::LoadParentFramePointer() {
-  return raw_assembler()->LoadParentFramePointer();
+  return raw_assembler_->LoadParentFramePointer();
 }
 
 Node* CodeAssembler::LoadStackPointer() {
-  return raw_assembler()->LoadStackPointer();
+  return raw_assembler_->LoadStackPointer();
 }
 
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name)   \
   Node* CodeAssembler::name(Node* a, Node* b) { \
-    return raw_assembler()->name(a, b);         \
+    return raw_assembler_->name(a, b);          \
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
 
 Node* CodeAssembler::WordShl(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler()->WordShl(value, IntPtrConstant(shift))
+  return (shift != 0) ? raw_assembler_->WordShl(value, IntPtrConstant(shift))
                       : value;
 }
 
 Node* CodeAssembler::WordShr(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler()->WordShr(value, IntPtrConstant(shift))
+  return (shift != 0) ? raw_assembler_->WordShr(value, IntPtrConstant(shift))
                       : value;
 }
 
 Node* CodeAssembler::Word32Shr(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler()->Word32Shr(value, Int32Constant(shift))
+  return (shift != 0) ? raw_assembler_->Word32Shr(value, Int32Constant(shift))
                       : value;
 }
 
 Node* CodeAssembler::ChangeUint32ToWord(Node* value) {
-  if (raw_assembler()->machine()->Is64()) {
-    value = raw_assembler()->ChangeUint32ToUint64(value);
+  if (raw_assembler_->machine()->Is64()) {
+    value = raw_assembler_->ChangeUint32ToUint64(value);
   }
   return value;
 }
 
 Node* CodeAssembler::ChangeInt32ToIntPtr(Node* value) {
-  if (raw_assembler()->machine()->Is64()) {
-    value = raw_assembler()->ChangeInt32ToInt64(value);
+  if (raw_assembler_->machine()->Is64()) {
+    value = raw_assembler_->ChangeInt32ToInt64(value);
   }
   return value;
 }
 
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
-  if (raw_assembler()->machine()->Is64()) {
-    return raw_assembler()->RoundInt64ToFloat64(value);
+  if (raw_assembler_->machine()->Is64()) {
+    return raw_assembler_->RoundInt64ToFloat64(value);
   }
-  return raw_assembler()->ChangeInt32ToFloat64(value);
+  return raw_assembler_->ChangeInt32ToFloat64(value);
 }
 
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name) \
-  Node* CodeAssembler::name(Node* a) { return raw_assembler()->name(a); }
+  Node* CodeAssembler::name(Node* a) { return raw_assembler_->name(a); }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_UNARY_OP
 
 Node* CodeAssembler::Load(MachineType rep, Node* base) {
-  return raw_assembler()->Load(rep, base);
+  return raw_assembler_->Load(rep, base);
 }
 
 Node* CodeAssembler::Load(MachineType rep, Node* base, Node* index) {
-  return raw_assembler()->Load(rep, base, index);
+  return raw_assembler_->Load(rep, base, index);
 }
 
 Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* index) {
-  return raw_assembler()->AtomicLoad(rep, base, index);
+  return raw_assembler_->AtomicLoad(rep, base, index);
 }
 
 Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
@@ -304,27 +300,27 @@ Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
 }
 
 Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* value) {
-  return raw_assembler()->Store(rep, base, value, kFullWriteBarrier);
+  return raw_assembler_->Store(rep, base, value, kFullWriteBarrier);
 }
 
 Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* index,
                            Node* value) {
-  return raw_assembler()->Store(rep, base, index, value, kFullWriteBarrier);
+  return raw_assembler_->Store(rep, base, index, value, kFullWriteBarrier);
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* value) {
-  return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
+  return raw_assembler_->Store(rep, base, value, kNoWriteBarrier);
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* index, Node* value) {
-  return raw_assembler()->Store(rep, base, index, value, kNoWriteBarrier);
+  return raw_assembler_->Store(rep, base, index, value, kNoWriteBarrier);
 }
 
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
                                  Node* index, Node* value) {
-  return raw_assembler()->AtomicStore(rep, base, index, value);
+  return raw_assembler_->AtomicStore(rep, base, index, value);
 }
 
 Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
@@ -336,11 +332,11 @@ Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
 }
 
 Node* CodeAssembler::Retain(Node* value) {
-  return raw_assembler()->Retain(value);
+  return raw_assembler_->Retain(value);
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {
-  return raw_assembler()->Projection(index, value);
+  return raw_assembler_->Projection(index, value);
 }
 
 void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
@@ -350,11 +346,11 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   exception.MergeVariables();
   DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
 
-  raw_assembler()->Continuations(node, success.label_, exception.label_);
+  raw_assembler_->Continuations(node, success.label_, exception.label_);
 
   Bind(&exception);
-  const Operator* op = raw_assembler()->common()->IfException();
-  Node* exception_value = raw_assembler()->AddNode(op, node, node);
+  const Operator* op = raw_assembler_->common()->IfException();
+  Node* exception_value = raw_assembler_->AddNode(op, node, node);
   if (exception_var != nullptr) {
     exception_var->Bind(exception_value);
   }
@@ -366,20 +362,20 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
 Node* CodeAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
                            Node** args) {
   CallPrologue();
-  Node* return_value = raw_assembler()->CallN(descriptor, code_target, args);
+  Node* return_value = raw_assembler_->CallN(descriptor, code_target, args);
   CallEpilogue();
   return return_value;
 }
 
 Node* CodeAssembler::TailCallN(CallDescriptor* descriptor, Node* code_target,
                                Node** args) {
-  return raw_assembler()->TailCallN(descriptor, code_target, args);
+  return raw_assembler_->TailCallN(descriptor, code_target, args);
 }
 
 Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id,
                                  Node* context) {
   CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime0(function_id, context);
+  Node* return_value = raw_assembler_->CallRuntime0(function_id, context);
   CallEpilogue();
   return return_value;
 }
@@ -387,8 +383,7 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id,
 Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
                                  Node* arg1) {
   CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime1(function_id, arg1, context);
+  Node* return_value = raw_assembler_->CallRuntime1(function_id, arg1, context);
   CallEpilogue();
   return return_value;
 }
@@ -397,7 +392,7 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
                                  Node* arg1, Node* arg2) {
   CallPrologue();
   Node* return_value =
-      raw_assembler()->CallRuntime2(function_id, arg1, arg2, context);
+      raw_assembler_->CallRuntime2(function_id, arg1, arg2, context);
   CallEpilogue();
   return return_value;
 }
@@ -406,7 +401,7 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
                                  Node* arg1, Node* arg2, Node* arg3) {
   CallPrologue();
   Node* return_value =
-      raw_assembler()->CallRuntime3(function_id, arg1, arg2, arg3, context);
+      raw_assembler_->CallRuntime3(function_id, arg1, arg2, arg3, context);
   CallEpilogue();
   return return_value;
 }
@@ -415,8 +410,8 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
                                  Node* arg1, Node* arg2, Node* arg3,
                                  Node* arg4) {
   CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime4(function_id, arg1, arg2,
-                                                     arg3, arg4, context);
+  Node* return_value = raw_assembler_->CallRuntime4(function_id, arg1, arg2,
+                                                    arg3, arg4, context);
   CallEpilogue();
   return return_value;
 }
@@ -425,54 +420,54 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
                                  Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                                  Node* arg5) {
   CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime5(function_id, arg1, arg2,
-                                                     arg3, arg4, arg5, context);
+  Node* return_value = raw_assembler_->CallRuntime5(function_id, arg1, arg2,
+                                                    arg3, arg4, arg5, context);
   CallEpilogue();
   return return_value;
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context) {
-  return raw_assembler()->TailCallRuntime0(function_id, context);
+  return raw_assembler_->TailCallRuntime0(function_id, context);
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1) {
-  return raw_assembler()->TailCallRuntime1(function_id, arg1, context);
+  return raw_assembler_->TailCallRuntime1(function_id, arg1, context);
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1, Node* arg2) {
-  return raw_assembler()->TailCallRuntime2(function_id, arg1, arg2, context);
+  return raw_assembler_->TailCallRuntime2(function_id, arg1, arg2, context);
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1, Node* arg2,
                                      Node* arg3) {
-  return raw_assembler()->TailCallRuntime3(function_id, arg1, arg2, arg3,
-                                           context);
+  return raw_assembler_->TailCallRuntime3(function_id, arg1, arg2, arg3,
+                                          context);
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1, Node* arg2,
                                      Node* arg3, Node* arg4) {
-  return raw_assembler()->TailCallRuntime4(function_id, arg1, arg2, arg3, arg4,
-                                           context);
+  return raw_assembler_->TailCallRuntime4(function_id, arg1, arg2, arg3, arg4,
+                                          context);
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1, Node* arg2,
                                      Node* arg3, Node* arg4, Node* arg5) {
-  return raw_assembler()->TailCallRuntime5(function_id, arg1, arg2, arg3, arg4,
-                                           arg5, context);
+  return raw_assembler_->TailCallRuntime5(function_id, arg1, arg2, arg3, arg4,
+                                          arg5, context);
 }
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1, Node* arg2,
                                      Node* arg3, Node* arg4, Node* arg5,
                                      Node* arg6) {
-  return raw_assembler()->TailCallRuntime6(function_id, arg1, arg2, arg3, arg4,
-                                           arg5, arg6, context);
+  return raw_assembler_->TailCallRuntime6(function_id, arg1, arg2, arg3, arg4,
+                                          arg5, arg6, context);
 }
 
 Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
@@ -757,7 +752,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[0] = arg1;
   args[1] = context;
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -773,7 +768,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[1] = arg2;
   args[2] = context;
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -790,7 +785,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[2] = arg3;
   args[3] = context;
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -809,7 +804,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[3] = arg4;
   args[4] = context;
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -829,7 +824,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[4] = arg5;
   args[5] = context;
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -850,7 +845,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[5] = arg6;
   args[6] = context;
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -872,7 +867,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[kArgsCount - 1] = context;
   DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
@@ -896,7 +891,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[kArgsCount - 1] = context;
   DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallBytecodeDispatch(
@@ -905,7 +900,7 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
   CallDescriptor* descriptor = Linkage::GetBytecodeDispatchCallDescriptor(
       isolate(), zone(), interface_descriptor,
       interface_descriptor.GetStackParameterCount());
-  return raw_assembler()->TailCallN(descriptor, code_target_address, args);
+  return raw_assembler_->TailCallN(descriptor, code_target_address, args);
 }
 
 Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
@@ -978,13 +973,13 @@ Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,
                                     Node* arg0, Node* arg1) {
-  return raw_assembler()->CallCFunction2(return_type, arg0_type, arg1_type,
-                                         function, arg0, arg1);
+  return raw_assembler_->CallCFunction2(return_type, arg0_type, arg1_type,
+                                        function, arg0, arg1);
 }
 
 void CodeAssembler::Goto(CodeAssembler::Label* label) {
   label->MergeVariables();
-  raw_assembler()->Goto(label->label_);
+  raw_assembler_->Goto(label->label_);
 }
 
 void CodeAssembler::GotoIf(Node* condition, Label* true_label) {
@@ -1003,8 +998,8 @@ void CodeAssembler::Branch(Node* condition, CodeAssembler::Label* true_label,
                            CodeAssembler::Label* false_label) {
   true_label->MergeVariables();
   false_label->MergeVariables();
-  return raw_assembler()->Branch(condition, true_label->label_,
-                                 false_label->label_);
+  return raw_assembler_->Branch(condition, true_label->label_,
+                                false_label->label_);
 }
 
 void CodeAssembler::Switch(Node* index, Label* default_label,
@@ -1018,8 +1013,8 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
     case_labels[i]->MergeVariables();
     default_label->MergeVariables();
   }
-  return raw_assembler()->Switch(index, default_label->label_, case_values,
-                                 labels, case_count);
+  return raw_assembler_->Switch(index, default_label->label_, case_values,
+                                labels, case_count);
 }
 
 Node* CodeAssembler::Select(Node* condition, Node* true_value,
@@ -1044,15 +1039,11 @@ Node* CodeAssembler::Select(Node* condition, Node* true_value,
 }
 
 // RawMachineAssembler delegate helpers:
-Isolate* CodeAssembler::isolate() const { return raw_assembler()->isolate(); }
+Isolate* CodeAssembler::isolate() const { return raw_assembler_->isolate(); }
 
 Factory* CodeAssembler::factory() const { return isolate()->factory(); }
 
-Zone* CodeAssembler::zone() const { return raw_assembler()->zone(); }
-
-RawMachineAssembler* CodeAssembler::raw_assembler() const {
-  return state_->raw_assembler_.get();
-}
+Zone* CodeAssembler::zone() const { return raw_assembler_->zone(); }
 
 // The core implementation of Variable is stored through an indirection so
 // that it can outlive the often block-scoped Variable declarations. This is
@@ -1067,11 +1058,11 @@ class CodeAssembler::Variable::Impl : public ZoneObject {
 
 CodeAssembler::Variable::Variable(CodeAssembler* assembler,
                                   MachineRepresentation rep)
-    : impl_(new (assembler->zone()) Impl(rep)), state_(assembler->state_) {
-  state_->variables_.insert(impl_);
+    : impl_(new (assembler->zone()) Impl(rep)), assembler_(assembler) {
+  assembler->variables_.insert(impl_);
 }
 
-CodeAssembler::Variable::~Variable() { state_->variables_.erase(impl_); }
+CodeAssembler::Variable::~Variable() { assembler_->variables_.erase(impl_); }
 
 void CodeAssembler::Variable::Bind(Node* value) { impl_->value_ = value; }
 
@@ -1090,10 +1081,7 @@ bool CodeAssembler::Variable::IsBound() const {
 
 CodeAssembler::Label::Label(CodeAssembler* assembler, size_t vars_count,
                             Variable** vars, CodeAssembler::Label::Type type)
-    : bound_(false),
-      merge_count_(0),
-      state_(assembler->state_),
-      label_(nullptr) {
+    : bound_(false), merge_count_(0), assembler_(assembler), label_(nullptr) {
   void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
   label_ = new (buffer)
       RawMachineLabel(type == kDeferred ? RawMachineLabel::kDeferred
@@ -1105,7 +1093,7 @@ CodeAssembler::Label::Label(CodeAssembler* assembler, size_t vars_count,
 
 void CodeAssembler::Label::MergeVariables() {
   ++merge_count_;
-  for (auto var : state_->variables_) {
+  for (auto var : assembler_->variables_) {
     size_t count = 0;
     Node* node = var->value_;
     if (node != nullptr) {
@@ -1130,7 +1118,7 @@ void CodeAssembler::Label::MergeVariables() {
       auto phi = variable_phis_.find(var);
       if (phi != variable_phis_.end()) {
         DCHECK_NOT_NULL(phi->second);
-        state_->raw_assembler_->AppendPhiInput(phi->second, node);
+        assembler_->raw_assembler_->AppendPhiInput(phi->second, node);
       } else {
         auto i = variable_merges_.find(var);
         if (i != variable_merges_.end()) {
@@ -1151,11 +1139,11 @@ void CodeAssembler::Label::MergeVariables() {
 
 void CodeAssembler::Label::Bind() {
   DCHECK(!bound_);
-  state_->raw_assembler_->Bind(label_);
+  assembler_->raw_assembler_->Bind(label_);
 
   // Make sure that all variables that have changed along any path up to this
   // point are marked as merge variables.
-  for (auto var : state_->variables_) {
+  for (auto var : assembler_->variables_) {
     Node* shared_value = nullptr;
     auto i = variable_merges_.find(var);
     if (i != variable_merges_.end()) {
@@ -1181,14 +1169,14 @@ void CodeAssembler::Label::Bind() {
     // into the label--doesn't have a bound value along all of the paths that
     // have been merged into the label up to this point.
     DCHECK(i != variable_merges_.end() && i->second.size() == merge_count_);
-    Node* phi = state_->raw_assembler_->Phi(
+    Node* phi = assembler_->raw_assembler_->Phi(
         var.first->rep_, static_cast<int>(merge_count_), &(i->second[0]));
     variable_phis_[var_impl] = phi;
   }
 
   // Bind all variables to a merge phi, the common value along all paths or
   // null.
-  for (auto var : state_->variables_) {
+  for (auto var : assembler_->variables_) {
     auto i = variable_phis_.find(var);
     if (i != variable_phis_.end()) {
       var->value_ = i->second;

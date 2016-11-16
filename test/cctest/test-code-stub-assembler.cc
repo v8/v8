@@ -14,46 +14,48 @@
 namespace v8 {
 namespace internal {
 
-using compiler::CodeAssemblerTester;
 using compiler::FunctionTester;
 using compiler::Node;
 
+typedef compiler::CodeAssemblerTesterImpl<CodeStubAssembler>
+    CodeStubAssemblerTester;
+
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(5);
   array->set(4, Smi::FromInt(733));
   m.Return(m.LoadFixedArrayElement(m.HeapConstant(array),
                                    m.SmiTag(m.Int32Constant(4)), 0,
                                    CodeStubAssembler::SMI_PARAMETERS));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(733, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(LoadHeapNumberValue) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1234);
   m.Return(m.SmiTag(
       m.ChangeFloat64ToUint32(m.LoadHeapNumberValue(m.HeapConstant(number)))));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(1234, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(LoadInstanceType) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
   Handle<HeapObject> undefined = isolate->factory()->undefined_value();
   m.Return(m.SmiTag(m.LoadInstanceType(m.HeapConstant(undefined))));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(InstanceType::ODDBALL_TYPE,
            Handle<Smi>::cast(result.ToHandleChecked())->value());
@@ -61,14 +63,14 @@ TEST(LoadInstanceType) {
 
 TEST(DecodeWordFromWord32) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
 
   class TestBitField : public BitField<unsigned, 3, 3> {};
   m.Return(
       m.SmiTag(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2f))));
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code);
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   // value  = 00101111
   // mask   = 00111000
@@ -79,12 +81,11 @@ TEST(DecodeWordFromWord32) {
 TEST(JSFunction) {
   const int kNumParams = 3;  // Receiver, left, right.
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
   m.Return(m.SmiFromWord32(m.Int32Add(m.SmiToWord32(m.Parameter(1)),
                                       m.SmiToWord32(m.Parameter(2)))));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   MaybeHandle<Object> result = ft.Call(isolate->factory()->undefined_value(),
@@ -96,12 +97,11 @@ TEST(JSFunction) {
 TEST(ComputeIntegerHash) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
   m.Return(m.SmiFromWord32(m.ComputeIntegerHash(
       m.SmiToWord32(m.Parameter(0)), m.SmiToWord32(m.Parameter(1)))));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Smi> hash_seed = isolate->factory()->hash_seed();
@@ -123,11 +123,10 @@ TEST(ComputeIntegerHash) {
 TEST(ToString) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
   m.Return(m.ToString(m.Parameter(kNumParams + 2), m.Parameter(0)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
@@ -180,11 +179,10 @@ TEST(ToString) {
 TEST(FlattenString) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
   m.Return(m.FlattenString(m.Parameter(0)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<FixedArray> test_cases(isolate->factory()->NewFixedArray(4));
@@ -224,8 +222,7 @@ TEST(TryToName) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kKeyIsIndex, kKeyIsUnique, kBailout };
   {
@@ -264,7 +261,7 @@ TEST(TryToName) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_index(Smi::FromInt(kKeyIsIndex), isolate);
@@ -355,15 +352,14 @@ void TestEntryToIndex() {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
   {
     Node* entry = m.SmiUntag(m.Parameter(0));
     Node* result = m.EntryToIndex<Dictionary>(entry);
     m.Return(m.SmiTag(result));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   // Test a wide range of entries but staying linear in the first 100 entries.
@@ -389,8 +385,7 @@ void TestNameDictionaryLookup() {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound };
   {
@@ -424,7 +419,7 @@ void TestNameDictionaryLookup() {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
@@ -496,8 +491,7 @@ void TestNumberDictionaryLookup() {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound };
   {
@@ -531,7 +525,7 @@ void TestNumberDictionaryLookup() {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
@@ -634,8 +628,7 @@ TEST(TryHasOwnProperty) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound, kBailout };
   {
@@ -673,7 +666,7 @@ TEST(TryHasOwnProperty) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
@@ -821,8 +814,7 @@ TEST(TryGetOwnProperty) {
   Factory* factory = isolate->factory();
 
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   Handle<Symbol> not_found_symbol = factory->NewSymbol();
   Handle<Symbol> bailout_symbol = factory->NewSymbol();
@@ -851,7 +843,7 @@ TEST(TryGetOwnProperty) {
     m.Return(m.HeapConstant(bailout_symbol));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Name> deleted_property_name =
@@ -1038,8 +1030,7 @@ TEST(TryLookupElement) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound, kBailout };
   {
@@ -1077,7 +1068,7 @@ TEST(TryLookupElement) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
@@ -1225,8 +1216,8 @@ TEST(DeferredCodePhiHints) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
   Label block1(&m, Label::kDeferred);
   m.Goto(&block1);
   m.Bind(&block1);
@@ -1242,15 +1233,15 @@ TEST(DeferredCodePhiHints) {
       m.Goto(&loop);
     }
   }
-  CHECK(!data.GenerateCode().is_null());
+  CHECK(!m.GenerateCode().is_null());
 }
 
 TEST(TestOutOfScopeVariable) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
   Label block1(&m);
   Label block2(&m);
   Label block3(&m);
@@ -1271,7 +1262,7 @@ TEST(TestOutOfScopeVariable) {
     m.Goto(&block1);
   }
   m.Bind(&block1);
-  CHECK(!data.GenerateCode().is_null());
+  CHECK(!m.GenerateCode().is_null());
 }
 
 namespace {
@@ -1279,8 +1270,7 @@ namespace {
 void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   {
     Node* name = m.Parameter(0);
@@ -1296,7 +1286,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
     m.Return(m.SmiFromWord32(result));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
@@ -1364,10 +1354,9 @@ namespace {
 
 Handle<Code> CreateCodeWithFlags(Code::Flags flags) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate, flags);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, flags);
   m.Return(m.UndefinedConstant());
-  return data.GenerateCodeCloseAndEscape();
+  return m.GenerateCodeCloseAndEscape();
 }
 
 }  // namespace
@@ -1377,8 +1366,7 @@ TEST(TryProbeStubCache) {
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   Code::Kind ic_kind = Code::LOAD_IC;
   StubCache stub_cache(isolate, ic_kind);
@@ -1411,7 +1399,7 @@ TEST(TryProbeStubCache) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   std::vector<Handle<Name>> names;
@@ -1522,8 +1510,8 @@ TEST(GotoIfException) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  // Emulate TFJ builtin
+  CodeStubAssemblerTester m(isolate, kNumParams, Code::BUILTIN);
 
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* to_string_tag =
@@ -1539,13 +1527,13 @@ TEST(GotoIfException) {
   m.Bind(&exception_handler);
   m.Return(exception.value());
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
   Handle<Object> result = ft.Call().ToHandleChecked();
 
-  // Should be a TypeError.
+  // Should be a TypeError
   CHECK(result->IsJSObject());
 
   Handle<Object> constructor =
@@ -1561,8 +1549,8 @@ TEST(GotoIfExceptionMultiple) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;  // receiver, first, second, third
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  // Emulate TFJ builtin
+  CodeStubAssemblerTester m(isolate, kNumParams, Code::BUILTIN);
 
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* first_value = m.Parameter(0);
@@ -1604,25 +1592,25 @@ TEST(GotoIfExceptionMultiple) {
   m.Bind(&exception_handler3);
   m.Return(error.value());
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
 
   Handle<Object> result;
-  // First handler does not throw, returns result of first value.
+  // First handler does not throw, returns result of first value
   result = ft.Call(isolate->factory()->undefined_value(),
                    isolate->factory()->to_string_tag_symbol())
                .ToHandleChecked();
   CHECK(String::cast(*result)->IsOneByteEqualTo(OneByteVector("undefined")));
 
-  // First handler returns a number.
+  // First handler returns a number
   result = ft.Call(isolate->factory()->to_string_tag_symbol(),
                    isolate->factory()->undefined_value())
                .ToHandleChecked();
   CHECK_EQ(7, Smi::cast(*result)->value());
 
-  // First handler throws, second handler returns a number.
+  // First handler throws, second handler returns a number
   result = ft.Call(isolate->factory()->to_string_tag_symbol(),
                    isolate->factory()->to_primitive_symbol())
                .ToHandleChecked();
@@ -1635,7 +1623,7 @@ TEST(GotoIfExceptionMultiple) {
                    isolate->factory()->unscopables_symbol())
                .ToHandleChecked();
 
-  // Should be a TypeError.
+  // Should be a TypeError
   CHECK(result->IsJSObject());
 
   Handle<Object> constructor =
@@ -1650,8 +1638,7 @@ TEST(AllocateJSObjectFromMap) {
   Factory* factory = isolate->factory();
 
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   {
     Node* map = m.Parameter(0);
@@ -1663,7 +1650,7 @@ TEST(AllocateJSObjectFromMap) {
     m.Return(result);
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Handle<Map> maps[] = {
@@ -1714,8 +1701,7 @@ TEST(AllocateNameDictionary) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   {
     Node* capacity = m.Parameter(0);
@@ -1723,7 +1709,7 @@ TEST(AllocateNameDictionary) {
     m.Return(result);
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   {
@@ -1743,17 +1729,16 @@ TEST(PopAndReturnConstant) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  const int kNumProgrammaticParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams - kNumProgrammaticParams);
-  CodeStubAssembler m(data.state());
+  const int kNumProgramaticParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams - kNumProgramaticParams);
 
   // Call a function that return |kNumProgramaticParams| parameters in addition
   // to those specified by the static descriptor. |kNumProgramaticParams| is
   // specified as a constant.
-  m.PopAndReturn(m.Int32Constant(kNumProgrammaticParams),
+  m.PopAndReturn(m.Int32Constant(kNumProgramaticParams),
                  m.SmiConstant(Smi::FromInt(1234)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
@@ -1772,9 +1757,8 @@ TEST(PopAndReturnVariable) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  const int kNumProgrammaticParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams - kNumProgrammaticParams);
-  CodeStubAssembler m(data.state());
+  const int kNumProgramaticParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams - kNumProgramaticParams);
 
   // Call a function that return |kNumProgramaticParams| parameters in addition
   // to those specified by the static descriptor. |kNumProgramaticParams| is
@@ -1782,7 +1766,7 @@ TEST(PopAndReturnVariable) {
   // a constant.
   m.PopAndReturn(m.SmiUntag(m.Parameter(1)), m.SmiConstant(Smi::FromInt(1234)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
@@ -1791,7 +1775,7 @@ TEST(PopAndReturnVariable) {
     result = ft.Call(isolate->factory()->undefined_value(),
                      Handle<Smi>(Smi::FromInt(1234), isolate),
                      isolate->factory()->undefined_value(),
-                     Handle<Smi>(Smi::FromInt(kNumProgrammaticParams), isolate))
+                     Handle<Smi>(Smi::FromInt(kNumProgramaticParams), isolate))
                  .ToHandleChecked();
     CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
   }
@@ -1800,9 +1784,7 @@ TEST(PopAndReturnVariable) {
 TEST(OneToTwoByteStringCopy) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, 2);
 
   m.CopyStringCharacters(
       m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
@@ -1811,7 +1793,7 @@ TEST(OneToTwoByteStringCopy) {
       CodeStubAssembler::SMI_PARAMETERS);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
@@ -1836,9 +1818,7 @@ TEST(OneToTwoByteStringCopy) {
 TEST(OneToOneByteStringCopy) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, 2);
 
   m.CopyStringCharacters(
       m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
@@ -1847,7 +1827,7 @@ TEST(OneToOneByteStringCopy) {
       CodeStubAssembler::SMI_PARAMETERS);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
@@ -1872,9 +1852,7 @@ TEST(OneToOneByteStringCopy) {
 TEST(OneToOneByteStringCopyNonZeroStart) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, 2);
 
   m.CopyStringCharacters(
       m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
@@ -1883,7 +1861,7 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
       CodeStubAssembler::SMI_PARAMETERS);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
@@ -1905,9 +1883,7 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
 TEST(TwoToTwoByteStringCopy) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, 2);
 
   m.CopyStringCharacters(
       m.Parameter(0), m.Parameter(1), m.SmiConstant(Smi::FromInt(0)),
@@ -1916,7 +1892,7 @@ TEST(TwoToTwoByteStringCopy) {
       CodeStubAssembler::SMI_PARAMETERS);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   uc16 array1[] = {2000, 2001, 2002, 2003, 2004};
@@ -1945,8 +1921,7 @@ TEST(Arguments) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
@@ -1959,7 +1934,7 @@ TEST(Arguments) {
 
   m.Return(arguments.GetReceiver());
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
@@ -1975,13 +1950,13 @@ TEST(ArgumentsForEach) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
-  CodeStubAssembler::Variable sum(&m, MachineType::PointerRepresentation());
-  CodeStubAssembler::VariableList list({&sum}, m.zone());
+  CodeStubAssemblerTester::Variable sum(&m,
+                                        MachineType::PointerRepresentation());
+  CodeStubAssemblerTester::VariableList list({&sum}, m.zone());
 
   sum.Bind(m.IntPtrConstant(0));
 
@@ -1991,7 +1966,7 @@ TEST(ArgumentsForEach) {
 
   m.Return(sum.value());
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<Code> code = m.GenerateCode();
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);

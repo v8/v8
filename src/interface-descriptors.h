@@ -157,7 +157,8 @@ class CallDescriptors {
   };
 };
 
-class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
+
+class CallInterfaceDescriptor {
  public:
   CallInterfaceDescriptor() : data_(NULL) {}
   virtual ~CallInterfaceDescriptor() {}
@@ -774,8 +775,7 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
   static const Register KeyRegister();
 };
 
-class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
-    : public CallInterfaceDescriptor {
+class InterpreterDispatchDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
                     kDispatchTable)

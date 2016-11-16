@@ -46,7 +46,9 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
   function->ReplaceCode(*code);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
+FunctionTester::FunctionTester(const CallInterfaceDescriptor& descriptor,
+                               Handle<Code> code)
+    : FunctionTester(code, descriptor.GetParameterCount()) {}
 
 MaybeHandle<Object> FunctionTester::Call() {
   return Execution::Call(isolate, function, undefined(), 0, nullptr);

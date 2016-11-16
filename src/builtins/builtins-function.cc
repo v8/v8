@@ -283,15 +283,14 @@ BUILTIN(FunctionPrototypeToString) {
 
 // ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
 void Builtins::Generate_FunctionPrototypeHasInstance(
-    compiler::CodeAssemblerState* state) {
+    CodeStubAssembler* assembler) {
   using compiler::Node;
-  CodeStubAssembler assembler(state);
 
-  Node* f = assembler.Parameter(0);
-  Node* v = assembler.Parameter(1);
-  Node* context = assembler.Parameter(4);
-  Node* result = assembler.OrdinaryHasInstance(context, f, v);
-  assembler.Return(result);
+  Node* f = assembler->Parameter(0);
+  Node* v = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* result = assembler->OrdinaryHasInstance(context, f, v);
+  assembler->Return(result);
 }
 
 }  // namespace internal

@@ -10,9 +10,8 @@ namespace v8 {
 namespace internal {
 
 void Builtins::Generate_IteratorPrototypeIterator(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  assembler.Return(assembler.Parameter(0));
+    CodeStubAssembler* assembler) {
+  assembler->Return(assembler->Parameter(0));
 }
 
 BUILTIN(ModuleNamespaceIterator) {

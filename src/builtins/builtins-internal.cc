@@ -54,90 +54,86 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
 // TurboFan support builtins.
 
 void Builtins::Generate_CopyFastSmiOrObjectElements(
-    compiler::CodeAssemblerState* state) {
+    CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CopyFastSmiOrObjectElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
+  Node* object = assembler->Parameter(Descriptor::kObject);
 
   // Load the {object}s elements.
-  Node* source = assembler.LoadObjectField(object, JSObject::kElementsOffset);
+  Node* source = assembler->LoadObjectField(object, JSObject::kElementsOffset);
 
-  CodeStubAssembler::ParameterMode mode = assembler.OptimalParameterMode();
-  Node* length = assembler.UntagParameter(
-      assembler.LoadFixedArrayBaseLength(source), mode);
+  CodeStubAssembler::ParameterMode mode = assembler->OptimalParameterMode();
+  Node* length = assembler->UntagParameter(
+      assembler->LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
   ElementsKind kind = FAST_ELEMENTS;
   int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(&assembler), if_oldspace(&assembler);
-  assembler.Branch(
-      assembler.UintPtrLessThan(
-          length, assembler.IntPtrOrSmiConstant(max_elements, mode)),
+  Label if_newspace(assembler), if_oldspace(assembler);
+  assembler->Branch(
+      assembler->UintPtrLessThan(
+          length, assembler->IntPtrOrSmiConstant(max_elements, mode)),
       &if_newspace, &if_oldspace);
 
-  assembler.Bind(&if_newspace);
+  assembler->Bind(&if_newspace);
   {
-    Node* target = assembler.AllocateFixedArray(kind, length, mode);
-    assembler.CopyFixedArrayElements(kind, source, target, length,
-                                     SKIP_WRITE_BARRIER, mode);
-    assembler.StoreObjectField(object, JSObject::kElementsOffset, target);
-    assembler.Return(target);
+    Node* target = assembler->AllocateFixedArray(kind, length, mode);
+    assembler->CopyFixedArrayElements(kind, source, target, length,
+                                      SKIP_WRITE_BARRIER, mode);
+    assembler->StoreObjectField(object, JSObject::kElementsOffset, target);
+    assembler->Return(target);
   }
 
-  assembler.Bind(&if_oldspace);
+  assembler->Bind(&if_oldspace);
   {
-    Node* target = assembler.AllocateFixedArray(kind, length, mode,
-                                                CodeStubAssembler::kPretenured);
-    assembler.CopyFixedArrayElements(kind, source, target, length,
-                                     UPDATE_WRITE_BARRIER, mode);
-    assembler.StoreObjectField(object, JSObject::kElementsOffset, target);
-    assembler.Return(target);
+    Node* target = assembler->AllocateFixedArray(
+        kind, length, mode, CodeStubAssembler::kPretenured);
+    assembler->CopyFixedArrayElements(kind, source, target, length,
+                                      UPDATE_WRITE_BARRIER, mode);
+    assembler->StoreObjectField(object, JSObject::kElementsOffset, target);
+    assembler->Return(target);
   }
 }
 
-void Builtins::Generate_GrowFastDoubleElements(
-    compiler::CodeAssemblerState* state) {
+void Builtins::Generate_GrowFastDoubleElements(CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef GrowArrayElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* key = assembler.Parameter(Descriptor::kKey);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
-  Label runtime(&assembler, CodeStubAssembler::Label::kDeferred);
-  Node* elements = assembler.LoadElements(object);
-  elements = assembler.TryGrowElementsCapacity(
+  Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
+  Node* elements = assembler->LoadElements(object);
+  elements = assembler->TryGrowElementsCapacity(
       object, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
-  assembler.Return(elements);
+  assembler->Return(elements);
 
-  assembler.Bind(&runtime);
-  assembler.TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
+  assembler->Bind(&runtime);
+  assembler->TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
 void Builtins::Generate_GrowFastSmiOrObjectElements(
-    compiler::CodeAssemblerState* state) {
+    CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef GrowArrayElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* key = assembler.Parameter(Descriptor::kKey);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
-  Label runtime(&assembler, CodeStubAssembler::Label::kDeferred);
-  Node* elements = assembler.LoadElements(object);
-  elements = assembler.TryGrowElementsCapacity(object, elements, FAST_ELEMENTS,
-                                               key, &runtime);
-  assembler.Return(elements);
+  Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
+  Node* elements = assembler->LoadElements(object);
+  elements = assembler->TryGrowElementsCapacity(object, elements, FAST_ELEMENTS,
+                                                key, &runtime);
+  assembler->Return(elements);
 
-  assembler.Bind(&runtime);
-  assembler.TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
+  assembler->Bind(&runtime);
+  assembler->TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
 }  // namespace internal
