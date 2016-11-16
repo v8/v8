@@ -116,9 +116,8 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
   m_isLiveEdit = isLiveEdit;
 
   if (script->Source().ToLocal(&tmp)) {
-    m_source.Reset(m_isolate, tmp);
+    m_sourceObj.Reset(m_isolate, tmp);
     String16 source = toProtocolString(tmp);
-    m_hash = calculateHash(source);
     // V8 will not count last line if script source ends with \n.
     if (source.length() > 1 && source[source.length() - 1] == '\n') {
       m_endLine++;
@@ -129,14 +128,35 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
   m_script.Reset(m_isolate, script);
 }
 
+V8DebuggerScript::V8DebuggerScript(String16 id, String16 url, String16 source)
+    : m_id(std::move(id)), m_url(std::move(url)), m_source(std::move(source)) {
+  int num_lines = 0;
+  int last_newline = -1;
+  size_t next_newline = m_source.find('\n', last_newline + 1);
+  while (next_newline != String16::kNotFound) {
+    last_newline = static_cast<int>(next_newline);
+    next_newline = m_source.find('\n', last_newline + 1);
+    ++num_lines;
+  }
+  m_endLine = num_lines;
+  m_endColumn = static_cast<int>(m_source.length()) - last_newline - 1;
+}
+
 V8DebuggerScript::~V8DebuggerScript() {}
 
 const String16& V8DebuggerScript::sourceURL() const {
   return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
 }
 
-v8::Local<v8::String> V8DebuggerScript::source(v8::Isolate* isolate) const {
-  return m_source.Get(isolate);
+String16 V8DebuggerScript::source(v8::Isolate* isolate) const {
+  if (m_sourceObj.IsEmpty()) return m_source;
+  return toProtocolString(m_sourceObj.Get(isolate));
+}
+
+const String16& V8DebuggerScript::hash(v8::Isolate* isolate) const {
+  if (m_hash.isEmpty()) m_hash = calculateHash(source(isolate));
+  DCHECK(!m_hash.isEmpty());
+  return m_hash;
 }
 
 void V8DebuggerScript::setSourceURL(const String16& sourceURL) {
@@ -148,8 +168,9 @@ void V8DebuggerScript::setSourceMappingURL(const String16& sourceMappingURL) {
 }
 
 void V8DebuggerScript::setSource(v8::Local<v8::String> source) {
-  m_source.Reset(m_isolate, source);
-  m_hash = calculateHash(toProtocolString(source));
+  m_source = String16();
+  m_sourceObj.Reset(m_isolate, source);
+  m_hash = String16();
 }
 
 bool V8DebuggerScript::getPossibleBreakpoints(

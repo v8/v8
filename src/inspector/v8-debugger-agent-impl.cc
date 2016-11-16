@@ -60,8 +60,29 @@ static const char kDebuggerNotEnabled[] = "Debugger agent is not enabled";
 static const char kDebuggerNotPaused[] =
     "Can only perform operation while paused.";
 
-static String16 breakpointIdSuffix(
-    V8DebuggerAgentImpl::BreakpointSource source) {
+namespace {
+
+void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
+                                      WasmTranslation* wasmTranslation,
+                                      int context_group_id) {
+  for (size_t i = 0, e = stackTrace->length(); i != e; ++i) {
+    protocol::Debugger::Location* location = stackTrace->get(i)->getLocation();
+    String16 scriptId = location->getScriptId();
+    int lineNumber = location->getLineNumber();
+    int columnNumber = location->getColumnNumber(-1);
+
+    if (!wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
+            &scriptId, &lineNumber, &columnNumber, context_group_id)) {
+      continue;
+    }
+
+    location->setScriptId(std::move(scriptId));
+    location->setLineNumber(lineNumber);
+    location->setColumnNumber(columnNumber);
+  }
+}
+
+String16 breakpointIdSuffix(V8DebuggerAgentImpl::BreakpointSource source) {
   switch (source) {
     case V8DebuggerAgentImpl::UserBreakpointSource:
       break;
@@ -73,9 +94,8 @@ static String16 breakpointIdSuffix(
   return String16();
 }
 
-static String16 generateBreakpointId(
-    const ScriptBreakpoint& breakpoint,
-    V8DebuggerAgentImpl::BreakpointSource source) {
+String16 generateBreakpointId(const ScriptBreakpoint& breakpoint,
+                              V8DebuggerAgentImpl::BreakpointSource source) {
   String16Builder builder;
   builder.append(breakpoint.script_id);
   builder.append(':');
@@ -86,13 +106,13 @@ static String16 generateBreakpointId(
   return builder.toString();
 }
 
-static bool positionComparator(const std::pair<int, int>& a,
-                               const std::pair<int, int>& b) {
+bool positionComparator(const std::pair<int, int>& a,
+                        const std::pair<int, int>& b) {
   if (a.first != b.first) return a.first < b.first;
   return a.second < b.second;
 }
 
-static std::unique_ptr<protocol::Debugger::Location> buildProtocolLocation(
+std::unique_ptr<protocol::Debugger::Location> buildProtocolLocation(
     const String16& scriptId, int lineNumber, int columnNumber) {
   return protocol::Debugger::Location::create()
       .setScriptId(scriptId)
@@ -100,6 +120,8 @@ static std::unique_ptr<protocol::Debugger::Location> buildProtocolLocation(
       .setColumnNumber(columnNumber)
       .build();
 }
+
+}  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
     V8InspectorSessionImpl* session, protocol::FrontendChannel* frontendChannel,
@@ -503,10 +525,18 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
       scriptIterator->second->endLine() < breakpoint.line_number)
     return nullptr;
 
+  ScriptBreakpoint translatedBreakpoint = breakpoint;
+  if (m_scripts.count(breakpoint.script_id) == 0) {
+    m_debugger->wasmTranslation()
+        ->TranslateProtocolLocationToWasmScriptLocation(
+            &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
+            &translatedBreakpoint.column_number);
+  }
+
   int actualLineNumber;
   int actualColumnNumber;
   String16 debuggerBreakpointId = m_debugger->setBreakpoint(
-      breakpoint, &actualLineNumber, &actualColumnNumber);
+      translatedBreakpoint, &actualLineNumber, &actualColumnNumber);
   if (debuggerBreakpointId.isEmpty()) return nullptr;
 
   m_serverBreakpoints[debuggerBreakpointId] =
@@ -515,7 +545,7 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
 
   m_breakpointIdToDebuggerBreakpointIds[breakpointId].push_back(
       debuggerBreakpointId);
-  return buildProtocolLocation(breakpoint.script_id, actualLineNumber,
+  return buildProtocolLocation(translatedBreakpoint.script_id, actualLineNumber,
                                actualColumnNumber);
 }
 
@@ -529,9 +559,8 @@ Response V8DebuggerAgentImpl::searchInContent(
     return Response::Error("No script for id: " + scriptId);
 
   std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> matches =
-      searchInTextByLinesImpl(m_session,
-                              toProtocolString(it->second->source(m_isolate)),
-                              query, optionalCaseSensitive.fromMaybe(false),
+      searchInTextByLinesImpl(m_session, it->second->source(m_isolate), query,
+                              optionalCaseSensitive.fromMaybe(false),
                               optionalIsRegex.fromMaybe(false));
   *results = protocol::Array<protocol::Debugger::SearchMatch>::create();
   for (size_t i = 0; i < matches.size(); ++i)
@@ -602,7 +631,7 @@ Response V8DebuggerAgentImpl::getScriptSource(const String16& scriptId,
   if (it == m_scripts.end())
     return Response::Error("No script for id: " + scriptId);
   v8::HandleScope handles(m_isolate);
-  *scriptSource = toProtocolString(it->second->source(m_isolate));
+  *scriptSource = it->second->source(m_isolate);
   return Response::OK();
 }
 
@@ -1004,6 +1033,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   protocol::ErrorSupport errorSupport;
   *result = Array<CallFrame>::parse(protocolValue.get(), &errorSupport);
   if (!*result) return Response::Error(errorSupport.errors());
+  TranslateWasmStackTraceLocations(result->get(), m_debugger->wasmTranslation(),
+                                   m_session->contextGroupId());
   return Response::OK();
 }
 
@@ -1017,7 +1048,7 @@ std::unique_ptr<StackTrace> V8DebuggerAgentImpl::currentAsyncStackTrace() {
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
-  String16 scriptSource = toProtocolString(script->source(m_isolate));
+  String16 scriptSource = script->source(m_isolate);
   if (!success) script->setSourceURL(findSourceURL(scriptSource, false));
   if (!success)
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
@@ -1046,14 +1077,14 @@ void V8DebuggerAgentImpl::didParseSource(
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(),
-        scriptRef->executionContextId(), scriptRef->hash(),
+        scriptRef->executionContextId(), scriptRef->hash(m_isolate),
         std::move(executionContextAuxDataParam), isLiveEditParam,
         std::move(sourceMapURLParam), hasSourceURLParam);
   else
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(),
-        scriptRef->executionContextId(), scriptRef->hash(),
+        scriptRef->executionContextId(), scriptRef->hash(m_isolate),
         std::move(executionContextAuxDataParam), std::move(sourceMapURLParam),
         hasSourceURLParam);
 

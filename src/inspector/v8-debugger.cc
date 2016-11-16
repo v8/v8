@@ -56,7 +56,8 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_runningNestedMessageLoop(false),
       m_ignoreScriptParsedEventsCounter(0),
       m_maxAsyncCallStackDepth(0),
-      m_pauseOnExceptionsState(v8::DebugInterface::NoBreakOnException) {}
+      m_pauseOnExceptionsState(v8::DebugInterface::NoBreakOnException),
+      m_wasmTranslation(isolate, this) {}
 
 V8Debugger::~V8Debugger() {}
 
@@ -82,6 +83,7 @@ void V8Debugger::disable() {
   m_debuggerScript.Reset();
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
+  m_wasmTranslation.Clear();
   v8::DebugInterface::SetDebugEventListener(m_isolate, nullptr);
 }
 
@@ -574,12 +576,25 @@ void V8Debugger::handleV8DebugEvent(
 
   V8DebuggerAgentImpl* agent =
       m_inspector->enabledDebuggerAgentForGroup(getGroupId(eventContext));
-  if (agent) {
-    v8::HandleScope scope(m_isolate);
-    if (m_ignoreScriptParsedEventsCounter == 0 &&
-        (event == v8::AfterCompile || event == v8::CompileError)) {
-      v8::Local<v8::Context> context = debuggerContext();
-      v8::Context::Scope contextScope(context);
+  if (!agent) return;
+
+  v8::HandleScope scope(m_isolate);
+  if (event == v8::AfterCompile || event == v8::CompileError) {
+    v8::Context::Scope contextScope(debuggerContext());
+    // Determine if the script is a wasm script.
+    v8::Local<v8::Value> scriptMirror =
+        callInternalGetterFunction(eventDetails.GetEventData(), "script");
+    DCHECK(scriptMirror->IsObject());
+    v8::Local<v8::Value> scriptWrapper =
+        callInternalGetterFunction(scriptMirror.As<v8::Object>(), "value");
+    DCHECK(scriptWrapper->IsObject());
+    v8::Local<v8::DebugInterface::Script> script =
+        v8::DebugInterface::Script::Wrap(m_isolate,
+                                         scriptWrapper.As<v8::Object>())
+            .ToLocalChecked();
+    if (script->IsWasm()) {
+      m_wasmTranslation.AddScript(scriptWrapper.As<v8::Object>());
+    } else if (m_ignoreScriptParsedEventsCounter == 0) {
       v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
       v8::Local<v8::Value> value =
           callDebuggerMethod("getAfterCompileScript", 1, argv).ToLocalChecked();
@@ -593,29 +608,28 @@ void V8Debugger::handleV8DebugEvent(
       agent->didParseSource(
           wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
           event == v8::AfterCompile);
-    } else if (event == v8::Exception) {
-      v8::Local<v8::Context> context = debuggerContext();
-      v8::Local<v8::Object> eventData = eventDetails.GetEventData();
-      v8::Local<v8::Value> exception =
-          callInternalGetterFunction(eventData, "exception");
-      v8::Local<v8::Value> promise =
-          callInternalGetterFunction(eventData, "promise");
-      bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
-      v8::Local<v8::Value> uncaught =
-          callInternalGetterFunction(eventData, "uncaught");
-      bool isUncaught = uncaught->BooleanValue(context).FromJust();
-      handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                         exception, v8::Local<v8::Array>(), isPromiseRejection,
-                         isUncaught);
-    } else if (event == v8::Break) {
-      v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-      v8::Local<v8::Value> hitBreakpoints =
-          callDebuggerMethod("getBreakpointNumbers", 1, argv).ToLocalChecked();
-      DCHECK(hitBreakpoints->IsArray());
-      handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                         v8::Local<v8::Value>(),
-                         hitBreakpoints.As<v8::Array>());
     }
+  } else if (event == v8::Exception) {
+    v8::Local<v8::Context> context = debuggerContext();
+    v8::Local<v8::Object> eventData = eventDetails.GetEventData();
+    v8::Local<v8::Value> exception =
+        callInternalGetterFunction(eventData, "exception");
+    v8::Local<v8::Value> promise =
+        callInternalGetterFunction(eventData, "promise");
+    bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
+    v8::Local<v8::Value> uncaught =
+        callInternalGetterFunction(eventData, "uncaught");
+    bool isUncaught = uncaught->BooleanValue(context).FromJust();
+    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
+                       exception, v8::Local<v8::Array>(), isPromiseRejection,
+                       isUncaught);
+  } else if (event == v8::Break) {
+    v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
+    v8::Local<v8::Value> hitBreakpoints =
+        callDebuggerMethod("getBreakpointNumbers", 1, argv).ToLocalChecked();
+    DCHECK(hitBreakpoints->IsArray());
+    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
+                       v8::Local<v8::Value>(), hitBreakpoints.As<v8::Array>());
   }
 }
 

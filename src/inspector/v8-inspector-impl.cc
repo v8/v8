@@ -260,6 +260,7 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   SessionMap::iterator session = m_sessions.find(contextGroupId);
   if (session != m_sessions.end()) session->second->reset();
   m_contexts.erase(contextGroupId);
+  m_debugger->wasmTranslation()->Clear();
 }
 
 void V8InspectorImpl::willExecuteScript(v8::Local<v8::Context> context,

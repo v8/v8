@@ -5,6 +5,7 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 
 #include "src/inspector/string-util.h"
+#include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 
@@ -21,7 +22,9 @@ static const v8::StackTrace::StackTraceOptions stackTraceOptions =
         v8::StackTrace::kScriptId | v8::StackTrace::kScriptNameOrSourceURL |
         v8::StackTrace::kFunctionName);
 
-V8StackTraceImpl::Frame toFrame(v8::Local<v8::StackFrame> frame) {
+V8StackTraceImpl::Frame toFrame(v8::Local<v8::StackFrame> frame,
+                                WasmTranslation* wasmTranslation,
+                                int contextGroupId) {
   String16 scriptId = String16::fromInteger(frame->GetScriptId());
   String16 sourceName;
   v8::Local<v8::String> sourceNameValue(frame->GetScriptNameOrSourceURL());
@@ -33,22 +36,30 @@ V8StackTraceImpl::Frame toFrame(v8::Local<v8::StackFrame> frame) {
   if (!functionNameValue.IsEmpty())
     functionName = toProtocolString(functionNameValue);
 
-  int sourceLineNumber = frame->GetLineNumber();
-  int sourceColumn = frame->GetColumn();
+  int sourceLineNumber = frame->GetLineNumber() - 1;
+  int sourceColumn = frame->GetColumn() - 1;
+  // TODO(clemensh): Figure out a way to do this translation only right before
+  // sending the stack trace over wire.
+  if (wasmTranslation)
+    wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
+        &scriptId, &sourceLineNumber, &sourceColumn, contextGroupId);
   return V8StackTraceImpl::Frame(functionName, scriptId, sourceName,
-                                 sourceLineNumber, sourceColumn);
+                                 sourceLineNumber + 1, sourceColumn + 1);
 }
 
 void toFramesVector(v8::Local<v8::StackTrace> stackTrace,
                     std::vector<V8StackTraceImpl::Frame>& frames,
-                    size_t maxStackSize, v8::Isolate* isolate) {
+                    size_t maxStackSize, v8::Isolate* isolate,
+                    V8Debugger* debugger, int contextGroupId) {
   DCHECK(isolate->InContext());
   int frameCount = stackTrace->GetFrameCount();
   if (frameCount > static_cast<int>(maxStackSize))
     frameCount = static_cast<int>(maxStackSize);
+  WasmTranslation* wasmTranslation =
+      debugger ? debugger->wasmTranslation() : nullptr;
   for (int i = 0; i < frameCount; i++) {
     v8::Local<v8::StackFrame> stackFrame = stackTrace->GetFrame(i);
-    frames.push_back(toFrame(stackFrame));
+    frames.push_back(toFrame(stackFrame, wasmTranslation, contextGroupId));
   }
 }
 
@@ -111,7 +122,8 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
   v8::HandleScope scope(isolate);
   std::vector<V8StackTraceImpl::Frame> frames;
   if (!stackTrace.IsEmpty())
-    toFramesVector(stackTrace, frames, maxStackSize, isolate);
+    toFramesVector(stackTrace, frames, maxStackSize, isolate, debugger,
+                   contextGroupId);
 
   int maxAsyncCallChainDepth = 1;
   V8StackTraceImpl* asyncCallChain = nullptr;

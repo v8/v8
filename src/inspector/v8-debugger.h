@@ -13,6 +13,7 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-script.h"
+#include "src/inspector/wasm-translation.h"
 
 #include "include/v8-inspector.h"
 
@@ -94,6 +95,8 @@ class V8Debugger {
 
   V8InspectorImpl* inspector() { return m_inspector; }
 
+  WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
+
  private:
   void compileDebuggerScript();
   v8::MaybeLocal<v8::Value> callDebuggerMethod(const char* functionName,
@@ -148,6 +151,8 @@ class V8Debugger {
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
 
   v8::DebugInterface::ExceptionBreakState m_pauseOnExceptionsState;
+
+  WasmTranslation m_wasmTranslation;
 
   DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 };

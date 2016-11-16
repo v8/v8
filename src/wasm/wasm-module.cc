@@ -597,6 +597,15 @@ std::pair<int, int> GetFunctionOffsetAndLength(
           static_cast<int>(func.code_end_offset - func.code_start_offset)};
 }
 
+Vector<const uint8_t> GetFunctionBytes(
+    Handle<WasmCompiledModule> compiled_module, int func_index) {
+  int offset, length;
+  std::tie(offset, length) =
+      GetFunctionOffsetAndLength(compiled_module, func_index);
+  return Vector<const uint8_t>(
+      compiled_module->module_bytes()->GetChars() + offset, length);
+}
+
 }  // namespace
 
 const char* wasm::SectionName(WasmSectionCode code) {
@@ -1880,6 +1889,26 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
   WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
   DCHECK(compiled_module->has_script());
   return compiled_module->script();
+}
+
+std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
+wasm::DisassembleFunction(Handle<WasmCompiledModule> compiled_module,
+                          int func_index) {
+  std::ostringstream disassembly_os;
+  std::vector<std::tuple<uint32_t, int, int>> offset_table;
+
+  Vector<const uint8_t> func_bytes =
+      GetFunctionBytes(compiled_module, func_index);
+  DisallowHeapAllocation no_gc;
+  if (func_bytes.is_empty()) return {};
+
+  AccountingAllocator allocator;
+  bool ok = PrintAst(
+      &allocator, FunctionBodyForTesting(func_bytes.start(), func_bytes.end()),
+      disassembly_os, &offset_table);
+  CHECK(ok);
+
+  return {disassembly_os.str(), std::move(offset_table)};
 }
 
 int wasm::GetAsmWasmSourcePosition(Handle<JSObject> instance, int func_index,

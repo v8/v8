@@ -8910,6 +8910,7 @@ int DebugInterface::Script::ColumnOffset() const {
 
 std::vector<int> DebugInterface::Script::LineEnds() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  if (script->type() == i::Script::TYPE_WASM) return std::vector<int>();
   i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
   i::Script::InitLineEnds(script);
@@ -8973,6 +8974,10 @@ MaybeLocal<String> DebugInterface::Script::Source() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
+bool DebugInterface::Script::IsWasm() const {
+  return Utils::OpenHandle(this)->type() == i::Script::TYPE_WASM;
+}
+
 namespace {
 int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
   return i::Smi::cast(array->get(index))->value();
@@ -8984,6 +8989,10 @@ bool DebugInterface::Script::GetPossibleBreakpoints(
     std::vector<Location>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  if (script->type() == i::Script::TYPE_WASM) {
+    // TODO(clemensh): Return the proper thing once we support wasm breakpoints.
+    return false;
+  }
 
   i::Script::InitLineEnds(script);
   CHECK(script->line_ends()->IsFixedArray());
@@ -9029,6 +9038,10 @@ bool DebugInterface::Script::GetPossibleBreakpoints(
 
 int DebugInterface::Script::GetSourcePosition(const Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  if (script->type() == i::Script::TYPE_WASM) {
+    // TODO(clemensh): Return the proper thing for wasm.
+    return 0;
+  }
 
   int line = std::max(location.GetLineNumber() - script->line_offset(), 0);
   int column = location.GetColumnNumber();
@@ -9062,7 +9075,10 @@ MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
     return MaybeLocal<Script>();
   }
   i::Handle<i::Script> script_obj = i::Handle<i::Script>::cast(script_value);
-  if (script_obj->type() != i::Script::TYPE_NORMAL) return MaybeLocal<Script>();
+  if (script_obj->type() != i::Script::TYPE_NORMAL &&
+      script_obj->type() != i::Script::TYPE_WASM) {
+    return MaybeLocal<Script>();
+  }
   return ToApiHandle<DebugInterface::Script>(
       handle_scope.CloseAndEscape(script_obj));
 }
@@ -9110,6 +9126,24 @@ void DebugInterface::GetLoadedScripts(
       }
     }
   }
+}
+
+std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
+DebugInterface::DisassembleWasmFunction(Isolate* v8_isolate,
+                                        Local<Object> v8_script,
+                                        int function_index) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (v8_script.IsEmpty()) return {};
+  i::Handle<i::Object> script_wrapper = Utils::OpenHandle(*v8_script);
+  if (!script_wrapper->IsJSValue()) return {};
+  i::Handle<i::Object> script_obj(
+      i::Handle<i::JSValue>::cast(script_wrapper)->value(), isolate);
+  if (!script_obj->IsScript()) return {};
+  i::Handle<i::Script> script = i::Handle<i::Script>::cast(script_obj);
+  if (script->type() != i::Script::TYPE_WASM) return {};
+  i::Handle<i::WasmCompiledModule> compiled_module(
+      i::WasmCompiledModule::cast(script->wasm_compiled_module()), isolate);
+  return i::wasm::DisassembleFunction(compiled_module, function_index);
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {
