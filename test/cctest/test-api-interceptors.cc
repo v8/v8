@@ -380,11 +380,8 @@ void InterceptorHasOwnPropertyGetterGC(
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
-}  // namespace
-
 int query_counter_int = 0;
 
-namespace {
 void QueryCallback(Local<Name> property,
                    const v8::PropertyCallbackInfo<v8::Integer>& info) {
   query_counter_int++;
@@ -479,12 +476,13 @@ THREADED_TEST(QueryInterceptor) {
   CHECK_EQ(query_counter_int, 8);
 }
 
+namespace {
+
 bool get_was_called = false;
 bool set_was_called = false;
 
 int set_was_called_counter = 0;
 
-namespace {
 void GetterCallback(Local<Name> property,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called = true;
@@ -610,10 +608,11 @@ THREADED_TEST(SetterCallbackFunctionDeclarationInterceptorThrow) {
   CHECK_EQ(set_was_called, false);
 }
 
-bool get_was_called_in_order = false;
-bool define_was_called_in_order = false;
 
 namespace {
+
+bool get_was_called_in_order = false;
+bool define_was_called_in_order = false;
 
 void GetterCallbackOrder(Local<Name> property,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1972,8 +1971,9 @@ THREADED_TEST(PropertyDescriptorCallback) {
   }
 }
 
+namespace {
 int echo_indexed_call_count = 0;
-
+}  // namespace
 
 static void EchoIndexedProperty(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
