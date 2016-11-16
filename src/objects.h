@@ -2353,6 +2353,11 @@ class JSObject: public JSReceiver {
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
   static void InvalidatePrototypeChains(Map* map);
 
+  // Updates prototype chain tracking information when an object changes its
+  // map from |old_map| to |new_map|.
+  static void NotifyMapChange(Handle<Map> old_map, Handle<Map> new_map,
+                              Isolate* isolate);
+
   // Utility used by many Array builtins and runtime functions
   static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
 

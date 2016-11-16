@@ -3207,7 +3207,7 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
                                                Handle<Map> new_map,
                                                Isolate* isolate) {
-  if (!old_map->is_prototype_map()) return;
+  DCHECK(old_map->is_prototype_map());
   DCHECK(new_map->is_prototype_map());
   bool was_registered = JSObject::UnregisterPrototypeUser(old_map, isolate);
   new_map->set_prototype_info(old_map->prototype_info());
@@ -3567,22 +3567,26 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
 
 }  // namespace
 
+// static
+void JSObject::NotifyMapChange(Handle<Map> old_map, Handle<Map> new_map,
+                               Isolate* isolate) {
+  if (!old_map->is_prototype_map()) return;
+
+  InvalidatePrototypeChains(*old_map);
+
+  // If the map was registered with its prototype before, ensure that it
+  // registers with its new prototype now. This preserves the invariant that
+  // when a map on a prototype chain is registered with its prototype, then
+  // all prototypes further up the chain are also registered with their
+  // respective prototypes.
+  UpdatePrototypeUserRegistration(old_map, new_map, isolate);
+}
+
 void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
                             int expected_additional_properties) {
   if (object->map() == *new_map) return;
   Handle<Map> old_map(object->map());
-  if (old_map->is_prototype_map()) {
-    // If this object is a prototype (the callee will check), invalidate any
-    // prototype chains involving it.
-    InvalidatePrototypeChains(object->map());
-
-    // If the map was registered with its prototype before, ensure that it
-    // registers with its new prototype now. This preserves the invariant that
-    // when a map on a prototype chain is registered with its prototype, then
-    // all prototypes further up the chain are also registered with their
-    // respective prototypes.
-    UpdatePrototypeUserRegistration(old_map, new_map, new_map->GetIsolate());
-  }
+  NotifyMapChange(old_map, new_map, new_map->GetIsolate());
 
   if (old_map->is_dictionary_map()) {
     // For slow-to-fast migrations JSObject::MigrateSlowToFast()
@@ -6012,7 +6016,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   Handle<Map> new_map = Map::CopyDropDescriptors(old_map);
   new_map->set_dictionary_map(false);
 
-  UpdatePrototypeUserRegistration(old_map, new_map, isolate);
+  NotifyMapChange(old_map, new_map, isolate);
 
 #if TRACE_MAPS
   if (FLAG_trace_maps) {
@@ -12704,7 +12708,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
 
 
 static void InvalidatePrototypeChainsInternal(Map* map) {
-  if (!map->is_prototype_map()) return;
+  DCHECK(map->is_prototype_map());
   if (FLAG_trace_prototype_users) {
     PrintF("Invalidating prototype map %p 's cell\n",
            reinterpret_cast<void*>(map));

@@ -2219,12 +2219,11 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   // The proxy's hash should be retained across reinitialization.
   Handle<Object> hash(object->hash(), isolate());
 
-  JSObject::InvalidatePrototypeChains(*old_map);
   if (old_map->is_prototype_map()) {
     map = Map::Copy(map, "CopyAsPrototypeForJSGlobalProxy");
     map->set_is_prototype_map(true);
   }
-  JSObject::UpdatePrototypeUserRegistration(old_map, map, isolate());
+  JSObject::NotifyMapChange(old_map, map, isolate());
 
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
