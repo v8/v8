@@ -1097,22 +1097,15 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
         code = slow_stub();
       }
     } else if (lookup->state() == LookupIterator::INTERCEPTOR) {
-      if (kind() == Code::LOAD_GLOBAL_IC) {
-        // The interceptor handler requires name but it is not passed explicitly
-        // to LoadGlobalIC and the LoadGlobalIC dispatcher also does not load
-        // it so we will just use slow stub.
+      // Perform a lookup behind the interceptor. Copy the LookupIterator
+      // since the original iterator will be used to fetch the value.
+      LookupIterator it = *lookup;
+      it.Next();
+      LookupForRead(&it);
+      if (it.state() == LookupIterator::ACCESSOR &&
+          !IsCompatibleReceiver(&it, receiver_map())) {
+        TRACE_GENERIC_IC(isolate(), "LoadIC", "incompatible receiver type");
         code = slow_stub();
-      } else {
-        // Perform a lookup behind the interceptor. Copy the LookupIterator
-        // since the original iterator will be used to fetch the value.
-        LookupIterator it = *lookup;
-        it.Next();
-        LookupForRead(&it);
-        if (it.state() == LookupIterator::ACCESSOR &&
-            !IsCompatibleReceiver(&it, receiver_map())) {
-          TRACE_GENERIC_IC(isolate(), "LoadIC", "incompatible receiver type");
-          code = slow_stub();
-        }
       }
     }
     if (code.is_null()) code = ComputeHandler(lookup);
@@ -3167,15 +3160,17 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   if (it.IsFound()) return *result;
 
-#ifdef DEBUG
   LoadICNexus nexus(isolate);
   LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   // It could actually be any kind of LoadICs here but the predicate handles
   // all the cases properly.
-  DCHECK(!ic.ShouldThrowReferenceError());
-#endif
+  if (!ic.ShouldThrowReferenceError()) {
+    return isolate->heap()->undefined_value();
+  }
 
-  return isolate->heap()->undefined_value();
+  // Throw a reference error.
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError(MessageTemplate::kNotDefined, it.name()));
 }
 
 
