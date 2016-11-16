@@ -619,7 +619,6 @@
   'debug-evaluate-locals': [FAIL],
   'debug-set-variable-value': [FAIL],
   'debug-liveedit-double-call': [FAIL],
-  'es6/debug-evaluate-blockscopes': [FAIL],
 
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],

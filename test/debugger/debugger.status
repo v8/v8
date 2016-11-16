@@ -30,6 +30,7 @@
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug/debug-evaluate-closure': [FAIL],
+  'debug/es6/debug-evaluate-blockscopes': [FAIL],
 }],  # variant == turbofan_opt
 
 ##############################################################################

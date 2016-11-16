@@ -63,6 +63,13 @@ class DebugWrapper {
     this.ExceptionBreak = { Caught : 0,
                             Uncaught: 1 };
 
+    // The different types of breakpoint position alignments.
+    // Must match BreakPositionAlignment in debug.h.
+    this.BreakPositionAlignment = {
+      Statement: 0,
+      BreakPosition: 1
+    };
+
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
 
@@ -118,8 +125,6 @@ class DebugWrapper {
     assertTrue(%IsFunction(func));
     assertFalse(%FunctionIsAPIFunction(func));
 
-    // TODO(jgruber): We handle only script breakpoints for now.
-
     const scriptid = %FunctionGetScriptId(func);
     assertTrue(scriptid != -1);
 
@@ -155,18 +160,91 @@ class DebugWrapper {
     this.takeReplyChecked(msgid);
   }
 
-  // Returns the serialized result of the given expression. For example:
-  // {"type":"number", "value":33, "description":"33"}.
-  evaluate(frameid, expression) {
-    const {msgid, msg} = this.createMessage(
-        "Debugger.evaluateOnCallFrame",
-        { callFrameId : frameid,
-          expression : expression
-        });
-    this.sendMessage(msg);
+  showBreakPoints(f, opt_position_alignment) {
+    if (!%IsFunction(f)) throw new Error("Not passed a Function");
 
-    const reply = this.takeReplyChecked(msgid);
-    return reply.result.result;
+    const source = %FunctionGetSourceCode(f);
+    const offset = %FunctionGetScriptSourcePosition(f);
+    const position_alignment = opt_position_alignment === undefined
+        ? this.BreakPositionAlignment.Statement : opt_position_alignment;
+    const locations = %GetBreakLocations(f, position_alignment);
+
+    if (!locations) return source;
+
+    locations.sort(function(x, y) { return x - y; });
+
+    let result = "";
+    let prev_pos = 0;
+    let pos;
+
+    for (var i = 0; i < locations.length; i++) {
+      pos = locations[i] - offset;
+      result += source.slice(prev_pos, pos);
+      result += "[B" + i + "]";
+      prev_pos = pos;
+    }
+
+    pos = source.length;
+    result += source.substring(prev_pos, pos);
+
+    return result;
+  }
+
+  debuggerFlags() {
+    return { breakPointsActive :
+                { setValue : (enabled) => this.setBreakPointsActive(enabled) }
+           };
+  }
+
+  scripts() {
+    // Collect all scripts in the heap.
+    return %DebugGetLoadedScripts();
+  }
+
+  // Returns a Script object. If the parameter is a function the return value
+  // is the script in which the function is defined. If the parameter is a string
+  // the return value is the script for which the script name has that string
+  // value.  If it is a regexp and there is a unique script whose name matches
+  // we return that, otherwise undefined.
+  findScript(func_or_script_name) {
+    if (%IsFunction(func_or_script_name)) {
+      return %FunctionGetScript(func_or_script_name);
+    } else if (%IsRegExp(func_or_script_name)) {
+      var scripts = this.scripts();
+      var last_result = null;
+      var result_count = 0;
+      for (var i in scripts) {
+        var script = scripts[i];
+        if (func_or_script_name.test(script.name)) {
+          last_result = script;
+          result_count++;
+        }
+      }
+      // Return the unique script matching the regexp.  If there are more
+      // than one we don't return a value since there is no good way to
+      // decide which one to return.  Returning a "random" one, say the
+      // first, would introduce nondeterminism (or something close to it)
+      // because the order is the heap iteration order.
+      if (result_count == 1) {
+        return last_result;
+      } else {
+        return undefined;
+      }
+    } else {
+      return %GetScript(func_or_script_name);
+    }
+  }
+
+  sourcePosition(f) {
+    if (!%IsFunction(f)) throw new Error("Not passed a Function");
+    return %FunctionGetScriptSourcePosition(f);
+  };
+
+  setBreakPointsActive(enabled) {
+    const {msgid, msg} = this.createMessage(
+        "Debugger.setBreakpointsActive", { active : enabled });
+    this.sendMessage(msg);
+    this.takeReplyChecked(msgid);
   }
 
   // --- Internal methods. -----------------------------------------------------
@@ -236,13 +314,64 @@ class DebugWrapper {
     }
   }
 
+  execStateScopeObjectProperty(serialized_scope, prop) {
+    let found = null;
+    for (let i = 0; i < serialized_scope.length; i++) {
+      const elem = serialized_scope[i];
+      if (elem.name == prop) {
+        found = elem;
+        break;
+      }
+    }
+
+    if (found == null) return { isUndefined : true }
+
+    const val = { value : () => found.value.value };
+    return { value : () => val,
+             isUndefined : () => found.value.type == "undefined"
+           };
+  }
+
   // Returns an array of property descriptors of the scope object.
   // This is in contrast to the original API, which simply passed object
   // mirrors.
   execStateScopeObject(obj) {
     const serialized_scope = this.getProperties(obj.objectId);
-    const scope = {}
-    const scope_tuples = serialized_scope.forEach((elem) => {
+    const scope = this.propertiesToObject(serialized_scope);
+    return { value : () => scope,
+             property : (prop) =>
+                 this.execStateScopeObjectProperty(serialized_scope, prop)
+           };
+  }
+
+  setVariableValue(frame, scope_index, name, value) {
+    const frameid = frame.callFrameId;
+    const {msgid, msg} = this.createMessage(
+        "Debugger.setVariableValue",
+        { callFrameId : frameid,
+          scopeNumber : scope_index,
+          variableName : name,
+          newValue : { value : value }
+        });
+    this.sendMessage(msg);
+    this.takeReplyChecked(msgid);
+  }
+
+  execStateScope(frame, scope_index) {
+    const scope = frame.scopeChain[scope_index];
+    return { scopeType : () => this.execStateScopeType(scope.type),
+             scopeObject : () => this.execStateScopeObject(scope.object),
+             setVariableValue :
+                (name, value) => this.setVariableValue(frame, scope_index,
+                                                       name, value)
+           };
+  }
+
+  // Takes a list of properties as produced by getProperties and turns them
+  // into an object.
+  propertiesToObject(props) {
+    const obj = {}
+    props.forEach((elem) => {
       const key = elem.name;
 
       let value;
@@ -254,16 +383,10 @@ class DebugWrapper {
         }
       }
 
-      scope[key] = value;
+      obj[key] = value;
     })
 
-    return { value : () => scope };
-  }
-
-  execStateScope(scope) {
-    return { scopeType : () => this.execStateScopeType(scope.type),
-             scopeObject : () => this.execStateScopeObject(scope.object)
-           };
+    return obj;
   }
 
   getProperties(objectId) {
@@ -312,7 +435,38 @@ class DebugWrapper {
     return { value : () => localValue };
   }
 
-  execStateFrameEvaluate(frame, expr) {
+  reconstructRemoteObject(obj) {
+    let value = obj.value;
+    if (obj.type == "object") {
+      if (obj.subtype == "error") {
+        const desc = obj.description;
+        switch (obj.className) {
+          case "EvalError": throw new EvalError(desc);
+          case "RangeError": throw new RangeError(desc);
+          case "ReferenceError": throw new ReferenceError(desc);
+          case "SyntaxError": throw new SyntaxError(desc);
+          case "TypeError": throw new TypeError(desc);
+          case "URIError": throw new URIError(desc);
+          default: throw new Error(desc);
+        }
+      } else if (obj.subtype == "array") {
+        const array = [];
+        const props = this.propertiesToObject(
+            this.getProperties(obj.objectId));
+        for (let i = 0; i < props.length; i++) {
+          array[i] = props[i];
+        }
+        value = array;
+      }
+    }
+
+    return { value : () => value,
+             isUndefined : () => obj.type == "undefined"
+           };
+
+  }
+
+  evaluateOnCallFrame(frame, expr) {
     const frameid = frame.callFrameId;
     const {msgid, msg} = this.createMessage(
         "Debugger.evaluateOnCallFrame",
@@ -323,11 +477,7 @@ class DebugWrapper {
     const reply = this.takeReplyChecked(msgid);
 
     const result = reply.result.result;
-    if (result.subtype == "error") {
-      throw new Error(result.description);
-    }
-
-    return { value : () => result.value };
+    return this.reconstructRemoteObject(result);
   }
 
   execStateFrame(frame) {
@@ -336,17 +486,68 @@ class DebugWrapper {
     const column = frame.location.columnNumber;
     const loc = %ScriptLocationFromLine2(scriptid, line, column, 0);
     const func = { name : () => frame.functionName };
-    return { sourceLineText : () => loc.sourceText,
-             evaluate : (expr) => this.execStateFrameEvaluate(frame, expr),
+
+    function allScopes() {
+      const scopes = [];
+      for (let i = 0; i < frame.scopeChain.length; i++) {
+        scopes.push(this.execStateScope(frame, i));
+      }
+      return scopes;
+    };
+
+    return { sourceColumn : () => loc.column,
+             sourceLine : () => loc.line + 1,
+             sourceLineText : () => loc.sourceText,
+             evaluate : (expr) => this.evaluateOnCallFrame(frame, expr),
              functionName : () => frame.functionName,
              func : () => func,
              localCount : () => this.execStateFrameLocalCount(frame),
              localName : (ix) => this.execStateFrameLocalName(frame, ix),
              localValue: (ix) => this.execStateFrameLocalValue(frame, ix),
              scopeCount : () => frame.scopeChain.length,
-             scope : (index) => this.execStateScope(frame.scopeChain[index]),
-             allScopes : () => frame.scopeChain.map(
-                 this.execStateScope.bind(this))
+             scope : (index) => this.execStateScope(frame, index),
+             allScopes : allScopes.bind(this)
+           };
+  }
+
+  eventDataException(params) {
+    switch (params.data.type) {
+      case "string": {
+        return params.data.value;
+      }
+      case "object": {
+        const props = this.getProperties(params.data.objectId);
+        return this.propertiesToObject(props);
+      }
+      default: {
+        return undefined;
+      }
+    }
+  }
+
+  eventDataScriptSource(id) {
+    const {msgid, msg} = this.createMessage(
+        "Debugger.getScriptSource", { scriptId : id });
+    this.sendMessage(msg);
+    const reply = this.takeReplyChecked(msgid);
+    return reply.result.scriptSource;
+  }
+
+  eventDataScriptSetSource(id, src) {
+    const {msgid, msg} = this.createMessage(
+        "Debugger.setScriptSource", { scriptId : id, scriptSource : src });
+    this.sendMessage(msg);
+    this.takeReplyChecked(msgid);
+  }
+
+  eventDataScript(params) {
+    const id = params.scriptId;
+    const name = params.url ? params.url : undefined;
+
+    return { id : () => id,
+             name : () => name,
+             source : () => this.eventDataScriptSource(id),
+             setSource : (src) => this.eventDataScriptSetSource(id, src)
            };
   }
 
@@ -358,6 +559,8 @@ class DebugWrapper {
       this.handleDebuggerPaused(message);
     } else if (method == "Debugger.scriptParsed") {
       this.handleDebuggerScriptParsed(message);
+    } else if (method == "Debugger.scriptFailedToParse") {
+      this.handleDebuggerScriptFailedToParse(message);
     }
   }
 
@@ -391,6 +594,7 @@ class DebugWrapper {
     let eventData = this.execStateFrame(params.callFrames[0]);
     if (debugEvent == this.DebugEvent.Exception) {
       eventData.uncaught = () => params.data.uncaught;
+      eventData.exception = () => this.eventDataException(params);
     }
 
     this.invokeListener(debugEvent, execState, eventData);
@@ -399,12 +603,26 @@ class DebugWrapper {
   handleDebuggerScriptParsed(message) {
     const params = message.params;
     let eventData = { scriptId : params.scriptId,
+                      script : () => this.eventDataScript(params),
                       eventType : this.DebugEvent.AfterCompile
                     }
 
     // TODO(jgruber): Arguments as needed. Still completely missing exec_state,
     // and eventData used to contain the script mirror instead of its id.
     this.invokeListener(this.DebugEvent.AfterCompile, undefined, eventData,
+                        undefined);
+  }
+
+  handleDebuggerScriptFailedToParse(message) {
+    const params = message.params;
+    let eventData = { scriptId : params.scriptId,
+                      script : () => this.eventDataScript(params),
+                      eventType : this.DebugEvent.CompileError
+                    }
+
+    // TODO(jgruber): Arguments as needed. Still completely missing exec_state,
+    // and eventData used to contain the script mirror instead of its id.
+    this.invokeListener(this.DebugEvent.CompileError, undefined, eventData,
                         undefined);
   }
 

@@ -1033,25 +1033,31 @@ void V8DebuggerAgentImpl::didParseSource(
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
 
-  Maybe<String16> sourceMapURLParam = script->sourceMappingURL();
+  m_scripts[scriptId] = std::move(script);
+
+  ScriptsMap::iterator scriptIterator = m_scripts.find(scriptId);
+  DCHECK(scriptIterator != m_scripts.end());
+  V8DebuggerScript* scriptRef = scriptIterator->second.get();
+
+  Maybe<String16> sourceMapURLParam = scriptRef->sourceMappingURL();
   Maybe<protocol::DictionaryValue> executionContextAuxDataParam(
       std::move(executionContextAuxData));
   const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
   const bool* hasSourceURLParam = hasSourceURL ? &hasSourceURL : nullptr;
   if (success)
     m_frontend.scriptParsed(
-        scriptId, scriptURL, script->startLine(), script->startColumn(),
-        script->endLine(), script->endColumn(), script->executionContextId(),
-        script->hash(), std::move(executionContextAuxDataParam),
-        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam);
+        scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
+        scriptRef->endLine(), scriptRef->endColumn(),
+        scriptRef->executionContextId(), scriptRef->hash(),
+        std::move(executionContextAuxDataParam), isLiveEditParam,
+        std::move(sourceMapURLParam), hasSourceURLParam);
   else
     m_frontend.scriptFailedToParse(
-        scriptId, scriptURL, script->startLine(), script->startColumn(),
-        script->endLine(), script->endColumn(), script->executionContextId(),
-        script->hash(), std::move(executionContextAuxDataParam),
-        std::move(sourceMapURLParam), hasSourceURLParam);
-
-  m_scripts[scriptId] = std::move(script);
+        scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
+        scriptRef->endLine(), scriptRef->endColumn(),
+        scriptRef->executionContextId(), scriptRef->hash(),
+        std::move(executionContextAuxDataParam), std::move(sourceMapURLParam),
+        hasSourceURLParam);
 
   if (scriptURL.isEmpty() || !success) return;
 
