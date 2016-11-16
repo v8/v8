@@ -322,36 +322,38 @@ void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << "StringAddStub_" << flags() << "_" << pretenure_flag();
 }
 
-void StringAddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StringAddStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* left = assembler->Parameter(Descriptor::kLeft);
-  Node* right = assembler->Parameter(Descriptor::kRight);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  CodeStubAssembler assembler(state);
+  Node* left = assembler.Parameter(Descriptor::kLeft);
+  Node* right = assembler.Parameter(Descriptor::kRight);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   if ((flags() & STRING_ADD_CHECK_LEFT) != 0) {
     DCHECK((flags() & STRING_ADD_CONVERT) != 0);
     // TODO(danno): The ToString and JSReceiverToPrimitive below could be
     // combined to avoid duplicate smi and instance type checks.
-    left = assembler->ToString(context,
-                               assembler->JSReceiverToPrimitive(context, left));
+    left = assembler.ToString(context,
+                              assembler.JSReceiverToPrimitive(context, left));
   }
   if ((flags() & STRING_ADD_CHECK_RIGHT) != 0) {
     DCHECK((flags() & STRING_ADD_CONVERT) != 0);
     // TODO(danno): The ToString and JSReceiverToPrimitive below could be
     // combined to avoid duplicate smi and instance type checks.
-    right = assembler->ToString(
-        context, assembler->JSReceiverToPrimitive(context, right));
+    right = assembler.ToString(context,
+                               assembler.JSReceiverToPrimitive(context, right));
   }
 
   if ((flags() & STRING_ADD_CHECK_BOTH) == 0) {
     CodeStubAssembler::AllocationFlag flags =
         (pretenure_flag() == TENURED) ? CodeStubAssembler::kPretenured
                                       : CodeStubAssembler::kNone;
-    assembler->Return(assembler->StringAdd(context, left, right, flags));
+    assembler.Return(assembler.StringAdd(context, left, right, flags));
   } else {
     Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
                                                pretenure_flag());
-    assembler->TailCallStub(callable, context, left, right);
+    assembler.TailCallStub(callable, context, left, right);
   }
 }
 
@@ -422,299 +424,338 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  CodeStubAssembler assembler(isolate(), &zone, descriptor, GetCodeFlags(),
-                              name);
-  GenerateAssembly(&assembler);
-  return assembler.GenerateCode();
+  compiler::CodeAssemblerState state(isolate(), &zone, descriptor,
+                                     GetCodeFlags(), name);
+  GenerateAssembly(&state);
+  return compiler::CodeAssembler::GenerateCode(&state);
 }
 
 void LoadICTrampolineStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler->LoadIC(&p);
+  assembler.LoadIC(&p);
 }
 
-void LoadICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void LoadICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler->LoadIC(&p);
+  assembler.LoadIC(&p);
 }
 
 void LoadICProtoArrayStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* handler = assembler->Parameter(Descriptor::kHandler);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* handler = assembler.Parameter(Descriptor::kHandler);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler->LoadICProtoArray(&p, handler);
+  assembler.LoadICProtoArray(&p, handler);
 }
 
 void LoadGlobalICTrampolineStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
                                         vector);
-  assembler->LoadGlobalIC(&p);
+  assembler.LoadGlobalIC(&p);
 }
 
-void LoadGlobalICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void LoadGlobalICStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
                                         vector);
-  assembler->LoadGlobalIC(&p);
+  assembler.LoadGlobalIC(&p);
 }
 
 void KeyedLoadICTrampolineTFStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler->KeyedLoadIC(&p);
+  assembler.KeyedLoadIC(&p);
 }
 
-void KeyedLoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void KeyedLoadICTFStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  assembler->KeyedLoadIC(&p);
+  assembler.KeyedLoadIC(&p);
 }
 
 void StoreICTrampolineStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
                                          vector);
-  assembler->StoreIC(&p);
+  assembler.StoreIC(&p);
 }
 
-void StoreICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StoreICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
                                          vector);
-  assembler->StoreIC(&p);
+  assembler.StoreIC(&p);
 }
 
 void KeyedStoreICTrampolineTFStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
                                          vector);
-  assembler->KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
+  assembler.KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
 }
 
-void KeyedStoreICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void KeyedStoreICTFStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
   CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
                                          vector);
-  assembler->KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
+  assembler.KeyedStoreIC(&p, StoreICState::GetLanguageMode(GetExtraICState()));
 }
 
-void StoreMapStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StoreMapStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* map = assembler->Parameter(Descriptor::kMap);
-  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* map = assembler.Parameter(Descriptor::kMap);
+  Node* value = assembler.Parameter(Descriptor::kValue);
 
-  assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
-  assembler->Return(value);
+  assembler.StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler.Return(value);
 }
 
-void StoreTransitionStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StoreTransitionStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
   Node* offset =
-      assembler->SmiUntag(assembler->Parameter(Descriptor::kFieldOffset));
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* map = assembler->Parameter(Descriptor::kMap);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+      assembler.SmiUntag(assembler.Parameter(Descriptor::kFieldOffset));
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* map = assembler.Parameter(Descriptor::kMap);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
   Representation representation = this->representation();
-  assembler->Comment("StoreTransitionStub: is_inobject: %d: representation: %s",
-                     is_inobject(), representation.Mnemonic());
+  assembler.Comment("StoreTransitionStub: is_inobject: %d: representation: %s",
+                    is_inobject(), representation.Mnemonic());
 
   Node* prepared_value =
-      assembler->PrepareValueForWrite(value, representation, &miss);
+      assembler.PrepareValueForWrite(value, representation, &miss);
 
   if (store_mode() == StoreTransitionStub::ExtendStorageAndStoreMapAndValue) {
-    assembler->Comment("Extend storage");
-    assembler->ExtendPropertiesBackingStore(receiver);
+    assembler.Comment("Extend storage");
+    assembler.ExtendPropertiesBackingStore(receiver);
   } else {
     DCHECK(store_mode() == StoreTransitionStub::StoreMapAndValue);
   }
 
   // Store the new value into the "extended" object.
-  assembler->Comment("Store value");
-  assembler->StoreNamedField(receiver, offset, is_inobject(), representation,
-                             prepared_value, true);
+  assembler.Comment("Store value");
+  assembler.StoreNamedField(receiver, offset, is_inobject(), representation,
+                            prepared_value, true);
 
   // And finally update the map.
-  assembler->Comment("Store map");
-  assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
-  assembler->Return(value);
+  assembler.Comment("Store map");
+  assembler.StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler.Return(value);
 
   // Only store to tagged field never bails out.
   if (!representation.IsTagged()) {
-    assembler->Bind(&miss);
+    assembler.Bind(&miss);
     {
-      assembler->Comment("Miss");
-      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                                 vector, receiver, name);
+      assembler.Comment("Miss");
+      assembler.TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                vector, receiver, name);
     }
   }
 }
 
 void ElementsTransitionAndStoreStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* key = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* map = assembler->Parameter(Descriptor::kMap);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* key = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* map = assembler.Parameter(Descriptor::kMap);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  assembler->Comment(
+  assembler.Comment(
       "ElementsTransitionAndStoreStub: from_kind=%s, to_kind=%s,"
       " is_jsarray=%d, store_mode=%d",
       ElementsKindToString(from_kind()), ElementsKindToString(to_kind()),
       is_jsarray(), store_mode());
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    assembler->Goto(&miss);
+    assembler.Goto(&miss);
   } else {
-    assembler->TransitionElementsKind(receiver, map, from_kind(), to_kind(),
-                                      is_jsarray(), &miss);
-    assembler->EmitElementStore(receiver, key, value, is_jsarray(), to_kind(),
-                                store_mode(), &miss);
-    assembler->Return(value);
+    assembler.TransitionElementsKind(receiver, map, from_kind(), to_kind(),
+                                     is_jsarray(), &miss);
+    assembler.EmitElementStore(receiver, key, value, is_jsarray(), to_kind(),
+                               store_mode(), &miss);
+    assembler.Return(value);
   }
 
-  assembler->Bind(&miss);
+  assembler.Bind(&miss);
   {
-    assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss,
-                               context, receiver, key, value, map, slot,
-                               vector);
+    assembler.Comment("Miss");
+    assembler.TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss,
+                              context, receiver, key, value, map, slot, vector);
   }
 }
 
 void AllocateHeapNumberStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* result = assembler->AllocateHeapNumber();
-  assembler->Return(result);
+  Node* result = assembler.AllocateHeapNumber();
+  assembler.Return(result);
 }
 
-#define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)            \
-  void Allocate##Type##Stub::GenerateAssembly(CodeStubAssembler* assembler) \
-      const {                                                               \
-    compiler::Node* result =                                                \
-        assembler->Allocate(Simd128Value::kSize, CodeStubAssembler::kNone); \
-    compiler::Node* map = assembler->LoadMap(result);                       \
-    assembler->StoreNoWriteBarrier(                                         \
-        MachineRepresentation::kTagged, map,                                \
-        assembler->HeapConstant(isolate()->factory()->type##_map()));       \
-    assembler->Return(result);                                              \
+#define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)           \
+  void Allocate##Type##Stub::GenerateAssembly(                             \
+      compiler::CodeAssemblerState* state) const {                         \
+    CodeStubAssembler assembler(state);                                    \
+    compiler::Node* result =                                               \
+        assembler.Allocate(Simd128Value::kSize, CodeStubAssembler::kNone); \
+    compiler::Node* map = assembler.LoadMap(result);                       \
+    assembler.StoreNoWriteBarrier(                                         \
+        MachineRepresentation::kTagged, map,                               \
+        assembler.HeapConstant(isolate()->factory()->type##_map()));       \
+    assembler.Return(result);                                              \
   }
 SIMD128_TYPES(SIMD128_GEN_ASM)
 #undef SIMD128_GEN_ASM
 
-void StringLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  compiler::Node* value = assembler->Parameter(0);
-  compiler::Node* string = assembler->LoadJSValueValue(value);
-  compiler::Node* result = assembler->LoadStringLength(string);
-  assembler->Return(result);
+void StringLengthStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  CodeStubAssembler assembler(state);
+  compiler::Node* value = assembler.Parameter(0);
+  compiler::Node* string = assembler.LoadJSValueValue(value);
+  compiler::Node* result = assembler.LoadStringLength(string);
+  assembler.Return(result);
 }
+
+#define BINARY_OP_STUB(Name)                                               \
+  void Name::GenerateAssembly(compiler::CodeAssemblerState* state) const { \
+    typedef BinaryOpWithVectorDescriptor Descriptor;                       \
+    CodeStubAssembler assembler(state);                                    \
+    assembler.Return(Generate(&assembler,                                  \
+                              assembler.Parameter(Descriptor::kLeft),      \
+                              assembler.Parameter(Descriptor::kRight),     \
+                              assembler.Parameter(Descriptor::kSlot),      \
+                              assembler.Parameter(Descriptor::kVector),    \
+                              assembler.Parameter(Descriptor::kContext))); \
+  }
+BINARY_OP_STUB(AddWithFeedbackStub)
+BINARY_OP_STUB(SubtractWithFeedbackStub)
+BINARY_OP_STUB(MultiplyWithFeedbackStub)
+BINARY_OP_STUB(DivideWithFeedbackStub)
+BINARY_OP_STUB(ModulusWithFeedbackStub)
+#undef BINARY_OP_STUB
 
 // static
 compiler::Node* AddWithFeedbackStub::Generate(
@@ -1666,6 +1707,17 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   return var_result.value();
 }
 
+#define UNARY_OP_STUB(Name)                                                   \
+  void Name::GenerateAssembly(compiler::CodeAssemblerState* state) const {    \
+    CodeStubAssembler assembler(state);                                       \
+    assembler.Return(Generate(&assembler, assembler.Parameter(0),             \
+                              assembler.Parameter(1), assembler.Parameter(2), \
+                              assembler.Parameter(3)));                       \
+  }
+UNARY_OP_STUB(IncStub)
+UNARY_OP_STUB(DecStub)
+#undef UNARY_OP_STUB
+
 // static
 compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
                                   compiler::Node* value,
@@ -1799,11 +1851,13 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
   return result_var.value();
 }
 
-void NumberToStringStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void NumberToStringStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* argument = assembler->Parameter(Descriptor::kArgument);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  assembler->Return(assembler->NumberToString(context, argument));
+  CodeStubAssembler assembler(state);
+  Node* argument = assembler.Parameter(Descriptor::kArgument);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  assembler.Return(assembler.NumberToString(context, argument));
 }
 
 // static
@@ -1948,110 +2002,126 @@ compiler::Node* SubStringStub::Generate(CodeStubAssembler* assembler,
   return assembler->SubString(context, string, from, to);
 }
 
-void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void SubStringStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  CodeStubAssembler assembler(state);
+  assembler.Return(Generate(&assembler,
+                            assembler.Parameter(Descriptor::kString),
+                            assembler.Parameter(Descriptor::kFrom),
+                            assembler.Parameter(Descriptor::kTo),
+                            assembler.Parameter(Descriptor::kContext)));
+}
+
+void LoadApiGetterStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  CodeStubAssembler assembler(state);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
   // For now we only support receiver_is_holder.
   DCHECK(receiver_is_holder());
   Node* holder = receiver;
-  Node* map = assembler->LoadMap(receiver);
-  Node* descriptors = assembler->LoadMapDescriptors(map);
+  Node* map = assembler.LoadMap(receiver);
+  Node* descriptors = assembler.LoadMapDescriptors(map);
   Node* value_index =
-      assembler->IntPtrConstant(DescriptorArray::ToValueIndex(index()));
-  Node* callback = assembler->LoadFixedArrayElement(
+      assembler.IntPtrConstant(DescriptorArray::ToValueIndex(index()));
+  Node* callback = assembler.LoadFixedArrayElement(
       descriptors, value_index, 0, CodeStubAssembler::INTPTR_PARAMETERS);
-  assembler->TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
-                          holder, callback);
+  assembler.TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
+                         holder, callback);
 }
 
-void StoreFieldStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StoreFieldStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
   FieldIndex index = this->index();
   Representation representation = this->representation();
 
-  assembler->Comment("StoreFieldStub: inobject=%d, offset=%d, rep=%s",
-                     index.is_inobject(), index.offset(),
-                     representation.Mnemonic());
+  assembler.Comment("StoreFieldStub: inobject=%d, offset=%d, rep=%s",
+                    index.is_inobject(), index.offset(),
+                    representation.Mnemonic());
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
   Node* prepared_value =
-      assembler->PrepareValueForWrite(value, representation, &miss);
-  assembler->StoreNamedField(receiver, index, representation, prepared_value,
-                             false);
-  assembler->Return(value);
+      assembler.PrepareValueForWrite(value, representation, &miss);
+  assembler.StoreNamedField(receiver, index, representation, prepared_value,
+                            false);
+  assembler.Return(value);
 
   // Only stores to tagged field can't bailout.
   if (!representation.IsTagged()) {
-    assembler->Bind(&miss);
+    assembler.Bind(&miss);
     {
-      assembler->Comment("Miss");
-      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                                 vector, receiver, name);
+      assembler.Comment("Miss");
+      assembler.TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                vector, receiver, name);
     }
   }
 }
 
-void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void StoreGlobalStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  assembler->Comment(
+  assembler.Comment(
       "StoreGlobalStub: cell_type=%d, constant_type=%d, check_global=%d",
       cell_type(), PropertyCellType::kConstantType == cell_type()
                        ? static_cast<int>(constant_type())
                        : -1,
       check_global());
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
   if (check_global()) {
     // Check that the map of the global has not changed: use a placeholder map
     // that will be replaced later with the global object's map.
-    Node* proxy_map = assembler->LoadMap(receiver);
-    Node* global = assembler->LoadObjectField(proxy_map, Map::kPrototypeOffset);
-    Node* map_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
+    Node* proxy_map = assembler.LoadMap(receiver);
+    Node* global = assembler.LoadObjectField(proxy_map, Map::kPrototypeOffset);
+    Node* map_cell = assembler.HeapConstant(isolate()->factory()->NewWeakCell(
         StoreGlobalStub::global_map_placeholder(isolate())));
-    Node* expected_map = assembler->LoadWeakCellValueUnchecked(map_cell);
-    Node* map = assembler->LoadMap(global);
-    assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
+    Node* expected_map = assembler.LoadWeakCellValueUnchecked(map_cell);
+    Node* map = assembler.LoadMap(global);
+    assembler.GotoIf(assembler.WordNotEqual(expected_map, map), &miss);
   }
 
-  Node* weak_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
+  Node* weak_cell = assembler.HeapConstant(isolate()->factory()->NewWeakCell(
       StoreGlobalStub::property_cell_placeholder(isolate())));
-  Node* cell = assembler->LoadWeakCellValue(weak_cell);
-  assembler->GotoIf(assembler->TaggedIsSmi(cell), &miss);
+  Node* cell = assembler.LoadWeakCellValue(weak_cell);
+  assembler.GotoIf(assembler.TaggedIsSmi(cell), &miss);
 
   // Load the payload of the global parameter cell. A hole indicates that the
   // cell has been invalidated and that the store must be handled by the
   // runtime.
   Node* cell_contents =
-      assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
+      assembler.LoadObjectField(cell, PropertyCell::kValueOffset);
 
   PropertyCellType cell_type = this->cell_type();
   if (cell_type == PropertyCellType::kConstant ||
       cell_type == PropertyCellType::kUndefined) {
     // This is always valid for all states a cell can be in.
-    assembler->GotoIf(assembler->WordNotEqual(cell_contents, value), &miss);
+    assembler.GotoIf(assembler.WordNotEqual(cell_contents, value), &miss);
   } else {
-    assembler->GotoIf(assembler->IsTheHole(cell_contents), &miss);
+    assembler.GotoIf(assembler.IsTheHole(cell_contents), &miss);
 
     // When dealing with constant types, the type may be allowed to change, as
     // long as optimized code remains valid.
@@ -2059,7 +2129,7 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     if (cell_type == PropertyCellType::kConstantType) {
       switch (constant_type()) {
         case PropertyCellConstantType::kSmi:
-          assembler->GotoUnless(assembler->TaggedIsSmi(value), &miss);
+          assembler.GotoUnless(assembler.TaggedIsSmi(value), &miss);
           value_is_smi = true;
           break;
         case PropertyCellConstantType::kStableMap: {
@@ -2068,148 +2138,154 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           // are the maps that were originally in the cell or not. If optimized
           // code will deopt when a cell has a unstable map and if it has a
           // dependency on a stable map, it will deopt if the map destabilizes.
-          assembler->GotoIf(assembler->TaggedIsSmi(value), &miss);
-          assembler->GotoIf(assembler->TaggedIsSmi(cell_contents), &miss);
-          Node* expected_map = assembler->LoadMap(cell_contents);
-          Node* map = assembler->LoadMap(value);
-          assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
+          assembler.GotoIf(assembler.TaggedIsSmi(value), &miss);
+          assembler.GotoIf(assembler.TaggedIsSmi(cell_contents), &miss);
+          Node* expected_map = assembler.LoadMap(cell_contents);
+          Node* map = assembler.LoadMap(value);
+          assembler.GotoIf(assembler.WordNotEqual(expected_map, map), &miss);
           break;
         }
       }
     }
     if (value_is_smi) {
-      assembler->StoreObjectFieldNoWriteBarrier(
-          cell, PropertyCell::kValueOffset, value);
+      assembler.StoreObjectFieldNoWriteBarrier(cell, PropertyCell::kValueOffset,
+                                               value);
     } else {
-      assembler->StoreObjectField(cell, PropertyCell::kValueOffset, value);
+      assembler.StoreObjectField(cell, PropertyCell::kValueOffset, value);
     }
   }
 
-  assembler->Return(value);
+  assembler.Return(value);
 
-  assembler->Bind(&miss);
+  assembler.Bind(&miss);
   {
-    assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                               vector, receiver, name);
+    assembler.Comment("Miss");
+    assembler.TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                              vector, receiver, name);
   }
 }
 
 void KeyedLoadSloppyArgumentsStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* key = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* key = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
-  Node* result = assembler->LoadKeyedSloppyArguments(receiver, key, &miss);
-  assembler->Return(result);
+  Node* result = assembler.LoadKeyedSloppyArguments(receiver, key, &miss);
+  assembler.Return(result);
 
-  assembler->Bind(&miss);
+  assembler.Bind(&miss);
   {
-    assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver,
-                               key, slot, vector);
+    assembler.Comment("Miss");
+    assembler.TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver,
+                              key, slot, vector);
   }
 }
 
 void KeyedStoreSloppyArgumentsStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* key = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* key = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
-  assembler->StoreKeyedSloppyArguments(receiver, key, value, &miss);
-  assembler->Return(value);
+  assembler.StoreKeyedSloppyArguments(receiver, key, value, &miss);
+  assembler.Return(value);
 
-  assembler->Bind(&miss);
+  assembler.Bind(&miss);
   {
-    assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value,
-                               slot, vector, receiver, key);
+    assembler.Comment("Miss");
+    assembler.TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot,
+                              vector, receiver, key);
   }
 }
 
 void LoadScriptContextFieldStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  assembler->Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
-                     context_index(), slot_index());
+  assembler.Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
+                    context_index(), slot_index());
 
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Node* script_context = assembler->LoadScriptContext(context, context_index());
-  Node* result = assembler->LoadFixedArrayElement(
-      script_context, assembler->IntPtrConstant(slot_index()), 0,
+  Node* script_context = assembler.LoadScriptContext(context, context_index());
+  Node* result = assembler.LoadFixedArrayElement(
+      script_context, assembler.IntPtrConstant(slot_index()), 0,
       CodeStubAssembler::INTPTR_PARAMETERS);
-  assembler->Return(result);
+  assembler.Return(result);
 }
 
 void StoreScriptContextFieldStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  assembler->Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
-                     context_index(), slot_index());
+  assembler.Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
+                    context_index(), slot_index());
 
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Node* script_context = assembler->LoadScriptContext(context, context_index());
-  assembler->StoreFixedArrayElement(
-      script_context, assembler->IntPtrConstant(slot_index()), value,
+  Node* script_context = assembler.LoadScriptContext(context, context_index());
+  assembler.StoreFixedArrayElement(
+      script_context, assembler.IntPtrConstant(slot_index()), value,
       UPDATE_WRITE_BARRIER, CodeStubAssembler::INTPTR_PARAMETERS);
-  assembler->Return(value);
+  assembler.Return(value);
 }
 
 void StoreInterceptorStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* name = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  assembler->TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context,
-                             receiver, name, value);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  assembler.TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context,
+                            receiver, name, value);
 }
 
 void LoadIndexedInterceptorStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
+  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* key = assembler->Parameter(Descriptor::kName);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* key = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label if_keyispositivesmi(assembler), if_keyisinvalid(assembler);
-  assembler->Branch(assembler->WordIsPositiveSmi(key), &if_keyispositivesmi,
-                    &if_keyisinvalid);
-  assembler->Bind(&if_keyispositivesmi);
-  assembler->TailCallRuntime(Runtime::kLoadElementWithInterceptor, context,
-                             receiver, key);
+  Label if_keyispositivesmi(&assembler), if_keyisinvalid(&assembler);
+  assembler.Branch(assembler.WordIsPositiveSmi(key), &if_keyispositivesmi,
+                   &if_keyisinvalid);
+  assembler.Bind(&if_keyispositivesmi);
+  assembler.TailCallRuntime(Runtime::kLoadElementWithInterceptor, context,
+                            receiver, key);
 
-  assembler->Bind(&if_keyisinvalid);
-  assembler->TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key,
-                             slot, vector);
+  assembler.Bind(&if_keyisinvalid);
+  assembler.TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key,
+                            slot, vector);
 }
 
 // static
@@ -2316,25 +2392,27 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
 }
 
 void FastCloneShallowObjectStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  Label call_runtime(assembler);
-  Node* closure = assembler->Parameter(0);
-  Node* literals_index = assembler->Parameter(1);
+  CodeStubAssembler assembler(state);
+
+  Label call_runtime(&assembler);
+  Node* closure = assembler.Parameter(0);
+  Node* literals_index = assembler.Parameter(1);
 
   Node* properties_count =
-      assembler->IntPtrConstant(PropertiesCount(this->length()));
-  Node* copy = GenerateFastPath(assembler, &call_runtime, closure,
+      assembler.IntPtrConstant(PropertiesCount(this->length()));
+  Node* copy = GenerateFastPath(&assembler, &call_runtime, closure,
                                 literals_index, properties_count);
-  assembler->Return(copy);
+  assembler.Return(copy);
 
-  assembler->Bind(&call_runtime);
-  Node* constant_properties = assembler->Parameter(2);
-  Node* flags = assembler->Parameter(3);
-  Node* context = assembler->Parameter(4);
-  assembler->TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                             literals_index, constant_properties, flags);
+  assembler.Bind(&call_runtime);
+  Node* constant_properties = assembler.Parameter(2);
+  Node* flags = assembler.Parameter(3);
+  Node* context = assembler.Parameter(4);
+  assembler.TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
+                            literals_index, constant_properties, flags);
 }
 
 template<class StateType>
@@ -2427,65 +2505,67 @@ void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
       FUNCTION_ADDR(Runtime_BinaryOpIC_MissWithAllocationSite));
 }
 
-void GetPropertyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void GetPropertyStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
+  CodeStubAssembler assembler(state);
 
-  Label call_runtime(assembler, Label::kDeferred), return_undefined(assembler),
-      end(assembler);
+  Label call_runtime(&assembler, Label::kDeferred),
+      return_undefined(&assembler), end(&assembler);
 
-  Node* object = assembler->Parameter(0);
-  Node* key = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Node* object = assembler.Parameter(0);
+  Node* key = assembler.Parameter(1);
+  Node* context = assembler.Parameter(2);
+  Variable var_result(&assembler, MachineRepresentation::kTagged);
 
   CodeStubAssembler::LookupInHolder lookup_property_in_holder =
-      [assembler, context, &var_result, &end](
+      [&assembler, context, &var_result, &end](
           Node* receiver, Node* holder, Node* holder_map,
           Node* holder_instance_type, Node* unique_name, Label* next_holder,
           Label* if_bailout) {
-        Variable var_value(assembler, MachineRepresentation::kTagged);
-        Label if_found(assembler);
-        assembler->TryGetOwnProperty(
+        Variable var_value(&assembler, MachineRepresentation::kTagged);
+        Label if_found(&assembler);
+        assembler.TryGetOwnProperty(
             context, receiver, holder, holder_map, holder_instance_type,
             unique_name, &if_found, &var_value, next_holder, if_bailout);
-        assembler->Bind(&if_found);
+        assembler.Bind(&if_found);
         {
           var_result.Bind(var_value.value());
-          assembler->Goto(&end);
+          assembler.Goto(&end);
         }
       };
 
   CodeStubAssembler::LookupInHolder lookup_element_in_holder =
-      [assembler, context, &var_result, &end](
+      [&assembler, context, &var_result, &end](
           Node* receiver, Node* holder, Node* holder_map,
           Node* holder_instance_type, Node* index, Label* next_holder,
           Label* if_bailout) {
         // Not supported yet.
-        assembler->Use(next_holder);
-        assembler->Goto(if_bailout);
+        assembler.Use(next_holder);
+        assembler.Goto(if_bailout);
       };
 
-  assembler->TryPrototypeChainLookup(object, key, lookup_property_in_holder,
-                                     lookup_element_in_holder,
-                                     &return_undefined, &call_runtime);
+  assembler.TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+                                    lookup_element_in_holder, &return_undefined,
+                                    &call_runtime);
 
-  assembler->Bind(&return_undefined);
+  assembler.Bind(&return_undefined);
   {
-    var_result.Bind(assembler->UndefinedConstant());
-    assembler->Goto(&end);
+    var_result.Bind(assembler.UndefinedConstant());
+    assembler.Goto(&end);
   }
 
-  assembler->Bind(&call_runtime);
+  assembler.Bind(&call_runtime);
   {
     var_result.Bind(
-        assembler->CallRuntime(Runtime::kGetProperty, context, object, key));
-    assembler->Goto(&end);
+        assembler.CallRuntime(Runtime::kGetProperty, context, object, key));
+    assembler.Goto(&end);
   }
 
-  assembler->Bind(&end);
-  assembler->Return(var_result.value());
+  assembler.Bind(&end);
+  assembler.Return(var_result.value());
 }
 
 // static
@@ -2639,9 +2719,11 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   return result;
 }
 
-void FastNewClosureStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  assembler->Return(
-      Generate(assembler, assembler->Parameter(0), assembler->Parameter(1)));
+void FastNewClosureStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  CodeStubAssembler assembler(state);
+  assembler.Return(
+      Generate(&assembler, assembler.Parameter(0), assembler.Parameter(1)));
 }
 
 // static
@@ -2698,13 +2780,14 @@ compiler::Node* FastNewFunctionContextStub::Generate(
 }
 
 void FastNewFunctionContextStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* function = assembler->Parameter(Descriptor::kFunction);
-  Node* slots = assembler->Parameter(FastNewFunctionContextDescriptor::kSlots);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  CodeStubAssembler assembler(state);
+  Node* function = assembler.Parameter(Descriptor::kFunction);
+  Node* slots = assembler.Parameter(FastNewFunctionContextDescriptor::kSlots);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  assembler->Return(Generate(assembler, function, slots, context));
+  assembler.Return(Generate(&assembler, function, slots, context));
 }
 
 // static
@@ -2752,16 +2835,18 @@ compiler::Node* FastCloneRegExpStub::Generate(CodeStubAssembler* assembler,
   return result.value();
 }
 
-void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+void FastCloneRegExpStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* closure = assembler->Parameter(Descriptor::kClosure);
-  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
-  Node* pattern = assembler->Parameter(Descriptor::kPattern);
-  Node* flags = assembler->Parameter(Descriptor::kFlags);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  CodeStubAssembler assembler(state);
+  Node* closure = assembler.Parameter(Descriptor::kClosure);
+  Node* literal_index = assembler.Parameter(Descriptor::kLiteralIndex);
+  Node* pattern = assembler.Parameter(Descriptor::kPattern);
+  Node* flags = assembler.Parameter(Descriptor::kFlags);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  assembler->Return(
-      Generate(assembler, closure, literal_index, pattern, flags, context));
+  assembler.Return(
+      Generate(&assembler, closure, literal_index, pattern, flags, context));
 }
 
 namespace {
@@ -2926,28 +3011,30 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
 }
 
 void FastCloneShallowArrayStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
-  Node* closure = assembler->Parameter(Descriptor::kClosure);
-  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
-  Node* constant_elements = assembler->Parameter(Descriptor::kConstantElements);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-  Label call_runtime(assembler, Label::kDeferred);
-  assembler->Return(Generate(assembler, closure, literal_index, context,
-                             &call_runtime, allocation_site_mode()));
+  CodeStubAssembler assembler(state);
 
-  assembler->Bind(&call_runtime);
+  Node* closure = assembler.Parameter(Descriptor::kClosure);
+  Node* literal_index = assembler.Parameter(Descriptor::kLiteralIndex);
+  Node* constant_elements = assembler.Parameter(Descriptor::kConstantElements);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Label call_runtime(&assembler, Label::kDeferred);
+  assembler.Return(Generate(&assembler, closure, literal_index, context,
+                            &call_runtime, allocation_site_mode()));
+
+  assembler.Bind(&call_runtime);
   {
-    assembler->Comment("call runtime");
-    Node* flags = assembler->SmiConstant(
+    assembler.Comment("call runtime");
+    Node* flags = assembler.SmiConstant(
         Smi::FromInt(ArrayLiteral::kShallowElements |
                      (allocation_site_mode() == TRACK_ALLOCATION_SITE
                           ? 0
                           : ArrayLiteral::kDisableMementos)));
-    assembler->Return(assembler->CallRuntime(Runtime::kCreateArrayLiteral,
-                                             context, closure, literal_index,
-                                             constant_elements, flags));
+    assembler.Return(assembler.CallRuntime(Runtime::kCreateArrayLiteral,
+                                           context, closure, literal_index,
+                                           constant_elements, flags));
   }
 }
 
@@ -2969,32 +3056,33 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
 }
 
 void StoreFastElementStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-  assembler->Comment(
+  assembler.Comment(
       "StoreFastElementStub: js_array=%d, elements_kind=%s, store_mode=%d",
       is_js_array(), ElementsKindToString(elements_kind()), store_mode());
 
-  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
-  Node* key = assembler->Parameter(Descriptor::kName);
-  Node* value = assembler->Parameter(Descriptor::kValue);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-  Node* vector = assembler->Parameter(Descriptor::kVector);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* key = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
 
-  Label miss(assembler);
+  Label miss(&assembler);
 
-  assembler->EmitElementStore(receiver, key, value, is_js_array(),
-                              elements_kind(), store_mode(), &miss);
-  assembler->Return(value);
+  assembler.EmitElementStore(receiver, key, value, is_js_array(),
+                             elements_kind(), store_mode(), &miss);
+  assembler.Return(value);
 
-  assembler->Bind(&miss);
+  assembler.Bind(&miss);
   {
-    assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value,
-                               slot, vector, receiver, key);
+    assembler.Comment("Miss");
+    assembler.TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot,
+                              vector, receiver, key);
   }
 }
 
@@ -3078,50 +3166,55 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
 }
 
 void CreateAllocationSiteStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
-  assembler->Return(assembler->CreateAllocationSiteInFeedbackVector(
-      assembler->Parameter(Descriptor::kVector),
-      assembler->Parameter(Descriptor::kSlot)));
+    compiler::CodeAssemblerState* state) const {
+  CodeStubAssembler assembler(state);
+  assembler.Return(assembler.CreateAllocationSiteInFeedbackVector(
+      assembler.Parameter(Descriptor::kVector),
+      assembler.Parameter(Descriptor::kSlot)));
 }
 
-void CreateWeakCellStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  assembler->Return(assembler->CreateWeakCellInFeedbackVector(
-      assembler->Parameter(Descriptor::kVector),
-      assembler->Parameter(Descriptor::kSlot),
-      assembler->Parameter(Descriptor::kValue)));
+void CreateWeakCellStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  CodeStubAssembler assembler(state);
+  assembler.Return(assembler.CreateWeakCellInFeedbackVector(
+      assembler.Parameter(Descriptor::kVector),
+      assembler.Parameter(Descriptor::kSlot),
+      assembler.Parameter(Descriptor::kValue)));
 }
 
 void ArrayNoArgumentConstructorStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* native_context = assembler->LoadObjectField(
-      assembler->Parameter(Descriptor::kFunction), JSFunction::kContextOffset);
+  CodeStubAssembler assembler(state);
+  Node* native_context = assembler.LoadObjectField(
+      assembler.Parameter(Descriptor::kFunction), JSFunction::kContextOffset);
   bool track_allocation_site =
       AllocationSite::GetMode(elements_kind()) == TRACK_ALLOCATION_SITE &&
       override_mode() != DISABLE_ALLOCATION_SITES;
-  Node* allocation_site =
-      track_allocation_site ? assembler->Parameter(Descriptor::kAllocationSite)
-                            : nullptr;
+  Node* allocation_site = track_allocation_site
+                              ? assembler.Parameter(Descriptor::kAllocationSite)
+                              : nullptr;
   Node* array_map =
-      assembler->LoadJSArrayElementsMap(elements_kind(), native_context);
-  Node* array = assembler->AllocateJSArray(
+      assembler.LoadJSArrayElementsMap(elements_kind(), native_context);
+  Node* array = assembler.AllocateJSArray(
       elements_kind(), array_map,
-      assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->SmiConstant(Smi::kZero), allocation_site);
-  assembler->Return(array);
+      assembler.IntPtrConstant(JSArray::kPreallocatedArrayElements),
+      assembler.SmiConstant(Smi::kZero), allocation_site);
+  assembler.Return(array);
 }
 
 void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
   Node* array_map =
-      assembler->LoadObjectField(assembler->Parameter(Descriptor::kFunction),
-                                 JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array = assembler->AllocateJSArray(
+      assembler.LoadObjectField(assembler.Parameter(Descriptor::kFunction),
+                                JSFunction::kPrototypeOrInitialMapOffset);
+  Node* array = assembler.AllocateJSArray(
       elements_kind(), array_map,
-      assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->SmiConstant(Smi::kZero), nullptr);
-  assembler->Return(array);
+      assembler.IntPtrConstant(JSArray::kPreallocatedArrayElements),
+      assembler.SmiConstant(Smi::kZero), nullptr);
+  assembler.Return(array);
 }
 
 namespace {
@@ -3191,49 +3284,52 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
 }  // namespace
 
 void ArraySingleArgumentConstructorStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* function = assembler->Parameter(Descriptor::kFunction);
+  CodeStubAssembler assembler(state);
+  Node* function = assembler.Parameter(Descriptor::kFunction);
   Node* native_context =
-      assembler->LoadObjectField(function, JSFunction::kContextOffset);
+      assembler.LoadObjectField(function, JSFunction::kContextOffset);
   Node* array_map =
-      assembler->LoadJSArrayElementsMap(elements_kind(), native_context);
+      assembler.LoadJSArrayElementsMap(elements_kind(), native_context);
   AllocationSiteMode mode = override_mode() == DISABLE_ALLOCATION_SITES
                                 ? DONT_TRACK_ALLOCATION_SITE
                                 : AllocationSite::GetMode(elements_kind());
-  Node* allocation_site = assembler->Parameter(Descriptor::kAllocationSite);
-  SingleArgumentConstructorCommon<Descriptor>(assembler, elements_kind(),
+  Node* allocation_site = assembler.Parameter(Descriptor::kAllocationSite);
+  SingleArgumentConstructorCommon<Descriptor>(&assembler, elements_kind(),
                                               array_map, allocation_site, mode);
 }
 
 void InternalArraySingleArgumentConstructorStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  Node* function = assembler->Parameter(Descriptor::kFunction);
-  Node* array_map = assembler->LoadObjectField(
+  CodeStubAssembler assembler(state);
+  Node* function = assembler.Parameter(Descriptor::kFunction);
+  Node* array_map = assembler.LoadObjectField(
       function, JSFunction::kPrototypeOrInitialMapOffset);
   SingleArgumentConstructorCommon<Descriptor>(
-      assembler, elements_kind(), array_map, assembler->UndefinedConstant(),
+      &assembler, elements_kind(), array_map, assembler.UndefinedConstant(),
       DONT_TRACK_ALLOCATION_SITE);
 }
 
 void GrowArrayElementsStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+    compiler::CodeAssemblerState* state) const {
   typedef compiler::Node Node;
-  CodeStubAssembler::Label runtime(assembler,
+  CodeStubAssembler assembler(state);
+  CodeStubAssembler::Label runtime(&assembler,
                                    CodeStubAssembler::Label::kDeferred);
 
-  Node* object = assembler->Parameter(Descriptor::kObject);
-  Node* key = assembler->Parameter(Descriptor::kKey);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* object = assembler.Parameter(Descriptor::kObject);
+  Node* key = assembler.Parameter(Descriptor::kKey);
+  Node* context = assembler.Parameter(Descriptor::kContext);
   ElementsKind kind = elements_kind();
 
-  Node* elements = assembler->LoadElements(object);
+  Node* elements = assembler.LoadElements(object);
   Node* new_elements =
-      assembler->TryGrowElementsCapacity(object, elements, kind, key, &runtime);
-  assembler->Return(new_elements);
+      assembler.TryGrowElementsCapacity(object, elements, kind, key, &runtime);
+  assembler.Return(new_elements);
 
-  assembler->Bind(&runtime);
+  assembler.Bind(&runtime);
   // TODO(danno): Make this a tail call when the stub is only used from TurboFan
   // code. This musn't be a tail call for now, since the caller site in lithium
   // creates a safepoint. This safepoint musn't have a different number of
@@ -3243,8 +3339,8 @@ void GrowArrayElementsStub::GenerateAssembly(
   // tail call pushing the arguments on the stack for the runtime call). By not
   // tail-calling, the runtime call case also has zero arguments on the stack
   // for the stub frame.
-  assembler->Return(assembler->CallRuntime(Runtime::kGrowArrayElements, context,
-                                           object, key));
+  assembler.Return(
+      assembler.CallRuntime(Runtime::kGrowArrayElements, context, object, key));
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)

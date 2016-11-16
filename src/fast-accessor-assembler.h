@@ -98,6 +98,7 @@ class FastAccessorAssembler {
 
   Zone zone_;
   Isolate* isolate_;
+  compiler::CodeAssemblerState assembler_state_;
   std::unique_ptr<CodeStubAssembler> assembler_;
 
   // To prevent exposing the RMA internals to the outside world, we'll map

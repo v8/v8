@@ -5,6 +5,7 @@
 #ifndef V8_UNITTESTS_INTERPRETER_INTERPRETER_ASSEMBLER_UNITTEST_H_
 #define V8_UNITTESTS_INTERPRETER_INTERPRETER_ASSEMBLER_UNITTEST_H_
 
+#include "src/compiler/code-assembler.h"
 #include "src/compiler/machine-operator.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "test/unittests/test-utils.h"
@@ -16,6 +17,14 @@ namespace interpreter {
 
 using ::testing::Matcher;
 
+class InterpreterAssemblerTest;
+
+class InterpreterAssemblerTestState : public compiler::CodeAssemblerState {
+ public:
+  InterpreterAssemblerTestState(InterpreterAssemblerTest* test,
+                                Bytecode bytecode);
+};
+
 class InterpreterAssemblerTest : public TestWithIsolateAndZone {
  public:
   InterpreterAssemblerTest() {}
@@ -24,10 +33,9 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
   class InterpreterAssemblerForTest final : public InterpreterAssembler {
    public:
     InterpreterAssemblerForTest(
-        InterpreterAssemblerTest* test, Bytecode bytecode,
+        InterpreterAssemblerTestState* state, Bytecode bytecode,
         OperandScale operand_scale = OperandScale::kSingle)
-        : InterpreterAssembler(test->isolate(), test->zone(), bytecode,
-                               operand_scale) {}
+        : InterpreterAssembler(state, bytecode, operand_scale) {}
     ~InterpreterAssemblerForTest() override;
 
     Matcher<compiler::Node*> IsLoad(

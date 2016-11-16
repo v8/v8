@@ -1028,7 +1028,8 @@ class Isolate {
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
 
-  CallInterfaceDescriptorData* call_descriptor_data(int index);
+  V8_EXPORT_PRIVATE CallInterfaceDescriptorData* call_descriptor_data(
+      int index);
 
   AccessCompilerData* access_compiler_data() { return access_compiler_data_; }
 
