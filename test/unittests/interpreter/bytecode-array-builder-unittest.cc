@@ -258,6 +258,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .Bind(&after_jump2);
   }
 
+  // Emit set pending message bytecode.
+  builder.SetPendingMessage();
+
   // Emit stack check bytecode.
   builder.StackCheck(0);
 

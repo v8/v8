@@ -1729,6 +1729,12 @@ void BytecodeGraphBuilder::VisitStackCheck() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitSetPendingMessage() {
+  Node* previous_message = NewNode(javascript()->LoadMessage());
+  NewNode(javascript()->StoreMessage(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(previous_message);
+}
+
 void BytecodeGraphBuilder::VisitReturn() {
   BuildLoopExitsForFunctionExit();
   Node* pop_node = jsgraph()->ZeroConstant();

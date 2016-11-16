@@ -742,6 +742,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPendingMessage() {
+  OutputSetPendingMessage();
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
   OutputThrow();
   return *this;

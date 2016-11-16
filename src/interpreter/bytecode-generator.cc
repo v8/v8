@@ -1300,7 +1300,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // If requested, clear message object as we enter the catch block.
   if (stmt->clear_pending_message()) {
-    builder()->CallRuntime(Runtime::kInterpreterClearPendingMessage);
+    builder()->LoadTheHole().SetPendingMessage();
   }
 
   // Load the catch context into the accumulator.
@@ -1359,16 +1359,15 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   Register message = context;  // Reuse register.
 
   // Clear message object as we enter the finally block.
-  builder()
-      ->CallRuntime(Runtime::kInterpreterClearPendingMessage)
-      .StoreAccumulatorInRegister(message);
+  builder()->LoadTheHole().SetPendingMessage().StoreAccumulatorInRegister(
+      message);
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
   try_control_builder.EndFinally();
 
   // Pending message object is restored on exit.
-  builder()->CallRuntime(Runtime::kInterpreterSetPendingMessage, message);
+  builder()->LoadAccumulatorWithRegister(message).SetPendingMessage();
 
   // Dynamic dispatch after the finally-block.
   commands.ApplyDeferredCommands();

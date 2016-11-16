@@ -241,6 +241,9 @@ namespace interpreter {
   /* Perform a stack guard check */                                            \
   V(StackCheck, AccumulatorUse::kNone)                                         \
                                                                                \
+  /* Update the pending message */                                             \
+  V(SetPendingMessage, AccumulatorUse::kReadWrite)                             \
+                                                                               \
   /* Non-local flow control */                                                 \
   V(Throw, AccumulatorUse::kRead)                                              \
   V(ReThrow, AccumulatorUse::kRead)                                            \

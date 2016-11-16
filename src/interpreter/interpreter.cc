@@ -2371,6 +2371,22 @@ void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
   }
 }
 
+// SetPendingMessage
+//
+// Sets the pending message to the value in the accumulator, and returns the
+// previous pending message in the accumulator.
+void Interpreter::DoSetPendingMessage(InterpreterAssembler* assembler) {
+  Node* pending_message = __ ExternalConstant(
+      ExternalReference::address_of_pending_message_obj(isolate_));
+  Node* previous_message =
+      __ Load(MachineType::TaggedPointer(), pending_message);
+  Node* new_message = __ GetAccumulator();
+  __ StoreNoWriteBarrier(MachineRepresentation::kTaggedPointer, pending_message,
+                         new_message);
+  __ SetAccumulator(previous_message);
+  __ Dispatch();
+}
+
 // Throw
 //
 // Throws the exception in the accumulator.

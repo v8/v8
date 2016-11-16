@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 282
+bytecode array length: 274
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -66,23 +66,24 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(Star), R(9),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(15),
-                B(JumpIfTrue), U8(122),
+                B(JumpIfTrue), U8(119),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(2), U8(16),
-                B(JumpIfTrue), U8(116),
+                B(JumpIfTrue), U8(113),
                 B(LdaNamedProperty), R(2), U8(7), U8(17),
                 B(Star), R(6),
                 B(LdaNull),
                 B(TestEqual), R(6), U8(19),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(102),
+                B(Jump), U8(99),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(4), U8(20),
-                B(JumpIfFalse), U8(70),
+                B(JumpIfFalse), U8(67),
                 B(Ldar), R(6),
                 B(TypeOf),
                 B(Star), R(12),
@@ -100,12 +101,13 @@ bytecodes: [
                 B(Mov), R(6), R(13),
                 B(Mov), R(2), R(14),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(13), U8(2),
-                B(Jump), U8(23),
+                B(Jump), U8(20),
                 B(Star), R(13),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(13), U8(5), U8(10),
                 B(Star), R(12),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(12),
                 B(PushContext), R(8),
                 B(PopContext), R(8),
@@ -118,7 +120,8 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(7), U8(1),
-                B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(11), U8(1),
+                B(Ldar), R(11),
+                B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(9), U8(0),
                 B(JumpIfTrue), U8(4),
@@ -144,7 +147,7 @@ constant pool: [
 handlers: [
   [7, 120, 126],
   [10, 84, 86],
-  [204, 214, 216],
+  [201, 211, 213],
 ]
 
 ---
@@ -154,7 +157,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 293
+bytecode array length: 285
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -210,23 +213,24 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaSmi), U8(1),
                 B(Star), R(10),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Star), R(12),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(15),
-                B(JumpIfTrue), U8(122),
+                B(JumpIfTrue), U8(119),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(3), U8(16),
-                B(JumpIfTrue), U8(116),
+                B(JumpIfTrue), U8(113),
                 B(LdaNamedProperty), R(3), U8(7), U8(17),
                 B(Star), R(7),
                 B(LdaNull),
                 B(TestEqual), R(7), U8(19),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(102),
+                B(Jump), U8(99),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(5), U8(20),
-                B(JumpIfFalse), U8(70),
+                B(JumpIfFalse), U8(67),
                 B(Ldar), R(7),
                 B(TypeOf),
                 B(Star), R(13),
@@ -244,12 +248,13 @@ bytecodes: [
                 B(Mov), R(7), R(14),
                 B(Mov), R(3), R(15),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(14), U8(2),
-                B(Jump), U8(23),
+                B(Jump), U8(20),
                 B(Star), R(14),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(14), U8(5), U8(10),
                 B(Star), R(13),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(13),
                 B(PushContext), R(9),
                 B(PopContext), R(9),
@@ -262,7 +267,8 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(8), U8(1),
-                B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(12), U8(1),
+                B(Ldar), R(12),
+                B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(10), U8(0),
                 B(JumpIfTrue), U8(11),
@@ -293,7 +299,7 @@ constant pool: [
 handlers: [
   [11, 120, 126],
   [14, 84, 86],
-  [205, 215, 217],
+  [202, 212, 214],
 ]
 
 ---
@@ -305,7 +311,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 300
+bytecode array length: 292
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -368,23 +374,24 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(Star), R(9),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(17),
-                B(JumpIfTrue), U8(122),
+                B(JumpIfTrue), U8(119),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(2), U8(18),
-                B(JumpIfTrue), U8(116),
+                B(JumpIfTrue), U8(113),
                 B(LdaNamedProperty), R(2), U8(7), U8(19),
                 B(Star), R(6),
                 B(LdaNull),
                 B(TestEqual), R(6), U8(21),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(102),
+                B(Jump), U8(99),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(4), U8(22),
-                B(JumpIfFalse), U8(70),
+                B(JumpIfFalse), U8(67),
                 B(Ldar), R(6),
                 B(TypeOf),
                 B(Star), R(12),
@@ -402,12 +409,13 @@ bytecodes: [
                 B(Mov), R(6), R(13),
                 B(Mov), R(2), R(14),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(13), U8(2),
-                B(Jump), U8(23),
+                B(Jump), U8(20),
                 B(Star), R(13),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(13), U8(5), U8(10),
                 B(Star), R(12),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(12),
                 B(PushContext), R(8),
                 B(PopContext), R(8),
@@ -420,7 +428,8 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(7), U8(1),
-                B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(11), U8(1),
+                B(Ldar), R(11),
+                B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(9), U8(0),
                 B(JumpIfTrue), U8(4),
@@ -446,7 +455,7 @@ constant pool: [
 handlers: [
   [7, 138, 144],
   [10, 102, 104],
-  [222, 232, 234],
+  [219, 229, 231],
 ]
 
 ---
@@ -456,7 +465,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 307
+bytecode array length: 299
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(8),
@@ -516,23 +525,24 @@ bytecodes: [
                 B(Star), R(9),
                 B(LdaSmi), U8(1),
                 B(Star), R(8),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrict), R(3), U8(19),
-                B(JumpIfTrue), U8(122),
+                B(JumpIfTrue), U8(119),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(1), U8(20),
-                B(JumpIfTrue), U8(116),
+                B(JumpIfTrue), U8(113),
                 B(LdaNamedProperty), R(1), U8(9), U8(21),
                 B(Star), R(5),
                 B(LdaNull),
                 B(TestEqual), R(5), U8(23),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(102),
+                B(Jump), U8(99),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(3), U8(24),
-                B(JumpIfFalse), U8(70),
+                B(JumpIfFalse), U8(67),
                 B(Ldar), R(5),
                 B(TypeOf),
                 B(Star), R(11),
@@ -550,12 +560,13 @@ bytecodes: [
                 B(Mov), R(5), R(12),
                 B(Mov), R(1), R(13),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(12), U8(2),
-                B(Jump), U8(23),
+                B(Jump), U8(20),
                 B(Star), R(12),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(12), U8(7), U8(12),
                 B(Star), R(11),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(11),
                 B(PushContext), R(7),
                 B(PopContext), R(7),
@@ -568,7 +579,8 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(6), U8(1),
-                B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(10), U8(1),
+                B(Ldar), R(10),
+                B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(8), U8(0),
                 B(JumpIfTrue), U8(11),
@@ -601,6 +613,6 @@ constant pool: [
 handlers: [
   [15, 134, 140],
   [18, 98, 100],
-  [219, 229, 231],
+  [216, 226, 228],
 ]
 
