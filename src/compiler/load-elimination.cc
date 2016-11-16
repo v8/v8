@@ -866,10 +866,15 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
           }
           case IrOpcode::kTransitionElementsKind: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(
-                object, FieldIndexOf(HeapObject::kMapOffset), zone());
-            state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            Node* const target_map = NodeProperties::GetValueInput(current, 2);
+            Node* const object_map = state->LookupField(
+                object, FieldIndexOf(HeapObject::kMapOffset));
+            if (target_map != object_map) {
+              state = state->KillField(
+                  object, FieldIndexOf(HeapObject::kMapOffset), zone());
+              state = state->KillField(
+                  object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            }
             break;
           }
           case IrOpcode::kStoreField: {
