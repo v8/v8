@@ -8913,8 +8913,7 @@ TEST(TypedModeAmbientDeclarations) {
   const char* typed_inner_context_data[][2] = {
     {"'use types'; {", "}"},
     {"'use types'; try {", "} catch(x) {}"},
-    // TODO(nikolaos): Leaving this out, for now, there's an unrelated bug.
-    // {"'use types'; function f() {", "}"},
+    {"'use types'; function f() {", "}"},
     {"'use types'; for(", " of []) {}"},
     {NULL, NULL}
   };
