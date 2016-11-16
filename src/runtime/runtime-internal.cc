@@ -395,8 +395,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
             ? new ParseInfo(&zone, handle(location.function()->shared()))
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate,
-                          location.function()->shared()->IsUserJavaScript());
+      CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
     } else {

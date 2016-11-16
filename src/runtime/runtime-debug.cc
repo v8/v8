@@ -778,7 +778,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Add the receiver (same as in function frame).
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  DCHECK(function->shared()->IsUserJavaScript());
+  DCHECK(!function->shared()->IsBuiltin());
   DCHECK_IMPLIES(is_sloppy(shared->language_mode()), receiver->IsJSReceiver());
   details->set(kFrameDetailsReceiverIndex, *receiver);
 

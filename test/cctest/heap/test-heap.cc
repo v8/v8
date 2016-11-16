@@ -1712,7 +1712,7 @@ static int CountOptimizedUserFunctions(v8::Local<v8::Context> context) {
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
   Object* object = icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST);
   while (object->IsJSFunction() &&
-         JSFunction::cast(object)->shared()->IsUserJavaScript()) {
+         !JSFunction::cast(object)->shared()->IsBuiltin()) {
     count++;
     object = JSFunction::cast(object)->next_function_link();
   }
@@ -1854,7 +1854,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Local<v8::Context> context,
   Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST),
                         isolate);
   while (object->IsJSFunction() &&
-         Handle<JSFunction>::cast(object)->shared()->IsUserJavaScript()) {
+         !Handle<JSFunction>::cast(object)->shared()->IsBuiltin()) {
     count++;
     if (count == n)
       isolate->heap()->CollectAllGarbage(

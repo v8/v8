@@ -1025,11 +1025,10 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
     if (caller == NULL) return MaybeHandle<JSFunction>();
   } while (caller->shared()->is_toplevel());
 
-  // If caller is not user code and caller's caller is also not user code,
+  // If caller is a built-in function and caller's caller is also built-in,
   // use that instead.
   JSFunction* potential_caller = caller;
-  while (potential_caller != NULL &&
-         !potential_caller->shared()->IsUserJavaScript()) {
+  while (potential_caller != NULL && potential_caller->shared()->IsBuiltin()) {
     caller = potential_caller;
     potential_caller = it.next();
   }

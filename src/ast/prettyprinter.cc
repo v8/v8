@@ -14,14 +14,14 @@
 namespace v8 {
 namespace internal {
 
-CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
+CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin)
     : builder_(isolate) {
   isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
   found_ = false;
   done_ = false;
-  is_user_js_ = is_user_js;
+  is_builtin_ = is_builtin;
   InitializeAstVisitor(isolate);
 }
 
@@ -239,11 +239,11 @@ void CallPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void CallPrinter::VisitVariableProxy(VariableProxy* node) {
-  if (is_user_js_) {
-    PrintLiteral(node->name(), false);
-  } else {
-    // Variable names of non-user code are meaningless due to minification.
+  if (is_builtin_) {
+    // Variable names of builtins are meaningless due to minification.
     Print("(var)");
+  } else {
+    PrintLiteral(node->name(), false);
   }
 }
 
@@ -279,9 +279,9 @@ void CallPrinter::VisitProperty(Property* node) {
 void CallPrinter::VisitCall(Call* node) {
   bool was_found = !found_ && node->position() == position_;
   if (was_found) {
-    // Bail out if the error is caused by a direct call to a variable in
-    // non-user JS code. The variable name is meaningless due to minification.
-    if (!is_user_js_ && node->expression()->IsVariableProxy()) {
+    // Bail out if the error is caused by a direct call to a variable in builtin
+    // code. The variable name is meaningless due to minification.
+    if (is_builtin_ && node->expression()->IsVariableProxy()) {
       done_ = true;
       return;
     }
@@ -297,9 +297,9 @@ void CallPrinter::VisitCall(Call* node) {
 void CallPrinter::VisitCallNew(CallNew* node) {
   bool was_found = !found_ && node->position() == position_;
   if (was_found) {
-    // Bail out if the error is caused by a direct call to a variable in
-    // non-user JS code. The variable name is meaningless due to minification.
-    if (!is_user_js_ && node->expression()->IsVariableProxy()) {
+    // Bail out if the error is caused by a direct call to a variable in builtin
+    // code. The variable name is meaningless due to minification.
+    if (is_builtin_ && node->expression()->IsVariableProxy()) {
       done_ = true;
       return;
     }

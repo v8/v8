@@ -670,9 +670,8 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   // Script contexts have a canonical empty function as their closure, not the
   // anonymous closure containing the global code.  See
   // FullCodeGenerator::PushFunctionArgumentForContextAllocation.
-  Handle<JSFunction> closure(function->shared()->IsUserJavaScript()
-                                 ? native_context->closure()
-                                 : *function);
+  Handle<JSFunction> closure(
+      function->shared()->IsBuiltin() ? *function : native_context->closure());
   Handle<Context> result =
       isolate->factory()->NewScriptContext(closure, scope_info);
 
