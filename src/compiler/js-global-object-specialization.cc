@@ -225,14 +225,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       break;
     }
     case PropertyCellType::kMutable: {
-      // Store to non-configurable, data property on the global can be lowered
-      // to a field store, even without recording a code dependency on the cell,
-      // because the property cannot be deleted or reconfigured to an accessor
-      // or interceptor property.
-      if (property_details.IsConfigurable()) {
-        // Protect lowering by recording a code dependency on the cell.
-        dependencies()->AssumePropertyCell(property_cell);
-      }
+      // Record a code dependency on the cell, and just deoptimize if the
+      // property ever becomes read-only.
+      dependencies()->AssumePropertyCell(property_cell);
       effect = graph()->NewNode(
           simplified()->StoreField(ForPropertyCellValue(
               MachineRepresentation::kTagged, Type::NonInternal(), name)),
