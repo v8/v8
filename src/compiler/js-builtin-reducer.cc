@@ -235,17 +235,27 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   Node* control = NodeProperties::GetControlInput(node);
 
   if (iter_kind == ArrayIteratorKind::kTypedArray) {
-    // For JSTypedArray iterator methods, deopt if the buffer is neutered. This
-    // is potentially a deopt loop, but should be extremely unlikely.
-    DCHECK_EQ(JS_TYPED_ARRAY_TYPE, receiver_map->instance_type());
-    Node* buffer = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-        receiver, effect, control);
+    // See if we can skip the neutering check.
+    if (isolate()->IsArrayBufferNeuteringIntact()) {
+      // Add a code dependency so we are deoptimized in case an ArrayBuffer
+      // gets neutered.
+      dependencies()->AssumePropertyCell(
+          factory()->array_buffer_neutering_protector());
+    } else {
+      // For JSTypedArray iterator methods, deopt if the buffer is neutered.
+      // This is potentially a deopt loop, but should be extremely unlikely.
+      DCHECK_EQ(JS_TYPED_ARRAY_TYPE, receiver_map->instance_type());
+      Node* buffer = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+          receiver, effect, control);
 
-    Node* check = effect = graph()->NewNode(
-        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
-    check = graph()->NewNode(simplified()->BooleanNot(), check);
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+      // Deoptimize if the {buffer} has been neutered.
+      Node* check = effect = graph()->NewNode(
+          simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
+      check = graph()->NewNode(simplified()->BooleanNot(), check);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    }
   }
 
   int map_index = -1;
@@ -535,11 +545,20 @@ Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         array, efalse0, if_false0);
 
-    Node* check1 = efalse0 = graph()->NewNode(
-        simplified()->ArrayBufferWasNeutered(), buffer, efalse0, if_false0);
-    check1 = graph()->NewNode(simplified()->BooleanNot(), check1);
-    efalse0 =
-        graph()->NewNode(simplified()->CheckIf(), check1, efalse0, if_false0);
+    // See if we can skip the neutering check.
+    if (isolate()->IsArrayBufferNeuteringIntact()) {
+      // Add a code dependency so we are deoptimized in case an ArrayBuffer
+      // gets neutered.
+      dependencies()->AssumePropertyCell(
+          factory()->array_buffer_neutering_protector());
+    } else {
+      // Deoptimize if the array byuffer was neutered.
+      Node* check1 = efalse0 = graph()->NewNode(
+          simplified()->ArrayBufferWasNeutered(), buffer, efalse0, if_false0);
+      check1 = graph()->NewNode(simplified()->BooleanNot(), check1);
+      efalse0 =
+          graph()->NewNode(simplified()->CheckIf(), check1, efalse0, if_false0);
+    }
 
     Node* length = efalse0 = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()), array,
@@ -1775,21 +1794,29 @@ Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
   Node* control = NodeProperties::GetControlInput(node);
   if (HasInstanceTypeWitness(receiver, effect, instance_type)) {
     // Load the {receiver}s field.
-    Node* receiver_value = effect = graph()->NewNode(
-        simplified()->LoadField(access), receiver, effect, control);
+    Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
+                                            receiver, effect, control);
 
-    // Check if the {receiver}s buffer was neutered.
-    Node* receiver_buffer = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-        receiver, effect, control);
-    Node* check = effect =
-        graph()->NewNode(simplified()->ArrayBufferWasNeutered(),
-                         receiver_buffer, effect, control);
+    // See if we can skip the neutering check.
+    if (isolate()->IsArrayBufferNeuteringIntact()) {
+      // Add a code dependency so we are deoptimized in case an ArrayBuffer
+      // gets neutered.
+      dependencies()->AssumePropertyCell(
+          factory()->array_buffer_neutering_protector());
+    } else {
+      // Check if the {receiver}s buffer was neutered.
+      Node* receiver_buffer = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+          receiver, effect, control);
+      Node* check = effect =
+          graph()->NewNode(simplified()->ArrayBufferWasNeutered(),
+                           receiver_buffer, effect, control);
 
-    // Default to zero if the {receiver}s buffer was neutered.
-    Node* value = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-        check, jsgraph()->ZeroConstant(), receiver_value);
+      // Default to zero if the {receiver}s buffer was neutered.
+      value = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+          check, jsgraph()->ZeroConstant(), value);
+    }
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);

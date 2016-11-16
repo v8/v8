@@ -1001,6 +1001,9 @@ class Isolate {
   // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
   inline bool IsFastArrayIterationIntact();
 
+  // Make sure we do check for neutered array buffers.
+  inline bool IsArrayBufferNeuteringIntact();
+
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
   // object prototype. Also ensure that changes to prototype chain between
@@ -1020,6 +1023,7 @@ class Isolate {
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
+  void InvalidateArrayBufferNeuteringProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

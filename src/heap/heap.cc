@@ -2854,6 +2854,10 @@ void Heap::CreateInitialObjects() {
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_array_iterator_protector(*array_iterator_cell);
 
+  cell = factory->NewPropertyCell();
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_array_buffer_neutering_protector(*cell);
+
   set_serialized_templates(empty_fixed_array());
 
   set_weak_stack_trace_list(Smi::kZero);

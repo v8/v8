@@ -2960,6 +2960,15 @@ void Isolate::InvalidateArrayIteratorProtector() {
   DCHECK(!IsArrayIteratorLookupChainIntact());
 }
 
+void Isolate::InvalidateArrayBufferNeuteringProtector() {
+  DCHECK(factory()->array_buffer_neutering_protector()->value()->IsSmi());
+  DCHECK(IsArrayBufferNeuteringIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->array_buffer_neutering_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsArrayBufferNeuteringIntact());
+}
+
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);

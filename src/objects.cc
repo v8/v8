@@ -19488,6 +19488,11 @@ void JSArrayBuffer::Neuter() {
   set_backing_store(NULL);
   set_byte_length(Smi::kZero);
   set_was_neutered(true);
+  // Invalidate the neutering protector.
+  Isolate* const isolate = GetIsolate();
+  if (isolate->IsArrayBufferNeuteringIntact()) {
+    isolate->InvalidateArrayBufferNeuteringProtector();
+  }
 }
 
 
