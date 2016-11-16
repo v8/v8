@@ -728,11 +728,16 @@ class RuntimeCallTimer {
   V(Object_DeleteProperty)                          \
   V(OptimizeCode)                                   \
   V(ParseArrowFunctionLiteral)                      \
+  V(ParseBackgroundArrowFunctionLiteral)            \
+  V(ParseBackgroundFunctionLiteral)                 \
   V(ParseEval)                                      \
   V(ParseFunction)                                  \
   V(ParseFunctionLiteral)                           \
   V(ParseProgram)                                   \
   V(PreParseArrowFunctionLiteral)                   \
+  V(PreParseBackgroundArrowFunctionLiteral)         \
+  V(PreParseBackgroundNoVariableResolution)         \
+  V(PreParseBackgroundWithVariableResolution)       \
   V(PreParseNoVariableResolution)                   \
   V(PreParseWithVariableResolution)                 \
   V(PropertyCallback)                               \

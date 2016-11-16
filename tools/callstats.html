@@ -1365,6 +1365,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           Group.groups.get('ic').entry(),
           Group.groups.get('optimize').entry(),
           Group.groups.get('compile').entry(),
+          Group.groups.get('parse-background').entry(),
           Group.groups.get('parse').entry(),
           Group.groups.get('callback').entry(),
           Group.groups.get('api').entry(),
@@ -1554,19 +1555,24 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     Group.groups = new Map();
     Group.add = function(name, group) {
       this.groups.set(name, group);
+      return group;
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB'));
     Group.add('ic', new Group('IC', /.*IC.*/, "#3366CC"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
     Group.add('compile', new Group('Compile', /.*Compile.*/, "#FFAA00"));
+    Group.add('parse-background',
+        new Group('Parse-Background', /.*ParseBackground.*/, "#af744d"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
     Group.add('callback', new Group('Callback', /.*Callback.*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc', new Group('GC', /GC|AllocateInTargetSpace/, "#0099C6"));
     Group.add('javascript', new Group('JavaScript', /JS_Execution/, "#DD4477"));
     Group.add('runtime', new Group('Runtime', /.*/, "#88BB00"));
-    Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
+    var group = 
+      Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
+    group.enabled = false;
 
     class GroupedEntry extends Entry {
       constructor(group) {

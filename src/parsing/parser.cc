@@ -582,7 +582,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->ast_value_factory(),
-                         info->isolate()->counters()->runtime_call_stats()),
+                         info->isolate()->counters()->runtime_call_stats(),
+                         true),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       original_scope_(nullptr),
@@ -591,7 +592,6 @@ Parser::Parser(ParseInfo* info)
       compile_options_(info->compile_options()),
       cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
-      parsing_on_main_thread_(true),
       log_(nullptr) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -664,7 +664,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_, info->is_eval() ? &RuntimeCallStats::ParseEval
                                            : &RuntimeCallStats::ParseProgram);
@@ -2577,8 +2576,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool is_lazy_top_level_function =
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
 
-  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      &RuntimeCallStats::ParseFunctionLiteral);
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      parsing_on_main_thread_
+          ? &RuntimeCallStats::ParseFunctionLiteral
+          : &RuntimeCallStats::ParseBackgroundFunctionLiteral);
 
   // Determine whether we can still lazy parse the inner function.
   // The preconditions are:
@@ -2787,9 +2789,9 @@ Parser::LazyParsingResult Parser::SkipFunction(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   if (reusable_preparser_ == NULL) {
-    reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
-                                        &pending_error_handler_,
-                                        runtime_call_stats_, stack_limit_);
+    reusable_preparser_ = new PreParser(
+        zone(), &scanner_, stack_limit_, ast_value_factory(),
+        &pending_error_handler_, runtime_call_stats_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);

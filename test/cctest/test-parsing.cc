@@ -175,8 +175,9 @@ TEST(ScanHTMLEndComments) {
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(
-        &zone, &scanner, &ast_value_factory, &pending_error_handler,
-        CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
+        &zone, &scanner, stack_limit, &ast_value_factory,
+        &pending_error_handler,
+        CcTest::i_isolate()->counters()->runtime_call_stats());
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     CHECK(!pending_error_handler.has_pending_error());
@@ -192,8 +193,9 @@ TEST(ScanHTMLEndComments) {
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(
-        &zone, &scanner, &ast_value_factory, &pending_error_handler,
-        CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
+        &zone, &scanner, stack_limit, &ast_value_factory,
+        &pending_error_handler,
+        CcTest::i_isolate()->counters()->runtime_call_stats());
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -366,8 +368,9 @@ TEST(StandAlonePreParser) {
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(
-        &zone, &scanner, &ast_value_factory, &pending_error_handler,
-        CcTest::i_isolate()->counters()->runtime_call_stats(), stack_limit);
+        &zone, &scanner, stack_limit, &ast_value_factory,
+        &pending_error_handler,
+        CcTest::i_isolate()->counters()->runtime_call_stats());
     preparser.set_allow_natives(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -400,9 +403,9 @@ TEST(StandAlonePreParserNoNatives) {
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PendingCompilationErrorHandler pending_error_handler;
-    i::PreParser preparser(
-        &zone, &scanner, &ast_value_factory, &pending_error_handler,
-        isolate->counters()->runtime_call_stats(), stack_limit);
+    i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
+                           &pending_error_handler,
+                           isolate->counters()->runtime_call_stats());
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     CHECK(pending_error_handler.has_pending_error());
@@ -467,10 +470,10 @@ TEST(RegressChromium62639) {
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   i::PendingCompilationErrorHandler pending_error_handler;
-  i::PreParser preparser(&zone, &scanner, &ast_value_factory,
-                         &pending_error_handler,
-                         isolate->counters()->runtime_call_stats(),
-                         CcTest::i_isolate()->stack_guard()->real_climit());
+  i::PreParser preparser(&zone, &scanner,
+                         CcTest::i_isolate()->stack_guard()->real_climit(),
+                         &ast_value_factory, &pending_error_handler,
+                         isolate->counters()->runtime_call_stats());
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -543,9 +546,9 @@ TEST(PreParseOverflow) {
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   i::PendingCompilationErrorHandler pending_error_handler;
-  i::PreParser preparser(
-      &zone, &scanner, &ast_value_factory, &pending_error_handler,
-      isolate->counters()->runtime_call_stats(), stack_limit);
+  i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
+                         &pending_error_handler,
+                         isolate->counters()->runtime_call_stats());
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
@@ -1327,9 +1330,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(
-        &zone, &scanner, &ast_value_factory, &pending_error_handler,
-        isolate->counters()->runtime_call_stats(), stack_limit);
+    i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
+                           &pending_error_handler,
+                           isolate->counters()->runtime_call_stats());
     SetParserFlags(&preparser, flags);
     scanner.Initialize(stream.get());
     i::PreParser::PreParseResult result =

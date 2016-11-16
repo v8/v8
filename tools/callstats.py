@@ -347,6 +347,7 @@ def read_stats(path, domain, args):
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
         ('Group-Compile', re.compile(".*Compile.*")),
+        ('Group-ParseBackground', re.compile(".*ParseBackground.*")),
         ('Group-Parse', re.compile(".*Parse.*")),
         ('Group-Callback', re.compile(".*Callback.*")),
         ('Group-API', re.compile(".*API.*")),
@@ -385,12 +386,19 @@ def read_stats(path, domain, args):
           entries[group_name]['count'] += count
           break
     # Calculate the V8-Total (all groups except Callback)
-    total_v8 = { 'time': 0, 'count': 0 }
+    group_data = { 'time': 0, 'count': 0 }
     for group_name, regexp in groups:
       if group_name == 'Group-Callback': continue
-      total_v8['time'] += entries[group_name]['time']
-      total_v8['count'] += entries[group_name]['count']
-    entries['Group-Total-V8'] = total_v8
+      group_data['time'] += entries[group_name]['time']
+      group_data['count'] += entries[group_name]['count']
+    entries['Group-Total-V8'] = group_data
+    # Calculate the Parse-Total group
+    group_data = { 'time': 0, 'count': 0 }
+    for group_name, regexp in groups:
+      if !group_name.startswith('Group-Parse'): continue
+      group_data['time'] += entries[group_name]['time']
+      group_data['count'] += entries[group_name]['count']
+    entries['Group-Parse-Total'] = group_data
     # Append the sums as single entries to domain.
     for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }
