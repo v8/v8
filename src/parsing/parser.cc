@@ -2698,13 +2698,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                  : (use_temp_zone ? "Preparse resolution" : "Full parse"),
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
-      if (is_lazy_top_level_function) {
-        CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
-                                       PreParseNoVariableResolution);
-      } else if (use_temp_zone) {
-        CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
-                                       PreParseWithVariableResolution);
-      }
+    }
+    if (is_lazy_top_level_function) {
+      CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
+                                     PreParseNoVariableResolution);
+    } else if (use_temp_zone) {
+      CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
+                                     PreParseWithVariableResolution);
     }
 
     // Validate function name. We can do this only after parsing the function,
