@@ -115,6 +115,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                         AccessMode access_mode,
                                         KeyedAccessStoreMode store_mode);
 
+  // Construct an appropriate heap object check.
+  Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
+
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
                        std::vector<Handle<Map>> const& maps);

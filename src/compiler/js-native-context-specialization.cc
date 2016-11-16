@@ -171,8 +171,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                            receiver, effect, control);
     } else {
       // Monomorphic property access.
-      receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
-                                           receiver, effect, control);
+      receiver = BuildCheckHeapObject(receiver, &effect, control);
       effect = BuildCheckMaps(receiver, effect, control,
                               access_info.receiver_maps());
     }
@@ -210,8 +209,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
       receiverissmi_effect = effect;
     } else {
-      receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
-                                           receiver, effect, control);
+      receiver = BuildCheckHeapObject(receiver, &effect, control);
     }
 
     // Load the {receiver} map. The resulting effect is the dominating effect
@@ -520,8 +518,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Ensure that {receiver} is a heap object.
-    receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
-                                         receiver, effect, control);
+    receiver = BuildCheckHeapObject(receiver, &effect, control);
 
     // Check for the monomorphic case.
     if (access_infos.size() == 1) {
@@ -1070,8 +1067,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         }
         case MachineRepresentation::kTaggedPointer: {
           // Ensure that {value} is a HeapObject.
-          value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
-                                            value, effect, control);
+          value = BuildCheckHeapObject(value, &effect, control);
           Handle<Map> field_map;
           if (access_info.field_map().ToHandle(&field_map)) {
             // Emit a map check for the value.
@@ -1165,34 +1161,61 @@ JSNativeContextSpecialization::BuildElementAccess(
   ElementsKind elements_kind = access_info.elements_kind();
   MapList const& receiver_maps = access_info.receiver_maps();
 
-  // Load the elements for the {receiver}.
-  Node* elements = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-      effect, control);
-
-  // Don't try to store to a copy-on-write backing store.
-  if (access_mode == AccessMode::kStore &&
-      IsFastSmiOrObjectElementsKind(elements_kind) &&
-      store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(1), elements,
-                         jsgraph()->FixedArrayMapConstant(), effect, control);
-  }
-
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    // Load the {receiver}s length.
-    Node* length = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()),
-        receiver, effect, control);
+    Node* buffer;
+    Node* length;
+    Node* base_pointer;
+    Node* external_pointer;
 
-    // Check if the {receiver}s buffer was neutered.
-    Node* buffer = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-        receiver, effect, control);
-    Node* check = effect = graph()->NewNode(
-        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
+    // Check if we can constant-fold information about the {receiver} (i.e.
+    // for asm.js-like code patterns).
+    HeapObjectMatcher m(receiver);
+    if (m.HasValue() && m.Value()->IsJSTypedArray()) {
+      Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(m.Value());
+
+      // Determine the {receiver}s (known) length.
+      length = jsgraph()->Constant(typed_array->length_value());
+
+      // Check if the {receiver}s buffer was neutered.
+      buffer = jsgraph()->HeapConstant(typed_array->GetBuffer());
+
+      // Load the (known) base and external pointer for the {receiver}. The
+      // {external_pointer} might be invalid if the {buffer} was neutered, so
+      // we need to make sure that any access is properly guarded.
+      base_pointer = jsgraph()->ZeroConstant();
+      external_pointer = jsgraph()->PointerConstant(
+          FixedTypedArrayBase::cast(typed_array->elements())
+              ->external_pointer());
+    } else {
+      // Load the {receiver}s length.
+      length = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()),
+          receiver, effect, control);
+
+      // Load the buffer for the {receiver}.
+      buffer = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+          receiver, effect, control);
+
+      // Load the elements for the {receiver}.
+      Node* elements = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+          receiver, effect, control);
+
+      // Load the base and external pointer for the {receiver}s {elements}.
+      base_pointer = effect = graph()->NewNode(
+          simplified()->LoadField(
+              AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
+          elements, effect, control);
+      external_pointer = effect = graph()->NewNode(
+          simplified()->LoadField(
+              AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
+          elements, effect, control);
+    }
 
     // Default to zero if the {receiver}s buffer was neutered.
+    Node* check = effect = graph()->NewNode(
+        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
     length = graph()->NewNode(
         common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
         check, jsgraph()->ZeroConstant(), length);
@@ -1210,16 +1233,6 @@ JSNativeContextSpecialization::BuildElementAccess(
       index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
                                         length, effect, control);
     }
-
-    // Load the base and external pointer for the {receiver}.
-    Node* base_pointer = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
-        elements, effect, control);
-    Node* external_pointer = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
-        elements, effect, control);
 
     // Access the actual element.
     ExternalArrayType external_array_type =
@@ -1280,6 +1293,20 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
     }
   } else {
+    // Load the elements for the {receiver}.
+    Node* elements = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+        effect, control);
+
+    // Don't try to store to a copy-on-write backing store.
+    if (access_mode == AccessMode::kStore &&
+        IsFastSmiOrObjectElementsKind(elements_kind) &&
+        store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
+      effect =
+          graph()->NewNode(simplified()->CheckMaps(1), elements,
+                           jsgraph()->FixedArrayMapConstant(), effect, control);
+    }
+
     // Check if the {receiver} is a JSArray.
     bool receiver_is_jsarray = HasOnlyJSArrayMaps(receiver_maps);
 
@@ -1466,6 +1493,33 @@ JSNativeContextSpecialization::InlineApiCall(
                        static_cast<int>(inputs.size()), inputs.data());
   Node* control0 = graph()->NewNode(common()->IfSuccess(), value0);
   return ValueEffectControl(value0, effect0, control0);
+}
+
+Node* JSNativeContextSpecialization::BuildCheckHeapObject(Node* receiver,
+                                                          Node** effect,
+                                                          Node* control) {
+  switch (receiver->opcode()) {
+    case IrOpcode::kHeapConstant:
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSToName:
+    case IrOpcode::kJSToString:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSTypeOf: {
+      return receiver;
+    }
+    default: {
+      return *effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                        receiver, *effect, control);
+    }
+  }
 }
 
 Node* JSNativeContextSpecialization::BuildCheckMaps(

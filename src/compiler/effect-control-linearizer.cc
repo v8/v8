@@ -3213,9 +3213,14 @@ EffectControlLinearizer::LowerLoadTypedElement(Node* node, Node* effect,
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   effect = graph()->NewNode(common()->Retain(), buffer, effect);
 
-  // Compute the effective storage pointer.
-  Node* storage = effect = graph()->NewNode(machine()->UnsafePointerAdd(), base,
-                                            external, effect, control);
+  // Compute the effective storage pointer, handling the case where the
+  // {external} pointer is the effective storage pointer (i.e. the {base}
+  // is Smi zero).
+  Node* storage =
+      NumberMatcher(base).Is(0)
+          ? external
+          : effect = graph()->NewNode(machine()->UnsafePointerAdd(), base,
+                                      external, effect, control);
 
   // Perform the actual typed element access.
   Node* value = effect = graph()->NewNode(
@@ -3240,9 +3245,14 @@ EffectControlLinearizer::LowerStoreTypedElement(Node* node, Node* effect,
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   effect = graph()->NewNode(common()->Retain(), buffer, effect);
 
-  // Compute the effective storage pointer.
-  Node* storage = effect = graph()->NewNode(machine()->UnsafePointerAdd(), base,
-                                            external, effect, control);
+  // Compute the effective storage pointer, handling the case where the
+  // {external} pointer is the effective storage pointer (i.e. the {base}
+  // is Smi zero).
+  Node* storage =
+      NumberMatcher(base).Is(0)
+          ? external
+          : effect = graph()->NewNode(machine()->UnsafePointerAdd(), base,
+                                      external, effect, control);
 
   // Perform the actual typed element access.
   effect = graph()->NewNode(
