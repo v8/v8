@@ -313,7 +313,7 @@ const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   RuntimeCallCounter* counter = &(stats->*counter_id);
-  DCHECK(counter->name != NULL);
+  DCHECK(counter->name != nullptr);
   timer->Start(counter, stats->current_timer_.Value());
   stats->current_timer_.SetValue(timer);
 }
@@ -327,7 +327,8 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
     // buried one that's leaving. We don't care about keeping nested timings
     // accurate, just avoid crashing by keeping the chain intact.
     RuntimeCallTimer* next = stats->current_timer_.Value();
-    while (next->parent() != timer) next = next->parent();
+    while (next && next->parent() != timer) next = next->parent();
+    if (next == nullptr) return;
     next->parent_.SetValue(timer->Stop());
   }
 }
