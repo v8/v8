@@ -164,7 +164,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JavaScriptFrame* frame,
                                                 int loop_nesting_levels) {
   JSFunction* function = frame->function();
   SharedFunctionInfo* shared = function->shared();
-  if (!FLAG_use_osr || function->shared()->IsBuiltin()) {
+  if (!FLAG_use_osr || !function->shared()->IsUserJavaScript()) {
     return;
   }
 

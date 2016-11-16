@@ -7965,7 +7965,7 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
   if (target_shared->force_inline()) {
     return 0;
   }
-  if (target->shared()->IsBuiltin()) {
+  if (!target->shared()->IsUserJavaScript()) {
     return kNotInlinable;
   }
 

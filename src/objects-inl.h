@@ -5948,10 +5948,6 @@ void Script::set_compilation_type(CompilationType type) {
   set_flags(BooleanBit::set(flags(), kCompilationTypeBit,
       type == COMPILATION_TYPE_EVAL));
 }
-bool Script::hide_source() { return BooleanBit::get(flags(), kHideSourceBit); }
-void Script::set_hide_source(bool value) {
-  set_flags(BooleanBit::set(flags(), kHideSourceBit, value));
-}
 Script::CompilationState Script::compilation_state() {
   return BooleanBit::get(flags(), kCompilationStateBit) ?
       COMPILATION_STATE_COMPILED : COMPILATION_STATE_INITIAL;
@@ -6497,17 +6493,15 @@ void SharedFunctionInfo::set_disable_optimization_reason(BailoutReason reason) {
       opt_count_and_bailout_reason(), reason));
 }
 
-
-bool SharedFunctionInfo::IsBuiltin() {
+bool SharedFunctionInfo::IsUserJavaScript() {
   Object* script_obj = script();
-  if (script_obj->IsUndefined(GetIsolate())) return true;
+  if (script_obj->IsUndefined(GetIsolate())) return false;
   Script* script = Script::cast(script_obj);
-  Script::Type type = static_cast<Script::Type>(script->type());
-  return type != Script::TYPE_NORMAL;
+  return static_cast<Script::Type>(script->type()) == Script::TYPE_NORMAL;
 }
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {
-  return !IsBuiltin() && !HasAsmWasmData();
+  return IsUserJavaScript() && !HasAsmWasmData();
 }
 
 bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {

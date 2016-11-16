@@ -358,7 +358,7 @@ class StackTraceHelper {
   // Determines whether the given stack frame should be displayed in a stack
   // trace.
   bool IsVisibleInStackTrace(JSFunction* fun) {
-    return ShouldIncludeFrame(fun) && IsNotInNativeScript(fun) &&
+    return ShouldIncludeFrame(fun) && IsNotHidden(fun) &&
            IsInSameSecurityContext(fun);
   }
 
@@ -386,12 +386,12 @@ class StackTraceHelper {
     return false;
   }
 
-  bool IsNotInNativeScript(JSFunction* fun) {
-    // Functions defined in native scripts are not visible unless directly
+  bool IsNotHidden(JSFunction* fun) {
+    // Functions defined not in user scripts are not visible unless directly
     // exposed, in which case the native flag is set.
     // The --builtins-in-stack-traces command line flag allows including
     // internal call sites in the stack trace for debugging purposes.
-    if (!FLAG_builtins_in_stack_traces && fun->shared()->IsBuiltin()) {
+    if (!FLAG_builtins_in_stack_traces && !fun->shared()->IsUserJavaScript()) {
       return fun->shared()->native();
     }
     return true;
