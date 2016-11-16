@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +23,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemorySize) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  Handle<JSObject> module_instance;
+  Handle<WasmInstanceObject> instance;
   {
     // Get the module JSObject
     DisallowHeapAllocation no_allocation;
@@ -31,19 +32,19 @@ RUNTIME_FUNCTION(Runtime_WasmMemorySize) {
         Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
     Code* code =
         isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-    Object* owning_instance = wasm::GetOwningWasmInstance(code);
+    WasmInstanceObject* owning_instance = wasm::GetOwningWasmInstance(code);
     CHECK_NOT_NULL(owning_instance);
-    module_instance = handle(JSObject::cast(owning_instance), isolate);
+    instance = handle(owning_instance, isolate);
   }
   return *isolate->factory()->NewNumberFromInt(
-      wasm::GetInstanceMemorySize(isolate, module_instance));
+      wasm::GetInstanceMemorySize(isolate, instance));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
-  Handle<JSObject> module_instance;
+  Handle<WasmInstanceObject> instance;
   {
     // Get the module JSObject
     DisallowHeapAllocation no_allocation;
@@ -52,12 +53,12 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
         Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
     Code* code =
         isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-    Object* owning_instance = wasm::GetOwningWasmInstance(code);
+    WasmInstanceObject* owning_instance = wasm::GetOwningWasmInstance(code);
     CHECK_NOT_NULL(owning_instance);
-    module_instance = handle(JSObject::cast(owning_instance), isolate);
+    instance = handle(owning_instance, isolate);
   }
   return *isolate->factory()->NewNumberFromInt(
-      wasm::GrowInstanceMemory(isolate, module_instance, delta_pages));
+      wasm::GrowInstanceMemory(isolate, instance, delta_pages));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {

@@ -45,16 +45,15 @@ const WasmModule* DecodeWasmModuleForTesting(
   return decoding_result.val;
 }
 
-const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
-                                                   ErrorThrower* thrower,
-                                                   const WasmModule* module) {
+const Handle<WasmInstanceObject> InstantiateModuleForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const WasmModule* module) {
   CHECK(module != nullptr);
 
   if (module->import_table.size() > 0) {
     thrower->CompileError("Not supported: module has imports.");
   }
 
-  if (thrower->error()) return Handle<JSObject>::null();
+  if (thrower->error()) return Handle<WasmInstanceObject>::null();
 
   // Although we decoded the module for some pre-validation, run the bytes
   // again through the normal pipeline.
@@ -64,19 +63,19 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
       ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr, nullptr);
   if (module_object.is_null()) {
     thrower->CompileError("Module pre-validation failed.");
-    return Handle<JSObject>::null();
+    return Handle<WasmInstanceObject>::null();
   }
-  MaybeHandle<JSObject> maybe_instance = WasmModule::Instantiate(
+  MaybeHandle<WasmInstanceObject> maybe_instance = WasmModule::Instantiate(
       isolate, thrower, module_object.ToHandleChecked(),
       Handle<JSReceiver>::null(), Handle<JSArrayBuffer>::null());
-  Handle<JSObject> instance;
+  Handle<WasmInstanceObject> instance;
   if (!maybe_instance.ToHandle(&instance)) {
-    return Handle<JSObject>::null();
+    return Handle<WasmInstanceObject>::null();
   }
   return instance;
 }
 
-const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
+const Handle<WasmInstanceObject> CompileInstantiateWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin) {
   std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
@@ -84,7 +83,7 @@ const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
 
   if (module == nullptr) {
     thrower->CompileError("Wasm module decoding failed");
-    return Handle<JSObject>::null();
+    return Handle<WasmInstanceObject>::null();
   }
   return InstantiateModuleForTesting(isolate, thrower, module.get());
 }

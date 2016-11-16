@@ -97,6 +97,14 @@ WasmModuleObject* WasmModuleObject::cast(Object* object) {
   return reinterpret_cast<WasmModuleObject*>(object);
 }
 
+bool WasmModuleObject::IsWasmModuleObject(Object* object) {
+  return object->IsJSObject() &&
+         JSObject::cast(object)->GetInternalFieldCount() == kFieldCount;
+}
+
+DEFINE_GETTER(WasmModuleObject, compiled_module, kCompiledModule,
+              WasmCompiledModule)
+
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
                                              uint32_t maximum,
                                              Handle<FixedArray>* js_functions) {

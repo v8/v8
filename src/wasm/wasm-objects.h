@@ -39,7 +39,7 @@ class WasmModuleObject : public JSObject {
 
   DECLARE_CASTS(WasmModuleObject);
 
-  WasmCompiledModule* compiled_module();
+  WasmCompiledModule* get_compiled_module();
   wasm::WasmModule* module();
   int num_functions();
   bool is_asm_js();

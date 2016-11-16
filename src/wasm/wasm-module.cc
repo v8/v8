@@ -666,7 +666,7 @@ std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& pair) {
   return os;
 }
 
-Object* wasm::GetOwningWasmInstance(Code* code) {
+WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
   DCHECK(code->kind() == Code::WASM_FUNCTION);
   DisallowHeapAllocation no_gc;
   FixedArray* deopt_data = code->deoptimization_data();
@@ -675,7 +675,8 @@ Object* wasm::GetOwningWasmInstance(Code* code) {
   Object* weak_link = deopt_data->get(0);
   if (!weak_link->IsWeakCell()) return nullptr;
   WeakCell* cell = WeakCell::cast(weak_link);
-  return cell->value();
+  if (!cell->value()) return nullptr;
+  return WasmInstanceObject::cast(cell->value());
 }
 
 int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
@@ -958,8 +959,8 @@ class WasmInstanceBuilder {
         memory_(memory) {}
 
   // Build an instance, in all of its glory.
-  MaybeHandle<JSObject> Build() {
-    MaybeHandle<JSObject> nothing;
+  MaybeHandle<WasmInstanceObject> Build() {
+    MaybeHandle<WasmInstanceObject> nothing;
     HistogramTimerScope wasm_instantiate_module_time_scope(
         isolate_->counters()->wasm_instantiate_module_time());
     Factory* factory = isolate_->factory();
@@ -1835,11 +1836,9 @@ class WasmInstanceBuilder {
 
 // Instantiates a WASM module, creating a WebAssembly.Instance from a
 // WebAssembly.Module.
-MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
-                                              ErrorThrower* thrower,
-                                              Handle<JSObject> wasm_module,
-                                              Handle<JSReceiver> ffi,
-                                              Handle<JSArrayBuffer> memory) {
+MaybeHandle<WasmInstanceObject> WasmModule::Instantiate(
+    Isolate* isolate, ErrorThrower* thrower, Handle<JSObject> wasm_module,
+    Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory) {
   WasmInstanceBuilder builder(isolate, thrower, wasm_module, ffi, memory);
   return builder.Build();
 }
@@ -2002,24 +2001,23 @@ bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
   return result.ok();
 }
 
-MaybeHandle<JSArrayBuffer> wasm::GetInstanceMemory(Isolate* isolate,
-                                                   Handle<JSObject> object) {
-  auto instance = Handle<WasmInstanceObject>::cast(object);
+MaybeHandle<JSArrayBuffer> wasm::GetInstanceMemory(
+    Isolate* isolate, Handle<WasmInstanceObject> instance) {
   if (instance->has_memory_buffer()) {
     return Handle<JSArrayBuffer>(instance->get_memory_buffer(), isolate);
   }
   return MaybeHandle<JSArrayBuffer>();
 }
 
-void SetInstanceMemory(Handle<JSObject> object, JSArrayBuffer* buffer) {
+void SetInstanceMemory(Handle<WasmInstanceObject> instance,
+                       JSArrayBuffer* buffer) {
   DisallowHeapAllocation no_gc;
-  auto instance = Handle<WasmInstanceObject>::cast(object);
   instance->set_memory_buffer(buffer);
   instance->get_compiled_module()->set_ptr_to_memory(buffer);
 }
 
 int32_t wasm::GetInstanceMemorySize(Isolate* isolate,
-                                    Handle<JSObject> instance) {
+                                    Handle<WasmInstanceObject> instance) {
   MaybeHandle<JSArrayBuffer> maybe_mem_buffer =
       GetInstanceMemory(isolate, instance);
   Handle<JSArrayBuffer> buffer;
@@ -2047,10 +2045,9 @@ uint32_t GetMaxInstanceMemorySize(Isolate* isolate,
   return WasmModule::kV8MaxPages;
 }
 
-int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> object,
+int32_t wasm::GrowInstanceMemory(Isolate* isolate,
+                                 Handle<WasmInstanceObject> instance,
                                  uint32_t pages) {
-  if (!IsWasmInstance(*object)) return -1;
-  auto instance = Handle<WasmInstanceObject>::cast(object);
   if (pages == 0) return GetInstanceMemorySize(isolate, instance);
   uint32_t max_pages = GetMaxInstanceMemorySize(isolate, instance);
 
@@ -2100,22 +2097,20 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate, Handle<JSObject> object,
 }
 
 void testing::ValidateInstancesChain(Isolate* isolate,
-                                     Handle<JSObject> wasm_module,
+                                     Handle<WasmModuleObject> module_obj,
                                      int instance_count) {
   CHECK_GE(instance_count, 0);
   DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module =
-      WasmCompiledModule::cast(wasm_module->GetInternalField(0));
+  WasmCompiledModule* compiled_module = module_obj->get_compiled_module();
   CHECK_EQ(JSObject::cast(compiled_module->ptr_to_weak_wasm_module()->value()),
-           *wasm_module);
+           *module_obj);
   Object* prev = nullptr;
   int found_instances = compiled_module->has_weak_owning_instance() ? 1 : 0;
   WasmCompiledModule* current_instance = compiled_module;
   while (current_instance->has_weak_next_instance()) {
     CHECK((prev == nullptr && !current_instance->has_weak_prev_instance()) ||
           current_instance->ptr_to_weak_prev_instance()->value() == prev);
-    CHECK_EQ(current_instance->ptr_to_weak_wasm_module()->value(),
-             *wasm_module);
+    CHECK_EQ(current_instance->ptr_to_weak_wasm_module()->value(), *module_obj);
     CHECK(IsWasmInstance(
         current_instance->ptr_to_weak_owning_instance()->value()));
     prev = current_instance;
@@ -2128,21 +2123,19 @@ void testing::ValidateInstancesChain(Isolate* isolate,
 }
 
 void testing::ValidateModuleState(Isolate* isolate,
-                                  Handle<JSObject> wasm_module) {
+                                  Handle<WasmModuleObject> module_obj) {
   DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module =
-      WasmCompiledModule::cast(wasm_module->GetInternalField(0));
+  WasmCompiledModule* compiled_module = module_obj->get_compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
-  CHECK_EQ(compiled_module->ptr_to_weak_wasm_module()->value(), *wasm_module);
+  CHECK_EQ(compiled_module->ptr_to_weak_wasm_module()->value(), *module_obj);
   CHECK(!compiled_module->has_weak_prev_instance());
   CHECK(!compiled_module->has_weak_next_instance());
   CHECK(!compiled_module->has_weak_owning_instance());
 }
 
 void testing::ValidateOrphanedInstance(Isolate* isolate,
-                                       Handle<JSObject> object) {
+                                       Handle<WasmInstanceObject> instance) {
   DisallowHeapAllocation no_gc;
-  WasmInstanceObject* instance = WasmInstanceObject::cast(*object);
   WasmCompiledModule* compiled_module = instance->get_compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
   CHECK(compiled_module->ptr_to_weak_wasm_module()->cleared());

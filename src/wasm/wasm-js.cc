@@ -535,8 +535,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
   i::Handle<i::Object> instance_object(
       receiver->GetInternalField(kWasmMemoryInstanceObject), i_isolate);
-  i::Handle<i::JSObject> instance(
-      i::Handle<i::JSObject>::cast(instance_object));
+  i::Handle<i::WasmInstanceObject> instance(
+      i::Handle<i::WasmInstanceObject>::cast(instance_object));
 
   // TODO(gdeepti) Implement growing memory when shared by different
   // instances.
