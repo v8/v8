@@ -5334,7 +5334,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         Callable callable = CodeFactory::LoadGlobalICInOptimizedCode(
             isolate(), ast_context()->typeof_mode());
         HValue* stub = Add<HConstant>(callable.code());
-        HValue* values[] = {slot_value, vector_value};
+        HValue* name = Add<HConstant>(variable->name());
+        HValue* values[] = {name, slot_value, vector_value};
         HCallWithDescriptor* instr = New<HCallWithDescriptor>(
             Code::LOAD_GLOBAL_IC, stub, 0, callable.descriptor(),
             ArrayVector(values));

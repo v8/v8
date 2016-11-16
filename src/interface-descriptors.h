@@ -306,9 +306,13 @@ class LoadDescriptor : public CallInterfaceDescriptor {
 
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kSlot)
+  DEFINE_PARAMETERS(kName, kSlot)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalDescriptor,
                                                CallInterfaceDescriptor)
+
+  static const Register NameRegister() {
+    return LoadDescriptor::NameRegister();
+  }
 
   static const Register SlotRegister() {
     return LoadDescriptor::SlotRegister();
@@ -400,7 +404,7 @@ class LoadICProtoArrayDescriptor : public LoadWithVectorDescriptor {
 
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
  public:
-  DEFINE_PARAMETERS(kSlot, kVector)
+  DEFINE_PARAMETERS(kName, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
                                                LoadGlobalDescriptor)
 

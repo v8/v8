@@ -433,13 +433,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int feedback_slot,
-                                                       TypeofMode typeof_mode) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
+    const Handle<String> name, int feedback_slot, TypeofMode typeof_mode) {
+  size_t name_index = GetConstantPoolEntry(name);
   if (typeof_mode == INSIDE_TYPEOF) {
-    OutputLdaGlobalInsideTypeof(feedback_slot);
+    OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
   } else {
     DCHECK_EQ(typeof_mode, NOT_INSIDE_TYPEOF);
-    OutputLdaGlobal(feedback_slot);
+    OutputLdaGlobal(name_index, feedback_slot);
   }
   return *this;
 }

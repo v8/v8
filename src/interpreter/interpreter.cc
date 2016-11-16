@@ -425,21 +425,23 @@ void Interpreter::DoMov(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-Node* Interpreter::BuildLoadGlobal(Callable ic, Node* context,
+Node* Interpreter::BuildLoadGlobal(Callable ic, Node* context, Node* name_index,
                                    Node* feedback_slot,
                                    InterpreterAssembler* assembler) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
 
   // Load the global via the LoadGlobalIC.
   Node* code_target = __ HeapConstant(ic.code());
+  Node* name = __ LoadConstantPoolEntry(name_index);
   Node* smi_slot = __ SmiTag(feedback_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   return __ CallStub(ic.descriptor(), code_target, context,
+                     Arg(Descriptor::kName, name),
                      Arg(Descriptor::kSlot, smi_slot),
                      Arg(Descriptor::kVector, type_feedback_vector));
 }
 
-// LdaGlobal <slot>
+// LdaGlobal <name_index> <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> outside of a typeof.
@@ -449,13 +451,14 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
 
   Node* context = __ GetContext();
 
-  Node* raw_slot = __ BytecodeOperandIdx(0);
-  Node* result = BuildLoadGlobal(ic, context, raw_slot, assembler);
+  Node* name_index = __ BytecodeOperandIdx(0);
+  Node* raw_slot = __ BytecodeOperandIdx(1);
+  Node* result = BuildLoadGlobal(ic, context, name_index, raw_slot, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// LdaGlobalInsideTypeof <slot>
+// LdaGlobalInsideTypeof <name_index> <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> inside of a typeof.
@@ -465,8 +468,9 @@ void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
 
   Node* context = __ GetContext();
 
-  Node* raw_slot = __ BytecodeOperandIdx(0);
-  Node* result = BuildLoadGlobal(ic, context, raw_slot, assembler);
+  Node* name_index = __ BytecodeOperandIdx(0);
+  Node* raw_slot = __ BytecodeOperandIdx(1);
+  Node* result = BuildLoadGlobal(ic, context, name_index, raw_slot, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -656,7 +660,8 @@ void Interpreter::DoLdaLookupGlobalSlot(Runtime::FunctionId function_id,
         isolate_, function_id == Runtime::kLoadLookupSlotInsideTypeof
                       ? INSIDE_TYPEOF
                       : NOT_INSIDE_TYPEOF);
-    Node* result = BuildLoadGlobal(ic, context, feedback_slot, assembler);
+    Node* result =
+        BuildLoadGlobal(ic, context, name_index, feedback_slot, assembler);
     __ SetAccumulator(result);
     __ Dispatch();
   }

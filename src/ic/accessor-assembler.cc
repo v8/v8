@@ -1170,8 +1170,7 @@ void AccessorAssemblerImpl::LoadGlobalIC(const LoadICParameters* p) {
     Node* native_context = LoadNativeContext(p->context);
     Node* receiver =
         LoadContextElement(native_context, Context::EXTENSION_INDEX);
-    Node* fake_name = IntPtrConstant(0);
-    TailCallStub(descriptor, handler, p->context, receiver, fake_name, p->slot,
+    TailCallStub(descriptor, handler, p->context, receiver, p->name, p->slot,
                  p->vector);
   }
   Bind(&miss);
@@ -1569,22 +1568,24 @@ void AccessorAssemblerImpl::GenerateLoadICProtoArray() {
 void AccessorAssemblerImpl::GenerateLoadGlobalIC() {
   typedef LoadGlobalICStub::Descriptor Descriptor;
 
+  Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  LoadICParameters p(context, nullptr, nullptr, slot, vector);
+  LoadICParameters p(context, nullptr, name, slot, vector);
   LoadGlobalIC(&p);
 }
 
 void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline() {
   typedef LoadGlobalICTrampolineStub::Descriptor Descriptor;
 
+  Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadTypeFeedbackVectorForStub();
 
-  LoadICParameters p(context, nullptr, nullptr, slot, vector);
+  LoadICParameters p(context, nullptr, name, slot, vector);
   LoadGlobalIC(&p);
 }
 

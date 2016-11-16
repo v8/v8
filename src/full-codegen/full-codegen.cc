@@ -499,11 +499,11 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 
 void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
                                                TypeofMode typeof_mode) {
-#ifdef DEBUG
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocated() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-#endif
+  __ Move(LoadDescriptor::NameRegister(), var->name());
+
   EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(),
                proxy->VariableFeedbackSlot());
   Handle<Code> code = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();

@@ -84,7 +84,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& LoadFalse();
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(int feedback_slot, TypeofMode typeof_mode);
+  BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
+                                   TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
                                     int feedback_slot,
                                     LanguageMode language_mode);

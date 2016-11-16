@@ -38,8 +38,9 @@ namespace interpreter {
   V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                    \
                                                                                \
   /* Globals */                                                                \
-  V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx)                      \
-  V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)          \
+  V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx, OperandType::kIdx)   \
+  V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx,          \
+    OperandType::kIdx)                                                         \
   V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                 \
     OperandType::kIdx)                                                         \
   V(StaGlobalStrict, AccumulatorUse::kRead, OperandType::kIdx,                 \

@@ -136,7 +136,8 @@ class BytecodeGraphBuilder {
   void ClearNonLiveSlotsInFrameStates();
 
   void BuildCreateArguments(CreateArgumentsType type);
-  Node* BuildLoadGlobal(uint32_t feedback_slot_index, TypeofMode typeof_mode);
+  Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
+                        TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
   void BuildNamedStore(LanguageMode language_mode);
   void BuildKeyedStore(LanguageMode language_mode);

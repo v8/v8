@@ -77,8 +77,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit global load / store operations.
   Handle<String> name = factory->NewStringFromStaticChars("var_name");
-  builder.LoadGlobal(1, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(1, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(name, 1, LanguageMode::SLOPPY)
       .StoreGlobal(name, 1, LanguageMode::STRICT);
 
@@ -285,14 +285,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Handle<String> wide_name = factory->NewStringFromStaticChars("var_wide_name");
 
   // Emit wide global load / store operations.
-  builder.LoadGlobal(1024, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(1024, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(1024, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
+      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(name, 1024, LanguageMode::SLOPPY)
       .StoreGlobal(wide_name, 1, LanguageMode::STRICT);
 
   // Emit extra wide global load.
-  builder.LoadGlobal(1024 * 1024, TypeofMode::NOT_INSIDE_TYPEOF);
+  builder.LoadGlobal(name, 1024 * 1024, TypeofMode::NOT_INSIDE_TYPEOF);
 
   // Emit wide load / store property operations.
   builder.LoadNamedProperty(reg, wide_name, 0)

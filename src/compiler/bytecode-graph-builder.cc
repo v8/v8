@@ -741,27 +741,33 @@ void BytecodeGraphBuilder::VisitMov() {
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), value);
 }
 
-Node* BytecodeGraphBuilder::BuildLoadGlobal(uint32_t feedback_slot_index,
+Node* BytecodeGraphBuilder::BuildLoadGlobal(Handle<Name> name,
+                                            uint32_t feedback_slot_index,
                                             TypeofMode typeof_mode) {
   VectorSlotPair feedback = CreateVectorSlotPair(feedback_slot_index);
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             feedback_vector()->GetKind(feedback.slot()));
-  Handle<Name> name(feedback_vector()->GetName(feedback.slot()));
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
   return NewNode(op, GetFunctionClosure());
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobal() {
   PrepareEagerCheckpoint();
-  Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
-                               TypeofMode::NOT_INSIDE_TYPEOF);
+  Handle<Name> name =
+      Handle<Name>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
+  uint32_t feedback_slot_index = bytecode_iterator().GetIndexOperand(1);
+  Node* node =
+      BuildLoadGlobal(name, feedback_slot_index, TypeofMode::NOT_INSIDE_TYPEOF);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeof() {
   PrepareEagerCheckpoint();
-  Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
-                               TypeofMode::INSIDE_TYPEOF);
+  Handle<Name> name =
+      Handle<Name>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
+  uint32_t feedback_slot_index = bytecode_iterator().GetIndexOperand(1);
+  Node* node =
+      BuildLoadGlobal(name, feedback_slot_index, TypeofMode::INSIDE_TYPEOF);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -950,8 +956,10 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
   // Fast path, do a global load.
   {
     PrepareEagerCheckpoint();
-    Node* node =
-        BuildLoadGlobal(bytecode_iterator().GetIndexOperand(1), typeof_mode);
+    Handle<Name> name =
+        Handle<Name>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
+    uint32_t feedback_slot_index = bytecode_iterator().GetIndexOperand(1);
+    Node* node = BuildLoadGlobal(name, feedback_slot_index, typeof_mode);
     environment()->BindAccumulator(node, Environment::kAttachFrameState);
   }
 
