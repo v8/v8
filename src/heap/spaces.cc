@@ -3032,6 +3032,10 @@ Object* LargeObjectSpace::FindObject(Address a) {
   return Smi::kZero;  // Signaling not found.
 }
 
+LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
+  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
+  return FindPage(a);
+}
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
   uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
@@ -3068,6 +3072,9 @@ void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
   uintptr_t start = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
   uintptr_t limit = (reinterpret_cast<uintptr_t>(page) + (page->size() - 1)) /
                     MemoryChunk::kAlignment;
+  // There may be concurrent access on the chunk map. We have to take the lock
+  // here.
+  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
   for (uintptr_t key = start; key <= limit; key++) {
     base::HashMap::Entry* entry = chunk_map_.InsertNew(
         reinterpret_cast<void*>(key), static_cast<uint32_t>(key));

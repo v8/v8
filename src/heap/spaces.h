@@ -2820,6 +2820,9 @@ class LargeObjectSpace : public Space {
   // The function iterates through all objects in this space, may be slow.
   Object* FindObject(Address a);
 
+  // Takes the chunk_map_mutex_ and calls FindPage after that.
+  LargePage* FindPageThreadSafe(Address a);
+
   // Finds a large object page containing the given address, returns NULL
   // if such a page doesn't exist.
   LargePage* FindPage(Address a);
@@ -2870,6 +2873,9 @@ class LargeObjectSpace : public Space {
   size_t size_;            // allocated bytes
   int page_count_;         // number of chunks
   size_t objects_size_;    // size of objects
+  // The chunk_map_mutex_ has to be used when the chunk map is accessed
+  // concurrently.
+  base::Mutex chunk_map_mutex_;
   // Map MemoryChunk::kAlignment-aligned chunks to large pages covering them
   base::HashMap chunk_map_;
 
