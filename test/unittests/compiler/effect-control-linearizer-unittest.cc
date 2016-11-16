@@ -4,6 +4,7 @@
 
 #include "src/compiler/effect-control-linearizer.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
@@ -29,16 +30,20 @@ class EffectControlLinearizerTest : public GraphTest {
         javascript_(zone()),
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
-                 &machine_) {}
+                 &machine_) {
+    source_positions_ = new (zone()) SourcePositionTable(graph());
+  }
 
   JSGraph* jsgraph() { return &jsgraph_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SourcePositionTable* source_positions() { return source_positions_; }
 
  private:
   MachineOperatorBuilder machine_;
   JSOperatorBuilder javascript_;
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
+  SourcePositionTable* source_positions_;
 };
 
 namespace {
@@ -76,7 +81,8 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   schedule.AddReturn(start, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   EXPECT_THAT(load,
@@ -137,7 +143,8 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   schedule.AddReturn(mblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   // The effect input to the return should be an effect phi with the
@@ -255,7 +262,8 @@ TEST_F(EffectControlLinearizerTest, FloatingDiamondsControlWiring) {
   schedule.AddReturn(m2block, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   // The effect input to the return should be an effect phi with the
@@ -323,7 +331,8 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   schedule.AddReturn(rblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
@@ -385,7 +394,8 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
   schedule.AddNode(mblock, merge);
   schedule.AddNode(mblock, graph()->end());
 
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   Capture<Node *> branch1_capture, branch2_capture;
