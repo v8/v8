@@ -25,42 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --noalways-opt
-// Get the Debug object exposed from the debug context global object.
+
+// In this test case we edit a script so that techincally function text
+// hasen't been changed. However actually function became one level more nested
+// and must be recompiled because it uses variable from outer scope.
 
 
 Debug = debug.Debug
 
-eval("function ChooseAnimal(p) {\n " +
-     "  if (p == 7) {\n" + // Use p
-     "    return;\n" +
-     "  }\n" +
-     "  return function Chooser() {\n" +
-     "    return 'Cat';\n" +
-     "  };\n" +
-     "}\n");
+var function_z_text =
+"  function Z() {\n"
++ "    return 2 + p;\n"
++ "  }\n";
 
-var old_closure = ChooseAnimal(19);
+eval(
+"function Factory(p) {\n"
++ "return (\n"
++ function_z_text
++ ");\n"
++ "}\n"
+);
 
-assertEquals("Cat", old_closure());
+var z6 = Factory(6);
+assertEquals(8, z6());
 
-var script = Debug.findScript(ChooseAnimal);
+var script = Debug.findScript(Factory);
 
-var orig_animal = "'Cat'";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "'Capybara' + p";
+var new_source = script.source.replace(function_z_text, "function Intermediate() {\nreturn (\n" + function_z_text + ")\n;\n}\n");
+print("new source: " + new_source);
 
-// We patch innermost function "Chooser".
-// However, this does not actually patch existing "Chooser" instances,
-// because old value of parameter "p" was not saved.
-// Instead it patches ChooseAnimal.
 var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
+print("Result: " + JSON.stringify(result) + "\n");
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
-var new_closure = ChooseAnimal(19);
-// New instance of closure is patched.
-assertEquals("Capybara19", new_closure());
+assertEquals(8, z6());
 
-// Old instance of closure is not patched.
-assertEquals("Cat", old_closure());
+var z100 = Factory(100)();
+
+assertEquals(102, z100());

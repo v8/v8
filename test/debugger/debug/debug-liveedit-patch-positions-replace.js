@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 
 // Scenario: a function is being changed, which causes enclosing function to
 // have its positions patched; position changing requires new instance of Code

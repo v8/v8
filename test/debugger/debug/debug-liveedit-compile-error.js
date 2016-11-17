@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 
 Debug = debug.Debug
 
-eval("var something1 = 25; "
-     + " function ChooseAnimal() { return          'Cat';          } "
-     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
+eval("var something1 = 25; \n"
+     + " function ChooseAnimal() { return          'Cat';          } \n"
+     + " ChooseAnimal.Helper = function() { return 'Help!'; }\n");
 
 assertEquals("Cat", ChooseAnimal());
 
@@ -40,9 +38,19 @@ var script = Debug.findScript(ChooseAnimal);
 
 var orig_animal = "Cat";
 var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "Cap' + 'y' + 'bara";
+var new_animal_patch = "Cap' + ) + 'bara";
 
 var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+var caught_exception = null;
+try {
+  Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos,
+      orig_animal.length, new_animal_patch, change_log);
+} catch (e) {
+  caught_exception = e;
+}
 
-assertEquals("Capybara", ChooseAnimal());
+assertNotNull(caught_exception);
+assertEquals("Unexpected token )",
+    caught_exception.details.syntaxErrorMessage);
+
+assertEquals(2, caught_exception.details.position.start.line);

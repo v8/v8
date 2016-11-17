@@ -25,34 +25,64 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 
-Debug = debug.Debug
+Debug = debug.Debug;
+Debug.setListener(listener);
 
-eval("var something1 = 25; \n"
-     + " function ChooseAnimal() { return          'Cat';          } \n"
-     + " ChooseAnimal.Helper = function() { return 'Help!'; }\n");
+SlimFunction = eval(
+    "(function() {\n " +
+    "  return 'Cat';\n" +
+    "})\n"
+);
 
-assertEquals("Cat", ChooseAnimal());
+var script = Debug.findScript(SlimFunction);
 
-var script = Debug.findScript(ChooseAnimal);
+Debug.setScriptBreakPointById(script.id, 1, 0);
 
-var orig_animal = "Cat";
+var orig_animal = "'Cat'";
 var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "Cap' + ) + 'bara";
+var new_animal_patch = "'Capybara'";
 
-var change_log = new Array();
-var caught_exception = null;
-try {
-  Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos,
-      orig_animal.length, new_animal_patch, change_log);
-} catch (e) {
-  caught_exception = e;
+debugger_handler = (function() {
+  var already_called = false;
+  return function() {
+    if (already_called) {
+      return;
+    }
+    already_called = true;
+
+    var change_log = new Array();
+    try {
+      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos,
+          orig_animal.length, new_animal_patch, change_log);
+    } finally {
+      print("Change log: " + JSON.stringify(change_log) + "\n");
+    }
+  };
+})();
+
+var saved_exception = null;
+
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.Break) {
+    try {
+      debugger_handler();
+    } catch (e) {
+      saved_exception = e;
+    }
+  } else {
+    print("Other: " + event);
+  }
 }
 
-assertNotNull(caught_exception);
-assertEquals("Unexpected token )",
-    caught_exception.details.syntaxErrorMessage);
 
-assertEquals(2, caught_exception.details.position.start.line);
+var animal = SlimFunction();
+
+if (saved_exception) {
+  print("Exception: " + saved_exception);
+  assertUnreachable();
+}
+
+assertEquals("Capybara", animal);
+
+Debug.setListener(null);

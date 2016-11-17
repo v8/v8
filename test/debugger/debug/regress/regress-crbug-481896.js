@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
 
 function static() {
   print("> static");  // Break
@@ -43,7 +42,7 @@ for (var script of scripts) {
 }
 
 Debug.setScriptBreakPointById(dynamic_script.id, 1);
-Debug.setScriptBreakPointById(static_script.id, 7);
+Debug.setScriptBreakPointById(static_script.id, 6);
 
 dynamic();
 static();

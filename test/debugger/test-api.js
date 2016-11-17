@@ -70,6 +70,11 @@ class DebugWrapper {
       BreakPosition: 1
     };
 
+    // The different script break point types.
+    this.ScriptBreakPointType = { ScriptId: 0,
+                                  ScriptName: 1,
+                                  ScriptRegExp: 2 };
+
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
 
@@ -141,8 +146,37 @@ class DebugWrapper {
       params.condition = opt_condition;
     }
 
-    const {msgid, msg} = this.createMessage(
-        "Debugger.setBreakpoint", params);
+    const {msgid, msg} = this.createMessage("Debugger.setBreakpoint", params);
+    this.sendMessage(msg);
+
+    const reply = this.takeReplyChecked(msgid);
+    assertTrue(reply.result !== undefined);
+    const breakid = reply.result.breakpointId;
+    assertTrue(breakid !== undefined);
+
+    return breakid;
+  }
+
+  setScriptBreakPoint(type, scriptid, opt_line, opt_column, opt_condition) {
+    // Only sets by script id are supported for now.
+    assertEquals(this.ScriptBreakPointType.ScriptId, type);
+    return this.setScriptBreakPointById(scriptid, opt_line, opt_column,
+                                        opt_condition);
+  }
+
+  setScriptBreakPointById(scriptid, opt_line, opt_column, opt_condition) {
+    const loc = %ScriptLocationFromLine2(scriptid, opt_line, opt_column, 0);
+
+    const params = { location :
+                       { scriptId : scriptid.toString(),
+                         lineNumber : loc.line,
+                         columnNumber : loc.column,
+                       }};
+    if (!!opt_condition) {
+      params.condition = opt_condition;
+    }
+
+    const {msgid, msg} = this.createMessage("Debugger.setBreakpoint", params);
     this.sendMessage(msg);
 
     const reply = this.takeReplyChecked(msgid);
@@ -245,6 +279,11 @@ class DebugWrapper {
         "Debugger.setBreakpointsActive", { active : enabled });
     this.sendMessage(msg);
     this.takeReplyChecked(msgid);
+  }
+
+  get LiveEdit() {
+    const debugContext = %GetDebugContext();
+    return debugContext.Debug.LiveEdit;
   }
 
   // --- Internal methods. -----------------------------------------------------
@@ -463,7 +502,6 @@ class DebugWrapper {
     return { value : () => value,
              isUndefined : () => obj.type == "undefined"
            };
-
   }
 
   evaluateOnCallFrame(frame, expr) {
@@ -478,6 +516,14 @@ class DebugWrapper {
 
     const result = reply.result.result;
     return this.reconstructRemoteObject(result);
+  }
+
+  execStateFrameRestart(frame) {
+    const frameid = frame.callFrameId;
+    const {msgid, msg} = this.createMessage(
+        "Debugger.restartFrame", { callFrameId : frameid });
+    this.sendMessage(msg);
+    this.takeReplyChecked(msgid);
   }
 
   execStateFrame(frame) {
@@ -504,6 +550,7 @@ class DebugWrapper {
              localCount : () => this.execStateFrameLocalCount(frame),
              localName : (ix) => this.execStateFrameLocalName(frame, ix),
              localValue: (ix) => this.execStateFrameLocalValue(frame, ix),
+             restart : () => this.execStateFrameRestart(frame),
              scopeCount : () => frame.scopeChain.length,
              scope : (index) => this.execStateScope(frame, index),
              allScopes : allScopes.bind(this)

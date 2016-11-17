@@ -25,53 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+// Flags: --noalways-opt
+
 
 Debug = debug.Debug
 
-eval("var something1 = 25; \n"
-     + "var something2 = 2010; \n"
-     + "// Array(); \n"
-     + "function ChooseAnimal() {\n"
-     + "  return 'Cat';\n"
-     + "} \n"
-     + "function ChooseFurniture() {\n"
-     + "  return 'Table';\n"
-     + "} \n"
-     + "function ChooseNumber() { return 17; } \n"
-     + "ChooseAnimal.Factory = function Factory() {\n"
-     + "  return function FactoryImpl(name) {\n"
-     + "    return 'Help ' + name;\n"
-     + "  }\n"
-     + "}\n");
+eval("function ChooseAnimal(p) {\n " +
+     "  if (p == 7) {\n" + // Use p
+     "    return;\n" +
+     "  }\n" +
+     "  return function Chooser() {\n" +
+     "    return 'Cat';\n" +
+     "  };\n" +
+     "}\n");
 
-assertEquals("Cat", ChooseAnimal());
-assertEquals(25, something1);
+var old_closure = ChooseAnimal(19);
+
+assertEquals("Cat", old_closure());
 
 var script = Debug.findScript(ChooseAnimal);
 
-var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
-var new_source = new_source.replace("25", "26");
-var new_source = new_source.replace("Help", "Hello");
-var new_source = new_source.replace("17", "18");
-// The call to array causes a change in the number of type feedback slots for
-// the script.
-//
-// TODO(mvstanton): For now, the inclusion of the Array() call at the top level
-// of the script causes us to visit a corner case, but I'd like to validate
-// correctness more explicitly.
-var new_source = new_source.replace("// Array", "Array");
-print("new source: " + new_source);
+var orig_animal = "'Cat'";
+var patch_pos = script.source.indexOf(orig_animal);
+var new_animal_patch = "'Capybara' + p";
 
+// We patch innermost function "Chooser".
+// However, this does not actually patch existing "Chooser" instances,
+// because old value of parameter "p" was not saved.
+// Instead it patches ChooseAnimal.
 var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
-print("Result: " + JSON.stringify(result) + "\n");
+Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
-assertEquals("Capybara", ChooseAnimal());
-// Global variable do not get changed (without restarting script).
-assertEquals(25, something1);
-// We should support changes in oneliners.
-assertEquals(18, ChooseNumber());
-assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));
+var new_closure = ChooseAnimal(19);
+// New instance of closure is patched.
+assertEquals("Capybara19", new_closure());
+
+// Old instance of closure is not patched.
+assertEquals("Cat", old_closure());

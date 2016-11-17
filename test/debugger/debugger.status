@@ -42,4 +42,13 @@
   'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
   'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['arch == s390 or arch == s390x', {
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.
+  'debug/debug-liveedit-check-stack': [SKIP],
+  'debug/debug-liveedit-stack-padding': [SKIP],
+  'debug/debug-liveedit-restart-frame': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 ]

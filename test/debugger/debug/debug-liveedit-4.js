@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+// Flags: --noalways-opt
 
 // In this test case we edit a script so that techincally function text
 // hasen't been changed. However actually function became one level more nested
@@ -35,34 +34,35 @@
 
 Debug = debug.Debug
 
-var function_z_text =
-"  function Z() {\n"
-+ "    return 2 + p;\n"
-+ "  }\n";
-
 eval(
-"function Factory(p) {\n"
-+ "return (\n"
-+ function_z_text
-+ ");\n"
+"function TestFunction() {\n"
++ "  var a = 'a';\n"
++ "  var b = 'b';\n"
++ "  var c = 'c';\n"
++ "  function A() {\n"
++ "    return 2013;\n"
++ "  }\n"
++ "  function B() {\n"
++ "    return String([a, c]);\n"
++ "  }\n"
++ "  return B();\n"
 + "}\n"
 );
 
-var z6 = Factory(6);
-assertEquals(8, z6());
+var res = TestFunction();
+print(res);
+assertEquals('a,c', res);
 
-var script = Debug.findScript(Factory);
-
-var new_source = script.source.replace(function_z_text, "function Intermediate() {\nreturn (\n" + function_z_text + ")\n;\n}\n");
+var script = Debug.findScript(TestFunction);
+var new_source = script.source.replace("2013", "b");
 print("new source: " + new_source);
-
 var change_log = new Array();
 var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
+
 print("Result: " + JSON.stringify(result) + "\n");
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
-assertEquals(8, z6());
-
-var z100 = Factory(100)();
-
-assertEquals(102, z100());
+var res = TestFunction();
+print(res);
+// This might be 'a,b' without a bug fixed.
+assertEquals('a,c', res);

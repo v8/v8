@@ -25,45 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --noalways-opt
-// Get the Debug object exposed from the debug context global object.
-
-// In this test case we edit a script so that techincally function text
-// hasen't been changed. However actually function became one level more nested
-// and must be recompiled because it uses variable from outer scope.
-
 
 Debug = debug.Debug
 
-eval(
-"function TestFunction() {\n"
-+ "  var a = 'a';\n"
-+ "  var b = 'b';\n"
-+ "  var c = 'c';\n"
-+ "  function A() {\n"
-+ "    return 2013;\n"
-+ "  }\n"
-+ "  function B() {\n"
-+ "    return String([a, c]);\n"
-+ "  }\n"
-+ "  return B();\n"
-+ "}\n"
-);
+eval("var something1 = 25; "
+     + " function ChooseAnimal() { return          'Cat';          } "
+     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
 
-var res = TestFunction();
-print(res);
-assertEquals('a,c', res);
+assertEquals("Cat", ChooseAnimal());
 
-var script = Debug.findScript(TestFunction);
-var new_source = script.source.replace("2013", "b");
-print("new source: " + new_source);
+var script = Debug.findScript(ChooseAnimal);
+
+var orig_animal = "Cat";
+var patch_pos = script.source.indexOf(orig_animal);
+var new_animal_patch = "Cap' + 'y' + 'bara";
+
 var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
+Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
 
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
-
-var res = TestFunction();
-print(res);
-// This might be 'a,b' without a bug fixed.
-assertEquals('a,c', res);
+assertEquals("Capybara", ChooseAnimal());
