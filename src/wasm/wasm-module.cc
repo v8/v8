@@ -456,7 +456,7 @@ static void ResetCompiledModule(Isolate* isolate, WasmInstanceObject* owner,
   Object* undefined = *isolate->factory()->undefined_value();
   uint32_t old_mem_size = compiled_module->mem_size();
   uint32_t default_mem_size = compiled_module->default_mem_size();
-  Object* mem_start = compiled_module->ptr_to_memory();
+  Object* mem_start = compiled_module->maybe_ptr_to_memory();
   Address old_mem_address = nullptr;
   Address globals_start =
       GetGlobalStartAddressFromCodeTemplate(undefined, owner);
