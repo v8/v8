@@ -9,6 +9,20 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "Computed property names in object literals",
+      "path": ["SixSpeed/object_literals"],
+      "main": "run.js",
+      "resources": [
+        "run.js",
+        "object_literals.js"
+      ],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ObjectLiterals-ES5"},
+        {"name": "ObjectLiterals-ES6"}
+      ]
+    },
+    {
       "name": "Spread",
       "path": ["SixSpeed/spread"],
       "main": "run.js",
