@@ -540,8 +540,8 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
     TRACE("}\n");
 
     DCHECK(!current_template->has_weak_prev_instance());
-    WeakCell* next = compiled_module->ptr_to_weak_next_instance();
-    WeakCell* prev = compiled_module->ptr_to_weak_prev_instance();
+    WeakCell* next = compiled_module->maybe_ptr_to_weak_next_instance();
+    WeakCell* prev = compiled_module->maybe_ptr_to_weak_prev_instance();
 
     if (current_template == compiled_module) {
       if (next == nullptr) {

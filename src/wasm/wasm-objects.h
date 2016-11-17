@@ -157,9 +157,15 @@ class WasmCompiledModule : public FixedArray {
     return MaybeHandle<TYPE>();                                      \
   }                                                                  \
                                                                      \
-  TYPE* ptr_to_##NAME() const {                                      \
+  TYPE* maybe_ptr_to_##NAME() const {                                \
     Object* obj = get(ID);                                           \
     if (!obj->Is##TYPE()) return nullptr;                            \
+    return TYPE::cast(obj);                                          \
+  }                                                                  \
+                                                                     \
+  TYPE* ptr_to_##NAME() const {                                      \
+    Object* obj = get(ID);                                           \
+    DCHECK(obj->Is##TYPE());                                         \
     return TYPE::cast(obj);                                          \
   }                                                                  \
                                                                      \
