@@ -1662,6 +1662,7 @@ class VariableProxy final : public Expression {
 
   bool is_assigned() const { return IsAssignedField::decode(bit_field_); }
   void set_is_assigned() {
+    DCHECK(!is_resolved());
     bit_field_ = IsAssignedField::update(bit_field_, true);
   }
 

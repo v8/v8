@@ -2732,7 +2732,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
         MessageTemplate::kInvalidLhsInAssignment, CHECK_OK);
   }
 
-  expression = impl()->MarkExpressionAsAssigned(expression);
+  impl()->MarkExpressionAsAssigned(expression);
 
   Token::Value op = Next();  // Get assignment operator.
   if (op != Token::ASSIGN) {
@@ -2973,7 +2973,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     expression = CheckAndRewriteReferenceExpression(
         expression, beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
-    expression = impl()->MarkExpressionAsAssigned(expression);
+    impl()->MarkExpressionAsAssigned(expression);
     impl()->RewriteNonPattern(CHECK_OK);
 
     return factory()->NewCountOperation(op,
@@ -3013,7 +3013,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePostfixExpression(
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPostfixOp, CHECK_OK);
-    expression = impl()->MarkExpressionAsAssigned(expression);
+    impl()->MarkExpressionAsAssigned(expression);
     impl()->RewriteNonPattern(CHECK_OK);
 
     Token::Value next = Next();

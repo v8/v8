@@ -824,12 +824,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator.
-  V8_INLINE static Expression* MarkExpressionAsAssigned(
-      Expression* expression) {
-    VariableProxy* proxy =
-        expression != NULL ? expression->AsVariableProxy() : NULL;
-    if (proxy != NULL) proxy->set_is_assigned();
-    return expression;
+  V8_INLINE static void MarkExpressionAsAssigned(Expression* expression) {
+    DCHECK_NOT_NULL(expression);
+    if (expression->IsVariableProxy()) {
+      expression->AsVariableProxy()->set_is_assigned();
+    }
   }
 
   // Returns true if we have a binary expression between two numeric

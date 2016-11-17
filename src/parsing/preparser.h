@@ -1205,11 +1205,10 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-  V8_INLINE static PreParserExpression MarkExpressionAsAssigned(
+  V8_INLINE static void MarkExpressionAsAssigned(
       PreParserExpression expression) {
     // TODO(marja): To be able to produce the same errors, the preparser needs
     // to start tracking which expressions are variables and which are assigned.
-    return expression;
   }
 
   V8_INLINE bool ShortcutNumericLiteralBinaryExpression(PreParserExpression* x,
