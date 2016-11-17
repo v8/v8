@@ -364,11 +364,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSArrayBuffer> buffer =
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
   size_t size = static_cast<size_t>(i::wasm::WasmModule::kPageSize) *
                 static_cast<size_t>(initial);
-  i::JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, size);
+  i::Handle<i::JSArrayBuffer> buffer =
+      i::wasm::NewArrayBuffer(i_isolate, size, i::FLAG_wasm_guard_pages);
 
   i::Handle<i::JSObject> memory_obj = i::WasmMemoryObject::New(
       i_isolate, buffer, has_maximum.FromJust() ? maximum : -1);

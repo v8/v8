@@ -6978,6 +6978,7 @@ bool JSArrayBuffer::is_external() { return IsExternal::decode(bit_field()); }
 
 
 void JSArrayBuffer::set_is_external(bool value) {
+  DCHECK(!value || !has_guard_region());
   set_bit_field(IsExternal::update(bit_field(), value));
 }
 
@@ -7007,6 +7008,13 @@ void JSArrayBuffer::set_is_shared(bool value) {
   set_bit_field(IsShared::update(bit_field(), value));
 }
 
+bool JSArrayBuffer::has_guard_region() {
+  return HasGuardRegion::decode(bit_field());
+}
+
+void JSArrayBuffer::set_has_guard_region(bool value) {
+  set_bit_field(HasGuardRegion::update(bit_field(), value));
+}
 
 Object* JSArrayBufferView::byte_offset() const {
   if (WasNeutered()) return Smi::kZero;

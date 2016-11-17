@@ -11007,6 +11007,9 @@ class JSArrayBuffer: public JSObject {
   inline bool is_shared();
   inline void set_is_shared(bool value);
 
+  inline bool has_guard_region();
+  inline void set_has_guard_region(bool value);
+
   DECLARE_CAST(JSArrayBuffer)
 
   void Neuter();
@@ -11046,6 +11049,7 @@ class JSArrayBuffer: public JSObject {
   class IsNeuterable : public BitField<bool, 2, 1> {};
   class WasNeutered : public BitField<bool, 3, 1> {};
   class IsShared : public BitField<bool, 4, 1> {};
+  class HasGuardRegion : public BitField<bool, 5, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);

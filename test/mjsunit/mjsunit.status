@@ -690,4 +690,22 @@
   'whitespaces': [SKIP],
 }],  # variant == asm_wasm
 
+['variant == wasm_traps', {
+  # Skip stuff uninteresting for wasm traps
+  'bugs/*': [SKIP],
+  'compiler/*': [SKIP],
+  'es6/*': [SKIP],
+  'es7/*': [SKIP],
+  'es8/*': [SKIP],
+  'harmony/*': [SKIP],
+  'ignition/*': [SKIP],
+  'lithium/*': [SKIP],
+  'third_party/*': [SKIP],
+  'tools/*': [SKIP],
+  'apply': [SKIP],
+  'math-*': [SKIP],
+  'unicode-test': [SKIP],
+  'whitespaces': [SKIP],
+}],  # variant == wasm_traps
+
 ]

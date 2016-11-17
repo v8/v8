@@ -41,6 +41,11 @@ const uint32_t kWasmVersion = 0x0d;
 const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 
+const uint64_t kWasmMaxHeapOffset =
+    static_cast<uint64_t>(
+        std::numeric_limits<uint32_t>::max())  // maximum base value
+    + std::numeric_limits<uint32_t>::max();    // maximum index value
+
 enum WasmSectionCode {
   kUnknownSectionCode = 0,   // code for unknown sections
   kTypeSectionCode = 1,      // Function signature declarations
@@ -425,6 +430,9 @@ int32_t GetInstanceMemorySize(Isolate* isolate,
 
 int32_t GrowInstanceMemory(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t pages);
+
+Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
+                                     bool enable_guard_regions);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, Handle<JSFunction> js_function);

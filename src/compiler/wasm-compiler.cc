@@ -2964,6 +2964,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
   if (aligned ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler) {
+      DCHECK(FLAG_wasm_guard_pages);
       Node* context = HeapConstant(module_->instance->context);
       Node* position_node = jsgraph()->Int32Constant(position);
       load = graph()->NewNode(jsgraph()->machine()->ProtectedLoad(memtype),

@@ -529,7 +529,11 @@ DEFINE_BOOL(wasm_no_stack_checks, false,
 
 DEFINE_BOOL(wasm_trap_handler, false,
             "use signal handlers to catch out of bounds memory access in wasm"
-            " (currently Linux x86_64 only)")
+            " (experimental, currently Linux x86_64 only)")
+DEFINE_BOOL(wasm_guard_pages, false,
+            "add guard pages to the end of WebWassembly memory"
+            " (experimental, no effect on 32-bit)")
+DEFINE_IMPLICATION(wasm_trap_handler, wasm_guard_pages)
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")

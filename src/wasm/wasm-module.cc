@@ -70,28 +70,65 @@ void ReplaceReferenceInCode(Handle<Code> code, Handle<Object> old_ref,
   }
 }
 
-Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size) {
-  if (size > (WasmModule::kV8MaxPages * WasmModule::kPageSize)) {
-    // TODO(titzer): lift restriction on maximum memory allocated here.
-    return Handle<JSArrayBuffer>::null();
-  }
-  void* memory = isolate->array_buffer_allocator()->Allocate(size);
-  if (memory == nullptr) {
-    return Handle<JSArrayBuffer>::null();
-  }
+static void MemoryFinalizer(const v8::WeakCallbackInfo<void>& data) {
+  JSArrayBuffer** p = reinterpret_cast<JSArrayBuffer**>(data.GetParameter());
+  JSArrayBuffer* buffer = *p;
 
-#if DEBUG
-  // Double check the API allocator actually zero-initialized the memory.
-  const byte* bytes = reinterpret_cast<const byte*>(memory);
-  for (size_t i = 0; i < size; ++i) {
-    DCHECK_EQ(0, bytes[i]);
-  }
+  void* memory = buffer->backing_store();
+  base::OS::Free(memory,
+                 RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize()));
+
+  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
+      -buffer->byte_length()->Number());
+
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
+}
+
+#if V8_TARGET_ARCH_64_BIT
+const bool kGuardRegionsSupported = true;
+#else
+const bool kGuardRegionsSupported = false;
 #endif
 
-  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-  JSArrayBuffer::Setup(buffer, isolate, false, memory, static_cast<int>(size));
-  buffer->set_is_neuterable(false);
-  return buffer;
+bool EnableGuardRegions() {
+  return FLAG_wasm_guard_pages && kGuardRegionsSupported;
+}
+
+void* TryAllocateBackingStore(Isolate* isolate, size_t size,
+                              bool enable_guard_regions, bool& is_external) {
+  is_external = false;
+  // TODO(eholk): Right now enable_guard_regions has no effect on 32-bit
+  // systems. It may be safer to fail instead, given that other code might do
+  // things that would be unsafe if they expected guard pages where there
+  // weren't any.
+  if (enable_guard_regions && kGuardRegionsSupported) {
+    // TODO(eholk): On Windows we want to make sure we don't commit the guard
+    // pages yet.
+
+    // We always allocate the largest possible offset into the heap, so the
+    // addressable memory after the guard page can be made inaccessible.
+    const size_t alloc_size =
+        RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
+    DCHECK_EQ(0u, size % base::OS::CommitPageSize());
+
+    // AllocateGuarded makes the whole region inaccessible by default.
+    void* memory = base::OS::AllocateGuarded(alloc_size);
+    if (memory == nullptr) {
+      return nullptr;
+    }
+
+    // Make the part we care about accessible.
+    base::OS::Unprotect(memory, size);
+
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(size);
+
+    is_external = true;
+    return memory;
+  } else {
+    void* memory = isolate->array_buffer_allocator()->Allocate(size);
+    return memory;
+  }
 }
 
 void RelocateMemoryReferencesInCode(Handle<FixedArray> code_table,
@@ -608,6 +645,51 @@ Vector<const uint8_t> GetFunctionBytes(
 
 }  // namespace
 
+Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
+                                           bool enable_guard_regions) {
+  if (size > (WasmModule::kV8MaxPages * WasmModule::kPageSize)) {
+    // TODO(titzer): lift restriction on maximum memory allocated here.
+    return Handle<JSArrayBuffer>::null();
+  }
+
+  enable_guard_regions = enable_guard_regions && kGuardRegionsSupported;
+
+  bool is_external;  // Set by TryAllocateBackingStore
+  void* memory =
+      TryAllocateBackingStore(isolate, size, enable_guard_regions, is_external);
+
+  if (memory == nullptr) {
+    return Handle<JSArrayBuffer>::null();
+  }
+
+#if DEBUG
+  // Double check the API allocator actually zero-initialized the memory.
+  const byte* bytes = reinterpret_cast<const byte*>(memory);
+  for (size_t i = 0; i < size; ++i) {
+    DCHECK_EQ(0, bytes[i]);
+  }
+#endif
+
+  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  JSArrayBuffer::Setup(buffer, isolate, is_external, memory,
+                       static_cast<int>(size));
+  buffer->set_is_neuterable(false);
+  buffer->set_has_guard_region(enable_guard_regions);
+
+  if (is_external) {
+    // We mark the buffer as external if we allocated it here with guard
+    // pages. That means we need to arrange for it to be freed.
+
+    // TODO(eholk): Finalizers may not run when the main thread is shutting
+    // down, which means we may leak memory here.
+    Handle<Object> global_handle = isolate->global_handles()->Create(*buffer);
+    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
+                            &MemoryFinalizer, v8::WeakCallbackType::kFinalizer);
+  }
+
+  return buffer;
+}
+
 const char* wasm::SectionName(WasmSectionCode code) {
   switch (code) {
     case kUnknownSectionCode:
@@ -1059,8 +1141,9 @@ class WasmInstanceBuilder {
     MaybeHandle<JSArrayBuffer> old_globals;
     uint32_t globals_size = module_->globals_size;
     if (globals_size > 0) {
+      const bool enable_guard_regions = false;
       Handle<JSArrayBuffer> global_buffer =
-          NewArrayBuffer(isolate_, globals_size);
+          NewArrayBuffer(isolate_, globals_size, enable_guard_regions);
       globals_ = global_buffer;
       if (globals_.is_null()) {
         thrower_->RangeError("Out of memory: wasm globals");
@@ -1109,6 +1192,9 @@ class WasmInstanceBuilder {
     if (!memory_.is_null()) {
       // Set externally passed ArrayBuffer non neuterable.
       memory_->set_is_neuterable(false);
+
+      DCHECK_IMPLIES(EnableGuardRegions(), module_->origin == kAsmJsOrigin ||
+                                               memory_->has_guard_region());
     } else if (min_mem_pages > 0) {
       memory_ = AllocateMemory(min_mem_pages);
       if (memory_.is_null()) return nothing;  // failed to allocate memory
@@ -1581,8 +1667,9 @@ class WasmInstanceBuilder {
       thrower_->RangeError("Out of memory: wasm memory too large");
       return Handle<JSArrayBuffer>::null();
     }
-    Handle<JSArrayBuffer> mem_buffer =
-        NewArrayBuffer(isolate_, min_mem_pages * WasmModule::kPageSize);
+    const bool enable_guard_regions = EnableGuardRegions();
+    Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
+        isolate_, min_mem_pages * WasmModule::kPageSize, enable_guard_regions);
 
     if (mem_buffer.is_null()) {
       thrower_->RangeError("Out of memory: wasm memory");
@@ -2097,16 +2184,41 @@ int32_t wasm::GrowInstanceMemory(Isolate* isolate,
       WasmModule::kV8MaxPages * WasmModule::kPageSize < new_size) {
     return -1;
   }
-  Handle<JSArrayBuffer> buffer = NewArrayBuffer(isolate, new_size);
-  if (buffer.is_null()) return -1;
-  Address new_mem_start = static_cast<Address>(buffer->backing_store());
-  if (old_size != 0) {
-    memcpy(new_mem_start, old_mem_start, old_size);
+
+  Handle<JSArrayBuffer> buffer;
+
+  if (!old_buffer.is_null() && old_buffer->has_guard_region()) {
+    // We don't move the backing store, we simply change the protection to make
+    // more of it accessible.
+    base::OS::Unprotect(old_buffer->backing_store(), new_size);
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(pages * WasmModule::kPageSize);
+    Handle<Object> new_size_object =
+        isolate->factory()->NewNumberFromSize(new_size);
+    old_buffer->set_byte_length(*new_size_object);
+
+    SetInstanceMemory(instance, *old_buffer);
+    Handle<FixedArray> code_table =
+        instance->get_compiled_module()->code_table();
+    RelocateMemoryReferencesInCode(code_table, old_mem_start, old_mem_start,
+                                   old_size, new_size);
+    buffer = old_buffer;
+  } else {
+    const bool enable_guard_regions = false;
+    buffer = NewArrayBuffer(isolate, new_size, enable_guard_regions);
+    if (buffer.is_null()) return -1;
+    Address new_mem_start = static_cast<Address>(buffer->backing_store());
+    if (old_size != 0) {
+      memcpy(new_mem_start, old_mem_start, old_size);
+    }
+    SetInstanceMemory(instance, *buffer);
+    Handle<FixedArray> code_table =
+        instance->get_compiled_module()->code_table();
+    RelocateMemoryReferencesInCode(code_table, old_mem_start, new_mem_start,
+                                   old_size, new_size);
   }
+
   SetInstanceMemory(instance, *buffer);
-  Handle<FixedArray> code_table = instance->get_compiled_module()->code_table();
-  RelocateMemoryReferencesInCode(code_table, old_mem_start, new_mem_start,
-                                 old_size, new_size);
   if (instance->has_memory_object()) {
     instance->get_memory_object()->set_buffer(*buffer);
   }

@@ -592,6 +592,9 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
 
 # Module-related tests
 # https://bugs.chromium.org/p/v8/issues/detail?id=1569

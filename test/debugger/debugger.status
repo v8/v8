@@ -44,6 +44,15 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.

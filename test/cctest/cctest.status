@@ -402,4 +402,29 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
+##############################################################################
+['variant == wasm_traps', {
+  'test-accessors/*': [SKIP],
+  'test-api-interceptors/*': [SKIP],
+  'test-api/*': [SKIP],
+  'test-bignum-dtoa/*': [SKIP],
+  'test-cpu-profiler/*': [SKIP],
+  'test-debug/*': [SKIP],
+  'test-global-handles/*': [SKIP],
+  'test-heap-profiler/*': [SKIP],
+  'test-heap/*': [SKIP],
+  'test-inobject-slack-tracking/*': [SKIP],
+  'test-lockers/*': [SKIP],
+  'test-run-machops/*': [SKIP],
+  'test-serialize/*': [SKIP],
+  'test-strings/*': [SKIP],
+  'test-field-type-tracking/*': [SKIP],
+  'test-parsing/*': [SKIP],
+  'test-page-promotion/*': [SKIP],
+  'test-decls/*': [SKIP],
+  'test-log/*': [SKIP],
+  'test-gap-resolver/*': [SKIP],
+  'test-dtoa/*': [SKIP],
+}],  # variant == wasm_traps
+
 ]
