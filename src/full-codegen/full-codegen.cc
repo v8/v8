@@ -508,6 +508,7 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
                proxy->VariableFeedbackSlot());
   Handle<Code> code = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
   __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
 }
 
 void FullCodeGenerator::VisitSloppyBlockFunctionStatement(

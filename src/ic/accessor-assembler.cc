@@ -166,8 +166,8 @@ void AccessorAssemblerImpl::HandleLoadICHandlerCase(
   Bind(&try_proto_handler);
   {
     GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
-    HandleLoadICProtoHandler(p, handler, &var_holder, &var_smi_handler,
-                             &if_smi_handler, miss);
+    HandleLoadICProtoHandlerCase(p, handler, &var_holder, &var_smi_handler,
+                                 &if_smi_handler, miss, false);
   }
 
   Bind(&call_handler);
@@ -304,9 +304,10 @@ void AccessorAssemblerImpl::HandleLoadICSmiHandlerCase(
   }
 }
 
-void AccessorAssemblerImpl::HandleLoadICProtoHandler(
+void AccessorAssemblerImpl::HandleLoadICProtoHandlerCase(
     const LoadICParameters* p, Node* handler, Variable* var_holder,
-    Variable* var_smi_handler, Label* if_smi_handler, Label* miss) {
+    Variable* var_smi_handler, Label* if_smi_handler, Label* miss,
+    bool throw_reference_error_if_nonexistent) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_holder->rep());
   DCHECK_EQ(MachineRepresentation::kTagged, var_smi_handler->rep());
 
@@ -339,6 +340,8 @@ void AccessorAssemblerImpl::HandleLoadICProtoHandler(
       IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(handler_flags),
       &check_prototypes);
   {
+    CSA_ASSERT(this, Word32BinaryNot(
+                         HasInstanceType(p->receiver, JS_GLOBAL_OBJECT_TYPE)));
     // We have a dictionary receiver, do a negative lookup check.
     NameDictionaryNegativeLookup(p->receiver, p->name, miss);
     Goto(&check_prototypes);
@@ -355,7 +358,11 @@ void AccessorAssemblerImpl::HandleLoadICProtoHandler(
     Label load_existent(this);
     GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
     // This is a handler for a load of a non-existent value.
-    Return(UndefinedConstant());
+    if (throw_reference_error_if_nonexistent) {
+      TailCallRuntime(Runtime::kThrowReferenceError, p->context, p->name);
+    } else {
+      Return(UndefinedConstant());
+    }
 
     Bind(&load_existent);
     Node* holder = LoadWeakCellValue(maybe_holder_cell);
@@ -371,7 +378,7 @@ void AccessorAssemblerImpl::HandleLoadICProtoHandler(
   Bind(&array_handler);
   {
     typedef LoadICProtoArrayDescriptor Descriptor;
-    LoadICProtoArrayStub stub(isolate());
+    LoadICProtoArrayStub stub(isolate(), throw_reference_error_if_nonexistent);
     Node* target = HeapConstant(stub.GetCode());
     TailCallStub(Descriptor(isolate()), target, p->context,
                  Arg(Descriptor::kReceiver, p->receiver),
@@ -384,7 +391,8 @@ void AccessorAssemblerImpl::HandleLoadICProtoHandler(
 
 Node* AccessorAssemblerImpl::EmitLoadICProtoArrayCheck(
     const LoadICParameters* p, Node* handler, Node* handler_length,
-    Node* handler_flags, Label* miss) {
+    Node* handler_flags, Label* miss,
+    bool throw_reference_error_if_nonexistent) {
   Variable start_index(this, MachineType::PointerRepresentation());
   start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
 
@@ -430,7 +438,11 @@ Node* AccessorAssemblerImpl::EmitLoadICProtoArrayCheck(
   Label load_existent(this);
   GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
   // This is a handler for a load of a non-existent value.
-  Return(UndefinedConstant());
+  if (throw_reference_error_if_nonexistent) {
+    TailCallRuntime(Runtime::kThrowReferenceError, p->context, p->name);
+  } else {
+    Return(UndefinedConstant());
+  }
 
   Bind(&load_existent);
   Node* holder = LoadWeakCellValue(maybe_holder_cell);
@@ -439,6 +451,25 @@ Node* AccessorAssemblerImpl::EmitLoadICProtoArrayCheck(
   // check.
   CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
   return holder;
+}
+
+void AccessorAssemblerImpl::HandleLoadGlobalICHandlerCase(
+    const LoadICParameters* pp, Node* handler, Label* miss,
+    bool throw_reference_error_if_nonexistent) {
+  LoadICParameters p = *pp;
+  DCHECK_NULL(p.receiver);
+  Node* native_context = LoadNativeContext(p.context);
+  p.receiver = LoadContextElement(native_context, Context::EXTENSION_INDEX);
+
+  Variable var_holder(this, MachineRepresentation::kTagged);
+  Variable var_smi_handler(this, MachineRepresentation::kTagged);
+  Label if_smi_handler(this);
+  HandleLoadICProtoHandlerCase(&p, handler, &var_holder, &var_smi_handler,
+                               &if_smi_handler, miss,
+                               throw_reference_error_if_nonexistent);
+  Bind(&if_smi_handler);
+  HandleLoadICSmiHandlerCase(&p, var_holder.value(), var_smi_handler.value(),
+                             miss, kOnlyProperties);
 }
 
 void AccessorAssemblerImpl::HandleStoreICHandlerCase(const StoreICParameters* p,
@@ -1120,8 +1151,9 @@ void AccessorAssemblerImpl::LoadIC(const LoadICParameters* p) {
   }
 }
 
-void AccessorAssemblerImpl::LoadICProtoArray(const LoadICParameters* p,
-                                             Node* handler) {
+void AccessorAssemblerImpl::LoadICProtoArray(
+    const LoadICParameters* p, Node* handler,
+    bool throw_reference_error_if_nonexistent) {
   Label miss(this);
   CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
   CSA_ASSERT(this, IsFixedArrayMap(LoadMap(handler)));
@@ -1131,8 +1163,9 @@ void AccessorAssemblerImpl::LoadICProtoArray(const LoadICParameters* p,
 
   Node* handler_length = LoadAndUntagFixedArrayBaseLength(handler);
 
-  Node* holder = EmitLoadICProtoArrayCheck(p, handler, handler_length,
-                                           handler_flags, &miss);
+  Node* holder =
+      EmitLoadICProtoArrayCheck(p, handler, handler_length, handler_flags,
+                                &miss, throw_reference_error_if_nonexistent);
 
   HandleLoadICSmiHandlerCase(p, holder, smi_handler, &miss, kOnlyProperties);
 
@@ -1143,8 +1176,9 @@ void AccessorAssemblerImpl::LoadICProtoArray(const LoadICParameters* p,
   }
 }
 
-void AccessorAssemblerImpl::LoadGlobalIC(const LoadICParameters* p) {
-  Label try_handler(this), miss(this);
+void AccessorAssemblerImpl::LoadGlobalIC(const LoadICParameters* p,
+                                         TypeofMode typeof_mode) {
+  Label try_handler(this), call_handler(this), miss(this);
   Node* weak_cell =
       LoadFixedArrayElement(p->vector, p->slot, 0, SMI_PARAMETERS);
   CSA_ASSERT(this, HasInstanceType(weak_cell, WEAK_CELL_TYPE));
@@ -1157,15 +1191,24 @@ void AccessorAssemblerImpl::LoadGlobalIC(const LoadICParameters* p) {
   GotoIf(WordEqual(value, TheHoleConstant()), &miss);
   Return(value);
 
+  Node* handler;
   Bind(&try_handler);
   {
-    Node* handler =
+    handler =
         LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
+    CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
     GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
            &miss);
+    GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
 
-    // In this case {handler} must be a Code object.
-    CSA_ASSERT(this, HasInstanceType(handler, CODE_TYPE));
+    bool throw_reference_error_if_nonexistent =
+        typeof_mode == NOT_INSIDE_TYPEOF;
+    HandleLoadGlobalICHandlerCase(p, handler, &miss,
+                                  throw_reference_error_if_nonexistent);
+  }
+
+  Bind(&call_handler);
+  {
     LoadWithVectorDescriptor descriptor(isolate());
     Node* native_context = LoadNativeContext(p->context);
     Node* receiver =
@@ -1551,7 +1594,8 @@ void AccessorAssemblerImpl::GenerateLoadICTrampoline() {
   LoadIC(&p);
 }
 
-void AccessorAssemblerImpl::GenerateLoadICProtoArray() {
+void AccessorAssemblerImpl::GenerateLoadICProtoArray(
+    bool throw_reference_error_if_nonexistent) {
   typedef LoadICProtoArrayStub::Descriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -1562,10 +1606,10 @@ void AccessorAssemblerImpl::GenerateLoadICProtoArray() {
   Node* context = Parameter(Descriptor::kContext);
 
   LoadICParameters p(context, receiver, name, slot, vector);
-  LoadICProtoArray(&p, handler);
+  LoadICProtoArray(&p, handler, throw_reference_error_if_nonexistent);
 }
 
-void AccessorAssemblerImpl::GenerateLoadGlobalIC() {
+void AccessorAssemblerImpl::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   typedef LoadGlobalICStub::Descriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
@@ -1574,10 +1618,11 @@ void AccessorAssemblerImpl::GenerateLoadGlobalIC() {
   Node* context = Parameter(Descriptor::kContext);
 
   LoadICParameters p(context, nullptr, name, slot, vector);
-  LoadGlobalIC(&p);
+  LoadGlobalIC(&p, typeof_mode);
 }
 
-void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline() {
+void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline(
+    TypeofMode typeof_mode) {
   typedef LoadGlobalICTrampolineStub::Descriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
@@ -1586,7 +1631,7 @@ void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline() {
   Node* vector = LoadTypeFeedbackVectorForStub();
 
   LoadICParameters p(context, nullptr, name, slot, vector);
-  LoadGlobalIC(&p);
+  LoadGlobalIC(&p, typeof_mode);
 }
 
 void AccessorAssemblerImpl::GenerateKeyedLoadICTF() {
@@ -1695,6 +1740,24 @@ void AccessorAssemblerImpl::GenerateKeyedStoreICTrampolineTF(
 
 ACCESSOR_ASSEMBLER_PUBLIC_INTERFACE(DISPATCH_TO_IMPL)
 #undef DISPATCH_TO_IMPL
+
+void AccessorAssembler::GenerateLoadICProtoArray(
+    CodeAssemblerState* state, bool throw_reference_error_if_nonexistent) {
+  AccessorAssemblerImpl assembler(state);
+  assembler.GenerateLoadICProtoArray(throw_reference_error_if_nonexistent);
+}
+
+void AccessorAssembler::GenerateLoadGlobalIC(CodeAssemblerState* state,
+                                             TypeofMode typeof_mode) {
+  AccessorAssemblerImpl assembler(state);
+  assembler.GenerateLoadGlobalIC(typeof_mode);
+}
+
+void AccessorAssembler::GenerateLoadGlobalICTrampoline(
+    CodeAssemblerState* state, TypeofMode typeof_mode) {
+  AccessorAssemblerImpl assembler(state);
+  assembler.GenerateLoadGlobalICTrampoline(typeof_mode);
+}
 
 void AccessorAssembler::GenerateKeyedStoreICTF(CodeAssemblerState* state,
                                                LanguageMode language_mode) {

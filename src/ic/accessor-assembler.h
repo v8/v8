@@ -18,10 +18,13 @@ class AccessorAssembler {
  public:
   static void GenerateLoadIC(compiler::CodeAssemblerState* state);
   static void GenerateLoadICTrampoline(compiler::CodeAssemblerState* state);
-  static void GenerateLoadICProtoArray(compiler::CodeAssemblerState* state);
-  static void GenerateLoadGlobalIC(compiler::CodeAssemblerState* state);
+  static void GenerateLoadICProtoArray(
+      compiler::CodeAssemblerState* state,
+      bool throw_reference_error_if_nonexistent);
+  static void GenerateLoadGlobalIC(compiler::CodeAssemblerState* state,
+                                   TypeofMode typeof_mode);
   static void GenerateLoadGlobalICTrampoline(
-      compiler::CodeAssemblerState* state);
+      compiler::CodeAssemblerState* state, TypeofMode typeof_mode);
   static void GenerateKeyedLoadICTF(compiler::CodeAssemblerState* state);
   static void GenerateKeyedLoadICTrampolineTF(
       compiler::CodeAssemblerState* state);

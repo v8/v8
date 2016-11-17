@@ -713,7 +713,7 @@ void LoadGlobalICNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
                    SKIP_WRITE_BARRIER);
 }
 
-void LoadGlobalICNexus::ConfigureHandlerMode(Handle<Code> handler) {
+void LoadGlobalICNexus::ConfigureHandlerMode(Handle<Object> handler) {
   SetFeedback(GetIsolate()->heap()->empty_weak_cell());
   SetFeedbackExtra(*handler);
 }

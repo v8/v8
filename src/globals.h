@@ -314,25 +314,23 @@ inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   return os;
 }
 
-
 inline bool is_sloppy(LanguageMode language_mode) {
   return language_mode == SLOPPY;
 }
-
 
 inline bool is_strict(LanguageMode language_mode) {
   return language_mode != SLOPPY;
 }
 
-
 inline bool is_valid_language_mode(int language_mode) {
   return language_mode == SLOPPY || language_mode == STRICT;
 }
 
-
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
 }
+
+enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // This constant is used as an undefined value when passing source positions.
 const int kNoSourcePosition = -1;

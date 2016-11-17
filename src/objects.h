@@ -181,10 +181,6 @@ enum KeyedAccessStoreMode {
   STORE_NO_TRANSITION_HANDLE_COW
 };
 
-
-enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
-
 enum MutableMode {
   MUTABLE,
   IMMUTABLE

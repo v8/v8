@@ -555,7 +555,7 @@ class LoadGlobalICNexus : public FeedbackNexus {
 
   void ConfigureUninitialized() override;
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
-  void ConfigureHandlerMode(Handle<Code> handler);
+  void ConfigureHandlerMode(Handle<Object> handler);
 
   InlineCacheState StateFromFeedback() const override;
 };

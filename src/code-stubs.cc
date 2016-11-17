@@ -439,9 +439,6 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
 
 ACCESSOR_ASSEMBLER(LoadIC)
 ACCESSOR_ASSEMBLER(LoadICTrampoline)
-ACCESSOR_ASSEMBLER(LoadICProtoArray)
-ACCESSOR_ASSEMBLER(LoadGlobalIC)
-ACCESSOR_ASSEMBLER(LoadGlobalICTrampoline)
 ACCESSOR_ASSEMBLER(KeyedLoadICTF)
 ACCESSOR_ASSEMBLER(KeyedLoadICTrampolineTF)
 ACCESSOR_ASSEMBLER(StoreIC)
@@ -449,16 +446,28 @@ ACCESSOR_ASSEMBLER(StoreICTrampoline)
 
 #undef ACCESSOR_ASSEMBLER
 
+void LoadICProtoArrayStub::GenerateAssembly(CodeAssemblerState* state) const {
+  AccessorAssembler::GenerateLoadICProtoArray(
+      state, throw_reference_error_if_nonexistent());
+}
+
+void LoadGlobalICStub::GenerateAssembly(CodeAssemblerState* state) const {
+  AccessorAssembler::GenerateLoadGlobalIC(state, typeof_mode());
+}
+
+void LoadGlobalICTrampolineStub::GenerateAssembly(
+    CodeAssemblerState* state) const {
+  AccessorAssembler::GenerateLoadGlobalICTrampoline(state, typeof_mode());
+}
+
 void KeyedStoreICTrampolineTFStub::GenerateAssembly(
     CodeAssemblerState* state) const {
-  LanguageMode language_mode = StoreICState::GetLanguageMode(GetExtraICState());
-  AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state, language_mode);
+  AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state, language_mode());
 }
 
 void KeyedStoreICTFStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
-  LanguageMode language_mode = StoreICState::GetLanguageMode(GetExtraICState());
-  AccessorAssembler::GenerateKeyedStoreICTF(state, language_mode);
+  AccessorAssembler::GenerateKeyedStoreICTF(state, language_mode());
 }
 
 void StoreMapStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {

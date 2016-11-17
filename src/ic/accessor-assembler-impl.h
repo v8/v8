@@ -19,16 +19,13 @@ using compiler::Node;
 #define ACCESSOR_ASSEMBLER_PUBLIC_INTERFACE(V) \
   V(LoadIC)                                    \
   V(LoadICTrampoline)                          \
-  V(LoadICProtoArray)                          \
-  V(LoadGlobalIC)                              \
-  V(LoadGlobalICTrampoline)                    \
   V(KeyedLoadICTF)                             \
   V(KeyedLoadICTrampolineTF)                   \
   V(KeyedLoadICMegamorphic)                    \
   V(StoreIC)                                   \
   V(StoreICTrampoline)
-// KeyedStoreIC and KeyedStoreICTrampoline need custom handling because of
-// their "language_mode" parameter.
+// The other IC entry points need custom handling because of additional
+// parameters like "typeof_mode" or "language_mode".
 
 class AccessorAssemblerImpl : public CodeStubAssembler {
  public:
@@ -39,6 +36,11 @@ class AccessorAssemblerImpl : public CodeStubAssembler {
 
   ACCESSOR_ASSEMBLER_PUBLIC_INTERFACE(DECLARE_PUBLIC_METHOD)
 #undef DECLARE_PUBLIC_METHOD
+
+  void GenerateLoadICProtoArray(bool throw_reference_error_if_nonexistent);
+
+  void GenerateLoadGlobalIC(TypeofMode typeof_mode);
+  void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
 
   void GenerateKeyedStoreICTF(LanguageMode language_mode);
   void GenerateKeyedStoreICTrampolineTF(LanguageMode language_mode);
@@ -88,8 +90,9 @@ class AccessorAssemblerImpl : public CodeStubAssembler {
   // Stub generation entry points.
 
   void LoadIC(const LoadICParameters* p);
-  void LoadICProtoArray(const LoadICParameters* p, Node* handler);
-  void LoadGlobalIC(const LoadICParameters* p);
+  void LoadICProtoArray(const LoadICParameters* p, Node* handler,
+                        bool throw_reference_error_if_nonexistent);
+  void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
   void StoreIC(const StoreICParameters* p);
@@ -120,13 +123,22 @@ class AccessorAssemblerImpl : public CodeStubAssembler {
                                   Node* smi_handler, Label* miss,
                                   ElementSupport support_elements);
 
-  void HandleLoadICProtoHandler(const LoadICParameters* p, Node* handler,
-                                Variable* var_holder, Variable* var_smi_handler,
-                                Label* if_smi_handler, Label* miss);
+  void HandleLoadICProtoHandlerCase(const LoadICParameters* p, Node* handler,
+                                    Variable* var_holder,
+                                    Variable* var_smi_handler,
+                                    Label* if_smi_handler, Label* miss,
+                                    bool throw_reference_error_if_nonexistent);
 
   Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p, Node* handler,
                                   Node* handler_length, Node* handler_flags,
-                                  Label* miss);
+                                  Label* miss,
+                                  bool throw_reference_error_if_nonexistent);
+
+  // LoadGlobalIC implementation.
+
+  void HandleLoadGlobalICHandlerCase(const LoadICParameters* p, Node* handler,
+                                     Label* miss,
+                                     bool throw_reference_error_if_nonexistent);
 
   // StoreIC implementation.
 

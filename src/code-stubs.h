@@ -1956,6 +1956,11 @@ class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
+  TypeofMode typeof_mode() const {
+    LoadGlobalICState state(GetExtraICState());
+    return state.typeof_mode();
+  }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2022,6 +2027,10 @@ class KeyedStoreICTrampolineTFStub : public StoreICTrampolineStub {
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
 
+  LanguageMode language_mode() const {
+    return StoreICState(GetExtraICState()).language_mode();
+  }
+
   DEFINE_TURBOFAN_CODE_STUB(KeyedStoreICTrampolineTF, StoreICTrampolineStub);
 };
 
@@ -2059,7 +2068,23 @@ class LoadICStub : public TurboFanCodeStub {
 
 class LoadICProtoArrayStub : public TurboFanCodeStub {
  public:
-  explicit LoadICProtoArrayStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+  explicit LoadICProtoArrayStub(Isolate* isolate,
+                                bool throw_reference_error_if_nonexistent)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = ThrowReferenceErrorIfNonexistentBits::encode(
+        throw_reference_error_if_nonexistent);
+  }
+
+  bool throw_reference_error_if_nonexistent() const {
+    return ThrowReferenceErrorIfNonexistentBits::decode(minor_key_);
+  }
+
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+ private:
+  class ThrowReferenceErrorIfNonexistentBits : public BitField<bool, 0, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadICProtoArray);
   DEFINE_TURBOFAN_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
@@ -2073,6 +2098,11 @@ class LoadGlobalICStub : public TurboFanCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
+
+  TypeofMode typeof_mode() const {
+    LoadGlobalICState state(GetExtraICState());
+    return state.typeof_mode();
+  }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2099,6 +2129,11 @@ class StoreICStub : public TurboFanCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
+
+  LanguageMode language_mode() const {
+    return StoreICState(GetExtraICState()).language_mode();
+  }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2135,6 +2170,10 @@ class KeyedStoreICTFStub : public StoreICStub {
       : StoreICStub(isolate, state) {}
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
+
+  LanguageMode language_mode() const {
+    return StoreICState(GetExtraICState()).language_mode();
+  }
 
   DEFINE_TURBOFAN_CODE_STUB(KeyedStoreICTF, StoreICStub);
 };
