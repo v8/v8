@@ -61,7 +61,8 @@ void Int64Lowering::LowerGraph() {
           // that they are processed after all other nodes.
           PreparePhiReplacement(input);
           stack_.push_front({input, 0});
-        } else if (input->opcode() == IrOpcode::kEffectPhi) {
+        } else if (input->opcode() == IrOpcode::kEffectPhi ||
+                   input->opcode() == IrOpcode::kLoop) {
           stack_.push_front({input, 0});
         } else {
           stack_.push_back({input, 0});
