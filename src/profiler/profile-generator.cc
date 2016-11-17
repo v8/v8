@@ -764,6 +764,7 @@ CodeEntry* ProfileGenerator::FindEntry(void* address) {
     if (start <= address && address < end) {
       RuntimeCallCounter* counter =
           reinterpret_cast<RuntimeCallCounter*>(address);
+      CHECK(counter->name);
       entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name,
                             CodeEntry::kEmptyNamePrefix, "native V8Runtime");
       code_map_.AddCode(reinterpret_cast<Address>(address), entry, 1);
