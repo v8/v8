@@ -2,8 +2,8 @@ Check that inspector gets disassembled wasm code
 Paused on debugger!
 Number of frames: 5
 [0]     debugger;
-[1] kExprCallFunction, 00, // function #0
-[2]   kExprCallIndirect, 02, 00,   // sig #2
+[1] kExprCallFunction, 0x00, // function #0
+[2]   kExprCallIndirect, 0x02, 0x00,   // sig #2
 [3]   instance.exports.main();
 [4] testFunction(module_bytes)
 Finished.
