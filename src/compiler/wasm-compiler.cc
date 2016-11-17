@@ -412,6 +412,7 @@ Node* WasmGraphBuilder::Int64Constant(int64_t value) {
 
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
                                   Node** effect, Node** control) {
+  if (FLAG_wasm_no_stack_checks) return;
   if (effect == nullptr) {
     effect = effect_;
   }
@@ -2895,6 +2896,7 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                       uint32_t offset,
                                       wasm::WasmCodePosition position) {
   DCHECK(module_ && module_->instance);
+  if (FLAG_wasm_no_bounds_checks) return;
   uint32_t size = module_->instance->mem_size;
   byte memsize = wasm::WasmOpcodes::MemSize(memtype);
 

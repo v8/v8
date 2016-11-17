@@ -522,6 +522,11 @@ DEFINE_BOOL(wasm_mv_prototype, false,
 DEFINE_BOOL(wasm_atomics_prototype, false,
             "enable prototype atomic opcodes for wasm")
 
+DEFINE_BOOL(wasm_no_bounds_checks, false,
+            "disable bounds checks (performance testing only)")
+DEFINE_BOOL(wasm_no_stack_checks, false,
+            "disable stack checks (performance testing only)")
+
 DEFINE_BOOL(wasm_trap_handler, false,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")
