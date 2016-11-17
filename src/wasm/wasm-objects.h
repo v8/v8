@@ -275,12 +275,12 @@ class WasmDebugInfo : public FixedArray {
  public:
   enum class Fields { kFieldCount };
 
-  static Handle<WasmDebugInfo> New(Handle<JSObject> wasm);
+  static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject> instance);
 
   static bool IsDebugInfo(Object* object);
   static WasmDebugInfo* cast(Object* object);
 
-  JSObject* wasm_instance();
+  WasmInstanceObject* wasm_instance();
 
   bool SetBreakPoint(int byte_offset);
 

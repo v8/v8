@@ -30,9 +30,10 @@ FixedArray *GetAsmJsOffsetTables(Handle<WasmDebugInfo> debug_info,
     return FixedArray::cast(offset_tables);
   }
 
-  Handle<JSObject> wasm_instance(debug_info->wasm_instance(), isolate);
-  Handle<WasmCompiledModule> compiled_module(GetCompiledModule(*wasm_instance),
-                                             isolate);
+  Handle<WasmInstanceObject> wasm_instance(debug_info->wasm_instance(),
+                                           isolate);
+  Handle<WasmCompiledModule> compiled_module(
+      wasm_instance->get_compiled_module(), isolate);
   DCHECK(compiled_module->has_asm_js_offset_tables());
 
   AsmJsOffsetsResult asm_offsets;
@@ -76,14 +77,15 @@ FixedArray *GetAsmJsOffsetTables(Handle<WasmDebugInfo> debug_info,
 }
 }  // namespace
 
-Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<JSObject> wasm) {
-  Isolate *isolate = wasm->GetIsolate();
+Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
+  Isolate *isolate = instance->GetIsolate();
   Factory *factory = isolate->factory();
   Handle<FixedArray> arr =
       factory->NewFixedArray(kWasmDebugInfoNumEntries, TENURED);
-  arr->set(kWasmDebugInfoWasmObj, *wasm);
+  arr->set(kWasmDebugInfoWasmObj, *instance);
   int hash = 0;
-  Handle<SeqOneByteString> wasm_bytes = GetWasmBytes(wasm);
+  Handle<SeqOneByteString> wasm_bytes =
+      instance->get_compiled_module()->module_bytes();
   {
     DisallowHeapAllocation no_gc;
     hash = StringHasher::HashSequentialString(
@@ -108,17 +110,17 @@ WasmDebugInfo *WasmDebugInfo::cast(Object *object) {
   return reinterpret_cast<WasmDebugInfo *>(object);
 }
 
-JSObject *WasmDebugInfo::wasm_instance() {
-  return JSObject::cast(get(kWasmDebugInfoWasmObj));
+WasmInstanceObject *WasmDebugInfo::wasm_instance() {
+  return WasmInstanceObject::cast(get(kWasmDebugInfoWasmObj));
 }
 
 int WasmDebugInfo::GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
                                           int func_index, int byte_offset) {
   Isolate *isolate = debug_info->GetIsolate();
-  Handle<JSObject> instance(debug_info->wasm_instance(), isolate);
+  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   FixedArray *offset_tables = GetAsmJsOffsetTables(debug_info, isolate);
 
-  WasmCompiledModule *compiled_module = wasm::GetCompiledModule(*instance);
+  WasmCompiledModule *compiled_module = instance->get_compiled_module();
   int num_imported_functions =
       compiled_module->module()->num_imported_functions;
   DCHECK_LE(num_imported_functions, func_index);

@@ -359,9 +359,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> instance,
                                    uint32_t func_index);
 
-// Return the binary source bytes of a wasm module.
-Handle<SeqOneByteString> GetWasmBytes(Handle<JSObject> wasm);
-
 // Get the debug info associated with the given wasm object.
 // If no debug info exists yet, it is created automatically.
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
@@ -375,9 +372,6 @@ int GetNumberOfFunctions(Handle<JSObject> wasm);
 // special marker as internal field, which will definitely never occur anywhere
 // else.
 bool IsWasmInstance(Object* instance);
-
-// Return the compiled module object for this WASM instance.
-WasmCompiledModule* GetCompiledModule(Object* wasm_instance);
 
 // Check whether the wasm module was generated from asm.js code.
 bool WasmIsAsmJs(Object* instance, Isolate* isolate);

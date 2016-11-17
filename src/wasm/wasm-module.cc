@@ -1870,23 +1870,19 @@ bool wasm::IsWasmInstance(Object* object) {
   return WasmInstanceObject::IsWasmInstanceObject(object);
 }
 
-WasmCompiledModule* wasm::GetCompiledModule(Object* object) {
-  return WasmInstanceObject::cast(object)->get_compiled_module();
-}
-
 bool wasm::WasmIsAsmJs(Object* instance, Isolate* isolate) {
   if (instance->IsUndefined(isolate)) return false;
   DCHECK(IsWasmInstance(instance));
   WasmCompiledModule* compiled_module =
-      GetCompiledModule(JSObject::cast(instance));
+      WasmInstanceObject::cast(instance)->get_compiled_module();
   DCHECK_EQ(compiled_module->has_asm_js_offset_tables(),
             compiled_module->script()->type() == Script::TYPE_NORMAL);
   return compiled_module->has_asm_js_offset_tables();
 }
 
 Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
-  DCHECK(IsWasmInstance(*instance));
-  WasmCompiledModule* compiled_module = GetCompiledModule(*instance);
+  WasmCompiledModule* compiled_module =
+      WasmInstanceObject::cast(*instance)->get_compiled_module();
   DCHECK(compiled_module->has_script());
   return compiled_module->script();
 }
@@ -1915,12 +1911,6 @@ int wasm::GetAsmWasmSourcePosition(Handle<JSObject> instance, int func_index,
                                    int byte_offset) {
   return WasmDebugInfo::GetAsmJsSourcePosition(GetDebugInfo(instance),
                                                func_index, byte_offset);
-}
-
-Handle<SeqOneByteString> wasm::GetWasmBytes(Handle<JSObject> object) {
-  return Handle<WasmInstanceObject>::cast(object)
-      ->get_compiled_module()
-      ->module_bytes();
 }
 
 Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> object) {

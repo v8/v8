@@ -551,10 +551,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<Object> wasm_instance(it.wasm_frame()->wasm_instance(), isolate);
+    Handle<Object> wasm_instance_or_undef(it.wasm_frame()->wasm_instance(),
+                                          isolate);
     int func_index = it.wasm_frame()->function_index();
     Handle<String> func_name =
-        wasm::GetWasmFunctionName(isolate, wasm_instance, func_index);
+        wasm::GetWasmFunctionName(isolate, wasm_instance_or_undef, func_index);
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -573,11 +574,14 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // position, such that together with the script it uniquely identifies the
     // position.
     Handle<Object> positionValue;
-    if (position != kNoSourcePosition) {
+    if (position != kNoSourcePosition &&
+        !wasm_instance_or_undef->IsUndefined(isolate)) {
       int translated_position = position;
-      if (!wasm::WasmIsAsmJs(*wasm_instance, isolate)) {
+      if (!wasm::WasmIsAsmJs(*wasm_instance_or_undef, isolate)) {
         Handle<WasmCompiledModule> compiled_module(
-            wasm::GetCompiledModule(JSObject::cast(*wasm_instance)), isolate);
+            WasmInstanceObject::cast(*wasm_instance_or_undef)
+                ->get_compiled_module(),
+            isolate);
         translated_position +=
             wasm::GetFunctionCodeOffset(compiled_module, func_index);
       }
