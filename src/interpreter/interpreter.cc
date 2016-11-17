@@ -1000,62 +1000,91 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
   // sometimes emit comparisons that shouldn't collect feedback (e.g.
   // try-finally blocks and generators), and we could get rid of this by
   // introducing Smi equality tests.
-  Label skip_feedback_update(assembler);
-  __ GotoIf(__ WordEqual(slot_index, __ IntPtrConstant(0)),
-            &skip_feedback_update);
+  Label gather_type_feedback(assembler), do_compare(assembler);
+  __ Branch(__ WordEqual(slot_index, __ IntPtrConstant(0)), &do_compare,
+            &gather_type_feedback);
 
-  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
-  Label lhs_is_smi(assembler), lhs_is_not_smi(assembler),
-      gather_rhs_type(assembler), do_compare(assembler);
-  __ Branch(__ TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
-
-  __ Bind(&lhs_is_smi);
-  var_type_feedback.Bind(
-      __ Int32Constant(CompareOperationFeedback::kSignedSmall));
-  __ Goto(&gather_rhs_type);
-
-  __ Bind(&lhs_is_not_smi);
+  __ Bind(&gather_type_feedback);
   {
-    Label lhs_is_number(assembler), lhs_is_not_number(assembler);
-    Node* lhs_map = __ LoadMap(lhs);
-    __ Branch(__ WordEqual(lhs_map, __ HeapNumberMapConstant()), &lhs_is_number,
-              &lhs_is_not_number);
+    Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+    Label lhs_is_not_smi(assembler), lhs_is_not_number(assembler),
+        lhs_is_not_string(assembler), gather_rhs_type(assembler),
+        update_feedback(assembler);
 
-    __ Bind(&lhs_is_number);
-    var_type_feedback.Bind(__ Int32Constant(CompareOperationFeedback::kNumber));
+    __ GotoUnless(__ TaggedIsSmi(lhs), &lhs_is_not_smi);
+
+    var_type_feedback.Bind(
+        __ Int32Constant(CompareOperationFeedback::kSignedSmall));
     __ Goto(&gather_rhs_type);
 
-    __ Bind(&lhs_is_not_number);
-    var_type_feedback.Bind(__ Int32Constant(CompareOperationFeedback::kAny));
-    __ Goto(&do_compare);
-  }
+    __ Bind(&lhs_is_not_smi);
+    {
+      Node* lhs_map = __ LoadMap(lhs);
+      __ GotoUnless(__ WordEqual(lhs_map, __ HeapNumberMapConstant()),
+                    &lhs_is_not_number);
 
-  __ Bind(&gather_rhs_type);
-  {
-    Label rhs_is_smi(assembler);
-    __ GotoIf(__ TaggedIsSmi(rhs), &rhs_is_smi);
+      var_type_feedback.Bind(
+          __ Int32Constant(CompareOperationFeedback::kNumber));
+      __ Goto(&gather_rhs_type);
 
-    Node* rhs_map = __ LoadMap(rhs);
-    Node* rhs_type =
-        __ Select(__ WordEqual(rhs_map, __ HeapNumberMapConstant()),
-                  __ Int32Constant(CompareOperationFeedback::kNumber),
-                  __ Int32Constant(CompareOperationFeedback::kAny));
-    var_type_feedback.Bind(__ Word32Or(var_type_feedback.value(), rhs_type));
-    __ Goto(&do_compare);
+      __ Bind(&lhs_is_not_number);
+      {
+        Node* lhs_instance_type = __ LoadInstanceType(lhs);
+        Node* lhs_type =
+            __ Select(__ IsStringInstanceType(lhs_instance_type),
+                      __ Int32Constant(CompareOperationFeedback::kString),
+                      __ Int32Constant(CompareOperationFeedback::kAny));
 
-    __ Bind(&rhs_is_smi);
-    var_type_feedback.Bind(
-        __ Word32Or(var_type_feedback.value(),
-                    __ Int32Constant(CompareOperationFeedback::kSignedSmall)));
-    __ Goto(&do_compare);
+        var_type_feedback.Bind(lhs_type);
+        __ Goto(&gather_rhs_type);
+      }
+    }
+
+    __ Bind(&gather_rhs_type);
+    {
+      Label rhs_is_not_smi(assembler), rhs_is_not_number(assembler);
+
+      __ GotoUnless(__ TaggedIsSmi(rhs), &rhs_is_not_smi);
+
+      var_type_feedback.Bind(__ Word32Or(
+          var_type_feedback.value(),
+          __ Int32Constant(CompareOperationFeedback::kSignedSmall)));
+      __ Goto(&update_feedback);
+
+      __ Bind(&rhs_is_not_smi);
+      {
+        Node* rhs_map = __ LoadMap(rhs);
+        __ GotoUnless(__ WordEqual(rhs_map, __ HeapNumberMapConstant()),
+                      &rhs_is_not_number);
+
+        var_type_feedback.Bind(
+            __ Word32Or(var_type_feedback.value(),
+                        __ Int32Constant(CompareOperationFeedback::kNumber)));
+        __ Goto(&update_feedback);
+
+        __ Bind(&rhs_is_not_number);
+        {
+          Node* rhs_instance_type = __ LoadInstanceType(rhs);
+          Node* rhs_type =
+              __ Select(__ IsStringInstanceType(rhs_instance_type),
+                        __ Int32Constant(CompareOperationFeedback::kString),
+                        __ Int32Constant(CompareOperationFeedback::kAny));
+          var_type_feedback.Bind(
+              __ Word32Or(var_type_feedback.value(), rhs_type));
+          __ Goto(&update_feedback);
+        }
+      }
+    }
+
+    __ Bind(&update_feedback);
+    {
+      __ UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+                        slot_index);
+      __ Goto(&do_compare);
+    }
   }
 
   __ Bind(&do_compare);
-  __ UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
-                    slot_index);
-  __ Goto(&skip_feedback_update);
-
-  __ Bind(&skip_feedback_update);
   Node* result;
   switch (compare_op) {
     case Token::EQ:

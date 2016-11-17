@@ -69,6 +69,7 @@ class JSBinopReduction final {
           return true;
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
+        case CompareOperationHint::kString:
           break;
       }
     }

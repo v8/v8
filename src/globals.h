@@ -1241,10 +1241,21 @@ class BinaryOperationFeedback {
   };
 };
 
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kSignedSmall -> kNumber  -> kAny
+//                 kString  -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
  public:
-  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+  enum {
+    kNone = 0x00,
+    kSignedSmall = 0x01,
+    kNumber = 0x3,
+    kString = 0x4,
+    kAny = 0xf
+  };
 };
 
 // Describes how exactly a frame has been dropped from stack.

@@ -555,6 +555,10 @@ TEST(InterpreterBinaryOpTypeFeedback) {
        isolate->factory()->NewHeapNumber(1.4142),
        isolate->factory()->NewHeapNumber(3.1415 + 1.4142),
        BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewStringFromAsciiChecked("foo"),
+       isolate->factory()->NewStringFromAsciiChecked("bar"),
+       isolate->factory()->NewStringFromAsciiChecked("foobar"),
+       BinaryOperationFeedback::kString},
       {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate),
        isolate->factory()->NewStringFromAsciiChecked("2"),
        isolate->factory()->NewStringFromAsciiChecked("22"),
@@ -1809,7 +1813,7 @@ TEST(InterpreterStringComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kAny,
+        CHECK_EQ(CompareOperationFeedback::kString,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1822,7 +1826,7 @@ TEST(InterpreterMixedComparisons) {
   // convertible to a HeapNumber so comparison will be between numeric
   // values except for the strict comparisons where no conversion is
   // performed.
-  const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
+  const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e50", "2.01"};
 
   UnicodeCache unicode_cache;
 
@@ -1875,8 +1879,10 @@ TEST(InterpreterMixedComparisons) {
                    CompareC(comparison, lhs, rhs, true));
           Object* feedback = vector->Get(slot);
           CHECK(feedback->IsSmi());
-          CHECK_EQ(CompareOperationFeedback::kAny,
-                   static_cast<Smi*>(feedback)->value());
+          // kNumber | kString gets converted to CompareOperationHint::kAny.
+          int expected_feedback = CompareOperationFeedback::kNumber |
+                                  CompareOperationFeedback::kString;
+          CHECK_EQ(expected_feedback, static_cast<Smi*>(feedback)->value());
         }
       }
     }

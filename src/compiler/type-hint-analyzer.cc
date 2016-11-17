@@ -50,6 +50,7 @@ CompareOperationHint ToCompareOperationHint(Token::Value op,
                  : CompareOperationHint::kNumber;
     case CompareICState::STRING:
     case CompareICState::INTERNALIZED_STRING:
+      return CompareOperationHint::kString;
     case CompareICState::UNIQUE_NAME:
     case CompareICState::RECEIVER:
     case CompareICState::KNOWN_RECEIVER:
