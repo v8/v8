@@ -4928,7 +4928,6 @@ static void check_message_3(v8::Local<v8::Message> message,
                             v8::Local<Value> data) {
   CHECK(message->IsSharedCrossOrigin());
   CHECK(message->GetScriptOrigin().Options().IsSharedCrossOrigin());
-  CHECK(message->GetScriptOrigin().Options().IsEmbedderDebugScript());
   CHECK(message->GetScriptOrigin().Options().IsOpaque());
   CHECK_EQ(6.75, message->GetScriptOrigin()
                      .ResourceName()
@@ -4949,10 +4948,10 @@ TEST(MessageHandler3) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_3);
   LocalContext context;
-  v8::ScriptOrigin origin = v8::ScriptOrigin(
-      v8_str("6.75"), v8::Integer::New(isolate, 1),
-      v8::Integer::New(isolate, 2), v8::True(isolate), Local<v8::Integer>(),
-      v8::True(isolate), v8_str("7.40"), v8::True(isolate));
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
+                       v8::Integer::New(isolate, 2), v8::True(isolate),
+                       Local<v8::Integer>(), v8_str("7.40"), v8::True(isolate));
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin)
           .ToLocalChecked();
@@ -18773,8 +18772,8 @@ THREADED_TEST(ScriptOrigin) {
   v8::ScriptOrigin origin = v8::ScriptOrigin(
       v8_str("test"), v8::Integer::New(env->GetIsolate(), 1),
       v8::Integer::New(env->GetIsolate(), 1), v8::True(env->GetIsolate()),
-      v8::Local<v8::Integer>(), v8::True(env->GetIsolate()),
-      v8_str("http://sourceMapUrl"), v8::True(env->GetIsolate()));
+      v8::Local<v8::Integer>(), v8_str("http://sourceMapUrl"),
+      v8::True(env->GetIsolate()));
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -18792,7 +18791,6 @@ THREADED_TEST(ScriptOrigin) {
       1,
       script_origin_f.ResourceLineOffset()->Int32Value(env.local()).FromJust());
   CHECK(script_origin_f.Options().IsSharedCrossOrigin());
-  CHECK(script_origin_f.Options().IsEmbedderDebugScript());
   CHECK(script_origin_f.Options().IsOpaque());
   printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
 
@@ -18806,7 +18804,6 @@ THREADED_TEST(ScriptOrigin) {
       1,
       script_origin_g.ResourceLineOffset()->Int32Value(env.local()).FromJust());
   CHECK(script_origin_g.Options().IsSharedCrossOrigin());
-  CHECK(script_origin_g.Options().IsEmbedderDebugScript());
   CHECK(script_origin_g.Options().IsOpaque());
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(script_origin_g.SourceMapUrl())));

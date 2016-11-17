@@ -126,8 +126,6 @@ void V8Debugger::getCompiledScripts(
   for (size_t i = 0; i < scripts.Size(); ++i) {
     v8::Local<v8::DebugInterface::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
-    v8::ScriptOriginOptions origin = script->OriginOptions();
-    if (origin.IsEmbedderDebugScript()) continue;
     v8::Local<v8::String> v8ContextData;
     if (!script->ContextData().ToLocal(&v8ContextData)) continue;
     String16 contextData = toProtocolString(v8ContextData);

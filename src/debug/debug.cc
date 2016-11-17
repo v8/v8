@@ -1920,6 +1920,10 @@ void Debug::CallEventCallback(v8::DebugEvent event,
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   if (ignore_events()) return;
+  if (script->type() != i::Script::TYPE_NORMAL &&
+      script->type() != i::Script::TYPE_WASM) {
+    return;
+  }
   SuppressDebug while_processing(this);
 
   bool in_nested_debug_scope = in_debug_scope();

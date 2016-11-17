@@ -1643,9 +1643,8 @@ TEST(CompilationCacheCachingBehavior) {
 
   // The script should be in the cache now.
   MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
+      source, Handle<Object>(), 0, 0, v8::ScriptOriginOptions(true, false),
+      native_context, language_mode);
   CHECK(!info.is_null());
 
   // Check that the code cache entry survives at least on GC.
@@ -1653,10 +1652,9 @@ TEST(CompilationCacheCachingBehavior) {
   // immediately.)
   if (!FLAG_optimize_for_size) {
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    info = compilation_cache->LookupScript(
-        source, Handle<Object>(), 0, 0,
-        v8::ScriptOriginOptions(false, true, false), native_context,
-        language_mode);
+    info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                           v8::ScriptOriginOptions(true, false),
+                                           native_context, language_mode);
     CHECK(!info.is_null());
   }
 
@@ -1672,10 +1670,9 @@ TEST(CompilationCacheCachingBehavior) {
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   // Ensure code aging cleared the entry from the cache.
-  info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                         v8::ScriptOriginOptions(true, false),
+                                         native_context, language_mode);
   CHECK(info.is_null());
 }
 

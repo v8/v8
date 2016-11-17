@@ -961,18 +961,12 @@ class V8_EXPORT Data {
  */
 class ScriptOriginOptions {
  public:
-  V8_INLINE ScriptOriginOptions(bool is_embedder_debug_script = false,
-                                bool is_shared_cross_origin = false,
+  V8_INLINE ScriptOriginOptions(bool is_shared_cross_origin = false,
                                 bool is_opaque = false)
-      : flags_((is_embedder_debug_script ? kIsEmbedderDebugScript : 0) |
-               (is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
+      : flags_((is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
                (is_opaque ? kIsOpaque : 0)) {}
   V8_INLINE ScriptOriginOptions(int flags)
-      : flags_(flags &
-               (kIsEmbedderDebugScript | kIsSharedCrossOrigin | kIsOpaque)) {}
-  bool IsEmbedderDebugScript() const {
-    return (flags_ & kIsEmbedderDebugScript) != 0;
-  }
+      : flags_(flags & (kIsSharedCrossOrigin | kIsOpaque)) {}
   bool IsSharedCrossOrigin() const {
     return (flags_ & kIsSharedCrossOrigin) != 0;
   }
@@ -980,11 +974,7 @@ class ScriptOriginOptions {
   int Flags() const { return flags_; }
 
  private:
-  enum {
-    kIsEmbedderDebugScript = 1,
-    kIsSharedCrossOrigin = 1 << 1,
-    kIsOpaque = 1 << 2
-  };
+  enum { kIsSharedCrossOrigin = 1, kIsOpaque = 1 << 1 };
   const int flags_;
 };
 
@@ -999,9 +989,20 @@ class ScriptOrigin {
       Local<Integer> resource_column_offset = Local<Integer>(),
       Local<Boolean> resource_is_shared_cross_origin = Local<Boolean>(),
       Local<Integer> script_id = Local<Integer>(),
-      Local<Boolean> resource_is_embedder_debug_script = Local<Boolean>(),
       Local<Value> source_map_url = Local<Value>(),
       Local<Boolean> resource_is_opaque = Local<Boolean>());
+
+  V8_DEPRECATE_SOON(
+      "Use version without resource_is_embedder_debug_script flag",
+      V8_INLINE ScriptOrigin(Local<Value> resource_name,
+                             Local<Integer> resource_line_offset,
+                             Local<Integer> resource_column_offset,
+                             Local<Boolean> resource_is_shared_cross_origin,
+                             Local<Integer> script_id,
+                             Local<Boolean> resource_is_embedder_debug_script,
+                             Local<Value> source_map_url,
+                             Local<Boolean> resource_is_opaque));
+
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
@@ -8862,9 +8863,23 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
     : resource_name_(resource_name),
       resource_line_offset_(resource_line_offset),
       resource_column_offset_(resource_column_offset),
-      options_(!resource_is_embedder_debug_script.IsEmpty() &&
-                   resource_is_embedder_debug_script->IsTrue(),
-               !resource_is_shared_cross_origin.IsEmpty() &&
+      options_(!resource_is_shared_cross_origin.IsEmpty() &&
+                   resource_is_shared_cross_origin->IsTrue(),
+               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue()),
+      script_id_(script_id),
+      source_map_url_(source_map_url) {}
+
+ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
+                           Local<Integer> resource_line_offset,
+                           Local<Integer> resource_column_offset,
+                           Local<Boolean> resource_is_shared_cross_origin,
+                           Local<Integer> script_id,
+                           Local<Value> source_map_url,
+                           Local<Boolean> resource_is_opaque)
+    : resource_name_(resource_name),
+      resource_line_offset_(resource_line_offset),
+      resource_column_offset_(resource_column_offset),
+      options_(!resource_is_shared_cross_origin.IsEmpty() &&
                    resource_is_shared_cross_origin->IsTrue(),
                !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue()),
       script_id_(script_id),

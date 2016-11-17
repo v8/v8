@@ -518,33 +518,6 @@ Handle<AccessorInfo> Accessors::ScriptSourceMappingUrlInfo(
 
 
 //
-// Accessors::ScriptIsEmbedderDebugScript
-//
-
-
-void Accessors::ScriptIsEmbedderDebugScriptGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  DisallowHeapAllocation no_allocation;
-  HandleScope scope(isolate);
-  Object* script_obj = *Utils::OpenHandle(*info.Holder());
-  Script* script = Script::cast(script_obj);
-  Script::Type type = static_cast<Script::Type>(script->type());
-  Object* res = *isolate->factory()->ToBoolean(type == Script::TYPE_INSPECTOR);
-  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
-}
-
-
-Handle<AccessorInfo> Accessors::ScriptIsEmbedderDebugScriptInfo(
-    Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name(isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("is_debugger_script")));
-  return MakeAccessor(isolate, name, &ScriptIsEmbedderDebugScriptGetter,
-                      nullptr, attributes);
-}
-
-
-//
 // Accessors::ScriptGetContextData
 //
 

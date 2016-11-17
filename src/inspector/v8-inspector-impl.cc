@@ -129,10 +129,9 @@ v8::MaybeLocal<v8::Script> V8InspectorImpl::compileScript(
   v8::ScriptOrigin origin(
       toV8String(m_isolate, fileName), v8::Integer::New(m_isolate, 0),
       v8::Integer::New(m_isolate, 0),
-      v8::False(m_isolate),                                          // sharable
-      v8::Local<v8::Integer>(), v8::Boolean::New(m_isolate, false),  // internal
-      toV8String(m_isolate, String16()),  // sourceMap
-      v8::True(m_isolate));               // opaqueresource
+      v8::False(m_isolate),                                         // sharable
+      v8::Local<v8::Integer>(), toV8String(m_isolate, String16()),  // sourceMap
+      v8::True(m_isolate));  // opaqueresource
   v8::ScriptCompiler::Source source(toV8String(m_isolate, code), origin);
   return v8::ScriptCompiler::Compile(context, &source,
                                      v8::ScriptCompiler::kNoCompileOptions);

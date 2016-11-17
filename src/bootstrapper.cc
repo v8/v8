@@ -3098,15 +3098,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       script_map->AppendDescriptor(&d);
     }
 
-    Handle<AccessorInfo> script_is_embedder_debug_script =
-        Accessors::ScriptIsEmbedderDebugScriptInfo(isolate, attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
-          script_is_embedder_debug_script, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
     {
       PrototypeIterator iter(native_context->sloppy_async_function_map());
       Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
