@@ -180,10 +180,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
   const RuntimeCallStats::CounterId counters[2][2] = {
-      {&RuntimeCallStats::PreParseWithVariableResolution,
-       &RuntimeCallStats::PreParseBackgroundWithVariableResolution},
-      {&RuntimeCallStats::PreParseNoVariableResolution,
-       &RuntimeCallStats::PreParseBackgroundNoVariableResolution}};
+      {&RuntimeCallStats::PreParseBackgroundWithVariableResolution,
+       &RuntimeCallStats::PreParseWithVariableResolution},
+      {&RuntimeCallStats::PreParseBackgroundNoVariableResolution,
+       &RuntimeCallStats::PreParseNoVariableResolution}};
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
