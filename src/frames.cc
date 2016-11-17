@@ -177,10 +177,7 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
   if (frame->is_java_script()) {
     JavaScriptFrame* jsFrame = static_cast<JavaScriptFrame*>(frame);
     if (!jsFrame->function()->IsJSFunction()) return false;
-    Object* script = jsFrame->function()->shared()->script();
-    // Don't show functions from native scripts to user.
-    return (script->IsScript() &&
-            Script::TYPE_NATIVE != Script::cast(script)->type());
+    return jsFrame->function()->shared()->IsSubjectToDebugging();
   }
   // apart from javascript, only wasm is valid
   return frame->is_wasm();

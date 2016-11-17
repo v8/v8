@@ -33,17 +33,6 @@
 
 var DebuggerScript = {};
 
-/**
- * @param {?CompileEvent} eventData
- */
-DebuggerScript.getAfterCompileScript = function(eventData)
-{
-    var script = eventData.script().value();
-    if (!script.is_debugger_script)
-        return script;
-    return null;
-}
-
 /** @type {!Map<!ScopeType, string>} */
 DebuggerScript._scopeTypeNames = new Map();
 DebuggerScript._scopeTypeNames.set(ScopeType.Global, "global");

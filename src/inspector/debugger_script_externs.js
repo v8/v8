@@ -19,21 +19,6 @@ var Scope;
 var RawLocation;
 
 /** @typedef {{
-        id: number,
-        name: string,
-        sourceURL: (string|undefined),
-        sourceMappingURL: (string|undefined),
-        source: string,
-        startLine: number,
-        endLine: number,
-        startColumn: number,
-        endColumn: number,
-        executionContextId: number,
-        executionContextAuxData: string
-    }} */
-var FormattedScript;
-
-/** @typedef {{
         functionName: string,
         location: !RawLocation,
         this: !Object,
@@ -174,13 +159,6 @@ BreakPoint.prototype.number = function() {}
 
 
 /** @interface */
-function CompileEvent() {}
-
-/** @return {!ScriptMirror} */
-CompileEvent.prototype.script = function() {}
-
-
-/** @interface */
 function BreakEvent() {}
 
 /** @return {!Array<!BreakPoint>|undefined} */
@@ -237,14 +215,6 @@ var SourceLocation;
 /** @typedef{{
  *    id: number,
  *    context_data: (string|undefined),
- *    source_url: (string|undefined),
- *    source_mapping_url: (string|undefined),
- *    is_debugger_script: boolean,
- *    source: string,
- *    line_offset: number,
- *    column_offset: number,
- *    nameOrSourceURL: function():string,
- *    compilationType: function():!ScriptCompilationType,
  *    }}
  */
 var Script;

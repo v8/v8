@@ -97,6 +97,15 @@ namespace v8 {
   ENTER_V8(isolate);                                                 \
   bool has_pending_exception = false
 
+#define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, T)       \
+  if (IsExecutionTerminatingCheck(isolate)) {                                \
+    return MaybeLocal<T>();                                                  \
+  }                                                                          \
+  InternalEscapableScope handle_scope(isolate);                              \
+  CallDepthScope<false> call_depth_scope(isolate, v8::Local<v8::Context>()); \
+  ENTER_V8(isolate);                                                         \
+  bool has_pending_exception = false
+
 #define PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
                                            bailout_value, HandleScopeClass,    \
                                            do_callback)                        \
@@ -9144,6 +9153,25 @@ DebugInterface::DisassembleWasmFunction(Isolate* v8_isolate,
   i::Handle<i::WasmCompiledModule> compiled_module(
       i::WasmCompiledModule::cast(script->wasm_compiled_module()), isolate);
   return i::wasm::DisassembleFunction(compiled_module, function_index);
+}
+
+MaybeLocal<UnboundScript> DebugInterface::CompileInspectorScript(
+    Isolate* v8_isolate, Local<String> source) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, UnboundScript);
+  i::ScriptData* script_data = NULL;
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  i::Handle<i::SharedFunctionInfo> result;
+  {
+    ScriptOriginOptions origin_options;
+    result = i::Compiler::GetSharedFunctionInfoForScript(
+        str, i::Handle<i::Object>(), 0, 0, origin_options,
+        i::Handle<i::Object>(), isolate->native_context(), NULL, &script_data,
+        ScriptCompiler::kNoCompileOptions, i::INSPECTOR_CODE, false);
+    has_pending_exception = result.is_null();
+    RETURN_ON_FAILED_EXECUTION(UnboundScript);
+  }
+  RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {

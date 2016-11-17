@@ -588,23 +588,15 @@ void V8Debugger::handleV8DebugEvent(
     v8::Local<v8::Value> scriptWrapper =
         callInternalGetterFunction(scriptMirror.As<v8::Object>(), "value");
     DCHECK(scriptWrapper->IsObject());
-    v8::Local<v8::DebugInterface::Script> script =
-        v8::DebugInterface::Script::Wrap(m_isolate,
-                                         scriptWrapper.As<v8::Object>())
-            .ToLocalChecked();
+    v8::Local<v8::DebugInterface::Script> script;
+    if (!v8::DebugInterface::Script::Wrap(m_isolate,
+                                          scriptWrapper.As<v8::Object>())
+             .ToLocal(&script)) {
+      return;
+    }
     if (script->IsWasm()) {
       m_wasmTranslation.AddScript(scriptWrapper.As<v8::Object>());
     } else if (m_ignoreScriptParsedEventsCounter == 0) {
-      v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-      v8::Local<v8::Value> value =
-          callDebuggerMethod("getAfterCompileScript", 1, argv).ToLocalChecked();
-      if (value->IsNull()) return;
-      DCHECK(value->IsObject());
-      v8::Local<v8::Object> scriptObject = v8::Local<v8::Object>::Cast(value);
-      v8::Local<v8::DebugInterface::Script> script;
-      if (!v8::DebugInterface::Script::Wrap(m_isolate, scriptObject)
-               .ToLocal(&script))
-        return;
       agent->didParseSource(
           wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
           event == v8::AfterCompile);

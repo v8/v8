@@ -7025,7 +7025,8 @@ class Script: public Struct {
     TYPE_NATIVE = 0,
     TYPE_EXTENSION = 1,
     TYPE_NORMAL = 2,
-    TYPE_WASM = 3
+    TYPE_WASM = 3,
+    TYPE_INSPECTOR = 4
   };
 
   // Script compilation types.

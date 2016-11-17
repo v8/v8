@@ -198,9 +198,6 @@ class DebugInterface {
     int GetSourcePosition(const Location& location) const;
   };
 
-  /**
-   * Return array of compiled scripts.
-   */
   static void GetLoadedScripts(Isolate* isolate,
                                PersistentValueVector<Script>& scripts);
 
@@ -213,6 +210,8 @@ class DebugInterface {
   static std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
   DisassembleWasmFunction(Isolate* isolate, v8::Local<v8::Object> script,
                           int function_index);
+  static MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
+                                                          Local<String> source);
 };
 
 }  // namespace v8

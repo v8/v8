@@ -113,32 +113,29 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
 
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
     v8::Local<v8::Context> context, v8::Local<v8::String> source) {
-  v8::Local<v8::Script> script =
-      compileScript(context, source, String16(), true);
-  if (script.IsEmpty()) return v8::MaybeLocal<v8::Value>();
+  v8::Local<v8::UnboundScript> unboundScript;
+  if (!v8::DebugInterface::CompileInspectorScript(m_isolate, source)
+           .ToLocal(&unboundScript))
+    return v8::MaybeLocal<v8::Value>();
   v8::MicrotasksScope microtasksScope(m_isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  return script->Run(context);
+  v8::Context::Scope contextScope(context);
+  return unboundScript->BindToCurrentContext()->Run(context);
 }
 
-v8::Local<v8::Script> V8InspectorImpl::compileScript(
-    v8::Local<v8::Context> context, v8::Local<v8::String> code,
-    const String16& fileName, bool markAsInternal) {
+v8::MaybeLocal<v8::Script> V8InspectorImpl::compileScript(
+    v8::Local<v8::Context> context, const String16& code,
+    const String16& fileName) {
   v8::ScriptOrigin origin(
       toV8String(m_isolate, fileName), v8::Integer::New(m_isolate, 0),
       v8::Integer::New(m_isolate, 0),
-      v8::False(m_isolate),  // sharable
-      v8::Local<v8::Integer>(),
-      v8::Boolean::New(m_isolate, markAsInternal),  // internal
-      toV8String(m_isolate, String16()),            // sourceMap
-      v8::True(m_isolate));                         // opaqueresource
-  v8::ScriptCompiler::Source source(code, origin);
-  v8::Local<v8::Script> script;
-  if (!v8::ScriptCompiler::Compile(context, &source,
-                                   v8::ScriptCompiler::kNoCompileOptions)
-           .ToLocal(&script))
-    return v8::Local<v8::Script>();
-  return script;
+      v8::False(m_isolate),                                          // sharable
+      v8::Local<v8::Integer>(), v8::Boolean::New(m_isolate, false),  // internal
+      toV8String(m_isolate, String16()),  // sourceMap
+      v8::True(m_isolate));               // opaqueresource
+  v8::ScriptCompiler::Source source(toV8String(m_isolate, code), origin);
+  return v8::ScriptCompiler::Compile(context, &source,
+                                     v8::ScriptCompiler::kNoCompileOptions);
 }
 
 void V8InspectorImpl::enableStackCapturingIfNeeded() {

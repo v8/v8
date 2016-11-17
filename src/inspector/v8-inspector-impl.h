@@ -67,10 +67,9 @@ class V8InspectorImpl : public V8Inspector {
                                          int argc, v8::Local<v8::Value> info[]);
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
-  v8::Local<v8::Script> compileScript(v8::Local<v8::Context>,
-                                      v8::Local<v8::String>,
-                                      const String16& fileName,
-                                      bool markAsInternal);
+  v8::MaybeLocal<v8::Script> compileScript(v8::Local<v8::Context>,
+                                           const String16& code,
+                                           const String16& fileName);
   v8::Local<v8::Context> regexContext();
 
   // V8Inspector implementation.
