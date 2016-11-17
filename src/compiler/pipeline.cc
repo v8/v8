@@ -1512,7 +1512,7 @@ bool PipelineImpl::CreateGraph() {
     // Determine the Typer operation flags.
     Typer::Flags flags = Typer::kNoFlags;
     if (is_sloppy(info()->shared_info()->language_mode()) &&
-        !info()->shared_info()->IsBuiltin()) {
+        info()->shared_info()->IsUserJavaScript()) {
       // Sloppy mode functions always have an Object for this.
       flags |= Typer::kThisIsReceiver;
     }

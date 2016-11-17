@@ -1033,7 +1033,7 @@ bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
     if (holder->HasFastProperties()) {
       if (getter->IsJSFunction()) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-        if (!receiver->IsJSObject() && !function->shared()->IsBuiltin() &&
+        if (!receiver->IsJSObject() && function->shared()->IsUserJavaScript() &&
             is_sloppy(function->shared()->language_mode())) {
           // Calling sloppy non-builtins with a value as the receiver
           // requires boxing.

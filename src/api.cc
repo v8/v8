@@ -5118,7 +5118,7 @@ bool Function::IsBuiltin() const {
     return false;
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
-  return func->shared()->IsBuiltin();
+  return !func->shared()->IsUserJavaScript();
 }
 
 

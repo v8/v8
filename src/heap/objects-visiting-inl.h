@@ -600,8 +600,8 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // The function must not be a builtin.
-  if (shared_info->IsBuiltin()) {
+  // The function must be user code.
+  if (!shared_info->IsUserJavaScript()) {
     return false;
   }
 
