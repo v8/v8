@@ -395,7 +395,7 @@ def read_stats(path, domain, args):
     # Calculate the Parse-Total group
     group_data = { 'time': 0, 'count': 0 }
     for group_name, regexp in groups:
-      if !group_name.startswith('Group-Parse'): continue
+      if not group_name.startswith('Group-Parse'): continue
       group_data['time'] += entries[group_name]['time']
       group_data['count'] += entries[group_name]['count']
     entries['Group-Parse-Total'] = group_data
