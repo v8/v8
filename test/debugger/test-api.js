@@ -45,6 +45,12 @@ class DebugWrapper {
                         StepFrame: 3,
                       };
 
+    // The different types of scripts matching enum ScriptType in objects.h.
+    this.ScriptType = { Native: 0,
+                        Extension: 1,
+                        Normal: 2,
+                        Wasm: 3};
+
     // A copy of the scope types from runtime-debug.cc.
     // NOTE: these constants should be backward-compatible, so
     // add new ones to the end of this list.
@@ -77,6 +83,9 @@ class DebugWrapper {
 
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
+
+    // Stores all set breakpoints.
+    this.breakpoints = new Set();
 
     // Register as the active wrapper.
     assertTrue(activeWrapper === undefined);
@@ -136,25 +145,7 @@ class DebugWrapper {
     const offset = %FunctionGetScriptSourcePosition(func);
     const loc =
       %ScriptLocationFromLine2(scriptid, opt_line, opt_column, offset);
-
-    const params = { location :
-                       { scriptId : scriptid.toString(),
-                         lineNumber : loc.line,
-                         columnNumber : loc.column,
-                       }};
-    if (!!opt_condition) {
-      params.condition = opt_condition;
-    }
-
-    const {msgid, msg} = this.createMessage("Debugger.setBreakpoint", params);
-    this.sendMessage(msg);
-
-    const reply = this.takeReplyChecked(msgid);
-    assertTrue(reply.result !== undefined);
-    const breakid = reply.result.breakpointId;
-    assertTrue(breakid !== undefined);
-
-    return breakid;
+    return this.setBreakPointAtLocation(scriptid, loc, opt_condition);
   }
 
   setScriptBreakPoint(type, scriptid, opt_line, opt_column, opt_condition) {
@@ -166,32 +157,23 @@ class DebugWrapper {
 
   setScriptBreakPointById(scriptid, opt_line, opt_column, opt_condition) {
     const loc = %ScriptLocationFromLine2(scriptid, opt_line, opt_column, 0);
-
-    const params = { location :
-                       { scriptId : scriptid.toString(),
-                         lineNumber : loc.line,
-                         columnNumber : loc.column,
-                       }};
-    if (!!opt_condition) {
-      params.condition = opt_condition;
-    }
-
-    const {msgid, msg} = this.createMessage("Debugger.setBreakpoint", params);
-    this.sendMessage(msg);
-
-    const reply = this.takeReplyChecked(msgid);
-    assertTrue(reply.result !== undefined);
-    const breakid = reply.result.breakpointId;
-    assertTrue(breakid !== undefined);
-
-    return breakid;
+    return this.setBreakPointAtLocation(scriptid, loc, opt_condition);
   }
 
   clearBreakPoint(breakid) {
+    assertTrue(this.breakpoints.has(breakid));
     const {msgid, msg} = this.createMessage(
         "Debugger.removeBreakpoint", { breakpointId : breakid });
     this.sendMessage(msg);
     this.takeReplyChecked(msgid);
+    this.breakpoints.delete(breakid);
+  }
+
+  clearAllBreakPoints() {
+    for (let breakid of this.breakpoints) {
+      this.clearBreakPoint(breakid);
+    }
+    this.breakpoints.clear();
   }
 
   showBreakPoints(f, opt_position_alignment) {
@@ -236,10 +218,10 @@ class DebugWrapper {
   }
 
   // Returns a Script object. If the parameter is a function the return value
-  // is the script in which the function is defined. If the parameter is a string
-  // the return value is the script for which the script name has that string
-  // value.  If it is a regexp and there is a unique script whose name matches
-  // we return that, otherwise undefined.
+  // is the script in which the function is defined. If the parameter is a
+  // string the return value is the script for which the script name has that
+  // string value.  If it is a regexp and there is a unique script whose name
+  // matches we return that, otherwise undefined.
   findScript(func_or_script_name) {
     if (%IsFunction(func_or_script_name)) {
       return %FunctionGetScript(func_or_script_name);
@@ -269,10 +251,31 @@ class DebugWrapper {
     }
   }
 
+  // Returns the script source. If the parameter is a function the return value
+  // is the script source for the script in which the function is defined. If the
+  // parameter is a string the return value is the script for which the script
+  // name has that string value.
+  scriptSource(func_or_script_name) {
+    return this.findScript(func_or_script_name).source;
+  };
+
   sourcePosition(f) {
     if (!%IsFunction(f)) throw new Error("Not passed a Function");
     return %FunctionGetScriptSourcePosition(f);
   };
+
+  // Returns the character position in a script based on a line number and an
+  // optional position within that line.
+  findScriptSourcePosition(script, opt_line, opt_column) {
+    var location = %ScriptLocationFromLine(script, opt_line, opt_column, 0);
+    return location ? location.position : null;
+  };
+
+  findFunctionSourceLocation(func, opt_line, opt_column) {
+    var script = %FunctionGetScript(func);
+    var script_offset = %FunctionGetScriptSourcePosition(func);
+    return %ScriptLocationFromLine(script, opt_line, opt_column, script_offset);
+  }
 
   setBreakPointsActive(enabled) {
     const {msgid, msg} = this.createMessage(
@@ -329,6 +332,28 @@ class DebugWrapper {
     assertTrue(reply !== undefined);
     this.receivedMessages.delete(msgid);
     return reply;
+  }
+
+  setBreakPointAtLocation(scriptid, loc, opt_condition) {
+    const params = { location :
+                       { scriptId : scriptid.toString(),
+                         lineNumber : loc.line,
+                         columnNumber : loc.column,
+                       },
+                     condition : opt_condition,
+                   };
+
+    const {msgid, msg} = this.createMessage("Debugger.setBreakpoint", params);
+    this.sendMessage(msg);
+
+    const reply = this.takeReplyChecked(msgid);
+    assertTrue(reply.result !== undefined);
+    const breakid = reply.result.breakpointId;
+    assertTrue(breakid !== undefined);
+
+    this.breakpoints.add(breakid);
+
+    return breakid;
   }
 
   execStatePrepareStep(action) {

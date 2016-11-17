@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 function a() { b(); };
 function    b() {
   c(true);
@@ -55,23 +54,22 @@ function d(x) {
   x = 15;
 }
 
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 // This is the number of comment lines above the first test function.
-var comment_lines = 28;
+var comment_lines = 27;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 8126;
+var last_position = 8022;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 200;
+var last_line = 198;
 // This is the last column of last line (note: starting at 0).
 var last_column = 71;
 
 // This magic number is the length or the first line comment (actually number
 // of characters before 'function a(...'.
-var comment_line_length = 1633;
+var comment_line_length = 1599;
 var start_a = 9 + comment_line_length;
 var start_b = 35 + comment_line_length;
 var start_c = 66 + comment_line_length;
@@ -80,7 +78,7 @@ var start_d = 151 + comment_line_length;
 // The position of the first line of d(), i.e. "x = 1 ;".
 var start_code_d = start_d + 6;
 // The line # of the first line of d() (note: starting at 0).
-var start_line_d = 40;
+var start_line_d = 39;
 var line_length_d = 10;
 var num_lines_d = 15;
 
