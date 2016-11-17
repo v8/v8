@@ -250,7 +250,7 @@ class ThreadId {
 
   static int AllocateThreadId();
 
-  static int GetCurrentThreadId();
+  V8_EXPORT_PRIVATE static int GetCurrentThreadId();
 
   base::Atomic32 id_;
 
