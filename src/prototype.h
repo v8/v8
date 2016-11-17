@@ -147,8 +147,7 @@ class PrototypeIterator {
     // we visit to an arbitrarily chosen large number.
     seen_proxies_++;
     if (seen_proxies_ > kProxyPrototypeLimit) {
-      isolate_->Throw(
-          *isolate_->factory()->NewRangeError(MessageTemplate::kStackOverflow));
+      isolate_->StackOverflow();
       return false;
     }
     MaybeHandle<Object> proto =

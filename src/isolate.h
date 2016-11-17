@@ -1576,14 +1576,13 @@ class StackLimitCheck BASE_EMBEDDED {
   Isolate* isolate_;
 };
 
-#define STACK_CHECK(isolate, result_value)               \
-  do {                                                   \
-    StackLimitCheck stack_check(isolate);                \
-    if (stack_check.HasOverflowed()) {                   \
-      isolate->Throw(*isolate->factory()->NewRangeError( \
-          MessageTemplate::kStackOverflow));             \
-      return result_value;                               \
-    }                                                    \
+#define STACK_CHECK(isolate, result_value) \
+  do {                                     \
+    StackLimitCheck stack_check(isolate);  \
+    if (stack_check.HasOverflowed()) {     \
+      isolate->StackOverflow();            \
+      return result_value;                 \
+    }                                      \
   } while (false)
 
 // Support for temporarily postponing interrupts. When the outermost
