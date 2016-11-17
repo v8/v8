@@ -467,7 +467,7 @@ DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
 DEFINE_BOOL(turbo_stress_loop_peeling, false,
             "stress loop peeling optimization")
-DEFINE_BOOL(turbo_loop_peeling, false, "Turbofan loop peeling")
+DEFINE_BOOL(turbo_loop_peeling, true, "Turbofan loop peeling")
 DEFINE_BOOL(turbo_loop_variable, true, "Turbofan loop variable optimization")
 DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
