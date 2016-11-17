@@ -80,8 +80,6 @@ class BytecodeGraphTester {
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_loop_assignment_analysis = false;
-    // Ensure handler table is generated.
-    isolate->interpreter()->Initialize();
   }
   virtual ~BytecodeGraphTester() {}
 

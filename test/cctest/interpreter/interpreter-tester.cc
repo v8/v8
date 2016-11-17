@@ -23,8 +23,6 @@ InterpreterTester::InterpreterTester(
       feedback_vector_(feedback_vector) {
   i::FLAG_ignition = true;
   i::FLAG_always_opt = false;
-  // Ensure handler table is generated.
-  isolate->interpreter()->Initialize();
 }
 
 InterpreterTester::InterpreterTester(
