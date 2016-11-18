@@ -1081,9 +1081,10 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
               __ Word32Equal(rhs_instance_type, __ Int32Constant(ODDBALL_TYPE));
           __ GotoUnless(rhs_is_oddball, &rhs_is_not_oddball);
 
-          var_type_feedback.Bind(
-              __ Int32Constant(CompareOperationFeedback::kNumberOrOddball));
-          __ Goto(&do_compare);
+          var_type_feedback.Bind(__ Word32Or(
+              var_type_feedback.value(),
+              __ Int32Constant(CompareOperationFeedback::kNumberOrOddball)));
+          __ Goto(&update_feedback);
 
           __ Bind(&rhs_is_not_oddball);
           {
