@@ -85,7 +85,7 @@ void StoreBuffer::FlipStoreBuffers() {
   current_ = other;
   top_ = start_[current_];
 
-  if (!task_running_) {
+  if (!task_running_ && FLAG_concurrent_sweeping) {
     task_running_ = true;
     Task* task = new Task(heap_->isolate(), this);
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
