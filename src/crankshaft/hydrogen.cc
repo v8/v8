@@ -11209,8 +11209,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           Handle<JSFunction>::cast(HConstant::cast(right)->handle(isolate()));
       // Make sure that the {function} already has a meaningful initial map
       // (i.e. we constructed at least one instance using the constructor
-      // {function}).
-      if (function->has_initial_map()) {
+      // {function}), and has an instance as .prototype.
+      if (function->has_initial_map() &&
+          !function->map()->has_non_instance_prototype()) {
         // Lookup @@hasInstance on the {function}.
         Handle<Map> function_map(function->map(), isolate());
         PropertyAccessInfo has_instance(
