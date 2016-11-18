@@ -1821,6 +1821,7 @@ TEST(CodeSerializerEagerCompilationAndPreAge) {
 }
 
 TEST(Regress503552) {
+  if (!FLAG_incremental_marking) return;
   // Test that the code serializer can deal with weak cells that form a linked
   // list during incremental marking.
   CcTest::InitializeVM();

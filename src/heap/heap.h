@@ -669,6 +669,8 @@ class Heap {
   // they are in new space.
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
 
+  static bool IsUnmodifiedHeapObject(Object** p);
+
   // Zapping is needed for verify heap, and always done in debug builds.
   static inline bool ShouldZapGarbage() {
 #ifdef DEBUG
@@ -781,6 +783,9 @@ class Heap {
   }
   Object* encountered_weak_collections() const {
     return encountered_weak_collections_;
+  }
+  void VisitEncounteredWeakCollections(ObjectVisitor* visitor) {
+    visitor->VisitPointer(&encountered_weak_collections_);
   }
 
   void set_encountered_weak_cells(Object* weak_cell) {

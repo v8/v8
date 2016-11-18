@@ -509,9 +509,14 @@ void GCTracer::PrintNVP() const {
           "pause=%.1f "
           "mutator=%.1f "
           "gc=%s "
-          "reduce_memory=%d\n",
-          duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory);
+          "reduce_memory=%d "
+          "mark=%.2f "
+          "mark.roots=%.2f "
+          "mark.old_to_new=%.2f\n",
+          duration, spent_in_mutator, "mmc", current_.reduce_memory,
+          current_.scopes[Scope::MINOR_MC_MARK],
+          current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
+          current_.scopes[Scope::MINOR_MC_MARK_OLD_TO_NEW_POINTERS]);
       break;
     case Event::MARK_COMPACTOR:
     case Event::INCREMENTAL_MARK_COMPACTOR:

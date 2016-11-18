@@ -1362,6 +1362,7 @@ TEST(TestCodeFlushingPreAged) {
 
 
 TEST(TestCodeFlushingIncremental) {
+  if (!i::FLAG_incremental_marking) return;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
@@ -1434,6 +1435,7 @@ TEST(TestCodeFlushingIncremental) {
 
 
 TEST(TestCodeFlushingIncrementalScavenge) {
+  if (!FLAG_incremental_marking) return;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
@@ -1505,6 +1507,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
 
 
 TEST(TestCodeFlushingIncrementalAbort) {
+  if (!i::FLAG_incremental_marking) return;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
@@ -1571,6 +1574,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
 }
 
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
+  if (!i::FLAG_incremental_marking) return;
   // Turn off always_opt because it interferes with running the built-in for
   // the last call to g().
   i::FLAG_always_opt = false;
@@ -2605,6 +2609,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 
 TEST(InstanceOfStubWriteBarrier) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
@@ -2671,6 +2676,7 @@ int GetProfilerTicks(SharedFunctionInfo* shared) {
 }  // namespace
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
@@ -2762,6 +2768,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 
 
 HEAP_TEST(GCFlags) {
+  if (!i::FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
 
@@ -2794,6 +2801,7 @@ HEAP_TEST(GCFlags) {
 
 
 TEST(IdleNotificationFinishMarking) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   const int initial_gc_count = CcTest::heap()->gc_count();
@@ -3293,6 +3301,7 @@ static int CountMapTransitions(Map* map) {
 // Test that map transitions are cleared and maps are collected with
 // incremental marking as well.
 TEST(Regress1465) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
@@ -3668,6 +3677,7 @@ TEST(PrintSharedFunctionInfo) {
 
 
 TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
+  if (!FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3743,6 +3753,7 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3766,6 +3777,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3787,6 +3799,7 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
 }
 
 TEST(IncrementalMarkingPreservesPolymorphicIC) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3824,6 +3837,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
 }
 
 TEST(ContextDisposeDoesntClearPolymorphicIC) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3979,6 +3993,7 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
 
 
 TEST(Regress159140) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4039,6 +4054,7 @@ TEST(Regress159140) {
 
 
 TEST(Regress165495) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4085,6 +4101,7 @@ TEST(Regress165495) {
 
 
 TEST(Regress169209) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_always_opt = false;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
@@ -4301,6 +4318,7 @@ TEST(Regress513507) {
 
 
 TEST(Regress514122) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
@@ -4562,6 +4580,7 @@ TEST(Regress513496) {
 
 
 TEST(LargeObjectSlotRecording) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4634,6 +4653,7 @@ TEST(DeferredHandles) {
 
 
 TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   CompileRun("function f(n) {"
@@ -5445,6 +5465,7 @@ TEST(WeakCell) {
 
 
 TEST(WeakCellsWithIncrementalMarking) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -5716,6 +5737,7 @@ UNINITIALIZED_TEST(PromotionQueue) {
 
 
 TEST(Regress388880) {
+  if (!FLAG_incremental_marking) return;
   i::FLAG_expose_gc = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -5763,6 +5785,7 @@ TEST(Regress388880) {
 
 
 TEST(Regress3631) {
+  if (!FLAG_incremental_marking) return;
   i::FLAG_expose_gc = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -5896,6 +5919,7 @@ void CheckMapRetainingFor(int n) {
 
 
 TEST(MapRetaining) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   CheckMapRetainingFor(FLAG_retain_maps_for_n_gc);
@@ -6395,6 +6419,7 @@ static UniqueId MakeUniqueId(const Persistent<T>& p) {
 
 
 TEST(Regress519319) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -6463,6 +6488,7 @@ HEAP_TEST(Regress587004) {
 }
 
 HEAP_TEST(Regress589413) {
+  if (!FLAG_incremental_marking) return;
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
@@ -6538,6 +6564,7 @@ HEAP_TEST(Regress589413) {
 }
 
 TEST(Regress598319) {
+  if (!FLAG_incremental_marking) return;
   // This test ensures that no white objects can cross the progress bar of large
   // objects during incremental marking. It checks this by using Shift() during
   // incremental marking.
@@ -6654,6 +6681,7 @@ TEST(Regress609761) {
 }
 
 TEST(Regress615489) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6708,6 +6736,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(Regress631969) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   FLAG_concurrent_sweeping = false;
@@ -6753,6 +6782,7 @@ TEST(Regress631969) {
 }
 
 TEST(LeftTrimFixedArrayInBlackArea) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6791,6 +6821,7 @@ TEST(LeftTrimFixedArrayInBlackArea) {
 }
 
 TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6856,6 +6887,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
 }
 
 TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6914,6 +6946,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 }
 
 TEST(Regress618958) {
+  if (!i::FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();

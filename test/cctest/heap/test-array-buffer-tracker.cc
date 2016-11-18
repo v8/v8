@@ -188,6 +188,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 }
 
 TEST(ArrayBuffer_NonLivePromotion) {
+  if (!FLAG_incremental_marking) return;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -223,6 +224,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 }
 
 TEST(ArrayBuffer_LivePromotion) {
+  if (!FLAG_incremental_marking) return;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -257,6 +259,7 @@ TEST(ArrayBuffer_LivePromotion) {
 }
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
+  if (!i::FLAG_incremental_marking) return;
   // The test verifies that the marking state is preserved across semispace
   // copy.
   CcTest::InitializeVM();
