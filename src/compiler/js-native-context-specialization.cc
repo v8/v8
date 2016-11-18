@@ -69,6 +69,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kJSInstanceOf:
+      return ReduceJSInstanceOf(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSLoadNamed:
@@ -82,6 +84,92 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
     default:
       break;
   }
+  return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* constructor = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // If deoptimization is disabled, we cannot optimize.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  // Check if the right hand side is a known {receiver}.
+  HeapObjectMatcher m(constructor);
+  if (!m.HasValue() || !m.Value()->IsJSObject()) return NoChange();
+  Handle<JSObject> receiver = Handle<JSObject>::cast(m.Value());
+  Handle<Map> receiver_map(receiver->map(), isolate());
+
+  // Compute property access info for @@hasInstance on {receiver}.
+  PropertyAccessInfo access_info;
+  AccessInfoFactory access_info_factory(dependencies(), native_context(),
+                                        graph()->zone());
+  if (!access_info_factory.ComputePropertyAccessInfo(
+          receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad,
+          &access_info)) {
+    return NoChange();
+  }
+
+  if (access_info.IsNotFound()) {
+    // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
+    // takes over, but that requires the {receiver} to be callable.
+    if (receiver->IsCallable()) {
+      // Determine actual holder and perform prototype chain checks.
+      Handle<JSObject> holder;
+      if (access_info.holder().ToHandle(&holder)) {
+        AssumePrototypesStable(access_info.receiver_maps(), holder);
+      }
+
+      // Monomorphic property access.
+      effect =
+          BuildCheckMaps(constructor, effect, control, MapList{receiver_map});
+
+      // Lower to OrdinaryHasInstance(C, O).
+      NodeProperties::ReplaceValueInput(node, constructor, 0);
+      NodeProperties::ReplaceValueInput(node, object, 1);
+      NodeProperties::ReplaceEffectInput(node, effect);
+      NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
+      return Changed(node);
+    }
+  } else if (access_info.IsDataConstant()) {
+    DCHECK(access_info.constant()->IsCallable());
+
+    // Determine actual holder and perform prototype chain checks.
+    Handle<JSObject> holder;
+    if (access_info.holder().ToHandle(&holder)) {
+      AssumePrototypesStable(access_info.receiver_maps(), holder);
+    }
+
+    // Monomorphic property access.
+    effect =
+        BuildCheckMaps(constructor, effect, control, MapList{receiver_map});
+
+    // Call the @@hasInstance handler.
+    Node* target = jsgraph()->Constant(access_info.constant());
+    node->InsertInput(graph()->zone(), 0, target);
+    node->ReplaceInput(1, constructor);
+    node->ReplaceInput(2, object);
+    NodeProperties::ChangeOp(
+        node,
+        javascript()->CallFunction(3, 0.0f, VectorSlotPair(),
+                                   ConvertReceiverMode::kNotNullOrUndefined));
+
+    // Rewire the value uses of {node} to ToBoolean conversion of the result.
+    Node* value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                                   node, context);
+    for (Edge edge : node->use_edges()) {
+      if (NodeProperties::IsValueEdge(edge) && edge.from() != value) {
+        edge.UpdateTo(value);
+        Revisit(edge.from());
+      }
+    }
+    return Changed(node);
+  }
+
   return NoChange();
 }
 

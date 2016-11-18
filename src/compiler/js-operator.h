@@ -508,6 +508,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* TypeOf();
   const Operator* InstanceOf();
+  const Operator* OrdinaryHasInstance();
 
   const Operator* ForInNext();
   const Operator* ForInPrepare();

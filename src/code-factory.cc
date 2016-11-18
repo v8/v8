@@ -254,7 +254,10 @@ TFS_BUILTIN(ToLength)
 TFS_BUILTIN(ToObject)
 TFS_BUILTIN(Typeof)
 TFS_BUILTIN(InstanceOf)
+TFS_BUILTIN(OrdinaryHasInstance)
 TFS_BUILTIN(ForInFilter)
+
+#undef TFS_BUILTIN
 
 // static
 Callable CodeFactory::Inc(Isolate* isolate) {

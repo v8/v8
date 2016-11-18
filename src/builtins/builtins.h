@@ -559,6 +559,7 @@ namespace internal {
                                                                               \
   TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty)                     \
   TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                          \
+  TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare)                 \
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
   /* Promise */                                                               \
