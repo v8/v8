@@ -2292,7 +2292,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(rax, &create_runtime);
 
     // Load the map of argumentsList into rcx.
@@ -2335,6 +2336,21 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ movp(rax, rcx);
     __ jmp(&done_create);
 
+    __ bind(&create_holey_array);
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ movp(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
+    __ cmpp(rcx, ContextOperand(rbx, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ j(not_equal, &create_runtime);
+    __ LoadRoot(rcx, Heap::kArrayProtectorRootIndex);
+    __ Cmp(FieldOperand(rcx, PropertyCell::kValueOffset),
+           Smi::FromInt(Isolate::kProtectorValid));
+    __ j(not_equal, &create_runtime);
+    __ SmiToInteger32(rbx, FieldOperand(rax, JSArray::kLengthOffset));
+    __ movp(rax, FieldOperand(rax, JSArray::kElementsOffset));
+    __ jmp(&done_create);
+
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
     __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
@@ -2342,10 +2358,12 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
-    __ cmpl(rcx, Immediate(FAST_ELEMENTS));
-    __ j(above, &create_runtime);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
     __ cmpl(rcx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
-    __ j(equal, &create_runtime);
+    __ j(equal, &create_holey_array);
+    __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ j(equal, &create_holey_array);
+    __ j(above, &create_runtime);
     __ SmiToInteger32(rbx, FieldOperand(rax, JSArray::kLengthOffset));
     __ movp(rax, FieldOperand(rax, JSArray::kElementsOffset));
 
@@ -2383,12 +2401,18 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   {
     __ PopReturnAddressTo(r8);
     __ Set(rcx, 0);
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmpl(rcx, rbx);
     __ j(equal, &done, Label::kNear);
-    __ Push(
-        FieldOperand(rax, rcx, times_pointer_size, FixedArray::kHeaderSize));
+    // Turn the hole into undefined as we go.
+    __ movp(r9, FieldOperand(rax, rcx, times_pointer_size,
+                             FixedArray::kHeaderSize));
+    __ CompareRoot(r9, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &push, Label::kNear);
+    __ LoadRoot(r9, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
+    __ Push(r9);
     __ incl(rcx);
     __ jmp(&loop);
     __ bind(&done);
