@@ -2402,6 +2402,10 @@ v8_source_set("fuzzer_support") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
+
+  if (v8_enable_i18n_support) {
+    deps += [ "//third_party/icu" ]
+  }
 }
 
 v8_source_set("simple_fuzzer") {
