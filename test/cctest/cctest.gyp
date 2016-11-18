@@ -112,6 +112,7 @@
       'heap/test-spaces.cc',
       'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
+      'parsing/test-parse-decision.cc',
       'parsing/test-scanner-streams.cc',
       'parsing/test-scanner.cc',
       'print-extension.cc',

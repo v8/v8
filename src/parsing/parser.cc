@@ -2530,7 +2530,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   }
 
   FunctionLiteral::EagerCompileHint eager_compile_hint =
-      function_state_->next_function_is_parenthesized()
+      function_state_->next_function_is_likely_called()
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 
