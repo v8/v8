@@ -300,6 +300,27 @@ void BlockAssessments::DropRegisters() {
   }
 }
 
+void BlockAssessments::Print() const {
+  OFStream os(stdout);
+  for (const auto pair : map()) {
+    const InstructionOperand op = pair.first;
+    const Assessment* assessment = pair.second;
+    // Use operator<< so we can write the assessment on the same
+    // line. Since we need a register configuration, just pick
+    // Turbofan for now.
+    PrintableInstructionOperand wrapper = {RegisterConfiguration::Turbofan(),
+                                           op};
+    os << wrapper << " : ";
+    if (assessment->kind() == AssessmentKind::Final) {
+      os << "v" << FinalAssessment::cast(assessment)->virtual_register();
+    } else {
+      os << "P";
+    }
+    os << std::endl;
+  }
+  os << std::endl;
+}
+
 BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
     const InstructionBlock* block) {
   RpoNumber current_block_id = block->rpo_number();
