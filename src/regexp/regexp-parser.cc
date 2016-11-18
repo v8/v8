@@ -1083,13 +1083,19 @@ bool IsExactPropertyValueAlias(const char* property_value_name,
 bool LookupPropertyValueName(UProperty property,
                              const char* property_value_name, bool negate,
                              ZoneList<CharacterRange>* result, Zone* zone) {
+  UProperty property_for_lookup = property;
+  if (property_for_lookup == UCHAR_SCRIPT_EXTENSIONS) {
+    // For the property Script_Extensions, we have to do the property value
+    // name lookup as if the property is Script.
+    property_for_lookup = UCHAR_SCRIPT;
+  }
   int32_t property_value =
-      u_getPropertyValueEnum(property, property_value_name);
+      u_getPropertyValueEnum(property_for_lookup, property_value_name);
   if (property_value == UCHAR_INVALID_CODE) return false;
 
   // We require the property name to match exactly to one of the property value
   // aliases. However, u_getPropertyValueEnum uses loose matching.
-  if (!IsExactPropertyValueAlias(property_value_name, property,
+  if (!IsExactPropertyValueAlias(property_value_name, property_for_lookup,
                                  property_value)) {
     return false;
   }
@@ -1197,9 +1203,14 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
     const char* property_name = first_part.ToConstVector().start();
     const char* value_name = second_part.ToConstVector().start();
     UProperty property = u_getPropertyEnum(property_name);
-    if (property < UCHAR_INT_START) return false;
-    if (property >= UCHAR_INT_LIMIT) return false;
     if (!IsExactPropertyAlias(property_name, property)) return false;
+    if (property == UCHAR_GENERAL_CATEGORY) {
+      // We want to allow aggregate value names such as "Letter".
+      property = UCHAR_GENERAL_CATEGORY_MASK;
+    } else if (property != UCHAR_SCRIPT &&
+               property != UCHAR_SCRIPT_EXTENSIONS) {
+      return false;
+    }
     return LookupPropertyValueName(property, value_name, negate, result,
                                    zone());
   }
