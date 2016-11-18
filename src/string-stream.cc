@@ -204,53 +204,6 @@ void StringStream::PrintObject(Object* o) {
 }
 
 
-void StringStream::Add(const char* format) {
-  Add(CStrVector(format));
-}
-
-
-void StringStream::Add(Vector<const char> format) {
-  Add(format, Vector<FmtElm>::empty());
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0) {
-  const char argc = 1;
-  FmtElm argv[argc] = { arg0 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1) {
-  const char argc = 2;
-  FmtElm argv[argc] = { arg0, arg1 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
-                       FmtElm arg2) {
-  const char argc = 3;
-  FmtElm argv[argc] = { arg0, arg1, arg2 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
-                       FmtElm arg2, FmtElm arg3) {
-  const char argc = 4;
-  FmtElm argv[argc] = { arg0, arg1, arg2, arg3 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
-                       FmtElm arg2, FmtElm arg3, FmtElm arg4) {
-  const char argc = 5;
-  FmtElm argv[argc] = { arg0, arg1, arg2, arg3, arg4 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
 std::unique_ptr<char[]> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
   MemCopy(str, buffer_, length_);
