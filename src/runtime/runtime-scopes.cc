@@ -130,18 +130,18 @@ Object* DeclareGlobal(
   return isolate->heap()->undefined_value();
 }
 
-Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> pairs, int flags,
-                       Handle<TypeFeedbackVector> feedback_vector) {
+Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
+                       int flags, Handle<TypeFeedbackVector> feedback_vector) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context());
 
   // Traverse the name/value pairs and set the properties.
-  int length = pairs->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 2, {
-    FeedbackVectorSlot slot(Smi::cast(pairs->get(i))->value());
-    Handle<String> name(feedback_vector->GetName(slot), isolate);
-    Handle<Object> initial_value(pairs->get(i + 1), isolate);
+  int length = declarations->length();
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 3, {
+    Handle<String> name(String::cast(declarations->get(i)), isolate);
+    FeedbackVectorSlot slot(Smi::cast(declarations->get(i + 1))->value());
+    Handle<Object> initial_value(declarations->get(i + 2), isolate);
 
     bool is_var = initial_value->IsUndefined(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
@@ -186,11 +186,11 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, pairs, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, feedback_vector, 2);
 
-  return DeclareGlobals(isolate, pairs, flags, feedback_vector);
+  return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
 
 // TODO(ishell): merge this with Runtime::kDeclareGlobals once interpreter
@@ -199,13 +199,13 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobalsForInterpreter) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, pairs, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
 
   Handle<TypeFeedbackVector> feedback_vector(closure->feedback_vector(),
                                              isolate);
-  return DeclareGlobals(isolate, pairs, flags, feedback_vector);
+  return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
 
 RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
