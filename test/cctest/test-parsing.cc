@@ -3217,7 +3217,6 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::HandleScope scope(isolate);
   LocalContext env;
 
-
   const char* src =
       "function f(x) {"
       "    var a = arguments;"
@@ -3233,7 +3232,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
   source->PrintOn(stdout);
   printf("\n");
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
@@ -3362,7 +3361,7 @@ TEST(InnerAssignment) {
         i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
                     suffix);
 
-        i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+        i::Zone zone(isolate->allocator(), ZONE_NAME);
         std::unique_ptr<i::ParseInfo> info;
         if (lazy) {
           printf("%s\n", program.start());
@@ -3412,6 +3411,103 @@ TEST(InnerAssignment) {
 
 namespace {
 
+i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
+                                   i::Handle<i::JSObject> m, const char* name) {
+  i::AstValueFactory avf(zone, isolate->heap()->HashSeed());
+  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(
+      i::JSReceiver::GetProperty(isolate, m, name).ToHandleChecked());
+  i::DeclarationScope* script_scope =
+      new (zone) i::DeclarationScope(zone, &avf);
+  i::Scope* s = i::Scope::DeserializeScopeChain(
+      isolate, zone, f->context()->scope_info(), script_scope, &avf,
+      i::Scope::DeserializationMode::kIncludingVariables);
+  return s;
+}
+
+}  // namespace
+
+TEST(AsmModuleFlag) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* src =
+      "function m() {"
+      "  'use asm';"
+      "  var x = 0;"
+      "  function f() { return x };"
+      "  return { f:f };"
+      "}"
+      "m();";
+
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  v8::Local<v8::Value> v = CompileRun(src);
+  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+  i::Handle<i::JSObject> m = i::Handle<i::JSObject>::cast(o);
+
+  // The asm.js module should be marked as such.
+  i::Scope* s = DeserializeFunctionScope(isolate, &zone, m, "f");
+  CHECK(s->IsAsmModule() && s->AsDeclarationScope()->asm_module());
+  CHECK(!s->IsAsmFunction() && !s->AsDeclarationScope()->asm_function());
+}
+
+TEST(AsmFunctionFlag) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* src =
+      "function m() {"
+      "  'use asm';"
+      "  var x = 0;"
+      "  function f1(a) {"
+      "    var y = 0; return () => x + y;"
+      "  };"
+      "  do { function f2() {"
+      "    var y = 0; return () => x + y;"
+      "  } } while(false);"
+      "  var f3 = (function() {"
+      "    var y = 0; return () => x + y;"
+      "  });"
+      "  var f4 = (function() { return (function() {"
+      "    var y = 0; return () => x + y;"
+      "  }) })();"
+      "  return { f1:f1(), f2:f2(), f3:f3(), f4:f4() };"
+      "}"
+      "m();";
+
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  v8::Local<v8::Value> v = CompileRun(src);
+  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+  i::Handle<i::JSObject> m = i::Handle<i::JSObject>::cast(o);
+
+  // The asm.js function {f1} should be marked as such.
+  i::Scope* s1 = DeserializeFunctionScope(isolate, &zone, m, "f1");
+  CHECK(!s1->IsAsmModule() && !s1->AsDeclarationScope()->asm_module());
+  CHECK(s1->IsAsmFunction() && s1->AsDeclarationScope()->asm_function());
+
+  // The asm.js function {f2} should be marked as such.
+  // TODO(5653): If the block surrounding {f2} where to allocate a context we
+  // would actually determine {f2} not to be an asm.js function. That decision
+  // is fine but we should be consistent independent of whether a context is
+  // allocated for the surrounding block scope!
+  i::Scope* s2 = DeserializeFunctionScope(isolate, &zone, m, "f2");
+  CHECK(!s2->IsAsmModule() && !s2->AsDeclarationScope()->asm_module());
+  CHECK(s2->IsAsmFunction() && s2->AsDeclarationScope()->asm_function());
+
+  // The asm.js function {f3} should be marked as such.
+  i::Scope* s3 = DeserializeFunctionScope(isolate, &zone, m, "f3");
+  CHECK(!s3->IsAsmModule() && !s3->AsDeclarationScope()->asm_module());
+  CHECK(s3->IsAsmFunction() && s3->AsDeclarationScope()->asm_function());
+
+  // The nested function {f4} is not an asm.js function.
+  i::Scope* s4 = DeserializeFunctionScope(isolate, &zone, m, "f4");
+  CHECK(!s4->IsAsmModule() && !s4->AsDeclarationScope()->asm_module());
+  CHECK(!s4->IsAsmFunction() && !s4->AsDeclarationScope()->asm_function());
+}
+
+namespace {
+
 int* global_use_counts = NULL;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
@@ -3419,8 +3515,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
   ++global_use_counts[feature];
 }
 
-}
-
+}  // namespace
 
 TEST(UseAsmUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();

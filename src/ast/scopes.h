@@ -624,7 +624,7 @@ class DeclarationScope : public Scope {
   bool asm_module() const { return asm_module_; }
   void set_asm_module();
   bool asm_function() const { return asm_function_; }
-  void set_asm_function() { asm_module_ = true; }
+  void set_asm_function() { asm_function_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);
