@@ -377,3 +377,11 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
   return Vector<const uint8_t>(bytes->GetCharsAddress() + function.name_offset,
                                function.name_length);
 }
+
+int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) const {
+  std::vector<WasmFunction>& functions = module()->functions;
+  if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
+  DCHECK_GE(static_cast<uint32_t>(kMaxInt),
+            functions[func_index].code_start_offset);
+  return static_cast<int>(functions[func_index].code_start_offset);
+}

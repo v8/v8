@@ -13423,15 +13423,7 @@ bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
   // For wasm, we do not create an artificial line_ends array, but do the
   // translation directly.
-  if (script->type() == Script::TYPE_WASM) {
-    Handle<WasmCompiledModule> compiled_module(
-        WasmCompiledModule::cast(script->wasm_compiled_module()));
-    DCHECK_LE(0, position);
-    return wasm::GetPositionInfo(compiled_module,
-                                 static_cast<uint32_t>(position), info);
-  }
-
-  InitLineEnds(script);
+  if (script->type() != Script::TYPE_WASM) InitLineEnds(script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
@@ -13466,6 +13458,16 @@ bool GetPositionInfoSlow(const Script* script, int position,
 bool Script::GetPositionInfo(int position, PositionInfo* info,
                              OffsetFlag offset_flag) const {
   DisallowHeapAllocation no_allocation;
+
+  // For wasm, we do not rely on the line_ends array, but do the translation
+  // directly.
+  if (type() == Script::TYPE_WASM) {
+    Handle<WasmCompiledModule> compiled_module(
+        WasmCompiledModule::cast(wasm_compiled_module()));
+    DCHECK_LE(0, position);
+    return wasm::GetPositionInfo(compiled_module,
+                                 static_cast<uint32_t>(position), info);
+  }
 
   if (line_ends()->IsUndefined(GetIsolate())) {
     // Slow mode: we do not have line_ends. We have to iterate through source.

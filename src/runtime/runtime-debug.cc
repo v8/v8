@@ -1595,11 +1595,40 @@ RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
+  if (script_handle->type() == Script::TYPE_WASM) {
+    // Return 0 for now; this function will disappear soon anyway.
+    return Smi::FromInt(0);
+  }
+
   Script::InitLineEnds(script_handle);
 
   FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
   return Smi::FromInt(line_ends_array->length());
 }
+
+namespace {
+
+int ScriptLinePosition(Handle<Script> script, int line) {
+  if (line < 0) return -1;
+
+  if (script->type() == Script::TYPE_WASM) {
+    return WasmCompiledModule::cast(script->wasm_compiled_module())
+        ->GetFunctionOffset(line);
+  }
+
+  Script::InitLineEnds(script);
+
+  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
+  const int line_count = line_ends_array->length();
+  DCHECK_LT(0, line_count);
+
+  if (line == 0) return 0;
+  // If line == line_count, we return the first position beyond the last line.
+  if (line > line_count) return -1;
+  return Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+}
+
+}  // namespace
 
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
@@ -1611,21 +1640,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
-  Script::InitLineEnds(script_handle);
-
-  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
-  const int line_count = line_ends_array->length();
-
-  // If line == line_count, we return the first position beyond the last line.
-  if (line < 0 || line > line_count) {
-    return Smi::FromInt(-1);
-  } else if (line == 0) {
-    return Smi::kZero;
-  } else {
-    DCHECK(0 < line && line <= line_count);
-    const int pos = Smi::cast(line_ends_array->get(line - 1))->value() + 1;
-    return Smi::FromInt(pos);
-  }
+  return Smi::FromInt(ScriptLinePosition(script_handle, line));
 }
 
 // TODO(5530): Remove once uses in debug.js are gone.
@@ -1637,6 +1652,11 @@ RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
 
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  if (script_handle->type() == Script::TYPE_WASM) {
+    // Return zero for now; this function will disappear soon anyway.
+    return Smi::FromInt(0);
+  }
 
   Script::InitLineEnds(script_handle);
 
@@ -1683,6 +1703,20 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
 
 namespace {
 
+int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
+  if (line < 0 || offset < 0) return -1;
+
+  if (line == 0) return ScriptLinePosition(script, line) + offset;
+
+  Script::PositionInfo info;
+  if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
+    return -1;
+  }
+
+  const int total_line = info.line + line;
+  return ScriptLinePosition(script, total_line);
+}
+
 Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
                                       Handle<Object> opt_line,
                                       Handle<Object> opt_column,
@@ -1690,51 +1724,24 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
   // Line and column are possibly undefined and we need to handle these cases,
   // additionally subtracting corresponding offsets.
 
-  int32_t line;
-  if (opt_line->IsNull(isolate) || opt_line->IsUndefined(isolate)) {
-    line = 0;
-  } else {
+  int32_t line = 0;
+  if (!opt_line->IsNull(isolate) && !opt_line->IsUndefined(isolate)) {
     CHECK(opt_line->IsNumber());
     line = NumberToInt32(*opt_line) - script->line_offset();
   }
 
-  int32_t column;
-  if (opt_column->IsNull(isolate) || opt_column->IsUndefined(isolate)) {
-    column = 0;
-  } else {
+  int32_t column = 0;
+  if (!opt_column->IsNull(isolate) && !opt_column->IsUndefined(isolate)) {
     CHECK(opt_column->IsNumber());
     column = NumberToInt32(*opt_column);
     if (line == 0) column -= script->column_offset();
   }
 
-  if (line < 0 || column < 0 || offset < 0) {
-    return isolate->factory()->null_value();
-  }
+  int line_position = ScriptLinePositionWithOffset(script, line, offset);
+  if (line_position < 0 || column < 0) return isolate->factory()->null_value();
 
-  Script::InitLineEnds(script);
-
-  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
-  const int line_count = line_ends_array->length();
-
-  int position;
-  if (line == 0) {
-    position = offset + column;
-  } else {
-    Script::PositionInfo info;
-    if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET) ||
-        info.line + line >= line_count) {
-      return isolate->factory()->null_value();
-    }
-
-    const int offset_line = info.line + line;
-    const int offset_line_position =
-        (offset_line == 0)
-            ? 0
-            : Smi::cast(line_ends_array->get(offset_line - 1))->value() + 1;
-    position = offset_line_position + column;
-  }
-
-  return GetJSPositionInfo(script, position, Script::NO_OFFSET, isolate);
+  return GetJSPositionInfo(script, line_position + column, Script::NO_OFFSET,
+                           isolate);
 }
 
 // Slow traversal over all scripts on the heap.
@@ -1819,6 +1826,11 @@ RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
 
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  if (script_handle->type() == Script::TYPE_WASM) {
+    // Return null for now; this function will disappear soon anyway.
+    return isolate->heap()->null_value();
+  }
 
   Script::InitLineEnds(script_handle);
 
