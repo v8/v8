@@ -642,8 +642,6 @@ DEFINE_BOOL(external_reference_stats, false,
 #endif  // DEBUG
 
 // compiler.cc
-DEFINE_INT(min_preparse_length, 1024,
-           "minimum length for automatic enable preparsing")
 DEFINE_INT(max_opt_count, 10,
            "maximum number of optimization attempts before giving up.")
 

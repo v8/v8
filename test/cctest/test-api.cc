@@ -15363,7 +15363,6 @@ TEST(PreCompileSerialization) {
   v8::Isolate* isolate = env->GetIsolate();
   HandleScope handle_scope(isolate);
 
-  i::FLAG_min_preparse_length = 0;
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptCompiler::Source source(v8_str(script));
   v8::ScriptCompiler::Compile(env.local(), &source,
@@ -24670,7 +24669,6 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
 
 
 TEST(StreamingProducesParserCache) {
-  i::FLAG_min_preparse_length = 0;
   const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
                           NULL};
 
@@ -24703,7 +24701,6 @@ TEST(StreamingWithDebuggingEnabledLate) {
   // fully parsed. However, we may compile inner functions eagerly when
   // debugging. Make sure that we can deal with this when turning on debugging
   // after streaming parser has already finished parsing.
-  i::FLAG_min_preparse_length = 0;
   const char* chunks[] = {"with({x:1}) {",
                           "  var foo = function foo(y) {",
                           "    return x + y;",
@@ -24950,7 +24947,6 @@ TEST(ParserCacheRejectedGracefully) {
   // Producing cached parser data while parsing eagerly is not supported.
   if (!i::FLAG_lazy) return;
 
-  i::FLAG_min_preparse_length = 0;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;

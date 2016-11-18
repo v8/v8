@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --min-preparse-length=10
+// Flags: --expose-debug-as debug
 
 var source =
   "var foo = function foo() {\n" +
