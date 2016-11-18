@@ -367,8 +367,7 @@ class MemoryChunk {
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
-  static inline void IncrementLiveBytesFromMutator(HeapObject* object, int by);
-  static inline void IncrementLiveBytesFromGC(HeapObject* object, int by);
+  static inline void IncrementLiveBytes(HeapObject* object, int by);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
@@ -2034,7 +2033,9 @@ class PagedSpace : public Space {
 
   void MarkAllocationInfoBlack();
 
-  void Allocate(int bytes) { accounting_stats_.AllocateBytes(bytes); }
+  void AccountAllocatedBytes(size_t bytes) {
+    accounting_stats_.AllocateBytes(bytes);
+  }
 
   void IncreaseCapacity(size_t bytes);
 

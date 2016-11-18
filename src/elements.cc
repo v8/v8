@@ -758,8 +758,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       }
       if (2 * length <= capacity) {
         // If more than half the elements won't be used, trim the array.
-        isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
-            *backing_store, capacity - length);
+        isolate->heap()->RightTrimFixedArray(*backing_store, capacity - length);
       } else {
         // Otherwise, fill the unused tail with holes.
         for (uint32_t i = length; i < old_length; i++) {
@@ -1799,8 +1798,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       return;
     }
 
-    isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
-        *backing_store, length - entry);
+    isolate->heap()->RightTrimFixedArray(*backing_store, length - entry);
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,

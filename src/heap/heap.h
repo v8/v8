@@ -556,12 +556,6 @@ class Heap {
 
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
 
-  // Indicates whether live bytes adjustment is triggered
-  // - from within the GC code before sweeping started (SEQUENTIAL_TO_SWEEPER),
-  // - or from within GC (CONCURRENT_TO_SWEEPER),
-  // - or mutator code (CONCURRENT_TO_SWEEPER).
-  enum InvocationMode { SEQUENTIAL_TO_SWEEPER, CONCURRENT_TO_SWEEPER };
-
   enum UpdateAllocationSiteMode { kGlobal, kCached };
 
   // Taking this lock prevents the GC from entering a phase that relocates
@@ -751,14 +745,13 @@ class Heap {
   bool CanMoveObjectStart(HeapObject* object);
 
   // Maintain consistency of live bytes during incremental marking.
-  void AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode);
+  void AdjustLiveBytes(HeapObject* object, int by);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   FixedArrayBase* LeftTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Trim the given array from the right.
-  template<Heap::InvocationMode mode>
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.

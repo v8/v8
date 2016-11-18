@@ -221,7 +221,7 @@ void Page::InitializeFreeListCategories() {
   }
 }
 
-void MemoryChunk::IncrementLiveBytesFromGC(HeapObject* object, int by) {
+void MemoryChunk::IncrementLiveBytes(HeapObject* object, int by) {
   MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
 }
 
@@ -242,14 +242,6 @@ void MemoryChunk::IncrementLiveBytes(int by) {
   live_byte_count_ += by;
   DCHECK_GE(live_byte_count_, 0);
   DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
-}
-
-void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->SweepingDone()) {
-    static_cast<PagedSpace*>(chunk->owner())->Allocate(by);
-  }
-  chunk->IncrementLiveBytes(by);
 }
 
 bool PagedSpace::Contains(Address addr) {
@@ -439,7 +431,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
     if (object != NULL) {
       if (heap()->incremental_marking()->black_allocation()) {
         Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-        MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
+        MemoryChunk::IncrementLiveBytes(object, size_in_bytes);
       }
     }
   }

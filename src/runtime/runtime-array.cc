@@ -249,8 +249,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   }
 
   if (j != keys->length()) {
-    isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
-        *keys, keys->length() - j);
+    isolate->heap()->RightTrimFixedArray(*keys, keys->length() - j);
   }
 
   return *isolate->factory()->NewJSArrayWithElements(keys);

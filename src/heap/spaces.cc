@@ -2616,7 +2616,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  owner_->Allocate(static_cast<int>(new_node_size));
+  owner_->AccountAllocatedBytes(new_node_size);
 
   if (owner_->heap()->inline_allocation_disabled()) {
     // Keep the linear allocation area empty if requested to do so, just
@@ -3009,7 +3009,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
   if (heap()->incremental_marking()->black_allocation()) {
     Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-    MemoryChunk::IncrementLiveBytesFromGC(object, object_size);
+    MemoryChunk::IncrementLiveBytes(object, object_size);
   }
   return object;
 }

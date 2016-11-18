@@ -5960,8 +5960,7 @@ static void TestRightTrimFixedTypedArray(i::ExternalArrayType type,
   Handle<FixedTypedArrayBase> array =
       factory->NewFixedTypedArray(initial_length, type, true);
   int old_size = array->size();
-  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array,
-                                                         elements_to_trim);
+  heap->RightTrimFixedArray(*array, elements_to_trim);
 
   // Check that free space filler is at the right place and did not smash the
   // array header.
@@ -6446,7 +6445,7 @@ HEAP_TEST(Regress587004) {
   }
   CcTest::CollectGarbage(OLD_SPACE);
   heap::SimulateFullSpace(heap->old_space());
-  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array, N - 1);
+  heap->RightTrimFixedArray(*array, N - 1);
   heap->mark_compact_collector()->EnsureSweepingCompleted();
   ByteArray* byte_array;
   const int M = 256;
@@ -6530,7 +6529,7 @@ HEAP_TEST(Regress589413) {
     }
     heap::SimulateIncrementalMarking(heap);
     for (size_t j = 0; j < arrays.size(); j++) {
-      heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(arrays[j], N - 1);
+      heap->RightTrimFixedArray(arrays[j], N - 1);
     }
   }
   // Force allocation from the free list.
@@ -6895,7 +6894,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   // Trim it once by one word to make checking for white marking color uniform.
   Address previous = end_address - kPointerSize;
-  heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(*array, 1);
+  heap->RightTrimFixedArray(*array, 1);
   HeapObject* filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
   CHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(previous)));
@@ -6904,7 +6903,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kPointerSize * i;
-      heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(*array, i);
+      heap->RightTrimFixedArray(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
       CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(previous)));
