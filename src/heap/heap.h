@@ -1511,11 +1511,13 @@ class Heap {
     // Registers an external string.
     inline void AddString(String* string);
 
-    inline void Iterate(ObjectVisitor* v);
+    inline void IterateAll(ObjectVisitor* v);
+    inline void IterateNewSpaceStrings(ObjectVisitor* v);
 
-    // Restores internal invariant and gets rid of collected strings.
-    // Must be called after each Iterate() that modified the strings.
-    void CleanUp();
+    // Restores internal invariant and gets rid of collected strings. Must be
+    // called after each Iterate*() that modified the strings.
+    void CleanUpAll();
+    void CleanUpNewSpaceStrings();
 
     // Destroys all allocated memory.
     void TearDown();
