@@ -312,7 +312,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
 }
 
 wasm::WasmModule* WasmCompiledModule::module() const {
-  return reinterpret_cast<WasmModuleWrapper*>(*module_wrapper())->get();
+  return reinterpret_cast<WasmModuleWrapper*>(ptr_to_module_wrapper())->get();
 }
 
 void WasmCompiledModule::InitId() {
@@ -364,4 +364,16 @@ uint32_t WasmCompiledModule::mem_size() const {
 
 uint32_t WasmCompiledModule::default_mem_size() const {
   return min_mem_pages() * WasmModule::kPageSize;
+}
+
+Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
+    uint32_t func_index) {
+  DCHECK_GT(module()->functions.size(), func_index);
+  WasmFunction& function = module()->functions[func_index];
+  SeqOneByteString* bytes = ptr_to_module_bytes();
+  DCHECK_GE(static_cast<size_t>(bytes->length()), function.name_offset);
+  DCHECK_GE(static_cast<size_t>(bytes->length() - function.name_offset),
+            function.name_length);
+  return Vector<const uint8_t>(bytes->GetCharsAddress() + function.name_offset,
+                               function.name_length);
 }

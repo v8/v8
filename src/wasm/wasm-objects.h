@@ -259,11 +259,17 @@ class WasmCompiledModule : public FixedArray {
   static void RecreateModuleWrapper(Isolate* isolate,
                                     Handle<FixedArray> compiled_module);
 
-  // Extract a function name from the given wasm instance.
+  // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
   // UTF-8 string.
   static MaybeHandle<String> GetFunctionName(
       Handle<WasmCompiledModule> compiled_module, uint32_t func_index);
+
+  // Get the raw bytes of the function name of the function identified by the
+  // given index.
+  // Meant to be used for debugging or frame printing.
+  // Does not allocate, hence gc-safe.
+  Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
 
  private:
   void InitId();
