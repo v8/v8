@@ -803,10 +803,9 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
 
   Node* set_function_name = environment()->LookupAccumulator();
-  const Operator* op =
-      javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
-  Node* store = NewNode(op, object, name, value, attrs, set_function_name);
-  environment()->RecordAfterState(store, Environment::kAttachFrameState);
+  const Operator* op = javascript()->StoreDataPropertyInLiteral();
+  Node* node = NewNode(op, object, name, value, attrs, set_function_name);
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitLdaContextSlot() {

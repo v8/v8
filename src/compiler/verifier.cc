@@ -598,6 +598,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSStoreDataPropertyInLiteral:
       // Type is empty.
       CheckNotTyped(node);
       break;

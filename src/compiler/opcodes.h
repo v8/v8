@@ -122,25 +122,26 @@
   JS_CONVERSION_UNOP_LIST(V)   \
   JS_OTHER_UNOP_LIST(V)
 
-#define JS_OBJECT_OP_LIST(V)  \
-  V(JSCreate)                 \
-  V(JSCreateArguments)        \
-  V(JSCreateArray)            \
-  V(JSCreateClosure)          \
-  V(JSCreateIterResultObject) \
-  V(JSCreateKeyValueArray)    \
-  V(JSCreateLiteralArray)     \
-  V(JSCreateLiteralObject)    \
-  V(JSCreateLiteralRegExp)    \
-  V(JSLoadProperty)           \
-  V(JSLoadNamed)              \
-  V(JSLoadGlobal)             \
-  V(JSStoreProperty)          \
-  V(JSStoreNamed)             \
-  V(JSStoreGlobal)            \
-  V(JSDeleteProperty)         \
-  V(JSHasProperty)            \
-  V(JSInstanceOf)             \
+#define JS_OBJECT_OP_LIST(V)      \
+  V(JSCreate)                     \
+  V(JSCreateArguments)            \
+  V(JSCreateArray)                \
+  V(JSCreateClosure)              \
+  V(JSCreateIterResultObject)     \
+  V(JSCreateKeyValueArray)        \
+  V(JSCreateLiteralArray)         \
+  V(JSCreateLiteralObject)        \
+  V(JSCreateLiteralRegExp)        \
+  V(JSLoadProperty)               \
+  V(JSLoadNamed)                  \
+  V(JSLoadGlobal)                 \
+  V(JSStoreProperty)              \
+  V(JSStoreNamed)                 \
+  V(JSStoreGlobal)                \
+  V(JSStoreDataPropertyInLiteral) \
+  V(JSDeleteProperty)             \
+  V(JSHasProperty)                \
+  V(JSInstanceOf)                 \
   V(JSOrdinaryHasInstance)
 
 #define JS_CONTEXT_OP_LIST(V) \

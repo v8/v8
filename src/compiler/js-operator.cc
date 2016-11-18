@@ -455,7 +455,8 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
   V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
-  V(StackCheck, Operator::kNoWrite, 0, 0)
+  V(StackCheck, Operator::kNoWrite, 0, 0)                   \
+  V(StoreDataPropertyInLiteral, Operator::kNoProperties, 5, 0)
 
 #define BINARY_OP_LIST(V) \
   V(BitwiseOr)            \

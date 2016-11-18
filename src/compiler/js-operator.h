@@ -489,6 +489,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
                              VectorSlotPair const& feedback);
 
+  const Operator* StoreDataPropertyInLiteral();
+
   const Operator* DeleteProperty(LanguageMode language_mode);
 
   const Operator* HasProperty();

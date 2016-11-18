@@ -1233,6 +1233,10 @@ Type* Typer::Visitor::TypeJSStoreGlobal(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
 
 Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
   return Type::Boolean();
