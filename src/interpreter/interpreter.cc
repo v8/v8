@@ -846,6 +846,33 @@ void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   DoKeyedStoreIC(ic, assembler);
 }
 
+// StaDataPropertyInLiteral <object> <name> <value> <attrs>
+//
+// Define a property <name> with value <value> in <object>. Use property
+// attributes <attrs> in the definition and set the name property of <value>
+// according to the flag in the accumulator.
+//
+// This definition is not observable and is used only for definitions
+// in object or class literals.
+void Interpreter::DoStaDataPropertyInLiteral(InterpreterAssembler* assembler) {
+  Node* object_reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(object_reg_index);
+  Node* name_reg_index = __ BytecodeOperandReg(1);
+  Node* name = __ LoadRegister(name_reg_index);
+  Node* value_reg_index = __ BytecodeOperandReg(2);
+  Node* value = __ LoadRegister(value_reg_index);
+  Node* attrs_reg_index = __ BytecodeOperandReg(3);
+  Node* attrs = __ LoadRegister(attrs_reg_index);
+
+  Node* set_function_name = __ GetAccumulator();
+
+  Node* context = __ GetContext();
+
+  __ CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
+                 value, attrs, set_function_name);
+  __ Dispatch();
+}
+
 // LdaModuleVariable <cell_index> <depth>
 //
 // Load the contents of a module variable into the accumulator.  The variable is

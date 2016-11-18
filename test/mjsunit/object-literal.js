@@ -261,7 +261,6 @@ TestNumericNamesSetter(['1.2', '1.3'], {
   set 1.30(_) {; }
 });
 
-
 (function TestPrototypeInObjectLiteral() {
   // The prototype chain should not be used if the definition
   // happens in the object literal.

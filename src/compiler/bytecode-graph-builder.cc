@@ -792,6 +792,23 @@ void BytecodeGraphBuilder::VisitStaGlobalStrict() {
   BuildStoreGlobal(LanguageMode::STRICT);
 }
 
+void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* name =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  Node* value =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(2));
+  Node* attrs =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
+
+  Node* set_function_name = environment()->LookupAccumulator();
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
+  Node* store = NewNode(op, object, name, value, attrs, set_function_name);
+  environment()->RecordAfterState(store, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitLdaContextSlot() {
   // TODO(mythria): immutable flag is also set to false. This information is not
   // available in bytecode array. update this code when the implementation

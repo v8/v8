@@ -285,24 +285,22 @@ handlers: [
 snippet: "
   var a = 'test'; return { [a]: 1 };
 "
-frame size: 7
+frame size: 5
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(35), R(1),
-  /*   60 E> */ B(ToName), R(3),
+  /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), U8(1),
+                B(Star), R(3),
+                B(LdaZero),
                 B(Star), R(4),
                 B(LdaZero),
-                B(Star), R(5),
-                B(LdaZero),
-                B(Star), R(6),
-                B(Mov), R(1), R(2),
-                B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
-                B(Ldar), R(2),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
+                B(Ldar), R(1),
   /*   69 S> */ B(Return),
 ]
 constant pool: [
@@ -316,25 +314,23 @@ handlers: [
 snippet: "
   var a = 'test'; return { val: a, [a]: 1 };
 "
-frame size: 7
+frame size: 5
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 32
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(1), R(1),
   /*   64 E> */ B(StaNamedPropertySloppy), R(1), U8(2), U8(2),
-  /*   68 E> */ B(ToName), R(3),
+  /*   68 E> */ B(ToName), R(2),
                 B(LdaSmi), U8(1),
+                B(Star), R(3),
+                B(LdaZero),
                 B(Star), R(4),
                 B(LdaZero),
-                B(Star), R(5),
-                B(LdaZero),
-                B(Star), R(6),
-                B(Mov), R(1), R(2),
-                B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
-                B(Ldar), R(2),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
+                B(Ldar), R(1),
   /*   77 S> */ B(Return),
 ]
 constant pool: [
@@ -349,24 +345,23 @@ handlers: [
 snippet: "
   var a = 'test'; return { [a]: 1, __proto__: {} };
 "
-frame size: 7
+frame size: 5
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(1), U8(35), R(1),
-  /*   60 E> */ B(ToName), R(3),
+  /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), U8(1),
+                B(Star), R(3),
+                B(LdaZero),
                 B(Star), R(4),
                 B(LdaZero),
-                B(Star), R(5),
-                B(LdaZero),
-                B(Star), R(6),
-                B(Mov), R(1), R(2),
-                B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
                 B(CreateObjectLiteral), U8(1), U8(0), U8(35), R(4),
+                B(Mov), R(1), R(2),
                 B(Mov), R(4), R(3),
                 B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(2), U8(2),
                 B(Ldar), R(2),
@@ -383,29 +378,28 @@ handlers: [
 snippet: "
   var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };
 "
-frame size: 7
+frame size: 6
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 65
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(35), R(1),
-  /*   60 E> */ B(ToName), R(3),
+  /*   60 E> */ B(ToName), R(2),
                 B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(LdaZero),
                 B(Star), R(4),
                 B(LdaZero),
-                B(Star), R(5),
-                B(LdaZero),
-                B(Star), R(6),
-                B(Mov), R(1), R(2),
-                B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
                 B(LdaConstant), U8(3),
                 B(ToName), R(3),
                 B(CreateClosure), U8(4), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
+                B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked), R(2), U8(4),
                 B(LdaConstant), U8(3),
                 B(ToName), R(3),

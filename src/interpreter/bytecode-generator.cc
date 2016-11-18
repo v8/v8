@@ -1431,9 +1431,8 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
                                                     Register literal,
                                                     Register prototype) {
   RegisterAllocationScope register_scope(this);
-  RegisterList args = register_allocator()->NewRegisterList(5);
-  Register receiver = args[0], key = args[1], value = args[2], attr = args[3],
-           set_function_name = args[4];
+  RegisterList args = register_allocator()->NewRegisterList(4);
+  Register receiver = args[0], key = args[1], value = args[2], attr = args[3];
 
   bool attr_assigned = false;
   Register old_receiver = Register::invalid_value();
@@ -1480,18 +1479,15 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
       case ClassLiteral::Property::METHOD: {
         builder()
             ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
-            .StoreAccumulatorInRegister(set_function_name)
-            .CallRuntime(Runtime::kDefineDataPropertyInLiteral, args);
+            .StoreDataPropertyInLiteral(receiver, key, value, attr);
         break;
       }
       case ClassLiteral::Property::GETTER: {
-        builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked,
-                               args.Truncate(4));
+        builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked, args);
         break;
       }
       case ClassLiteral::Property::SETTER: {
-        builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked,
-                               args.Truncate(4));
+        builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked, args);
         break;
       }
       case ClassLiteral::Property::FIELD: {
@@ -1699,18 +1695,20 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL: {
-        RegisterList args = register_allocator()->NewRegisterList(5);
-        builder()->MoveRegister(literal, args[0]);
+        Register key = register_allocator()->NewRegister();
         VisitForAccumulatorValue(property->key());
-        builder()->ConvertAccumulatorToName(args[1]);
-        VisitForRegisterValue(property->value(), args[2]);
-        VisitSetHomeObject(args[2], literal, property);
+        builder()->ConvertAccumulatorToName(key);
+
+        Register value = VisitForRegisterValue(property->value());
+        VisitSetHomeObject(value, literal, property);
+
+        Register attr = register_allocator()->NewRegister();
+
         builder()
             ->LoadLiteral(Smi::FromInt(NONE))
-            .StoreAccumulatorInRegister(args[3])
+            .StoreAccumulatorInRegister(attr)
             .LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
-            .StoreAccumulatorInRegister(args[4]);
-        builder()->CallRuntime(Runtime::kDefineDataPropertyInLiteral, args);
+            .StoreDataPropertyInLiteral(literal, key, value, attr);
         break;
       }
       case ObjectLiteral::Property::GETTER:

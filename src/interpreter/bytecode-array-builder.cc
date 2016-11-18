@@ -542,6 +542,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
+    Register object, Register name, Register value, Register attrs) {
+  OutputStaDataPropertyInLiteral(object, name, value, attrs);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     Register object, const Handle<Name> name, int feedback_slot,
     LanguageMode language_mode) {
