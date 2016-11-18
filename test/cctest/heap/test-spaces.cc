@@ -797,38 +797,5 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(0u, shrinked);
 }
 
-HEAP_TEST(AdjustBytes) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  Heap* heap = isolate->heap();
-  for (int i = 0; i < 3; i++) {
-    heap->CollectGarbage(OLD_SPACE, i::GarbageCollectionReason::kTesting);
-  }
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
-  heap::SealCurrentObjects(CcTest::heap());
-
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(5000, TENURED);
-
-  heap->CollectGarbage(OLD_SPACE, i::GarbageCollectionReason::kTesting);
-  heap->delay_sweeper_tasks_for_testing_ = false;
-
-  size_t size_before = heap->SizeOfObjects();
-  heap->RightTrimFixedArray(*array, 1000);
-  heap->mark_compact_collector()->sweeper().StartSweeperTasks();
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
-  size_t size_after = heap->SizeOfObjects();
-  // Right trimming during sweeping does not affect size counters.
-  CHECK_EQ(size_before, size_after);
-  heap->RightTrimFixedArray(*array, 1000);
-  size_after = heap->SizeOfObjects();
-  // Right trimming before incremental marking runs does not affect size
-  // counters.
-  CHECK_EQ(size_before, size_after);
-  heap->CollectGarbage(OLD_SPACE, i::GarbageCollectionReason::kTesting);
-  size_after = heap->SizeOfObjects();
-  CHECK_EQ(size_before, size_after + 2000 * kPointerSize);
-}
-
 }  // namespace internal
 }  // namespace v8
