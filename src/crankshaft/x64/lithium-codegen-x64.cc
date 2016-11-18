@@ -2825,7 +2825,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       // protector cell contains (Smi) Isolate::kProtectorValid. Otherwise
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
-      __ Cmp(FieldOperand(result, Cell::kValueOffset),
+      __ Cmp(FieldOperand(result, PropertyCell::kValueOffset),
              Smi::FromInt(Isolate::kProtectorValid));
       DeoptimizeIf(not_equal, instr, DeoptimizeReason::kHole);
     }

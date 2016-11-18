@@ -2976,7 +2976,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
       // The comparison only needs LS bits of value, which is a smi.
-      __ ld(result, FieldMemOperand(result, Cell::kValueOffset));
+      __ ld(result, FieldMemOperand(result, PropertyCell::kValueOffset));
       DeoptimizeIf(ne, instr, DeoptimizeReason::kHole, result,
                    Operand(Smi::FromInt(Isolate::kProtectorValid)));
     }
