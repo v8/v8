@@ -132,8 +132,8 @@ function PromiseHandle(value, handler, deferred) {
   } %catch (exception) {  // Natives syntax to mark this catch block.
     try {
       if (IS_UNDEFINED(deferred.reject)) {
-        // Pass false for debugEvent so .then chaining does not trigger
-        // redundant ExceptionEvents.
+        // Pass false for debugEvent so .then chaining or throwaway promises
+        // in async functions do not trigger redundant ExceptionEvents.
         %PromiseReject(deferred.promise, exception, false);
         PromiseSet(deferred.promise, kRejected, exception);
       } else {
@@ -291,6 +291,17 @@ function DoRejectPromise(promise, reason) {
   PromiseSet(promise, kRejected, reason);
 }
 
+// The resultCapability.promise is only ever fulfilled internally,
+// so we don't need the closures to protect against accidentally
+// calling them multiple times.
+function CreateInternalPromiseCapability() {
+  return {
+    promise: PromiseCreate(),
+    resolve: UNDEFINED,
+    reject: UNDEFINED
+  };
+}
+
 // ES#sec-newpromisecapability
 // NewPromiseCapability ( C )
 function NewPromiseCapability(C, debugEvent) {
@@ -381,17 +392,8 @@ function PromiseThen(onResolve, onReject) {
 
   var constructor = SpeciesConstructor(this, GlobalPromise);
   var resultCapability;
-
-  // The resultCapability.promise is only ever fulfilled internally,
-  // so we don't need the closures to protect against accidentally
-  // calling them multiple times.
   if (constructor === GlobalPromise) {
-    // TODO(gsathya): Combine this into NewPromiseCapability.
-    resultCapability = {
-      promise: PromiseCreate(),
-      resolve: UNDEFINED,
-      reject: UNDEFINED
-    };
+    resultCapability = CreateInternalPromiseCapability();
   } else {
     // Pass false for debugEvent so .then chaining does not trigger
     // redundant ExceptionEvents.
@@ -646,7 +648,7 @@ utils.Export(function(to) {
   to.PromiseThen = PromiseThen;
 
   to.GlobalPromise = GlobalPromise;
-  to.NewPromiseCapability = NewPromiseCapability;
+  to.CreateInternalPromiseCapability = CreateInternalPromiseCapability;
   to.PerformPromiseThen = PerformPromiseThen;
   to.ResolvePromise = ResolvePromise;
   to.RejectPromise = RejectPromise;

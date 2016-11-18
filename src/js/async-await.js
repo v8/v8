@@ -15,7 +15,7 @@ var AsyncFunctionNext;
 var AsyncFunctionThrow;
 var GlobalPromise;
 var IsPromise;
-var NewPromiseCapability;
+var CreateInternalPromiseCapability;
 var PerformPromiseThen;
 var PromiseCreate;
 var PromiseNextMicrotaskID;
@@ -27,7 +27,7 @@ utils.Import(function(from) {
   AsyncFunctionThrow = from.AsyncFunctionThrow;
   GlobalPromise = from.GlobalPromise;
   IsPromise = from.IsPromise;
-  NewPromiseCapability = from.NewPromiseCapability;
+  CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
   PerformPromiseThen = from.PerformPromiseThen;
   PromiseCreate = from.PromiseCreate;
   RejectPromise = from.RejectPromise;
@@ -90,8 +90,8 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
     return;
   }
 
-  // Just forwarding the exception, so no debugEvent for throwawayCapability
-  var throwawayCapability = NewPromiseCapability(GlobalPromise, false);
+  // Just forwarding the exception, so no debugEvent for throwawayCapability.
+  var throwawayCapability = CreateInternalPromiseCapability();
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done
