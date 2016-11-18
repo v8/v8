@@ -2602,6 +2602,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> receiver = args.at<Object>(0);
+  Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2610,15 +2611,12 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   // set up outside the IC, handle that here.
   FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
   if (kind == FeedbackVectorSlotKind::LOAD_IC) {
-    Handle<Name> key = args.at<Name>(1);
     LoadICNexus nexus(vector, vector_slot);
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 
   } else if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
-    Handle<Name> key(vector->GetName(vector_slot), isolate);
-    DCHECK_NE(*key, isolate->heap()->empty_string());
     DCHECK_EQ(*isolate->global_object(), *receiver);
     LoadGlobalICNexus nexus(vector, vector_slot);
     LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2626,7 +2624,6 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(key));
 
   } else {
-    Handle<Name> key = args.at<Name>(1);
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, kind);
     KeyedLoadICNexus nexus(vector, vector_slot);
     KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2638,16 +2635,13 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<JSGlobalObject> global = isolate->global_object();
-  Handle<Smi> slot = args.at<Smi>(0);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
+  Handle<String> name = args.at<String>(0);
+  Handle<Smi> slot = args.at<Smi>(1);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
-            vector->GetKind(vector_slot));
-  Handle<String> name(vector->GetName(vector_slot), isolate);
-  DCHECK_NE(*name, isolate->heap()->empty_string());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
   LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2660,20 +2654,12 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
 
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot);
-  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
-            vector->GetKind(vector_slot));
-  Handle<String> name(vector->GetName(vector_slot), isolate);
-  DCHECK_NE(*name, isolate->heap()->empty_string());
-
-  Handle<JSGlobalObject> global = isolate->global_object();
-
+  Handle<Context> native_context = isolate->native_context();
   Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table());
+      native_context->script_context_table());
 
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
@@ -2688,6 +2674,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
     return *result;
   }
 
+  Handle<JSGlobalObject> global(native_context->global_object(), isolate);
   Handle<Object> result;
   bool is_found = false;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

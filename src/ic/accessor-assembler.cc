@@ -1218,7 +1218,7 @@ void AccessorAssemblerImpl::LoadGlobalIC(const LoadICParameters* p,
   }
   Bind(&miss);
   {
-    TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->slot,
+    TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->name, p->slot,
                     p->vector);
   }
 }

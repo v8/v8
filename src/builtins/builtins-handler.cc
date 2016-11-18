@@ -55,11 +55,13 @@ void Builtins::Generate_LoadGlobalIC_Miss(compiler::CodeAssemblerState* state) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
   CodeStubAssembler assembler(state);
 
+  Node* name = assembler.Parameter(Descriptor::kName);
   Node* slot = assembler.Parameter(Descriptor::kSlot);
   Node* vector = assembler.Parameter(Descriptor::kVector);
   Node* context = assembler.Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, slot, vector);
+  assembler.TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name, slot,
+                            vector);
 }
 
 void Builtins::Generate_LoadGlobalIC_Slow(compiler::CodeAssemblerState* state) {
@@ -67,11 +69,10 @@ void Builtins::Generate_LoadGlobalIC_Slow(compiler::CodeAssemblerState* state) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
   CodeStubAssembler assembler(state);
 
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* name = assembler.Parameter(Descriptor::kName);
   Node* context = assembler.Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, slot, vector);
+  assembler.TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name);
 }
 
 void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
