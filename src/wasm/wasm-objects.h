@@ -17,6 +17,7 @@ struct WasmModule;
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
+class WasmInstanceWrapper;
 
 #define DECLARE_CASTS(name)             \
   static bool Is##name(Object* object); \
@@ -79,12 +80,14 @@ class WasmTableObject : public JSObject {
 class WasmMemoryObject : public JSObject {
  public:
   // TODO(titzer): add the brand as an internal field instead of a property.
-  enum Fields : uint8_t { kArrayBuffer, kMaximum, kInstance, kFieldCount };
+  enum Fields : uint8_t { kArrayBuffer, kMaximum, kInstancesLink, kFieldCount };
 
   DECLARE_CASTS(WasmMemoryObject);
   DECLARE_ACCESSORS(buffer, JSArrayBuffer);
+  DECLARE_OPTIONAL_ACCESSORS(instances_link, WasmInstanceWrapper);
 
-  void AddInstance(WasmInstanceObject* object);
+  void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);
+  void ResetInstancesLink(Isolate* isolate);
   uint32_t current_pages();
   int32_t maximum_pages();  // returns < 0 if there is no maximum
 
@@ -105,6 +108,7 @@ class WasmInstanceObject : public JSObject {
     kMemoryArrayBuffer,
     kGlobalsArrayBuffer,
     kDebugInfo,
+    kWasmMemInstanceWrapper,
     kFieldCount
   };
 
@@ -115,6 +119,7 @@ class WasmInstanceObject : public JSObject {
   DECLARE_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer);
   DECLARE_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject);
   DECLARE_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo);
+  DECLARE_OPTIONAL_ACCESSORS(instance_wrapper, WasmInstanceWrapper);
 
   WasmModuleObject* module_object();
   wasm::WasmModule* module();
@@ -314,6 +319,61 @@ class WasmDebugInfo : public FixedArray {
   // Must only be called if the associated wasm object was created from asm.js.
   static int GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
                                     int func_index, int byte_offset);
+};
+
+class WasmInstanceWrapper : public FixedArray {
+ public:
+  static Handle<WasmInstanceWrapper> New(Isolate* isolate,
+                                         Handle<WasmInstanceObject> instance);
+  static WasmInstanceWrapper* cast(Object* fixed_array) {
+    SLOW_DCHECK(IsWasmInstanceWrapper(fixed_array));
+    return reinterpret_cast<WasmInstanceWrapper*>(fixed_array);
+  }
+  static bool IsWasmInstanceWrapper(Object* obj);
+  bool has_instance() { return get(kWrapperInstanceObject)->IsWeakCell(); }
+  Handle<WasmInstanceObject> instance_object() {
+    Object* obj = get(kWrapperInstanceObject);
+    DCHECK(obj->IsWeakCell());
+    WeakCell* cell = WeakCell::cast(obj);
+    DCHECK(cell->value()->IsJSObject());
+    return handle(WasmInstanceObject::cast(cell->value()));
+  }
+  bool has_next() { return IsWasmInstanceWrapper(get(kNextInstanceWrapper)); }
+  bool has_previous() {
+    return IsWasmInstanceWrapper(get(kPreviousInstanceWrapper));
+  }
+  void set_instance_object(Handle<JSObject> instance, Isolate* isolate);
+  void set_next_wrapper(Object* obj) {
+    DCHECK(IsWasmInstanceWrapper(obj));
+    set(kNextInstanceWrapper, obj);
+  }
+  void set_previous_wrapper(Object* obj) {
+    DCHECK(IsWasmInstanceWrapper(obj));
+    set(kPreviousInstanceWrapper, obj);
+  }
+  Handle<WasmInstanceWrapper> next_wrapper() {
+    Object* obj = get(kNextInstanceWrapper);
+    DCHECK(IsWasmInstanceWrapper(obj));
+    return handle(WasmInstanceWrapper::cast(obj));
+  }
+  Handle<WasmInstanceWrapper> previous_wrapper() {
+    Object* obj = get(kPreviousInstanceWrapper);
+    DCHECK(IsWasmInstanceWrapper(obj));
+    return handle(WasmInstanceWrapper::cast(obj));
+  }
+  void reset_next_wrapper() { set_undefined(kNextInstanceWrapper); }
+  void reset_previous_wrapper() { set_undefined(kPreviousInstanceWrapper); }
+  void reset() {
+    for (int kID = 0; kID < kWrapperPropertyCount; kID++) set_undefined(kID);
+  }
+
+ private:
+  enum {
+    kWrapperInstanceObject,
+    kNextInstanceWrapper,
+    kPreviousInstanceWrapper,
+    kWrapperPropertyCount
+  };
 };
 
 #undef DECLARE_ACCESSORS

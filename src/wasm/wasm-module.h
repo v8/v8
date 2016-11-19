@@ -422,8 +422,8 @@ bool GetPositionInfo(Handle<WasmCompiledModule> compiled_module,
 // Returns nullptr on failing to get owning instance.
 WasmInstanceObject* GetOwningWasmInstance(Code* code);
 
-MaybeHandle<JSArrayBuffer> GetInstanceMemory(
-    Isolate* isolate, Handle<WasmInstanceObject> instance);
+MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
+                                             Handle<JSObject> instance);
 
 int32_t GetInstanceMemorySize(Isolate* isolate,
                               Handle<WasmInstanceObject> instance);
@@ -433,6 +433,14 @@ int32_t GrowInstanceMemory(Isolate* isolate,
 
 Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                      bool enable_guard_regions);
+
+int32_t GetInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance);
+
+int32_t GrowWebAssemblyMemory(Isolate* isolate, Handle<Object> receiver,
+                              uint32_t pages);
+
+int32_t GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                   uint32_t pages);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, Handle<JSFunction> js_function);
