@@ -7709,5 +7709,12 @@ compiler::Node* CodeStubAssembler::IsHoleyFastElementsKind(
   return Word32Equal(holey_elements, Int32Constant(1));
 }
 
+compiler::Node* CodeStubAssembler::IsDebugActive() {
+  Node* is_debug_active = Load(
+      MachineType::Uint8(),
+      ExternalConstant(ExternalReference::debug_is_active_address(isolate())));
+  return WordNotEqual(is_debug_active, Int32Constant(0));
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1044,6 +1044,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* InstanceOf(compiler::Node* object, compiler::Node* callable,
                              compiler::Node* context);
 
+  // Debug helpers
+  compiler::Node* IsDebugActive();
+
   // TypedArray/ArrayBuffer helpers
   compiler::Node* IsDetachedBuffer(compiler::Node* buffer);
 

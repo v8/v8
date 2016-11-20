@@ -1760,5 +1760,42 @@ TEST(ArgumentsForEach) {
   CHECK_EQ(Smi::FromInt(12 + 13 + 14), *result);
 }
 
+TEST(IsDebugActive) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  CodeStubAssembler::Label if_active(&m), if_not_active(&m);
+
+  m.Branch(m.IsDebugActive(), &if_active, &if_not_active);
+  m.Bind(&if_active);
+  m.Return(m.TrueConstant());
+  m.Bind(&if_not_active);
+  m.Return(m.FalseConstant());
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(false, isolate->debug()->is_active());
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+
+  bool* debug_is_active = reinterpret_cast<bool*>(
+      ExternalReference::debug_is_active_address(isolate).address());
+
+  // Cheat to enable debug (TODO: do this properly).
+  *debug_is_active = true;
+
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->true_value(), *result);
+
+  // Reset debug mode.
+  *debug_is_active = false;
+}
+
 }  // namespace internal
 }  // namespace v8
