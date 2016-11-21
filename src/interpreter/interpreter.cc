@@ -1035,8 +1035,8 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
   {
     Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
     Label lhs_is_not_smi(assembler), lhs_is_not_number(assembler),
-        lhs_is_not_oddball(assembler), lhs_is_not_string(assembler),
-        gather_rhs_type(assembler), update_feedback(assembler);
+        lhs_is_not_string(assembler), gather_rhs_type(assembler),
+        update_feedback(assembler);
 
     __ GotoUnless(__ TaggedIsSmi(lhs), &lhs_is_not_smi);
 
@@ -1057,31 +1057,19 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
       __ Bind(&lhs_is_not_number);
       {
         Node* lhs_instance_type = __ LoadInstanceType(lhs);
-        Node* lhs_is_oddball =
-            __ Word32Equal(lhs_instance_type, __ Int32Constant(ODDBALL_TYPE));
-        __ GotoUnless(lhs_is_oddball, &lhs_is_not_oddball);
+        Node* lhs_type =
+            __ Select(__ IsStringInstanceType(lhs_instance_type),
+                      __ Int32Constant(CompareOperationFeedback::kString),
+                      __ Int32Constant(CompareOperationFeedback::kAny));
 
-        var_type_feedback.Bind(
-            __ Int32Constant(CompareOperationFeedback::kNumberOrOddball));
+        var_type_feedback.Bind(lhs_type);
         __ Goto(&gather_rhs_type);
-
-        __ Bind(&lhs_is_not_oddball);
-        {
-          Node* lhs_type =
-              __ Select(__ IsStringInstanceType(lhs_instance_type),
-                        __ Int32Constant(CompareOperationFeedback::kString),
-                        __ Int32Constant(CompareOperationFeedback::kAny));
-
-          var_type_feedback.Bind(lhs_type);
-          __ Goto(&gather_rhs_type);
-        }
       }
     }
 
     __ Bind(&gather_rhs_type);
     {
-      Label rhs_is_not_smi(assembler), rhs_is_not_number(assembler),
-          rhs_is_not_oddball(assembler);
+      Label rhs_is_not_smi(assembler), rhs_is_not_number(assembler);
 
       __ GotoUnless(__ TaggedIsSmi(rhs), &rhs_is_not_smi);
 
@@ -1104,24 +1092,13 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         __ Bind(&rhs_is_not_number);
         {
           Node* rhs_instance_type = __ LoadInstanceType(rhs);
-          Node* rhs_is_oddball =
-              __ Word32Equal(rhs_instance_type, __ Int32Constant(ODDBALL_TYPE));
-          __ GotoUnless(rhs_is_oddball, &rhs_is_not_oddball);
-
+          Node* rhs_type =
+              __ Select(__ IsStringInstanceType(rhs_instance_type),
+                        __ Int32Constant(CompareOperationFeedback::kString),
+                        __ Int32Constant(CompareOperationFeedback::kAny));
           var_type_feedback.Bind(
-              __ Int32Constant(CompareOperationFeedback::kNumberOrOddball));
-          __ Goto(&do_compare);
-
-          __ Bind(&rhs_is_not_oddball);
-          {
-            Node* rhs_type =
-                __ Select(__ IsStringInstanceType(rhs_instance_type),
-                          __ Int32Constant(CompareOperationFeedback::kString),
-                          __ Int32Constant(CompareOperationFeedback::kAny));
-            var_type_feedback.Bind(
-                __ Word32Or(var_type_feedback.value(), rhs_type));
-            __ Goto(&update_feedback);
-          }
+              __ Word32Or(var_type_feedback.value(), rhs_type));
+          __ Goto(&update_feedback);
         }
       }
     }

@@ -126,8 +126,6 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kSignedSmall;
     case CompareOperationFeedback::kNumber:
       return CompareOperationHint::kNumber;
-    case CompareOperationFeedback::kNumberOrOddball:
-      return CompareOperationHint::kNumberOrOddball;
     case CompareOperationFeedback::kString:
       return CompareOperationHint::kString;
     default:
