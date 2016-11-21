@@ -426,9 +426,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
  private:
-  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, VariableKind kind,
-                    InitializationFlag initialization_flag,
+  Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
+                    VariableKind kind, InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
