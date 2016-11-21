@@ -1430,9 +1430,16 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
   return false;
 }
 
-void Debug::RecordAsyncFunction(Handle<JSGeneratorObject> generator_object) {
+void Debug::RecordGenerator(Handle<JSGeneratorObject> generator_object) {
   if (last_step_action() <= StepOut) return;
-  if (!IsAsyncFunction(generator_object->function()->shared()->kind())) return;
+
+  if (last_step_action() == StepNext) {
+    // Only consider this generator a step-next target if not stepping in.
+    JavaScriptFrameIterator stack_iterator(isolate_);
+    JavaScriptFrame* frame = stack_iterator.frame();
+    if (frame->UnpaddedFP() < thread_local_.target_fp_) return;
+  }
+
   DCHECK(!has_suspended_generator());
   thread_local_.suspended_generator_ = *generator_object;
   ClearStepping();

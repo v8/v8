@@ -54,7 +54,7 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   DCHECK(frame->function()->shared()->is_compiled());
   DCHECK(!frame->function()->IsOptimized());
 
-  isolate->debug()->RecordAsyncFunction(generator_object);
+  isolate->debug()->RecordGenerator(generator_object);
 
   // The caller should have saved the context and continuation already.
   DCHECK_EQ(generator_object->context(), Context::cast(frame->context()));

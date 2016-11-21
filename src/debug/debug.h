@@ -464,7 +464,7 @@ class Debug {
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, std::set<int>* positions);
 
-  void RecordAsyncFunction(Handle<JSGeneratorObject> generator_object);
+  void RecordGenerator(Handle<JSGeneratorObject> generator_object);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared

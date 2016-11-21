@@ -194,7 +194,7 @@ namespace internal {
   F(ScriptSourceLine, 2, 1)                     \
   F(DebugPrepareStepInIfStepping, 1, 1)         \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
-  F(DebugRecordAsyncFunction, 1, 1)             \
+  F(DebugRecordGenerator, 1, 1)                 \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugNextMicrotaskId, 0, 1)                 \

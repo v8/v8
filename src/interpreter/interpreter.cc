@@ -2766,7 +2766,7 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   __ Bind(&if_stepping);
   {
     Node* context = __ GetContext();
-    __ CallRuntime(Runtime::kDebugRecordAsyncFunction, context, generator);
+    __ CallRuntime(Runtime::kDebugRecordGenerator, context, generator);
     __ Goto(&ok);
   }
 }
