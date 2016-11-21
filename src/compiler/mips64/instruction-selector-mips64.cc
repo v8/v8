@@ -824,7 +824,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   if (m.right().opcode() == IrOpcode::kWord32Shl &&
       CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
     Int32BinopMatcher mright(m.right().node());
-    if (mright.right().HasValue()) {
+    if (mright.right().HasValue() && !m.left().HasValue()) {
       int32_t shift_value = static_cast<int32_t>(mright.right().Value());
       Emit(kMips64Lsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(mright.left().node()), g.TempImmediate(shift_value));
@@ -836,7 +836,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   if (m.left().opcode() == IrOpcode::kWord32Shl &&
       CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
+    if (mleft.right().HasValue() && !m.right().HasValue()) {
       int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
       Emit(kMips64Lsa, g.DefineAsRegister(node),
            g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
@@ -856,7 +856,7 @@ void InstructionSelector::VisitInt64Add(Node* node) {
   if (m.right().opcode() == IrOpcode::kWord64Shl &&
       CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
     Int64BinopMatcher mright(m.right().node());
-    if (mright.right().HasValue()) {
+    if (mright.right().HasValue() && !m.left().HasValue()) {
       int32_t shift_value = static_cast<int32_t>(mright.right().Value());
       Emit(kMips64Dlsa, g.DefineAsRegister(node),
            g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
@@ -869,7 +869,7 @@ void InstructionSelector::VisitInt64Add(Node* node) {
   if (m.left().opcode() == IrOpcode::kWord64Shl &&
       CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
     Int64BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
+    if (mleft.right().HasValue() && !m.right().HasValue()) {
       int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
       Emit(kMips64Dlsa, g.DefineAsRegister(node),
            g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
