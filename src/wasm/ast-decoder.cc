@@ -381,6 +381,9 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   bool Decode() {
+    if (FLAG_wasm_code_fuzzer_gen_test) {
+      PrintAstForDebugging(start_, end_);
+    }
     base::ElapsedTimer decode_timer;
     if (FLAG_trace_wasm_decode_time) {
       decode_timer.Start();
@@ -1928,7 +1931,7 @@ bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
   // Print the local declarations.
   AstLocalDecls decls(&zone);
   BytecodeIterator i(body.start, body.end, &decls);
-  if (body.start != i.pc()) {
+  if (body.start != i.pc() && !FLAG_wasm_code_fuzzer_gen_test) {
     os << "// locals: ";
     for (auto p : decls.local_types) {
       LocalType type = p.first;

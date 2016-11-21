@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/ostreams.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -20,6 +21,28 @@
 using namespace v8::internal::wasm;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // Save the flag so that we can change it and restore it later.
+  bool generate_test = v8::internal::FLAG_wasm_code_fuzzer_gen_test;
+  if (generate_test) {
+    v8::internal::OFStream os(stdout);
+
+    os << "// Copyright 2016 the V8 project authors. All rights reserved."
+       << std::endl;
+    os << "// Use of this source code is governed by a BSD-style license that "
+          "can be"
+       << std::endl;
+    os << "// found in the LICENSE file." << std::endl;
+    os << std::endl;
+    os << "// Flags: --expose-wasm" << std::endl;
+    os << std::endl;
+    os << "load(\"test/mjsunit/wasm/wasm-constants.js\");" << std::endl;
+    os << "load(\"test/mjsunit/wasm/wasm-module-builder.js\");" << std::endl;
+    os << std::endl;
+    os << "(function() {" << std::endl;
+    os << "  var builder = new WasmModuleBuilder();" << std::endl;
+    os << "  builder.addFunction(\"test\", kSig_i_iii)" << std::endl;
+    os << "    .addBody([" << std::endl;
+  }
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   v8::internal::Isolate* i_isolate =
@@ -59,9 +82,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       i_isolate, &interpreter_thrower, buffer.begin(), buffer.end(),
       v8::internal::wasm::ModuleOrigin::kWasmOrigin, true));
 
+  // Clear the flag so that the WebAssembly code is not printed twice.
+  v8::internal::FLAG_wasm_code_fuzzer_gen_test = false;
   if (module == nullptr) {
+    if (generate_test) {
+      v8::internal::OFStream os(stdout);
+      os << "            ])" << std::endl;
+      os << "            .exportFunc();" << std::endl;
+      os << "  assertThrows(function() { builder.instantiate(); });"
+         << std::endl;
+      os << "})();" << std::endl;
+    }
     return 0;
   }
+  if (generate_test) {
+    v8::internal::OFStream os(stdout);
+    os << "            ])" << std::endl;
+    os << "            .exportFunc();" << std::endl;
+    os << "  var module = builder.instantiate();" << std::endl;
+    os << "  module.exports.test(1, 2, 3);" << std::endl;
+    os << "})();" << std::endl;
+  }
+
   int32_t result_interpreted;
   bool possible_nondeterminism = false;
   {
@@ -75,7 +117,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::Handle<v8::internal::JSObject> instance =
       testing::InstantiateModuleForTesting(i_isolate, &compiler_thrower,
                                            module.get());
-
+  // Restore the flag.
+  v8::internal::FLAG_wasm_code_fuzzer_gen_test = generate_test;
   if (!interpreter_thrower.error()) {
     CHECK(!instance.is_null());
   } else {
