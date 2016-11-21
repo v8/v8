@@ -390,9 +390,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
-  // load-function-prototype function
-  const Operator* LoadFunctionPrototype();
-
  private:
   Zone* zone() const { return zone_; }
 

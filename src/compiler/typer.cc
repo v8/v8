@@ -1730,10 +1730,6 @@ Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   return nullptr;
 }
 
-Type* Typer::Visitor::TypeLoadFunctionPrototype(Node* node) {
-  return Type::NonInternal();
-}
-
 Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
   return TypeUnaryOp(node, ObjectIsCallable);
 }

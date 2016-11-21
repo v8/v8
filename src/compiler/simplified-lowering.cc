@@ -2385,12 +2385,6 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kNone);
         return;
       }
-      case IrOpcode::kLoadFunctionPrototype: {
-        if (truncation.IsUnused()) return VisitUnused(node);
-        VisitUnop(node, UseInfo::AnyTagged(),
-                  MachineRepresentation::kTaggedPointer);
-        return;
-      }
       case IrOpcode::kPlainPrimitiveToNumber: {
         if (InputIs(node, Type::Boolean())) {
           VisitUnop(node, UseInfo::Bool(), MachineRepresentation::kWord32);

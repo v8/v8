@@ -495,13 +495,6 @@ struct SimplifiedOperatorGlobalCache final {
   };
   ArrayBufferWasNeuteredOperator kArrayBufferWasNeutered;
 
-  struct LoadFunctionPrototypeOperator final : public Operator {
-    LoadFunctionPrototypeOperator()
-        : Operator(IrOpcode::kLoadFunctionPrototype, Operator::kEliminatable,
-                   "LoadFunctionPrototype", 1, 1, 1, 1, 1, 0) {}
-  };
-  LoadFunctionPrototypeOperator kLoadFunctionPrototype;
-
   template <CheckForMinusZeroMode kMode>
   struct CheckedInt32MulOperator final
       : public Operator1<CheckForMinusZeroMode> {
@@ -646,7 +639,6 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
 GET_FROM_CACHE(ArrayBufferWasNeutered)
-GET_FROM_CACHE(LoadFunctionPrototype)
 #undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::CheckedInt32Mul(
