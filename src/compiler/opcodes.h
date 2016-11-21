@@ -317,7 +317,6 @@
   V(StoreBuffer)                    \
   V(StoreElement)                   \
   V(StoreTypedElement)              \
-  V(LoadFunctionPrototype)          \
   V(ObjectIsCallable)               \
   V(ObjectIsNumber)                 \
   V(ObjectIsReceiver)               \

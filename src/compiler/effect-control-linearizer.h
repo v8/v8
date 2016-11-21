@@ -178,8 +178,6 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                            Node* control);
   ValueEffectControl LowerStoreTypedElement(Node* node, Node* effect,
                                             Node* control);
-  ValueEffectControl LowerLoadFunctionPrototype(Node* node, Node* effect,
-                                                Node* control);
 
   // Lowering of optional operators.
   ValueEffectControl LowerFloat64RoundUp(Node* node, Node* effect,
