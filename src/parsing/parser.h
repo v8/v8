@@ -290,12 +290,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return compile_options_;
   }
   bool consume_cached_parse_data() const {
-    return allow_lazy_ &&
-           compile_options_ == ScriptCompiler::kConsumeParserCache;
+    return compile_options_ == ScriptCompiler::kConsumeParserCache;
   }
   bool produce_cached_parse_data() const {
-    return allow_lazy_ &&
-           compile_options_ == ScriptCompiler::kProduceParserCache;
+    return compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
@@ -1145,6 +1143,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
   bool allow_lazy_;
+  bool temp_zoned_;
   ParserLogger* log_;
 };
 

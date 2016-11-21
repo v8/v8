@@ -112,8 +112,13 @@ class DiscardableZoneScope {
         fni_(parser->ast_value_factory_, temp_zone),
         parser_(parser),
         prev_fni_(parser->fni_),
-        prev_zone_(parser->zone_) {
+        prev_zone_(parser->zone_),
+        prev_allow_lazy_(parser->allow_lazy_),
+        prev_temp_zoned_(parser->temp_zoned_) {
     if (use_temp_zone) {
+      DCHECK(!parser_->temp_zoned_);
+      parser_->allow_lazy_ = false;
+      parser_->temp_zoned_ = true;
       parser_->fni_ = &fni_;
       parser_->zone_ = temp_zone;
       if (parser_->reusable_preparser_ != nullptr) {
@@ -125,6 +130,8 @@ class DiscardableZoneScope {
   void Reset() {
     parser_->fni_ = prev_fni_;
     parser_->zone_ = prev_zone_;
+    parser_->allow_lazy_ = prev_allow_lazy_;
+    parser_->temp_zoned_ = prev_temp_zoned_;
     if (parser_->reusable_preparser_ != nullptr) {
       parser_->reusable_preparser_->zone_ = prev_zone_;
       parser_->reusable_preparser_->factory()->set_zone(prev_zone_);
@@ -139,6 +146,8 @@ class DiscardableZoneScope {
   Parser* parser_;
   FuncNameInferrer* prev_fni_;
   Zone* prev_zone_;
+  bool prev_allow_lazy_;
+  bool prev_temp_zoned_;
 
   DISALLOW_COPY_AND_ASSIGN(DiscardableZoneScope);
 };
@@ -146,10 +155,11 @@ class DiscardableZoneScope {
 void Parser::SetCachedData(ParseInfo* info) {
   DCHECK_NULL(cached_parse_data_);
   if (consume_cached_parse_data()) {
-    cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
-    if (cached_parse_data_ == nullptr) {
-      compile_options_ = ScriptCompiler::kNoCompileOptions;
+    if (allow_lazy_) {
+      cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
+      if (cached_parse_data_ != nullptr) return;
     }
+    compile_options_ = ScriptCompiler::kNoCompileOptions;
   }
 }
 
@@ -592,6 +602,7 @@ Parser::Parser(ParseInfo* info)
       compile_options_(info->compile_options()),
       cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
+      temp_zoned_(false),
       log_(nullptr) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -680,7 +691,11 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   ParserLogger logger;
 
   if (produce_cached_parse_data()) {
-    log_ = &logger;
+    if (allow_lazy_) {
+      log_ = &logger;
+    } else {
+      compile_options_ = ScriptCompiler::kNoCompileOptions;
+    }
   } else if (consume_cached_parse_data()) {
     cached_parse_data_->Initialize();
   }
@@ -2692,18 +2707,19 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       scope->AnalyzePartially(&previous_zone_ast_node_factory);
     }
 
+    DCHECK_IMPLIES(use_temp_zone, temp_zoned_);
     if (FLAG_trace_preparse) {
       PrintF("  [%s]: %i-%i %.*s\n",
              is_lazy_top_level_function
                  ? "Preparse no-resolution"
-                 : (use_temp_zone ? "Preparse resolution" : "Full parse"),
+                 : (temp_zoned_ ? "Preparse resolution" : "Full parse"),
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
     }
     if (is_lazy_top_level_function) {
       CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
                                      PreParseNoVariableResolution);
-    } else if (use_temp_zone) {
+    } else if (temp_zoned_) {
       CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
                                      PreParseWithVariableResolution);
     }
@@ -3116,6 +3132,8 @@ ZoneList<Statement*>* Parser::ParseFunction(
     DeclarationScope* function_scope, int* num_parameters, int* function_length,
     bool* has_duplicate_parameters, int* materialized_literal_count,
     int* expected_property_count, bool* ok) {
+  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
 
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
@@ -3160,7 +3178,6 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
 
   static const int kFunctionNameAssignmentIndex = 0;
@@ -3819,7 +3836,13 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   FunctionLiteral* result = NULL;
 
   ParserLogger logger;
-  if (produce_cached_parse_data()) log_ = &logger;
+  if (produce_cached_parse_data()) {
+    if (allow_lazy_) {
+      log_ = &logger;
+    } else {
+      compile_options_ = ScriptCompiler::kNoCompileOptions;
+    }
+  }
   if (FLAG_runtime_stats) {
     // Create separate runtime stats for background parsing.
     runtime_call_stats_ = new (zone()) RuntimeCallStats();
