@@ -14,8 +14,6 @@ if (is_android) {
 
 import("gni/v8.gni")
 import("gni/isolate.gni")
-import("//build_overrides/v8.gni")
-
 import("snapshot_toolchain.gni")
 
 declare_args() {
@@ -155,7 +153,7 @@ config("external_config") {
     defines = [ "USING_V8_SHARED" ]
   }
   include_dirs = [ "include" ]
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     include_dirs += [ "$target_gen_dir/include" ]
   }
 }
@@ -742,7 +740,7 @@ action("v8_dump_build_config") {
     "is_tsan=$is_tsan",
     "target_cpu=\"$target_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
-    "v8_enable_inspector=$v8_enable_inspector_override",
+    "v8_enable_inspector=$v8_enable_inspector",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
   ]
@@ -2203,7 +2201,7 @@ v8_source_set("v8_base") {
     deps += [ ":postmortem-metadata" ]
   }
 
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     deps += [ "src/inspector:inspector" ]
   }
 }
@@ -2578,7 +2576,7 @@ v8_executable("d8") {
   }
 
   defines = []
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     defines += [ "V8_INSPECTOR_ENABLED" ]
   }
 }
