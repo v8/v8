@@ -19,17 +19,11 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   CHECK(IsResumableFunction(function->shared()->kind()));
 
-  Handle<FixedArray> operand_stack;
-  if (function->shared()->HasBytecodeArray()) {
-    // New-style generators.
-    DCHECK(!function->shared()->HasBaselineCode());
-    int size = function->shared()->bytecode_array()->register_count();
-    operand_stack = isolate->factory()->NewFixedArray(size);
-  } else {
-    // Old-style generators.
-    DCHECK(function->shared()->HasBaselineCode());
-    operand_stack = isolate->factory()->empty_fixed_array();
-  }
+  // Underlying function needs to have bytecode available.
+  DCHECK(function->shared()->HasBytecodeArray());
+  DCHECK(!function->shared()->HasBaselineCode());
+  int size = function->shared()->bytecode_array()->register_count();
+  Handle<FixedArray> operand_stack = isolate->factory()->NewFixedArray(size);
 
   Handle<JSGeneratorObject> generator =
       isolate->factory()->NewJSGeneratorObject(function);
