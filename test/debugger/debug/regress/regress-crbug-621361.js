@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
 
 var Debug = debug.Debug;
 var steps = 0;
@@ -15,12 +14,12 @@ function listener(event, execState, eventData, data) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global],
                  execState.frame().allScopes().map(s => s.scopeType()));
-    var x_value = execState.frame().evaluate("x").value();
+    var x_value = execState.frame().evaluate("String(x)").value();
     if (steps < 2) {
-      assertEquals(undefined, x_value);
+      assertEquals("undefined", x_value);
       execState.prepareStep(Debug.StepAction.StepIn);
     } else {
-      assertEquals("l => l", x_value.toString());
+      assertEquals("l => l", x_value);
     }
     steps++;
   } catch (e) {

@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 listenerComplete = false;
@@ -65,14 +63,16 @@ function g() {
 }
 
 function checkFrame1(frame) {
-  // Frame 1 (g) has normal variable a (and arguments).
+  // Frame 1 (g) has normal variable a, b (and arguments).
   var count = frame.localCount();
-  assertEquals(2, count);
+  assertEquals(3, count);
   for (var i = 0; i < count; ++i) {
     var name = frame.localName(i);
     var value = frame.localValue(i).value();
     if (name == 'a') {
       assertEquals(3, value);
+    } else if (name == 'b') {
+      assertEquals(4, value);
     } else {
       assertEquals('arguments', name);
     }
@@ -119,11 +119,11 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(3, exec_state.frame(1).evaluate('a').value());
       assertEquals(4, exec_state.frame(1).evaluate('b').value());
       assertEquals("function",
-                   typeof exec_state.frame(1).evaluate('eval').value());
+                   exec_state.frame(1).evaluate('typeof eval').value());
       assertEquals(5, exec_state.frame(2).evaluate('a').value());
       assertEquals(6, exec_state.frame(2).evaluate('b').value());
       assertEquals("function",
-                   typeof exec_state.frame(2).evaluate('eval').value());
+                   exec_state.frame(2).evaluate('typeof eval').value());
       assertEquals("foo",
                    exec_state.frame(0).evaluate('a = "foo"').value());
       assertEquals("bar",

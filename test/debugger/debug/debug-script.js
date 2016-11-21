@@ -51,6 +51,7 @@ var named_native_count = 0;
 var named_native_names = {};
 var extension_count = 0;
 var normal_count = 0;
+var inspector_count = 0;
 var scripts = Debug.scripts();
 for (i = 0; i < scripts.length; i++) {
   if (scripts[i].type == Debug.ScriptType.Native) {
@@ -66,6 +67,8 @@ for (i = 0; i < scripts.length; i++) {
     extension_count++;
   } else if (scripts[i].type == Debug.ScriptType.Normal) {
     normal_count++;
+  } else if (scripts[i].type == Debug.ScriptType.Inspector) {
+    inspector_count++;
   } else {
     assertUnreachable('Unexpected type ' + scripts[i].type);
   }
@@ -75,9 +78,10 @@ for (i = 0; i < scripts.length; i++) {
 assertEquals(%NativeScriptsCount(), named_native_count);
 // The 'gc' extension and one or two extras scripts are loaded.
 assertTrue(extension_count == 2 || extension_count == 3);
-// This script and mjsunit.js has been loaded.  If using d8, d8 loads
-// a normal script during startup too.
-assertTrue(normal_count == 2 || normal_count == 3);
+// This script, test-api.js and mjsunit.js has been loaded.  If using d8, d8
+// loads a normal script during startup too.
+assertTrue(normal_count == 3 || normal_count == 4);
+assertTrue(inspector_count == 1);
 
 // Test a builtins script.
 var array_script = Debug.findScript('native array.js');

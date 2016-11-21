@@ -84,7 +84,6 @@ function TestStrict(receiver) {
 
 listener_delegate = function(exec_state) {
   var receiver = exec_state.frame().receiver();
-  assertTrue(!receiver.isObject());
   assertEquals(expected_receiver, receiver.value())
 }
 
@@ -108,7 +107,6 @@ function TestNonStrict(receiver) {
 
 listener_delegate = function(exec_state) {
   var receiver = exec_state.frame().receiver();
-  assertTrue(receiver.isObject());
   assertEquals(expected_receiver, receiver.value());
 }
 

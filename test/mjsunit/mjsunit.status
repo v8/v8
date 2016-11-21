@@ -53,16 +53,6 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
-  # Issue 3641: The new 'then' semantics suppress some exceptions.
-  # These tests may be changed or removed when 'chain' is deprecated.
-  'es6/debug-promises/reject-with-throw-in-reject': [FAIL],
-  'es6/debug-promises/reject-with-undefined-reject': [FAIL],
-  'es6/debug-promises/reject-with-invalid-reject': [FAIL],
-
-  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
-  # live edited. This needs investigation.
-  'debug-liveedit-double-call': [SKIP],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
@@ -513,9 +503,6 @@
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:3435)
-  'debug-script-breakpoints': [PASS, FAIL],
-
   # BUG(v8:4495).
   'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
 }],  # 'system == windows'
@@ -525,13 +512,6 @@
   # BUG(v8:5333)
   'big-object-literal': [SKIP],
 }],  # 'system == macos'
-
-##############################################################################
-['arch == s390 or arch == s390x', {
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-double-call': [SKIP],
-}],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
 ['deopt_fuzzer == True', {
@@ -613,9 +593,7 @@
   'es6/array-iterator-turbo': [SKIP],
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-locals': [FAIL],
   'debug-set-variable-value': [FAIL],
-  'debug-liveedit-double-call': [FAIL],
 
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
@@ -628,16 +606,7 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition or variant == ignition_staging', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition
-
-##############################################################################
 ['variant == ignition_turbofan', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug-liveedit-double-call': [FAIL],
-
   # TODO(rmcilroy,titzer): Times out after
   # https://codereview.chromium.org/1951013002 .
   'regress/regress-599717': [PASS, ['tsan', SKIP]],

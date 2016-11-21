@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
 
-// Test debug events when a Promise is rejected, which is caught by a
-// custom promise, which throws a new exception in its reject handler.
-// We expect two Exception debug events:
-//  1) when promise q is rejected.
-//  2) when the custom reject closure in MyPromise throws an exception.
+// Test debug events when a Promise is rejected, which is caught by a custom
+// promise, which has undefined for reject closure.  We expect an Exception
+// debug even calling the (undefined) custom rejected closure.
 
 Debug = debug.Debug;
 
@@ -21,10 +18,7 @@ var p = new Promise(function(resolve, reject) {
 });
 
 function MyPromise(resolver) {
-  var reject = function() {
-    log.push("throw in reject");
-    throw new Error("reject");  // event
-  };
+  var reject = undefined;
   var resolve = function() { };
   log.push("construct");
   resolver(resolve, reject);
@@ -44,32 +38,25 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Exception) {
       expected_events--;
       assertTrue(expected_events >= 0);
-      assertEquals("reject", event_data.exception().message);
-      // Assert that the debug event is triggered at the throw site.
-      assertTrue(
-          exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
+      assertEquals("caught", event_data.exception().message);
+      // All of the frames on the stack are from native Javascript.
+      assertEquals(0, exec_state.frameCount());
     }
   } catch (e) {
-    // Signal a failure with exit code 1.  This is necessary since the
-    // debugger swallows exceptions and we expect the chained function
-    // and this listener to be executed after the main script is finished.
-    print("Unexpected exception: " + e + "\n" + e.stack);
-    quit(1);
+    %AbortJS(e + "\n" + e.stack);
   }
 }
 
 Debug.setBreakOnUncaughtException();
 Debug.setListener(listener);
 
-log.push("end main");
-
 function testDone(iteration) {
   function checkResult() {
     try {
       assertTrue(iteration < 10);
       if (expected_events === 0) {
-        assertEquals(["resolve", "construct", "end main",
-                      "reject caught", "throw in reject"], log);
+        assertEquals(["resolve", "construct", "end main", "reject caught"],
+                     log);
       } else {
         testDone(iteration + 1);
       }
@@ -82,3 +69,5 @@ function testDone(iteration) {
 }
 
 testDone(0);
+
+log.push("end main");

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
 
 var o = {
   f: function(x) {
@@ -20,11 +19,8 @@ Debug.setListener(function() {});
 var script = Debug.findScript(sentinel);
 
 // Used in Debug.setScriptBreakPointById.
-var p = Debug.findScriptSourcePosition(script, 9, 0);
+var p = Debug.findScriptSourcePosition(script, 8, 0);
 var q = Debug.setBreakPointByScriptIdAndPosition(script.id, p).actual_position;
-var r = Debug.setBreakPointByScriptIdAndPosition(script.id, q).actual_position;
-
-assertEquals(q, r);
 
 function assertLocation(p, l, c) {
   var location = script.locationFromPosition(p, false);
@@ -32,6 +28,5 @@ function assertLocation(p, l, c) {
   assertEquals(c, location.column);
 }
 
-assertLocation(p, 9, 0);
-assertLocation(q, 9, 4);
-assertLocation(r, 9, 4);
+assertLocation(p, 8, 0);
+assertLocation(q, 8, 4);

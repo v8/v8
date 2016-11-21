@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-debug-as debug
 
 var Debug = debug.Debug;
 
@@ -80,15 +79,12 @@ if (changed) {
   assertEquals(0.5, r3);
 }
 
-var counter = 0;
-var o = { toString : function() { counter++; return 100; } };
-
 function listenerSetJToObject(
     event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
     var scope = exec_state.frame(1).scope(0);
     try {
-      scope.setVariableValue("j", o);
+      scope.setVariableValue("j", 100);
       changed = true;
     } catch(e) {
       changed = false;
@@ -113,7 +109,6 @@ function ChangeIntVarAndOsr() {
 var r4 = ChangeIntVarAndOsr();
 if (changed) {
   assertEquals(101, r4);
-  assertEquals(1, counter);
 } else {
   assertEquals(5, r4);
 }

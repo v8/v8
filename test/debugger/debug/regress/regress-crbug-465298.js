@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --noturbo-osr --noturbo-inlining --expose-debug-as debug
+// Flags: --noturbo-osr --noturbo-inlining
 
 var stdlib = this;
 var buffer = new ArrayBuffer(64 * 1024);
 var foreign = { thrower: thrower, debugme: debugme }
 
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;
 
 var listenerCalled = false;
@@ -16,7 +15,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       var frame = exec_state.frame(1);
-      assertEquals(m.foo, frame.func().value());
+      assertEquals("foo", frame.func().name());
       listenerCalled = true;
     }
   } catch (e) {
