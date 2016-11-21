@@ -158,8 +158,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //  - Look up in the original context.
   //  - Check the whitelist to find out whether to skip contexts during lookup.
   const ScopeIterator::Option option = ScopeIterator::COLLECT_NON_LOCALS;
-  for (ScopeIterator it(isolate, &frame_inspector, option);
-       !it.Failed() && !it.Done(); it.Next()) {
+  for (ScopeIterator it(isolate, &frame_inspector, option); !it.Done();
+       it.Next()) {
     ScopeIterator::ScopeType scope_type = it.Type();
     if (scope_type == ScopeIterator::ScopeTypeLocal) {
       DCHECK_EQ(FUNCTION_SCOPE, it.CurrentScopeInfo()->scope_type());

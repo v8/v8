@@ -1806,7 +1806,22 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
       Local<Value> args[] = {message};
       MaybeLocal<Value> result = Local<Function>::Cast(callback)->Call(
           context, Undefined(isolate_), 1, args);
-      CHECK(!result.IsEmpty());  // Listeners may not throw.
+#ifdef DEBUG
+      if (try_catch.HasCaught()) {
+        Local<Object> exception = Local<Object>::Cast(try_catch.Exception());
+        Local<String> key = v8::String::NewFromUtf8(isolate_, "message",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked();
+        Local<String> expected =
+            v8::String::NewFromUtf8(isolate_,
+                                    "Maximum call stack size exceeded",
+                                    v8::NewStringType::kNormal)
+                .ToLocalChecked();
+        CHECK(exception->Get(context, key)
+                  .ToLocalChecked()
+                  ->StrictEquals(expected));
+      }
+#endif
     }
   }
 

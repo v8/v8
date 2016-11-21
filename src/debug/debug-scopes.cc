@@ -23,8 +23,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       nested_scope_chain_(4),
-      seen_script_scope_(false),
-      failed_(false) {
+      seen_script_scope_(false) {
   if (!frame_inspector->GetContext()->IsContext()) {
     // Optimized frame, context or function cannot be materialized. Give up.
     return;
@@ -119,26 +118,26 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       DeclarationScope::Analyze(info.get(), AnalyzeMode::kDebugger);
       RetrieveScopeChain(scope);
     }
-  } else if (!ignore_nested_scopes) {
+  } else {
     // A failed reparse indicates that the preparser has diverged from the
     // parser or that the preparse data given to the initial parse has been
     // faulty. We fail in debug mode but in release mode we only provide the
     // information we get from the context chain but nothing about
     // completely stack allocated scopes or stack allocated locals.
     // Or it could be due to stack overflow.
-    DCHECK(isolate_->has_pending_exception());
-    failed_ = true;
+    // Silently fail by presenting an empty context chain.
+    CHECK(isolate_->has_pending_exception());
+    isolate_->clear_pending_exception();
+    context_ = Handle<Context>();
   }
   UnwrapEvaluationContext();
 }
-
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
     : isolate_(isolate),
       frame_inspector_(NULL),
       context_(function->context()),
-      seen_script_scope_(false),
-      failed_(false) {
+      seen_script_scope_(false) {
   if (!function->shared()->IsSubjectToDebugging()) context_ = Handle<Context>();
   UnwrapEvaluationContext();
 }
@@ -148,8 +147,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
     : isolate_(isolate),
       frame_inspector_(NULL),
       context_(generator->context()),
-      seen_script_scope_(false),
-      failed_(false) {
+      seen_script_scope_(false) {
   if (!generator->function()->shared()->IsSubjectToDebugging()) {
     context_ = Handle<Context>();
   }
@@ -212,7 +210,7 @@ MUST_USE_RESULT MaybeHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
 
 
 void ScopeIterator::Next() {
-  DCHECK(!failed_);
+  DCHECK(!Done());
   ScopeType scope_type = Type();
   if (scope_type == ScopeTypeGlobal) {
     // The global scope is always the last in the chain.
@@ -249,7 +247,7 @@ void ScopeIterator::Next() {
 
 // Return the type of the current scope.
 ScopeIterator::ScopeType ScopeIterator::Type() {
-  DCHECK(!failed_);
+  DCHECK(!Done());
   if (!nested_scope_chain_.is_empty()) {
     Handle<ScopeInfo> scope_info = nested_scope_chain_.last().scope_info;
     switch (scope_info->scope_type()) {
@@ -304,7 +302,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
 
 
 MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
-  DCHECK(!failed_);
+  DCHECK(!Done());
   switch (Type()) {
     case ScopeIterator::ScopeTypeGlobal:
       return Handle<JSObject>(CurrentContext()->global_proxy());
@@ -346,7 +344,7 @@ bool ScopeIterator::HasContext() {
 
 bool ScopeIterator::SetVariableValue(Handle<String> variable_name,
                                      Handle<Object> new_value) {
-  DCHECK(!failed_);
+  DCHECK(!Done());
   switch (Type()) {
     case ScopeIterator::ScopeTypeGlobal:
       break;
@@ -372,7 +370,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> variable_name,
 
 
 Handle<ScopeInfo> ScopeIterator::CurrentScopeInfo() {
-  DCHECK(!failed_);
+  DCHECK(!Done());
   if (!nested_scope_chain_.is_empty()) {
     return nested_scope_chain_.last().scope_info;
   } else if (context_->IsBlockContext()) {
@@ -385,7 +383,7 @@ Handle<ScopeInfo> ScopeIterator::CurrentScopeInfo() {
 
 
 Handle<Context> ScopeIterator::CurrentContext() {
-  DCHECK(!failed_);
+  DCHECK(!Done());
   if (Type() == ScopeTypeGlobal || Type() == ScopeTypeScript ||
       nested_scope_chain_.is_empty()) {
     return context_;
@@ -402,7 +400,7 @@ Handle<StringSet> ScopeIterator::GetNonLocals() { return non_locals_; }
 // Debug print of the content of the current scope.
 void ScopeIterator::DebugPrint() {
   OFStream os(stdout);
-  DCHECK(!failed_);
+  DCHECK(!Done());
   switch (Type()) {
     case ScopeIterator::ScopeTypeGlobal:
       os << "Global:\n";
