@@ -314,9 +314,10 @@ class DebugWrapper {
   }
 
   receiveMessage(message) {
-    if (printProtocolMessages) print(message);
-
     const parsedMessage = JSON.parse(message);
+    if (printProtocolMessages) {
+      print(JSON.stringify(parsedMessage, undefined, 1));
+    }
     if (parsedMessage.id !== undefined) {
       this.receivedMessages.set(parsedMessage.id, parsedMessage);
     }
@@ -607,6 +608,7 @@ class DebugWrapper {
     const column = frame.location.columnNumber;
     const loc = %ScriptLocationFromLine2(scriptid, line, column, 0);
     const func = { name : () => frame.functionName };
+    const index = JSON.parse(frame.callFrameId).ordinal;
 
     function allScopes() {
       const scopes = [];
@@ -622,6 +624,7 @@ class DebugWrapper {
              evaluate : (expr) => this.evaluateOnCallFrame(frame, expr),
              functionName : () => frame.functionName,
              func : () => func,
+             index : () => index,
              localCount : () => this.execStateFrameLocalCount(frame),
              localName : (ix) => this.execStateFrameLocalName(frame, ix),
              localValue: (ix) => this.execStateFrameLocalValue(frame, ix),
