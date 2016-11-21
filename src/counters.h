@@ -506,12 +506,37 @@ class RuntimeCallTimer {
  private:
   friend class RuntimeCallStats;
 
-  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent);
-  inline RuntimeCallTimer* Stop();
-  // Synchronize the currently active timer stack. Walk up the stack by stopping
-  // and restarting each timer.
-  inline void Snapshot();
-  inline void Subtract(base::TimeDelta delta);
+  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
+    counter_ = counter;
+    parent_.SetValue(parent);
+    if (FLAG_runtime_stats !=
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
+      timer_.Start();
+    }
+  }
+
+  inline RuntimeCallTimer* Stop() {
+    if (!timer_.IsStarted()) return parent();
+    base::TimeDelta delta = timer_.Elapsed();
+    timer_.Stop();
+    counter_->count++;
+    counter_->time += delta;
+    if (parent()) {
+      // Adjust parent timer so that it does not include sub timer's time.
+      parent()->counter_->time -= delta;
+    }
+    return parent();
+  }
+
+  inline void Elapsed() {
+    base::TimeDelta delta = timer_.Elapsed();
+    counter_->time += delta;
+    if (parent()) {
+      parent()->counter_->time -= delta;
+      parent()->Elapsed();
+    }
+    timer_.Restart();
+  }
 
   const char* name() { return counter_->name; }
 
@@ -721,8 +746,6 @@ class RuntimeCallTimer {
   V(PrototypeObject_DeleteProperty)                 \
   V(RecompileConcurrent)                            \
   V(RecompileSynchronous)                           \
-  V(TestCounter1)                                   \
-  V(TestCounter2)                                   \
   /* Dummy counter for the unexpected stub miss. */ \
   V(UnexpectedStubMiss)
 
@@ -794,7 +817,7 @@ class RuntimeCallTimer {
   V(StoreIC_StoreTransitionDH)                   \
   V(StoreIC_StoreViaSetter)
 
-class V8_EXPORT_PRIVATE RuntimeCallStats : public ZoneObject {
+class RuntimeCallStats : public ZoneObject {
  public:
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
 
@@ -868,36 +891,6 @@ class V8_EXPORT_PRIVATE RuntimeCallStats : public ZoneObject {
 #define TRACE_HANDLER_STATS(isolate, counter_name)                          \
   CHANGE_CURRENT_RUNTIME_COUNTER(isolate->counters()->runtime_call_stats(), \
                                  Handler_##counter_name)
-
-// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
-// the time of C++ scope.
-class RuntimeCallTimerScope {
- public:
-  inline RuntimeCallTimerScope(Isolate* isolate,
-                               RuntimeCallStats::CounterId counter_id);
-  // This constructor is here just to avoid calling GetIsolate() when the
-  // stats are disabled and the isolate is not directly available.
-  inline RuntimeCallTimerScope(HeapObject* heap_object,
-                               RuntimeCallStats::CounterId counter_id);
-  inline RuntimeCallTimerScope(RuntimeCallStats* stats,
-                               RuntimeCallStats::CounterId counter_id);
-
-  inline ~RuntimeCallTimerScope() {
-    if (V8_UNLIKELY(stats_ != nullptr)) {
-      RuntimeCallStats::Leave(stats_, &timer_);
-    }
-  }
-
- private:
-  V8_INLINE void Initialize(RuntimeCallStats* stats,
-                            RuntimeCallStats::CounterId counter_id) {
-    stats_ = stats;
-    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
-  }
-
-  RuntimeCallStats* stats_ = nullptr;
-  RuntimeCallTimer timer_;
-};
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
@@ -1308,6 +1301,36 @@ class Counters {
   explicit Counters(Isolate* isolate);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
+};
+
+// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
+// the time of C++ scope.
+class RuntimeCallTimerScope {
+ public:
+  inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallStats::CounterId counter_id);
+  // This constructor is here just to avoid calling GetIsolate() when the
+  // stats are disabled and the isolate is not directly available.
+  inline RuntimeCallTimerScope(HeapObject* heap_object,
+                               RuntimeCallStats::CounterId counter_id);
+  inline RuntimeCallTimerScope(RuntimeCallStats* stats,
+                               RuntimeCallStats::CounterId counter_id);
+
+  inline ~RuntimeCallTimerScope() {
+    if (V8_UNLIKELY(stats_ != nullptr)) {
+      RuntimeCallStats::Leave(stats_, &timer_);
+    }
+  }
+
+ private:
+  V8_INLINE void Initialize(RuntimeCallStats* stats,
+                            RuntimeCallStats::CounterId counter_id) {
+    stats_ = stats;
+    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+  }
+
+  RuntimeCallStats* stats_ = nullptr;
+  RuntimeCallTimer timer_;
 };
 
 }  // namespace internal
