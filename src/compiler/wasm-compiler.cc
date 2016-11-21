@@ -3348,8 +3348,10 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     r.LowerGraph();
   }
 
-  SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
-      .LowerGraph();
+  if (!CpuFeatures::SupportsSimd128()) {
+    SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
+        .LowerGraph();
+  }
 
   int index = static_cast<int>(function_->func_index);
 

@@ -307,7 +307,9 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
-  builder.SimdScalarLoweringForTesting();
+  if (!CpuFeatures::SupportsSimd128()) {
+    builder.SimdScalarLoweringForTesting();
+  }
 }
 
 template <typename ReturnType>
