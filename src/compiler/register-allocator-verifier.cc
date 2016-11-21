@@ -469,7 +469,9 @@ void RegisterAllocatorVerifier::ValidateFinalAssessment(
   // is virtual_register.
   const PendingAssessment* old = assessment->original_pending_assessment();
   CHECK_NOT_NULL(old);
-  ValidatePendingAssessment(block_id, op, current_assessments, old,
+  RpoNumber old_block = old->origin()->rpo_number();
+  BlockAssessments* old_block_assessments = assessments_[old_block];
+  ValidatePendingAssessment(old_block, op, old_block_assessments, old,
                             virtual_register);
 }
 
