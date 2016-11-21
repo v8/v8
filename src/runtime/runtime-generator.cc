@@ -23,14 +23,14 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   DCHECK(function->shared()->HasBytecodeArray());
   DCHECK(!function->shared()->HasBaselineCode());
   int size = function->shared()->bytecode_array()->register_count();
-  Handle<FixedArray> operand_stack = isolate->factory()->NewFixedArray(size);
+  Handle<FixedArray> register_file = isolate->factory()->NewFixedArray(size);
 
   Handle<JSGeneratorObject> generator =
       isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
   generator->set_context(isolate->context());
   generator->set_receiver(*receiver);
-  generator->set_operand_stack(*operand_stack);
+  generator->set_register_file(*register_file);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
   return *generator;
 }

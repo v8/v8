@@ -167,9 +167,9 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
+FieldAccess AccessBuilder::ForJSGeneratorObjectRegisterFile() {
   FieldAccess access = {kTaggedBase,
-                        JSGeneratorObject::kOperandStackOffset,
+                        JSGeneratorObject::kRegisterFileOffset,
                         Handle<Name>(),
                         Type::Internal(),
                         MachineType::AnyTagged(),
