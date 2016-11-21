@@ -354,7 +354,7 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
   if (current_timer_.Value() != nullptr) {
-    current_timer_.Value()->Elapsed();
+    current_timer_.Value()->Snapshot();
   }
   for (const RuntimeCallStats::CounterId counter_id :
        RuntimeCallStats::counters) {

@@ -52,12 +52,13 @@ class ElapsedTimer final {
   // and then starting the timer again, but does so in one single operation,
   // avoiding the need to obtain the clock value twice. It may only be called
   // on a previously started timer.
-  TimeDelta Restart() {
+  TimeDelta Restart() { return Restart(Now()); }
+
+  TimeDelta Restart(TimeTicks now) {
     DCHECK(IsStarted());
-    TimeTicks ticks = Now();
-    TimeDelta elapsed = ticks - start_ticks_;
+    TimeDelta elapsed = now - start_ticks_;
     DCHECK(elapsed.InMicroseconds() >= 0);
-    start_ticks_ = ticks;
+    start_ticks_ = now;
     DCHECK(IsStarted());
     return elapsed;
   }
@@ -71,6 +72,14 @@ class ElapsedTimer final {
     return elapsed;
   }
 
+  // Move the start_ticks_ to adjust the current timer.
+  void Subtract(TimeDelta delta) {
+    DCHECK(IsStarted());
+    // If the delta is negative we want to make the elapsed time smaller, hence
+    // we have to move the start_ticks_ in the opposite direction.
+    start_ticks_ += delta;
+  }
+
   // Returns |true| if the specified |time_delta| has elapsed since the
   // previous start, or |false| if not. This method may only be called on
   // a previously started timer.
@@ -79,13 +88,13 @@ class ElapsedTimer final {
     return Elapsed() >= time_delta;
   }
 
- private:
   static V8_INLINE TimeTicks Now() {
     TimeTicks now = TimeTicks::HighResolutionNow();
     DCHECK(!now.IsNull());
     return now;
   }
 
+ private:
   TimeTicks start_ticks_;
 #ifdef DEBUG
   bool started_;
