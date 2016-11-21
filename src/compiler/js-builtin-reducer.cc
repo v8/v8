@@ -434,8 +434,9 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
 
         if (kind == IterationKind::kEntries) {
           // Allocate elements for key/value pair
-          vtrue1 = etrue1 = graph()->NewNode(
-              javascript()->CreateKeyValueArray(), index, value, etrue1);
+          vtrue1 = etrue1 =
+              graph()->NewNode(javascript()->CreateKeyValueArray(), index,
+                               value, context, etrue1);
         } else {
           DCHECK_EQ(kind, IterationKind::kValues);
           vtrue1 = value;
@@ -601,8 +602,9 @@ Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
 
         if (kind == IterationKind::kEntries) {
           // Allocate elements for key/value pair
-          vtrue2 = etrue2 = graph()->NewNode(
-              javascript()->CreateKeyValueArray(), index, value, etrue2);
+          vtrue2 = etrue2 =
+              graph()->NewNode(javascript()->CreateKeyValueArray(), index,
+                               value, context, etrue2);
         } else {
           DCHECK(kind == IterationKind::kValues);
           vtrue2 = value;
