@@ -976,6 +976,8 @@
         'interface-descriptors.h',
         'interpreter/bytecodes.cc',
         'interpreter/bytecodes.h',
+        'interpreter/bytecode-array-accessor.cc',
+        'interpreter/bytecode-array-accessor.h',
         'interpreter/bytecode-array-builder.cc',
         'interpreter/bytecode-array-builder.h',
         'interpreter/bytecode-array-iterator.cc',
