@@ -335,7 +335,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
-                       "WebAssembly.Module()");
+                       "WebAssembly.Memory()");
   if (args.Length() < 1 || !args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a memory descriptor");
     return;
@@ -368,7 +368,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
                 static_cast<size_t>(initial);
   i::Handle<i::JSArrayBuffer> buffer =
       i::wasm::NewArrayBuffer(i_isolate, size, i::FLAG_wasm_guard_pages);
-
+  if (buffer.is_null()) {
+    thrower.RangeError("could not allocate memory");
+    return;
+  }
   i::Handle<i::JSObject> memory_obj = i::WasmMemoryObject::New(
       i_isolate, buffer, has_maximum.FromJust() ? maximum : -1);
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
