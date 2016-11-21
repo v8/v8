@@ -686,16 +686,11 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
     return;
   }
 
-  for (int slot = 0, name_index = 0; slot < slot_count;) {
+  for (int slot = 0; slot < slot_count;) {
     FeedbackVectorSlotKind kind = This()->GetKind(slot);
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
-
     os << "\n Slot #" << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
-      os << ", " << Brief(*This()->GetName(name_index++));
-    }
-
     slot += entry_size;
   }
   os << "\n";
@@ -723,9 +718,6 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
-      os << ", " << Brief(iter.name());
-    }
   }
   os << "\n";
 }
@@ -752,9 +744,6 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     FeedbackVectorSlotKind kind = iter.kind();
 
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
-      os << ", " << Brief(iter.name());
-    }
     os << " ";
     switch (kind) {
       case FeedbackVectorSlotKind::LOAD_IC: {

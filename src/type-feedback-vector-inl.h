@@ -62,29 +62,6 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   return 2;
 }
 
-bool TypeFeedbackMetadata::SlotRequiresName(FeedbackVectorSlotKind kind) {
-  switch (kind) {
-    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
-      return true;
-
-    case FeedbackVectorSlotKind::CALL_IC:
-    case FeedbackVectorSlotKind::LOAD_IC:
-    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-    case FeedbackVectorSlotKind::STORE_IC:
-    case FeedbackVectorSlotKind::KEYED_STORE_IC:
-    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
-    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
-    case FeedbackVectorSlotKind::GENERAL:
-    case FeedbackVectorSlotKind::INVALID:
-      return false;
-
-    case FeedbackVectorSlotKind::KINDS_NUMBER:
-      break;
-  }
-  UNREACHABLE();
-  return false;
-}
-
 bool TypeFeedbackVector::is_empty() const {
   return length() == kReservedIndexCount;
 }

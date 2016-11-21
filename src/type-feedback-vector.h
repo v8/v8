@@ -53,8 +53,7 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackVectorSlotKind::LOAD_IC);
   }
 
-  FeedbackVectorSlot AddLoadGlobalICSlot(Handle<String> name) {
-    This()->append_name(name);
+  FeedbackVectorSlot AddLoadGlobalICSlot() {
     return AddSlot(FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
   }
 
@@ -97,20 +96,13 @@ class FeedbackVectorSpecBase {
 class StaticFeedbackVectorSpec
     : public FeedbackVectorSpecBase<StaticFeedbackVectorSpec> {
  public:
-  StaticFeedbackVectorSpec() : slot_count_(0), name_count_(0) {}
+  StaticFeedbackVectorSpec() : slot_count_(0) {}
 
   int slots() const { return slot_count_; }
 
   FeedbackVectorSlotKind GetKind(int slot) const {
     DCHECK(slot >= 0 && slot < slot_count_);
     return kinds_[slot];
-  }
-
-  int name_count() const { return name_count_; }
-
-  Handle<String> GetName(int index) const {
-    DCHECK(index >= 0 && index < name_count_);
-    return names_[index];
   }
 
  private:
@@ -121,25 +113,17 @@ class StaticFeedbackVectorSpec
     kinds_[slot_count_++] = kind;
   }
 
-  void append_name(Handle<String> name) {
-    DCHECK(name_count_ < kMaxLength);
-    names_[name_count_++] = name;
-  }
-
   static const int kMaxLength = 12;
 
   int slot_count_;
   FeedbackVectorSlotKind kinds_[kMaxLength];
-  int name_count_;
-  Handle<String> names_[kMaxLength];
 };
 
 
 class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
  public:
-  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone), names_(zone) {
+  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
     slot_kinds_.reserve(16);
-    names_.reserve(8);
   }
 
   int slots() const { return static_cast<int>(slot_kinds_.size()); }
@@ -148,10 +132,6 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     return static_cast<FeedbackVectorSlotKind>(slot_kinds_.at(slot));
   }
 
-  int name_count() const { return static_cast<int>(names_.size()); }
-
-  Handle<String> GetName(int index) const { return names_.at(index); }
-
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
 
@@ -159,10 +139,7 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     slot_kinds_.push_back(static_cast<unsigned char>(kind));
   }
 
-  void append_name(Handle<String> name) { names_.push_back(name); }
-
   ZoneVector<unsigned char> slot_kinds_;
-  ZoneVector<Handle<String>> names_;
 };
 
 
@@ -177,8 +154,7 @@ class TypeFeedbackMetadata : public FixedArray {
   static inline TypeFeedbackMetadata* cast(Object* obj);
 
   static const int kSlotsCountIndex = 0;
-  static const int kNamesTableIndex = 1;
-  static const int kReservedIndexCount = 2;
+  static const int kReservedIndexCount = 1;
 
   static const int kNameTableEntrySize = 2;
   static const int kNameTableSlotIndex = 0;
@@ -186,9 +162,6 @@ class TypeFeedbackMetadata : public FixedArray {
 
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackVectorSlotKind kind);
-
-  // Defines if slots of given kind require "name".
-  static inline bool SlotRequiresName(FeedbackVectorSlotKind kind);
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
@@ -201,9 +174,6 @@ class TypeFeedbackMetadata : public FixedArray {
 
   // Returns slot kind for given slot.
   FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
-
-  // Returns name for given slot.
-  String* GetName(FeedbackVectorSlot slot) const;
 
   template <typename Spec>
   static Handle<TypeFeedbackMetadata> New(Isolate* isolate, const Spec* spec);
@@ -273,8 +243,6 @@ class TypeFeedbackVector : public FixedArray {
 
   // Returns slot kind for given slot.
   FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
-  // Returns name corresponding to given slot or an empty string.
-  String* GetName(FeedbackVectorSlot slot) const;
 
   static Handle<TypeFeedbackVector> New(Isolate* isolate,
                                         Handle<TypeFeedbackMetadata> metadata);
@@ -370,11 +338,6 @@ class TypeFeedbackMetadataIterator {
 
   // Returns entry size of the last slot returned by Next().
   inline int entry_size() const;
-
-  String* name() const {
-    DCHECK(TypeFeedbackMetadata::SlotRequiresName(kind()));
-    return metadata()->GetName(cur_slot_);
-  }
 
  private:
   TypeFeedbackMetadata* metadata() const {

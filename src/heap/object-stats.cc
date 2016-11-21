@@ -546,13 +546,6 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   if (!feedback_metadata->is_empty()) {
     RecordFixedArrayHelper(sfi, feedback_metadata,
                            TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
-    Object* names =
-        feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex);
-    if (!names->IsSmi()) {
-      UnseededNumberDictionary* names = UnseededNumberDictionary::cast(
-          feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex));
-      RecordHashTableHelper(sfi, names, TYPE_FEEDBACK_METADATA_SUB_TYPE);
-    }
   }
 
   if (!sfi->OptimizedCodeMapIsCleared()) {

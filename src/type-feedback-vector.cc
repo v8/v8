@@ -37,17 +37,6 @@ FeedbackVectorSlotKind TypeFeedbackMetadata::GetKind(
   return VectorICComputer::decode(data, slot.ToInt());
 }
 
-String* TypeFeedbackMetadata::GetName(FeedbackVectorSlot slot) const {
-  DCHECK(SlotRequiresName(GetKind(slot)));
-  UnseededNumberDictionary* names =
-      UnseededNumberDictionary::cast(get(kNamesTableIndex));
-  int entry = names->FindEntry(GetIsolate(), slot.ToInt());
-  CHECK_NE(UnseededNumberDictionary::kNotFound, entry);
-  Object* name = names->ValueAt(entry);
-  DCHECK(name->IsString());
-  return String::cast(name);
-}
-
 void TypeFeedbackMetadata::SetKind(FeedbackVectorSlot slot,
                                    FeedbackVectorSlotKind kind) {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
@@ -97,31 +86,10 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   Handle<TypeFeedbackMetadata> metadata =
       Handle<TypeFeedbackMetadata>::cast(array);
 
-  // Add names to NamesTable.
-  const int name_count = spec->name_count();
-
-  Handle<UnseededNumberDictionary> names;
-  if (name_count) {
-    names = UnseededNumberDictionary::New(isolate, name_count, TENURED);
-  }
-
-  int name_index = 0;
   for (int i = 0; i < slot_count; i++) {
     FeedbackVectorSlotKind kind = spec->GetKind(i);
     metadata->SetKind(FeedbackVectorSlot(i), kind);
-    if (SlotRequiresName(kind)) {
-      Handle<String> name = spec->GetName(name_index);
-      DCHECK(!name.is_null());
-      Handle<UnseededNumberDictionary> new_names =
-          UnseededNumberDictionary::AtNumberPut(names, i, name);
-      DCHECK_EQ(*new_names, *names);
-      names = new_names;
-      name_index++;
-    }
   }
-  DCHECK_EQ(name_count, name_index);
-  metadata->set(kNamesTableIndex,
-                name_count ? static_cast<Object*>(*names) : Smi::kZero);
 
   // It's important that the TypeFeedbackMetadata have a COW map, since it's
   // pointed to by both a SharedFunctionInfo and indirectly by closures through
@@ -141,7 +109,6 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
   }
 
   int slots = slot_count();
-  int name_index = 0;
   for (int i = 0; i < slots;) {
     FeedbackVectorSlot slot(i);
     FeedbackVectorSlotKind kind = GetKind(slot);
@@ -149,14 +116,6 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
 
     if (kind != other_spec->GetKind(i)) {
       return true;
-    }
-    if (SlotRequiresName(kind)) {
-      String* name = GetName(slot);
-      DCHECK(name != GetHeap()->empty_string());
-      String* other_name = *other_spec->GetName(name_index++);
-      if (name != other_name) {
-        return true;
-      }
     }
     i += entry_size;
   }
@@ -176,11 +135,6 @@ bool TypeFeedbackMetadata::DiffersFrom(
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     if (GetKind(slot) != other_metadata->GetKind(slot)) {
       return true;
-    }
-    if (SlotRequiresName(kind)) {
-      if (GetName(slot) != other_metadata->GetName(slot)) {
-        return true;
-      }
     }
     i += entry_size;
   }
@@ -220,11 +174,6 @@ FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
     FeedbackVectorSlot slot) const {
   DCHECK(!is_empty());
   return metadata()->GetKind(slot);
-}
-
-String* TypeFeedbackVector::GetName(FeedbackVectorSlot slot) const {
-  DCHECK(!is_empty());
-  return metadata()->GetName(slot);
 }
 
 // static
