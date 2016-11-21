@@ -391,13 +391,6 @@
 }],  # variant == turbofan or variant == ignition_turbofan
 
 ##############################################################################
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'test-modules/*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
-
-##############################################################################
 ['variant == asm_wasm', {
   '*': [SKIP],
 }],  # variant == asm_wasm

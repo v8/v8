@@ -584,6 +584,10 @@
 ['variant == stress', {
   'es6/array-iterator-turbo': [SKIP],
 
+  # Ongoing implementation of modules.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  'modules-debug-scopes1': [SKIP],
+
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress
@@ -617,13 +621,6 @@
   # TODO(rmcilroy): Flaky OOM.
   'unicodelctest-no-optimization': [SKIP],
 }],  # variant == ignition_turbofan
-
-##############################################################################
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'modules-*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
 
 ##############################################################################
 ['gcov_coverage', {

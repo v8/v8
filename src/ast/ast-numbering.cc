@@ -594,7 +594,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
     DisableCrankshaft(kRestParameter);
   }
 
-  if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {
+  if (IsResumableFunction(node->kind())) {
     DisableCrankshaft(kGenerator);
   }
 
