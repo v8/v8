@@ -30,6 +30,7 @@
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
 #include "src/interpreter/interpreter.h"
+#include "src/msan.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -62,15 +63,67 @@ namespace {
 const int MB = 1024 * 1024;
 const int kMaxWorkers = 50;
 
+#define USE_VM 1
+#define VM_THRESHOLD 65536
+// TODO(titzer): allocations should fail if >= 2gb because of
+// array buffers storing the lengths as a SMI internally.
+#define TWO_GB (2u * 1024u * 1024u * 1024u)
 
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   virtual void* Allocate(size_t length) {
+#if USE_VM
+    if (RoundToPageSize(&length)) {
+      void* data = VirtualMemoryAllocate(length);
+#if DEBUG
+      // In debug mode, check the memory is zero-initialized.
+      uint8_t* ptr = reinterpret_cast<uint8_t*>(data);
+      for (size_t i = 0; i < length; i++) {
+        DCHECK_EQ(0, ptr[i]);
+      }
+#endif
+      return data;
+    }
+#endif
     void* data = AllocateUninitialized(length);
     return data == NULL ? data : memset(data, 0, length);
   }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t) { free(data); }
+  virtual void* AllocateUninitialized(size_t length) {
+#if USE_VM
+    if (RoundToPageSize(&length)) return VirtualMemoryAllocate(length);
+#endif
+    return malloc(length);
+  }
+  virtual void Free(void* data, size_t length) {
+#if USE_VM
+    if (RoundToPageSize(&length)) {
+      base::VirtualMemory::ReleaseRegion(data, length);
+      return;
+    }
+#endif
+    free(data);
+  }
+  // If {length} is at least {VM_THRESHOLD}, round up to next page size
+  // and return {true}. Otherwise return {false}.
+  bool RoundToPageSize(size_t* length) {
+    const size_t kPageSize = base::OS::CommitPageSize();
+    if (*length >= VM_THRESHOLD && *length < TWO_GB) {
+      *length = ((*length + kPageSize - 1) / kPageSize) * kPageSize;
+      return true;
+    }
+    return false;
+  }
+#if USE_VM
+  void* VirtualMemoryAllocate(size_t length) {
+    void* data = base::VirtualMemory::ReserveRegion(length);
+    if (data && !base::VirtualMemory::CommitRegion(data, length, false)) {
+      base::VirtualMemory::ReleaseRegion(data, length);
+      return nullptr;
+    }
+    MSAN_MEMORY_IS_INITIALIZED(data, length);
+    return data;
+  }
+#endif
 };
 
 
