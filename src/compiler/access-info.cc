@@ -95,6 +95,13 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
 }
 
 // static
+PropertyAccessInfo PropertyAccessInfo::FunctionPrototype(
+    MapList const& receiver_maps) {
+  return PropertyAccessInfo(kFunctionPrototype, MaybeHandle<JSObject>(),
+                            Handle<Object>(), receiver_maps);
+}
+
+// static
 PropertyAccessInfo PropertyAccessInfo::Generic(MapList const& receiver_maps) {
   return PropertyAccessInfo(kGeneric, MaybeHandle<JSObject>(), Handle<Object>(),
                             receiver_maps);
@@ -144,9 +151,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
     case kInvalid:
       break;
 
-    case kNotFound:
-      return true;
-
     case kDataField: {
       // Check if we actually access the same field.
       if (this->transition_map_.address() == that->transition_map_.address() &&
@@ -173,6 +177,9 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
       }
       return false;
     }
+
+    case kNotFound:
+    case kFunctionPrototype:
     case kGeneric: {
       this->receiver_maps_.insert(this->receiver_maps_.end(),
                                   that->receiver_maps_.begin(),
@@ -449,6 +456,13 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
 
 bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
+  // Check for Function::prototype accessor.
+  if (map->IsJSFunctionMap() && map->is_constructor() &&
+      name.is_identical_to(factory()->prototype_string())) {
+    DCHECK(!map->has_non_instance_prototype());
+    *access_info = PropertyAccessInfo::FunctionPrototype(MapList{map});
+    return true;
+  }
   // Check for special JSObject field accessors.
   int offset;
   if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {

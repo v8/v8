@@ -784,6 +784,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStoreTypedElement:
       state = LowerStoreTypedElement(node, *effect, *control);
       break;
+    case IrOpcode::kLoadFunctionPrototype:
+      state = LowerLoadFunctionPrototype(node, *effect, *control);
+      break;
     case IrOpcode::kFloat64RoundUp:
       state = LowerFloat64RoundUp(node, *effect, *control);
       break;
@@ -3271,6 +3274,50 @@ EffectControlLinearizer::LowerStoreTypedElement(Node* node, Node* effect,
       storage, index, value, effect, control);
 
   return ValueEffectControl(nullptr, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerLoadFunctionPrototype(Node* node, Node* effect,
+                                                    Node* control) {
+  Node* function = node->InputAt(0);
+
+  // Load the {JSFunction::prototype-or-initial-map} field.
+  Node* function_prototype_or_initial_map = effect =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSFunctionPrototypeOrInitialMap()),
+                       function, effect, control);
+  Node* function_prototype_or_initial_map_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       function, effect, control);
+
+  // Check if the {function} has an initial map.
+  Node* check0 = graph()->NewNode(
+      machine()->WordEqual(), function_prototype_or_initial_map_map,
+      jsgraph()->HeapConstant(factory()->meta_map()));
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0;
+  {
+    // Load the "prototype" from the initial map.
+    vtrue0 = etrue0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapPrototype()),
+        function_prototype_or_initial_map, etrue0, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0 = function_prototype_or_initial_map;
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTaggedPointer, 2),
+                       vtrue0, vfalse0, control);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

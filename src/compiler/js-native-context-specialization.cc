@@ -1194,6 +1194,10 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                                   jsgraph()->UndefinedConstant(), effect);
       }
     }
+  } else if (access_info.IsFunctionPrototype()) {
+    DCHECK_EQ(AccessMode::kLoad, access_mode);
+    value = effect = graph()->NewNode(simplified()->LoadFunctionPrototype(),
+                                      receiver, effect, control);
   } else {
     DCHECK(access_info.IsGeneric());
     DCHECK_EQ(AccessMode::kStore, access_mode);

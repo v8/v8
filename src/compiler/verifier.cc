@@ -1129,6 +1129,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kStoreTypedElement:
       CheckNotTyped(node);
       break;
+    case IrOpcode::kLoadFunctionPrototype:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::NonInternal());
+      break;
     case IrOpcode::kNumberSilenceNaN:
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Number());
