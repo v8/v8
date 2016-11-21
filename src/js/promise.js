@@ -647,7 +647,6 @@ utils.Export(function(to) {
   to.PromiseCreate = PromiseCreate;
   to.PromiseThen = PromiseThen;
 
-  to.GlobalPromise = GlobalPromise;
   to.CreateInternalPromiseCapability = CreateInternalPromiseCapability;
   to.PerformPromiseThen = PerformPromiseThen;
   to.ResolvePromise = ResolvePromise;

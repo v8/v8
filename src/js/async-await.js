@@ -13,7 +13,6 @@
 
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
-var GlobalPromise;
 var IsPromise;
 var CreateInternalPromiseCapability;
 var PerformPromiseThen;
@@ -25,7 +24,6 @@ var ResolvePromise;
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  GlobalPromise = from.GlobalPromise;
   IsPromise = from.IsPromise;
   CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
   PerformPromiseThen = from.PerformPromiseThen;
