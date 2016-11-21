@@ -1057,15 +1057,6 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
   }
 }
 
-
-void JavaScriptFrame::SaveOperandStack(FixedArray* store) const {
-  int operands_count = store->length();
-  DCHECK_LE(operands_count, ComputeOperandsCount());
-  for (int i = 0; i < operands_count; i++) {
-    store->set(i, GetOperand(i));
-  }
-}
-
 Object* JavaScriptFrame::GetParameter(int index) const {
   return Memory::Object_at(GetParameterSlot(index));
 }

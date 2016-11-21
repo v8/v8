@@ -812,13 +812,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Dispatch on the kind of generator object.
-  Label old_generator;
-  __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kFunctionDataOffset));
-  __ CompareObjectType(r6, r6, r6, BYTECODE_ARRAY_TYPE);
-  __ bne(&old_generator);
+  // Underlying function needs to have bytecode available.
+  if (FLAG_debug_code) {
+    __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kFunctionDataOffset));
+    __ CompareObjectType(r6, r6, r6, BYTECODE_ARRAY_TYPE);
+    __ Assert(eq, kMissingBytecodeArray);
+  }
 
-  // New-style (ignition/turbofan) generator object
+  // Resume (Ignition/TurboFan) generator object.
   {
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
@@ -827,57 +828,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ mr(r4, r7);
     __ LoadP(ip, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
     __ JumpToJSEntry(ip);
-  }
-
-  // Old-style (full-codegen) generator object
-  __ bind(&old_generator);
-  {
-    // Enter a new JavaScript frame, and initialize its slots as they were when
-    // the generator was suspended.
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PushStandardFrame(r7);
-
-    // Restore the operand stack.
-    __ LoadP(r3, FieldMemOperand(r4, JSGeneratorObject::kOperandStackOffset));
-    __ LoadP(r6, FieldMemOperand(r3, FixedArray::kLengthOffset));
-    __ addi(r3, r3,
-            Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
-    {
-      Label loop, done_loop;
-      __ SmiUntag(r6, SetRC);
-      __ beq(&done_loop, cr0);
-      __ mtctr(r6);
-      __ bind(&loop);
-      __ LoadPU(ip, MemOperand(r3, kPointerSize));
-      __ Push(ip);
-      __ bdnz(&loop);
-      __ bind(&done_loop);
-    }
-
-    // Reset operand stack so we don't leak.
-    __ LoadRoot(ip, Heap::kEmptyFixedArrayRootIndex);
-    __ StoreP(ip, FieldMemOperand(r4, JSGeneratorObject::kOperandStackOffset),
-              r0);
-
-    // Resume the generator function at the continuation.
-    __ LoadP(r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kCodeOffset));
-    __ addi(r6, r6, Operand(Code::kHeaderSize - kHeapObjectTag));
-    {
-      ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-      if (FLAG_enable_embedded_constant_pool) {
-        __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r6);
-      }
-      __ LoadP(r5, FieldMemOperand(r4, JSGeneratorObject::kContinuationOffset));
-      __ SmiUntag(r5);
-      __ add(r6, r6, r5);
-      __ LoadSmiLiteral(r5,
-                        Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-      __ StoreP(r5, FieldMemOperand(r4, JSGeneratorObject::kContinuationOffset),
-                r0);
-      __ mr(r3, r4);  // Continuation expects generator object in r3.
-      __ Jump(r6);
-    }
   }
 
   __ bind(&prepare_step_in_if_stepping);

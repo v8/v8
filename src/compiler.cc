@@ -327,6 +327,16 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
 bool ShouldUseIgnition(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
 
+  // Resumable functions are not supported by {FullCodeGenerator}, suspended
+  // activations stored as {JSGeneratorObject} on the heap always assume the
+  // underlying code to be based on the bytecode array.
+  // TODO(mstarzinger): Once we want to deprecate even more support from the
+  // {FullCodeGenerator}, we will compute an appropriate bit in {AstNumbering}
+  // and turn this predicate into a DCHECK instead.
+  if (IsResumableFunction(info->shared_info()->kind())) {
+    return true;
+  }
+
   // Skip Ignition for asm.js functions.
   if (info->shared_info()->asm_function()) {
     return false;

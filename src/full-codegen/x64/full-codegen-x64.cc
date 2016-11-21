@@ -1704,57 +1704,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 
 
 void FullCodeGenerator::VisitYield(Yield* expr) {
-  Comment cmnt(masm_, "[ Yield");
-  SetExpressionPosition(expr);
-
-  // Evaluate yielded value first; the initial iterator definition depends on
-  // this.  It stays on the stack while we update the iterator.
-  VisitForStackValue(expr->expression());
-
-  Label suspend, continuation, post_runtime, resume, exception;
-
-  __ jmp(&suspend);
-  __ bind(&continuation);
-  // When we arrive here, rax holds the generator object.
-  __ RecordGeneratorContinuation();
-  __ movp(rbx, FieldOperand(rax, JSGeneratorObject::kResumeModeOffset));
-  __ movp(rax, FieldOperand(rax, JSGeneratorObject::kInputOrDebugPosOffset));
-  STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
-  STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
-  __ SmiCompare(rbx, Smi::FromInt(JSGeneratorObject::kReturn));
-  __ j(less, &resume);
-  __ Push(result_register());
-  __ j(greater, &exception);
-  EmitCreateIteratorResult(true);
-  EmitUnwindAndReturn();
-
-  __ bind(&exception);
-  __ CallRuntime(expr->rethrow_on_exception() ? Runtime::kReThrow
-                                              : Runtime::kThrow);
-
-  __ bind(&suspend);
-  OperandStackDepthIncrement(1);  // Not popped on this path.
-  VisitForAccumulatorValue(expr->generator_object());
-  DCHECK(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
-  __ Move(FieldOperand(rax, JSGeneratorObject::kContinuationOffset),
-          Smi::FromInt(continuation.pos()));
-  __ movp(FieldOperand(rax, JSGeneratorObject::kContextOffset), rsi);
-  __ movp(rcx, rsi);
-  __ RecordWriteField(rax, JSGeneratorObject::kContextOffset, rcx, rdx,
-                      kDontSaveFPRegs);
-  __ leap(rbx, Operand(rbp, StandardFrameConstants::kExpressionsOffset));
-  __ cmpp(rsp, rbx);
-  __ j(equal, &post_runtime);
-  __ Push(rax);  // generator object
-  __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-  RestoreContext();
-  __ bind(&post_runtime);
-
-  PopOperand(result_register());
-  EmitReturnSequence();
-
-  __ bind(&resume);
-  context()->Plug(result_register());
+  // Resumable functions are not supported.
+  UNREACHABLE();
 }
 
 void FullCodeGenerator::PushOperand(MemOperand operand) {

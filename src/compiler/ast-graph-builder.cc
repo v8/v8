@@ -2207,8 +2207,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
 
 void AstGraphBuilder::VisitYield(Yield* expr) {
   // Generator functions are supported only by going through Ignition first.
-  SetStackOverflow();
-  ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
+  UNREACHABLE();
 }
 
 

@@ -5,7 +5,6 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/frames-inl.h"
 #include "src/objects-inl.h"
@@ -40,46 +39,6 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   generator->set_operand_stack(*operand_stack);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
   return *generator;
-}
-
-RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
-
-  JavaScriptFrameIterator stack_iterator(isolate);
-  JavaScriptFrame* frame = stack_iterator.frame();
-  CHECK(IsResumableFunction(frame->function()->shared()->kind()));
-  DCHECK_EQ(frame->function(), generator_object->function());
-  DCHECK(frame->function()->shared()->is_compiled());
-  DCHECK(!frame->function()->IsOptimized());
-
-  isolate->debug()->RecordGenerator(generator_object);
-
-  // The caller should have saved the context and continuation already.
-  DCHECK_EQ(generator_object->context(), Context::cast(frame->context()));
-  DCHECK_LT(0, generator_object->continuation());
-
-  // We expect there to be at least two values on the operand stack: the return
-  // value of the yield expression, and the arguments to this runtime call.
-  // Neither of those should be saved.
-  int operands_count = frame->ComputeOperandsCount();
-  DCHECK_GE(operands_count, 1 + args.length());
-  operands_count -= 1 + args.length();
-
-  if (operands_count == 0) {
-    // Although it's semantically harmless to call this function with an
-    // operands_count of zero, it is also unnecessary.
-    DCHECK_EQ(generator_object->operand_stack(),
-              isolate->heap()->empty_fixed_array());
-  } else {
-    Handle<FixedArray> operand_stack =
-        isolate->factory()->NewFixedArray(operands_count);
-    frame->SaveOperandStack(*operand_stack);
-    generator_object->set_operand_stack(*operand_stack);
-  }
-
-  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorClose) {

@@ -125,6 +125,7 @@ namespace internal {
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
   V(kMapBecameUnstable, "Map became unstable")                                 \
+  V(kMissingBytecodeArray, "Missing bytecode array from function")             \
   V(kNativeFunctionLiteral, "Native function literal")                         \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \

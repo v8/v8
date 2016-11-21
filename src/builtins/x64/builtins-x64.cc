@@ -514,14 +514,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Dispatch on the kind of generator object.
-  Label old_generator;
-  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
-  __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
-  __ j(not_equal, &old_generator);
+  // Underlying function needs to have bytecode available.
+  if (FLAG_debug_code) {
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
+    __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
+    __ Assert(equal, kMissingBytecodeArray);
+  }
 
-  // New-style (ignition/turbofan) generator object.
+  // Resume (Ignition/TurboFan) generator object.
   {
     __ PushReturnAddressFrom(rax);
     __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -532,53 +533,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     __ movp(rdx, rbx);
     __ jmp(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  }
-
-  // Old-style (full-codegen) generator object.
-  __ bind(&old_generator);
-  {
-    // Enter a new JavaScript frame, and initialize its slots as they were when
-    // the generator was suspended.
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PushReturnAddressFrom(rax);  // Return address.
-    __ Push(rbp);                   // Caller's frame pointer.
-    __ Move(rbp, rsp);
-    __ Push(rsi);  // Callee's context.
-    __ Push(rdi);  // Callee's JS Function.
-
-    // Restore the operand stack.
-    __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset));
-    __ SmiToInteger32(rax, FieldOperand(rsi, FixedArray::kLengthOffset));
-    {
-      Label done_loop, loop;
-      __ Set(rcx, 0);
-      __ bind(&loop);
-      __ cmpl(rcx, rax);
-      __ j(equal, &done_loop, Label::kNear);
-      __ Push(
-          FieldOperand(rsi, rcx, times_pointer_size, FixedArray::kHeaderSize));
-      __ addl(rcx, Immediate(1));
-      __ jmp(&loop);
-      __ bind(&done_loop);
-    }
-
-    // Reset operand stack so we don't leak.
-    __ LoadRoot(FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset),
-                Heap::kEmptyFixedArrayRootIndex);
-
-    // Restore context.
-    __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
-
-    // Resume the generator function at the continuation.
-    __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-    __ SmiToInteger64(
-        rcx, FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
-    __ leap(rdx, FieldOperand(rdx, rcx, times_1, Code::kHeaderSize));
-    __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
-            Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-    __ movp(rax, rbx);  // Continuation expects generator object in rax.
-    __ jmp(rdx);
   }
 
   __ bind(&prepare_step_in_if_stepping);

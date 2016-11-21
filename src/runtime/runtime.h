@@ -240,7 +240,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F) \
   F(CreateJSGeneratorObject, 2, 1)      \
-  F(SuspendJSGeneratorObject, 1, 1)     \
   F(GeneratorClose, 1, 1)               \
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \

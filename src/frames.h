@@ -863,9 +863,6 @@ class JavaScriptFrame : public StandardFrame {
   inline Object* GetOperand(int index) const;
   inline int ComputeOperandsCount() const;
 
-  // Generator support to preserve operand stack.
-  void SaveOperandStack(FixedArray* store) const;
-
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;
 

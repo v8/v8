@@ -1691,57 +1691,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 void FullCodeGenerator::VisitYield(Yield* expr) {
-  Comment cmnt(masm_, "[ Yield");
-  SetExpressionPosition(expr);
-
-  // Evaluate yielded value first; the initial iterator definition depends on
-  // this.  It stays on the stack while we update the iterator.
-  VisitForStackValue(expr->expression());
-
-  Label suspend, continuation, post_runtime, resume, exception;
-
-  __ b(&suspend);
-  __ bind(&continuation);
-  // When we arrive here, r2 holds the generator object.
-  __ RecordGeneratorContinuation();
-  __ LoadP(r3, FieldMemOperand(r2, JSGeneratorObject::kResumeModeOffset));
-  __ LoadP(r2, FieldMemOperand(r2, JSGeneratorObject::kInputOrDebugPosOffset));
-  STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
-  STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
-  __ CmpSmiLiteral(r3, Smi::FromInt(JSGeneratorObject::kReturn), r0);
-  __ blt(&resume);
-  __ Push(result_register());
-  __ bgt(&exception);
-  EmitCreateIteratorResult(true);
-  EmitUnwindAndReturn();
-
-  __ bind(&exception);
-  __ CallRuntime(expr->rethrow_on_exception() ? Runtime::kReThrow
-                                              : Runtime::kThrow);
-
-  __ bind(&suspend);
-  OperandStackDepthIncrement(1);  // Not popped on this path.
-  VisitForAccumulatorValue(expr->generator_object());
-  DCHECK(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
-  __ LoadSmiLiteral(r3, Smi::FromInt(continuation.pos()));
-  __ StoreP(r3, FieldMemOperand(r2, JSGeneratorObject::kContinuationOffset),
-            r0);
-  __ StoreP(cp, FieldMemOperand(r2, JSGeneratorObject::kContextOffset), r0);
-  __ LoadRR(r3, cp);
-  __ RecordWriteField(r2, JSGeneratorObject::kContextOffset, r3, r4,
-                      kLRHasBeenSaved, kDontSaveFPRegs);
-  __ AddP(r3, fp, Operand(StandardFrameConstants::kExpressionsOffset));
-  __ CmpP(sp, r3);
-  __ beq(&post_runtime);
-  __ push(r2);  // generator object
-  __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-  RestoreContext();
-  __ bind(&post_runtime);
-  PopOperand(result_register());
-  EmitReturnSequence();
-
-  __ bind(&resume);
-  context()->Plug(result_register());
+  // Resumable functions are not supported.
+  UNREACHABLE();
 }
 
 void FullCodeGenerator::PushOperands(Register reg1, Register reg2) {
