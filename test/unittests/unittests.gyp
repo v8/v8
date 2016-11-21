@@ -89,6 +89,7 @@
       'interpreter/bytecodes-unittest.cc',
       'interpreter/bytecode-array-builder-unittest.cc',
       'interpreter/bytecode-array-iterator-unittest.cc',
+      'interpreter/bytecode-array-reverse-iterator-unittest.cc',
       'interpreter/bytecode-array-writer-unittest.cc',
       'interpreter/bytecode-dead-code-optimizer-unittest.cc',
       'interpreter/bytecode-decoder-unittest.cc',
