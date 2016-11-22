@@ -292,7 +292,7 @@ class CompilationInfo final {
           inlined_code_object_root(inlined_code_object_root) {
       position.position = pos;
       // initialized when generating the deoptimization literals
-      position.inlined_function_id = -1;
+      position.inlined_function_id = DeoptimizationInputData::kNotInlinedIndex;
     }
 
     void RegisterInlinedFunctionId(size_t inlined_function_id) {

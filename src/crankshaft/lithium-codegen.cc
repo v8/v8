@@ -384,8 +384,8 @@ void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
   for (CompilationInfo::InlinedFunctionHolder& inlined :
        info()->inlined_functions()) {
     if (!inlined.shared_info.is_identical_to(info()->shared_info())) {
-      inlined.RegisterInlinedFunctionId(deoptimization_literals_.length());
-      DefineDeoptimizationLiteral(inlined.shared_info);
+      int index = DefineDeoptimizationLiteral(inlined.shared_info);
+      inlined.RegisterInlinedFunctionId(index);
     }
   }
   inlined_function_count_ = deoptimization_literals_.length();

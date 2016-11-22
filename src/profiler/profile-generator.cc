@@ -142,11 +142,8 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
 }
 
 void CodeEntry::AddInlineStack(int pc_offset,
-                               std::vector<CodeEntry*>& inline_stack) {
-  // It's better to use std::move to place the vector into the map,
-  // but it's not supported by the current stdlibc++ on MacOS.
-  inline_locations_.insert(std::make_pair(pc_offset, std::vector<CodeEntry*>()))
-      .first->second.swap(inline_stack);
+                               std::vector<CodeEntry*> inline_stack) {
+  inline_locations_.insert(std::make_pair(pc_offset, std::move(inline_stack)));
 }
 
 const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
@@ -155,12 +152,9 @@ const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
 }
 
 void CodeEntry::AddDeoptInlinedFrames(
-    int deopt_id, std::vector<DeoptInlinedFrame>& inlined_frames) {
-  // It's better to use std::move to place the vector into the map,
-  // but it's not supported by the current stdlibc++ on MacOS.
-  deopt_inlined_frames_
-      .insert(std::make_pair(deopt_id, std::vector<DeoptInlinedFrame>()))
-      .first->second.swap(inlined_frames);
+    int deopt_id, std::vector<CpuProfileDeoptFrame> inlined_frames) {
+  deopt_inlined_frames_.insert(
+      std::make_pair(deopt_id, std::move(inlined_frames)));
 }
 
 bool CodeEntry::HasDeoptInlinedFramesFor(int deopt_id) const {
@@ -181,19 +175,11 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
   CpuProfileDeoptInfo info;
   info.deopt_reason = deopt_reason_;
   DCHECK_NE(kNoDeoptimizationId, deopt_id_);
-  size_t position = static_cast<size_t>(deopt_position_.ScriptOffset());
   if (deopt_inlined_frames_.find(deopt_id_) == deopt_inlined_frames_.end()) {
-    info.stack.push_back(CpuProfileDeoptFrame({script_id_, position}));
+    info.stack.push_back(CpuProfileDeoptFrame(
+        {script_id_, static_cast<size_t>(std::max(0, position()))}));
   } else {
-    // Copy stack of inlined frames where the deopt happened.
-    std::vector<DeoptInlinedFrame>& frames = deopt_inlined_frames_[deopt_id_];
-    bool first = true;
-    for (DeoptInlinedFrame& inlined_frame : base::Reversed(frames)) {
-      info.stack.push_back(
-          CpuProfileDeoptFrame({inlined_frame.script_id,
-                                first ? position : inlined_frame.position}));
-      first = false;  // Done with innermost frame.
-    }
+    info.stack = deopt_inlined_frames_[deopt_id_];
   }
   return info;
 }

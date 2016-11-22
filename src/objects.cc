@@ -10577,6 +10577,14 @@ Handle<DeoptimizationOutputData> DeoptimizationOutputData::New(
   return Handle<DeoptimizationOutputData>::cast(result);
 }
 
+SharedFunctionInfo* DeoptimizationInputData::GetInlinedFunction(int index) {
+  if (index == -1) {
+    return SharedFunctionInfo::cast(SharedFunctionInfo());
+  } else {
+    return SharedFunctionInfo::cast(LiteralArray()->get(index));
+  }
+}
+
 const int LiteralsArray::kFeedbackVectorOffset =
     LiteralsArray::OffsetOfElementAt(LiteralsArray::kVectorIndex);
 

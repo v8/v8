@@ -66,6 +66,11 @@ static size_t offset(const char* src, const char* substring) {
   return static_cast<size_t>(it - src);
 }
 
+template <typename A, typename B>
+static int dist(A a, B b) {
+  return abs(static_cast<int>(a) - static_cast<int>(b));
+}
+
 static const char* reason(const i::DeoptimizeReason reason) {
   return i::DeoptimizeReasonToString(reason);
 }
@@ -1906,7 +1911,8 @@ TEST(SourceLocation) {
 }
 
 static const char* inlined_source =
-    "function opt_function(f) { return f()*f(); }\n";
+    "function opt_function(left, right) { var k = left*right; return k + 1; "
+    "}\n";
 //   0.........1.........2.........3.........4....*....5.........6......*..7
 
 
@@ -1923,16 +1929,17 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
-      "function test(f) { return opt_function(f); }\n"
+      "function test(left, right) { return opt_function(left, right); }\n"
       "\n"
       "startProfiling();\n"
       "\n"
-      "test(function(){return 10});test(function(){return 12});\n"
+      "test(10, 10);\n"
       "\n"
-      "%SetForceInlineFlag(opt_function);\n"
       "%OptimizeFunctionOnNextCall(test)\n"
       "\n"
-      "test(function(){return 100000000000});\n"
+      "test(10, 10);\n"
+      "\n"
+      "test(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -1967,13 +1974,13 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotASmi), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK(abs(static_cast<int>(offset(inlined_source, "*f()")) -
-            static_cast<int>(info.stack[0].position)) <= 1);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
-  CHECK_EQ(offset(source, "opt_function(f)"), info.stack[1].position);
+  CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
 
   iprofiler->DeleteProfile(iprofile);
 }
@@ -1992,21 +1999,18 @@ TEST(DeoptAtSecondLevelInlinedSource) {
 
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
-      "function test2(f) { return opt_function(f); }\n"
-      "function test1(f) {  return test2(f); }\n"
+      "function test2(left, right) { return opt_function(left, right); }\n"
+      "function test1(left, right) { return test2(left, right); } \n"
       "\n"
       "startProfiling();\n"
       "\n"
-      "test1(function(){return 10});\n"
-      "test1(function(){return 11});\n"
+      "test1(10, 10);\n"
       "\n"
-      "%SetForceInlineFlag(test2);\n"
-      "%SetForceInlineFlag(opt_function);\n"
       "%OptimizeFunctionOnNextCall(test1)\n"
       "\n"
-      "test1(function(){return 12});\n"
+      "test1(10, 10);\n"
       "\n"
-      "test1(function(){return 100000000000});\n"
+      "test1(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -2044,14 +2048,14 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotASmi), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK(abs(static_cast<int>(offset(inlined_source, "*f()")) -
-            static_cast<int>(info.stack[0].position)) <= 1);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
-  CHECK_EQ(offset(source, "opt_function(f)"), info.stack[1].position);
-  CHECK_EQ(offset(source, "test2(f);"), info.stack[2].position);
+  CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
+  CHECK_EQ(offset(source, "test2(left, right);"), info.stack[2].position);
 
   iprofiler->DeleteProfile(iprofile);
 }
@@ -2072,17 +2076,15 @@ TEST(DeoptUntrackedFunction) {
   const char* source =
       "function test(left, right) { return opt_function(left, right); }\n"
       "\n"
-      "test(function(){return 10});\n"
-      "test(function(){return 11});\n"
+      "test(10, 10);\n"
       "\n"
-      "%SetForceInlineFlag(opt_function);\n"
       "%OptimizeFunctionOnNextCall(test)\n"
       "\n"
-      "test(function(){return 10});\n"
+      "test(10, 10);\n"
       "\n"
       "startProfiling();\n"  // profiler started after compilation.
       "\n"
-      "test(function(){return 100000000000});\n"
+      "test(undefined, 10);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
