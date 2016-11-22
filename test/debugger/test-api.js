@@ -292,6 +292,50 @@ class DebugWrapper {
     this.takeReplyChecked(msgid);
   }
 
+  generatorScopeCount(gen) {
+    return %GetGeneratorScopeCount(gen);
+  }
+
+  generatorScope(gen, index) {
+    // These indexes correspond definitions in debug-scopes.h.
+    const kScopeDetailsTypeIndex = 0;
+    const kScopeDetailsObjectIndex = 1;
+
+    const details = %GetGeneratorScopeDetails(gen, index);
+
+    function scopeObjectProperties() {
+      const obj = details[kScopeDetailsObjectIndex];
+      return Object.keys(obj).map((k, v) => v);
+    }
+
+    function setScopeVariableValue(name, value) {
+      const res = %SetScopeVariableValue(gen, null, null, index, name, value);
+      if (!res) throw new Error("Failed to set variable value");
+    }
+
+    const scopeObject =
+        { value : () => details[kScopeDetailsObjectIndex],
+          property : (prop) => details[kScopeDetailsObjectIndex][prop],
+          properties : scopeObjectProperties,
+          propertyNames : () => Object.keys(details[kScopeDetailsObjectIndex])
+              .map((key, _) => key),
+        };
+    return { scopeType : () => details[kScopeDetailsTypeIndex],
+             scopeIndex : () => index,
+             scopeObject : () => scopeObject,
+             setVariableValue : setScopeVariableValue,
+           }
+  }
+
+  generatorScopes(gen) {
+    const count = %GetGeneratorScopeCount(gen);
+    const scopes = [];
+    for (let i = 0; i < count; i++) {
+      scopes.push(this.generatorScope(gen, i));
+    }
+    return scopes;
+  }
+
   get LiveEdit() {
     const debugContext = %GetDebugContext();
     return debugContext.Debug.LiveEdit;

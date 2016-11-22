@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --ignition
+// Flags: --ignition
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
-// Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
 
 var test_name;
@@ -30,24 +29,21 @@ function EndTest() {
 // Check that two scope are the same.
 function assertScopeMirrorEquals(scope1, scope2) {
   assertEquals(scope1.scopeType(), scope2.scopeType());
-  assertEquals(scope1.frameIndex(), scope2.frameIndex());
   assertEquals(scope1.scopeIndex(), scope2.scopeIndex());
   assertPropertiesEqual(scope1.scopeObject().value(),
                         scope2.scopeObject().value());
 }
 
 // Check that the scope chain contains the expected types of scopes.
-function CheckScopeChain(scopes, gen_mirror) {
-  var all_scopes = gen_mirror.allScopes();
-  assertEquals(scopes.length, gen_mirror.scopeCount());
+function CheckScopeChain(scopes, gen) {
+  var all_scopes = Debug.generatorScopes(gen);
+  assertEquals(scopes.length, Debug.generatorScopeCount(gen));
   assertEquals(scopes.length, all_scopes.length,
                "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
-    var scope = gen_mirror.scope(i);
-    assertTrue(scope.isScope());
+    var scope = all_scopes[i];
     assertEquals(scopes[i], scope.scopeType(),
                  `Scope ${i} has unexpected type`);
-    assertScopeMirrorEquals(all_scopes[i], scope);
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
@@ -60,17 +56,21 @@ function CheckScopeChain(scopes, gen_mirror) {
 
 // Check that the content of the scope is as expected. For functions just check
 // that there is a function.
-function CheckScopeContent(content, number, gen_mirror) {
-  var scope = gen_mirror.scope(number);
+function CheckScopeContent(content, number, gen) {
+  var scope = Debug.generatorScope(gen, number);
   var count = 0;
   for (var p in content) {
     var property_mirror = scope.scopeObject().property(p);
-    assertFalse(property_mirror.isUndefined(),
-                'property ' + p + ' not found in scope');
-    if (typeof(content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
+    if (content[p] === undefined) {
+      assertTrue(property_mirror === undefined);
     } else {
-      assertEquals(content[p], property_mirror.value().value(),
+      assertFalse(property_mirror === undefined,
+                  'property ' + p + ' not found in scope');
+    }
+    if (typeof(content[p]) === 'function') {
+      assertTrue(typeof property_mirror == "function");
+    } else {
+      assertEquals(content[p], property_mirror,
                    'property ' + p + ' has unexpected value');
     }
     count++;
@@ -79,15 +79,15 @@ function CheckScopeContent(content, number, gen_mirror) {
   // 'arguments' and might be exposed in the local and closure scope. Just
   // ignore this.
   var scope_size = scope.scopeObject().properties().length;
-  if (!scope.scopeObject().property('arguments').isUndefined()) {
+  if (scope.scopeObject().property('arguments') !== undefined) {
     scope_size--;
   }
   // Ditto for 'this'.
-  if (!scope.scopeObject().property('this').isUndefined()) {
+  if (scope.scopeObject().property('this') !== undefined) {
     scope_size--;
   }
   // Temporary variables introduced by the parser have not been materialized.
-  assertTrue(scope.scopeObject().property('').isUndefined());
+  assertTrue(scope.scopeObject().property('') === undefined);
 
   if (count != scope_size) {
     print('Names found in scope:');
@@ -107,11 +107,10 @@ function *gen1() {
 }
 
 var g = gen1();
-var gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({}, 0, g);
 
 // Closure scope with a parameter.
 
@@ -121,11 +120,10 @@ function *gen2(a) {
 }
 
 g = gen2(42);
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 42}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 42}, 0, g);
 
 // Closure scope with a parameter.
 
@@ -136,14 +134,13 @@ function *gen3(a) {
 }
 
 g = gen3(0);
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 0, b: undefined}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 0, b: undefined}, 0, g);
 
 g.next();  // Create b.
-CheckScopeContent({a: 0, b: 1}, 0, gm);
+CheckScopeContent({a: 0, b: 1}, 0, g);
 
 // Closure scope with a parameter.
 
@@ -155,17 +152,16 @@ function *gen4(a, b) {
 }
 
 g = gen4(0, 1);
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 0, b: 1, x: undefined, y: undefined}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 0, b: 1, x: undefined, y: undefined}, 0, g);
 
 g.next();  // Create x.
-CheckScopeContent({a: 0, b: 1, x: 2, y: undefined}, 0, gm);
+CheckScopeContent({a: 0, b: 1, x: 2, y: undefined}, 0, g);
 
 g.next();  // Create y.
-CheckScopeContent({a: 0, b: 1, x: 2, y: 3}, 0, gm);
+CheckScopeContent({a: 0, b: 1, x: 2, y: 3}, 0, g);
 
 // Closure introducing local variable using eval.
 
@@ -176,11 +172,10 @@ function *gen5(a) {
 
 g = gen5(1);
 g.next();
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 1, b: 2}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 1, b: 2}, 0, g);
 
 // Single empty with block.
 
@@ -194,17 +189,16 @@ function *gen6() {
 
 g = gen6();
 g.next();
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.With,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({}, 0, g);
 
 g.next();
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
+                 debug.ScopeType.Global], g);
 
 // Nested empty with blocks.
 
@@ -220,13 +214,12 @@ function *gen7() {
 
 g = gen7();
 g.next();
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.With,
                  debug.ScopeType.With,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({}, 0, g);
 
 // Nested with blocks using in-place object literals.
 
@@ -242,16 +235,15 @@ function *gen8() {
 
 g = gen8();
 g.next();
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.With,
                  debug.ScopeType.With,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 2, b: 1}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 2, b: 1}, 0, g);
 
 g.next();
-CheckScopeContent({a: 1, b: 2}, 0, gm);
+CheckScopeContent({a: 1, b: 2}, 0, g);
 
 // Catch block.
 
@@ -266,12 +258,11 @@ function *gen9() {
 
 g = gen9();
 g.next();
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Catch,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({e: 42}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({e: 42}, 0, g);
 
 // For statement with block scope.
 
@@ -282,17 +273,16 @@ function *gen10() {
 
 g = gen10();
 g.next();
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Block,
                  debug.ScopeType.Block,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({i: 0}, 0, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({i: 0}, 0, g);
 
 g.next();
-CheckScopeContent({i: 1}, 0, gm);
-CheckScopeContent({i: 0}, 1, gm);  // Additional block scope with i = 0;
+CheckScopeContent({i: 1}, 0, g);
+CheckScopeContent({i: 0}, 1, g);  // Additional block scope with i = 0;
 
 // Nested generators.
 
@@ -308,16 +298,15 @@ function *gen11() {
   yield* gen12;
 }
 
-g = gen11();
-g.next();
+gen11().next();
+g = gen12;
 
-gm = debug.MakeMirror(gen12);
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 1}, 0, gm);
-CheckScopeContent({a: 0}, 1, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 1}, 0, g);
+CheckScopeContent({a: 0}, 1, g);
 
 // Set a variable in an empty scope.
 
@@ -327,9 +316,8 @@ function *gen13() {
 }
 
 var g = gen13();
-var gm = debug.MakeMirror(g);
-assertThrows(() => gm.scope(0).setVariableValue("a", 42));
-CheckScopeContent({}, 0, gm);
+assertThrows(() => Debug.generatorScope(g, 0).setVariableValue("a", 42));
+CheckScopeContent({}, 0, g);
 
 // Set a variable in a simple scope.
 
@@ -343,11 +331,10 @@ function *gen14() {
 var g = gen14();
 assertEquals(1, g.next().value);
 
-var gm = debug.MakeMirror(g);
-CheckScopeContent({a: 0}, 0, gm);
+CheckScopeContent({a: 0}, 0, g);
 
-gm.scope(0).setVariableValue("a", 1);
-CheckScopeContent({a: 1}, 0, gm);
+Debug.generatorScope(g, 0).setVariableValue("a", 1);
+CheckScopeContent({a: 1}, 0, g);
 
 assertEquals(1, g.next().value);
 
@@ -367,36 +354,35 @@ function *gen15() {
 var g = gen15();
 assertEquals(1, g.next().value);
 
-var gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.With,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({a: 1, b: 2}, 0, gm);
-CheckScopeContent({c: 3, d: 4, e: undefined}, 1, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({a: 1, b: 2}, 0, g);
+CheckScopeContent({c: 3, d: 4, e: undefined}, 1, g);
 
 // Variables don't exist in given scope.
-assertThrows(() => gm.scope(0).setVariableValue("c", 42));
-assertThrows(() => gm.scope(1).setVariableValue("a", 42));
+assertThrows(() => Debug.generatorScope(g, 0).setVariableValue("c", 42));
+assertThrows(() => Debug.generatorScope(g, 1).setVariableValue("a", 42));
 
 // Variables in with scope are immutable.
-assertThrows(() => gm.scope(0).setVariableValue("a", 3));
-assertThrows(() => gm.scope(0).setVariableValue("b", 3));
+assertThrows(() => Debug.generatorScope(g, 0).setVariableValue("a", 3));
+assertThrows(() => Debug.generatorScope(g, 0).setVariableValue("b", 3));
 
-gm.scope(1).setVariableValue("c", 1);
-gm.scope(1).setVariableValue("e", 42);
+Debug.generatorScope(g, 1).setVariableValue("c", 1);
+Debug.generatorScope(g, 1).setVariableValue("e", 42);
 
-CheckScopeContent({a: 1, b: 2}, 0, gm);
-CheckScopeContent({c: 1, d: 4, e: 42}, 1, gm);
+CheckScopeContent({a: 1, b: 2}, 0, g);
+CheckScopeContent({c: 1, d: 4, e: 42}, 1, g);
 assertEquals(5, g.next().value);  // Initialized after set.
 
 CheckScopeChain([debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
+                 debug.ScopeType.Global], g);
 
-gm.scope(0).setVariableValue("e", 42);
+Debug.generatorScope(g, 0).setVariableValue("e", 42);
 
-CheckScopeContent({c: 1, d: 4, e: 42}, 0, gm);
+CheckScopeContent({c: 1, d: 4, e: 42}, 0, g);
 assertEquals(42, g.next().value);
 
 // Set a variable in nested with blocks using in-place object literals plus a
@@ -416,18 +402,17 @@ function *gen16() {
 var g = gen16();
 g.next();
 
-var gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Block,
                  debug.ScopeType.With,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({d: 4}, 0, gm);
-CheckScopeContent({a: 1, b: 2}, 1, gm);
-CheckScopeContent({c: 3}, 2, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({d: 4}, 0, g);
+CheckScopeContent({a: 1, b: 2}, 1, g);
+CheckScopeContent({c: 3}, 2, g);
 
-gm.scope(0).setVariableValue("d", 1);
-CheckScopeContent({d: 1}, 0, gm);
+Debug.generatorScope(g, 0).setVariableValue("d", 1);
+CheckScopeContent({d: 1}, 0, g);
 
 assertEquals(1, g.next().value);
 
@@ -448,23 +433,26 @@ function *gen17() {
 g = gen17();
 g.next();
 
-gm = debug.MakeMirror(g);
 CheckScopeChain([debug.ScopeType.Catch,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
-                 debug.ScopeType.Global], gm);
-CheckScopeContent({e: 42}, 0, gm);
-CheckScopeContent({xxxyyxxyx: 42284}, 2, gm);
+                 debug.ScopeType.Global], g);
+CheckScopeContent({e: 42}, 0, g);
+CheckScopeContent({xxxyyxxyx: 42284,
+                   printProtocolMessages : printProtocolMessages,
+                   activeWrapper : activeWrapper,
+                   DebugWrapper : DebugWrapper
+                  }, 2, g);
 
-gm.scope(0).setVariableValue("e", 1);
-CheckScopeContent({e: 1}, 0, gm);
+Debug.generatorScope(g, 0).setVariableValue("e", 1);
+CheckScopeContent({e: 1}, 0, g);
 
 assertEquals(1, g.next().value);
 
 // Script scope.
-gm.scope(2).setVariableValue("xxxyyxxyx", 42);
+Debug.generatorScope(g, 2).setVariableValue("xxxyyxxyx", 42);
 assertEquals(42, xxxyyxxyx);
 
 // Global scope.
-assertThrows(() => gm.scope(3).setVariableValue("yyzyzzyz", 42));
+assertThrows(() => Debug.generatorScope(g, 3).setVariableValue("yyzyzzyz", 42));
 assertEquals(4829, yyzyzzyz);
