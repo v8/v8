@@ -1029,9 +1029,6 @@ class Assembler : public AssemblerBase {
 
   // Debugging.
 
-  // Mark generator continuation.
-  void RecordGeneratorContinuation();
-
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot(RelocInfo::Mode mode);
 

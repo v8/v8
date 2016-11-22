@@ -782,8 +782,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break slot at tail call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
-    case GENERATOR_CONTINUATION:
-      return "generator continuation";
     case WASM_MEMORY_REFERENCE:
       return "wasm memory reference";
     case WASM_MEMORY_SIZE_REFERENCE:
@@ -884,7 +882,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
-    case GENERATOR_CONTINUATION:
     case WASM_MEMORY_REFERENCE:
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
@@ -1911,12 +1908,6 @@ void Assembler::RecordComment(const char* msg) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
-}
-
-
-void Assembler::RecordGeneratorContinuation() {
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::GENERATOR_CONTINUATION);
 }
 
 

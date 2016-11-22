@@ -8057,8 +8057,7 @@ class JSGeneratorObject: public JSObject {
 
   // [input_or_debug_pos]
   // For executing generators: the most recent input value.
-  // For suspended new-style generators: debug information (bytecode offset).
-  // For suspended old-style generators: unused.
+  // For suspended generators: debug information (bytecode offset).
   // There is currently no need to remember the most recent input value for a
   // suspended generator.
   DECL_ACCESSORS(input_or_debug_pos, Object)

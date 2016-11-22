@@ -149,8 +149,6 @@ void FullCodeGenerator::Generate() {
   // Reserve space on the stack for locals.
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
-    // Generators allocate locals, if any, in context slots.
-    DCHECK(!IsGeneratorFunction(info->literal()->kind()) || locals_count == 0);
     OperandStackDepthIncrement(locals_count);
     if (locals_count > 0) {
       if (locals_count >= 128) {

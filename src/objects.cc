@@ -19749,24 +19749,14 @@ void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
 
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
-  AbstractCode* code;
-  int code_offset;
-  if (function()->shared()->HasBytecodeArray()) {
-    // New-style generators.
-    DCHECK(!function()->shared()->HasBaselineCode());
-    code_offset = Smi::cast(input_or_debug_pos())->value();
-    // The stored bytecode offset is relative to a different base than what
-    // is used in the source position table, hence the subtraction.
-    code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
-    code = AbstractCode::cast(function()->shared()->bytecode_array());
-  } else {
-    // Old-style generators.
-    DCHECK(function()->shared()->HasBaselineCode());
-    code_offset = continuation();
-    CHECK(0 <= code_offset);
-    CHECK(code_offset < function()->code()->instruction_size());
-    code = AbstractCode::cast(function()->shared()->code());
-  }
+  DCHECK(function()->shared()->HasBytecodeArray());
+  DCHECK(!function()->shared()->HasBaselineCode());
+  int code_offset = Smi::cast(input_or_debug_pos())->value();
+  // The stored bytecode offset is relative to a different base than what
+  // is used in the source position table, hence the subtraction.
+  code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+  AbstractCode* code =
+      AbstractCode::cast(function()->shared()->bytecode_array());
   return code->SourcePosition(code_offset);
 }
 

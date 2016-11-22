@@ -2950,15 +2950,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
-      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
-      (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
+      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode) ||
            RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
            RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
-           RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode) ||
-           RelocInfo::IsGeneratorContinuation(rmode));
+           RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
     constpool_.RecordEntry(data, rmode);

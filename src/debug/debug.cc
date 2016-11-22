@@ -1178,29 +1178,15 @@ static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
 
 // Count the number of continuations at which the current pc offset is at.
 static int ComputeContinuationIndexFromPcOffset(Code* code, int pc_offset) {
-  DCHECK_EQ(code->kind(), Code::FUNCTION);
-  Address pc = code->instruction_start() + pc_offset;
-  int mask = RelocInfo::ModeMask(RelocInfo::GENERATOR_CONTINUATION);
-  int index = 0;
-  for (RelocIterator it(code, mask); !it.done(); it.next()) {
-    index++;
-    RelocInfo* rinfo = it.rinfo();
-    Address current_pc = rinfo->pc();
-    if (current_pc == pc) break;
-    DCHECK(current_pc < pc);
-  }
-  return index;
+  UNREACHABLE();
+  return 666;
 }
 
 
 // Find the pc offset for the given continuation index.
 static int ComputePcOffsetFromContinuationIndex(Code* code, int index) {
-  DCHECK_EQ(code->kind(), Code::FUNCTION);
-  DCHECK(code->has_debug_break_slots());
-  int mask = RelocInfo::ModeMask(RelocInfo::GENERATOR_CONTINUATION);
-  RelocIterator it(code, mask);
-  for (int i = 1; i < index; i++) it.next();
-  return static_cast<int>(it.rinfo()->pc() - code->instruction_start());
+  UNREACHABLE();
+  return 666;
 }
 
 
@@ -1293,6 +1279,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
     // Continuation from old-style generators need to be recomputed.
+    // TODO(yangguo): Remove code for old-style generators.
     bool find_resumables =
         baseline_exists && IsResumableFunction(shared->kind());
 
