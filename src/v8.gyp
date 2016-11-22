@@ -1294,6 +1294,8 @@
         'wasm/wasm-opcodes.h',
         'wasm/wasm-result.cc',
         'wasm/wasm-result.h',
+        'wasm/wasm-text.cc',
+        'wasm/wasm-text.h',
         'zone/accounting-allocator.cc',
         'zone/accounting-allocator.h',
         'zone/zone-segment.cc',

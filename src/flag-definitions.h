@@ -498,6 +498,10 @@ DEFINE_BOOL(trace_wasm_interpreter, false, "trace interpretation of wasm code")
 DEFINE_INT(trace_wasm_ast_start, 0,
            "start function for WASM AST trace (inclusive)")
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for WASM AST trace (exclusive)")
+DEFINE_INT(trace_wasm_text_start, 0,
+           "start function for WASM text generation (inclusive)")
+DEFINE_INT(trace_wasm_text_end, 0,
+           "end function for WASM text generation (exclusive)")
 DEFINE_INT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")

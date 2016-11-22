@@ -390,6 +390,7 @@ Handle<Script> GetScript(Handle<JSObject> instance);
 // Returns the disassembly string and a list of <byte_offset, line, column>
 // entries, mapping wasm byte offsets to line and column in the disassembly.
 // The list is guaranteed to be ordered by the byte_offset.
+// Returns an empty string and empty vector if the function index is invalid.
 std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
 DisassembleFunction(Handle<WasmCompiledModule> compiled_module, int func_index);
 

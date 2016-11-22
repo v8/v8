@@ -36,6 +36,7 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-text.h"
 
 // TODO(titzer): pull WASM_64 up to a common header.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -3358,6 +3359,10 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     OFStream os(stdout);
     PrintAst(isolate_->allocator(), body, os, nullptr);
+  }
+  if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
+    OFStream os(stdout);
+    PrintWasmText(module_env_->module, function_->func_index, os, nullptr);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();

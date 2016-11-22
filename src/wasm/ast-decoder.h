@@ -243,10 +243,6 @@ struct BranchTableOperand {
     }
     table = pc + 1 + len1;
   }
-  inline uint32_t read_entry(Decoder* decoder, unsigned i) {
-    DCHECK(i <= table_count);
-    return table ? decoder->read_u32(table + i * sizeof(uint32_t)) : 0;
-  }
 };
 
 // A helper to iterate over a branch table.

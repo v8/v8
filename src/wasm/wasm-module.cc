@@ -20,6 +20,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
+#include "src/wasm/wasm-text.h"
 
 #include "src/compiler/wasm-compiler.h"
 
@@ -632,15 +633,6 @@ std::pair<int, int> GetFunctionOffsetAndLength(
   WasmFunction& func = module->functions[func_index];
   return {static_cast<int>(func.code_start_offset),
           static_cast<int>(func.code_end_offset - func.code_start_offset)};
-}
-
-Vector<const uint8_t> GetFunctionBytes(
-    Handle<WasmCompiledModule> compiled_module, int func_index) {
-  int offset, length;
-  std::tie(offset, length) =
-      GetFunctionOffsetAndLength(compiled_module, func_index);
-  return Vector<const uint8_t>(
-      compiled_module->module_bytes()->GetChars() + offset, length);
 }
 
 }  // namespace
@@ -1977,19 +1969,16 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
 std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
 wasm::DisassembleFunction(Handle<WasmCompiledModule> compiled_module,
                           int func_index) {
+  if (func_index < 0 ||
+      static_cast<uint32_t>(func_index) >=
+          compiled_module->module()->functions.size())
+    return {};
+
   std::ostringstream disassembly_os;
   std::vector<std::tuple<uint32_t, int, int>> offset_table;
 
-  Vector<const uint8_t> func_bytes =
-      GetFunctionBytes(compiled_module, func_index);
-  DisallowHeapAllocation no_gc;
-  if (func_bytes.is_empty()) return {};
-
-  AccountingAllocator allocator;
-  bool ok = PrintAst(
-      &allocator, FunctionBodyForTesting(func_bytes.start(), func_bytes.end()),
-      disassembly_os, &offset_table);
-  CHECK(ok);
+  PrintWasmText(compiled_module->module(), static_cast<uint32_t>(func_index),
+                disassembly_os, &offset_table);
 
   return {disassembly_os.str(), std::move(offset_table)};
 }
@@ -2030,6 +2019,7 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
     thrower->CompileFailed("Wasm decoding failed", result);
     return nothing;
   }
+
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
   Handle<WasmModuleWrapper> module_wrapper =
