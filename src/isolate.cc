@@ -1269,9 +1269,19 @@ Object* Isolate::UnwindAndFindHandler() {
     // For interpreted frame we perform a range lookup in the handler table.
     if (frame->is_interpreted() && catchable_by_js) {
       InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
+      int register_slots = js_frame->GetBytecodeArray()->register_count();
       int context_reg = 0;  // Will contain register index holding context.
       offset = js_frame->LookupExceptionHandlerInTable(&context_reg, nullptr);
       if (offset >= 0) {
+        // Compute the stack pointer from the frame pointer. This ensures that
+        // argument slots on the stack are dropped as returning would.
+        // Note: This is only needed for interpreted frames that have been
+        //       materialized by the deoptimizer. If there is a handler frame
+        //       in between then {frame->sp()} would already be correct.
+        Address return_sp = frame->fp() -
+                            InterpreterFrameConstants::kFixedFrameSizeFromFp -
+                            register_slots * kPointerSize;
+
         // Patch the bytecode offset in the interpreted frame to reflect the
         // position of the exception handler. The special builtin below will
         // take care of continuing to dispatch at that position. Also restore
@@ -1282,7 +1292,7 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Gather information from the frame.
         code = *builtins()->InterpreterEnterBytecodeDispatch();
-        handler_sp = frame->sp();
+        handler_sp = return_sp;
         handler_fp = frame->fp();
         break;
       }
