@@ -13,7 +13,7 @@
 #include "src/utils.h"
 
 #ifdef V8_I18N_SUPPORT
-#include "unicode/uset.h"
+#include "unicode/uniset.h"
 #endif  // V8_I18N_SUPPORT
 
 namespace v8 {
@@ -1100,26 +1100,20 @@ bool LookupPropertyValueName(UProperty property,
     return false;
   }
 
-  USet* set = uset_openEmpty();
   UErrorCode ec = U_ZERO_ERROR;
-  uset_applyIntPropertyValue(set, property, property_value, &ec);
-  bool success = ec == U_ZERO_ERROR && !uset_isEmpty(set);
+  icu::UnicodeSet set;
+  set.applyIntPropertyValue(property, property_value, ec);
+  bool success = ec == U_ZERO_ERROR && !set.isEmpty();
 
   if (success) {
-    uset_removeAllStrings(set);
-    if (negate) uset_complement(set);
-    int item_count = uset_getItemCount(set);
-    int item_result = 0;
-    for (int i = 0; i < item_count; i++) {
-      uc32 start = 0;
-      uc32 end = 0;
-      item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-      result->Add(CharacterRange::Range(start, end), zone);
+    set.removeAllStrings();
+    if (negate) set.complement();
+    for (int i = 0; i < set.getRangeCount(); i++) {
+      result->Add(
+          CharacterRange::Range(set.getRangeStart(i), set.getRangeEnd(i)),
+          zone);
     }
-    DCHECK_EQ(U_ZERO_ERROR, ec);
-    DCHECK_EQ(0, item_result);
   }
-  uset_close(set);
   return success;
 }
 
@@ -1732,12 +1726,10 @@ bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
 bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
 #ifdef V8_I18N_SUPPORT
   if (unicode() && ignore_case()) {
-    USet* set = uset_open(c, c);
-    uset_closeOver(set, USET_CASE_INSENSITIVE);
-    uset_removeAllStrings(set);
-    bool result = uset_size(set) > 1;
-    uset_close(set);
-    return result;
+    icu::UnicodeSet set(c, c);
+    set.closeOver(USET_CASE_INSENSITIVE);
+    set.removeAllStrings();
+    return set.size() > 1;
   }
   // In the case where ICU is not included, we act as if the unicode flag is
   // not set, and do not desugar.
