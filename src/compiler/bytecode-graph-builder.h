@@ -5,8 +5,7 @@
 #ifndef V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
-#include "src/compiler/bytecode-branch-analysis.h"
-#include "src/compiler/bytecode-loop-analysis.h"
+#include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"
@@ -254,18 +253,12 @@ class BytecodeGraphBuilder {
     bytecode_iterator_ = bytecode_iterator;
   }
 
-  const BytecodeBranchAnalysis* branch_analysis() const {
-    return branch_analysis_;
+  const BytecodeAnalysis* bytecode_analysis() const {
+    return bytecode_analysis_;
   }
 
-  void set_branch_analysis(const BytecodeBranchAnalysis* branch_analysis) {
-    branch_analysis_ = branch_analysis;
-  }
-
-  const BytecodeLoopAnalysis* loop_analysis() const { return loop_analysis_; }
-
-  void set_loop_analysis(const BytecodeLoopAnalysis* loop_analysis) {
-    loop_analysis_ = loop_analysis;
+  void set_bytecode_analysis(const BytecodeAnalysis* bytecode_analysis) {
+    bytecode_analysis_ = bytecode_analysis;
   }
 
   LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
@@ -286,8 +279,7 @@ class BytecodeGraphBuilder {
   Handle<TypeFeedbackVector> feedback_vector_;
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
-  const BytecodeBranchAnalysis* branch_analysis_;
-  const BytecodeLoopAnalysis* loop_analysis_;
+  const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
 

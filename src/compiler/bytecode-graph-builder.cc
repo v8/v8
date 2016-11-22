@@ -7,7 +7,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/compilation-info.h"
-#include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
@@ -638,12 +637,9 @@ void BytecodeGraphBuilder::ClearNonLiveSlotsInFrameStates() {
 }
 
 void BytecodeGraphBuilder::VisitBytecodes(bool stack_check) {
-  BytecodeBranchAnalysis analysis(bytecode_array(), local_zone());
-  BytecodeLoopAnalysis loop_analysis(bytecode_array(), &analysis, local_zone());
-  analysis.Analyze();
-  loop_analysis.Analyze();
-  set_branch_analysis(&analysis);
-  set_loop_analysis(&loop_analysis);
+  BytecodeAnalysis bytecode_analysis(bytecode_array(), local_zone());
+  bytecode_analysis.Analyze();
+  set_bytecode_analysis(&bytecode_analysis);
 
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   set_bytecode_iterator(&iterator);
@@ -677,8 +673,7 @@ void BytecodeGraphBuilder::VisitBytecodes(bool stack_check) {
       }
     }
   }
-
-  set_branch_analysis(nullptr);
+  set_bytecode_analysis(nullptr);
   set_bytecode_iterator(nullptr);
   DCHECK(exception_handlers_.empty());
 }
@@ -1905,7 +1900,7 @@ void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
 }
 
 void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
-  if (branch_analysis()->backward_branches_target(current_offset)) {
+  if (bytecode_analysis()->IsLoopHeader(current_offset)) {
     // Add loop header and store a copy so we can connect merged back
     // edge inputs to the loop header.
     merge_environments_[current_offset] = environment()->CopyForLoop();
@@ -1948,9 +1943,8 @@ void BytecodeGraphBuilder::BuildOSRNormalEntryPoint() {
     // For OSR add an {OsrNormalEntry} as the the top-level environment start.
     // It will be replaced with {Dead} by the OSR deconstruction.
     NewNode(common()->OsrNormalEntry());
-    // Note that the requested OSR entry point must be the target of a backward
-    // branch, otherwise there will not be a proper loop header available.
-    DCHECK(branch_analysis()->backward_branches_target(osr_ast_id_.ToInt()));
+    // Note that the requested OSR entry point must be the header of a loop.
+    DCHECK(bytecode_analysis()->IsLoopHeader(osr_ast_id_.ToInt()));
   }
 }
 
@@ -1958,17 +1952,18 @@ void BytecodeGraphBuilder::BuildLoopExitsForBranch(int target_offset) {
   int origin_offset = bytecode_iterator().current_offset();
   // Only build loop exits for forward edges.
   if (target_offset > origin_offset) {
-    BuildLoopExitsUntilLoop(loop_analysis()->GetLoopOffsetFor(target_offset));
+    BuildLoopExitsUntilLoop(
+        bytecode_analysis()->GetLoopOffsetFor(target_offset));
   }
 }
 
 void BytecodeGraphBuilder::BuildLoopExitsUntilLoop(int loop_offset) {
   int origin_offset = bytecode_iterator().current_offset();
-  int current_loop = loop_analysis()->GetLoopOffsetFor(origin_offset);
+  int current_loop = bytecode_analysis()->GetLoopOffsetFor(origin_offset);
   while (loop_offset < current_loop) {
     Node* loop_node = merge_environments_[current_loop]->GetControlDependency();
     environment()->PrepareForLoopExit(loop_node);
-    current_loop = loop_analysis()->GetParentLoopFor(current_loop);
+    current_loop = bytecode_analysis()->GetParentLoopFor(current_loop);
   }
 }
 
