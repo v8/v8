@@ -385,3 +385,42 @@ int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) const {
             functions[func_index].code_start_offset);
   return static_cast<int>(functions[func_index].code_start_offset);
 }
+
+int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) const {
+  std::vector<WasmFunction>& functions = module()->functions;
+
+  // Binary search for a function containing the given position.
+  int left = 0;                                    // inclusive
+  int right = static_cast<int>(functions.size());  // exclusive
+  if (right == 0) return false;
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    if (functions[mid].code_start_offset <= byte_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // If the found function does not contains the given position, return -1.
+  WasmFunction& func = functions[left];
+  if (byte_offset < func.code_start_offset ||
+      byte_offset >= func.code_end_offset) {
+    return -1;
+  }
+
+  return left;
+}
+
+bool WasmCompiledModule::GetPositionInfo(uint32_t position,
+                                         Script::PositionInfo* info) {
+  int func_index = GetContainingFunction(position);
+  if (func_index < 0) return false;
+
+  WasmFunction& function = module()->functions[func_index];
+
+  info->line = func_index;
+  info->column = position - function.code_start_offset;
+  info->line_start = function.code_start_offset;
+  info->line_end = function.code_end_offset;
+  return true;
+}

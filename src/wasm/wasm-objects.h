@@ -276,6 +276,16 @@ class WasmCompiledModule : public FixedArray {
   // Returns -1 if the function index is invalid.
   int GetFunctionOffset(uint32_t func_index) const;
 
+  // Returns the function containing the given byte offset.
+  // Returns -1 if the byte offset is not contained in any function of this
+  // module.
+  int GetContainingFunction(uint32_t byte_offset) const;
+
+  // Translate from byte offset in the module to function number and byte offset
+  // within that function, encoded as line and column in the position info.
+  // Returns true if the position is valid inside this module, false otherwise.
+  bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
+
  private:
   void InitId();
 

@@ -767,35 +767,6 @@ int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
   return GetFunctionOffsetAndLength(compiled_module, func_index).first;
 }
 
-bool wasm::GetPositionInfo(Handle<WasmCompiledModule> compiled_module,
-                           uint32_t position, Script::PositionInfo* info) {
-  std::vector<WasmFunction>& functions = compiled_module->module()->functions;
-
-  // Binary search for a function containing the given position.
-  int left = 0;                                    // inclusive
-  int right = static_cast<int>(functions.size());  // exclusive
-  if (right == 0) return false;
-  while (right - left > 1) {
-    int mid = left + (right - left) / 2;
-    if (functions[mid].code_start_offset <= position) {
-      left = mid;
-    } else {
-      right = mid;
-    }
-  }
-  // If the found entry does not contains the given position, return false.
-  WasmFunction& func = functions[left];
-  if (position < func.code_start_offset || position >= func.code_end_offset) {
-    return false;
-  }
-
-  info->line = left;
-  info->column = position - func.code_start_offset;
-  info->line_start = func.code_start_offset;
-  info->line_end = func.code_end_offset;
-  return true;
-}
-
 WasmModule::WasmModule(Zone* owned, const byte* module_start)
     : owned_zone(owned),
       module_start(module_start),

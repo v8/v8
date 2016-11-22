@@ -413,11 +413,6 @@ V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
 int GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
                           int func_index);
 
-// Translate from byte offset in the module to function number and byte offset
-// within that function, encoded as line and column in the position info.
-bool GetPositionInfo(Handle<WasmCompiledModule> compiled_module,
-                     uint32_t position, Script::PositionInfo* info);
-
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.
 // Returns nullptr on failing to get owning instance.
