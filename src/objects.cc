@@ -12547,19 +12547,10 @@ void Map::CompleteInobjectSlackTracking() {
 static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->HasFastProperties()) return false;
-  Map* map = object->map();
-  if (map->is_prototype_map()) return false;
-  DescriptorArray* descriptors = map->instance_descriptors();
-  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-    PropertyDetails details = descriptors->GetDetails(i);
-    if (details.location() == kDescriptor) continue;
-    if (details.representation().IsHeapObject() ||
-        details.representation().IsTagged()) {
-      FieldIndex index = FieldIndex::ForDescriptor(map, i);
-      if (object->RawFastPropertyAt(index)->IsJSFunction()) return true;
-    }
-  }
-  return false;
+  if (object->IsJSGlobalProxy()) return false;
+  if (object->GetIsolate()->bootstrapper()->IsActive()) return false;
+  return !object->map()->is_prototype_map() ||
+         !object->map()->should_be_fast_prototype_map();
 }
 
 // static
@@ -12574,8 +12565,10 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
     if (!current->IsJSObject()) return;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     Map* current_map = current_obj->map();
-    if (current_map->is_prototype_map() &&
-        !current_map->should_be_fast_prototype_map()) {
+    if (current_map->is_prototype_map()) {
+      // If the map is already marked as should be fast, we're done. Its
+      // prototypes will have been marked already as well.
+      if (current_map->should_be_fast_prototype_map()) return;
       Handle<Map> map(current_map);
       Map::SetShouldBeFastPrototypeMap(map, true, isolate);
       JSObject::OptimizeAsPrototype(current_obj, FAST_PROTOTYPE);
