@@ -2785,16 +2785,8 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
       FromJS(call, HeapConstant(isolate->native_context()),
              sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
   Node* pop_size = jsgraph()->Int32Constant(0);
-  if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
-      sig->GetReturn() == wasm::kAstI64) {
-    ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val,
-                           graph()->NewNode(jsgraph()->machine()->Word32Sar(),
-                                            val, jsgraph()->Int32Constant(31)),
-                           call, start);
-  } else {
     ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val, call,
                            start);
-  }
 
   MergeControlToEnd(jsgraph(), ret);
 }
