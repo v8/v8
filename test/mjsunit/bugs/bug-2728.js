@@ -19,3 +19,21 @@ assertThrows("L: L1: L: ;");
 assertThrows("function f() { L: L1: L: ; }");
 assertThrows("L: L1: L2: L3: L4: L: ;");
 assertThrows("function f() { L: L1: L2: L3: L4: L: ; }");
+
+// from test/mjsunit/es6/async-destructuring.js
+assertThrows("'use strict'; async function f(x) { let x = 0; }", SyntaxError);
+assertThrows("'use strict'; async function f({x}) { let x = 0; }", SyntaxError);
+assertThrows("'use strict'; async function f(x) { const x = 0; }", SyntaxError);
+assertThrows("'use strict'; async function f({x}) { const x = 0; }", SyntaxError);
+
+// from test/mjsunit/es6/destructuring.js
+assertThrows("'use strict'; function f(x) { let x = 0; }", SyntaxError);
+assertThrows("'use strict'; function f({x}) { let x = 0; }", SyntaxError);
+assertThrows("'use strict'; function f(x) { const x = 0; }", SyntaxError);
+assertThrows("'use strict'; function f({x}) { const x = 0; }", SyntaxError);
+
+// from test/mjsunit/es6/generator-destructuring.js
+assertThrows("'use strict'; function* f(x) { let x = 0; }", SyntaxError);
+assertThrows("'use strict'; function* f({x}) { let x = 0; }", SyntaxError);
+assertThrows("'use strict'; function* f(x) { const x = 0; }", SyntaxError);
+assertThrows("'use strict'; function* f({x}) { const x = 0; }", SyntaxError);
