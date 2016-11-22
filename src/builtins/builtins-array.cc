@@ -2566,10 +2566,9 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
 
     Node* elements =
         assembler.AllocateFixedArray(FAST_ELEMENTS, assembler.Int32Constant(2));
-    assembler.StoreFixedArrayElement(elements, assembler.Int32Constant(0),
-                                     index, SKIP_WRITE_BARRIER);
-    assembler.StoreFixedArrayElement(elements, assembler.Int32Constant(1),
-                                     var_value.value(), SKIP_WRITE_BARRIER);
+    assembler.StoreFixedArrayElement(elements, 0, index, SKIP_WRITE_BARRIER);
+    assembler.StoreFixedArrayElement(elements, 1, var_value.value(),
+                                     SKIP_WRITE_BARRIER);
 
     Node* entry = assembler.Allocate(JSArray::kSize);
     Node* map =
