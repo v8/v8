@@ -153,6 +153,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     node->InsertInput(graph()->zone(), 0, target);
     node->ReplaceInput(1, constructor);
     node->ReplaceInput(2, object);
+    node->ReplaceInput(5, effect);
     NodeProperties::ChangeOp(
         node,
         javascript()->CallFunction(3, 0.0f, VectorSlotPair(),
