@@ -582,33 +582,33 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word32
   } else if (output_rep == MachineRepresentation::kFloat64) {
-    if (output_type->Is(Type::Unsigned32())) {
-      op = machine()->ChangeFloat64ToUint32();
-    } else if (output_type->Is(Type::Signed32())) {
+    if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (use_info.truncation().IsUsedAsWord32()) {
-      op = machine()->TruncateFloat64ToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
                use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero);
+    } else if (output_type->Is(Type::Unsigned32())) {
+      op = machine()->ChangeFloat64ToUint32();
+    } else if (use_info.truncation().IsUsedAsWord32()) {
+      op = machine()->TruncateFloat64ToWord32();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
-    if (output_type->Is(Type::Unsigned32())) {
-      op = machine()->ChangeFloat64ToUint32();
-    } else if (output_type->Is(Type::Signed32())) {
+    if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (use_info.truncation().IsUsedAsWord32()) {
-      op = machine()->TruncateFloat64ToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
                use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
               : CheckForMinusZeroMode::kDontCheckForMinusZero);
+    } else if (output_type->Is(Type::Unsigned32())) {
+      op = machine()->ChangeFloat64ToUint32();
+    } else if (use_info.truncation().IsUsedAsWord32()) {
+      op = machine()->TruncateFloat64ToWord32();
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     if (output_type->Is(Type::Signed32())) {
@@ -622,16 +622,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kTagged ||
              output_rep == MachineRepresentation::kTaggedPointer) {
-    if (output_type->Is(Type::Unsigned32())) {
-      op = simplified()->ChangeTaggedToUint32();
-    } else if (output_type->Is(Type::Signed32())) {
+    if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
-    } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (use_info.type_check() != TypeCheckKind::kNone) {
-        op = simplified()->CheckedTruncateTaggedToWord32();
-      } else {
-        op = simplified()->TruncateTaggedToWord32();
-      }
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
       op = simplified()->CheckedTaggedSignedToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
@@ -639,6 +631,14 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
           output_type->Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
               : CheckForMinusZeroMode::kDontCheckForMinusZero);
+    } else if (output_type->Is(Type::Unsigned32())) {
+      op = simplified()->ChangeTaggedToUint32();
+    } else if (use_info.truncation().IsUsedAsWord32()) {
+      if (use_info.type_check() != TypeCheckKind::kNone) {
+        op = simplified()->CheckedTruncateTaggedToWord32();
+      } else {
+        op = simplified()->TruncateTaggedToWord32();
+      }
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
