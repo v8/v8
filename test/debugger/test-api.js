@@ -684,8 +684,8 @@ class DebugWrapper {
       return scopes;
     };
 
-    return { sourceColumn : () => loc.column,
-             sourceLine : () => loc.line + 1,
+    return { sourceColumn : () => column,
+             sourceLine : () => line + 1,
              sourceLineText : () => loc.sourceText,
              evaluate : (expr) => this.evaluateOnCallFrame(frame, expr),
              functionName : () => frame.functionName,
@@ -738,7 +738,7 @@ class DebugWrapper {
 
     return { id : () => id,
              name : () => name,
-             source : () => this.eventDataScriptSource(id),
+             source : () => this.eventDataScriptSource(params.scriptId),
              setSource : (src) => this.eventDataScriptSetSource(id, src)
            };
   }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-debug-as debug
+// Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -15,8 +15,8 @@ var break_count = 0;
 const expected_frames = [
   // func-name; wasm?; pos; line; col
   ['call_debugger', false],        // --
-  ['wasm_2', true, 56, 2, 1],      // --
-  ['wasm_1', true, 52, 1, 2],      // --
+  ['wasm_2', true, 56, 2, 0],      // --
+  ['wasm_1', true, 52, 3, 0],      // --
   ['testFrameInspection', false],  // --
   ['', false]
 ];
@@ -32,19 +32,10 @@ function listener(event, exec_state, event_data, data) {
     for (var i = 0; i < frame_count; ++i) {
       var frame = exec_state.frame(i);
       assertEquals(expected_frames[i][0], frame.func().name(), 'name at ' + i);
-      // wasm frames have unresolved function, others resolved ones.
-      assertEquals(
-          expected_frames[i][1], !frame.func().resolved(), 'resolved at ' + i);
       if (expected_frames[i][1]) {  // wasm frame?
-        var script = frame.details().script();
-        assertNotNull(script, 'script at ' + i);
-        assertEquals(
-            expected_frames[i][2], frame.details().sourcePosition(),
-            'source pos at ' + i);
-        var loc = script.locationFromPosition(frame.details().sourcePosition());
-        assertEquals(expected_frames[i][2], loc.position, 'pos at ' + i);
-        assertEquals(expected_frames[i][3], loc.line, 'line at ' + i);
-        assertEquals(expected_frames[i][4], loc.column, 'column at ' + i);
+        assertEquals(expected_frames[i][3], frame.sourceLine(), 'line at ' + i);
+        assertEquals(expected_frames[i][4], frame.sourceColumn(),
+            'column at ' + i);
       }
     }
   } catch (e) {
