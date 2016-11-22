@@ -244,7 +244,7 @@ Response V8HeapProfilerAgentImpl::getObjectByHeapObjectId(
 
   *result = m_session->wrapObject(heapObject->CreationContext(), heapObject,
                                   objectGroup.fromMaybe(""), false);
-  if (!result) return Response::Error("Object is not available");
+  if (!*result) return Response::Error("Object is not available");
   return Response::OK();
 }
 
