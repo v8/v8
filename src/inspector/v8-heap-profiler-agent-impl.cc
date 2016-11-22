@@ -216,7 +216,7 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshot(Maybe<bool> reportProgress) {
   if (!profiler) return Response::Error("Cannot access v8 heap profiler");
   std::unique_ptr<HeapSnapshotProgress> progress;
   if (reportProgress.fromMaybe(false))
-    progress = wrapUnique(new HeapSnapshotProgress(&m_frontend));
+    progress.reset(new HeapSnapshotProgress(&m_frontend));
 
   GlobalObjectNameResolver resolver(m_session);
   const v8::HeapSnapshot* snapshot =
@@ -260,7 +260,8 @@ Response V8HeapProfilerAgentImpl::addInspectedHeapObject(
 
   if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject))
     return Response::Error("Object is not available");
-  m_session->addInspectedObject(wrapUnique(new InspectableHeapObject(id)));
+  m_session->addInspectedObject(
+      std::unique_ptr<InspectableHeapObject>(new InspectableHeapObject(id)));
   return Response::OK();
 }
 

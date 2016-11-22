@@ -180,7 +180,7 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
 
 std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::cloneImpl() {
   std::vector<Frame> framesCopy(m_frames);
-  return wrapUnique(
+  return std::unique_ptr<V8StackTraceImpl>(
       new V8StackTraceImpl(m_contextGroupId, m_description, framesCopy,
                            m_parent ? m_parent->cloneImpl() : nullptr));
 }
@@ -189,7 +189,7 @@ std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
   std::vector<Frame> frames;
   for (size_t i = 0; i < m_frames.size(); i++)
     frames.push_back(m_frames.at(i).clone());
-  return wrapUnique(
+  return std::unique_ptr<V8StackTraceImpl>(
       new V8StackTraceImpl(m_contextGroupId, m_description, frames, nullptr));
 }
 

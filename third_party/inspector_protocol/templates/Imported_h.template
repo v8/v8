@@ -7,8 +7,12 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_{{domain.domain}}_imported_h
 #define {{"_".join(config.protocol.namespace)}}_{{domain.domain}}_imported_h
 
-#include "{{config.protocol.package}}/Protocol.h"
-#include {{format_include(config.imported.header if config.imported.header else "\"%s/%s.h\"" % (config.imported.package, domain.domain))}}
+#include {{format_include(config.protocol.package, "Protocol")}}
+{% if config.imported.header %}
+#include {{format_include(config.imported.header)}}
+{% else %}
+#include {{format_include(config.imported.package, domain.domain)}}
+{% endif %}
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {

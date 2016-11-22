@@ -361,7 +361,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   V8InspectorImpl* inspector = inspectedContext->inspector();
   v8::Local<v8::Context> context = inspectedContext->context();
 
-  std::unique_ptr<V8ConsoleMessage> message = wrapUnique(
+  std::unique_ptr<V8ConsoleMessage> message(
       new V8ConsoleMessage(V8MessageOrigin::kConsole, timestamp, String16()));
   if (stackTrace && !stackTrace->isEmpty()) {
     message->m_url = toString16(stackTrace->topSourceURL());
@@ -372,8 +372,8 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   message->m_type = type;
   message->m_contextId = contextId;
   for (size_t i = 0; i < arguments.size(); ++i)
-    message->m_arguments.push_back(
-        wrapUnique(new v8::Global<v8::Value>(isolate, arguments.at(i))));
+    message->m_arguments.push_back(std::unique_ptr<v8::Global<v8::Value>>(
+        new v8::Global<v8::Value>(isolate, arguments.at(i))));
   if (arguments.size())
     message->m_message = V8ValueStringBuilder::toString(arguments[0], context);
 
@@ -404,7 +404,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
     std::unique_ptr<V8StackTraceImpl> stackTrace, int scriptId,
     v8::Isolate* isolate, const String16& message, int contextId,
     v8::Local<v8::Value> exception, unsigned exceptionId) {
-  std::unique_ptr<V8ConsoleMessage> consoleMessage = wrapUnique(
+  std::unique_ptr<V8ConsoleMessage> consoleMessage(
       new V8ConsoleMessage(V8MessageOrigin::kException, timestamp, message));
   consoleMessage->setLocation(url, lineNumber, columnNumber,
                               std::move(stackTrace), scriptId);
@@ -413,7 +413,8 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
   if (contextId && !exception.IsEmpty()) {
     consoleMessage->m_contextId = contextId;
     consoleMessage->m_arguments.push_back(
-        wrapUnique(new v8::Global<v8::Value>(isolate, exception)));
+        std::unique_ptr<v8::Global<v8::Value>>(
+            new v8::Global<v8::Value>(isolate, exception)));
   }
   return consoleMessage;
 }
@@ -422,7 +423,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
 std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForRevokedException(
     double timestamp, const String16& messageText,
     unsigned revokedExceptionId) {
-  std::unique_ptr<V8ConsoleMessage> message = wrapUnique(new V8ConsoleMessage(
+  std::unique_ptr<V8ConsoleMessage> message(new V8ConsoleMessage(
       V8MessageOrigin::kRevokedException, timestamp, messageText));
   message->m_revokedExceptionId = revokedExceptionId;
   return message;

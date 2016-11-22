@@ -4,9 +4,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "{{config.protocol.package}}/{{domain.domain}}.h"
+#include {{format_include(config.protocol.package, domain.domain)}}
 
-#include "{{config.protocol.package}}/Protocol.h"
+#include {{format_include(config.protocol.package, "Protocol")}}
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -106,7 +106,7 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const {{config.exported.string_in}}& json)
 {
     ErrorSupport errors;
-    std::unique_ptr<Value> value = parseJSON(json);
+    std::unique_ptr<Value> value = StringUtil::parseJSON(json);
     if (!value)
         return nullptr;
     return protocol::{{domain.domain}}::{{type.id}}::parse(value.get(), &errors);
@@ -145,9 +145,9 @@ const char* {{ literal | to_title_case}} = "{{literal}}";
 
 // ------------- Frontend notifications.
   {% for event in domain.events %}
-    {% if "handlers" in event and not ("renderer" in event["handlers"]) %}{% continue %}{% endif %}
+    {% if not generate_event(domain.domain, event.name) %}{% continue %}{% endif %}
 
-void Frontend::{{event.name}}(
+void Frontend::{{event.name | to_method_case}}(
     {%- for parameter in event.parameters %}
       {% if "optional" in parameter -%}
         Maybe<{{resolve_type(parameter).raw_type}}>
@@ -178,16 +178,22 @@ void Frontend::flush()
     m_frontendChannel->flushProtocolNotifications();
 }
 
+void Frontend::sendRawNotification(const String& notification)
+{
+    m_frontendChannel->sendProtocolNotification(notification);
+}
+
 // --------------------- Dispatcher.
 
 class DispatcherImpl : public protocol::DispatcherBase {
 public:
-    DispatcherImpl(FrontendChannel* frontendChannel, Backend* backend)
+    DispatcherImpl(FrontendChannel* frontendChannel, Backend* backend, bool fallThroughForNotFound)
         : DispatcherBase(frontendChannel)
-        , m_backend(backend) {
+        , m_backend(backend)
+        , m_fallThroughForNotFound(fallThroughForNotFound) {
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
-    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if not generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
         m_dispatchMap["{{domain.domain}}.{{command.name}}"] = &DispatcherImpl::{{command.name}};
   {% endfor %}
     }
@@ -201,17 +207,20 @@ protected:
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
-    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if not generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
     DispatchResponse::Status {{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
   {% endfor %}
 
     Backend* m_backend;
+    bool m_fallThroughForNotFound;
 };
 
 DispatchResponse::Status DispatcherImpl::dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject)
 {
     protocol::HashMap<String, CallHandler>::iterator it = m_dispatchMap.find(method);
     if (it == m_dispatchMap.end()) {
+        if (m_fallThroughForNotFound)
+            return DispatchResponse::kFallThrough;
         reportProtocolError(callId, DispatchResponse::kMethodNotFound, "'" + method + "' wasn't found", nullptr);
         return DispatchResponse::kError;
     }
@@ -222,13 +231,13 @@ DispatchResponse::Status DispatcherImpl::dispatch(int callId, const String& meth
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
-    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
-    {% if "async" in command %}
+    {% if not generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
+    {% if is_async_command(domain.domain, command.name) %}
 
 class {{command.name | to_title_case}}CallbackImpl : public Backend::{{command.name | to_title_case}}Callback, public DispatcherBase::Callback {
 public:
-    {{command.name | to_title_case}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId)
-        : DispatcherBase::Callback(std::move(backendImpl), callId) { }
+    {{command.name | to_title_case}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, int callbackId)
+        : DispatcherBase::Callback(std::move(backendImpl), callId, callbackId) { }
 
     void sendSuccess(
       {%- for parameter in command.returns -%}
@@ -250,6 +259,11 @@ public:
             {% endif %}
           {% endfor %}
         sendIfActive(std::move(resultObject), DispatchResponse::OK());
+    }
+
+    void fallThrough() override
+    {
+        fallThroughIfActive();
     }
 
     void sendFailure(const DispatchResponse& response) override
@@ -285,7 +299,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
         return DispatchResponse::kError;
     }
     {% endif %}
-    {% if "returns" in command and not ("async" in command) %}
+    {% if "returns" in command and not is_async_command(domain.domain, command.name) %}
     // Declare output parameters.
       {% for property in command.returns %}
         {% if "optional" in property %}
@@ -296,9 +310,9 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {% endfor %}
     {% endif %}
 
-    {% if not("async" in command) %}
+    {% if not is_async_command(domain.domain, command.name) %}
     std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
-    DispatchResponse response = m_backend->{{command.name}}(
+    DispatchResponse response = m_backend->{{command.name | to_method_case}}(
       {%- for property in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
         {%- if "optional" in property -%}
@@ -335,8 +349,8 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {% endif %}
     return response.status();
     {% else %}
-    std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId));
-    m_backend->{{command.name}}(
+    std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId, nextCallbackId()));
+    m_backend->{{command.name | to_method_case}}(
       {%- for property in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
         {%- if "optional" in property -%}
@@ -347,7 +361,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {%- endfor -%}
         {%- if command.parameters -%}, {% endif -%}
         std::move(callback));
-    return DispatchResponse::kAsync;
+    return lastCallbackFallThrough() ? DispatchResponse::kFallThrough : DispatchResponse::kAsync;
     {% endif %}
 }
   {% endfor %}
@@ -355,7 +369,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
 // static
 void Dispatcher::wire(UberDispatcher* dispatcher, Backend* backend)
 {
-    dispatcher->registerBackend("{{domain.domain}}", wrapUnique(new DispatcherImpl(dispatcher->channel(), backend)));
+    dispatcher->registerBackend("{{domain.domain}}", std::unique_ptr<protocol::DispatcherBase>(new DispatcherImpl(dispatcher->channel(), backend, dispatcher->fallThroughForNotFound())));
 }
 
 } // {{domain.domain}}

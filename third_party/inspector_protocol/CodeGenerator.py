@@ -7,6 +7,7 @@ import sys
 import optparse
 import collections
 import functools
+import re
 try:
     import json
 except ImportError:
@@ -52,6 +53,7 @@ def read_config():
         cmdline_parser.add_option("--output_base")
         cmdline_parser.add_option("--jinja_dir")
         cmdline_parser.add_option("--config")
+        cmdline_parser.add_option("--config_value", action="append", type="string")
         arg_options, _ = cmdline_parser.parse_args()
         jinja_dir = arg_options.jinja_dir
         if not jinja_dir:
@@ -63,6 +65,9 @@ def read_config():
         if not config_file:
             raise Exception("Config file name must be specified")
         config_base = os.path.dirname(config_file)
+        config_values = arg_options.config_value
+        if not config_values:
+            config_values = []
     except Exception:
         # Work with python 2 and 3 http://docs.python.org/py3k/howto/pyporting.html
         exc = sys.exc_info()[1]
@@ -75,6 +80,8 @@ def read_config():
         config_partial = json_to_object(config_json_string, output_base, config_base)
         config_json_file.close()
         defaults = {
+            ".use_snake_file_names": False,
+            ".use_title_case_methods": False,
             ".imported": False,
             ".imported.export_macro": "",
             ".imported.export_header": False,
@@ -82,6 +89,7 @@ def read_config():
             ".imported.package": False,
             ".protocol.export_macro": "",
             ".protocol.export_header": False,
+            ".protocol.options": False,
             ".exported": False,
             ".exported.export_macro": "",
             ".exported.export_header": False,
@@ -89,6 +97,10 @@ def read_config():
             ".lib.export_macro": "",
             ".lib.export_header": False,
         }
+        for key_value in config_values:
+            parts = key_value.split("=")
+            if len(parts) == 2:
+                defaults["." + parts[0]] = parts[1]
         return (jinja_dir, config_file, init_defaults(config_partial, "", defaults))
     except Exception:
         # Work with python 2 and 3 http://docs.python.org/py3k/howto/pyporting.html
@@ -109,7 +121,17 @@ def dash_to_camelcase(word):
     return prefix + "".join(to_title_case(x) or "-" for x in word.split("-"))
 
 
-def initialize_jinja_env(jinja_dir, cache_dir):
+def to_snake_case(name):
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name, sys.maxint).lower()
+
+
+def to_method_case(config, name):
+    if config.use_title_case_methods:
+        return to_title_case(name)
+    return name
+
+
+def initialize_jinja_env(jinja_dir, cache_dir, config):
     # pylint: disable=F0401
     sys.path.insert(1, os.path.abspath(jinja_dir))
     import jinja2
@@ -122,7 +144,7 @@ def initialize_jinja_env(jinja_dir, cache_dir):
         keep_trailing_newline=True,  # newline-terminate generated files
         lstrip_blocks=True,  # so can indent control flow tags
         trim_blocks=True)
-    jinja_env.filters.update({"to_title_case": to_title_case, "dash_to_camelcase": dash_to_camelcase})
+    jinja_env.filters.update({"to_title_case": to_title_case, "dash_to_camelcase": dash_to_camelcase, "to_method_case": functools.partial(to_method_case, config)})
     jinja_env.add_extension("jinja2.ext.loopcontrols")
     return jinja_env
 
@@ -149,23 +171,39 @@ def patch_full_qualified_refs(protocol):
         patch_full_qualified_refs_in_domain(domain, domain["domain"])
 
 
-def calculate_exports(protocol):
-    def calculate_exports_in_json(json_value):
-        has_exports = False
+def calculate_imports_and_exports(config, protocol):
+    def has_exports(json_value, clear):
+        result = False
         if isinstance(json_value, list):
             for item in json_value:
-                has_exports = calculate_exports_in_json(item) or has_exports
+                result = has_exports(item, clear) or result
         if isinstance(json_value, dict):
-            has_exports = ("exported" in json_value and json_value["exported"]) or has_exports
+            if "exported" in json_value and json_value["exported"]:
+                result = True
+            if "exported" in json_value and clear:
+                del json_value["exported"]
             for key in json_value:
-                has_exports = calculate_exports_in_json(json_value[key]) or has_exports
-        return has_exports
+                result = has_exports(json_value[key], clear) or result
+        return result
 
-    protocol.json_api["has_exports"] = False
+    imported_domains = protocol.imported_domains
+    if config.protocol.options:
+        protocol.generate_domains = [rule.domain for rule in config.protocol.options]
+        imported_domains = list(set(protocol.imported_domains) - set(protocol.generate_domains))
+    exported_domains = protocol.generate_domains
+
+    protocol.imported_domains = []
+    protocol.exported_domains = []
     for domain_json in protocol.json_api["domains"]:
-        domain_json["has_exports"] = calculate_exports_in_json(domain_json)
-        if domain_json["has_exports"] and domain_json["domain"] in protocol.generate_domains:
-            protocol.json_api["has_exports"] = True
+        domain = domain_json["domain"]
+        clear = domain not in exported_domains and domain not in imported_domains
+        if not has_exports(domain_json, clear):
+            continue
+        if domain in exported_domains:
+            domain_json["has_exports"] = True
+            protocol.exported_domains.append(domain)
+        if domain in imported_domains:
+            protocol.imported_domains.append(domain)
 
 
 def create_imported_type_definition(domain_name, type, imported_namespace):
@@ -286,7 +324,6 @@ def wrap_array_definition(type):
         "raw_type": "protocol::Array<%s>" % type["raw_type"],
         "raw_pass_type": "protocol::Array<%s>*" % type["raw_type"],
         "raw_return_type": "protocol::Array<%s>*" % type["raw_type"],
-        "create_type": "wrapUnique(new protocol::Array<%s>())" % type["raw_type"],
         "out_type": "protocol::Array<%s>&" % type["raw_type"],
     }
 
@@ -337,15 +374,68 @@ def join_arrays(dict, keys):
     return result
 
 
-def has_disable(commands):
-    for command in commands:
-        if command["name"] == "disable" and (not ("handlers" in command) or "renderer" in command["handlers"]):
-            return True
+def generate_command(protocol, config, domain, command):
+    if not config.protocol.options:
+        return domain in protocol.generate_domains
+    for rule in config.protocol.options:
+        if rule.domain != domain:
+            continue
+        if hasattr(rule, "include"):
+            return command in rule.include
+        if hasattr(rule, "exclude"):
+            return command not in rule.exclude
+        return True
     return False
 
 
-def format_include(header):
-    return "\"" + header + "\"" if header[0] not in "<\"" else header
+def generate_event(protocol, config, domain, event):
+    if not config.protocol.options:
+        return domain in protocol.generate_domains
+    for rule in config.protocol.options:
+        if rule.domain != domain:
+            continue
+        if hasattr(rule, "include_events"):
+            return event in rule.include_events
+        if hasattr(rule, "exclude_events"):
+            return event not in rule.exclude_events
+        return True
+    return False
+
+
+def is_async_command(protocol, config, domain, command):
+    if not config.protocol.options:
+        return False
+    for rule in config.protocol.options:
+        if rule.domain != domain:
+            continue
+        if hasattr(rule, "async"):
+            return command in rule.async
+        return False
+    return False
+
+
+def generate_disable(protocol, config, domain):
+    if "commands" not in domain:
+        return True
+    for command in domain["commands"]:
+        if command["name"] == "disable" and generate_command(protocol, config, domain["domain"], "disable"):
+            return False
+    return True
+
+
+def format_include(config, header, file_name=None):
+    if file_name is not None:
+        header = header + "/" + file_name + ".h"
+    header = "\"" + header + "\"" if header[0] not in "<\"" else header
+    if config.use_snake_file_names:
+        header = to_snake_case(header)
+    return header
+
+
+def to_file_name(config, file_name):
+    if config.use_snake_file_names:
+        return to_snake_case(file_name).replace(".cpp", ".cc")
+    return file_name
 
 
 def read_protocol_file(file_name, json_api):
@@ -367,6 +457,7 @@ class Protocol(object):
         self.json_api = {}
         self.generate_domains = []
         self.imported_domains = []
+        self.exported_domains = []
 
 
 def main():
@@ -377,20 +468,18 @@ def main():
     protocol.generate_domains = read_protocol_file(config.protocol.path, protocol.json_api)
     protocol.imported_domains = read_protocol_file(config.imported.path, protocol.json_api) if config.imported else []
     patch_full_qualified_refs(protocol)
-    calculate_exports(protocol)
+    calculate_imports_and_exports(config, protocol)
     create_type_definitions(protocol, "::".join(config.imported.namespace) if config.imported else "")
 
-    if not config.exported:
-        for domain_json in protocol.json_api["domains"]:
-            if domain_json["has_exports"] and domain_json["domain"] in protocol.generate_domains:
-                sys.stderr.write("Domain %s is exported, but config is missing export entry\n\n" % domain_json["domain"])
-                exit(1)
+    if not config.exported and len(protocol.exported_domains):
+        sys.stderr.write("Domains [%s] are exported, but config is missing export entry\n\n" % ", ".join(protocol.exported_domains))
+        exit(1)
 
     if not os.path.exists(config.protocol.output):
         os.mkdir(config.protocol.output)
-    if protocol.json_api["has_exports"] and not os.path.exists(config.exported.output):
+    if len(protocol.exported_domains) and not os.path.exists(config.exported.output):
         os.mkdir(config.exported.output)
-    jinja_env = initialize_jinja_env(jinja_dir, config.protocol.output)
+    jinja_env = initialize_jinja_env(jinja_dir, config.protocol.output, config)
 
     inputs = []
     inputs.append(__file__)
@@ -419,22 +508,25 @@ def main():
             "join_arrays": join_arrays,
             "resolve_type": functools.partial(resolve_type, protocol),
             "type_definition": functools.partial(type_definition, protocol),
-            "has_disable": has_disable,
-            "format_include": format_include
+            "generate_command": functools.partial(generate_command, protocol, config),
+            "generate_event": functools.partial(generate_event, protocol, config),
+            "is_async_command": functools.partial(is_async_command, protocol, config),
+            "generate_disable": functools.partial(generate_disable, protocol, config),
+            "format_include": functools.partial(format_include, config),
         }
 
         if domain["domain"] in protocol.generate_domains:
-            outputs[os.path.join(config.protocol.output, class_name + ".h")] = h_template.render(template_context)
-            outputs[os.path.join(config.protocol.output, class_name + ".cpp")] = cpp_template.render(template_context)
-            if domain["has_exports"]:
-                outputs[os.path.join(config.exported.output, class_name + ".h")] = exported_template.render(template_context)
-        if domain["domain"] in protocol.imported_domains and domain["has_exports"]:
-            outputs[os.path.join(config.protocol.output, class_name + ".h")] = imported_template.render(template_context)
+            outputs[os.path.join(config.protocol.output, to_file_name(config, class_name + ".h"))] = h_template.render(template_context)
+            outputs[os.path.join(config.protocol.output, to_file_name(config, class_name + ".cpp"))] = cpp_template.render(template_context)
+            if domain["domain"] in protocol.exported_domains:
+                outputs[os.path.join(config.exported.output, to_file_name(config, class_name + ".h"))] = exported_template.render(template_context)
+        if domain["domain"] in protocol.imported_domains:
+            outputs[os.path.join(config.protocol.output, to_file_name(config, class_name + ".h"))] = imported_template.render(template_context)
 
     if config.lib:
         template_context = {
             "config": config,
-            "format_include": format_include,
+            "format_include": functools.partial(format_include, config),
         }
 
         lib_templates_dir = os.path.join(module_path, "lib")
@@ -475,9 +567,9 @@ def main():
                 parts.append(template.render(template_context))
             outputs[file_name] = "\n\n".join(parts)
 
-        generate_lib_file(os.path.join(config.lib.output, "Forward.h"), forward_h_templates)
-        generate_lib_file(os.path.join(config.lib.output, "Protocol.h"), lib_h_templates)
-        generate_lib_file(os.path.join(config.lib.output, "Protocol.cpp"), lib_cpp_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Forward.h")), forward_h_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Protocol.h")), lib_h_templates)
+        generate_lib_file(os.path.join(config.lib.output, to_file_name(config, "Protocol.cpp")), lib_cpp_templates)
 
     # Make gyp / make generatos happy, otherwise make rebuilds world.
     inputs_ts = max(map(os.path.getmtime, inputs))

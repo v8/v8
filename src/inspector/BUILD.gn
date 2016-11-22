@@ -140,7 +140,6 @@ v8_source_set("inspector") {
     "inspected-context.h",
     "java-script-call-frame.cc",
     "java-script-call-frame.h",
-    "protocol-platform.h",
     "remote-object-id.cc",
     "remote-object-id.h",
     "script-breakpoint.h",

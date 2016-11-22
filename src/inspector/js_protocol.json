@@ -211,7 +211,6 @@
         "commands": [
             {
                 "name": "evaluate",
-                "async": true,
                 "parameters": [
                     { "name": "expression", "type": "string", "description": "Expression to evaluate." },
                     { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects." },
@@ -231,7 +230,6 @@
             },
             {
                 "name": "awaitPromise",
-                "async": true,
                 "parameters": [
                     { "name": "promiseObjectId", "$ref": "RemoteObjectId", "description": "Identifier of the promise." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
@@ -245,7 +243,6 @@
             },
             {
                 "name": "callFunctionOn",
-                "async": true,
                 "parameters": [
                     { "name": "objectId", "$ref": "RemoteObjectId", "description": "Identifier of the object to call function on." },
                     { "name": "functionDeclaration", "type": "string", "description": "Declaration of the function to call." },
@@ -333,7 +330,6 @@
             },
             {
                 "name": "runScript",
-                "async": true,
                 "parameters": [
                     { "name": "scriptId", "$ref": "ScriptId", "description": "Id of the script to run." },
                     { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies in which execution context to perform script run. If the parameter is omitted the evaluation will be performed in the context of the inspected page." },

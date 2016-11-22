@@ -40,7 +40,7 @@ bool V8InspectorSession::canDispatchMethod(const StringView& method) {
 std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId,
     V8Inspector::Channel* channel, const StringView& state) {
-  return wrapUnique(
+  return std::unique_ptr<V8InspectorSessionImpl>(
       new V8InspectorSessionImpl(inspector, contextGroupId, channel, state));
 }
 
@@ -62,35 +62,35 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
       m_schemaAgent(nullptr) {
   if (savedState.length()) {
     std::unique_ptr<protocol::Value> state =
-        protocol::parseJSON(toString16(savedState));
+        protocol::StringUtil::parseJSON(toString16(savedState));
     if (state) m_state = protocol::DictionaryValue::cast(std::move(state));
     if (!m_state) m_state = protocol::DictionaryValue::create();
   } else {
     m_state = protocol::DictionaryValue::create();
   }
 
-  m_runtimeAgent = wrapUnique(new V8RuntimeAgentImpl(
+  m_runtimeAgent.reset(new V8RuntimeAgentImpl(
       this, this, agentState(protocol::Runtime::Metainfo::domainName)));
   protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
 
-  m_debuggerAgent = wrapUnique(new V8DebuggerAgentImpl(
+  m_debuggerAgent.reset(new V8DebuggerAgentImpl(
       this, this, agentState(protocol::Debugger::Metainfo::domainName)));
   protocol::Debugger::Dispatcher::wire(&m_dispatcher, m_debuggerAgent.get());
 
-  m_profilerAgent = wrapUnique(new V8ProfilerAgentImpl(
+  m_profilerAgent.reset(new V8ProfilerAgentImpl(
       this, this, agentState(protocol::Profiler::Metainfo::domainName)));
   protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
 
-  m_heapProfilerAgent = wrapUnique(new V8HeapProfilerAgentImpl(
+  m_heapProfilerAgent.reset(new V8HeapProfilerAgentImpl(
       this, this, agentState(protocol::HeapProfiler::Metainfo::domainName)));
   protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher,
                                            m_heapProfilerAgent.get());
 
-  m_consoleAgent = wrapUnique(new V8ConsoleAgentImpl(
+  m_consoleAgent.reset(new V8ConsoleAgentImpl(
       this, this, agentState(protocol::Console::Metainfo::domainName)));
   protocol::Console::Dispatcher::wire(&m_dispatcher, m_consoleAgent.get());
 
-  m_schemaAgent = wrapUnique(new V8SchemaAgentImpl(
+  m_schemaAgent.reset(new V8SchemaAgentImpl(
       this, this, agentState(protocol::Schema::Metainfo::domainName)));
   protocol::Schema::Dispatcher::wire(&m_dispatcher, m_schemaAgent.get());
 
@@ -305,7 +305,7 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
-  m_dispatcher.dispatch(protocol::parseJSON(message));
+  m_dispatcher.dispatch(protocol::StringUtil::parseJSON(message));
 }
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::stateJSON() {
@@ -366,7 +366,8 @@ void V8InspectorSessionImpl::schedulePauseOnNextStatement(
     const StringView& breakReason, const StringView& breakDetails) {
   m_debuggerAgent->schedulePauseOnNextStatement(
       toString16(breakReason),
-      protocol::DictionaryValue::cast(protocol::parseJSON(breakDetails)));
+      protocol::DictionaryValue::cast(
+          protocol::StringUtil::parseJSON(breakDetails)));
 }
 
 void V8InspectorSessionImpl::cancelPauseOnNextStatement() {
@@ -377,7 +378,8 @@ void V8InspectorSessionImpl::breakProgram(const StringView& breakReason,
                                           const StringView& breakDetails) {
   m_debuggerAgent->breakProgram(
       toString16(breakReason),
-      protocol::DictionaryValue::cast(protocol::parseJSON(breakDetails)));
+      protocol::DictionaryValue::cast(
+          protocol::StringUtil::parseJSON(breakDetails)));
 }
 
 void V8InspectorSessionImpl::setSkipAllPauses(bool skip) {

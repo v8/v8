@@ -15,7 +15,6 @@
 #include <string>
 
 #include "src/base/platform/platform.h"
-#include "src/inspector/protocol-platform.h"
 
 namespace v8_inspector {
 

@@ -19,7 +19,7 @@ class Array {
 public:
     static std::unique_ptr<Array<T>> create()
     {
-        return wrapUnique(new Array<T>());
+        return std::unique_ptr<Array<T>>(new Array<T>());
     }
 
     static std::unique_ptr<Array<T>> parse(protocol::Value* value, ErrorSupport* errors)
@@ -74,7 +74,7 @@ class ArrayBase {
 public:
     static std::unique_ptr<Array<T>> create()
     {
-        return wrapUnique(new Array<T>());
+        return std::unique_ptr<Array<T>>(new Array<T>());
     }
 
     static std::unique_ptr<Array<T>> parse(protocol::Value* value, ErrorSupport* errors)

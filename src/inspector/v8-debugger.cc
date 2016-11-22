@@ -130,8 +130,8 @@ void V8Debugger::getCompiledScripts(
     if (!script->ContextData().ToLocal(&v8ContextData)) continue;
     String16 contextData = toProtocolString(v8ContextData);
     if (contextData.find(contextPrefix) != 0) continue;
-    result.push_back(
-        wrapUnique(new V8DebuggerScript(m_isolate, script, false)));
+    result.push_back(std::unique_ptr<V8DebuggerScript>(
+        new V8DebuggerScript(m_isolate, script, false)));
   }
 }
 
@@ -354,7 +354,7 @@ Response V8Debugger::setScriptSource(
 
   std::unique_ptr<v8::Context::Scope> contextScope;
   if (!isPaused())
-    contextScope = wrapUnique(new v8::Context::Scope(debuggerContext()));
+    contextScope.reset(new v8::Context::Scope(debuggerContext()));
 
   v8::Local<v8::Value> argv[] = {toV8String(m_isolate, sourceID), newSource,
                                  v8Boolean(dryRun, m_isolate)};
@@ -596,7 +596,8 @@ void V8Debugger::handleV8DebugEvent(
       m_wasmTranslation.AddScript(scriptWrapper.As<v8::Object>());
     } else if (m_ignoreScriptParsedEventsCounter == 0) {
       agent->didParseSource(
-          wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
+          std::unique_ptr<V8DebuggerScript>(
+              new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
           event == v8::AfterCompile);
     }
   } else if (event == v8::Exception) {

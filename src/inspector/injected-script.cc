@@ -105,9 +105,9 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   if (inspector->getContext(contextGroupId, contextId) != inspectedContext)
     return nullptr;
   if (!injectedScriptValue->IsObject()) return nullptr;
-  return wrapUnique(new InjectedScript(inspectedContext,
-                                       injectedScriptValue.As<v8::Object>(),
-                                       std::move(injectedScriptNative)));
+  return std::unique_ptr<InjectedScript>(
+      new InjectedScript(inspectedContext, injectedScriptValue.As<v8::Object>(),
+                         std::move(injectedScriptNative)));
 }
 
 InjectedScript::InjectedScript(
@@ -158,7 +158,7 @@ Response InjectedScript::getProperties(
 
 void InjectedScript::releaseObject(const String16& objectId) {
   std::unique_ptr<protocol::Value> parsedObjectId =
-      protocol::parseJSON(objectId);
+      protocol::StringUtil::parseJSON(objectId);
   if (!parsedObjectId) return;
   protocol::DictionaryValue* object =
       protocol::DictionaryValue::cast(parsedObjectId.get());

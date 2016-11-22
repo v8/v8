@@ -1056,7 +1056,7 @@ void V8DebuggerAgentImpl::didParseSource(
   std::unique_ptr<protocol::DictionaryValue> executionContextAuxData;
   if (!script->executionContextAuxData().isEmpty())
     executionContextAuxData = protocol::DictionaryValue::cast(
-        protocol::parseJSON(script->executionContextAuxData()));
+        protocol::StringUtil::parseJSON(script->executionContextAuxData()));
   bool isLiveEdit = script->isLiveEdit();
   bool hasSourceURL = script->hasSourceURL();
   String16 scriptId = script->scriptId();

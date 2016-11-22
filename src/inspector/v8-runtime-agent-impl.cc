@@ -706,7 +706,7 @@ void V8RuntimeAgentImpl::reportExecutionContextCreated(
           .build();
   if (!context->auxData().isEmpty())
     description->setAuxData(protocol::DictionaryValue::cast(
-        protocol::parseJSON(context->auxData())));
+        protocol::StringUtil::parseJSON(context->auxData())));
   m_frontend.executionContextCreated(std::move(description));
 }
 
