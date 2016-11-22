@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
 
 // This test ensures that IC learning doesn't interfere with stepping into
 // property accessor. f1()'s ICs are allowed to learn to a monomorphic state,

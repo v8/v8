@@ -1240,6 +1240,18 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_PrepareStepFrame) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  CHECK(isolate->debug()->CheckExecutionState());
+
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+
+  // Prepare step.
+  isolate->debug()->PrepareStep(StepFrame);
+  return isolate->heap()->undefined_value();
+}
 
 // Clear all stepping set by PrepareStep.
 RUNTIME_FUNCTION(Runtime_ClearStepping) {

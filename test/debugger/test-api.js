@@ -378,6 +378,7 @@ class DebugWrapper {
       case this.StepAction.StepOut: this.stepOut(); break;
       case this.StepAction.StepNext: this.stepOver(); break;
       case this.StepAction.StepIn: this.stepInto(); break;
+      case this.StepAction.StepFrame: %PrepareStepFrame(); break;
       default: %AbortJS("Unsupported StepAction"); break;
     }
   }
