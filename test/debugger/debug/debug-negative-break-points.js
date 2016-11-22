@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
 
 var Debug = debug.Debug;
 var break_count = 0;
@@ -63,37 +62,37 @@ assertCount(3, 1);
 f(1);
 assertCount(4, 1);
 
-Debug.setBreakPoint(f, 1, 0, "x > 0");
+assertThrows(() => Debug.setBreakPoint(f, 1, 0, "x > 0"));
 f(1);
-assertCount(5, 1);
+assertCount(5, 2);
 f(0);
-assertCount(5, 1);
+assertCount(5, 2);
 
 Debug.setBreakPoint(g, 2, 0, "1 == 2");
 g(1);
-assertCount(5, 1);
+assertCount(5, 2);
 
-Debug.setBreakPoint(g, 2, 0, "x == 1");
+assertThrows(() => Debug.setBreakPoint(g, 2, 0, "x == 1"));
 g(1);
-assertCount(6, 2);
+assertCount(5, 3);
 g(2);
-assertCount(6, 2);
+assertCount(5, 3);
 g(1);
-assertCount(7, 3);
+assertCount(5, 3);
 
-Debug.setBreakPoint(g, 2, 0, "x > 0");
+assertThrows(() => Debug.setBreakPoint(g, 2, 0, "x > 0"));
 g(1);
-assertCount(8, 4);
+assertCount(5, 4);
 g(0);
-assertCount(8, 4);
+assertCount(5, 4);
 
 h(0);
-assertCount(8, 5);
+assertCount(5, 5);
 Debug.setBreakPoint(h, 3, 0, "x > 0");
 h(1);
-assertCount(9, 6);
+assertCount(6, 6);
 h(0);
-assertCount(9, 6);
+assertCount(6, 6);
 
 Debug.clearBreakOnException();
 Debug.setListener(null);

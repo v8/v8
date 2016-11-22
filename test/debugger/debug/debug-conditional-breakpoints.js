@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 // Simple debug event handler which just counts the number of break points hit.
@@ -81,19 +79,6 @@ f();
 assertEquals(1, break_point_hit_count);
 Debug.clearBreakPoint(bp);
 
-// Changing condition.
-break_point_hit_count = 0;
-bp = Debug.setBreakPoint(f, 0, 0, '"ab".indexOf("b") > 0');
-f();
-assertEquals(1, break_point_hit_count);
-Debug.changeBreakPointCondition(bp, 'Math.sin(Math.PI/2) > 1');
-f();
-assertEquals(1, break_point_hit_count);
-Debug.changeBreakPointCondition(bp, '1==1');
-f();
-assertEquals(2, break_point_hit_count);
-Debug.clearBreakPoint(bp);
-
 // Conditional breakpoint which checks global variable.
 break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, 'x==1');
@@ -134,21 +119,19 @@ Debug.clearBreakPoint(bp);
 // Multiple conditional breakpoint which the same condition.
 break_point_hit_count = 0;
 bp1 = Debug.setBreakPoint(h, 0, 22, 'a % 2 == 0');
-bp2 = Debug.setBreakPoint(h, 0, 22, 'a % 2 == 0');
+assertThrows(() => Debug.setBreakPoint(h, 0, 22, 'a % 2 == 0'));
 for (var i = 0; i < 10; i++) {
   g();
 }
 assertEquals(5, break_point_hit_count);
 Debug.clearBreakPoint(bp1);
-Debug.clearBreakPoint(bp2);
 
 // Multiple conditional breakpoint which different conditions.
 break_point_hit_count = 0;
 bp1 = Debug.setBreakPoint(h, 0, 22, 'a % 2 == 0');
-bp2 = Debug.setBreakPoint(h, 0, 22, '(a + 1) % 2 == 0');
+assertThrows(() => Debug.setBreakPoint(h, 0, 22, '(a + 1) % 2 == 0'));
 for (var i = 0; i < 10; i++) {
   g();
 }
-assertEquals(10, break_point_hit_count);
+assertEquals(5, break_point_hit_count);
 Debug.clearBreakPoint(bp1);
-Debug.clearBreakPoint(bp2);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --no-analyze-environment-liveness
+// Flags: --no-analyze-environment-liveness
 
 // Test that debug-evaluate only resolves variables that are used by
 // the function inside which we debug-evaluate. This is to avoid

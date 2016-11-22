@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --expose-gc --send-idle-notification
-// Flags: --allow-natives-syntax --expose-natives-as natives
+// Flags: --expose-gc --send-idle-notification
+// Flags: --expose-natives-as natives
 // Flags: --noharmony-shipping
 // Flags: --nostress-opt
 
@@ -39,7 +39,6 @@
 // as 'experimental', but are still returned by Debug.scripts(), so
 // we disable harmony-shipping for this test
 
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;
 Debug.setListener(function(){});
 

@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;
 
 var test_name;
@@ -68,7 +66,7 @@ function BeginTest(name) {
 
 // Check result of a test.
 function EndTest() {
-  assertTrue(listener_called, "listerner not called for " + test_name);
+  assertTrue(listener_called, "listener not called for " + test_name);
   assertNull(exception, test_name);
   end_test_count++;
 }

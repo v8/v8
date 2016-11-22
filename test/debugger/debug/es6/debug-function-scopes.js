@@ -25,18 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 
 "use strict";
 let top_level_let = 255;
 
-// Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
 
-function CheckScope(scope_mirror, scope_expectations, expected_scope_type) {
-  assertEquals(expected_scope_type, scope_mirror.scopeType());
+const ScopeType = debug.ScopeType;
 
-  var scope_object = scope_mirror.scopeObject().value();
+let exception = null;
+let listenerDelegate = null;
+
+const expected_break_count = 5;
+let break_count = 0;
+
+Debug.setListener(function(event, exec_state, event_data, data) {
+  if (event != Debug.DebugEvent.Break) return;
+  try {
+    break_count++;
+    listenerDelegate(exec_state);
+  } catch (e) {
+    exception = e;
+    print(e, e.stack);
+  }
+});
+
+function CheckScope(scope_frame, scope_expectations, expected_scope_type) {
+  assertEquals(expected_scope_type, scope_frame.scopeType());
+
+  var scope_object = scope_frame.scopeObject().value();
 
   for (let name in scope_expectations) {
     let actual = scope_object[name];
@@ -45,16 +62,22 @@ function CheckScope(scope_mirror, scope_expectations, expected_scope_type) {
   }
 }
 
-// A copy of the scope types from debug/mirrors.js.
-var ScopeType = { Global: 0,
-                  Local: 1,
-                  With: 2,
-                  Closure: 3,
-                  Catch: 4,
-                  Block: 5,
-                  Script: 6};
+// ---
 
-var f1 = (function F1(x) {
+listenerDelegate = function(exec_state) {
+  const frame = exec_state.frame(0);
+
+  assertEquals(6, frame.scopeCount());
+
+  CheckScope(frame.scope(0), {}, ScopeType.Local);
+  CheckScope(frame.scope(1), { a: 4, b: 5 }, ScopeType.Closure);
+  CheckScope(frame.scope(2), { z: 22, w: 5, v: "Capybara" }, ScopeType.Closure);
+  CheckScope(frame.scope(3), { x: 5 }, ScopeType.Closure);
+  CheckScope(frame.scope(4), { top_level_let: 255 }, ScopeType.Script);
+  CheckScope(frame.scope(5), {}, ScopeType.Global);
+};
+
+(function F1(x) {
   function F2(y) {
     var z = x + y;
     {
@@ -62,6 +85,7 @@ var f1 = (function F1(x) {
       var v = "Capybara";
       var F3 = function(a, b) {
         function F4(p) {
+          debugger;
           return p + a + b + z + w + v.length;
         }
         return F4;
@@ -70,19 +94,24 @@ var f1 = (function F1(x) {
     }
   }
   return F2(17);
-})(5);
+})(5)();
 
-var mirror = Debug.MakeMirror(f1);
+// ---
 
-assertEquals(5, mirror.scopeCount());
+listenerDelegate = function(exec_state) {
+  const frame = exec_state.frame(0);
 
-CheckScope(mirror.scope(0), { a: 4, b: 5 }, ScopeType.Closure);
-CheckScope(mirror.scope(1), { z: 22, w: 5, v: "Capybara" }, ScopeType.Closure);
-CheckScope(mirror.scope(2), { x: 5 }, ScopeType.Closure);
-CheckScope(mirror.scope(3), { top_level_let: 255 }, ScopeType.Script);
-CheckScope(mirror.scope(4), {}, ScopeType.Global);
+  assertEquals(6, frame.scopeCount());
 
-var f2 = (function() {
+  CheckScope(frame.scope(0), {}, ScopeType.Local);
+  CheckScope(frame.scope(1), { l3: 9 }, ScopeType.Block);
+  CheckScope(frame.scope(2), { l2: 7 }, ScopeType.Block);
+  CheckScope(frame.scope(3), { v1:3, l0: 0, v3: 5, v6: 11 }, ScopeType.Closure);
+  CheckScope(frame.scope(4), { top_level_let: 255 }, ScopeType.Script);
+  CheckScope(frame.scope(5), {}, ScopeType.Global);
+};
+
+(function() {
   var v1 = 3;
   var v2 = 4;
   let l0 = 0;
@@ -98,19 +127,10 @@ var f2 = (function() {
         let l4 = 11;
         var v6 = l4;
         return function() {
+          debugger;
           return l0 + v1 + v3 + l2 + l3 + v6;
         };
       }
     }
   }
-})();
-
-var mirror = Debug.MakeMirror(f2);
-
-assertEquals(5, mirror.scopeCount());
-
-CheckScope(mirror.scope(0), { l3: 9 }, ScopeType.Block);
-CheckScope(mirror.scope(1), { l2: 7 }, ScopeType.Block);
-CheckScope(mirror.scope(2), { v1:3, l0: 0, v3: 5, v6: 11 }, ScopeType.Closure);
-CheckScope(mirror.scope(3), { top_level_let: 255 }, ScopeType.Script);
-CheckScope(mirror.scope(4), {}, ScopeType.Global);
+})()();

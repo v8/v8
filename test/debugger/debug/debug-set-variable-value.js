@@ -25,11 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 
-// Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
-var DebugCommandProcessor = debug.DebugCommandProcessor;
 
 // Accepts a function/closure 'fun' that must have a debugger statement inside.
 // A variable 'variable_name' must be initialized before debugger statement
@@ -78,24 +75,6 @@ function RunPauseTest(scope_number, expected_old_result, variable_name,
   assertEquals(expected_new_result, actual_new_result);
 }
 
-// Accepts a closure 'fun' that returns a variable from its outer scope.
-// The test changes the value of variable via the handle to function and checks
-// that the return value changed accordingly.
-function RunClosureTest(scope_number, expected_old_result, variable_name,
-    new_value, expected_new_result, fun) {
-  var actual_old_result = fun();
-  assertEquals(expected_old_result, actual_old_result);
-
-  var fun_mirror = Debug.MakeMirror(fun);
-
-  var scope = fun_mirror.scope(scope_number);
-  scope.setVariableValue(variable_name, new_value);
-
-  var actual_new_result = fun();
-
-  assertEquals(expected_new_result, actual_new_result);
-}
-
 
 function ClosureTestCase(scope_index, old_result, variable_name, new_value,
     new_result, success_expected, factory) {
@@ -113,15 +92,6 @@ ClosureTestCase.prototype.run_pause_test = function() {
   var fun = this.factory_(true);
   this.run_and_catch_(function() {
     RunPauseTest(th.scope_index_ + 1, th.old_result_, th.variable_name_,
-        th.new_value_, th.new_result_, fun);
-  });
-}
-
-ClosureTestCase.prototype.run_closure_test = function() {
-  var th = this;
-  var fun = this.factory_(false);
-  this.run_and_catch_(function() {
-    RunClosureTest(th.scope_index_, th.old_result_, th.variable_name_,
         th.new_value_, th.new_result_, fun);
   });
 }
@@ -212,10 +182,6 @@ for (var i = 0; i < closure_test_cases.length; i++) {
   closure_test_cases[i].run_pause_test();
 }
 
-for (var i = 0; i < closure_test_cases.length; i++) {
-  closure_test_cases[i].run_closure_test();
-}
-
 
 // Test local scope.
 
@@ -290,25 +256,6 @@ RunPauseTest(0, 5, 'p', 2012, 2012, (function Factory() {
 })());
 
 
-// Test value description protocol JSON
-
-assertEquals(true, DebugCommandProcessor.resolveValue_({value: true}));
-
-assertSame(null, DebugCommandProcessor.resolveValue_({type: "null"}));
-assertSame(undefined,
-    DebugCommandProcessor.resolveValue_({type: "undefined"}));
-
-assertSame("123", DebugCommandProcessor.resolveValue_(
-    {type: "string", stringDescription: "123"}));
-assertSame(123, DebugCommandProcessor.resolveValue_(
-    {type: "number", stringDescription: "123"}));
-
-assertSame(Number, DebugCommandProcessor.resolveValue_(
-    {handle: Debug.MakeMirror(Number).handle()}));
-assertSame(RunClosureTest, DebugCommandProcessor.resolveValue_(
-    {handle: Debug.MakeMirror(RunClosureTest).handle()}));
-
-
 // Test script-scope variable.
 let abc = 12;
 {
@@ -318,7 +265,6 @@ let abc = 12;
       if (event == Debug.DebugEvent.Break) {
         let scope_count = exec_state.frame().scopeCount();
         let script_scope = exec_state.frame().scope(scope_count - 2);
-        assertTrue(script_scope.isScope());
         assertEquals(debug.ScopeType.Script, script_scope.scopeType());
         script_scope.setVariableValue('abc', 42);
       }

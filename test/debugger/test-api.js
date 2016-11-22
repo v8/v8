@@ -519,6 +519,14 @@ class DebugWrapper {
     return { value : () => localValue };
   }
 
+  reconstructValue(objectId) {
+    const {msgid, msg} = this.createMessage(
+        "Runtime.getProperties", { objectId : objectId, ownProperties: true });
+    this.sendMessage(msg);
+    const reply = this.takeReplyChecked(msgid);
+    return Object(reply.result.internalProperties[0].value.value);
+  }
+
   reconstructRemoteObject(obj) {
     let value = obj.value;
     let isUndefined = false;
@@ -554,7 +562,20 @@ class DebugWrapper {
             break;
           }
           default: {
-            value = this.propertiesToObject(this.getProperties(obj.objectId));
+            switch (obj.className) {
+              case "global":
+                value = Function('return this')();
+                break;
+              case "Number":
+              case "String":
+              case "Boolean":
+                value = this.reconstructValue(obj.objectId);
+                break;
+              default:
+                value = this.propertiesToObject(
+                    this.getProperties(obj.objectId));
+                break;
+            }
             break;
           }
         }

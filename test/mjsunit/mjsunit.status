@@ -589,9 +589,6 @@
 ['variant == turbofan_opt', {
   'es6/array-iterator-turbo': [SKIP],
 
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-set-variable-value': [FAIL],
-
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
 

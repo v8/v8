@@ -733,11 +733,13 @@ bool ScopeIterator::SetClosureVariableValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
+  Handle<String> internalized_variable_name =
+      isolate_->factory()->InternalizeString(variable_name);
   Handle<Context> context = CurrentContext();
   Handle<ScriptContextTable> script_contexts(
       context->global_object()->native_context()->script_context_table());
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, variable_name,
+  if (ScriptContextTable::Lookup(script_contexts, internalized_variable_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         script_contexts, lookup_result.context_index);
