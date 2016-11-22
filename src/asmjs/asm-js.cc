@@ -157,8 +157,7 @@ MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
                        info->literal());
   if (!typer.Validate()) {
     DCHECK(!info->isolate()->has_pending_exception());
-    PrintF("Validation of asm.js module failed: %s", typer.error_message());
-    Flush();
+    PrintF("Validation of asm.js module failed: %s\n", typer.error_message());
     return MaybeHandle<FixedArray>();
   }
   v8::internal::wasm::AsmWasmBuilder builder(info->isolate(), info->zone(),

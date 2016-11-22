@@ -346,7 +346,7 @@ class AsmTyper final {
   std::uintptr_t stack_limit_;
   bool stack_overflow_ = false;
   ZoneMap<AstNode*, AsmType*> node_types_;
-  static const int kErrorMessageLimit = 100;
+  static const int kErrorMessageLimit = 128;
   AsmType* fround_type_;
   AsmType* ffi_type_;
   char error_message_[kErrorMessageLimit];
