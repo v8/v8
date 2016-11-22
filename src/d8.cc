@@ -76,10 +76,13 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     if (RoundToPageSize(&length)) {
       void* data = VirtualMemoryAllocate(length);
 #if DEBUG
-      // In debug mode, check the memory is zero-initialized.
-      uint8_t* ptr = reinterpret_cast<uint8_t*>(data);
-      for (size_t i = 0; i < length; i++) {
-        DCHECK_EQ(0, ptr[i]);
+      if (data) {
+        // In debug mode, check the memory is zero-initialized.
+        size_t limit = length / sizeof(uint64_t);
+        uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
+        for (size_t i = 0; i < limit; i++) {
+          DCHECK_EQ(0u, ptr[i]);
+        }
       }
 #endif
       return data;
