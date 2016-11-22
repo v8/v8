@@ -348,9 +348,48 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
     }
 
+    window.addEventListener('popstate', (event) => {
+      popHistoryState(event.state);
+    });
+
+    function popHistoryState(state) {
+      if (!state.version) return false;
+      if (!versions) return false;
+      var version = versions.getByName(state.version);
+      if (!version) return false;
+      var page = version.get(state.page);
+      if (!page) return false;
+      if (!state.entry) {
+        showPage(page);
+      } else {
+        var entry = page.get(state.entry);
+        if (!entry) {
+          showPage(page);
+        } else {
+          showEntry(entry);
+        }
+      }
+      return true;
+    }
+
+    function pushHistoryState() {
+      var selection = selectedEntry ? selectedEntry : selectedPage;
+      if (!selection) return;
+      var state = selection.urlParams();
+      // Don't push a history state if it didn't change.
+      if (JSON.stringify(window.history.state) === JSON.stringify(state)) return;
+      var params = "?";
+      for (var pairs of Object.entries(state)) {
+        params += encodeURIComponent(pairs[0]) + "="
+            + encodeURIComponent(pairs[1]) + "&";
+      }
+      window.history.pushState(state, selection.toString(), params);
+    }
+
     function showPage(firstPage) {
       var changeSelectedEntry = selectedEntry !== undefined 
           && selectedEntry.page === selectedPage;
+      pushHistoryState();
       selectedPage = firstPage;
       selectedPage.sort();
       showPageInColumn(firstPage, 0);
@@ -367,6 +406,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         showEntryDetail(selectedPage.getEntry(selectedEntry));
       }
       showImpactList(selectedPage);
+      pushHistoryState();
     }
 
     function showPageInColumn(page, columnIndex) {
@@ -491,6 +531,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
     }
 
+    function showEntry(entry) {
+      selectedEntry = entry;
+      selectEntry(entry, true);
+    }
+
     function selectEntry(entry, updateSelectedPage) {
       if (updateSelectedPage) {
         entry = selectedPage.version.getEntry(entry);
@@ -533,6 +578,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       showPageDetails(entry);
       showImpactList(entry.page);
       showGraphs(entry.page);
+      pushHistoryState();
     }
     
     function showVersionDetails(entry) {
@@ -1046,12 +1092,26 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       handleLoadJSON(JSON.parse(text));
     }
 
+    function getStateFromParams() {
+      var query = window.location.search.substr(1);
+      var result = {};
+      query.split("&").forEach((part) => {
+        var item = part.split("=");
+        var key = decodeURIComponent(item[0])
+        result[key] = decodeURIComponent(item[1]);
+      });
+      return result;
+    }
+
     function handleLoadJSON(json) {
+      var state = getStateFromParams();
       pages = new Pages();
       versions = Versions.fromJSON(json);
       initialize()
       showPage(versions.versions[0].pages[0]);
-      selectEntry(selectedPage.total);
+      if (!popHistoryState(state)) {
+        selectEntry(selectedPage.total);
+      }
     }
 
     function handleToggleGroup(event) {
@@ -1188,7 +1248,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       get(index) {
         return this.versions[index]
-      };
+      }
+      getByName(name) {
+        return this.versions.find((each) => each.name == name);
+      }
       forEach(f) {
         this.versions.forEach(f);
       }
@@ -1381,6 +1444,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         });
         this.version = version;
       }
+      toString() {
+        return this.version.name + ": " + this.name;
+      }
+      urlParams() {
+        return { version: this.version.name, page: this.name};
+      }
       add(entry) {
         // Ignore accidentally added Group entries.
         if (entry.name.startsWith(GroupedEntry.prefix)) return;
@@ -1473,6 +1542,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.page = undefined;
         this.parent = undefined;
         this.isTotal = false;
+      }
+      urlParams() {
+        var params = this.page.urlParams();
+        params.entry = this.name;
+        return params;
       }
       getCompareWithBaseline(value, property) {
         if (baselineVersion == undefined) return value;
