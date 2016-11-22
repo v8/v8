@@ -992,17 +992,6 @@ class ScriptOrigin {
       Local<Value> source_map_url = Local<Value>(),
       Local<Boolean> resource_is_opaque = Local<Boolean>());
 
-  V8_DEPRECATE_SOON(
-      "Use version without resource_is_embedder_debug_script flag",
-      V8_INLINE ScriptOrigin(Local<Value> resource_name,
-                             Local<Integer> resource_line_offset,
-                             Local<Integer> resource_column_offset,
-                             Local<Boolean> resource_is_shared_cross_origin,
-                             Local<Integer> script_id,
-                             Local<Boolean> resource_is_embedder_debug_script,
-                             Local<Value> source_map_url,
-                             Local<Boolean> resource_is_opaque));
-
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
@@ -8851,23 +8840,6 @@ template<typename T>
 int FunctionCallbackInfo<T>::Length() const {
   return length_;
 }
-
-ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
-                           Local<Integer> resource_line_offset,
-                           Local<Integer> resource_column_offset,
-                           Local<Boolean> resource_is_shared_cross_origin,
-                           Local<Integer> script_id,
-                           Local<Boolean> resource_is_embedder_debug_script,
-                           Local<Value> source_map_url,
-                           Local<Boolean> resource_is_opaque)
-    : resource_name_(resource_name),
-      resource_line_offset_(resource_line_offset),
-      resource_column_offset_(resource_column_offset),
-      options_(!resource_is_shared_cross_origin.IsEmpty() &&
-                   resource_is_shared_cross_origin->IsTrue(),
-               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue()),
-      script_id_(script_id),
-      source_map_url_(source_map_url) {}
 
 ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                            Local<Integer> resource_line_offset,
