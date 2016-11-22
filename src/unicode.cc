@@ -235,35 +235,31 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   while (count < max_count && IsContinuationCharacter(str[count])) {
     count++;
   }
+  *cursor += count;
 
-  // Check overly long sequences & other conditions. Use length as error
-  // indicator.
+  // There must be enough continuation characters.
+  if (count != length) return kBadChar;
+
+  // Check overly long sequences & other conditions.
   if (length == 3) {
     if (str[0] == 0xE0 && (str[1] < 0xA0 || str[1] > 0xBF)) {
       // Overlong three-byte sequence?
-      length = 0;
+      return kBadChar;
     } else if (str[0] == 0xED && (str[1] < 0x80 || str[1] > 0x9F)) {
       // High and low surrogate halves?
-      length = 0;
+      return kBadChar;
     }
   } else if (length == 4) {
     if (str[0] == 0xF0 && (str[1] < 0x90 || str[1] > 0xBF)) {
       // Overlong four-byte sequence.
-      length = 0;
+      return kBadChar;
     } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
       // Code points outside of the unicode range.
-      length = 0;
+      return kBadChar;
     }
   }
 
-  if (count != length) {
-    // All invalid encodings should land here.
-    *cursor += count;
-    return kBadChar;
-  }
-
   // All errors have been handled, so we only have to assemble the result.
-  *cursor += length;
   switch (length) {
     case 1:
       return str[0];
