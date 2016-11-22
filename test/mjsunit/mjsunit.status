@@ -540,13 +540,6 @@
   'shared-function-tier-up-ignition': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  # The deopt fuzzer currently does not respect the 'variant != ignition' rule
-  # further down in this file, so we have to duplicate this here.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5374
-  'modules-*': [SKIP],
-
   # Fails deopt_fuzzer due to --deopt_every_n_times or
   # deopt_every_n_garbage_collections
   'es6/array-iterator-turbo': [SKIP]
