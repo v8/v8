@@ -266,8 +266,11 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
     // AstValueFactory doesn't know about it.
     factory.set_zone(zone());
     DCHECK_NOT_NULL(name.string_);
-    scope()->NewUnresolved(&factory, name.string_, start_position,
-                           NORMAL_VARIABLE);
+    VariableProxy* proxy = scope()->NewUnresolved(
+        &factory, name.string_, start_position, NORMAL_VARIABLE);
+    // We don't know whether the preparsed function assigns or not, so we set
+    // is_assigned pessimistically.
+    proxy->set_is_assigned();
   }
   return PreParserExpression::FromIdentifier(name, zone());
 }

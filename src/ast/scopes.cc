@@ -1609,29 +1609,6 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
   Variable* var = LookupRecursive(proxy, nullptr);
   ResolveTo(info, proxy, var);
-
-  if (FLAG_lazy_inner_functions) {
-    if (info != nullptr && info->is_native()) return;
-    // Pessimistically force context allocation for all variables to which inner
-    // scope variables could potentially resolve to.
-    Scope* scope = GetClosureScope()->outer_scope_;
-    while (scope != nullptr && scope->scope_info_.is_null()) {
-      var = scope->LookupLocal(proxy->raw_name());
-      if (var != nullptr) {
-        // Since we don't lazy parse inner arrow functions, inner functions
-        // cannot refer to the outer "this".
-        if (!var->is_dynamic() && !var->is_this() &&
-            !var->has_forced_context_allocation()) {
-          var->ForceContextAllocation();
-          var->set_is_used();
-          // We don't know what the (potentially lazy parsed) inner function
-          // does with the variable; pessimistically assume that it's assigned.
-          var->set_maybe_assigned();
-        }
-      }
-      scope = scope->outer_scope_;
-    }
-  }
 }
 
 namespace {
