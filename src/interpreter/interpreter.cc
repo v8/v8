@@ -1057,12 +1057,23 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
       __ Bind(&lhs_is_not_number);
       {
         Node* lhs_instance_type = __ LoadInstanceType(lhs);
-        Node* lhs_type =
+        if (Token::IsOrderedRelationalCompareOp(compare_op)) {
+          Label lhs_is_not_oddball(assembler);
+          __ GotoUnless(
+              __ Word32Equal(lhs_instance_type, __ Int32Constant(ODDBALL_TYPE)),
+              &lhs_is_not_oddball);
+
+          var_type_feedback.Bind(
+              __ Int32Constant(CompareOperationFeedback::kNumberOrOddball));
+          __ Goto(&gather_rhs_type);
+
+          __ Bind(&lhs_is_not_oddball);
+        }
+
+        var_type_feedback.Bind(
             __ Select(__ IsStringInstanceType(lhs_instance_type),
                       __ Int32Constant(CompareOperationFeedback::kString),
-                      __ Int32Constant(CompareOperationFeedback::kAny));
-
-        var_type_feedback.Bind(lhs_type);
+                      __ Int32Constant(CompareOperationFeedback::kAny)));
         __ Goto(&gather_rhs_type);
       }
     }
@@ -1092,12 +1103,25 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         __ Bind(&rhs_is_not_number);
         {
           Node* rhs_instance_type = __ LoadInstanceType(rhs);
-          Node* rhs_type =
+          if (Token::IsOrderedRelationalCompareOp(compare_op)) {
+            Label rhs_is_not_oddball(assembler);
+            __ GotoUnless(__ Word32Equal(rhs_instance_type,
+                                         __ Int32Constant(ODDBALL_TYPE)),
+                          &rhs_is_not_oddball);
+
+            var_type_feedback.Bind(__ Word32Or(
+                var_type_feedback.value(),
+                __ Int32Constant(CompareOperationFeedback::kNumberOrOddball)));
+            __ Goto(&update_feedback);
+
+            __ Bind(&rhs_is_not_oddball);
+          }
+
+          var_type_feedback.Bind(__ Word32Or(
+              var_type_feedback.value(),
               __ Select(__ IsStringInstanceType(rhs_instance_type),
                         __ Int32Constant(CompareOperationFeedback::kString),
-                        __ Int32Constant(CompareOperationFeedback::kAny));
-          var_type_feedback.Bind(
-              __ Word32Or(var_type_feedback.value(), rhs_type));
+                        __ Int32Constant(CompareOperationFeedback::kAny))));
           __ Goto(&update_feedback);
         }
       }

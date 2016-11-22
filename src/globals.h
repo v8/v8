@@ -1253,8 +1253,9 @@ class CompareOperationFeedback {
     kNone = 0x00,
     kSignedSmall = 0x01,
     kNumber = 0x3,
-    kString = 0x4,
-    kAny = 0xf
+    kNumberOrOddball = 0x7,
+    kString = 0x8,
+    kAny = 0x1F
   };
 };
 

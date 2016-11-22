@@ -1555,8 +1555,13 @@ class RepresentationSelector {
                        MachineRepresentation::kBit);
             if (lower()) ChangeToPureOp(node, Int32Op(node));
             return;
-          case NumberOperationHint::kNumber:
           case NumberOperationHint::kNumberOrOddball:
+            // Abstract and strict equality don't perform ToNumber conversions
+            // on Oddballs, so make sure we don't accidentially sneak in a hint
+            // with Oddball feedback here.
+            DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
+          // Fallthrough
+          case NumberOperationHint::kNumber:
             VisitBinop(node, CheckedUseInfoAsFloat64FromHint(hint),
                        MachineRepresentation::kBit);
             if (lower()) ChangeToPureOp(node, Float64Op(node));
