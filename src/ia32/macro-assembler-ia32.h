@@ -260,16 +260,6 @@ class MacroAssembler: public Assembler {
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
-  // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the native context if the map in register
-  // map_in_out is the cached Array map in the native context of
-  // expected_kind.
-  void LoadTransitionedArrayMapConditional(ElementsKind expected_kind,
-                                           ElementsKind transitioned_kind,
-                                           Register map_in_out,
-                                           Register scratch,
-                                           Label* no_map_match);
-
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 
@@ -390,24 +380,6 @@ class MacroAssembler: public Assembler {
 
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
-
-  // Check if a map for a JSObject indicates that the object can have both smi
-  // and HeapObject elements.  Jump to the specified label if it does not.
-  void CheckFastObjectElements(Register map, Label* fail,
-                               Label::Distance distance = Label::kFar);
-
-  // Check if a map for a JSObject indicates that the object has fast smi only
-  // elements.  Jump to the specified label if it does not.
-  void CheckFastSmiElements(Register map, Label* fail,
-                            Label::Distance distance = Label::kFar);
-
-  // Check to see if maybe_number can be stored as a double in
-  // FastDoubleElements. If it can, store it at the index specified by key in
-  // the FastDoubleElements array elements, otherwise jump to fail.
-  void StoreNumberToDoubleElements(Register maybe_number, Register elements,
-                                   Register key, Register scratch1,
-                                   XMMRegister scratch2, Label* fail,
-                                   int offset = 0);
 
   // Compare an object's map with the specified map.
   void CompareMap(Register obj, Handle<Map> map);
@@ -942,20 +914,6 @@ class MacroAssembler: public Assembler {
   void TestJSArrayForAllocationMemento(Register receiver_reg,
                                        Register scratch_reg,
                                        Label* no_memento_found);
-
-  void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
-                                         Register scratch_reg,
-                                         Label* memento_found) {
-    Label no_memento_found;
-    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
-                                    &no_memento_found);
-    j(equal, memento_found);
-    bind(&no_memento_found);
-  }
-
-  // Jumps to found label if a prototype map has dictionary elements.
-  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
-                                        Register scratch1, Label* found);
 
  private:
   bool generating_stub_;

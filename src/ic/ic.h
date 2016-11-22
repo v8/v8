@@ -451,9 +451,6 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
 
-  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
-                                            ExtraICState extra_state);
-
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:

@@ -1566,21 +1566,6 @@ class MacroAssembler : public Assembler {
                     Label* if_any_set,
                     Label* fall_through);
 
-  // Check if a map for a JSObject indicates that the object can have both smi
-  // and HeapObject elements.  Jump to the specified label if it does not.
-  void CheckFastObjectElements(Register map, Register scratch, Label* fail);
-
-  // Check to see if number can be stored as a double in FastDoubleElements.
-  // If it can, store it at the index specified by key_reg in the array,
-  // otherwise jump to fail.
-  void StoreNumberToDoubleElements(Register value_reg,
-                                   Register key_reg,
-                                   Register elements_reg,
-                                   Register scratch1,
-                                   FPRegister fpscratch1,
-                                   Label* fail,
-                                   int elements_offset = 0);
-
   // ---------------------------------------------------------------------------
   // Inline caching support.
 
@@ -1623,17 +1608,6 @@ class MacroAssembler : public Assembler {
                                        Register scratch1,
                                        Register scratch2,
                                        Label* no_memento_found);
-
-  void JumpIfJSArrayHasAllocationMemento(Register receiver,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Label* memento_found) {
-    Label no_memento_found;
-    TestJSArrayForAllocationMemento(receiver, scratch1, scratch2,
-                                    &no_memento_found);
-    B(eq, memento_found);
-    Bind(&no_memento_found);
-  }
 
   // The stack pointer has to switch between csp and jssp when setting up and
   // destroying the exit frame. Hence preserving/restoring the registers is
@@ -1902,18 +1876,6 @@ class MacroAssembler : public Assembler {
   // Print a message to stderr and abort execution.
   void Abort(BailoutReason reason);
 
-  // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the native context if the map in register
-  // map_in_out is the cached Array map in the native context of
-  // expected_kind.
-  void LoadTransitionedArrayMapConditional(
-      ElementsKind expected_kind,
-      ElementsKind transitioned_kind,
-      Register map_in_out,
-      Register scratch1,
-      Register scratch2,
-      Label* no_map_match);
-
   void LoadNativeContextSlot(int index, Register dst);
 
   // Load the initial map from the global function. The registers function and
@@ -2001,10 +1963,6 @@ class MacroAssembler : public Assembler {
   // EmitFrameSetupForCodeAgePatching. Otherwise, this method asserts that the
   // sequence is a code age sequence (emitted by EmitCodeAgeSequence).
   static bool IsYoungSequence(Isolate* isolate, byte* sequence);
-
-  // Jumps to found label if a prototype map has dictionary elements.
-  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
-                                        Register scratch1, Label* found);
 
   // Perform necessary maintenance operations before a push or after a pop.
   //

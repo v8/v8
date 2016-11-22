@@ -183,9 +183,6 @@ namespace internal {
       LoadWithVector)                                                         \
   ASM(KeyedLoadIC_Miss)                                                       \
   ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
-  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
-  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
-      StoreICState::kStrictModeState)                                         \
   TFS(KeyedStoreIC_Megamorphic_TF, KEYED_STORE_IC, kNoExtraICState,           \
       StoreWithVector)                                                        \
   TFS(KeyedStoreIC_Megamorphic_Strict_TF, KEYED_STORE_IC,                     \

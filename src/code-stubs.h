@@ -44,7 +44,6 @@ class ObjectLiteral;
   V(StoreBufferOverflow)                      \
   V(StoreElement)                             \
   V(SubString)                                \
-  V(KeyedStoreIC)                             \
   V(LoadGlobalIC)                             \
   V(FastNewObject)                            \
   V(FastNewRestParameter)                     \
@@ -59,7 +58,6 @@ class ObjectLiteral;
   /* version of the corresponding stub is  */ \
   /* used universally */                      \
   V(CallICTrampoline)                         \
-  V(KeyedStoreICTrampoline)                   \
   /* --- HydrogenCodeStubs --- */             \
   /* These builtins w/ JS linkage are */      \
   /* just fast-cases of C++ builtins. They */ \
@@ -1999,27 +1997,6 @@ class StoreICTrampolineStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(StoreICTrampoline, TurboFanCodeStub);
 };
 
-class KeyedStoreICTrampolineStub : public PlatformCodeStub {
- public:
-  KeyedStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
- protected:
-  StoreICState state() const { return StoreICState(GetExtraICState()); }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
-  DEFINE_PLATFORM_CODE_STUB(KeyedStoreICTrampoline, PlatformCodeStub);
-};
-
 class KeyedStoreICTrampolineTFStub : public StoreICTrampolineStub {
  public:
   KeyedStoreICTrampolineTFStub(Isolate* isolate, const StoreICState& state)
@@ -2140,28 +2117,6 @@ class StoreICStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreIC, TurboFanCodeStub);
-};
-
-class KeyedStoreICStub : public PlatformCodeStub {
- public:
-  KeyedStoreICStub(Isolate* isolate, const StoreICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  void GenerateForTrampoline(MacroAssembler* masm);
-
-  Code::Kind GetCodeKind() const final { return Code::KEYED_STORE_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_PLATFORM_CODE_STUB(KeyedStoreIC, PlatformCodeStub);
-
- protected:
-  void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 class KeyedStoreICTFStub : public StoreICStub {

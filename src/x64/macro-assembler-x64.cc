@@ -3663,66 +3663,6 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
        Immediate(static_cast<int8_t>(type)));
 }
 
-void MacroAssembler::CheckFastObjectElements(Register map,
-                                             Label* fail,
-                                             Label::Distance distance) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Immediate(Map::kMaximumBitField2FastHoleySmiElementValue));
-  j(below_equal, fail, distance);
-  cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Immediate(Map::kMaximumBitField2FastHoleyElementValue));
-  j(above, fail, distance);
-}
-
-
-void MacroAssembler::CheckFastSmiElements(Register map,
-                                          Label* fail,
-                                          Label::Distance distance) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Immediate(Map::kMaximumBitField2FastHoleySmiElementValue));
-  j(above, fail, distance);
-}
-
-
-void MacroAssembler::StoreNumberToDoubleElements(
-    Register maybe_number,
-    Register elements,
-    Register index,
-    XMMRegister xmm_scratch,
-    Label* fail,
-    int elements_offset) {
-  Label smi_value, done;
-
-  JumpIfSmi(maybe_number, &smi_value, Label::kNear);
-
-  CheckMap(maybe_number,
-           isolate()->factory()->heap_number_map(),
-           fail,
-           DONT_DO_SMI_CHECK);
-
-  // Double value, turn potential sNaN into qNaN.
-  Move(xmm_scratch, 1.0);
-  mulsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
-  jmp(&done, Label::kNear);
-
-  bind(&smi_value);
-  // Value is a smi. convert to a double and store.
-  // Preserve original value.
-  SmiToInteger32(kScratchRegister, maybe_number);
-  Cvtlsi2sd(xmm_scratch, kScratchRegister);
-  bind(&done);
-  Movsd(FieldOperand(elements, index, times_8,
-                     FixedDoubleArray::kHeaderSize - elements_offset),
-        xmm_scratch);
-}
-
-
 void MacroAssembler::CompareMap(Register obj, Handle<Map> map) {
   Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
 }
@@ -5137,28 +5077,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
-
-void MacroAssembler::LoadTransitionedArrayMapConditional(
-    ElementsKind expected_kind,
-    ElementsKind transitioned_kind,
-    Register map_in_out,
-    Register scratch,
-    Label* no_map_match) {
-  DCHECK(IsFastElementsKind(expected_kind));
-  DCHECK(IsFastElementsKind(transitioned_kind));
-
-  // Check that the function's map is the same as the expected cached map.
-  movp(scratch, NativeContextOperand());
-  cmpp(map_in_out,
-       ContextOperand(scratch, Context::ArrayMapIndex(expected_kind)));
-  j(not_equal, no_map_match);
-
-  // Use the transitioned cached map.
-  movp(map_in_out,
-       ContextOperand(scratch, Context::ArrayMapIndex(transitioned_kind)));
-}
-
-
 #ifdef _WIN64
 static const int kRegisterPassedArguments = 4;
 #else
@@ -5500,42 +5418,6 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   CompareRoot(MemOperand(receiver_reg, kMementoMapOffset),
               Heap::kAllocationMementoMapRootIndex);
 }
-
-
-void MacroAssembler::JumpIfDictionaryInPrototypeChain(
-    Register object,
-    Register scratch0,
-    Register scratch1,
-    Label* found) {
-  DCHECK(!(scratch0.is(kScratchRegister) && scratch1.is(kScratchRegister)));
-  DCHECK(!scratch1.is(scratch0));
-  Register current = scratch0;
-  Label loop_again, end;
-
-  movp(current, object);
-  movp(current, FieldOperand(current, HeapObject::kMapOffset));
-  movp(current, FieldOperand(current, Map::kPrototypeOffset));
-  CompareRoot(current, Heap::kNullValueRootIndex);
-  j(equal, &end);
-
-  // Loop based on the map going up the prototype chain.
-  bind(&loop_again);
-  movp(current, FieldOperand(current, HeapObject::kMapOffset));
-  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
-  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
-  CmpInstanceType(current, JS_OBJECT_TYPE);
-  j(below, found);
-  movp(scratch1, FieldOperand(current, Map::kBitField2Offset));
-  DecodeField<Map::ElementsKindBits>(scratch1);
-  cmpp(scratch1, Immediate(DICTIONARY_ELEMENTS));
-  j(equal, found);
-  movp(current, FieldOperand(current, Map::kPrototypeOffset));
-  CompareRoot(current, Heap::kNullValueRootIndex);
-  j(not_equal, &loop_again);
-
-  bind(&end);
-}
-
 
 void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
   DCHECK(!dividend.is(rax));

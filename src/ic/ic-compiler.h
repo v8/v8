@@ -20,13 +20,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
       MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
       CodeHandleList* handlers, KeyedAccessStoreMode store_mode);
 
-  // Helpers
-  // TODO(verwaest): Move all uses of these helpers to the PropertyICCompiler
-  // and make the helpers private.
-  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         LanguageMode language_mode);
-
-
  private:
   explicit PropertyICCompiler(Isolate* isolate)
       : PropertyAccessCompiler(isolate, Code::KEYED_STORE_IC,

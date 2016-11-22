@@ -139,7 +139,6 @@ namespace internal {
   V(kNotEnoughSpillSlotsForOsr, "Not enough spill slots for OSR")              \
   V(kNotEnoughVirtualRegistersRegalloc,                                        \
     "Not enough virtual registers (regalloc)")                                 \
-  V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")              \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
   V(kOperandIsANumber, "Operand is a number")                                  \

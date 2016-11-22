@@ -24,14 +24,6 @@ void Builtins::Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
   KeyedLoadIC::GenerateRuntimeGetProperty(masm);
 }
 
-void Builtins::Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMegamorphic(masm, SLOPPY);
-}
-
-void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMegamorphic(masm, STRICT);
-}
-
 void Builtins::Generate_KeyedStoreIC_Megamorphic_TF(
     compiler::CodeAssemblerState* state) {
   KeyedStoreGenericGenerator::Generate(state, SLOPPY);

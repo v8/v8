@@ -3664,59 +3664,6 @@ void MacroAssembler::TestAndSplit(const Register& reg,
   }
 }
 
-void MacroAssembler::CheckFastObjectElements(Register map,
-                                             Register scratch,
-                                             Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  Ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  Cmp(scratch, Operand(Map::kMaximumBitField2FastHoleySmiElementValue));
-  // If cond==ls, set cond=hi, otherwise compare.
-  Ccmp(scratch,
-       Operand(Map::kMaximumBitField2FastHoleyElementValue), CFlag, hi);
-  B(hi, fail);
-}
-
-
-// Note: The ARM version of this clobbers elements_reg, but this version does
-// not. Some uses of this in ARM64 assume that elements_reg will be preserved.
-void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
-                                                 Register key_reg,
-                                                 Register elements_reg,
-                                                 Register scratch1,
-                                                 FPRegister fpscratch1,
-                                                 Label* fail,
-                                                 int elements_offset) {
-  DCHECK(!AreAliased(value_reg, key_reg, elements_reg, scratch1));
-  Label store_num;
-
-  // Speculatively convert the smi to a double - all smis can be exactly
-  // represented as a double.
-  SmiUntagToDouble(fpscratch1, value_reg, kSpeculativeUntag);
-
-  // If value_reg is a smi, we're done.
-  JumpIfSmi(value_reg, &store_num);
-
-  // Ensure that the object is a heap number.
-  JumpIfNotHeapNumber(value_reg, fail);
-
-  Ldr(fpscratch1, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
-
-  // Canonicalize NaNs.
-  CanonicalizeNaN(fpscratch1);
-
-  // Store the result.
-  Bind(&store_num);
-  Add(scratch1, elements_reg,
-      Operand::UntagSmiAndScale(key_reg, kDoubleSizeLog2));
-  Str(fpscratch1,
-      FieldMemOperand(scratch1,
-                      FixedDoubleArray::kHeaderSize - elements_offset));
-}
-
-
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
@@ -4276,39 +4223,6 @@ void MacroAssembler::JumpIfBlack(Register object,
   HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
 }
 
-
-void MacroAssembler::JumpIfDictionaryInPrototypeChain(
-    Register object,
-    Register scratch0,
-    Register scratch1,
-    Label* found) {
-  DCHECK(!AreAliased(object, scratch0, scratch1));
-  Register current = scratch0;
-  Label loop_again, end;
-
-  // Scratch contains elements pointer.
-  Mov(current, object);
-  Ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
-  Ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
-  CompareAndBranch(current, Heap::kNullValueRootIndex, eq, &end);
-
-  // Loop based on the map going up the prototype chain.
-  Bind(&loop_again);
-  Ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
-  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
-  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
-  CompareInstanceType(current, scratch1, JS_OBJECT_TYPE);
-  B(lo, found);
-  Ldrb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
-  DecodeField<Map::ElementsKindBits>(scratch1);
-  CompareAndBranch(scratch1, DICTIONARY_ELEMENTS, eq, found);
-  Ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
-  CompareAndBranch(current, Heap::kNullValueRootIndex, ne, &loop_again);
-
-  Bind(&end);
-}
-
-
 void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
                                  Register shift_scratch, Register load_scratch,
                                  Register length_scratch,
@@ -4470,30 +4384,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
   SetStackPointer(old_stack_pointer);
   TmpList()->set_list(old_tmp_list);
 }
-
-
-void MacroAssembler::LoadTransitionedArrayMapConditional(
-    ElementsKind expected_kind,
-    ElementsKind transitioned_kind,
-    Register map_in_out,
-    Register scratch1,
-    Register scratch2,
-    Label* no_map_match) {
-  DCHECK(IsFastElementsKind(expected_kind));
-  DCHECK(IsFastElementsKind(transitioned_kind));
-
-  // Check that the function's map is the same as the expected cached map.
-  Ldr(scratch1, NativeContextMemOperand());
-  Ldr(scratch2,
-      ContextMemOperand(scratch1, Context::ArrayMapIndex(expected_kind)));
-  Cmp(map_in_out, scratch2);
-  B(ne, no_map_match);
-
-  // Use the transitioned cached map.
-  Ldr(map_in_out,
-      ContextMemOperand(scratch1, Context::ArrayMapIndex(transitioned_kind)));
-}
-
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   Ldr(dst, NativeContextMemOperand());

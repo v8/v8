@@ -832,15 +832,6 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   }
 }
 
-Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
-                                                 ExtraICState extra_state) {
-  DCHECK(!FLAG_tf_store_ic_stub);
-  LanguageMode mode = StoreICState::GetLanguageMode(extra_state);
-  return is_strict(mode)
-             ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
-             : isolate->builtins()->KeyedStoreIC_Megamorphic();
-}
-
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
   if (FLAG_tf_load_ic_stub) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);

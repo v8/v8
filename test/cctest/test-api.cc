@@ -21791,10 +21791,10 @@ void TestStubCache(bool primary) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,        i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF, i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,       i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreIC,  i::CodeStub::KeyedStoreICTrampoline,
+          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
+          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Heap* heap = i_isolate->heap();
@@ -22718,10 +22718,10 @@ TEST(AccessCheckInIC) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,        i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF, i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,       i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreIC,  i::CodeStub::KeyedStoreICTrampoline,
+          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
+          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Heap* heap = i_isolate->heap();

@@ -4657,76 +4657,6 @@ void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
   Branch(&loop, ult, current_address, Operand(end_address));
 }
 
-void MacroAssembler::CheckFastObjectElements(Register map,
-                                             Register scratch,
-                                             Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  Branch(fail, ls, scratch,
-         Operand(Map::kMaximumBitField2FastHoleySmiElementValue));
-  Branch(fail, hi, scratch,
-         Operand(Map::kMaximumBitField2FastHoleyElementValue));
-}
-
-
-void MacroAssembler::CheckFastSmiElements(Register map,
-                                          Register scratch,
-                                          Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  Branch(fail, hi, scratch,
-         Operand(Map::kMaximumBitField2FastHoleySmiElementValue));
-}
-
-
-void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
-                                                 Register key_reg,
-                                                 Register elements_reg,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Label* fail,
-                                                 int elements_offset) {
-  DCHECK(!AreAliased(value_reg, key_reg, elements_reg, scratch1, scratch2));
-  Label smi_value, done;
-
-  // Handle smi values specially.
-  JumpIfSmi(value_reg, &smi_value);
-
-  // Ensure that the object is a heap number.
-  CheckMap(value_reg,
-           scratch1,
-           Heap::kHeapNumberMapRootIndex,
-           fail,
-           DONT_DO_SMI_CHECK);
-
-  // Double value, turn potential sNaN into qNan.
-  DoubleRegister double_result = f0;
-  DoubleRegister double_scratch = f2;
-
-  ldc1(double_result, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
-  Branch(USE_DELAY_SLOT, &done);  // Canonicalization is one instruction.
-  FPUCanonicalizeNaN(double_result, double_result);
-
-  bind(&smi_value);
-  // Untag and transfer.
-  dsrl32(scratch1, value_reg, 0);
-  mtc1(scratch1, double_scratch);
-  cvt_d_w(double_result, double_scratch);
-
-  bind(&done);
-  Daddu(scratch1, elements_reg,
-      Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag -
-              elements_offset));
-  dsra(scratch2, key_reg, 32 - kDoubleSizeLog2);
-  Daddu(scratch1, scratch1, scratch2);
-  // scratch1 is now effective address of the double element.
-  sdc1(double_result, MemOperand(scratch1, 0));
-}
-
 void MacroAssembler::SubNanPreservePayloadAndSign_s(FPURegister fd,
                                                     FPURegister fs,
                                                     FPURegister ft) {
@@ -5958,27 +5888,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
-
-void MacroAssembler::LoadTransitionedArrayMapConditional(
-    ElementsKind expected_kind,
-    ElementsKind transitioned_kind,
-    Register map_in_out,
-    Register scratch,
-    Label* no_map_match) {
-  DCHECK(IsFastElementsKind(expected_kind));
-  DCHECK(IsFastElementsKind(transitioned_kind));
-
-  // Check that the function's map is the same as the expected cached map.
-  ld(scratch, NativeContextMemOperand());
-  ld(at, ContextMemOperand(scratch, Context::ArrayMapIndex(expected_kind)));
-  Branch(no_map_match, ne, map_in_out, Operand(at));
-
-  // Use the transitioned cached map.
-  ld(map_in_out,
-     ContextMemOperand(scratch, Context::ArrayMapIndex(transitioned_kind)));
-}
-
-
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   ld(dst, NativeContextMemOperand());
   ld(dst, ContextMemOperand(dst, index));
@@ -6364,15 +6273,6 @@ void MacroAssembler::UntagAndJumpIfSmi(Register dst,
                                        Label* smi_case) {
   // DCHECK(!dst.is(src));
   JumpIfSmi(src, smi_case, at, USE_DELAY_SLOT);
-  SmiUntag(dst, src);
-}
-
-
-void MacroAssembler::UntagAndJumpIfNotSmi(Register dst,
-                                          Register src,
-                                          Label* non_smi_case) {
-  // DCHECK(!dst.is(src));
-  JumpIfNotSmi(src, non_smi_case, at, USE_DELAY_SLOT);
   SmiUntag(dst, src);
 }
 
@@ -7041,40 +6941,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   UNREACHABLE();
   return no_reg;
 }
-
-
-void MacroAssembler::JumpIfDictionaryInPrototypeChain(
-    Register object,
-    Register scratch0,
-    Register scratch1,
-    Label* found) {
-  DCHECK(!scratch1.is(scratch0));
-  Factory* factory = isolate()->factory();
-  Register current = scratch0;
-  Label loop_again, end;
-
-  // Scratch contained elements pointer.
-  Move(current, object);
-  ld(current, FieldMemOperand(current, HeapObject::kMapOffset));
-  ld(current, FieldMemOperand(current, Map::kPrototypeOffset));
-  Branch(&end, eq, current, Operand(factory->null_value()));
-
-  // Loop based on the map going up the prototype chain.
-  bind(&loop_again);
-  ld(current, FieldMemOperand(current, HeapObject::kMapOffset));
-  lbu(scratch1, FieldMemOperand(current, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
-  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
-  Branch(found, lo, scratch1, Operand(JS_OBJECT_TYPE));
-  lb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
-  DecodeField<Map::ElementsKindBits>(scratch1);
-  Branch(found, eq, scratch1, Operand(DICTIONARY_ELEMENTS));
-  ld(current, FieldMemOperand(current, Map::kPrototypeOffset));
-  Branch(&loop_again, ne, current, Operand(factory->null_value()));
-
-  bind(&end);
-}
-
 
 bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
                 Register reg5, Register reg6, Register reg7, Register reg8,
