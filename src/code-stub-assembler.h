@@ -21,7 +21,7 @@ class StubCache;
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 #define HEAP_CONSTANT_LIST(V)                         \
-  V(AccessorPairMap, AccessorPairMap)                 \
+  V(AccessorInfoMap, AccessorInfoMap)                 \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
