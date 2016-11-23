@@ -720,12 +720,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return identifier == ast_value_factory()->constructor_string();
   }
 
-  V8_INLINE bool IsDirectEvalCall(Expression* expression) const {
-    if (!expression->IsCall()) return false;
-    expression = expression->AsCall()->expression();
-    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
-  }
-
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
