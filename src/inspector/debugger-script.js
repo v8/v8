@@ -42,6 +42,7 @@ DebuggerScript._scopeTypeNames.set(ScopeType.Closure, "closure");
 DebuggerScript._scopeTypeNames.set(ScopeType.Catch, "catch");
 DebuggerScript._scopeTypeNames.set(ScopeType.Block, "block");
 DebuggerScript._scopeTypeNames.set(ScopeType.Script, "script");
+DebuggerScript._scopeTypeNames.set(ScopeType.Eval, "eval");
 
 /**
  * @param {function()} fun
@@ -530,15 +531,19 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
     case ScopeType.Catch:
     case ScopeType.Block:
     case ScopeType.Script:
+    case ScopeType.Eval:
         // For transient objects we create a "persistent" copy that contains
         // the same properties.
         // Reset scope object prototype to null so that the proto properties
         // don't appear in the local scope section.
         var properties = /** @type {!ObjectMirror} */(MakeMirror(scopeObject, true /* transient */)).properties();
         // Almost always Script scope will be empty, so just filter out that noise.
-        // Also drop empty Block scopes, should we get any.
-        if (!properties.length && (scopeType === ScopeType.Script || scopeType === ScopeType.Block))
+        // Also drop empty Block, Eval and Script scopes, should we get any.
+        if (!properties.length && (scopeType === ScopeType.Script ||
+                                   scopeType === ScopeType.Block ||
+                                   scopeType === ScopeType.Eval)) {
             break;
+        }
         result = { __proto__: null };
         for (var j = 0; j < properties.length; j++) {
             var name = properties[j].name();

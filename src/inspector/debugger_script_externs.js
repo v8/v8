@@ -198,7 +198,8 @@ var ScopeType = { Global: 0,
                   Closure: 3,
                   Catch: 4,
                   Block: 5,
-                  Script: 6 };
+                  Script: 6,
+                  Eval: 7 };
 
 
 /** @typedef {{

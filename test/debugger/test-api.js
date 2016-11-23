@@ -436,6 +436,7 @@ class DebugWrapper {
       case "catch": return this.ScopeType.Catch;
       case "block": return this.ScopeType.Block;
       case "script": return this.ScopeType.Script;
+      case "eval": return this.ScopeType.Eval;
       default: %AbortJS("Unexpected scope type");
     }
   }
@@ -450,7 +451,7 @@ class DebugWrapper {
       }
     }
 
-    if (found == null) return { isUndefined : true }
+    if (found == null) return { isUndefined : () => true };
 
     const val = { value : () => found.value.value };
     return { value : () => val,
