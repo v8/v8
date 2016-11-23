@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"
 #include "src/source-position.h"
@@ -68,8 +69,12 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
 
+  // Collect source positions for optimized code when profiling or if debugger
+  // is active, to be able to get more precise source positions at the price of
+  // more memory consumption.
   if (FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
-      FLAG_turbo_profiling || isolate_->is_profiling()) {
+      FLAG_turbo_profiling || isolate_->is_profiling() ||
+      isolate_->debug()->is_active()) {
     MarkAsSourcePositionsEnabled();
   }
 }
