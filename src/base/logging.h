@@ -141,11 +141,6 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
 #define CHECK_IMPLIES(lhs, rhs) CHECK(!(lhs) || (rhs))
 
-
-// Exposed for making debugging easier (to see where your function is being
-// called, just add a call to DumpBacktrace).
-void DumpBacktrace();
-
 }  // namespace base
 }  // namespace v8
 
