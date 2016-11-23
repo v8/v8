@@ -1085,12 +1085,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   } else {
     if (kind() == Code::LOAD_GLOBAL_IC &&
         lookup->state() == LookupIterator::DATA &&
-        lookup->GetHolder<Object>()->IsJSGlobalObject()) {
-#if DEBUG
-      Handle<Object> holder = lookup->GetHolder<Object>();
-      Handle<Object> receiver = lookup->GetReceiver();
-      DCHECK_EQ(*receiver, *holder);
-#endif
+        lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
+      DCHECK(lookup->GetReceiver()->IsJSGlobalObject());
       // Now update the cell in the feedback vector.
       LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
       nexus->ConfigurePropertyCellMode(lookup->GetPropertyCell());
