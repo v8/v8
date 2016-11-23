@@ -430,12 +430,6 @@ int32_t GrowInstanceMemory(Isolate* isolate,
 Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                      bool enable_guard_regions);
 
-int32_t GrowWebAssemblyMemory(Isolate* isolate, Handle<Object> receiver,
-                              uint32_t pages);
-
-int32_t GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                   uint32_t pages);
-
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, Handle<JSFunction> js_function);
 

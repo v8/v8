@@ -174,8 +174,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                int maximum) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor());
-  Handle<JSObject> memory_obj =
-      isolate->factory()->NewJSObject(memory_ctor, TENURED);
+  Handle<JSObject> memory_obj = isolate->factory()->NewJSObject(memory_ctor);
   memory_obj->SetInternalField(kArrayBuffer, *buffer);
   memory_obj->SetInternalField(kMaximum,
                                static_cast<Object*>(Smi::FromInt(maximum)));
@@ -185,8 +184,6 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
 }
 
 DEFINE_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer, JSArrayBuffer)
-DEFINE_OPTIONAL_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
-                          WasmInstanceWrapper)
 
 uint32_t WasmMemoryObject::current_pages() {
   return SafeUint32(get_buffer()->byte_length()) / wasm::WasmModule::kPageSize;
@@ -202,26 +199,10 @@ WasmMemoryObject* WasmMemoryObject::cast(Object* object) {
   return reinterpret_cast<WasmMemoryObject*>(object);
 }
 
-void WasmMemoryObject::AddInstance(Isolate* isolate,
-                                   Handle<WasmInstanceObject> instance) {
-  Handle<WasmInstanceWrapper> instance_wrapper;
-  if (has_instances_link()) {
-    Handle<WasmInstanceWrapper> current_wrapper(get_instances_link());
-    DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*current_wrapper));
-    DCHECK(!current_wrapper->has_previous());
-    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
-    instance_wrapper->set_next_wrapper(*current_wrapper);
-    current_wrapper->set_previous_wrapper(*instance_wrapper);
-  } else {
-    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
-  }
-  set_instances_link(*instance_wrapper);
-  instance->set_instance_wrapper(*instance_wrapper);
-}
-
-void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  SetInternalField(kInstancesLink, *undefined);
+void WasmMemoryObject::AddInstance(WasmInstanceObject* instance) {
+  // TODO(gdeepti): This should be a weak list of instance objects
+  // for instances that share memory.
+  SetInternalField(kInstance, instance);
 }
 
 DEFINE_ACCESSORS(WasmInstanceObject, compiled_module, kCompiledModule,
@@ -234,8 +215,6 @@ DEFINE_OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, kMemoryObject,
                           WasmMemoryObject)
 DEFINE_OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, kDebugInfo,
                           WasmDebugInfo)
-DEFINE_OPTIONAL_ACCESSORS(WasmInstanceObject, instance_wrapper,
-                          kWasmMemInstanceWrapper, WasmInstanceWrapper)
 
 WasmModuleObject* WasmInstanceObject::module_object() {
   return WasmModuleObject::cast(*get_compiled_module()->wasm_module());
@@ -444,35 +423,4 @@ bool WasmCompiledModule::GetPositionInfo(uint32_t position,
   info->line_start = function.code_start_offset;
   info->line_end = function.code_end_offset;
   return true;
-}
-
-Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance) {
-  Handle<FixedArray> array =
-      isolate->factory()->NewFixedArray(kWrapperPropertyCount, TENURED);
-  Handle<WasmInstanceWrapper> instance_wrapper(
-      reinterpret_cast<WasmInstanceWrapper*>(*array), isolate);
-  instance_wrapper->set_instance_object(instance, isolate);
-  return instance_wrapper;
-}
-
-bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
-  if (!obj->IsFixedArray()) return false;
-  FixedArray* array = FixedArray::cast(obj);
-  if (array->length() != kWrapperPropertyCount) return false;
-  if (!array->get(kWrapperInstanceObject)->IsWeakCell()) return false;
-  Isolate* isolate = array->GetIsolate();
-  if (!array->get(kNextInstanceWrapper)->IsUndefined(isolate) &&
-      !array->get(kNextInstanceWrapper)->IsFixedArray())
-    return false;
-  if (!array->get(kPreviousInstanceWrapper)->IsUndefined(isolate) &&
-      !array->get(kPreviousInstanceWrapper)->IsFixedArray())
-    return false;
-  return true;
-}
-
-void WasmInstanceWrapper::set_instance_object(Handle<JSObject> instance,
-                                              Isolate* isolate) {
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
-  set(kWrapperInstanceObject, *cell);
 }

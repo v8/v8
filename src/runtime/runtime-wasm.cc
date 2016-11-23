@@ -58,7 +58,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     instance = handle(owning_instance, isolate);
   }
   return *isolate->factory()->NewNumberFromInt(
-      wasm::GrowMemory(isolate, instance, delta_pages));
+      wasm::GrowInstanceMemory(isolate, instance, delta_pages));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {

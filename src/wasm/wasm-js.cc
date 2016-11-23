@@ -28,6 +28,12 @@ using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
 
+enum WasmMemoryObjectData {
+  kWasmMemoryBuffer,
+  kWasmMemoryMaximum,
+  kWasmMemoryInstanceObject
+};
+
 namespace {
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
@@ -224,7 +230,6 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
           i_isolate);
     } else {
       thrower.TypeError("Argument 2 must be a WebAssembly.Memory");
-      return;
     }
   }
   i::MaybeHandle<i::JSObject> instance =
@@ -528,15 +533,31 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   uint32_t delta = args[0]->Uint32Value(context).FromJust();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::Object> receiver =
-      i::Handle<i::Object>::cast(Utils::OpenHandle(*args.This()));
-  int32_t ret = i::wasm::GrowWebAssemblyMemory(i_isolate, receiver, delta);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::Object> instance_object(
+      receiver->GetInternalField(kWasmMemoryInstanceObject), i_isolate);
+  i::Handle<i::WasmInstanceObject> instance(
+      i::Handle<i::WasmInstanceObject>::cast(instance_object));
+
+  // TODO(gdeepti) Implement growing memory when shared by different
+  // instances.
+  int32_t ret = internal::wasm::GrowInstanceMemory(i_isolate, instance, delta);
   if (ret == -1) {
     v8::Local<v8::Value> e = v8::Exception::Error(
         v8_str(isolate, "Unable to grow instance memory."));
     isolate->ThrowException(e);
     return;
   }
+  i::MaybeHandle<i::JSArrayBuffer> buffer =
+      internal::wasm::GetInstanceMemory(i_isolate, instance);
+  if (buffer.is_null()) {
+    v8::Local<v8::Value> e = v8::Exception::Error(
+        v8_str(isolate, "WebAssembly.Memory buffer object not set."));
+    isolate->ThrowException(e);
+    return;
+  }
+  receiver->SetInternalField(kWasmMemoryBuffer, *buffer.ToHandleChecked());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(ret);
 }
@@ -552,9 +573,10 @@ void WebAssemblyMemoryGetBuffer(
     return;
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::WasmMemoryObject> receiver =
-      i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(receiver->get_buffer(), i_isolate);
+  i::Handle<i::JSObject> receiver =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*args.This()));
+  i::Handle<i::Object> buffer(receiver->GetInternalField(kWasmMemoryBuffer),
+                              i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
