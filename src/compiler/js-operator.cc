@@ -663,7 +663,7 @@ const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
   return new (zone()) Operator1<NamedAccess>(           // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
-      2, 1, 1, 1, 1, 2,                                 // counts
+      1, 1, 1, 1, 1, 2,                                 // counts
       access);                                          // parameter
 }
 
@@ -673,7 +673,7 @@ const Operator* JSOperatorBuilder::LoadProperty(
   return new (zone()) Operator1<PropertyAccess>(           // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name
-      3, 1, 1, 1, 1, 2,                                    // counts
+      2, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
 }
 
@@ -700,7 +700,7 @@ const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
   return new (zone()) Operator1<NamedAccess>(            // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
-      3, 1, 1, 0, 1, 2,                                  // counts
+      2, 1, 1, 0, 1, 2,                                  // counts
       access);                                           // parameter
 }
 
@@ -711,7 +711,7 @@ const Operator* JSOperatorBuilder::StoreProperty(
   return new (zone()) Operator1<PropertyAccess>(            // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
       "JSStoreProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                     // counts
+      3, 1, 1, 0, 1, 2,                                     // counts
       access);                                              // parameter
 }
 
@@ -732,7 +732,7 @@ const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
-      1, 1, 1, 1, 1, 2,                                  // counts
+      0, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
@@ -744,7 +744,7 @@ const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
   return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
       "JSStoreGlobal",                                    // name
-      2, 1, 1, 0, 1, 2,                                   // counts
+      1, 1, 1, 0, 1, 2,                                   // counts
       parameters);                                        // parameter
 }
 

@@ -743,7 +743,7 @@ Node* BytecodeGraphBuilder::BuildLoadGlobal(Handle<Name> name,
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             feedback_vector()->GetKind(feedback.slot()));
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
-  return NewNode(op, GetFunctionClosure());
+  return NewNode(op);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobal() {
@@ -775,7 +775,7 @@ void BytecodeGraphBuilder::BuildStoreGlobal(LanguageMode language_mode) {
   Node* value = environment()->LookupAccumulator();
 
   const Operator* op = javascript()->StoreGlobal(language_mode, name, feedback);
-  Node* node = NewNode(op, value, GetFunctionClosure());
+  Node* node = NewNode(op, value);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -1037,7 +1037,7 @@ void BytecodeGraphBuilder::VisitLdaNamedProperty() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->LoadNamed(name, feedback);
-  Node* node = NewNode(op, object, GetFunctionClosure());
+  Node* node = NewNode(op, object);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1050,7 +1050,7 @@ void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
 
   const Operator* op = javascript()->LoadProperty(feedback);
-  Node* node = NewNode(op, object, key, GetFunctionClosure());
+  Node* node = NewNode(op, object, key);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1065,7 +1065,7 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->StoreNamed(language_mode, name, feedback);
-  Node* node = NewNode(op, object, value, GetFunctionClosure());
+  Node* node = NewNode(op, object, value);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -1088,7 +1088,7 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-  Node* node = NewNode(op, object, key, value, GetFunctionClosure());
+  Node* node = NewNode(op, object, key, value);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
