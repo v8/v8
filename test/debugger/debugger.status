@@ -18,10 +18,6 @@
   'debug/es6/debug-promises/reject-with-undefined-reject': [FAIL],
   'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
-  # Issue 5650: Unexpected order of break pauses with microtasks.
-  'debug/regress/regress-crbug-568477-2': [FAIL],
-  'debug/es6/debug-stepin-microtasks': [FAIL],
-
   # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
   # parameter value
   'debug/es6/debug-scope-default-param-with-eval': [FAIL],

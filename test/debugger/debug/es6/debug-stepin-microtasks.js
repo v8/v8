@@ -19,6 +19,8 @@ function listener(event, exec_state, event_data, data) {
                  "Expected: // Break " + break_count + ".");
       if (source.indexOf("StepOver.") !== -1) {
         exec_state.prepareStep(Debug.StepAction.StepNext);
+      } else if (source.indexOf("StepOut.") !== -1) {
+        exec_state.prepareStep(Debug.StepAction.StepOut);
       } else {
         exec_state.prepareStep(Debug.StepAction.StepIn);
       }
@@ -46,7 +48,7 @@ Promise.resolve(42)
 function promise1() {
   debugger; // Break 0.
   return exception || 1; // Break 1.
-} // Break 2.
+} // Break 2. StepOver.
 
 function promise2() {
   throw new Error; // Break 3.
@@ -59,7 +61,7 @@ function promise3() {
 function promise4() {
   finalize(); // Break 6. StepOver.
   return 0; // Break 7.
-} // Break 8. StepOver.
+} // Break 8. StepOut.
 
 function finalize() {
   Promise.resolve().then(function() {
