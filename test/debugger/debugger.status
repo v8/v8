@@ -28,6 +28,13 @@
 }],  # ALWAYS
 
 ##############################################################################
+['variant == stress', {
+  # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
+  # with Turbofan, which has issues with the debugger issues.
+  'debug/debug-evaluate-locals': [FAIL],
+}],  # 'stress == True'
+
+##############################################################################
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
   # Tests taking too long

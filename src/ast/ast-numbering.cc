@@ -55,8 +55,8 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
     dont_optimize_reason_ = reason;
     DisableSelfOptimization();
   }
-  void DisableCrankshaft(BailoutReason reason) {
-    properties_.flags() |= AstProperties::kDontCrankshaft;
+  void DisableFullCodegenAndCrankshaft(BailoutReason reason) {
+    properties_.flags() |= AstProperties::kMustUseIgnitionTurbo;
   }
 
   template <typename Node>
@@ -149,10 +149,11 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
   IncrementNodeCount();
   switch (node->var()->location()) {
     case VariableLocation::LOOKUP:
-      DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
+      DisableFullCodegenAndCrankshaft(
+          kReferenceToAVariableWhichRequiresDynamicLookup);
       break;
     case VariableLocation::MODULE:
-      DisableCrankshaft(kReferenceToModuleVariable);
+      DisableFullCodegenAndCrankshaft(kReferenceToModuleVariable);
       break;
     default:
       break;
@@ -176,7 +177,7 @@ void AstNumberingVisitor::VisitThisFunction(ThisFunction* node) {
 void AstNumberingVisitor::VisitSuperPropertyReference(
     SuperPropertyReference* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kSuperReference);
+  DisableFullCodegenAndCrankshaft(kSuperReference);
   node->set_base_id(ReserveIdRange(SuperPropertyReference::num_ids()));
   Visit(node->this_var());
   Visit(node->home_object());
@@ -185,7 +186,7 @@ void AstNumberingVisitor::VisitSuperPropertyReference(
 
 void AstNumberingVisitor::VisitSuperCallReference(SuperCallReference* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kSuperReference);
+  DisableFullCodegenAndCrankshaft(kSuperReference);
   node->set_base_id(ReserveIdRange(SuperCallReference::num_ids()));
   Visit(node->this_var());
   Visit(node->new_target_var());
@@ -282,7 +283,7 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
 
 void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kWithStatement);
+  DisableFullCodegenAndCrankshaft(kWithStatement);
   node->set_base_id(ReserveIdRange(WithStatement::num_ids()));
   Visit(node->expression());
   Visit(node->statement());
@@ -313,7 +314,7 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kTryCatchStatement);
+  DisableFullCodegenAndCrankshaft(kTryCatchStatement);
   {
     const HandlerTable::CatchPrediction old_prediction = catch_prediction_;
     // This node uses its own prediction, unless it's "uncaught", in which case
@@ -332,7 +333,7 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kTryFinallyStatement);
+  DisableFullCodegenAndCrankshaft(kTryFinallyStatement);
   // We can't know whether the finally block will override ("catch") an
   // exception thrown in the try block, so we just adopt the outer prediction.
   node->set_catch_prediction(catch_prediction_);
@@ -417,7 +418,7 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kForOfStatement);
+  DisableFullCodegenAndCrankshaft(kForOfStatement);
   node->set_base_id(ReserveIdRange(ForOfStatement::num_ids()));
   Visit(node->assign_iterator());  // Not part of loop.
   node->set_first_yield_id(yield_count_);
@@ -484,7 +485,7 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kClassLiteral);
+  DisableFullCodegenAndCrankshaft(kClassLiteral);
   node->set_base_id(ReserveIdRange(node->num_ids()));
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
@@ -513,7 +514,8 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 void AstNumberingVisitor::VisitLiteralProperty(LiteralProperty* node) {
-  if (node->is_computed_name()) DisableCrankshaft(kComputedPropertyName);
+  if (node->is_computed_name())
+    DisableFullCodegenAndCrankshaft(kComputedPropertyName);
   Visit(node->key());
   Visit(node->value());
 }
@@ -584,22 +586,22 @@ void AstNumberingVisitor::VisitRewritableExpression(
 
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   DeclarationScope* scope = node->scope();
-  if (scope->new_target_var()) DisableCrankshaft(kSuperReference);
-  if (scope->calls_eval()) DisableCrankshaft(kFunctionCallsEval);
+  if (scope->new_target_var()) DisableFullCodegenAndCrankshaft(kSuperReference);
+  if (scope->calls_eval()) DisableFullCodegenAndCrankshaft(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
-    DisableCrankshaft(kContextAllocatedArguments);
+    DisableFullCodegenAndCrankshaft(kContextAllocatedArguments);
   }
 
   if (scope->rest_parameter() != nullptr) {
-    DisableCrankshaft(kRestParameter);
+    DisableFullCodegenAndCrankshaft(kRestParameter);
   }
 
   if (IsResumableFunction(node->kind())) {
-    DisableCrankshaft(kGenerator);
+    DisableFullCodegenAndCrankshaft(kGenerator);
   }
 
   if (IsClassConstructor(node->kind())) {
-    DisableCrankshaft(kClassConstructorFunction);
+    DisableFullCodegenAndCrankshaft(kClassConstructorFunction);
   }
 
   VisitDeclarations(scope->declarations());

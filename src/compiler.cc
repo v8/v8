@@ -305,7 +305,7 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
   bool optimization_disabled = shared->optimization_disabled();
-  bool dont_crankshaft = shared->dont_crankshaft();
+  bool must_use_ignition_turbo = shared->must_use_ignition_turbo();
 
   // Check the enabling conditions for Turbofan.
   // 1. "use asm" code.
@@ -314,7 +314,7 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
 
   // 2. Fallback for features unsupported by Crankshaft.
   bool is_unsupported_by_crankshaft_but_turbofanable =
-      dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0 &&
+      must_use_ignition_turbo && strcmp(FLAG_turbo_filter, "~~") == 0 &&
       !optimization_disabled;
 
   // 3. Explicitly enabled by the command-line filter.
@@ -326,42 +326,44 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
 
 bool ShouldUseIgnition(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+
+  // Code which can't be supported by the old pipeline should use Ignition.
+  if (shared->must_use_ignition_turbo()) return true;
 
   // Resumable functions are not supported by {FullCodeGenerator}, suspended
   // activations stored as {JSGeneratorObject} on the heap always assume the
   // underlying code to be based on the bytecode array.
-  // TODO(mstarzinger): Once we want to deprecate even more support from the
-  // {FullCodeGenerator}, we will compute an appropriate bit in {AstNumbering}
-  // and turn this predicate into a DCHECK instead.
-  if (IsResumableFunction(info->shared_info()->kind())) {
-    return true;
-  }
+  DCHECK(!IsResumableFunction(shared->kind()));
 
   // Skip Ignition for asm.js functions.
-  if (info->shared_info()->asm_function()) {
+  if (shared->asm_function()) return false;
+
+  // Skip Ignition for asm wasm code.
+  if (FLAG_validate_asm && shared->HasAsmWasmData()) {
     return false;
   }
 
   // When requesting debug code as a replacement for existing code, we provide
   // the same kind as the existing code (to prevent implicit tier-change).
-  if (info->is_debug() && info->shared_info()->is_compiled()) {
-    return !info->shared_info()->HasBaselineCode();
+  if (info->is_debug() && shared->is_compiled()) {
+    return !shared->HasBaselineCode();
   }
 
   // Code destined for TurboFan should be compiled with Ignition first.
-  if (UseTurboFan(info->shared_info())) return true;
+  if (UseTurboFan(shared)) return true;
 
   // Only use Ignition for any other function if FLAG_ignition is true.
   if (!FLAG_ignition) return false;
 
   // Checks whether top level functions should be passed by the filter.
-  if (info->shared_info()->is_toplevel()) {
+  if (shared->is_toplevel()) {
     Vector<const char> filter = CStrVector(FLAG_ignition_filter);
     return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
   }
 
   // Finally respect the filter.
-  return info->shared_info()->PassesFilter(FLAG_ignition_filter);
+  return shared->PassesFilter(FLAG_ignition_filter);
 }
 
 CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
@@ -527,8 +529,8 @@ bool Renumber(ParseInfo* parse_info) {
     if (lit->dont_optimize_reason() != kNoReason) {
       shared_info->DisableOptimization(lit->dont_optimize_reason());
     }
-    if (lit->flags() & AstProperties::kDontCrankshaft) {
-      shared_info->set_dont_crankshaft(true);
+    if (lit->flags() & AstProperties::kMustUseIgnitionTurbo) {
+      shared_info->set_must_use_ignition_turbo(true);
     }
   }
   return true;
@@ -650,6 +652,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   }
 
   // Reset profiler ticks, function is no longer considered hot.
+  DCHECK(shared->is_compiled());
   if (shared->HasBaselineCode()) {
     shared->code()->set_profiler_ticks(0);
   } else if (shared->HasBytecodeArray()) {
@@ -689,10 +692,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // TurboFan can optimize directly from existing bytecode.
   if (use_turbofan && ShouldUseIgnition(info)) {
     if (info->is_osr() && !ignition_osr) return MaybeHandle<Code>();
-    if (!Compiler::EnsureBytecode(info)) {
-      if (isolate->has_pending_exception()) isolate->clear_pending_exception();
-      return MaybeHandle<Code>();
-    }
+    DCHECK(shared->HasBytecodeArray());
     info->MarkAsOptimizeFromBytecode();
   }
 
@@ -822,13 +822,11 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
     return MaybeHandle<Code>();
   }
 
-  // TODO(4280): For now we do not switch generators or async functions to
-  // baseline code because there might be suspended activations stored in
-  // generator objects on the heap. We could eventually go directly to
-  // TurboFan in this case.
-  if (IsResumableFunction(function->shared()->kind())) {
+  // Don't generate full-codegen code for functions it can't support.
+  if (function->shared()->must_use_ignition_turbo()) {
     return MaybeHandle<Code>();
   }
+  DCHECK(!IsResumableFunction(function->shared()->kind()));
 
   if (FLAG_trace_opt) {
     OFStream os(stdout);
@@ -1194,21 +1192,13 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
-  if (!ShouldUseIgnition(info)) return false;
-  if (!info->shared_info()->HasBytecodeArray()) {
-    Handle<Code> original_code(info->shared_info()->code());
+  if (!info->shared_info()->is_compiled()) {
     if (GetUnoptimizedCode(info).is_null()) return false;
     if (info->shared_info()->HasAsmWasmData()) return false;
-    DCHECK(info->shared_info()->is_compiled());
-    if (original_code->kind() == Code::FUNCTION) {
-      // Generating bytecode will install the {InterpreterEntryTrampoline} as
-      // shared code on the function. To avoid an implicit tier down we restore
-      // original baseline code in case it existed beforehand.
-      info->shared_info()->ReplaceCode(*original_code);
-    }
   }
-  DCHECK(info->shared_info()->HasBytecodeArray());
-  return true;
+  DCHECK(info->shared_info()->is_compiled());
+  DCHECK_EQ(ShouldUseIgnition(info), info->shared_info()->HasBytecodeArray());
+  return info->shared_info()->HasBytecodeArray();
 }
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could
@@ -1222,11 +1212,9 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     CompilationInfo unoptimized(info->parse_info(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
 
-    // TODO(4280): For now we do not switch generators or async functions to
-    // baseline code because there might be suspended activations stored in
-    // generator objects on the heap. We could eventually go directly to
-    // TurboFan in this case.
-    if (IsResumableFunction(shared->kind())) return false;
+    // Don't generate full-codegen code for functions it can't support.
+    if (shared->must_use_ignition_turbo()) return false;
+    DCHECK(!IsResumableFunction(shared->kind()));
 
     // When we call PrepareForSerializing below, we will change the shared
     // ParseInfo. Make sure to reset it.
@@ -1240,6 +1228,14 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
       unoptimized.PrepareForSerializing();
     }
     EnsureFeedbackMetadata(&unoptimized);
+
+    // Ensure we generate and install bytecode first if the function should use
+    // Ignition to avoid implicit tier-down.
+    if (!shared->is_compiled() && ShouldUseIgnition(info) &&
+        !GenerateUnoptimizedCode(info)) {
+      return false;
+    }
+
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
     info->parse_info()->set_will_serialize(old_will_serialize_value);
@@ -1714,7 +1710,8 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
                                  PretenureFlag pretenure) {
   Handle<SharedFunctionInfo> shared(function->shared());
 
-  if (FLAG_always_opt && shared->allows_lazy_compilation()) {
+  if (FLAG_always_opt && shared->allows_lazy_compilation() &&
+      function->shared()->is_compiled()) {
     function->MarkForOptimization();
   }
 

@@ -118,7 +118,7 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 
 HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
   if (!isolate()->use_crankshaft() ||
-      info()->shared_info()->dont_crankshaft()) {
+      info()->shared_info()->must_use_ignition_turbo()) {
     // Crankshaft is entirely disabled.
     return FAILED;
   }
@@ -8079,7 +8079,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     TraceInline(target, caller, "parse failure");
     return false;
   }
-  if (target_shared->dont_crankshaft()) {
+  if (target_shared->must_use_ignition_turbo()) {
     TraceInline(target, caller, "ParseAndAnalyze found incompatibility");
     return false;
   }

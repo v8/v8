@@ -7640,8 +7640,10 @@ class SharedFunctionInfo: public HeapObject {
   // Is this a function or top-level/eval code.
   DECL_BOOLEAN_ACCESSORS(is_function)
 
-  // Indicates that code for this function cannot be compiled with Crankshaft.
-  DECL_BOOLEAN_ACCESSORS(dont_crankshaft)
+  // Indicates that code for this function must be compiled through the
+  // Ignition / TurboFan pipeline, and is unsupported by
+  // FullCodegen / Crankshaft.
+  DECL_BOOLEAN_ACCESSORS(must_use_ignition_turbo)
 
   // Indicates that code for this function cannot be flushed.
   DECL_BOOLEAN_ACCESSORS(dont_flush)
@@ -7930,7 +7932,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsAnonymousExpression,
     kNameShouldPrintAsAnonymous,
     kIsFunction,
-    kDontCrankshaft,
+    kMustUseIgnitionTurbo,
     kDontFlush,
     // byte 2
     kFunctionKind,

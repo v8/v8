@@ -164,7 +164,9 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
-  if (Compiler::EnsureBytecode(&info)) {
+
+  CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
+  if (info.shared_info()->HasBytecodeArray()) {
     info.MarkAsOptimizeFromBytecode();
   } else {
     CHECK(Compiler::ParseAndAnalyze(info.parse_info()));

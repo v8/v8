@@ -14560,7 +14560,7 @@ void SetFunctionEntryHookTest::RunTest() {
     RunLoopInNewEnv(isolate);
 
     // Check the expected invocation counts.
-    if (!i::FLAG_ignition && !i::FLAG_turbo) {
+    if (i::FLAG_always_opt || (!i::FLAG_ignition && !i::FLAG_turbo)) {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));

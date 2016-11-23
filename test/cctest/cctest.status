@@ -330,22 +330,6 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # TODO(mstarzinger): Triggers Ignition+TurboFan on everything now and makes
-  # the stack traces within the profilers look different. Needs investigation.
-  'test-api/SetFunctionEntryHook': [SKIP],
-  'test-cpu-profiler/BoundFunctionCall': [FAIL],
-  'test-cpu-profiler/CollectSampleAPI': [FAIL],
-  'test-cpu-profiler/FunctionApplySample': [FAIL],
-  'test-cpu-profiler/FunctionCallSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [FAIL],
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [FAIL],
-  'test-cpu-profiler/NativeMethodUninitializedIC': [FAIL],
-  'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
-  'test-profile-generator/LineNumber': [FAIL],
-  'test-sampler-api/StackFramesConsistent': [FAIL],
-
   # BUG(v8:5457)
   'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
 }],  # variant == turbofan_opt
@@ -362,8 +346,6 @@
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-  'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
   # BUG(5193): Flaky.
@@ -376,9 +358,8 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
+  # BUG(4751). Deopts with kNotASmi instead of expected deopt reason.
+  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
 
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],

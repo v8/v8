@@ -127,6 +127,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     return isolate->heap()->undefined_value();
   }
 
+  // If function isn't compiled, compile it now.
+  if (!function->shared()->is_compiled() &&
+      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
+    return isolate->heap()->undefined_value();
+  }
+
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
