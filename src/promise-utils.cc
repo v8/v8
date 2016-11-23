@@ -44,6 +44,8 @@ void PromiseUtils::CreateResolvingFunctions(Isolate* isolate,
       isolate->factory()->NewPromiseResolvingFunctionContext(
           kPromiseContextLength);
   context->set_native_context(*isolate->native_context());
+  // We set the closure to be an empty function, same as native context.
+  context->set_closure(isolate->native_context()->closure());
   context->set(kAlreadyVisitedSlot, Smi::kZero);
   context->set(kPromiseSlot, *promise);
   context->set(kDebugEventSlot, *debug_event);
