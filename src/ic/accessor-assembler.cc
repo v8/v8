@@ -1367,8 +1367,9 @@ void AccessorAssemblerImpl::KeyedLoadICGeneric(const LoadICParameters* p) {
     const int32_t kMaxLinear = 210;
     Label stub_cache(this);
     Node* bitfield3 = LoadMapBitField3(receiver_map);
-    Node* nof = DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
-    GotoIf(Uint32LessThan(Int32Constant(kMaxLinear), nof), &stub_cache);
+    Node* nof =
+        DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+    GotoIf(UintPtrGreaterThan(nof, IntPtrConstant(kMaxLinear)), &stub_cache);
     Node* descriptors = LoadMapDescriptors(receiver_map);
     Variable var_name_index(this, MachineType::PointerRepresentation());
     Label if_descriptor_found(this);

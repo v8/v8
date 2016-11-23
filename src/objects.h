@@ -3847,8 +3847,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 
-  static const bool kIsEnumerable = Shape::kIsEnumerable;
-
  protected:
   // Generic at put operation.
   MUST_USE_RESULT static Handle<Derived> AtPut(
