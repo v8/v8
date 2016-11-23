@@ -4332,8 +4332,11 @@ void Parser::RewriteDestructuringAssignments() {
         pair.assignment->AsRewritableExpression();
     DCHECK_NOT_NULL(to_rewrite);
     if (!to_rewrite->is_rewritten()) {
-      PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite,
-                                                      pair.scope);
+      // Since this function is called at the end of parsing the program,
+      // pair.scope may already have been removed by FinalizeBlockScope in the
+      // meantime.
+      Scope* scope = pair.scope->GetUnremovedScope();
+      PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope);
     }
   }
 }
@@ -4768,7 +4771,7 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
 
     Block* then = factory()->NewBlock(nullptr, 4 + 1, false, nopos);
     BuildIteratorCloseForCompletion(
-        then->statements(), var_iterator,
+        scope(), then->statements(), var_iterator,
         factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos));
     then->statements()->Add(throw_call, zone());
     check_throw = factory()->NewIfStatement(
@@ -5136,9 +5139,9 @@ void Parser::BuildIteratorClose(ZoneList<Statement*>* statements,
   statements->Add(validate_output, zone());
 }
 
-void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
-                                 Variable* iter, Block* iterator_use,
-                                 Block* target) {
+void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
+                                 Expression* condition, Variable* iter,
+                                 Block* iterator_use, Block* target) {
   //
   // This function adds two statements to [target], corresponding to the
   // following code:
@@ -5194,7 +5197,8 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
   {
     Block* block = factory()->NewBlock(nullptr, 2, true, nopos);
     Expression* proxy = factory()->NewVariableProxy(completion);
-    BuildIteratorCloseForCompletion(block->statements(), iter, proxy);
+    BuildIteratorCloseForCompletion(use_scope, block->statements(), iter,
+                                    proxy);
     DCHECK(block->statements()->length() == 2);
 
     maybe_close = factory()->NewBlock(nullptr, 1, true, nopos);
@@ -5211,7 +5215,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
   // }
   Statement* try_catch;
   {
-    Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
+    Scope* catch_scope = NewScopeWithParent(use_scope, CATCH_SCOPE);
     Variable* catch_variable =
         catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
                                   kCreatedInitialized, NORMAL_VARIABLE);
@@ -5251,7 +5255,8 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
   target->statements()->Add(try_finally, zone());
 }
 
-void Parser::BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
+void Parser::BuildIteratorCloseForCompletion(Scope* scope,
+                                             ZoneList<Statement*>* statements,
                                              Variable* iterator,
                                              Expression* completion) {
   //
@@ -5317,7 +5322,7 @@ void Parser::BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
 
     Block* catch_block = factory()->NewBlock(nullptr, 0, false, nopos);
 
-    Scope* catch_scope = NewScope(CATCH_SCOPE);
+    Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
     Variable* catch_variable =
         catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
                                   kCreatedInitialized, NORMAL_VARIABLE);
@@ -5454,8 +5459,13 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
     Block* try_block = factory()->NewBlock(nullptr, 1, false, nopos);
     try_block->statements()->Add(loop, zone());
 
-    FinalizeIteratorUse(var_completion, closing_condition, loop->iterator(),
-                        try_block, final_loop);
+    // The scope in which the parser creates this loop.
+    Scope* loop_scope = scope()->outer_scope();
+    DCHECK_EQ(loop_scope->scope_type(), BLOCK_SCOPE);
+    DCHECK_EQ(scope()->scope_type(), BLOCK_SCOPE);
+
+    FinalizeIteratorUse(loop_scope, var_completion, closing_condition,
+                        loop->iterator(), try_block, final_loop);
   }
 
   return final_loop;
