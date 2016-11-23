@@ -216,11 +216,10 @@ class RuntimeCallStatEntries {
   // binary size increase: std::vector::push_back expands to a large amount of
   // instructions, and this function is invoked repeatedly by macros.
   V8_NOINLINE void Add(RuntimeCallCounter* counter) {
-    if (counter->count() == 0) return;
-    entries.push_back(
-        Entry(counter->name(), counter->time(), counter->count()));
-    total_time += counter->time();
-    total_call_count += counter->count();
+    if (counter->count == 0) return;
+    entries.push_back(Entry(counter->name, counter->time, counter->count));
+    total_time += counter->time;
+    total_call_count += counter->count;
   }
 
  private:
@@ -274,33 +273,20 @@ class RuntimeCallStatEntries {
 };
 
 void RuntimeCallCounter::Reset() {
-  count_ = 0;
-  time_ = base::TimeDelta();
+  count = 0;
+  time = base::TimeDelta();
 }
 
 void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
-  value->BeginArray(name_);
-  value->AppendLongInteger(count_);
-  value->AppendLongInteger(time_.InMicroseconds());
+  value->BeginArray(name);
+  value->AppendLongInteger(count);
+  value->AppendLongInteger(time.InMicroseconds());
   value->EndArray();
 }
 
 void RuntimeCallCounter::Add(RuntimeCallCounter* other) {
-  count_ += other->count();
-  time_ += other->time();
-}
-
-void RuntimeCallTimer::Snapshot() {
-  base::TimeTicks now = Now();
-  // Pause only / topmost timer in the timer stack.
-  Pause(now);
-  // Commit all the timer's elapsed time to the counters.
-  RuntimeCallTimer* timer = this;
-  while (timer != nullptr) {
-    timer->CommitTimeToCounter();
-    timer = timer->parent();
-  }
-  Resume(now);
+  count += other->count;
+  time += other->time;
 }
 
 // static
@@ -327,7 +313,7 @@ const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   RuntimeCallCounter* counter = &(stats->*counter_id);
-  DCHECK(counter->name() != nullptr);
+  DCHECK(counter->name != nullptr);
   timer->Start(counter, stats->current_timer_.Value());
   stats->current_timer_.SetValue(timer);
 }
@@ -343,7 +329,7 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
     RuntimeCallTimer* next = stats->current_timer_.Value();
     while (next && next->parent() != timer) next = next->parent();
     if (next == nullptr) return;
-    next->set_parent(timer->Stop());
+    next->parent_.SetValue(timer->Stop());
   }
 }
 
@@ -362,13 +348,13 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
   RuntimeCallTimer* timer = stats->current_timer_.Value();
   // When RCS are enabled dynamically there might be no current timer set up.
   if (timer == nullptr) return;
-  timer->set_counter(&(stats->*counter_id));
+  timer->counter_ = &(stats->*counter_id);
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
   if (current_timer_.Value() != nullptr) {
-    current_timer_.Value()->Snapshot();
+    current_timer_.Value()->Elapsed();
   }
   for (const RuntimeCallStats::CounterId counter_id :
        RuntimeCallStats::counters) {
@@ -402,7 +388,7 @@ void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
   for (const RuntimeCallStats::CounterId counter_id :
        RuntimeCallStats::counters) {
     RuntimeCallCounter* counter = &(this->*counter_id);
-    if (counter->count() > 0) counter->Dump(value);
+    if (counter->count > 0) counter->Dump(value);
   }
 
   in_use_ = false;

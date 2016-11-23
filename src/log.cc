@@ -1279,7 +1279,7 @@ void Logger::RuntimeCallTimerEvent() {
   if (counter == nullptr) return;
   Log::MessageBuilder msg(log_);
   msg.Append("active-runtime-timer,");
-  msg.AppendDoubleQuotedString(counter->name());
+  msg.AppendDoubleQuotedString(counter->name);
   msg.WriteToLogFile();
 }
 
