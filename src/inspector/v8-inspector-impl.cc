@@ -97,8 +97,22 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::runCompiledScript(
 v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
     v8::Local<v8::Function> function, v8::Local<v8::Context> context,
     v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[]) {
-  v8::MicrotasksScope microtasksScope(m_isolate,
-                                      v8::MicrotasksScope::kRunMicrotasks);
+  return callFunction(function, context, receiver, argc, info,
+                      v8::MicrotasksScope::kRunMicrotasks);
+}
+
+v8::MaybeLocal<v8::Value> V8InspectorImpl::callInternalFunction(
+    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
+    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[]) {
+  return callFunction(function, context, receiver, argc, info,
+                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+}
+
+v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
+    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
+    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[],
+    v8::MicrotasksScope::Type runMicrotasks) {
+  v8::MicrotasksScope microtasksScope(m_isolate, runMicrotasks);
   int groupId = V8Debugger::getGroupId(context);
   if (V8DebuggerAgentImpl* agent = enabledDebuggerAgentForGroup(groupId))
     agent->willExecuteScript(function->ScriptId());
