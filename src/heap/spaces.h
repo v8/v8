@@ -817,6 +817,7 @@ class LargePage : public MemoryChunk {
   friend class MemoryAllocator;
 };
 
+
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces.
 class Space : public Malloced {
@@ -922,81 +923,6 @@ class Space : public Malloced {
   DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
-// An abstraction of allocation and relocation pointers in a page-structured
-// space.
-class AllocationInfo {
- public:
-  AllocationInfo() : original_top_(nullptr), top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit)
-      : original_top_(top), top_(top), limit_(limit) {}
-
-  void Reset(Address top, Address limit) {
-    original_top_ = top;
-    set_top(top);
-    set_limit(limit);
-  }
-
-  Address original_top() {
-    SLOW_DCHECK(top_ == NULL ||
-                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
-    return original_top_;
-  }
-
-  INLINE(void set_top(Address top)) {
-    SLOW_DCHECK(top == NULL ||
-                (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
-    top_ = top;
-  }
-
-  INLINE(Address top()) const {
-    SLOW_DCHECK(top_ == NULL ||
-                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
-    return top_;
-  }
-
-  Address* top_address() { return &top_; }
-
-  INLINE(void set_limit(Address limit)) { limit_ = limit; }
-
-  INLINE(Address limit()) const { return limit_; }
-
-  Address* limit_address() { return &limit_; }
-
-#ifdef DEBUG
-  bool VerifyPagedAllocation() {
-    return (Page::FromAllocationAreaAddress(top_) ==
-            Page::FromAllocationAreaAddress(limit_)) &&
-           (top_ <= limit_);
-  }
-#endif
-
- private:
-  // The original top address when the allocation info was initialized.
-  Address original_top_;
-  // Current allocation top.
-  Address top_;
-  // Current allocation limit.
-  Address limit_;
-};
-
-class SpaceWithInlineAllocationArea : public Space {
- public:
-  SpaceWithInlineAllocationArea(Heap* heap, AllocationSpace id,
-                                Executability executable)
-      : Space(heap, id, executable), allocation_info_(nullptr, nullptr) {}
-
-  Address top() { return allocation_info_.top(); }
-  Address limit() { return allocation_info_.limit(); }
-
-  Address* allocation_top_address() { return allocation_info_.top_address(); }
-
-  Address* allocation_limit_address() {
-    return allocation_info_.limit_address();
-  }
-
- protected:
-  AllocationInfo allocation_info_;
-};
 
 class MemoryChunkValidator {
   // Computed offsets should match the compiler generated ones.
@@ -1490,11 +1416,8 @@ typedef PageIteratorImpl<LargePage> LargePageIterator;
 class PageRange {
  public:
   typedef PageIterator iterator;
-
-  explicit PageRange(Page* page) : PageRange(page, page->next_page()) {}
   PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
-  inline PageRange(Address start, Address limit);
-
+  explicit PageRange(Page* page) : PageRange(page, page->next_page()) {}
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
@@ -1514,8 +1437,8 @@ class PageRange {
 // iterator in order to be sure to visit these new objects.
 class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
  public:
+  // Creates a new object iterator in a given space.
   explicit HeapObjectIterator(PagedSpace* space);
-  explicit HeapObjectIterator(NewSpace* space);
   explicit HeapObjectIterator(Page* page);
 
   // Advance to the next object, skipping free spaces and other fillers and
@@ -1524,7 +1447,6 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
   inline HeapObject* Next() override;
 
  private:
-  inline Page* current_page() { return (*next_page_)->prev_page(); }
   // Fast (inlined) path of next().
   inline HeapObject* FromCurrentPage();
 
@@ -1534,10 +1456,77 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
 
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
-  SpaceWithInlineAllocationArea* space_;
+  PagedSpace* space_;
   PageRange page_range_;
-  PageRange::iterator next_page_;
+  PageRange::iterator current_page_;
 };
+
+
+// -----------------------------------------------------------------------------
+// A space has a circular list of pages. The next page can be accessed via
+// Page::next_page() call.
+
+// An abstraction of allocation and relocation pointers in a page-structured
+// space.
+class AllocationInfo {
+ public:
+  AllocationInfo() : original_top_(nullptr), top_(nullptr), limit_(nullptr) {}
+  AllocationInfo(Address top, Address limit)
+      : original_top_(top), top_(top), limit_(limit) {}
+
+  void Reset(Address top, Address limit) {
+    original_top_ = top;
+    set_top(top);
+    set_limit(limit);
+  }
+
+  Address original_top() {
+    SLOW_DCHECK(top_ == NULL ||
+                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
+    return original_top_;
+  }
+
+  INLINE(void set_top(Address top)) {
+    SLOW_DCHECK(top == NULL ||
+                (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
+    top_ = top;
+  }
+
+  INLINE(Address top()) const {
+    SLOW_DCHECK(top_ == NULL ||
+                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
+    return top_;
+  }
+
+  Address* top_address() { return &top_; }
+
+  INLINE(void set_limit(Address limit)) {
+    limit_ = limit;
+  }
+
+  INLINE(Address limit()) const {
+    return limit_;
+  }
+
+  Address* limit_address() { return &limit_; }
+
+#ifdef DEBUG
+  bool VerifyPagedAllocation() {
+    return (Page::FromAllocationAreaAddress(top_) ==
+            Page::FromAllocationAreaAddress(limit_)) &&
+           (top_ <= limit_);
+  }
+#endif
+
+ private:
+  // The original top address when the allocation info was initialized.
+  Address original_top_;
+  // Current allocation top.
+  Address top_;
+  // Current allocation limit.
+  Address limit_;
+};
+
 
 // An abstraction of the accounting statistics of a page-structured space.
 //
@@ -1888,7 +1877,18 @@ class LocalAllocationBuffer {
   AllocationInfo allocation_info_;
 };
 
-class PagedSpace : public SpaceWithInlineAllocationArea {
+class NewSpacePageRange {
+ public:
+  typedef PageRange::iterator iterator;
+  inline NewSpacePageRange(Address start, Address limit);
+  iterator begin() { return range_.begin(); }
+  iterator end() { return range_.end(); }
+
+ private:
+  PageRange range_;
+};
+
+class PagedSpace : public Space {
  public:
   typedef PageIterator iterator;
 
@@ -1965,6 +1965,18 @@ class PagedSpace : public SpaceWithInlineAllocationArea {
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
   virtual size_t Waste() { return free_list_.wasted_bytes(); }
+
+  // Returns the allocation pointer in this space.
+  Address top() { return allocation_info_.top(); }
+  Address limit() { return allocation_info_.limit(); }
+
+  // The allocation top address.
+  Address* allocation_top_address() { return allocation_info_.top_address(); }
+
+  // The allocation limit address.
+  Address* allocation_limit_address() {
+    return allocation_info_.limit_address();
+  }
 
   enum UpdateSkipList { UPDATE_SKIP_LIST, IGNORE_SKIP_LIST };
 
@@ -2137,6 +2149,9 @@ class PagedSpace : public SpaceWithInlineAllocationArea {
 
   // The space's free list.
   FreeList free_list_;
+
+  // Normal allocation information.
+  AllocationInfo allocation_info_;
 
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
@@ -2352,12 +2367,12 @@ class SemiSpaceIterator : public ObjectIterator {
 // The new space consists of a contiguous pair of semispaces.  It simply
 // forwards most functions to the appropriate semispace.
 
-class NewSpace : public SpaceWithInlineAllocationArea {
+class NewSpace : public Space {
  public:
   typedef PageIterator iterator;
 
   explicit NewSpace(Heap* heap)
-      : SpaceWithInlineAllocationArea(heap, NEW_SPACE, NOT_EXECUTABLE),
+      : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
@@ -2493,6 +2508,18 @@ class NewSpace : public SpaceWithInlineAllocationArea {
     return to_space_.minimum_capacity();
   }
 
+  // Return the address of the allocation pointer in the active semispace.
+  Address top() {
+    DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.top()));
+    return allocation_info_.top();
+  }
+
+  // Return the address of the allocation pointer limit in the active semispace.
+  Address limit() {
+    DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.limit()));
+    return allocation_info_.limit();
+  }
+
   // Return the address of the first object in the active semispace.
   Address bottom() { return to_space_.space_start(); }
 
@@ -2500,6 +2527,14 @@ class NewSpace : public SpaceWithInlineAllocationArea {
   Address age_mark() { return from_space_.age_mark(); }
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
+
+  // The allocation top and limit address.
+  Address* allocation_top_address() { return allocation_info_.top_address(); }
+
+  // The allocation limit address.
+  Address* allocation_limit_address() {
+    return allocation_info_.limit_address();
+  }
 
   MUST_USE_RESULT INLINE(AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment));
@@ -2616,6 +2651,10 @@ class NewSpace : public SpaceWithInlineAllocationArea {
   SemiSpace to_space_;
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
+
+  // Allocation pointer and limit for normal allocation and allocation during
+  // mark-compact collection.
+  AllocationInfo allocation_info_;
 
   Address top_on_previous_step_;
 

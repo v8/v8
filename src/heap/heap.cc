@@ -4710,8 +4710,8 @@ void Heap::Verify() {
 
 void Heap::ZapFromSpace() {
   if (!new_space_->IsFromSpaceCommitted()) return;
-  for (Page* page :
-       PageRange(new_space_->FromSpaceStart(), new_space_->FromSpaceEnd())) {
+  for (Page* page : NewSpacePageRange(new_space_->FromSpaceStart(),
+                                      new_space_->FromSpaceEnd())) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
       Memory::Address_at(cursor) = kFromSpaceZapValue;

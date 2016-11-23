@@ -29,26 +29,19 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space)
       cur_end_(nullptr),
       space_(space),
       page_range_(space->anchor()->next_page(), space->anchor()),
-      next_page_(page_range_.begin()) {}
-
-HeapObjectIterator::HeapObjectIterator(NewSpace* space)
-    : cur_addr_(nullptr),
-      cur_end_(nullptr),
-      space_(space),
-      page_range_(space->bottom(), space->top()),
-      next_page_(page_range_.begin()) {}
+      current_page_(page_range_.begin()) {}
 
 HeapObjectIterator::HeapObjectIterator(Page* page)
     : cur_addr_(nullptr),
       cur_end_(nullptr),
-      space_(reinterpret_cast<SpaceWithInlineAllocationArea*>(page->owner())),
+      space_(reinterpret_cast<PagedSpace*>(page->owner())),
       page_range_(page),
-      next_page_(page_range_.begin()) {
+      current_page_(page_range_.begin()) {
 #ifdef DEBUG
   Space* owner = page->owner();
-  Heap* heap = page->heap();
-  DCHECK(owner == heap->old_space() || owner == heap->map_space() ||
-         owner == heap->code_space() || owner == heap->new_space());
+  DCHECK(owner == page->heap()->old_space() ||
+         owner == page->heap()->map_space() ||
+         owner == page->heap()->code_space());
 #endif  // DEBUG
 }
 
@@ -56,8 +49,8 @@ HeapObjectIterator::HeapObjectIterator(Page* page)
 // objects.  This happens at the end of the page.
 bool HeapObjectIterator::AdvanceToNextPage() {
   DCHECK_EQ(cur_addr_, cur_end_);
-  if (next_page_ == page_range_.end()) return false;
-  Page* cur_page = *(next_page_++);
+  if (current_page_ == page_range_.end()) return false;
+  Page* cur_page = *(current_page_++);
   space_->heap()
       ->mark_compact_collector()
       ->sweeper()
@@ -1187,9 +1180,7 @@ void Space::AllocationStep(Address soon_object, int size) {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : SpaceWithInlineAllocationArea(heap, space, executable),
-      anchor_(this),
-      free_list_(this) {
+    : Space(heap, space, executable), anchor_(this), free_list_(this) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
@@ -2104,7 +2095,7 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
-  for (Page* p : PageRange(space_start(), mark)) {
+  for (Page* p : NewSpacePageRange(space_start(), mark)) {
     p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }
