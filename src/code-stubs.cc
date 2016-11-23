@@ -2117,7 +2117,7 @@ void StoreScriptContextFieldStub::GenerateAssembly(
   Node* script_context = assembler.LoadScriptContext(context, context_index());
   assembler.StoreFixedArrayElement(
       script_context, assembler.IntPtrConstant(slot_index()), value,
-      UPDATE_WRITE_BARRIER, 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      UPDATE_WRITE_BARRIER, CodeStubAssembler::INTPTR_PARAMETERS);
   assembler.Return(value);
 }
 
@@ -2621,19 +2621,21 @@ compiler::Node* FastNewFunctionContextStub::Generate(
                                             assembler->SmiFromWord32(length));
 
   // Set up the fixed slots.
-  assembler->StoreFixedArrayElement(function_context, Context::CLOSURE_INDEX,
-                                    function, SKIP_WRITE_BARRIER);
-  assembler->StoreFixedArrayElement(function_context, Context::PREVIOUS_INDEX,
-                                    context, SKIP_WRITE_BARRIER);
-  assembler->StoreFixedArrayElement(function_context, Context::EXTENSION_INDEX,
-                                    assembler->TheHoleConstant(),
-                                    SKIP_WRITE_BARRIER);
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::CLOSURE_INDEX),
+      function, SKIP_WRITE_BARRIER);
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::PREVIOUS_INDEX),
+      context, SKIP_WRITE_BARRIER);
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::EXTENSION_INDEX),
+      assembler->TheHoleConstant(), SKIP_WRITE_BARRIER);
 
   // Copy the native context from the previous context.
   Node* native_context = assembler->LoadNativeContext(context);
-  assembler->StoreFixedArrayElement(function_context,
-                                    Context::NATIVE_CONTEXT_INDEX,
-                                    native_context, SKIP_WRITE_BARRIER);
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::NATIVE_CONTEXT_INDEX),
+      native_context, SKIP_WRITE_BARRIER);
 
   // Initialize the rest of the slots to undefined.
   Node* undefined = assembler->UndefinedConstant();
