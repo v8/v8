@@ -1898,10 +1898,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFloatRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(dst_code, src_code);
+        __ VmovExtended(dst_code, src_code, kScratchReg);
       } else {
         DCHECK(destination->IsFloatStackSlot());
-        __ VmovExtended(g.ToMemOperand(destination), src_code);
+        __ VmovExtended(g.ToMemOperand(destination), src_code, kScratchReg);
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -1916,7 +1916,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         // GapResolver may give us reg codes that don't map to actual
         // s-registers. Generate code to work around those cases.
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(dst_code, src);
+        __ VmovExtended(dst_code, src, kScratchReg);
       }
     } else {
       DCHECK(destination->IsFPStackSlot());
@@ -1988,11 +1988,15 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFPRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VswpExtended(dst_code, src_code);
+        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
+        __ VmovExtended(src_code, dst_code, kScratchReg);
+        __ VmovExtended(dst_code, temp.low().code(), kScratchReg);
       } else {
         DCHECK(destination->IsFPStackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ VswpExtended(dst, src_code);
+        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
+        __ VmovExtended(src_code, dst, kScratchReg);
+        __ vstr(temp.low(), dst);
       }
     }
   } else if (source->IsFPStackSlot()) {
