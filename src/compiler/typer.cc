@@ -1227,6 +1227,10 @@ Type* Typer::Visitor::TypeJSHasProperty(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeJSInstanceOf(Node* node) { return Type::Boolean(); }
 
+Type* Typer::Visitor::TypeJSOrdinaryHasInstance(Node* node) {
+  return Type::Boolean();
+}
+
 // JS context operators.
 
 
@@ -1376,9 +1380,15 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return Type::Range(-1, kMaxSafeInteger, t->zone());
         case kArrayPush:
           return t->cache_.kPositiveSafeInteger;
+
         // Object functions.
         case kObjectHasOwnProperty:
           return Type::Boolean();
+
+        // Function functions.
+        case kFunctionHasInstance:
+          return Type::Boolean();
+
         // Global functions.
         case kGlobalDecodeURI:
         case kGlobalDecodeURIComponent:

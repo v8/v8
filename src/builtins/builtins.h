@@ -151,6 +151,7 @@ namespace internal {
   TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements)    \
   TFS(GrowFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                  \
       GrowArrayElements)                                                      \
+  TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare)                 \
                                                                               \
   /* Debugger */                                                              \
   DBG(FrameDropper_LiveEdit)                                                  \

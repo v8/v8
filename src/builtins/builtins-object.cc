@@ -906,5 +906,18 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
+// ES6 section 7.3.19 OrdinaryHasInstance ( C, O )
+void Builtins::Generate_OrdinaryHasInstance(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CompareDescriptor Descriptor;
+
+  Node* constructor = assembler->Parameter(Descriptor::kLeft);
+  Node* object = assembler->Parameter(Descriptor::kRight);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(
+      assembler->OrdinaryHasInstance(context, constructor, object));
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -84,6 +84,8 @@ class CodeFactory final {
                                       OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
+  static Callable OrdinaryHasInstance(Isolate* isolate);
+
   static Callable RegExpConstructResult(Isolate* isolate);
   static Callable RegExpExec(Isolate* isolate);
 

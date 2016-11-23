@@ -240,6 +240,12 @@ Callable CodeFactory::NumberToString(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::OrdinaryHasInstance(Isolate* isolate) {
+  return Callable(isolate->builtins()->OrdinaryHasInstance(),
+                  CompareDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::RegExpConstructResult(Isolate* isolate) {
   RegExpConstructResultStub stub(isolate);
   return make_callable(stub);

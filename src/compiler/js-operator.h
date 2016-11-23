@@ -501,6 +501,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* TypeOf();
   const Operator* InstanceOf();
+  const Operator* OrdinaryHasInstance();
 
   const Operator* ForInNext();
   const Operator* ForInPrepare();

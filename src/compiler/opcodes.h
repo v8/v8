@@ -134,7 +134,8 @@
   V(JSStoreGlobal)            \
   V(JSDeleteProperty)         \
   V(JSHasProperty)            \
-  V(JSInstanceOf)
+  V(JSInstanceOf)             \
+  V(JSOrdinaryHasInstance)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSLoadContext)            \

@@ -44,6 +44,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
   Reduction ReduceDateGetTime(Node* node);
+  Reduction ReduceFunctionHasInstance(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMathAbs(Node* node);
