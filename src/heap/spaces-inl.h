@@ -28,10 +28,14 @@ PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
   return tmp;
 }
 
-NewSpacePageRange::NewSpacePageRange(Address start, Address limit)
-    : range_(Page::FromAddress(start),
-             Page::FromAllocationAreaAddress(limit)->next_page()) {
-  SemiSpace::AssertValidRange(start, limit);
+PageRange::PageRange(Address start, Address limit)
+    : begin_(Page::FromAllocationAreaAddress(start)),
+      end_(Page::FromAllocationAreaAddress(limit)->next_page()) {
+#ifdef DEBUG
+  if (begin_->InNewSpace()) {
+    SemiSpace::AssertValidRange(start, limit);
+  }
+#endif  // DEBUG
 }
 
 // -----------------------------------------------------------------------------
@@ -68,8 +72,14 @@ HeapObject* HeapObjectIterator::Next() {
 
 HeapObject* HeapObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
-    if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
-      cur_addr_ = space_->limit();
+    // When the current address equals top we have to handle two scenarios:
+    // - Old space page: Move forward to limit if top != limit. We will find
+    //   a filler following limit.
+    // - New space page: We have to stop iteration before the linear allocation
+    //   area as there are no fillers behind it.
+    if (cur_addr_ == space_->top() &&
+        (cur_addr_ != space_->limit() || current_page()->InNewSpace())) {
+      cur_addr_ = current_page()->InNewSpace() ? cur_end_ : space_->limit();
       continue;
     }
     HeapObject* obj = HeapObject::FromAddress(cur_addr_);
@@ -79,7 +89,7 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
     if (!obj->IsFiller()) {
       if (obj->IsCode()) {
         DCHECK_EQ(space_, space_->heap()->code_space());
-        DCHECK_CODEOBJECT_SIZE(obj_size, space_);
+        DCHECK_CODEOBJECT_SIZE(obj_size, reinterpret_cast<PagedSpace*>(space_));
       } else {
         DCHECK_OBJECT_SIZE(obj_size);
       }
