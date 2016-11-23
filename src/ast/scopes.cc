@@ -635,36 +635,6 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
   return function_;
 }
 
-bool Scope::HasBeenRemoved() const {
-  // TODO(neis): Store this information somewhere instead of calculating it.
-
-  if (is_declaration_scope()) return false;
-  DCHECK(is_block_scope());
-
-  Scope* parent = outer_scope();
-  if (parent == nullptr) {
-    DCHECK(is_script_scope());
-    return false;
-  }
-
-  Scope* sibling = parent->inner_scope();
-  for (; sibling != nullptr; sibling = sibling->sibling()) {
-    if (sibling == this) return false;
-  }
-
-  DCHECK_NULL(inner_scope_);
-  return true;
-}
-
-Scope* Scope::GetUnremovedScope() {
-  Scope* scope = this;
-  while (scope != nullptr && scope->HasBeenRemoved()) {
-    scope = scope->outer_scope();
-  }
-  DCHECK_NOT_NULL(scope);
-  return scope;
-}
-
 Scope* Scope::FinalizeBlockScope() {
   DCHECK(is_block_scope());
 

@@ -37,12 +37,11 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
 
 void Parser::PatternRewriter::RewriteDestructuringAssignment(
     Parser* parser, RewritableExpression* to_rewrite, Scope* scope) {
-  DCHECK(!scope->HasBeenRemoved());
+  PatternRewriter rewriter;
+
   DCHECK(!to_rewrite->is_rewritten());
 
   bool ok = true;
-
-  PatternRewriter rewriter;
   rewriter.scope_ = scope;
   rewriter.parser_ = parser;
   rewriter.context_ = ASSIGNMENT;
@@ -587,9 +586,8 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
   Expression* closing_condition = factory()->NewUnaryOperation(
       Token::NOT, factory()->NewVariableProxy(done), nopos);
-
-  parser_->FinalizeIteratorUse(scope(), completion, closing_condition, iterator,
-                               block_, target);
+  parser_->FinalizeIteratorUse(completion, closing_condition, iterator, block_,
+                               target);
   block_ = target;
 }
 
