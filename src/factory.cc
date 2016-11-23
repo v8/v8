@@ -183,11 +183,7 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
   DCHECK(0 <= size);
   Handle<FixedArrayBase> array = NewFixedDoubleArray(size, pretenure);
   if (size > 0) {
-    Handle<FixedDoubleArray> double_array =
-        Handle<FixedDoubleArray>::cast(array);
-    for (int i = 0; i < size; ++i) {
-      double_array->set_the_hole(i);
-    }
+    Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, size);
   }
   return array;
 }

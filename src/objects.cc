@@ -17528,11 +17528,11 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     }
     result = undefs;
     while (undefs < holes) {
-      elements->set_undefined(undefs);
+      elements->set_undefined(isolate, undefs);
       undefs++;
     }
     while (holes < limit) {
-      elements->set_the_hole(holes);
+      elements->set_the_hole(isolate, holes);
       holes++;
     }
   }

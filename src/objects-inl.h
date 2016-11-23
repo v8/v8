@@ -2420,6 +2420,9 @@ void FixedDoubleArray::set(int index, double value) {
   DCHECK(!is_the_hole(index));
 }
 
+void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
+  set_the_hole(index);
+}
 
 void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
@@ -2597,8 +2600,9 @@ AllocationAlignment HeapObject::RequiredAlignment() {
 void FixedArray::set(int index,
                      Object* value,
                      WriteBarrierMode mode) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map());
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK_NE(map(), GetHeap()->fixed_cow_array_map());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
@@ -2608,45 +2612,38 @@ void FixedArray::set(int index,
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
                                    Object* value) {
-  DCHECK(array->map() != array->GetHeap()->fixed_cow_array_map());
-  DCHECK(index >= 0 && index < array->length());
+  DCHECK_NE(array->map(), array->GetHeap()->fixed_cow_array_map());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, array->length());
   DCHECK(!array->GetHeap()->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
-
 void FixedArray::set_undefined(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map());
-  DCHECK(index >= 0 && index < this->length());
-  DCHECK(!GetHeap()->InNewSpace(GetHeap()->undefined_value()));
-  WRITE_FIELD(this,
-              kHeaderSize + index * kPointerSize,
-              GetHeap()->undefined_value());
+  set_undefined(GetIsolate(), index);
 }
 
-
-void FixedArray::set_null(int index) {
-  DCHECK(index >= 0 && index < this->length());
-  DCHECK(!GetHeap()->InNewSpace(GetHeap()->null_value()));
-  WRITE_FIELD(this,
-              kHeaderSize + index * kPointerSize,
-              GetHeap()->null_value());
+void FixedArray::set_undefined(Isolate* isolate, int index) {
+  FixedArray::NoWriteBarrierSet(this, index,
+                                isolate->heap()->undefined_value());
 }
 
+void FixedArray::set_null(int index) { set_null(GetIsolate(), index); }
 
-void FixedArray::set_the_hole(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map());
-  DCHECK(index >= 0 && index < this->length());
-  DCHECK(!GetHeap()->InNewSpace(GetHeap()->the_hole_value()));
-  WRITE_FIELD(this,
-              kHeaderSize + index * kPointerSize,
-              GetHeap()->the_hole_value());
+void FixedArray::set_null(Isolate* isolate, int index) {
+  FixedArray::NoWriteBarrierSet(this, index, isolate->heap()->null_value());
 }
 
+void FixedArray::set_the_hole(int index) { set_the_hole(GetIsolate(), index); }
+
+void FixedArray::set_the_hole(Isolate* isolate, int index) {
+  FixedArray::NoWriteBarrierSet(this, index, isolate->heap()->the_hole_value());
+}
 
 void FixedArray::FillWithHoles(int from, int to) {
+  Isolate* isolate = GetIsolate();
   for (int i = from; i < to; i++) {
-    set_the_hole(i);
+    set_the_hole(isolate, i);
   }
 }
 

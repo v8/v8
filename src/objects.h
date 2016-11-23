@@ -2851,8 +2851,11 @@ class FixedArray: public FixedArrayBase {
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
+  inline void set_undefined(Isolate* isolate, int index);
   inline void set_null(int index);
+  inline void set_null(Isolate* isolate, int index);
   inline void set_the_hole(int index);
+  inline void set_the_hole(Isolate* isolate, int index);
 
   inline Object** GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
@@ -2929,6 +2932,7 @@ class FixedDoubleArray: public FixedArrayBase {
   static inline Handle<Object> get(FixedDoubleArray* array, int index,
                                    Isolate* isolate);
   inline void set(int index, double value);
+  inline void set_the_hole(Isolate* isolate, int index);
   inline void set_the_hole(int index);
 
   // Checking for the hole.

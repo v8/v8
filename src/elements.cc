@@ -185,14 +185,15 @@ static void CopyDictionaryToObjectElements(
   WriteBarrierMode write_barrier_mode = IsFastObjectElementsKind(to_kind)
                                             ? UPDATE_WRITE_BARRIER
                                             : SKIP_WRITE_BARRIER;
+  Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* value = from->ValueAt(entry);
-      DCHECK(!value->IsTheHole(from->GetIsolate()));
+      DCHECK(!value->IsTheHole(isolate));
       to->set(i + to_start, value, write_barrier_mode);
     } else {
-      to->set_the_hole(i + to_start);
+      to->set_the_hole(isolate, i + to_start);
     }
   }
 }
@@ -761,9 +762,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         isolate->heap()->RightTrimFixedArray(*backing_store, capacity - length);
       } else {
         // Otherwise, fill the unused tail with holes.
-        for (uint32_t i = length; i < old_length; i++) {
-          BackingStore::cast(*backing_store)->set_the_hole(i);
-        }
+        BackingStore::cast(*backing_store)->FillWithHoles(length, old_length);
       }
     } else {
       // Check whether the backing store should be expanded.
@@ -1814,7 +1813,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
 
     Isolate* isolate = obj->GetIsolate();
-    backing_store->set_the_hole(entry);
+    backing_store->set_the_hole(isolate, entry);
 
     // TODO(verwaest): Move this out of elements.cc.
     // If an old space backing store is larger than a certain size and
@@ -3281,7 +3280,7 @@ class SlowSloppyArgumentsElementsAccessor
       context->set(context_entry, *value);
 
       // Redefining attributes of an aliased element destroys fast aliasing.
-      parameter_map->set_the_hole(entry + 2);
+      parameter_map->set_the_hole(isolate, entry + 2);
       // For elements that are still writable we re-establish slow aliasing.
       if ((attributes & READ_ONLY) == 0) {
         value = isolate->factory()->NewAliasedArgumentsEntry(context_entry);
@@ -3340,7 +3339,7 @@ class FastSloppyArgumentsElementsAccessor
       if (entry != kMaxUInt32 && HasEntryImpl(isolate, parameters, entry)) {
         elements->set(insertion_index, *GetImpl(parameters, entry));
       } else {
-        elements->set_the_hole(insertion_index);
+        elements->set_the_hole(isolate, insertion_index);
       }
       insertion_index++;
     }
