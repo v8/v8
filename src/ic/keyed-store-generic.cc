@@ -4,7 +4,6 @@
 
 #include "src/ic/keyed-store-generic.h"
 
-#include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/ic/accessor-assembler-impl.h"
@@ -35,8 +34,7 @@ class KeyedStoreGenericAssembler : public AccessorAssemblerImpl {
                                Node* value, Node* context, Label* slow);
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
-                                const StoreICParameters* p, Label* slow,
-                                LanguageMode language_mode);
+                                const StoreICParameters* p, Label* slow);
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
                                              Label* non_fast_elements,
@@ -65,13 +63,6 @@ class KeyedStoreGenericAssembler : public AccessorAssemblerImpl {
                                 Node* current_elements_kind, Node* context,
                                 ElementsKind packed_kind,
                                 ElementsKind packed_kind_2, Label* bailout);
-
-  void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
-  void LookupPropertyOnPrototypeChain(Node* receiver_map, Node* name,
-                                      Label* accessor,
-                                      Variable* var_accessor_pair,
-                                      Variable* var_accessor_holder,
-                                      Label* readonly, Label* bailout);
 };
 
 void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
@@ -487,253 +478,28 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
 }
 
-void KeyedStoreGenericAssembler::JumpIfDataProperty(Node* details,
-                                                    Label* writable,
-                                                    Label* readonly) {
-  // Accessor properties never have the READ_ONLY attribute set.
-  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
-         readonly);
-  Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
-  GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
-  // Fall through if it's an accessor property.
-}
-
-void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
-    Node* receiver_map, Node* name, Label* accessor,
-    Variable* var_accessor_pair, Variable* var_accessor_holder, Label* readonly,
-    Label* bailout) {
-  Label ok_to_write(this);
-  Variable var_holder(this, MachineRepresentation::kTagged);
-  var_holder.Bind(LoadMapPrototype(receiver_map));
-  Variable var_holder_map(this, MachineRepresentation::kTagged);
-  var_holder_map.Bind(LoadMap(var_holder.value()));
-
-  Variable* merged_variables[] = {&var_holder, &var_holder_map};
-  Label loop(this, arraysize(merged_variables), merged_variables);
-  Goto(&loop);
-  Bind(&loop);
-  {
-    Node* holder = var_holder.value();
-    Node* holder_map = var_holder_map.value();
-    Node* instance_type = LoadMapInstanceType(holder_map);
-    Label next_proto(this);
-    {
-      Label found(this), found_fast(this), found_dict(this), found_global(this);
-      Variable var_meta_storage(this, MachineRepresentation::kTagged);
-      Variable var_entry(this, MachineType::PointerRepresentation());
-      TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
-                        &found_dict, &found_global, &var_meta_storage,
-                        &var_entry, &next_proto, bailout);
-      Bind(&found_fast);
-      {
-        Node* descriptors = var_meta_storage.value();
-        Node* name_index = var_entry.value();
-        // TODO(jkummerow): Add helper functions for accessing value and
-        // details by entry.
-        const int kNameToDetailsOffset = (DescriptorArray::kDescriptorDetails -
-                                          DescriptorArray::kDescriptorKey) *
-                                         kPointerSize;
-        Node* details = LoadAndUntagToWord32FixedArrayElement(
-            descriptors, name_index, kNameToDetailsOffset);
-        JumpIfDataProperty(details, &ok_to_write, readonly);
-
-        // Accessor case.
-        Variable var_details(this, MachineRepresentation::kWord32);
-        LoadPropertyFromFastObject(holder, holder_map, descriptors, name_index,
-                                   &var_details, var_accessor_pair);
-        var_accessor_holder->Bind(holder);
-        Goto(accessor);
-      }
-
-      Bind(&found_dict);
-      {
-        Node* dictionary = var_meta_storage.value();
-        Node* entry = var_entry.value();
-        const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
-                                          NameDictionary::kEntryKeyIndex) *
-                                         kPointerSize;
-        Node* details = LoadAndUntagToWord32FixedArrayElement(
-            dictionary, entry, kNameToDetailsOffset);
-        JumpIfDataProperty(details, &ok_to_write, readonly);
-
-        // Accessor case.
-        const int kNameToValueOffset = (NameDictionary::kEntryValueIndex -
-                                        NameDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-        var_accessor_pair->Bind(
-            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset));
-        var_accessor_holder->Bind(holder);
-        Goto(accessor);
-      }
-
-      Bind(&found_global);
-      {
-        Node* dictionary = var_meta_storage.value();
-        Node* entry = var_entry.value();
-        const int kNameToValueOffset = (GlobalDictionary::kEntryValueIndex -
-                                        GlobalDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-
-        Node* property_cell =
-            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset);
-
-        Node* value =
-            LoadObjectField(property_cell, PropertyCell::kValueOffset);
-        GotoIf(WordEqual(value, TheHoleConstant()), &next_proto);
-        Node* details = LoadAndUntagToWord32ObjectField(
-            property_cell, PropertyCell::kDetailsOffset);
-        JumpIfDataProperty(details, &ok_to_write, readonly);
-
-        // Accessor case.
-        var_accessor_pair->Bind(value);
-        var_accessor_holder->Bind(holder);
-        Goto(accessor);
-      }
-    }
-
-    Bind(&next_proto);
-    // Bailout if it can be an integer indexed exotic case.
-    GotoIf(Word32Equal(instance_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
-           bailout);
-    Node* proto = LoadMapPrototype(holder_map);
-    GotoIf(WordEqual(proto, NullConstant()), &ok_to_write);
-    var_holder.Bind(proto);
-    var_holder_map.Bind(LoadMap(proto));
-    Goto(&loop);
-  }
-  Bind(&ok_to_write);
-}
-
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
-    Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
-    LanguageMode language_mode) {
-  Variable var_accessor_pair(this, MachineRepresentation::kTagged);
-  Variable var_accessor_holder(this, MachineRepresentation::kTagged);
-  Label stub_cache(this), fast_properties(this), dictionary_properties(this),
-      accessor(this), readonly(this);
-  Node* properties = LoadProperties(receiver);
-  Node* properties_map = LoadMap(properties);
-  Branch(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
-         &dictionary_properties, &fast_properties);
-
-  Bind(&fast_properties);
+    Node* receiver, Node* receiver_map, const StoreICParameters* p,
+    Label* slow) {
+  Comment("stub cache probe");
+  // TODO(jkummerow): Don't rely on the stub cache as much.
+  // - existing properties can be overwritten inline (unless readonly).
+  // - for dictionary mode receivers, we can even add properties inline
+  //   (unless the prototype chain prevents it).
+  Variable var_handler(this, MachineRepresentation::kTagged);
+  Label found_handler(this, &var_handler), stub_cache_miss(this);
+  TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
+                    &found_handler, &var_handler, &stub_cache_miss);
+  Bind(&found_handler);
   {
-    // TODO(jkummerow): Does it make sense to support some cases here inline?
-    // Maybe overwrite existing writable properties?
-    // Maybe support map transitions?
-    Goto(&stub_cache);
+    Comment("KeyedStoreGeneric found handler");
+    HandleStoreICHandlerCase(p, var_handler.value(), slow);
   }
-
-  Bind(&dictionary_properties);
+  Bind(&stub_cache_miss);
   {
-    Comment("dictionary property store");
-    // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
-    // seeing global objects here (which would need special handling).
-
-    Variable var_name_index(this, MachineType::PointerRepresentation());
-    Label dictionary_found(this, &var_name_index), not_found(this);
-    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
-                                         &var_name_index, &not_found);
-    Bind(&dictionary_found);
-    {
-      Label overwrite(this);
-      const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
-                                        NameDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-      Node* details = LoadAndUntagToWord32FixedArrayElement(
-          properties, var_name_index.value(), kNameToDetailsOffset);
-      JumpIfDataProperty(details, &overwrite, &readonly);
-
-      // Accessor case.
-      const int kNameToValueOffset =
-          (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-          kPointerSize;
-      var_accessor_pair.Bind(LoadFixedArrayElement(
-          properties, var_name_index.value(), kNameToValueOffset));
-      var_accessor_holder.Bind(receiver);
-      Goto(&accessor);
-
-      Bind(&overwrite);
-      {
-        StoreFixedArrayElement(properties, var_name_index.value(), p->value,
-                               UPDATE_WRITE_BARRIER, kNameToValueOffset,
-                               INTPTR_PARAMETERS);
-        Return(p->value);
-      }
-    }
-
-    Bind(&not_found);
-    {
-      LookupPropertyOnPrototypeChain(receiver_map, p->name, &accessor,
-                                     &var_accessor_pair, &var_accessor_holder,
-                                     &readonly, slow);
-      Add<NameDictionary>(properties, p->name, p->value, slow);
-      Return(p->value);
-    }
-  }
-
-  Bind(&accessor);
-  {
-    Label not_callable(this);
-    Node* accessor_pair = var_accessor_pair.value();
-    GotoIf(IsAccessorPairMap(LoadMap(accessor_pair)), slow);
-    CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
-    Node* setter = LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
-    Node* setter_map = LoadMap(setter);
-    // FunctionTemplateInfo setters are not supported yet.
-    GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
-    GotoUnless(IsCallableMap(setter_map), &not_callable);
-
-    Callable callable = CodeFactory::Call(isolate());
-    CallJS(callable, p->context, setter, receiver, p->value);
-    Return(p->value);
-
-    Bind(&not_callable);
-    {
-      if (language_mode == STRICT) {
-        Node* message =
-            SmiConstant(Smi::FromInt(MessageTemplate::kNoSetterInCallback));
-        TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
-                        var_accessor_holder.value());
-      } else {
-        DCHECK_EQ(SLOPPY, language_mode);
-        Return(p->value);
-      }
-    }
-  }
-
-  Bind(&readonly);
-  {
-    if (language_mode == STRICT) {
-      Node* message =
-          SmiConstant(Smi::FromInt(MessageTemplate::kStrictReadOnlyProperty));
-      Node* type = Typeof(p->receiver, p->context);
-      TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
-                      type, p->receiver);
-    } else {
-      DCHECK_EQ(SLOPPY, language_mode);
-      Return(p->value);
-    }
-  }
-
-  Bind(&stub_cache);
-  {
-    Comment("stub cache probe");
-    Variable var_handler(this, MachineRepresentation::kTagged);
-    Label found_handler(this, &var_handler), stub_cache_miss(this);
-    TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
-                      &found_handler, &var_handler, &stub_cache_miss);
-    Bind(&found_handler);
-    {
-      Comment("KeyedStoreGeneric found handler");
-      HandleStoreICHandlerCase(p, var_handler.value(), slow);
-    }
-    Bind(&stub_cache_miss);
-    {
-      Comment("KeyedStoreGeneric_miss");
-      TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value,
-                      p->slot, p->vector, p->receiver, p->name);
-    }
+    Comment("KeyedStoreGeneric_miss");
+    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value, p->slot,
+                    p->vector, p->receiver, p->name);
   }
 }
 
@@ -773,7 +539,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
     Comment("key is unique name");
     KeyedStoreGenericAssembler::StoreICParameters p(context, receiver, name,
                                                     value, slot, vector);
-    EmitGenericPropertyStore(receiver, receiver_map, &p, &slow, language_mode);
+    EmitGenericPropertyStore(receiver, receiver_map, &p, &slow);
   }
 
   Bind(&slow);
