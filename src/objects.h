@@ -7313,6 +7313,7 @@ enum BuiltinFunctionId {
   kDataViewBuffer,
   kDataViewByteLength,
   kDataViewByteOffset,
+  kFunctionHasInstance,
   kGlobalDecodeURI,
   kGlobalDecodeURIComponent,
   kGlobalEncodeURI,

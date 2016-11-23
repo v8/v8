@@ -449,6 +449,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(HasProperty, Operator::kNoProperties, 2, 1)             \
   V(TypeOf, Operator::kPure, 1, 1)                          \
   V(InstanceOf, Operator::kNoProperties, 2, 1)              \
+  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)     \
   V(ForInNext, Operator::kNoProperties, 4, 1)               \
   V(ForInPrepare, Operator::kNoProperties, 1, 3)            \
   V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
