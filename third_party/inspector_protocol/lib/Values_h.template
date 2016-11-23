@@ -17,10 +17,10 @@ class ListValue;
 class DictionaryValue;
 class Value;
 
-class {{config.lib.export_macro}} Value {
+class {{config.lib.export_macro}} Value : public Serializable {
     PROTOCOL_DISALLOW_COPY(Value);
 public:
-    virtual ~Value() { }
+    virtual ~Value() override { }
 
     static std::unique_ptr<Value> null()
     {
@@ -48,9 +48,9 @@ public:
     virtual bool asString(String* output) const;
     virtual bool asSerialized(String* output) const;
 
-    String toJSONString() const;
     virtual void writeJSON(StringBuilder* output) const;
     virtual std::unique_ptr<Value> clone() const;
+    String serialize() override;
 
 protected:
     Value() : m_type(TypeNull) { }

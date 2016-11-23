@@ -8,6 +8,7 @@ import optparse
 import collections
 import functools
 import re
+import copy
 try:
     import json
 except ImportError:
@@ -469,6 +470,20 @@ def main():
     protocol.imported_domains = read_protocol_file(config.imported.path, protocol.json_api) if config.imported else []
     patch_full_qualified_refs(protocol)
     calculate_imports_and_exports(config, protocol)
+
+    for domain in protocol.json_api["domains"]:
+        if "events" in domain:
+            for event in domain["events"]:
+                event_type = dict()
+                event_type["description"] = "Wrapper for notification params"
+                event_type["type"] = "object"
+                event_type["id"] = to_title_case(event["name"]) + "Notification"
+                if "parameters" in event:
+                    event_type["properties"] = copy.deepcopy(event["parameters"])
+                if "types" not in domain:
+                    domain["types"] = list()
+                domain["types"].append(event_type)
+
     create_type_definitions(protocol, "::".join(config.imported.namespace) if config.imported else "")
 
     if not config.exported and len(protocol.exported_domains):

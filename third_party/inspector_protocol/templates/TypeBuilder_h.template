@@ -71,12 +71,12 @@ namespace {{param.name | to_title_case}}Enum {
     {% set type_def = type_definition(domain.domain + "." + type.id)%}
 
 // {{type.description}}
-class {{config.protocol.export_macro}} {{type.id}} {% if type.exported %}: public API::{{type.id}} {% endif %}{
+class {{config.protocol.export_macro}} {{type.id}} : public Serializable{% if type.exported %}, public API::{{type.id}}{% endif %}{
     PROTOCOL_DISALLOW_COPY({{type.id}});
 public:
-    static std::unique_ptr<{{type.id}}> parse(protocol::Value* value, ErrorSupport* errors);
+    static std::unique_ptr<{{type.id}}> fromValue(protocol::Value* value, ErrorSupport* errors);
 
-    ~{{type.id}}() { }
+    ~{{type.id}}() override { }
     {% for property in type.properties %}
       {% if "enum" in property %}
 
@@ -96,7 +96,8 @@ public:
     void {{"set" | to_method_case}}{{property.name | to_title_case}}({{resolve_type(property).pass_type}} value) { m_{{property.name}} = {{resolve_type(property).to_rvalue % "value"}}; }
     {% endfor %}
 
-    std::unique_ptr<protocol::DictionaryValue> serialize() const;
+    std::unique_ptr<protocol::DictionaryValue> toValue() const;
+    String serialize() override { return toValue()->serialize(); }
     std::unique_ptr<{{type.id}}> clone() const;
     {% if type.exported %}
     {{config.exported.string_out}} toJSONString() const override;

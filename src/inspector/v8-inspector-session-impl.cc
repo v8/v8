@@ -126,13 +126,42 @@ protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
   return state;
 }
 
-void V8InspectorSessionImpl::sendProtocolResponse(int callId,
-                                                  const String16& message) {
-  m_channel->sendProtocolResponse(callId, toStringView(message));
+namespace {
+
+class MessageBuffer : public StringBuffer {
+ public:
+  static std::unique_ptr<MessageBuffer> create(
+      std::unique_ptr<protocol::Serializable> message) {
+    return std::unique_ptr<MessageBuffer>(
+        new MessageBuffer(std::move(message)));
+  }
+
+  const StringView& string() override {
+    if (!m_serialized) {
+      m_serialized = StringBuffer::create(toStringView(m_message->serialize()));
+      m_message.reset(nullptr);
+    }
+    return m_serialized->string();
+  }
+
+ private:
+  explicit MessageBuffer(std::unique_ptr<protocol::Serializable> message)
+      : m_message(std::move(message)) {}
+
+  std::unique_ptr<protocol::Serializable> m_message;
+  std::unique_ptr<StringBuffer> m_serialized;
+};
+
+}  // namespace
+
+void V8InspectorSessionImpl::sendProtocolResponse(
+    int callId, std::unique_ptr<protocol::Serializable> message) {
+  m_channel->sendResponse(callId, MessageBuffer::create(std::move(message)));
 }
 
-void V8InspectorSessionImpl::sendProtocolNotification(const String16& message) {
-  m_channel->sendProtocolNotification(toStringView(message));
+void V8InspectorSessionImpl::sendProtocolNotification(
+    std::unique_ptr<protocol::Serializable> message) {
+  m_channel->sendNotification(MessageBuffer::create(std::move(message)));
 }
 
 void V8InspectorSessionImpl::flushProtocolNotifications() {
@@ -309,7 +338,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
 }
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::stateJSON() {
-  String16 json = m_state->toJSONString();
+  String16 json = m_state->serialize();
   return StringBufferImpl::adopt(json);
 }
 

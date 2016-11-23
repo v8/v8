@@ -22,28 +22,28 @@ namespace {{namespace}} {
 
 template<>
 struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> {
-    static std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         if (!value) {
             errors->addError("value expected");
             return nullptr;
         }
-        String json = value->toJSONString();
+        String json = value->serialize();
         auto result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromJSONString({{config.imported.to_imported_string % "json"}});
         if (!result)
             errors->addError("cannot parse");
         return result;
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}* value)
+    static std::unique_ptr<protocol::Value> toValue(const {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}* value)
     {
         auto json = value->toJSONString();
         return SerializedValue::create({{config.imported.from_imported_string % "std::move(json)"}});
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}>& value)
+    static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}>& value)
     {
-        return serialize(value.get());
+        return toValue(value.get());
     }
 };
   {% endfor %}

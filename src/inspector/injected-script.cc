@@ -150,7 +150,7 @@ Response InjectedScript::getProperties(
   if (!response.isSuccess()) return response;
   protocol::ErrorSupport errors;
   std::unique_ptr<Array<PropertyDescriptor>> result =
-      Array<PropertyDescriptor>::parse(protocolValue.get(), &errors);
+      Array<PropertyDescriptor>::fromValue(protocolValue.get(), &errors);
   if (errors.hasErrors()) return Response::Error(errors.errors());
   *properties = std::move(result);
   return Response::OK();
@@ -184,7 +184,7 @@ Response InjectedScript::wrapObject(
   if (!response.isSuccess()) return response;
 
   *result =
-      protocol::Runtime::RemoteObject::parse(protocolValue.get(), &errors);
+      protocol::Runtime::RemoteObject::fromValue(protocolValue.get(), &errors);
   if (!result->get()) return Response::Error(errors.errors());
   return Response::OK();
 }
@@ -260,7 +260,8 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   Response response = toProtocolValue(context, r, &protocolValue);
   if (!response.isSuccess()) return nullptr;
   protocol::ErrorSupport errors;
-  return protocol::Runtime::RemoteObject::parse(protocolValue.get(), &errors);
+  return protocol::Runtime::RemoteObject::fromValue(protocolValue.get(),
+                                                    &errors);
 }
 
 Response InjectedScript::findObject(const RemoteObjectId& objectId,
@@ -317,7 +318,7 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value =
         callArgument->hasValue()
-            ? callArgument->getValue(nullptr)->toJSONString()
+            ? callArgument->getValue(nullptr)->serialize()
             : "Number(\"" + callArgument->getUnserializableValue("") + "\")";
     if (!m_context->inspector()
              ->compileAndRunInternalScript(

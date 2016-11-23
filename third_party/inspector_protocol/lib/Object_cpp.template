@@ -8,7 +8,7 @@
 namespace {{namespace}} {
 {% endfor %}
 
-std::unique_ptr<Object> Object::parse(protocol::Value* value, ErrorSupport* errors)
+std::unique_ptr<Object> Object::fromValue(protocol::Value* value, ErrorSupport* errors)
 {
     protocol::DictionaryValue* dictionary = DictionaryValue::cast(value);
     if (!dictionary) {
@@ -19,7 +19,7 @@ std::unique_ptr<Object> Object::parse(protocol::Value* value, ErrorSupport* erro
     return std::unique_ptr<Object>(new Object(std::unique_ptr<DictionaryValue>(dictionary)));
 }
 
-std::unique_ptr<protocol::DictionaryValue> Object::serialize() const
+std::unique_ptr<protocol::DictionaryValue> Object::toValue() const
 {
     return DictionaryValue::cast(m_object->clone());
 }

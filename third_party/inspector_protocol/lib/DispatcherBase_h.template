@@ -125,6 +125,46 @@ private:
     protocol::HashMap<String, std::unique_ptr<protocol::DispatcherBase>> m_dispatchers;
 };
 
+class InternalResponse : public Serializable {
+    PROTOCOL_DISALLOW_COPY(InternalResponse);
+public:
+    static std::unique_ptr<InternalResponse> createResponse(int callId, std::unique_ptr<Serializable> params);
+    static std::unique_ptr<InternalResponse> createNotification(const String& notification, std::unique_ptr<Serializable> params = nullptr);
+
+    String serialize() override;
+
+    ~InternalResponse() override {}
+
+private:
+    InternalResponse(int callId, const String& notification, std::unique_ptr<Serializable> params);
+
+    int m_callId;
+    String m_notification;
+    std::unique_ptr<Serializable> m_params;
+};
+
+class InternalRawNotification : public Serializable {
+public:
+    static std::unique_ptr<InternalRawNotification> create(const String& notification)
+    {
+        return std::unique_ptr<InternalRawNotification>(new InternalRawNotification(notification));
+    }
+    ~InternalRawNotification() override {}
+
+    String serialize() override
+    {
+        return m_notification;
+    }
+
+private:
+  explicit InternalRawNotification(const String& notification)
+    : m_notification(notification)
+  {
+  }
+
+  String m_notification;
+};
+
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}
