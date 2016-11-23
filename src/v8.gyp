@@ -724,8 +724,6 @@
         'compiler/types.h',
         'compiler/type-cache.cc',
         'compiler/type-cache.h',
-        'compiler/type-hint-analyzer.cc',
-        'compiler/type-hint-analyzer.h',
         'compiler/typed-optimization.cc',
         'compiler/typed-optimization.h',
         'compiler/typer.cc',

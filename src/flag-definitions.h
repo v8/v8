@@ -449,8 +449,6 @@ DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_stats_nvp, false,
             "print TurboFan statistics in machine-readable format")
 DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
-DEFINE_BOOL(turbo_type_feedback, true,
-            "use typed feedback for representation inference in Turbofan")
 DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")

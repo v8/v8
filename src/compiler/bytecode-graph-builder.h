@@ -9,7 +9,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/compiler/type-hint-analyzer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"

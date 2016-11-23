@@ -65,7 +65,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/tail-call-optimization.h"
-#include "src/compiler/type-hint-analyzer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -199,12 +198,6 @@ class PipelineData {
     loop_assignment_ = loop_assignment;
   }
 
-  TypeHintAnalysis* type_hint_analysis() const { return type_hint_analysis_; }
-  void set_type_hint_analysis(TypeHintAnalysis* type_hint_analysis) {
-    DCHECK_NULL(type_hint_analysis_);
-    type_hint_analysis_ = type_hint_analysis;
-  }
-
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
     DCHECK(!schedule_);
@@ -240,7 +233,6 @@ class PipelineData {
     graph_ = nullptr;
     source_positions_ = nullptr;
     loop_assignment_ = nullptr;
-    type_hint_analysis_ = nullptr;
     simplified_ = nullptr;
     machine_ = nullptr;
     common_ = nullptr;
@@ -325,7 +317,6 @@ class PipelineData {
   Graph* graph_ = nullptr;
   SourcePositionTable* source_positions_ = nullptr;
   LoopAssignmentAnalysis* loop_assignment_ = nullptr;
-  TypeHintAnalysis* type_hint_analysis_ = nullptr;
   SimplifiedOperatorBuilder* simplified_ = nullptr;
   MachineOperatorBuilder* machine_ = nullptr;
   CommonOperatorBuilder* common_ = nullptr;
@@ -572,9 +563,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     }
   }
   if (!info()->is_optimizing_from_bytecode()) {
-    if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
-      info()->MarkAsTypeFeedbackEnabled();
-    }
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
@@ -694,20 +682,6 @@ struct LoopAssignmentAnalysisPhase {
 };
 
 
-struct TypeHintAnalysisPhase {
-  static const char* phase_name() { return "type hint analysis"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    if (data->info()->is_type_feedback_enabled()) {
-      TypeHintAnalyzer analyzer(data->graph_zone());
-      Handle<Code> code(data->info()->shared_info()->code(), data->isolate());
-      TypeHintAnalysis* type_hint_analysis = analyzer.Analyze(code);
-      data->set_type_hint_analysis(type_hint_analysis);
-    }
-  }
-};
-
-
 struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
@@ -722,8 +696,7 @@ struct GraphBuilderPhase {
     } else {
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), 1.0f,
-          data->loop_assignment(), data->type_hint_analysis(),
-          data->source_positions());
+          data->loop_assignment(), data->source_positions());
       succeeded = graph_builder.CreateGraph();
     }
 
@@ -1474,8 +1447,6 @@ bool PipelineImpl::CreateGraph() {
   if (FLAG_loop_assignment_analysis) {
     Run<LoopAssignmentAnalysisPhase>();
   }
-
-  Run<TypeHintAnalysisPhase>();
 
   Run<GraphBuilderPhase>();
   if (data->compilation_failed()) {

@@ -26,7 +26,6 @@ class Graph;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
 class Node;
-class TypeHintAnalysis;
 
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
@@ -39,8 +38,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
                   float invocation_frequency,
-                  LoopAssignmentAnalysis* loop_assignment = nullptr,
-                  TypeHintAnalysis* type_hint_analysis = nullptr);
+                  LoopAssignmentAnalysis* loop_assignment = nullptr);
   virtual ~AstGraphBuilder() {}
 
   // Creates a graph by visiting the entire AST.
@@ -118,9 +116,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
-
-  // Result of type hint analysis performed before graph creation.
-  TypeHintAnalysis* type_hint_analysis_;
 
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
@@ -622,7 +617,6 @@ class AstGraphBuilderWithPositions final : public AstGraphBuilder {
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
                                JSGraph* jsgraph, float invocation_frequency,
                                LoopAssignmentAnalysis* loop_assignment,
-                               TypeHintAnalysis* type_hint_analysis,
                                SourcePositionTable* source_positions,
                                int inlining_id = SourcePosition::kNotInlined);
 

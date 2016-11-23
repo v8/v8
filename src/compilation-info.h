@@ -49,7 +49,6 @@ class CompilationInfo final {
     kSourcePositionsEnabled = 1 << 13,
     kBailoutOnUninitialized = 1 << 14,
     kOptimizeFromBytecode = 1 << 15,
-    kTypeFeedbackEnabled = 1 << 16,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -139,12 +138,6 @@ class CompilationInfo final {
 
   bool is_deoptimization_enabled() const {
     return GetFlag(kDeoptimizationEnabled);
-  }
-
-  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
-
-  bool is_type_feedback_enabled() const {
-    return GetFlag(kTypeFeedbackEnabled);
   }
 
   void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }

@@ -19,7 +19,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/type-hint-analyzer.h"
 #include "src/isolate-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
@@ -488,7 +487,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   ParseInfo parse_info(&zone, shared_info);
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
-  if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
   if (info_->is_optimizing_from_bytecode()) info.MarkAsOptimizeFromBytecode();
 
   if (info.is_optimizing_from_bytecode() && !Compiler::EnsureBytecode(&info)) {
@@ -557,16 +555,11 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     LoopAssignmentAnalysis* loop_assignment =
         loop_assignment_analyzer.Analyze();
 
-    // Run the type hint analyzer on the inlinee.
-    TypeHintAnalyzer type_hint_analyzer(&zone);
-    TypeHintAnalysis* type_hint_analysis =
-        type_hint_analyzer.Analyze(handle(shared_info->code(), info.isolate()));
-
     // Run the AstGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     AstGraphBuilderWithPositions graph_builder(
         &zone, &info, jsgraph(), call.frequency(), loop_assignment,
-        type_hint_analysis, source_positions_, inlining_id);
+        source_positions_, inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
