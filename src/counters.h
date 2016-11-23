@@ -708,6 +708,9 @@ class RuntimeCallTimer {
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \
+  V(GC_AllAvailableGarbage)                         \
+  V(GCEpilogueCallback)                             \
+  V(GCPrologueCallback)                             \
   V(GenericNamedPropertyDefinerCallback)            \
   V(GenericNamedPropertyDeleterCallback)            \
   V(GenericNamedPropertyDescriptorCallback)         \
