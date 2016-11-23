@@ -2168,7 +2168,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(eax, &create_runtime);
 
     // Load the map of argumentsList into ecx.
@@ -2212,6 +2213,22 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ mov(eax, ecx);
     __ jmp(&done_create);
 
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ bind(&create_holey_array);
+    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ mov(ecx, FieldOperand(ecx, Map::kPrototypeOffset));
+    __ cmp(ecx, ContextOperand(ebx, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ j(not_equal, &create_runtime);
+    __ LoadRoot(ecx, Heap::kArrayProtectorRootIndex);
+    __ cmp(FieldOperand(ecx, PropertyCell::kValueOffset),
+           Immediate(Smi::FromInt(Isolate::kProtectorValid)));
+    __ j(not_equal, &create_runtime);
+    __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
+    __ SmiUntag(ebx);
+    __ mov(eax, FieldOperand(eax, JSArray::kElementsOffset));
+    __ jmp(&done_create);
+
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
     __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
@@ -2219,10 +2236,12 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
-    __ cmp(ecx, Immediate(FAST_ELEMENTS));
-    __ j(above, &create_runtime);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
     __ cmp(ecx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
-    __ j(equal, &create_runtime);
+    __ j(equal, &create_holey_array, Label::kNear);
+    __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ j(equal, &create_holey_array, Label::kNear);
+    __ j(above, &create_runtime);
     __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
     __ SmiUntag(ebx);
     __ mov(eax, FieldOperand(eax, JSArray::kElementsOffset));
@@ -2261,26 +2280,38 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
+    // Save edx/edi to stX0/stX1.
     __ push(edx);
+    __ push(edi);
     __ fld_s(MemOperand(esp, 0));
-    __ lea(esp, Operand(esp, kFloatSize));
+    __ fld_s(MemOperand(esp, 4));
+    __ lea(esp, Operand(esp, 2 * kFloatSize));
 
     __ PopReturnAddressTo(edx);
     __ Move(ecx, Immediate(0));
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmp(ecx, ebx);
     __ j(equal, &done, Label::kNear);
-    __ Push(
-        FieldOperand(eax, ecx, times_pointer_size, FixedArray::kHeaderSize));
+    // Turn the hole into undefined as we go.
+    __ mov(edi,
+           FieldOperand(eax, ecx, times_pointer_size, FixedArray::kHeaderSize));
+    __ CompareRoot(edi, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &push, Label::kNear);
+    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
+    __ Push(edi);
     __ inc(ecx);
     __ jmp(&loop);
     __ bind(&done);
     __ PushReturnAddressFrom(edx);
 
-    __ lea(esp, Operand(esp, -kFloatSize));
+    // Restore edx/edi from stX0/stX1.
+    __ lea(esp, Operand(esp, -2 * kFloatSize));
     __ fstp_s(MemOperand(esp, 0));
+    __ fstp_s(MemOperand(esp, 4));
     __ pop(edx);
+    __ pop(edi);
 
     __ Move(eax, ebx);
   }
