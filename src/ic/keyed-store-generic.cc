@@ -676,7 +676,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   {
     Label not_callable(this);
     Node* accessor_pair = var_accessor_pair.value();
-    GotoIf(IsAccessorInfoMap(LoadMap(accessor_pair)), slow);
+    GotoIf(IsAccessorPairMap(LoadMap(accessor_pair)), slow);
     CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
     Node* setter = LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
     Node* setter_map = LoadMap(setter);
