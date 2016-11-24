@@ -743,6 +743,7 @@ void Simulator::EvalTableInit() {
     EvalTable[i] = &Simulator::Evaluate_Unknown;
   }
 
+  EvalTable[DUMY] = &Simulator::Evaluate_DUMY;
   EvalTable[BKPT] = &Simulator::Evaluate_BKPT;
   EvalTable[SPM] = &Simulator::Evaluate_SPM;
   EvalTable[BALR] = &Simulator::Evaluate_BALR;
@@ -6056,6 +6057,12 @@ uintptr_t Simulator::PopAddress() {
 int Simulator::Evaluate_Unknown(Instruction* instr) {
   UNREACHABLE();
   return 0;
+}
+
+EVALUATE(DUMY) {
+  DCHECK_OPCODE(DUMY);
+  // dummy instruction does nothing.
+  return 6;
 }
 
 EVALUATE(CLR) {

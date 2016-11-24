@@ -1224,6 +1224,8 @@ class Assembler : public AssemblerBase {
 
   void nop(int type = 0);  // 0 is the default non-marking type.
 
+  void dumy(int r1, int x2, int b2, int d2);
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();

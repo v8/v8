@@ -522,6 +522,7 @@ class Simulator {
   static void EvalTableInit();
 
 #define EVALUATE(name) int Evaluate_##name(Instruction* instr)
+  EVALUATE(DUMY);
   EVALUATE(BKPT);
   EVALUATE(SPM);
   EVALUATE(BALR);

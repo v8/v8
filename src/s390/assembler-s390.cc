@@ -3012,6 +3012,21 @@ bool Assembler::IsNop(SixByteInstr instr, int type) {
   return ((instr & 0xffff) == 0x1800);  // lr r0,r0
 }
 
+// dummy instruction reserved for special use.
+void Assembler::dumy(int r1, int x2, int b2, int d2) {
+#if defined(USE_SIMULATOR)
+  int op = 0xE353;
+  uint64_t code = (static_cast<uint64_t>(op & 0xFF00)) * B32 |
+                  (static_cast<uint64_t>(r1) & 0xF) * B36 |
+                  (static_cast<uint64_t>(x2) & 0xF) * B32 |
+                  (static_cast<uint64_t>(b2) & 0xF) * B28 |
+                  (static_cast<uint64_t>(d2 & 0x0FFF)) * B16 |
+                  (static_cast<uint64_t>(d2 & 0x0FF000)) >> 4 |
+                  (static_cast<uint64_t>(op & 0x00FF));
+  emit6bytes(code);
+#endif
+}
+
 void Assembler::GrowBuffer(int needed) {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
