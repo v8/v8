@@ -110,9 +110,9 @@ class Log {
 
   // Implementation of writing to a log file.
   int WriteToFile(const char* msg, int length) {
-    DCHECK_NOT_NULL(output_handle_);
+    DCHECK(output_handle_ != NULL);
     size_t rv = fwrite(msg, 1, length, output_handle_);
-    DCHECK_EQ(length, rv);
+    DCHECK(static_cast<size_t>(length) == rv);
     USE(rv);
     fflush(output_handle_);
     return length;

@@ -52,8 +52,8 @@ MaybeHandle<String> ExtractStringFromModuleBytes(
     uint32_t offset, uint32_t size) {
   // TODO(wasm): cache strings from modules if it's a performance win.
   Handle<SeqOneByteString> module_bytes = compiled_module->module_bytes();
-  DCHECK_GE(module_bytes->length(), offset);
-  DCHECK_GE(module_bytes->length() - offset, size);
+  DCHECK_GE(static_cast<size_t>(module_bytes->length()), offset);
+  DCHECK_GE(static_cast<size_t>(module_bytes->length() - offset), size);
   Address raw = module_bytes->GetCharsAddress() + offset;
   if (!unibrow::Utf8::Validate(reinterpret_cast<const byte*>(raw), size))
     return {};  // UTF8 decoding error for name.
@@ -111,7 +111,7 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
     // addressable memory after the guard page can be made inaccessible.
     const size_t alloc_size =
         RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
-    DCHECK_EQ(0, size % base::OS::CommitPageSize());
+    DCHECK_EQ(0u, size % base::OS::CommitPageSize());
 
     // AllocateGuarded makes the whole region inaccessible by default.
     void* memory = base::OS::AllocateGuarded(alloc_size);
@@ -935,7 +935,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     // TODO(wasm): only save the sections necessary to deserialize a
     // {WasmModule}. E.g. function bodies could be omitted.
     size_t module_bytes_len = module_end - module_start;
-    DCHECK_LE(module_bytes_len, kMaxInt);
+    DCHECK_LE(module_bytes_len, static_cast<size_t>(kMaxInt));
     Vector<const uint8_t> module_bytes_vec(module_start,
                                            static_cast<int>(module_bytes_len));
     Handle<String> module_bytes_string =
@@ -2063,7 +2063,7 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
     compiled_module->set_script(asm_js_script);
     size_t offset_tables_len =
         asm_js_offset_tables_end - asm_js_offset_tables_start;
-    DCHECK_GE(kMaxInt, offset_tables_len);
+    DCHECK_GE(static_cast<size_t>(kMaxInt), offset_tables_len);
     Handle<ByteArray> offset_tables =
         isolate->factory()->NewByteArray(static_cast<int>(offset_tables_len));
     memcpy(offset_tables->GetDataStartAddress(), asm_js_offset_tables_start,

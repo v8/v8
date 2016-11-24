@@ -233,7 +233,7 @@ void wasm::PrintWasmText(
       }
       case kExprCallIndirect: {
         CallIndirectOperand operand(&i, i.pc());
-        DCHECK_EQ(0, operand.table_index);
+        DCHECK_EQ(0U, operand.table_index);
         os << "call_indirect " << operand.index;
         break;
       }
