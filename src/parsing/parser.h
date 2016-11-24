@@ -638,14 +638,16 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
 
-  void FinalizeIteratorUse(Variable* completion, Expression* condition,
-                           Variable* iter, Block* iterator_use, Block* result);
+  void FinalizeIteratorUse(Scope* use_scope, Variable* completion,
+                           Expression* condition, Variable* iter,
+                           Block* iterator_use, Block* result);
 
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     int pos);
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
                           Variable* input, Variable* output);
-  void BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
+  void BuildIteratorCloseForCompletion(Scope* scope,
+                                       ZoneList<Statement*>* statements,
                                        Variable* iterator,
                                        Expression* completion);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
