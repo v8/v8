@@ -47,6 +47,7 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
   set_unicode_cache(isolate_->unicode_cache());
   set_language_mode(shared->language_mode());
   set_shared_info(shared);
+  set_module(shared->kind() == FunctionKind::kModule);
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
