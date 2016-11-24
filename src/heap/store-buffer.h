@@ -10,7 +10,6 @@
 #include "src/base/platform/platform.h"
 #include "src/cancelable-task.h"
 #include "src/globals.h"
-#include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 
 namespace v8 {
@@ -29,7 +28,7 @@ class StoreBuffer {
   static const int kStoreBuffers = 2;
   static const intptr_t kDeletionTag = 1;
 
-  V8_EXPORT_PRIVATE static void StoreBufferOverflow(Isolate* isolate);
+  static void StoreBufferOverflow(Isolate* isolate);
 
   explicit StoreBuffer(Heap* heap);
   void SetUp();
@@ -64,23 +63,6 @@ class StoreBuffer {
   // will be written into the second field. When processing the store buffer
   // the more efficient Remove method will be called in this case.
   void DeleteEntry(Address start, Address end = nullptr);
-
-  void InsertEntry(Address slot) {
-    // Insertions coming from the GC are directly inserted into the remembered
-    // set. Insertions coming from the runtime are added to the store buffer to
-    // allow concurrent processing.
-    if (heap_->gc_state() == Heap::NOT_IN_GC) {
-      if (top_ + sizeof(Address) > limit_[current_]) {
-        StoreBufferOverflow(heap_->isolate());
-      }
-      *top_ = slot;
-      top_++;
-    } else {
-      // In GC the store buffer has to be empty at any time.
-      DCHECK(Empty());
-      RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
-    }
-  }
 
   // Used by the concurrent processing thread to transfer entries from the
   // store buffer to the remembered set.
