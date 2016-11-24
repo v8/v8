@@ -19,8 +19,49 @@
 
 using namespace v8::internal;
 
+namespace {
+
+// Record the 'compiled' state of all top level functions.
+void GetTopLevelFunctionInfo(
+    v8::Local<v8::Script> script,
+    std::unordered_map<std::string, bool>* is_compiled) {
+  // Get the v8::internal::Script object from the API v8::Script.
+  // The API object 'wraps' the compiled top-level function, not the i::Script.
+  Handle<JSFunction> toplevel_fn = v8::Utils::OpenHandle(*script);
+  Handle<Script> i_script =
+      handle(Script::cast(toplevel_fn->shared()->script()));
+
+  WeakFixedArray::Iterator iter(i_script->shared_function_infos());
+  while (SharedFunctionInfo* shared = iter.Next<SharedFunctionInfo>()) {
+    std::unique_ptr<char[]> name = String::cast(shared->name())->ToCString();
+    is_compiled->insert(std::make_pair(name.get(), shared->is_compiled()));
+  }
+}
+
+}  // anonymous namespace
+
+TEST(GetTopLevelFunctionInfo) {
+  if (!FLAG_lazy) return;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  const char src[] = "function foo() { var a; }\n";
+  std::unordered_map<std::string, bool> is_compiled;
+  GetTopLevelFunctionInfo(v8_compile(src), &is_compiled);
+
+  // Test that our helper function GetTopLevelFunctionInfo does what it claims:
+  DCHECK(is_compiled.find("foo") != is_compiled.end());
+  DCHECK(is_compiled.find("bar") == is_compiled.end());
+}
+
 TEST(EagerlyCompileImmediateUseFunctions) {
   if (!FLAG_lazy) return;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
 
   // Test parenthesized, exclaimed, and regular functions. Make sure these
   // occur both intermixed and after each other, to make sure the 'reset'
@@ -35,27 +76,8 @@ TEST(EagerlyCompileImmediateUseFunctions) {
       "!function exclaimed2() { var g; }() \n"
       "function normal4() { var h; }\n";
 
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  LocalContext env;
-
-  // Compile src & record the 'compiled' state of all top level functions in
-  // is_compiled.
   std::unordered_map<std::string, bool> is_compiled;
-  {
-    v8::Local<v8::Script> api_script = v8_compile(src);
-    Handle<JSFunction> toplevel_fn = v8::Utils::OpenHandle(*api_script);
-    Handle<Script> script =
-        handle(Script::cast(toplevel_fn->shared()->script()));
-
-    WeakFixedArray::Iterator iter(script->shared_function_infos());
-    while (SharedFunctionInfo* shared = iter.Next<SharedFunctionInfo>()) {
-      std::unique_ptr<char[]> name = String::cast(shared->name())->ToCString();
-      is_compiled[name.get()] = shared->is_compiled();
-    }
-  }
-
-  DCHECK(is_compiled.find("normal") != is_compiled.end());
+  GetTopLevelFunctionInfo(v8_compile(src), &is_compiled);
 
   DCHECK(is_compiled["parenthesized"]);
   DCHECK(is_compiled["parenthesized2"]);
@@ -65,4 +87,20 @@ TEST(EagerlyCompileImmediateUseFunctions) {
   DCHECK(!is_compiled["normal2"]);
   DCHECK(!is_compiled["normal3"]);
   DCHECK(!is_compiled["normal4"]);
+}
+
+TEST(CommaFunctionSequence) {
+  if (!FLAG_lazy) return;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  const char src[] = "!function a(){}(),function b(){}(),function c(){}();";
+  std::unordered_map<std::string, bool> is_compiled;
+  GetTopLevelFunctionInfo(v8_compile(src), &is_compiled);
+
+  DCHECK(is_compiled["a"]);
+  DCHECK(is_compiled["b"]);
+  DCHECK(is_compiled["c"]);
 }

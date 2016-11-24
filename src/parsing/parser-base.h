@@ -462,6 +462,10 @@ class ParserBase {
       return next_function_is_likely_called_;
     }
 
+    bool previous_function_was_likely_called() const {
+      return previous_function_was_likely_called_;
+    }
+
     void set_next_function_is_likely_called() {
       next_function_is_likely_called_ = true;
     }
@@ -505,11 +509,12 @@ class ParserBase {
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
 
     // Record whether the next (=== immediately following) function literal is
-    // preceded by a parenthesis / exclamation mark.
-    // The FunctionState constructor will reset a parents'
-    // next_function_is_likely_called_ to prevent it from being 'reused' in the
-    // next function literal.
+    // preceded by a parenthesis / exclamation mark. Also record the previous
+    // state.
+    // These are managed by the FunctionState constructor; the caller may only
+    // call set_next_function_is_likely_called.
     bool next_function_is_likely_called_;
+    bool previous_function_was_likely_called_;
 
     friend Impl;
     friend class Checkpoint;
@@ -1461,9 +1466,12 @@ ParserBase<Impl>::FunctionState::FunctionState(
       return_expr_context_(ReturnExprContext::kInsideValidBlock),
       non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
-      next_function_is_likely_called_(false) {
+      next_function_is_likely_called_(false),
+      previous_function_was_likely_called_(false) {
   *function_state_stack = this;
   if (outer_function_state_) {
+    outer_function_state_->previous_function_was_likely_called_ =
+        outer_function_state_->next_function_is_likely_called_;
     outer_function_state_->next_function_is_likely_called_ = false;
   }
 }
@@ -1894,6 +1902,13 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
         PeekAhead() == Token::ARROW) {
       // a trailing comma is allowed at the end of an arrow parameter list
       break;
+    }
+
+    // Pass on the 'set_next_function_is_likely_called' flag if we have
+    // several function literals separated by comma.
+    if (peek() == Token::FUNCTION &&
+        function_state_->previous_function_was_likely_called()) {
+      function_state_->set_next_function_is_likely_called();
     }
   }
 
