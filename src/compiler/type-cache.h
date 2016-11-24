@@ -97,6 +97,11 @@ class TypeCache final {
   // [0, String::kMaxLength].
   Type* const kStringLengthType = CreateRange(0.0, String::kMaxLength);
 
+  // A time value always contains a tagged number in the range
+  // [-kMaxTimeInMs, kMaxTimeInMs].
+  Type* const kTimeValueType =
+      CreateRange(-DateCache::kMaxTimeInMs, DateCache::kMaxTimeInMs);
+
   // The JSDate::day property always contains a tagged number in the range
   // [1, 31] or NaN.
   Type* const kJSDateDayType =
@@ -123,9 +128,8 @@ class TypeCache final {
 
   // The JSDate::value property always contains a tagged number in the range
   // [-kMaxTimeInMs, kMaxTimeInMs] or NaN.
-  Type* const kJSDateValueType = Type::Union(
-      CreateRange(-DateCache::kMaxTimeInMs, DateCache::kMaxTimeInMs),
-      Type::NaN(), zone());
+  Type* const kJSDateValueType =
+      Type::Union(kTimeValueType, Type::NaN(), zone());
 
   // The JSDate::weekday property always contains a tagged number in the range
   // [0, 6] or NaN.

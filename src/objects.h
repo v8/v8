@@ -7237,6 +7237,7 @@ class Script: public Struct {
   V(Array.prototype, push, ArrayPush)                       \
   V(Array.prototype, pop, ArrayPop)                         \
   V(Array.prototype, shift, ArrayShift)                     \
+  V(Date, now, DateNow)                                     \
   V(Date.prototype, getDate, DateGetDate)                   \
   V(Date.prototype, getDay, DateGetDay)                     \
   V(Date.prototype, getFullYear, DateGetFullYear)           \

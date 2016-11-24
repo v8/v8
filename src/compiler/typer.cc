@@ -1348,6 +1348,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathClz32:
           return t->cache_.kZeroToThirtyTwo;
         // Date functions.
+        case kDateNow:
+          return t->cache_.kTimeValueType;
         case kDateGetDate:
           return t->cache_.kJSDateDayType;
         case kDateGetDay:
