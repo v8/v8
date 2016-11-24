@@ -803,17 +803,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       }
       break;
 
-    case VariableLocation::LOOKUP: {
-      Comment cmnt(masm_, "[ VariableDeclaration");
-      DCHECK_EQ(VAR, variable->mode());
-      DCHECK(!variable->binding_needs_init());
-      __ Mov(x2, Operand(variable->name()));
-      __ Push(x2);
-      __ CallRuntime(Runtime::kDeclareEvalVar);
-      PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
-      break;
-    }
-
+    case VariableLocation::LOOKUP:
     case VariableLocation::MODULE:
       UNREACHABLE();
   }
@@ -865,17 +855,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       break;
     }
 
-    case VariableLocation::LOOKUP: {
-      Comment cmnt(masm_, "[ Function Declaration");
-      __ Mov(x2, Operand(variable->name()));
-      PushOperand(x2);
-      // Push initial value for function declaration.
-      VisitForStackValue(declaration->fun());
-      CallRuntimeWithOperands(Runtime::kDeclareEvalFunction);
-      PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
-      break;
-    }
-
+    case VariableLocation::LOOKUP:
     case VariableLocation::MODULE:
       UNREACHABLE();
   }
@@ -1171,91 +1151,6 @@ void FullCodeGenerator::EmitSetHomeObjectAccumulator(Expression* initializer,
   CallStoreIC(slot, isolate()->factory()->home_object_symbol());
 }
 
-
-void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
-                                                      TypeofMode typeof_mode,
-                                                      Label* slow) {
-  Register current = cp;
-  Register next = x10;
-  Register temp = x11;
-
-  int to_check = scope()->ContextChainLengthUntilOutermostSloppyEval();
-  for (Scope* s = scope(); to_check > 0; s = s->outer_scope()) {
-    if (!s->NeedsContext()) continue;
-    if (s->calls_sloppy_eval()) {
-      // Check that extension is "the hole".
-      __ Ldr(temp, ContextMemOperand(current, Context::EXTENSION_INDEX));
-      __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
-    }
-    // Load next context in chain.
-    __ Ldr(next, ContextMemOperand(current, Context::PREVIOUS_INDEX));
-    // Walk the rest of the chain without clobbering cp.
-    current = next;
-    to_check--;
-  }
-
-  // All extension objects were empty and it is safe to use a normal global
-  // load machinery.
-  EmitGlobalVariableLoad(proxy, typeof_mode);
-}
-
-
-MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
-                                                                Label* slow) {
-  DCHECK(var->IsContextSlot());
-  Register context = cp;
-  Register next = x10;
-  Register temp = x11;
-
-  for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
-    if (s->NeedsContext()) {
-      if (s->calls_sloppy_eval()) {
-        // Check that extension is "the hole".
-        __ Ldr(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
-        __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
-      }
-      __ Ldr(next, ContextMemOperand(context, Context::PREVIOUS_INDEX));
-      // Walk the rest of the chain without clobbering cp.
-      context = next;
-    }
-  }
-  // Check that last extension is "the hole".
-  __ Ldr(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
-  __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
-
-  // This function is used only for loads, not stores, so it's safe to
-  // return an cp-based operand (the write barrier cannot be allowed to
-  // destroy the cp register).
-  return ContextMemOperand(context, var->index());
-}
-
-
-void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
-                                                  TypeofMode typeof_mode,
-                                                  Label* slow, Label* done) {
-  // Generate fast-case code for variables that might be shadowed by
-  // eval-introduced variables.  Eval is used a lot without
-  // introducing variables.  In those cases, we do not want to
-  // perform a runtime call for all variables in the scope
-  // containing the eval.
-  Variable* var = proxy->var();
-  if (var->mode() == DYNAMIC_GLOBAL) {
-    EmitLoadGlobalCheckExtensions(proxy, typeof_mode, slow);
-    __ B(done);
-  } else if (var->mode() == DYNAMIC_LOCAL) {
-    Variable* local = var->local_if_not_shadowed();
-    __ Ldr(x0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->binding_needs_init()) {
-      __ JumpIfNotRoot(x0, Heap::kTheHoleValueRootIndex, done);
-      __ Mov(x0, Operand(var->name()));
-      __ Push(x0);
-      __ CallRuntime(Runtime::kThrowReferenceError);
-    } else {
-      __ B(done);
-    }
-  }
-}
-
 void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
                                          TypeofMode typeof_mode) {
   // Record position before possible IC call.
@@ -1263,8 +1158,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
   PrepareForBailoutForId(proxy->BeforeId(), BailoutState::NO_REGISTERS);
   Variable* var = proxy->var();
 
-  // Three cases: global variables, lookup variables, and all other types of
-  // variables.
+  // Two cases: global variables and all other types of variables.
   switch (var->location()) {
     case VariableLocation::UNALLOCATED: {
       Comment cmnt(masm_, "Global variable");
@@ -1297,24 +1191,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       break;
     }
 
-    case VariableLocation::LOOKUP: {
-      Label done, slow;
-      // Generate code for loading from variables potentially shadowed by
-      // eval-introduced variables.
-      EmitDynamicLookupFastCase(proxy, typeof_mode, &slow, &done);
-      __ Bind(&slow);
-      Comment cmnt(masm_, "Lookup variable");
-      __ Push(var->name());
-      Runtime::FunctionId function_id =
-          typeof_mode == NOT_INSIDE_TYPEOF
-              ? Runtime::kLoadLookupSlot
-              : Runtime::kLoadLookupSlotInsideTypeof;
-      __ CallRuntime(function_id);
-      __ Bind(&done);
-      context()->Plug(x0);
-      break;
-    }
-
+    case VariableLocation::LOOKUP:
     case VariableLocation::MODULE:
       UNREACHABLE();
   }
@@ -2038,25 +1915,17 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
 
   } else {
     DCHECK(var->mode() != CONST || op == Token::INIT);
-    if (var->IsLookupSlot()) {
-      // Assignment to var.
-      __ Push(var->name());
-      __ Push(x0);
-      __ CallRuntime(is_strict(language_mode())
-                         ? Runtime::kStoreLookupSlot_Strict
-                         : Runtime::kStoreLookupSlot_Sloppy);
-    } else {
-      // Assignment to var or initializing assignment to let/const in harmony
-      // mode.
-      DCHECK(var->IsStackAllocated() || var->IsContextSlot());
-      MemOperand location = VarOperand(var, x1);
-      if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
-        __ Ldr(x10, location);
-        __ CompareRoot(x10, Heap::kTheHoleValueRootIndex);
-        __ Check(eq, kLetBindingReInitialization);
-      }
-      EmitStoreToStackLocalOrContextSlot(var, location);
+    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+    DCHECK(!var->IsLookupSlot());
+    // Assignment to var or initializing assignment to let/const in harmony
+    // mode.
+    MemOperand location = VarOperand(var, x1);
+    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
+      __ Ldr(x10, location);
+      __ CompareRoot(x10, Heap::kTheHoleValueRootIndex);
+      __ Check(eq, kLetBindingReInitialization);
     }
+    EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }
 
@@ -2294,119 +2163,6 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   RestoreContext();
   context()->DropAndPlug(1, x0);
 }
-
-void FullCodeGenerator::EmitResolvePossiblyDirectEval(Call* expr) {
-  int arg_count = expr->arguments()->length();
-  ASM_LOCATION("FullCodeGenerator::EmitResolvePossiblyDirectEval");
-  // Prepare to push a copy of the first argument or undefined if it doesn't
-  // exist.
-  if (arg_count > 0) {
-    __ Peek(x9, arg_count * kXRegSize);
-  } else {
-    __ LoadRoot(x9, Heap::kUndefinedValueRootIndex);
-  }
-
-  __ Ldr(x10, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-
-  // Prepare to push the language mode.
-  __ Mov(x11, Smi::FromInt(language_mode()));
-  // Prepare to push the start position of the scope the calls resides in.
-  __ Mov(x12, Smi::FromInt(scope()->start_position()));
-  // Prepare to push the source position of the eval call.
-  __ Mov(x13, Smi::FromInt(expr->position()));
-
-  // Push.
-  __ Push(x9, x10, x11, x12, x13);
-
-  // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval);
-}
-
-
-// See http://www.ecma-international.org/ecma-262/6.0/#sec-function-calls.
-void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
-  VariableProxy* callee = expr->expression()->AsVariableProxy();
-  if (callee->var()->IsLookupSlot()) {
-    Label slow, done;
-    SetExpressionPosition(callee);
-      // Generate code for loading from variables potentially shadowed
-      // by eval-introduced variables.
-      EmitDynamicLookupFastCase(callee, NOT_INSIDE_TYPEOF, &slow, &done);
-
-    __ Bind(&slow);
-    // Call the runtime to find the function to call (returned in x0)
-    // and the object holding it (returned in x1).
-    __ Push(callee->name());
-    __ CallRuntime(Runtime::kLoadLookupSlotForCall);
-    PushOperands(x0, x1);  // Receiver, function.
-    PrepareForBailoutForId(expr->LookupId(), BailoutState::NO_REGISTERS);
-
-    // If fast case code has been generated, emit code to push the
-    // function and receiver and have the slow path jump around this
-    // code.
-    if (done.is_linked()) {
-      Label call;
-      __ B(&call);
-      __ Bind(&done);
-      // Push function.
-      // The receiver is implicitly the global receiver. Indicate this
-      // by passing the undefined to the call function stub.
-      __ LoadRoot(x1, Heap::kUndefinedValueRootIndex);
-      __ Push(x0, x1);
-      __ Bind(&call);
-    }
-  } else {
-    VisitForStackValue(callee);
-    // refEnv.WithBaseObject()
-    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-    PushOperand(x10);  // Reserved receiver slot.
-  }
-}
-
-
-void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
-  ASM_LOCATION("FullCodeGenerator::EmitPossiblyEvalCall");
-  // In a call to eval, we first call Runtime_ResolvePossiblyDirectEval
-  // to resolve the function we need to call.  Then we call the resolved
-  // function using the given arguments.
-  ZoneList<Expression*>* args = expr->arguments();
-  int arg_count = args->length();
-
-  PushCalleeAndWithBaseObject(expr);
-
-  // Push the arguments.
-  for (int i = 0; i < arg_count; i++) {
-    VisitForStackValue(args->at(i));
-  }
-
-  // Push a copy of the function (found below the arguments) and
-  // resolve eval.
-  __ Peek(x10, (arg_count + 1) * kPointerSize);
-  __ Push(x10);
-  EmitResolvePossiblyDirectEval(expr);
-
-  // Touch up the stack with the resolved function.
-  __ Poke(x0, (arg_count + 1) * kPointerSize);
-
-  PrepareForBailoutForId(expr->EvalId(), BailoutState::NO_REGISTERS);
-
-  // Record source position for debugger.
-  SetCallPosition(expr);
-
-  // Call the evaluated function.
-  Handle<Code> code = CodeFactory::CallIC(isolate(), ConvertReceiverMode::kAny,
-                                          expr->tail_call_mode())
-                          .code();
-  __ Mov(x3, SmiFromSlot(expr->CallFeedbackICSlot()));
-  __ Peek(x1, (arg_count + 1) * kXRegSize);
-  __ Mov(x0, arg_count);
-  __ Call(code, RelocInfo::CODE_TARGET);
-  OperandStackDepthDecrement(arg_count + 1);
-  RecordJSReturnSite(expr);
-  RestoreContext();
-  context()->DropAndPlug(1, x0);
-}
-
 
 void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   Comment cmnt(masm_, "[ CallNew");
@@ -2851,16 +2607,12 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ Push(x12, x11);
           __ CallRuntime(Runtime::kDeleteProperty_Sloppy);
           context()->Plug(x0);
-        } else if (var->IsStackAllocated() || var->IsContextSlot()) {
+        } else {
+          DCHECK(!var->IsLookupSlot());
+          DCHECK(var->IsStackAllocated() || var->IsContextSlot());
           // Result of deleting non-global, non-dynamic variables is false.
           // The subexpression does not have side effects.
           context()->Plug(is_this);
-        } else {
-          // Non-global variable.  Call the runtime to try to delete from the
-          // context where the variable was introduced.
-          __ Push(var->name());
-          __ CallRuntime(Runtime::kDeleteLookupSlot);
-          context()->Plug(x0);
         }
       } else {
         // Result of deleting non-property, non-variable reference is true.

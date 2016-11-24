@@ -257,11 +257,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Named and keyed loads require a VectorSlotPair for successful lowering.
   VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
 
-  // Determine which contexts need to be checked for extension objects that
-  // might shadow the optimistic declaration of dynamic lookup variables.
-  uint32_t ComputeBitsetForDynamicGlobal(Variable* variable);
-  uint32_t ComputeBitsetForDynamicContext(Variable* variable);
-
   // Computes the frequency for JSCallFunction and JSCallConstruct nodes.
   float ComputeCallFrequency(FeedbackVectorSlot slot) const;
 
@@ -327,10 +322,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildGlobalStore(Handle<Name> name, Node* value,
                          const VectorSlotPair& feedback);
 
-  // Builders for dynamic variable loads and stores.
-  Node* BuildDynamicLoad(Handle<Name> name, TypeofMode typeof_mode);
-  Node* BuildDynamicStore(Handle<Name> name, Node* value);
-
   // Builders for accessing the function context.
   Node* BuildLoadGlobalObject();
   Node* BuildLoadNativeContextField(int index);
@@ -381,14 +372,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Optimization for variable load from global object.
   Node* TryLoadGlobalConstant(Handle<Name> name);
-
-  // Optimization for variable load of dynamic lookup slot that is most likely
-  // to resolve to a global slot or context slot (inferred from scope chain).
-  Node* TryLoadDynamicVariable(Variable* variable, Handle<String> name,
-                               BailoutId bailout_id,
-                               const VectorSlotPair& feedback,
-                               OutputFrameStateCombine combine,
-                               TypeofMode typeof_mode);
 
   // Optimizations for automatic type conversion.
   Node* TryFastToBoolean(Node* input);

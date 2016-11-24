@@ -532,6 +532,9 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void AstNumberingVisitor::VisitCall(Call* node) {
+  if (node->is_possibly_eval()) {
+    DisableFullCodegenAndCrankshaft(kFunctionCallsEval);
+  }
   IncrementNodeCount();
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Call::num_ids()));
@@ -587,7 +590,6 @@ void AstNumberingVisitor::VisitRewritableExpression(
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   DeclarationScope* scope = node->scope();
   if (scope->new_target_var()) DisableFullCodegenAndCrankshaft(kSuperReference);
-  if (scope->calls_eval()) DisableFullCodegenAndCrankshaft(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
     DisableFullCodegenAndCrankshaft(kContextAllocatedArguments);
   }

@@ -467,7 +467,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
   void EmitKeyedSuperCallWithLoadIC(Call* expr);
-  void EmitPossiblyEvalCall(Call* expr);
 
 #define FOR_EACH_FULL_CODE_INTRINSIC(F) \
   F(IsSmi)                              \
@@ -506,19 +505,11 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void RestoreContext();
 
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
-                                     TypeofMode typeof_mode, Label* slow);
-  MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(VariableProxy* proxy, TypeofMode typeof_mode,
-                                 Label* slow, Label* done);
   void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofMode typeof_mode);
   void EmitVariableLoad(VariableProxy* proxy,
                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(ObjectLiteralProperty* property);
-
-  // Expects the arguments and the function already pushed.
-  void EmitResolvePossiblyDirectEval(Call* expr);
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
@@ -697,8 +688,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Push the function argument for the runtime functions PushWithContext
   // and PushCatchContext.
   void PushFunctionArgumentForContextAllocation();
-
-  void PushCalleeAndWithBaseObject(Call* expr);
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) void Visit##type(type* node);
