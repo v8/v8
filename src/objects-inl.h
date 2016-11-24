@@ -6244,6 +6244,10 @@ Code* SharedFunctionInfo::code() const {
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   DCHECK(value->kind() != Code::OPTIMIZED_FUNCTION);
+  // If the SharedFunctionInfo has bytecode we should never mark it for lazy
+  // compile, since the bytecode is never flushed.
+  DCHECK(value != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy) ||
+         !HasBytecodeArray());
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
 }
