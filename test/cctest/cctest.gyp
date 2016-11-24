@@ -64,7 +64,6 @@
       'compiler/test-run-bytecode-graph-builder.cc',
       'compiler/test-run-calls-to-external-references.cc',
       'compiler/test-run-deopt.cc',
-      'compiler/test-run-inlining.cc',
       'compiler/test-run-intrinsics.cc',
       'compiler/test-run-jsbranches.cc',
       'compiler/test-run-jscalls.cc',

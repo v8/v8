@@ -4,15 +4,13 @@
 
 #include "src/compiler/js-inlining.h"
 
-#include "src/ast/ast-numbering.h"
 #include "src/ast/ast.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
-#include "src/compiler/ast-graph-builder.h"
-#include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -21,7 +19,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/isolate-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/rewriter.h"
 
 namespace v8 {
 namespace internal {
@@ -384,6 +381,14 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   JSCallAccessor call(node);
   Handle<SharedFunctionInfo> shared_info(function->shared());
 
+  // Inlining is only supported in the bytecode pipeline.
+  if (!info_->is_optimizing_from_bytecode()) {
+    TRACE("Inlining %s into %s is not supported in the deprecated pipeline\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   // Function must be inlineable.
   if (!shared_info->IsInlineable()) {
     TRACE("Not inlining %s into %s because callee is not inlineable\n",
@@ -487,34 +492,15 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   ParseInfo parse_info(&zone, shared_info);
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
-  if (info_->is_optimizing_from_bytecode()) info.MarkAsOptimizeFromBytecode();
+  info.MarkAsOptimizeFromBytecode();
 
-  if (info.is_optimizing_from_bytecode() && !Compiler::EnsureBytecode(&info)) {
+  if (!Compiler::EnsureBytecode(&info)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     if (info_->isolate()->has_pending_exception()) {
       info_->isolate()->clear_pending_exception();
     }
-    return NoChange();
-  }
-
-  if (!info.is_optimizing_from_bytecode() &&
-      !Compiler::ParseAndAnalyze(info.parse_info())) {
-    TRACE("Not inlining %s into %s because parsing failed\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    if (info_->isolate()->has_pending_exception()) {
-      info_->isolate()->clear_pending_exception();
-    }
-    return NoChange();
-  }
-
-  if (!info.is_optimizing_from_bytecode() &&
-      !Compiler::EnsureDeoptimizationSupport(&info)) {
-    TRACE("Not inlining %s into %s because deoptimization support failed\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
 
@@ -538,28 +524,12 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // Create the subgraph for the inlinee.
   Node* start;
   Node* end;
-  if (info.is_optimizing_from_bytecode()) {
+  {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
                                        call.frequency(), source_positions_,
                                        inlining_id);
-    graph_builder.CreateGraph(false);
-
-    // Extract the inlinee start/end nodes.
-    start = graph()->start();
-    end = graph()->end();
-  } else {
-    // Run the loop assignment analyzer on the inlinee.
-    AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
-    LoopAssignmentAnalysis* loop_assignment =
-        loop_assignment_analyzer.Analyze();
-
-    // Run the AstGraphBuilder to create the subgraph.
-    Graph::SubgraphScope scope(graph());
-    AstGraphBuilderWithPositions graph_builder(
-        &zone, &info, jsgraph(), call.frequency(), loop_assignment,
-        source_positions_, inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.

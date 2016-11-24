@@ -552,9 +552,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (!FLAG_always_opt) {
       info()->MarkAsBailoutOnUninitialized();
     }
-    if (FLAG_turbo_inlining) {
-      info()->MarkAsInliningEnabled();
-    }
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
@@ -564,6 +561,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   }
   if (!info()->is_optimizing_from_bytecode()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
+  } else if (FLAG_turbo_inlining) {
+    info()->MarkAsInliningEnabled();
   }
 
   linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
