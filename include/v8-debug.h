@@ -170,30 +170,33 @@ class V8_EXPORT Debug {
   static bool CheckDebugBreak(Isolate* isolate);
 
   // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(Isolate* isolate, MessageHandler handler);
+  V8_DEPRECATED("No longer supported",
+                static void SetMessageHandler(Isolate* isolate,
+                                              MessageHandler handler));
 
-  static void SendCommand(Isolate* isolate,
-                          const uint16_t* command, int length,
-                          ClientData* client_data = NULL);
+  V8_DEPRECATED("No longer supported",
+                static void SendCommand(Isolate* isolate,
+                                        const uint16_t* command, int length,
+                                        ClientData* client_data = NULL));
 
- /**
-  * Run a JavaScript function in the debugger.
-  * \param fun the function to call
-  * \param data passed as second argument to the function
-  * With this call the debugger is entered and the function specified is called
-  * with the execution state as the first argument. This makes it possible to
-  * get access to information otherwise not available during normal JavaScript
-  * execution e.g. details on stack frames. Receiver of the function call will
-  * be the debugger context global object, however this is a subject to change.
-  * The following example shows a JavaScript function which when passed to
-  * v8::Debug::Call will return the current line of JavaScript execution.
-  *
-  * \code
-  *   function frame_source_line(exec_state) {
-  *     return exec_state.frame(0).sourceLine();
-  *   }
-  * \endcode
-  */
+  /**
+   * Run a JavaScript function in the debugger.
+   * \param fun the function to call
+   * \param data passed as second argument to the function
+   * With this call the debugger is entered and the function specified is called
+   * with the execution state as the first argument. This makes it possible to
+   * get access to information otherwise not available during normal JavaScript
+   * execution e.g. details on stack frames. Receiver of the function call will
+   * be the debugger context global object, however this is a subject to change.
+   * The following example shows a JavaScript function which when passed to
+   * v8::Debug::Call will return the current line of JavaScript execution.
+   *
+   * \code
+   *   function frame_source_line(exec_state) {
+   *     return exec_state.frame(0).sourceLine();
+   *   }
+   * \endcode
+   */
   // TODO(dcarney): data arg should be a MaybeLocal
   static MaybeLocal<Value> Call(Local<Context> context,
                                 v8::Local<v8::Function> fun,
@@ -236,7 +239,8 @@ class V8_EXPORT Debug {
    * "Evaluate" debug command behavior currently is not specified in scope
    * of this method.
    */
-  static void ProcessDebugMessages(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void ProcessDebugMessages(Isolate* isolate));
 
   /**
    * Debugger is running in its own context which is entered while debugger
