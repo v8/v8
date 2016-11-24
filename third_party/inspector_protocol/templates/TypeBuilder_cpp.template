@@ -367,7 +367,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {%- endfor -%}
         {%- if command.parameters -%}, {% endif -%}
         std::move(callback));
-    return lastCallbackFallThrough() ? DispatchResponse::kFallThrough : DispatchResponse::kAsync;
+    return DispatchResponse::kAsync;
     {% endif %}
 }
   {% endfor %}

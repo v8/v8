@@ -14,3 +14,4 @@ description.
 Local modifications:
 - This only includes the lib/ and templates/ directories, scripts, build
   and the LICENSE files.
+- FallbackThrough support is removed for async methods.
