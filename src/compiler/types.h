@@ -156,9 +156,11 @@ namespace compiler {
   V(PlainPrimitive,             kNumberOrString | kBoolean | kNullOrUndefined) \
   V(Primitive,                  kSymbol | kSimd | kPlainPrimitive) \
   V(DetectableReceiver,         kFunction | kOtherObject | kProxy) \
+  V(DetectableReceiverOrNull,   kDetectableReceiver | kNull) \
   V(Object,                     kFunction | kOtherObject | kOtherUndetectable) \
   V(Receiver,                   kObject | kProxy) \
   V(ReceiverOrUndefined,        kReceiver | kUndefined) \
+  V(ReceiverOrNullOrUndefined,  kReceiver | kNull | kUndefined) \
   V(StringOrReceiver,           kString | kReceiver) \
   V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
                                 kReceiver) \

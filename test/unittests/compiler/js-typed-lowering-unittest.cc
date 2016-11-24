@@ -111,6 +111,25 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNumber) {
   EXPECT_THAT(r.replacement(), IsNumberToBoolean(input));
 }
 
+TEST_F(JSTypedLoweringTest, JSToBooleanWithDetectableReceiverOrNull) {
+  Node* input = Parameter(Type::DetectableReceiverOrNull(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsReferenceEqual(input, IsNullConstant())));
+}
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithReceiverOrNullOrUndefined) {
+  Node* input = Parameter(Type::ReceiverOrNullOrUndefined(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(IsObjectIsUndetectable(input)));
+}
+
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
@@ -251,7 +270,7 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
       graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
                        lhs, rhs, context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsReferenceEqual(Type::Unique(), lhs, rhs));
+  EXPECT_THAT(r.replacement(), IsReferenceEqual(lhs, rhs));
 }
 
 

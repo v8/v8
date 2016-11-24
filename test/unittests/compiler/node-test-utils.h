@@ -205,8 +205,7 @@ Matcher<Node*> IsTailCall(
 
 
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
-Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
-                                const Matcher<Node*>& lhs_matcher,
+Matcher<Node*> IsReferenceEqual(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
@@ -311,6 +310,7 @@ Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsObjectIsReceiver(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsObjectIsSmi(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsObjectIsUndetectable(const Matcher<Node*>& value_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,

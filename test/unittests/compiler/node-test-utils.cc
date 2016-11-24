@@ -803,32 +803,6 @@ class IsTailCallMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
-
-class IsReferenceEqualMatcher final : public NodeMatcher {
- public:
-  IsReferenceEqualMatcher(const Matcher<Type*>& type_matcher,
-                          const Matcher<Node*>& lhs_matcher,
-                          const Matcher<Node*>& rhs_matcher)
-      : NodeMatcher(IrOpcode::kReferenceEqual),
-        type_matcher_(type_matcher),
-        lhs_matcher_(lhs_matcher),
-        rhs_matcher_(rhs_matcher) {}
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            // TODO(bmeurer): The type parameter is currently ignored.
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
-                                 lhs_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
-                                 rhs_matcher_, listener));
-  }
-
- private:
-  const Matcher<Type*> type_matcher_;
-  const Matcher<Node*> lhs_matcher_;
-  const Matcher<Node*> rhs_matcher_;
-};
-
 class IsSpeculativeBinopMatcher final : public NodeMatcher {
  public:
   IsSpeculativeBinopMatcher(IrOpcode::Value opcode,
@@ -2072,13 +2046,6 @@ Matcher<Node*> IsTailCall(
                                            effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
-                                const Matcher<Node*>& lhs_matcher,
-                                const Matcher<Node*>& rhs_matcher) {
-  return MakeMatcher(
-      new IsReferenceEqualMatcher(type_matcher, lhs_matcher, rhs_matcher));
-}
-
 #define DEFINE_SPECULATIVE_BINOP_MATCHER(opcode)                              \
   Matcher<Node*> Is##opcode(const Matcher<NumberOperationHint>& hint_matcher, \
                             const Matcher<Node*>& lhs_matcher,                \
@@ -2281,6 +2248,7 @@ IS_BINOP_MATCHER(NumberAtan2)
 IS_BINOP_MATCHER(NumberMax)
 IS_BINOP_MATCHER(NumberMin)
 IS_BINOP_MATCHER(NumberPow)
+IS_BINOP_MATCHER(ReferenceEqual)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Or)
 IS_BINOP_MATCHER(Word32Xor)
@@ -2380,6 +2348,7 @@ IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(PlainPrimitiveToNumber)
 IS_UNOP_MATCHER(ObjectIsReceiver)
 IS_UNOP_MATCHER(ObjectIsSmi)
+IS_UNOP_MATCHER(ObjectIsUndetectable)
 IS_UNOP_MATCHER(StringFromCharCode)
 IS_UNOP_MATCHER(Word32Clz)
 IS_UNOP_MATCHER(Word32Ctz)
