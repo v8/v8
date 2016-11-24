@@ -209,8 +209,30 @@ class InputUseInfos {
 
 #endif  // DEBUG
 
-}  // namespace
+bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
+                         Zone* type_zone) {
+  // We assume the inputs are checked Signed32 (or known statically
+  // to be Signed32). Technically, theinputs could also be minus zero, but
+  // that cannot cause overflow.
+  left = Type::Intersect(left, Type::Signed32(), type_zone);
+  right = Type::Intersect(right, Type::Signed32(), type_zone);
+  if (!left->IsInhabited() || !right->IsInhabited()) return false;
+  switch (op->opcode()) {
+    case IrOpcode::kSpeculativeNumberAdd:
+      return (left->Max() + right->Max() > kMaxInt) ||
+             (left->Min() + right->Min() < kMinInt);
 
+    case IrOpcode::kSpeculativeNumberSubtract:
+      return (left->Max() - right->Min() > kMaxInt) ||
+             (left->Min() - right->Max() < kMinInt);
+
+    default:
+      UNREACHABLE();
+  }
+  return true;
+}
+
+}  // namespace
 
 class RepresentationSelector {
  public:
@@ -1164,6 +1186,7 @@ class RepresentationSelector {
     if (BothInputsAre(node, Type::PlainPrimitive())) {
       if (truncation.IsUnused()) return VisitUnused(node);
     }
+
     if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
         (GetUpperBound(node)->Is(Type::Signed32()) ||
          GetUpperBound(node)->Is(Type::Unsigned32()) ||
@@ -1177,33 +1200,38 @@ class RepresentationSelector {
     // Try to use type feedback.
     NumberOperationHint hint = NumberOperationHintOf(node->op());
 
-    // Handle the case when no int32 checks on inputs are necessary
-    // (but an overflow check is needed on the output).
-    if (BothInputsAre(node, Type::Signed32()) ||
-        (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
-         NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger))) {
-      // If both the inputs the feedback are int32, use the overflow op.
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
-        VisitBinop(node, UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32, Type::Signed32());
-        if (lower()) ChangeToInt32OverflowOp(node);
-        return;
-      }
-    }
-
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
-      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
-      // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
-      // a minus zero check for the right hand side, since we already
-      // know that the left hand side is a proper Signed32 value,
-      // potentially guarded by a check.
-      UseInfo right_use = CheckedUseInfoAsWord32FromHint(
-          hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
-      VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
-                 Type::Signed32());
-      if (lower()) ChangeToInt32OverflowOp(node);
+      Type* left_feedback_type = TypeOf(node->InputAt(0));
+      Type* right_feedback_type = TypeOf(node->InputAt(1));
+      // Handle the case when no int32 checks on inputs are necessary (but
+      // an overflow check is needed on the output).
+      // TODO(jarin) We should not look at the upper bound because the typer
+      // could have already baked in some feedback into the upper bound.
+      if (BothInputsAre(node, Type::Signed32()) ||
+          (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
+           GetUpperBound(node)->Is(type_cache_.kSafeInteger))) {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32, Type::Signed32());
+      } else {
+        UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
+        // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
+        // a minus zero check for the right hand side, since we already
+        // know that the left hand side is a proper Signed32 value,
+        // potentially guarded by a check.
+        UseInfo right_use = CheckedUseInfoAsWord32FromHint(
+            hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
+        VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
+                   Type::Signed32());
+      }
+      if (lower()) {
+        if (CanOverflowSigned32(node->op(), left_feedback_type,
+                                right_feedback_type, graph_zone())) {
+          ChangeToInt32OverflowOp(node);
+        } else {
+          ChangeToPureOp(node, Int32Op(node));
+        }
+      }
       return;
     }
 
