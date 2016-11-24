@@ -392,6 +392,15 @@ GeneratorMirror.prototype.sourceLocation = function() {}
 /** @return {!FunctionMirror} */
 GeneratorMirror.prototype.func = function() {}
 
+/** @return {number} */
+GeneratorMirror.prototype.scopeCount = function() {}
+
+/**
+ * @param {number} index
+ * @return {!ScopeMirror|undefined}
+ */
+GeneratorMirror.prototype.scope = function(index) {}
+
 
 /**
  * @interface

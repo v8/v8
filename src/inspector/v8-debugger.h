@@ -126,8 +126,19 @@ class V8Debugger {
                                                v8::Local<v8::Object>);
   v8::Local<v8::Value> functionLocation(v8::Local<v8::Context>,
                                         v8::Local<v8::Function>);
+
+  enum ScopeTargetKind {
+    FUNCTION,
+    GENERATOR,
+  };
+  v8::MaybeLocal<v8::Value> getTargetScopes(v8::Local<v8::Context>,
+                                            v8::Local<v8::Value>,
+                                            ScopeTargetKind);
+
   v8::MaybeLocal<v8::Value> functionScopes(v8::Local<v8::Context>,
                                            v8::Local<v8::Function>);
+  v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
+                                            v8::Local<v8::Value>);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;

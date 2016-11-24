@@ -73,6 +73,34 @@ DebuggerScript.getFunctionScopes = function(fun)
 }
 
 /**
+ * @param {Object} gen
+ * @return {?Array<!Scope>}
+ */
+DebuggerScript.getGeneratorScopes = function(gen)
+{
+    var mirror = MakeMirror(gen);
+    if (!mirror.isGenerator())
+        return null;
+    var generatorMirror = /** @type {!GeneratorMirror} */(mirror);
+    var count = generatorMirror.scopeCount();
+    if (count == 0)
+        return null;
+    var result = [];
+    for (var i = 0; i < count; i++) {
+        var scopeDetails = generatorMirror.scope(i).details();
+        var scopeObject = DebuggerScript._buildScopeObject(scopeDetails.type(), scopeDetails.object());
+        if (!scopeObject)
+            continue;
+        result.push({
+            type: /** @type {string} */(DebuggerScript._scopeTypeNames.get(scopeDetails.type())),
+            object: scopeObject,
+            name: scopeDetails.name() || ""
+        });
+    }
+    return result;
+}
+
+/**
  * @param {Object} object
  * @return {?RawLocation}
  */

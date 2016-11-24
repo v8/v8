@@ -689,15 +689,27 @@ v8::Local<v8::Context> V8Debugger::debuggerContext() const {
   return m_debuggerContext.Get(m_isolate);
 }
 
-v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
-    v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
+v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> value,
+    ScopeTargetKind kind) {
   if (!enabled()) {
     UNREACHABLE();
     return v8::Local<v8::Value>::New(m_isolate, v8::Undefined(m_isolate));
   }
-  v8::Local<v8::Value> argv[] = {function};
+  v8::Local<v8::Value> argv[] = {value};
   v8::Local<v8::Value> scopesValue;
-  if (!callDebuggerMethod("getFunctionScopes", 1, argv).ToLocal(&scopesValue))
+
+  const char* debuggerMethod = nullptr;
+  switch (kind) {
+    case FUNCTION:
+      debuggerMethod = "getFunctionScopes";
+      break;
+    case GENERATOR:
+      debuggerMethod = "getGeneratorScopes";
+      break;
+  }
+
+  if (!callDebuggerMethod(debuggerMethod, 1, argv).ToLocal(&scopesValue))
     return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Value> copied;
   if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
@@ -712,6 +724,16 @@ v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
                                   V8InternalValueType::kScope))
     return v8::MaybeLocal<v8::Value>();
   return copied;
+}
+
+v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
+    v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
+  return getTargetScopes(context, function, FUNCTION);
+}
+
+v8::MaybeLocal<v8::Value> V8Debugger::generatorScopes(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> generator) {
+  return getTargetScopes(context, generator, GENERATOR);
 }
 
 v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
@@ -755,6 +777,12 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
           context, properties, properties->Length(),
           toV8StringInternalized(m_isolate, "[[GeneratorLocation]]"));
       createDataProperty(context, properties, properties->Length(), location);
+    }
+    v8::Local<v8::Value> scopes;
+    if (generatorScopes(context, value).ToLocal(&scopes)) {
+      createDataProperty(context, properties, properties->Length(),
+                         toV8StringInternalized(m_isolate, "[[Scopes]]"));
+      createDataProperty(context, properties, properties->Length(), scopes);
     }
   }
   if (value->IsFunction()) {
