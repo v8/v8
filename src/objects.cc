@@ -858,10 +858,30 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
   return func;
 }
 
+namespace {
+MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
+    Isolate* isolate, Handle<Object> object, ElementTypes element_types) {
+  if (element_types != ElementTypes::kAll || !object->IsJSArray()) {
+    return MaybeHandle<FixedArray>();
+  }
+  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  uint32_t length;
+  if (!array->HasArrayPrototype(isolate) ||
+      !array->length()->ToUint32(&length) || !array->HasFastElements() ||
+      !JSObject::PrototypeHasNoElements(isolate, *array)) {
+    return MaybeHandle<FixedArray>();
+  }
+  return array->GetElementsAccessor()->CreateListFromArray(isolate, array);
+}
+}  // namespace
 
 // static
 MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
     Isolate* isolate, Handle<Object> object, ElementTypes element_types) {
+  // Fast-path for JS_ARRAY_TYPE.
+  MaybeHandle<FixedArray> fast_result =
+      CreateListFromArrayLikeFastPath(isolate, object, element_types);
+  if (!fast_result.is_null()) return fast_result;
   // 1. ReturnIfAbrupt(object).
   // 2. (default elementTypes -- not applicable.)
   // 3. If Type(obj) is not Object, throw a TypeError exception.
@@ -872,6 +892,7 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
                                      "CreateListFromArrayLike")),
                     FixedArray);
   }
+
   // 4. Let len be ? ToLength(? Get(obj, "length")).
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
   Handle<Object> raw_length_number;
