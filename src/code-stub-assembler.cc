@@ -1336,14 +1336,12 @@ Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
 Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 Node* value,
                                                 WriteBarrierMode barrier_mode,
-                                                int additional_offset,
                                                 ParameterMode parameter_mode) {
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
-  int header_size =
-      FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
-                                        parameter_mode, header_size);
+  Node* offset =
+      ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS, parameter_mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kTagged;
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     return StoreNoWriteBarrier(rep, object, offset, value);
@@ -4038,55 +4036,19 @@ Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
                 MachineType::PointerRepresentation());
 }
 
-template <class Dictionary>
-Node* CodeStubAssembler::GetNumberOfElements(Node* dictionary) {
-  return LoadFixedArrayElement(
-      dictionary, IntPtrConstant(Dictionary::kNumberOfElementsIndex), 0,
-      INTPTR_PARAMETERS);
-}
-
-template <class Dictionary>
-void CodeStubAssembler::SetNumberOfElements(Node* dictionary,
-                                            Node* num_elements_smi) {
-  StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
-                         num_elements_smi, SKIP_WRITE_BARRIER);
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetCapacity(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary,
-                               IntPtrConstant(Dictionary::kCapacityIndex), 0,
-                               INTPTR_PARAMETERS);
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetNextEnumerationIndex(Node* dictionary) {
-  return LoadFixedArrayElement(
-      dictionary, IntPtrConstant(Dictionary::kNextEnumerationIndexIndex), 0,
-      INTPTR_PARAMETERS);
-}
-
-template <class Dictionary>
-void CodeStubAssembler::SetNextEnumerationIndex(Node* dictionary,
-                                                Node* next_enum_index_smi) {
-  StoreFixedArrayElement(dictionary, Dictionary::kNextEnumerationIndexIndex,
-                         next_enum_index_smi, SKIP_WRITE_BARRIER);
-}
-
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
                                              Node* unique_name, Label* if_found,
                                              Variable* var_name_index,
                                              Label* if_not_found,
-                                             int inlined_probes,
-                                             LookupMode mode) {
+                                             int inlined_probes) {
   CSA_ASSERT(this, IsDictionary(dictionary));
   DCHECK_EQ(MachineType::PointerRepresentation(), var_name_index->rep());
-  DCHECK_IMPLIES(mode == kFindInsertionIndex,
-                 inlined_probes == 0 && if_found == nullptr);
   Comment("NameDictionaryLookup");
 
-  Node* capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
+  Node* capacity = SmiUntag(LoadFixedArrayElement(
+      dictionary, IntPtrConstant(Dictionary::kCapacityIndex), 0,
+      INTPTR_PARAMETERS));
   Node* mask = IntPtrSub(capacity, IntPtrConstant(1));
   Node* hash = ChangeUint32ToWord(LoadNameHash(unique_name));
 
@@ -4106,13 +4068,8 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     count = IntPtrConstant(i + 1);
     entry = WordAnd(IntPtrAdd(entry, count), mask);
   }
-  if (mode == kFindInsertionIndex) {
-    // Appease the variable merging algorithm for "Goto(&loop)" below.
-    var_name_index->Bind(IntPtrConstant(0));
-  }
 
   Node* undefined = UndefinedConstant();
-  Node* the_hole = mode == kFindExisting ? nullptr : TheHoleConstant();
 
   Variable var_count(this, MachineType::PointerRepresentation());
   Variable var_entry(this, MachineType::PointerRepresentation());
@@ -4132,12 +4089,7 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     Node* current =
         LoadFixedArrayElement(dictionary, index, 0, INTPTR_PARAMETERS);
     GotoIf(WordEqual(current, undefined), if_not_found);
-    if (mode == kFindExisting) {
-      GotoIf(WordEqual(current, unique_name), if_found);
-    } else {
-      DCHECK_EQ(kFindInsertionIndex, mode);
-      GotoIf(WordEqual(current, the_hole), if_not_found);
-    }
+    GotoIf(WordEqual(current, unique_name), if_found);
 
     // See Dictionary::NextProbe().
     count = IntPtrAdd(count, IntPtrConstant(1));
@@ -4151,9 +4103,9 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
 
 // Instantiate template methods to workaround GCC compilation issue.
 template void CodeStubAssembler::NameDictionaryLookup<NameDictionary>(
-    Node*, Node*, Label*, Variable*, Label*, int, LookupMode);
+    Node*, Node*, Label*, Variable*, Label*, int);
 template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
-    Node*, Node*, Label*, Variable*, Label*, int, LookupMode);
+    Node*, Node*, Label*, Variable*, Label*, int);
 
 Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   // See v8::internal::ComputeIntegerHash()
@@ -4179,7 +4131,9 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
   DCHECK_EQ(MachineType::PointerRepresentation(), var_entry->rep());
   Comment("NumberDictionaryLookup");
 
-  Node* capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
+  Node* capacity = SmiUntag(LoadFixedArrayElement(
+      dictionary, IntPtrConstant(Dictionary::kCapacityIndex), 0,
+      INTPTR_PARAMETERS));
   Node* mask = IntPtrSub(capacity, IntPtrConstant(1));
 
   Node* int32_seed;
@@ -4242,118 +4196,6 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
     Goto(&loop);
   }
 }
-
-template <class Dictionary>
-void CodeStubAssembler::FindInsertionEntry(Node* dictionary, Node* key,
-                                           Variable* var_key_index) {
-  UNREACHABLE();
-}
-
-template <>
-void CodeStubAssembler::FindInsertionEntry<NameDictionary>(
-    Node* dictionary, Node* key, Variable* var_key_index) {
-  Label done(this);
-  NameDictionaryLookup<NameDictionary>(dictionary, key, nullptr, var_key_index,
-                                       &done, 0, kFindInsertionIndex);
-  Bind(&done);
-}
-
-template <class Dictionary>
-void CodeStubAssembler::InsertEntry(Node* dictionary, Node* key, Node* value,
-                                    Node* index, Node* enum_index) {
-  UNREACHABLE();  // Use specializations instead.
-}
-
-template <>
-void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
-                                                    Node* name, Node* value,
-                                                    Node* index,
-                                                    Node* enum_index) {
-  // Store name and value.
-  StoreFixedArrayElement(dictionary, index, name, UPDATE_WRITE_BARRIER, 0,
-                         INTPTR_PARAMETERS);
-  const int kNameToValueOffset =
-      (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-      kPointerSize;
-  StoreFixedArrayElement(dictionary, index, value, UPDATE_WRITE_BARRIER,
-                         kNameToValueOffset, INTPTR_PARAMETERS);
-
-  // Prepare details of the new property.
-  Variable var_details(this, MachineRepresentation::kTaggedSigned);
-  const int kInitialIndex = 0;
-  PropertyDetails d(NONE, DATA, kInitialIndex, PropertyCellType::kNoCell);
-  enum_index =
-      WordShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
-  STATIC_ASSERT(kInitialIndex == 0);
-  var_details.Bind(WordOr(SmiConstant(d.AsSmi()), enum_index));
-
-  // Private names must be marked non-enumerable.
-  Label not_private(this, &var_details);
-  GotoUnless(IsSymbolMap(LoadMap(name)), &not_private);
-  Node* flags = SmiToWord32(LoadObjectField(name, Symbol::kFlagsOffset));
-  const int kPrivateMask = 1 << Symbol::kPrivateBit;
-  GotoUnless(IsSetWord32(flags, kPrivateMask), &not_private);
-  Node* dont_enum =
-      WordShl(SmiConstant(DONT_ENUM), PropertyDetails::AttributesField::kShift);
-  var_details.Bind(WordOr(var_details.value(), dont_enum));
-  Goto(&not_private);
-  Bind(&not_private);
-
-  // Finally, store the details.
-  const int kNameToDetailsOffset =
-      (NameDictionary::kEntryDetailsIndex - NameDictionary::kEntryKeyIndex) *
-      kPointerSize;
-  StoreFixedArrayElement(dictionary, index, var_details.value(),
-                         SKIP_WRITE_BARRIER, kNameToDetailsOffset,
-                         INTPTR_PARAMETERS);
-}
-
-template <>
-void CodeStubAssembler::InsertEntry<GlobalDictionary>(Node* dictionary,
-                                                      Node* key, Node* value,
-                                                      Node* index,
-                                                      Node* enum_index) {
-  UNIMPLEMENTED();
-}
-
-template <class Dictionary>
-void CodeStubAssembler::Add(Node* dictionary, Node* key, Node* value,
-                            Label* bailout) {
-  Node* capacity = GetCapacity<Dictionary>(dictionary);
-  Node* nof = GetNumberOfElements<Dictionary>(dictionary);
-  Node* new_nof = SmiAdd(nof, SmiConstant(1));
-  // Require 33% to still be free after adding additional_elements.
-  // This is a simplification of the C++ implementation's behavior, which
-  // also rehashes the dictionary when there are too many deleted elements.
-  // Computing "x + (x >> 1)" on a Smi x does not return a valid Smi!
-  // But that's OK here because it's only used for a comparison.
-  Node* required_capacity_pseudo_smi = SmiAdd(new_nof, WordShr(new_nof, 1));
-  GotoIf(UintPtrLessThan(capacity, required_capacity_pseudo_smi), bailout);
-  Node* enum_index = nullptr;
-  if (Dictionary::kIsEnumerable) {
-    enum_index = GetNextEnumerationIndex<Dictionary>(dictionary);
-    Node* new_enum_index = SmiAdd(enum_index, SmiConstant(1));
-    Node* max_enum_index =
-        SmiConstant(PropertyDetails::DictionaryStorageField::kMax);
-    GotoIf(UintPtrGreaterThan(new_enum_index, max_enum_index), bailout);
-
-    // No more bailouts after this point.
-    // Operations from here on can have side effects.
-
-    SetNextEnumerationIndex<Dictionary>(dictionary, new_enum_index);
-  } else {
-    USE(enum_index);
-  }
-  SetNumberOfElements<Dictionary>(dictionary, new_nof);
-
-  Variable var_key_index(this, MachineType::PointerRepresentation());
-  FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
-  InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
-                          enum_index);
-}
-
-template void CodeStubAssembler::Add<NameDictionary>(Node*, Node*, Node*,
-                                                     Label*);
 
 void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                                                Node* descriptors, Node* nof,
@@ -5352,7 +5194,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
       var_result.Bind(result);
     } else {
       StoreFixedArrayElement(the_context, mapped_index, value,
-                             UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+                             UPDATE_WRITE_BARRIER, INTPTR_PARAMETERS);
     }
     Goto(&end);
   }
@@ -5375,7 +5217,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
       GotoIf(WordEqual(result, TheHoleConstant()), bailout);
       var_result.Bind(result);
     } else {
-      StoreFixedArrayElement(backing_store, key, value, UPDATE_WRITE_BARRIER, 0,
+      StoreFixedArrayElement(backing_store, key, value, UPDATE_WRITE_BARRIER,
                              INTPTR_PARAMETERS);
     }
     Goto(&end);
@@ -5458,7 +5300,7 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
     value = Float64SilenceNaN(value);
     StoreFixedDoubleArrayElement(elements, index, value, mode);
   } else {
-    StoreFixedArrayElement(elements, index, value, barrier_mode, 0, mode);
+    StoreFixedArrayElement(elements, index, value, barrier_mode, mode);
   }
 }
 
@@ -5850,7 +5692,7 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
   StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list, site);
 
-  StoreFixedArrayElement(feedback_vector, slot, site, UPDATE_WRITE_BARRIER, 0,
+  StoreFixedArrayElement(feedback_vector, slot, site, UPDATE_WRITE_BARRIER,
                          CodeStubAssembler::SMI_PARAMETERS);
   return site;
 }
@@ -5868,7 +5710,7 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
                        Heap::kTheHoleValueRootIndex);
 
   // Store the WeakCell in the feedback vector.
-  StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER, 0,
+  StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER,
                          CodeStubAssembler::SMI_PARAMETERS);
   return cell;
 }
