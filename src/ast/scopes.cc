@@ -1006,7 +1006,7 @@ VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
   DCHECK(!already_resolved_);
-  DCHECK_EQ(!needs_migration_, factory->zone() == zone());
+  DCHECK_EQ(factory->zone(), zone());
   VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_position);
   proxy->set_next_unresolved(unresolved_);
   unresolved_ = proxy;
@@ -1289,14 +1289,22 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   params_.Clear();
   decls_.Clear();
   locals_.Clear();
-  sloppy_block_function_map_.Clear();
-  variables_.Clear();
-  // Make sure we won't walk the scope tree from here on.
   inner_scope_ = nullptr;
   unresolved_ = nullptr;
 
-  if (aborted && !IsArrowFunction(function_kind_)) {
-    DeclareDefaultFunctionVariables(ast_value_factory);
+  if (aborted) {
+    // Prepare scope for use in the outer zone.
+    zone_ = ast_value_factory->zone();
+    variables_.Reset(ZoneAllocationPolicy(zone_));
+    sloppy_block_function_map_.Reset(ZoneAllocationPolicy(zone_));
+    if (!IsArrowFunction(function_kind_)) {
+      DeclareDefaultFunctionVariables(ast_value_factory);
+    }
+  } else {
+    // Make sure this scope isn't used for allocation anymore.
+    zone_ = nullptr;
+    variables_.Invalidate();
+    sloppy_block_function_map_.Invalidate();
   }
 
 #ifdef DEBUG
@@ -1502,7 +1510,7 @@ void Scope::Print(int n) {
     PrintVar(n1, function);
   }
 
-  if (variables_.Start() != NULL) {
+  if (variables_.occupancy() != 0) {
     Indent(n1, "// local vars:\n");
     PrintMap(n1, &variables_, true);
 
@@ -1536,6 +1544,12 @@ void Scope::CheckScopePositions() {
 void Scope::CheckZones() {
   DCHECK(!needs_migration_);
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (scope->is_declaration_scope() &&
+        scope->AsDeclarationScope()->is_lazily_parsed()) {
+      DCHECK_NULL(scope->zone());
+      DCHECK_NULL(scope->inner_scope_);
+      continue;
+    }
     CHECK_EQ(scope->zone(), zone());
     scope->CheckZones();
   }
@@ -1723,35 +1737,62 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 
 void Scope::ResolveVariablesRecursively(ParseInfo* info) {
   DCHECK(info->script_scope()->is_script_scope());
+  // Lazy parsed declaration scopes are already partially analyzed. If there are
+  // unresolved references remaining, they just need to be resolved in outer
+  // scopes.
+  if (is_declaration_scope() && AsDeclarationScope()->is_lazily_parsed()) {
+    DCHECK(variables_.occupancy() == 0);
+    for (VariableProxy* proxy = unresolved_; proxy != nullptr;
+         proxy = proxy->next_unresolved()) {
+      Variable* var = outer_scope()->LookupRecursive(proxy, nullptr);
+      if (!var->is_dynamic()) {
+        var->set_is_used();
+        var->ForceContextAllocation();
+        if (proxy->is_assigned()) var->set_maybe_assigned();
+      }
+    }
+  } else {
+    // Resolve unresolved variables for this scope.
+    for (VariableProxy* proxy = unresolved_; proxy != nullptr;
+         proxy = proxy->next_unresolved()) {
+      ResolveVariable(info, proxy);
+    }
 
-  // Resolve unresolved variables for this scope.
-  for (VariableProxy* proxy = unresolved_; proxy != nullptr;
-       proxy = proxy->next_unresolved()) {
-    ResolveVariable(info, proxy);
-  }
-
-  // Resolve unresolved variables for inner scopes.
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->ResolveVariablesRecursively(info);
+    // Resolve unresolved variables for inner scopes.
+    for (Scope* scope = inner_scope_; scope != nullptr;
+         scope = scope->sibling_) {
+      scope->ResolveVariablesRecursively(info);
+    }
   }
 }
 
 VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
                                          bool try_to_resolve, ParseInfo* info,
                                          VariableProxy* stack) {
+  // Lazy parsed declaration scopes are already partially analyzed. If there are
+  // unresolved references remaining, they just need to be resolved in outer
+  // scopes.
+  Scope* lookup =
+      is_declaration_scope() && AsDeclarationScope()->is_lazily_parsed()
+          ? outer_scope()
+          : this;
   for (VariableProxy *proxy = unresolved_, *next = nullptr; proxy != nullptr;
        proxy = next) {
     next = proxy->next_unresolved();
     DCHECK(!proxy->is_resolved());
     Variable* var = nullptr;
     if (try_to_resolve) {
-      var = LookupRecursive(proxy, max_outer_scope->outer_scope());
+      var = lookup->LookupRecursive(proxy, max_outer_scope->outer_scope());
     }
     if (var == nullptr) {
       proxy->set_next_unresolved(stack);
       stack = proxy;
     } else if (info != nullptr) {
+      // In this case we need to leave scopes in a way that they can be
+      // allocated. If we resolved variables from lazy parsed scopes, we need to
+      // context allocate the var.
       ResolveTo(info, proxy, var);
+      if (!var->is_dynamic() && lookup != this) var->ForceContextAllocation();
     } else {
       var->set_is_used();
     }

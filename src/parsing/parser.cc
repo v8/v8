@@ -2626,13 +2626,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool is_lazy_inner_function =
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
 
-  // This Scope lives in the main zone. We'll migrate data into that zone later.
-  DeclarationScope* scope = NewFunctionScope(kind);
-  SetLanguageMode(scope, language_mode);
-#ifdef DEBUG
-  scope->SetScopeName(function_name);
-#endif
-
   ZoneList<Statement*>* body = nullptr;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
@@ -2641,8 +2634,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_length = -1;
   bool has_duplicate_parameters = false;
 
-  Expect(Token::LPAREN, CHECK_OK);
-  scope->set_start_position(scanner()->location().beg_pos);
+  Zone* outer_zone = zone();
+  DeclarationScope* scope;
 
   {
     // Temporary zones can nest. When we migrate free variables (see below), we
@@ -2657,9 +2650,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // information when the function is parsed.
     Zone temp_zone(zone()->allocator(), ZONE_NAME);
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
+
+    // This Scope lives in the main zone. We'll migrate data into that zone
+    // later.
+    scope = NewFunctionScope(kind, outer_zone);
+    SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
+    scope->SetScopeName(function_name);
     if (use_temp_zone) scope->set_needs_migration();
 #endif
+
+    Expect(Token::LPAREN, CHECK_OK);
+    scope->set_start_position(scanner()->location().beg_pos);
 
     // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
     // lazily. We'll call SkipFunction, which may decide to

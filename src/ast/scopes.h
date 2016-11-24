@@ -555,7 +555,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
         Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
-    DCHECK_EQ(!needs_migration_, inner_scope->zone() == zone());
     inner_scope->sibling_ = inner_scope_;
     inner_scope_ = inner_scope;
     inner_scope->outer_scope_ = this;
