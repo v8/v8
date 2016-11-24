@@ -451,7 +451,7 @@ Object* StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
-  if (CheckDebugBreak() || CheckDebugCommand()) {
+  if (CheckDebugBreak()) {
     isolate_->debug()->HandleDebugBreak();
   }
 

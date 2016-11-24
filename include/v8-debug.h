@@ -87,7 +87,6 @@ class V8_EXPORT Debug {
     virtual ~Message() {}
   };
 
-
   /**
    * An event details object passed to the debug event listener.
    */
@@ -145,7 +144,7 @@ class V8_EXPORT Debug {
    *
    * \param message the debug message handler message object
    *
-   * A MessageHandler2 does not take possession of the message data,
+   * A MessageHandler does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*MessageHandler)(const Message& message);

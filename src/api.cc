@@ -8723,9 +8723,7 @@ bool Debug::CheckDebugBreak(Isolate* isolate) {
 
 void Debug::SetMessageHandler(Isolate* isolate,
                               v8::Debug::MessageHandler handler) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  i_isolate->debug()->SetMessageHandler(handler);
+  UNIMPLEMENTED();
 }
 
 
@@ -8733,9 +8731,7 @@ void Debug::SendCommand(Isolate* isolate,
                         const uint16_t* command,
                         int length,
                         ClientData* client_data) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debug()->EnqueueCommandMessage(
-      i::Vector<const uint16_t>(command, length), client_data);
+  UNIMPLEMENTED();
 }
 
 
@@ -8778,11 +8774,7 @@ MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
   RETURN_ESCAPED(result);
 }
 
-
-void Debug::ProcessDebugMessages(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->debug()->ProcessDebugMessages(true);
-}
-
+void Debug::ProcessDebugMessages(Isolate* isolate) { UNIMPLEMENTED(); }
 
 Local<Context> Debug::GetDebugContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
