@@ -293,8 +293,7 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
       a->AllocateRegExpResult(context, num_results, start, string);
   Node* const result_elements = a->LoadElements(result);
 
-  a->StoreFixedArrayElement(result_elements, a->IntPtrConstant(0), first,
-                            SKIP_WRITE_BARRIER);
+  a->StoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
 
   a->GotoIf(a->SmiEqual(num_results, a->SmiConstant(Smi::FromInt(1))), &out);
 
@@ -1846,7 +1845,7 @@ compiler::Node* ReplaceGlobalCallableFastPath(
 
           Node* const replacement_str = a->ToString(context, replacement_obj);
           a->StoreFixedArrayElement(res_elems, index, replacement_str,
-                                    UPDATE_WRITE_BARRIER, mode);
+                                    UPDATE_WRITE_BARRIER, 0, mode);
 
           a->Goto(&do_continue);
           a->Bind(&do_continue);

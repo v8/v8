@@ -20,21 +20,24 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_CONSTANT_LIST(V)                 \
-  V(BooleanMap, BooleanMap)                   \
-  V(CodeMap, CodeMap)                         \
-  V(empty_string, EmptyString)                \
-  V(EmptyFixedArray, EmptyFixedArray)         \
-  V(FalseValue, False)                        \
-  V(FixedArrayMap, FixedArrayMap)             \
-  V(FixedCOWArrayMap, FixedCOWArrayMap)       \
-  V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
-  V(HeapNumberMap, HeapNumberMap)             \
-  V(MinusZeroValue, MinusZero)                \
-  V(NanValue, Nan)                            \
-  V(NullValue, Null)                          \
-  V(TheHoleValue, TheHole)                    \
-  V(TrueValue, True)                          \
+#define HEAP_CONSTANT_LIST(V)                         \
+  V(AccessorInfoMap, AccessorInfoMap)                 \
+  V(BooleanMap, BooleanMap)                           \
+  V(CodeMap, CodeMap)                                 \
+  V(empty_string, EmptyString)                        \
+  V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(FalseValue, False)                                \
+  V(FixedArrayMap, FixedArrayMap)                     \
+  V(FixedCOWArrayMap, FixedCOWArrayMap)               \
+  V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
+  V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
+  V(HeapNumberMap, HeapNumberMap)                     \
+  V(MinusZeroValue, MinusZero)                        \
+  V(NanValue, Nan)                                    \
+  V(NullValue, Null)                                  \
+  V(SymbolMap, SymbolMap)                             \
+  V(TheHoleValue, TheHole)                            \
+  V(TrueValue, True)                                  \
   V(UndefinedValue, Undefined)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
@@ -357,15 +360,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Store an array element to a FixedArray.
   compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, int index, compiler::Node* value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS) {
-    return StoreFixedArrayElement(object, Int32Constant(index), value,
-                                  barrier_mode, parameter_mode);
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+                                  barrier_mode, 0, INTPTR_PARAMETERS);
   }
 
   compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, compiler::Node* index, compiler::Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   compiler::Node* StoreFixedDoubleArrayElement(
@@ -762,16 +765,38 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Calculate a valid size for the a hash table.
   compiler::Node* HashTableComputeCapacity(compiler::Node* at_least_space_for);
 
+  template <class Dictionary>
+  compiler::Node* GetNumberOfElements(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  void SetNumberOfElements(compiler::Node* dictionary,
+                           compiler::Node* num_elements_smi);
+
+  template <class Dictionary>
+  compiler::Node* GetNumberOfDeletedElements(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  compiler::Node* GetCapacity(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  compiler::Node* GetNextEnumerationIndex(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  void SetNextEnumerationIndex(compiler::Node* dictionary,
+                               compiler::Node* next_enum_index_smi);
+
   // Looks up an entry in a NameDictionaryBase successor. If the entry is found
   // control goes to {if_found} and {var_name_index} contains an index of the
   // key field of the entry found. If the key is not found control goes to
   // {if_not_found}.
   static const int kInlinedDictionaryProbes = 4;
+  enum LookupMode { kFindExisting, kFindInsertionIndex };
   template <typename Dictionary>
   void NameDictionaryLookup(compiler::Node* dictionary,
                             compiler::Node* unique_name, Label* if_found,
                             Variable* var_name_index, Label* if_not_found,
-                            int inlined_probes = kInlinedDictionaryProbes);
+                            int inlined_probes = kInlinedDictionaryProbes,
+                            LookupMode mode = kFindExisting);
 
   compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
 
@@ -779,6 +804,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void NumberDictionaryLookup(compiler::Node* dictionary,
                               compiler::Node* intptr_index, Label* if_found,
                               Variable* var_entry, Label* if_not_found);
+
+  template <class Dictionary>
+  void FindInsertionEntry(compiler::Node* dictionary, compiler::Node* key,
+                          Variable* var_key_index);
+
+  template <class Dictionary>
+  void InsertEntry(compiler::Node* dictionary, compiler::Node* key,
+                   compiler::Node* value, compiler::Node* index,
+                   compiler::Node* enum_index);
+
+  template <class Dictionary>
+  void Add(compiler::Node* dictionary, compiler::Node* key,
+           compiler::Node* value, Label* bailout);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(compiler::Node* object, compiler::Node* map,
