@@ -88,7 +88,7 @@ struct MergeValues {
   } vals;  // Either multiple values or a single value.
 
   Value& first() {
-    DCHECK_GT(arity, 0u);
+    DCHECK_GT(arity, 0);
     return arity == 1 ? vals.first : vals.array[0];
   }
 };
@@ -577,7 +577,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   // Decodes the locals declarations, if any, populating {local_type_vec_}.
   void DecodeLocalDecls() {
-    DCHECK_EQ(0u, local_type_vec_.size());
+    DCHECK_EQ(0, local_type_vec_.size());
     // Initialize {local_type_vec} from signature.
     if (sig_) {
       local_type_vec_.reserve(sig_->parameter_count());
@@ -1443,7 +1443,7 @@ class WasmFullDecoder : public WasmDecoder {
       Value val = {pc_, nullptr, kAstStmt};
       return val;
     } else {
-      DCHECK_LE(stack_depth, static_cast<int>(stack_.size()));
+      DCHECK_LE(stack_depth, stack_.size());
       Value val = Pop();
       stack_.resize(stack_depth);
       return val;

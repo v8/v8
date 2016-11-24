@@ -49,7 +49,7 @@ static uint32_t SafeUint32(Object* value) {
   DCHECK(value->IsHeapNumber());
   HeapNumber* num = HeapNumber::cast(value);
   CHECK_GE(num->value(), 0.0);
-  CHECK_LE(num->value(), static_cast<double>(kMaxUInt32));
+  CHECK_LE(num->value(), kMaxUInt32);
   return static_cast<uint32_t>(num->value());
 }
 
@@ -59,8 +59,8 @@ static int32_t SafeInt32(Object* value) {
   }
   DCHECK(value->IsHeapNumber());
   HeapNumber* num = HeapNumber::cast(value);
-  CHECK_GE(num->value(), static_cast<double>(Smi::kMinValue));
-  CHECK_LE(num->value(), static_cast<double>(Smi::kMaxValue));
+  CHECK_GE(num->value(), Smi::kMinValue);
+  CHECK_LE(num->value(), Smi::kMaxValue);
   return static_cast<int32_t>(num->value());
 }
 
@@ -392,9 +392,8 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
   DCHECK_GT(module()->functions.size(), func_index);
   WasmFunction& function = module()->functions[func_index];
   SeqOneByteString* bytes = ptr_to_module_bytes();
-  DCHECK_GE(static_cast<size_t>(bytes->length()), function.name_offset);
-  DCHECK_GE(static_cast<size_t>(bytes->length() - function.name_offset),
-            function.name_length);
+  DCHECK_GE(bytes->length(), function.name_offset);
+  DCHECK_GE(bytes->length() - function.name_offset, function.name_length);
   return Vector<const uint8_t>(bytes->GetCharsAddress() + function.name_offset,
                                function.name_length);
 }
@@ -402,8 +401,7 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
 int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) const {
   std::vector<WasmFunction>& functions = module()->functions;
   if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
-  DCHECK_GE(static_cast<uint32_t>(kMaxInt),
-            functions[func_index].code_start_offset);
+  DCHECK_GE(kMaxInt, functions[func_index].code_start_offset);
   return static_cast<int>(functions[func_index].code_start_offset);
 }
 

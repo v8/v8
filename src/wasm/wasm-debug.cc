@@ -47,12 +47,10 @@ FixedArray *GetAsmJsOffsetTables(Handle<WasmDebugInfo> debug_info,
   }
   // Wasm bytes must be valid and must contain asm.js offset table.
   DCHECK(asm_offsets.ok());
-  DCHECK_GE(static_cast<size_t>(kMaxInt), asm_offsets.val.size());
+  DCHECK_GE(kMaxInt, asm_offsets.val.size());
   int num_functions = static_cast<int>(asm_offsets.val.size());
-  DCHECK_EQ(
-      wasm::GetNumberOfFunctions(handle(debug_info->wasm_instance())),
-      static_cast<int>(num_functions +
-                       compiled_module->module()->num_imported_functions));
+  DCHECK_EQ(wasm::GetNumberOfFunctions(handle(debug_info->wasm_instance())),
+            num_functions + compiled_module->module()->num_imported_functions);
   Handle<FixedArray> all_tables =
       isolate->factory()->NewFixedArray(num_functions);
   debug_info->set(kWasmDebugInfoAsmJsOffsets, *all_tables);
@@ -60,7 +58,7 @@ FixedArray *GetAsmJsOffsetTables(Handle<WasmDebugInfo> debug_info,
     std::vector<std::pair<int, int>> &func_asm_offsets = asm_offsets.val[func];
     if (func_asm_offsets.empty()) continue;
     size_t array_size = 2 * kIntSize * func_asm_offsets.size();
-    CHECK_LE(array_size, static_cast<size_t>(kMaxInt));
+    CHECK_LE(array_size, kMaxInt);
     ByteArray *arr =
         *isolate->factory()->NewByteArray(static_cast<int>(array_size));
     all_tables->set(func, arr);

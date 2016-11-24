@@ -230,7 +230,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WasmName GetName(uint32_t offset, uint32_t length) const {
     if (length == 0) return {"<?>", 3};  // no name.
     CHECK(BoundsCheck(offset, offset + length));
-    DCHECK_GE(static_cast<int>(length), 0);
+    DCHECK_GE(length, 0);
     return {reinterpret_cast<const char*>(module_start + offset),
             static_cast<int>(length)};
   }
@@ -244,7 +244,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WasmName GetNameOrNull(uint32_t offset, uint32_t length) const {
     if (offset == 0 && length == 0) return {NULL, 0};  // no name.
     CHECK(BoundsCheck(offset, offset + length));
-    DCHECK_GE(static_cast<int>(length), 0);
+    DCHECK_GE(length, 0);
     return {reinterpret_cast<const char*>(module_start + offset),
             static_cast<int>(length)};
   }
