@@ -638,7 +638,7 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
 bool Scope::HasBeenRemoved() const {
   // TODO(neis): Store this information somewhere instead of calculating it.
 
-  if (!is_block_scope() || is_declaration_scope()) return false;
+  if (!is_block_scope()) return false;  // Shortcut.
 
   Scope* parent = outer_scope();
   if (parent == nullptr) {
