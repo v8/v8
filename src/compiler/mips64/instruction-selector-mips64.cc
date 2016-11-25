@@ -92,9 +92,35 @@ class Mips64OperandGenerator final : public OperandGenerator {
       case kMips64Tst:
       case kMips64Xor:
         return is_uint16(value);
+      case kMips64Lb:
+      case kMips64Lbu:
+      case kMips64Sb:
+      case kMips64Lh:
+      case kMips64Lhu:
+      case kMips64Sh:
+      case kMips64Lw:
+      case kMips64Sw:
+      case kMips64Ld:
+      case kMips64Sd:
+      case kMips64Lwc1:
+      case kMips64Swc1:
       case kMips64Ldc1:
       case kMips64Sdc1:
-        return is_int16(value + kIntSize);
+      case kCheckedLoadInt8:
+      case kCheckedLoadUint8:
+      case kCheckedLoadInt16:
+      case kCheckedLoadUint16:
+      case kCheckedLoadWord32:
+      case kCheckedLoadWord64:
+      case kCheckedStoreWord8:
+      case kCheckedStoreWord16:
+      case kCheckedStoreWord32:
+      case kCheckedStoreWord64:
+      case kCheckedLoadFloat32:
+      case kCheckedLoadFloat64:
+      case kCheckedStoreFloat32:
+      case kCheckedStoreFloat64:
+        return is_int32(value);
       default:
         return is_int16(value);
     }
