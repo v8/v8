@@ -8756,22 +8756,8 @@ MaybeLocal<Value> Debug::Call(Local<Context> context,
 
 MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
                                    v8::Local<v8::Value> obj) {
-  PREPARE_FOR_EXECUTION(context, Debug, GetMirror, Value);
-  i::Debug* isolate_debug = isolate->debug();
-  has_pending_exception = !isolate_debug->Load();
-  RETURN_ON_FAILED_EXECUTION(Value);
-  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
-  auto name = isolate->factory()->NewStringFromStaticChars("MakeMirror");
-  auto fun_obj = i::JSReceiver::GetProperty(debug, name).ToHandleChecked();
-  auto v8_fun = Utils::CallableToLocal(i::Handle<i::JSFunction>::cast(fun_obj));
-  const int kArgc = 1;
-  v8::Local<v8::Value> argv[kArgc] = {obj};
-  Local<Value> result;
-  has_pending_exception =
-      !v8_fun->Call(context, Utils::ToLocal(debug), kArgc, argv)
-           .ToLocal(&result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
+  UNIMPLEMENTED();
+  return MaybeLocal<Value>();
 }
 
 void Debug::ProcessDebugMessages(Isolate* isolate) { UNIMPLEMENTED(); }
@@ -8784,12 +8770,8 @@ Local<Context> Debug::GetDebugContext(Isolate* isolate) {
 
 
 MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  if (!i_isolate->debug()->in_debug_scope()) return MaybeLocal<Context>();
-  i::Handle<i::Object> calling = i_isolate->GetCallingNativeContext();
-  if (calling.is_null()) return MaybeLocal<Context>();
-  return Utils::ToLocal(i::Handle<i::Context>::cast(calling));
+  UNIMPLEMENTED();
+  return MaybeLocal<Context>();
 }
 
 void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {

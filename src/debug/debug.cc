@@ -1773,11 +1773,6 @@ void Debug::OnCompileError(Handle<Script> script) {
 }
 
 
-void Debug::OnBeforeCompile(Handle<Script> script) {
-  ProcessCompileEvent(v8::BeforeCompile, script);
-}
-
-
 // Handle debugger actions when a new script is compiled.
 void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
