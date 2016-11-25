@@ -1329,107 +1329,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   ast_context()->ProduceValue(expr, value);
 }
 
-
-void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
-  VisitForValueOrTheHole(expr->extends());
-  VisitForValue(expr->constructor());
-
-  // Create node to instantiate a new class.
-  Node* constructor = environment()->Pop();
-  Node* extends = environment()->Pop();
-  Node* start = jsgraph()->Constant(expr->start_position());
-  Node* end = jsgraph()->Constant(expr->end_position());
-  const Operator* opc = javascript()->CallRuntime(Runtime::kDefineClass);
-  Node* literal = NewNode(opc, extends, constructor, start, end);
-  PrepareFrameState(literal, expr->CreateLiteralId(),
-                    OutputFrameStateCombine::Push());
-  environment()->Push(literal);
-
-  // Load the "prototype" from the constructor.
-  PrepareEagerCheckpoint(expr->CreateLiteralId());
-  Handle<Name> name = isolate()->factory()->prototype_string();
-  VectorSlotPair pair = CreateVectorSlotPair(expr->PrototypeSlot());
-  Node* prototype = BuildNamedLoad(literal, name, pair);
-  PrepareFrameState(prototype, expr->PrototypeId(),
-                    OutputFrameStateCombine::Push());
-  environment()->Push(prototype);
-
-  // Create nodes to store method values into the literal.
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ClassLiteral::Property* property = expr->properties()->at(i);
-    environment()->Push(environment()->Peek(property->is_static() ? 1 : 0));
-
-    VisitForValue(property->key());
-    Node* name = BuildToName(environment()->Pop(), expr->GetIdForProperty(i));
-    environment()->Push(name);
-
-    // The static prototype property is read only. We handle the non computed
-    // property name case in the parser. Since this is the only case where we
-    // need to check for an own read only property we special case this so we do
-    // not need to do this for every property.
-    if (property->is_static() && property->is_computed_name()) {
-      Node* check = BuildThrowIfStaticPrototype(environment()->Pop(),
-                                                expr->GetIdForProperty(i));
-      environment()->Push(check);
-    }
-
-    VisitForValue(property->value());
-    Node* value = environment()->Pop();
-    Node* key = environment()->Pop();
-    Node* receiver = environment()->Pop();
-
-    BuildSetHomeObject(value, receiver, property);
-
-    switch (property->kind()) {
-      case ClassLiteral::Property::METHOD: {
-        Node* attr = jsgraph()->Constant(DONT_ENUM);
-        Node* set_function_name =
-            jsgraph()->Constant(property->NeedsSetFunctionName());
-        const Operator* op =
-            javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
-        Node* call = NewNode(op, receiver, key, value, attr, set_function_name);
-        PrepareFrameState(call, BailoutId::None());
-        break;
-      }
-      case ClassLiteral::Property::GETTER: {
-        Node* attr = jsgraph()->Constant(DONT_ENUM);
-        const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineGetterPropertyUnchecked, 4);
-        NewNode(op, receiver, key, value, attr);
-        break;
-      }
-      case ClassLiteral::Property::SETTER: {
-        Node* attr = jsgraph()->Constant(DONT_ENUM);
-        const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineSetterPropertyUnchecked, 4);
-        NewNode(op, receiver, key, value, attr);
-        break;
-      }
-      case ClassLiteral::Property::FIELD: {
-        UNREACHABLE();
-        break;
-      }
-    }
-  }
-
-  // Set the constructor to have fast properties.
-  prototype = environment()->Pop();
-  literal = environment()->Pop();
-  const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties);
-  literal = NewNode(op, literal);
-
-  // Assign to class variable.
-  if (expr->class_variable_proxy() != nullptr) {
-    Variable* var = expr->class_variable_proxy()->var();
-    VectorSlotPair feedback = CreateVectorSlotPair(
-        expr->NeedsProxySlot() ? expr->ProxySlot()
-                               : FeedbackVectorSlot::Invalid());
-    BuildVariableAssignment(var, literal, Token::INIT, feedback,
-                            BailoutId::None());
-  }
-  ast_context()->ProduceValue(expr, literal);
-}
-
+void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) { UNREACHABLE(); }
 
 void AstGraphBuilder::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
   UNREACHABLE();
@@ -2975,25 +2875,6 @@ Node* AstGraphBuilder::BuildHoleCheckElseThrow(Node* value, Variable* variable,
   return environment()->Pop();
 }
 
-
-Node* AstGraphBuilder::BuildThrowIfStaticPrototype(Node* name,
-                                                   BailoutId bailout_id) {
-  IfBuilder prototype_check(this);
-  Node* prototype_string =
-      jsgraph()->Constant(isolate()->factory()->prototype_string());
-  Node* check = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                        name, prototype_string);
-  prototype_check.If(check);
-  prototype_check.Then();
-  Node* error = BuildThrowStaticPrototypeError(bailout_id);
-  environment()->Push(error);
-  prototype_check.Else();
-  environment()->Push(name);
-  prototype_check.End();
-  return environment()->Pop();
-}
-
-
 Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          BailoutId bailout_id,
                                          const VectorSlotPair& feedback,
@@ -3367,18 +3248,6 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
-
-
-Node* AstGraphBuilder::BuildThrowStaticPrototypeError(BailoutId bailout_id) {
-  const Operator* op =
-      javascript()->CallRuntime(Runtime::kThrowStaticPrototypeError);
-  Node* call = NewNode(op);
-  PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
-  UpdateControlDependencyToLeaveFunction(control);
-  return call;
-}
-
 
 Node* AstGraphBuilder::BuildThrowUnsupportedSuperError(BailoutId bailout_id) {
   const Operator* op =

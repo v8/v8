@@ -81,7 +81,6 @@ namespace internal {
   F(ThrowConstructorNonCallableError, 1, 1) \
   F(ThrowArrayNotSubclassableError, 0, 1)   \
   F(ThrowStaticPrototypeError, 0, 1)        \
-  F(ThrowIfStaticPrototype, 1, 1)           \
   F(HomeObjectSymbol, 0, 1)                 \
   F(DefineClass, 4, 1)                      \
   F(LoadFromSuper, 3, 1)                    \

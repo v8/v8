@@ -335,7 +335,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
-  Node* BuildThrowStaticPrototypeError(BailoutId bailout_id);
   Node* BuildThrowUnsupportedSuperError(BailoutId bailout_id);
 
   // Builders for dynamic hole-checks at runtime.
@@ -343,9 +342,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
                                 BailoutId bailout_id);
   Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,
                                 BailoutId bailout_id);
-
-  // Builders for conditional errors.
-  Node* BuildThrowIfStaticPrototype(Node* name, BailoutId bailout_id);
 
   // Builders for non-local control flow.
   Node* BuildReturn(Node* return_value);

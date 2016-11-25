@@ -478,11 +478,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
 
-  // Adds the properties to the class (function) object and to its prototype.
-  // Expects the class (function) in the accumulator. The class (function) is
-  // in the accumulator after installing all the properties.
-  void EmitClassDefineProperties(ClassLiteral* lit);
-
   // Pushes the property key as a Name on the stack.
   void EmitPropertyKey(LiteralProperty* property, BailoutId bailout_id);
 

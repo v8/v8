@@ -1689,57 +1689,6 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 }
 
 
-void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
-  for (int i = 0; i < lit->properties()->length(); i++) {
-    ClassLiteral::Property* property = lit->properties()->at(i);
-    Expression* value = property->value();
-
-    if (property->is_static()) {
-      PushOperand(Operand(rsp, kPointerSize));  // constructor
-    } else {
-      PushOperand(Operand(rsp, 0));  // prototype
-    }
-    EmitPropertyKey(property, lit->GetIdForProperty(i));
-
-    // The static prototype property is read only. We handle the non computed
-    // property name case in the parser. Since this is the only case where we
-    // need to check for an own read only property we special case this so we do
-    // not need to do this for every property.
-    if (property->is_static() && property->is_computed_name()) {
-      __ CallRuntime(Runtime::kThrowIfStaticPrototype);
-      __ Push(rax);
-    }
-
-    VisitForStackValue(value);
-    if (NeedsHomeObject(value)) {
-      EmitSetHomeObject(value, 2, property->GetSlot());
-    }
-
-    switch (property->kind()) {
-      case ClassLiteral::Property::METHOD:
-        PushOperand(Smi::FromInt(DONT_ENUM));
-        PushOperand(Smi::FromInt(property->NeedsSetFunctionName()));
-        CallRuntimeWithOperands(Runtime::kDefineDataPropertyInLiteral);
-        break;
-
-      case ClassLiteral::Property::GETTER:
-        PushOperand(Smi::FromInt(DONT_ENUM));
-        CallRuntimeWithOperands(Runtime::kDefineGetterPropertyUnchecked);
-        break;
-
-      case ClassLiteral::Property::SETTER:
-        PushOperand(Smi::FromInt(DONT_ENUM));
-        CallRuntimeWithOperands(Runtime::kDefineSetterPropertyUnchecked);
-        break;
-
-      case ClassLiteral::Property::FIELD:
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-
-
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   PopOperand(rdx);
   Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();

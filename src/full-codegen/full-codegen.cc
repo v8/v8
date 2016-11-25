@@ -1387,41 +1387,8 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
-  Comment cmnt(masm_, "[ ClassLiteral");
-
-  if (lit->extends() != NULL) {
-    VisitForStackValue(lit->extends());
-  } else {
-    PushOperand(isolate()->factory()->the_hole_value());
-  }
-
-  VisitForStackValue(lit->constructor());
-
-  PushOperand(Smi::FromInt(lit->start_position()));
-  PushOperand(Smi::FromInt(lit->end_position()));
-
-  CallRuntimeWithOperands(Runtime::kDefineClass);
-  PrepareForBailoutForId(lit->CreateLiteralId(), BailoutState::TOS_REGISTER);
-  PushOperand(result_register());
-
-  // Load the "prototype" from the constructor.
-  __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-  CallLoadIC(lit->PrototypeSlot(), isolate()->factory()->prototype_string());
-  PrepareForBailoutForId(lit->PrototypeId(), BailoutState::TOS_REGISTER);
-  PushOperand(result_register());
-
-  EmitClassDefineProperties(lit);
-  DropOperands(1);
-
-  // Set the constructor to have fast properties.
-  CallRuntimeWithOperands(Runtime::kToFastProperties);
-
-  if (lit->class_variable_proxy() != nullptr) {
-    EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,
-                           lit->ProxySlot(), HoleCheckMode::kElided);
-  }
-
-  context()->Plug(result_register());
+  // Unsupported
+  UNREACHABLE();
 }
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {

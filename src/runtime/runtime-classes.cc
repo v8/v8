@@ -51,30 +51,12 @@ RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
       isolate, NewTypeError(MessageTemplate::kArrayNotSubclassable));
 }
 
-
-static Object* ThrowStaticPrototypeError(Isolate* isolate) {
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kStaticPrototype));
-}
-
-
 RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  return ThrowStaticPrototypeError(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kStaticPrototype));
 }
-
-
-RUNTIME_FUNCTION(Runtime_ThrowIfStaticPrototype) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
-  if (Name::Equals(name, isolate->factory()->prototype_string())) {
-    return ThrowStaticPrototypeError(isolate);
-  }
-  return *name;
-}
-
 
 RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
   DCHECK(args.length() == 0);
