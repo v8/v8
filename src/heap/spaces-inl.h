@@ -28,10 +28,14 @@ PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
   return tmp;
 }
 
-NewSpacePageRange::NewSpacePageRange(Address start, Address limit)
-    : range_(Page::FromAddress(start),
-             Page::FromAllocationAreaAddress(limit)->next_page()) {
-  SemiSpace::AssertValidRange(start, limit);
+PageRange::PageRange(Address start, Address limit)
+    : begin_(Page::FromAddress(start)),
+      end_(Page::FromAllocationAreaAddress(limit)->next_page()) {
+#ifdef DEBUG
+  if (begin_->InNewSpace()) {
+    SemiSpace::AssertValidRange(start, limit);
+  }
+#endif  // DEBUG
 }
 
 // -----------------------------------------------------------------------------

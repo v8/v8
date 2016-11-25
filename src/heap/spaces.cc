@@ -2076,7 +2076,7 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
-  for (Page* p : NewSpacePageRange(space_start(), mark)) {
+  for (Page* p : PageRange(space_start(), mark)) {
     p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }

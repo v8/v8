@@ -1418,6 +1418,8 @@ class PageRange {
   typedef PageIterator iterator;
   PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
   explicit PageRange(Page* page) : PageRange(page, page->next_page()) {}
+  inline PageRange(Address start, Address limit);
+
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
@@ -1875,17 +1877,6 @@ class LocalAllocationBuffer {
 
   Heap* heap_;
   AllocationInfo allocation_info_;
-};
-
-class NewSpacePageRange {
- public:
-  typedef PageRange::iterator iterator;
-  inline NewSpacePageRange(Address start, Address limit);
-  iterator begin() { return range_.begin(); }
-  iterator end() { return range_.end(); }
-
- private:
-  PageRange range_;
 };
 
 class PagedSpace : public Space {

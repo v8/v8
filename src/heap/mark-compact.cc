@@ -133,7 +133,7 @@ static void VerifyMarking(NewSpace* space) {
   // page->area_start() as start of range on all pages.
   CHECK_EQ(space->bottom(), Page::FromAddress(space->bottom())->area_start());
 
-  NewSpacePageRange range(space->bottom(), end);
+  PageRange range(space->bottom(), end);
   for (auto it = range.begin(); it != range.end();) {
     Page* page = *(it++);
     Address limit = it != range.end() ? page->area_end() : end;
@@ -197,7 +197,7 @@ static void VerifyEvacuation(Page* page) {
 
 static void VerifyEvacuation(NewSpace* space) {
   VerifyEvacuationVisitor visitor;
-  NewSpacePageRange range(space->bottom(), space->top());
+  PageRange range(space->bottom(), space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* page = *(it++);
     Address current = page->area_start();
@@ -332,7 +332,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
 
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
-  for (Page* p : NewSpacePageRange(space->bottom(), space->top())) {
+  for (Page* p : PageRange(space->bottom(), space->top())) {
     CHECK(p->markbits()->IsClean());
     CHECK_EQ(0, p->LiveBytes());
   }
@@ -1976,7 +1976,7 @@ void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
 
 void MarkCompactCollector::DiscoverGreyObjectsInNewSpace() {
   NewSpace* space = heap()->new_space();
-  for (Page* page : NewSpacePageRange(space->bottom(), space->top())) {
+  for (Page* page : PageRange(space->bottom(), space->top())) {
     DiscoverGreyObjectsOnPage(page);
     if (marking_deque()->IsFull()) return;
   }
@@ -3043,7 +3043,7 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
 void MarkCompactCollector::EvacuateNewSpacePrologue() {
   NewSpace* new_space = heap()->new_space();
   // Append the list of new space pages to be processed.
-  for (Page* p : NewSpacePageRange(new_space->bottom(), new_space->top())) {
+  for (Page* p : PageRange(new_space->bottom(), new_space->top())) {
     newspace_evacuation_candidates_.Add(p);
   }
   new_space->Flip();
@@ -3829,7 +3829,7 @@ void UpdateToSpacePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
   Address space_start = heap->new_space()->bottom();
   Address space_end = heap->new_space()->top();
-  for (Page* page : NewSpacePageRange(space_start, space_end)) {
+  for (Page* page : PageRange(space_start, space_end)) {
     Address start =
         page->Contains(space_start) ? space_start : page->area_start();
     Address end = page->Contains(space_end) ? space_end : page->area_end();
