@@ -267,12 +267,17 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   // Although we are using the JSFunction body descriptor which does not
   // visit the code entry, compiler wants it to be accessible.
   // See JSFunction::BodyDescriptorImpl.
-  INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
-                                    Address entry_address)) {
+  inline static void VisitCodeEntry(Heap* heap, HeapObject* object,
+                                    Address entry_address) {
     UNREACHABLE();
   }
 
  private:
+  inline static int UnreachableVisitor(Map* map, HeapObject* object) {
+    UNREACHABLE();
+    return 0;
+  }
+
   INLINE(static int VisitByteArray(Map* map, HeapObject* object)) {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
   }
@@ -299,8 +304,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   INLINE(static int VisitFreeSpace(Map* map, HeapObject* object)) {
     return FreeSpace::cast(object)->size();
   }
-
-  INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object));
 
   class DataObjectVisitor {
    public:

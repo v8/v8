@@ -60,7 +60,6 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                         int>::Visit);
 
   table_.Register(kVisitByteArray, &VisitByteArray);
-  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
 
   table_.Register(
       kVisitSharedFunctionInfo,
@@ -103,18 +102,10 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.template RegisterSpecializations<StructVisitor, kVisitStruct,
                                           kVisitStructGeneric>();
-}
 
-template <typename StaticVisitor>
-int StaticNewSpaceVisitor<StaticVisitor>::VisitBytecodeArray(
-    Map* map, HeapObject* object) {
-  VisitPointers(
-      map->GetHeap(), object,
-      HeapObject::RawField(object, BytecodeArray::kConstantPoolOffset),
-      HeapObject::RawField(object, BytecodeArray::kFrameSizeOffset));
-  return reinterpret_cast<BytecodeArray*>(object)->BytecodeArraySize();
+  table_.Register(kVisitBytecodeArray, &UnreachableVisitor);
+  table_.Register(kVisitSharedFunctionInfo, &UnreachableVisitor);
 }
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::Initialize() {
