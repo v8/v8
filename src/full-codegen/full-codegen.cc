@@ -62,7 +62,6 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
                            : 0,
                        info->zone()),
       back_edges_(2, info->zone()),
-      handler_table_(info->zone()),
       source_position_table_builder_(info->zone(),
                                      info->SourcePositionRecordingMode()),
       ic_total_count_(0) {
@@ -115,7 +114,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
       CodeGenerator::MakeCodeEpilogue(&masm, nullptr, info, masm.CodeObject());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
-  cgen.PopulateHandlerTable(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_has_reloc_info_for_serialization(info->will_serialize());
   code->set_allow_osr_at_loop_nesting_level(0);
@@ -173,30 +171,6 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   info->set_ic_total_count(ic_total_count_);
   DCHECK(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
-}
-
-
-void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
-  int handler_table_size = static_cast<int>(handler_table_.size());
-  Handle<HandlerTable> table =
-      Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
-          HandlerTable::LengthForRange(handler_table_size), TENURED));
-  for (int i = 0; i < handler_table_size; ++i) {
-    table->SetRangeStart(i, handler_table_[i].range_start);
-    table->SetRangeEnd(i, handler_table_[i].range_end);
-    table->SetRangeHandler(i, handler_table_[i].handler_offset,
-                           handler_table_[i].catch_prediction);
-    table->SetRangeData(i, handler_table_[i].stack_depth);
-  }
-  code->set_handler_table(*table);
-}
-
-
-int FullCodeGenerator::NewHandlerTableEntry() {
-  int index = static_cast<int>(handler_table_.size());
-  HandlerTableEntry entry = {0, 0, 0, 0, HandlerTable::UNCAUGHT};
-  handler_table_.push_back(entry);
-  return index;
 }
 
 
@@ -987,19 +961,10 @@ void FullCodeGenerator::EmitContinue(Statement* target) {
   NestedStatement* current = nesting_stack_;
   int context_length = 0;
   // When continuing, we clobber the unpredictable value in the accumulator
-  // with one that's safe for GC.  If we hit an exit from the try block of
-  // try...finally on our way out, we will unconditionally preserve the
-  // accumulator on the stack.
+  // with one that's safe for GC.
   ClearAccumulator();
   while (!current->IsContinueTarget(target)) {
     if (HasStackOverflow()) return;
-    if (current->IsTryFinally()) {
-      Comment cmnt(masm(), "[ Deferred continue through finally");
-      current->Exit(&context_length);
-      DCHECK_EQ(-1, context_length);
-      current->AsTryFinally()->deferred_commands()->RecordContinue(target);
-      return;
-    }
     current = current->Exit(&context_length);
   }
   int stack_depth = current->GetStackDepthAtTarget();
@@ -1028,19 +993,10 @@ void FullCodeGenerator::EmitBreak(Statement* target) {
   NestedStatement* current = nesting_stack_;
   int context_length = 0;
   // When breaking, we clobber the unpredictable value in the accumulator
-  // with one that's safe for GC.  If we hit an exit from the try block of
-  // try...finally on our way out, we will unconditionally preserve the
-  // accumulator on the stack.
+  // with one that's safe for GC.
   ClearAccumulator();
   while (!current->IsBreakTarget(target)) {
     if (HasStackOverflow()) return;
-    if (current->IsTryFinally()) {
-      Comment cmnt(masm(), "[ Deferred break through finally");
-      current->Exit(&context_length);
-      DCHECK_EQ(-1, context_length);
-      current->AsTryFinally()->deferred_commands()->RecordBreak(target);
-      return;
-    }
     current = current->Exit(&context_length);
   }
   int stack_depth = current->GetStackDepthAtTarget();
@@ -1070,13 +1026,6 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
   int context_length = 0;
   while (current != NULL) {
     if (HasStackOverflow()) return;
-    if (current->IsTryFinally()) {
-      Comment cmnt(masm(), "[ Deferred return through finally");
-      current->Exit(&context_length);
-      DCHECK_EQ(-1, context_length);
-      current->AsTryFinally()->deferred_commands()->RecordReturn();
-      return;
-    }
     current = current->Exit(&context_length);
   }
   EmitReturnSequence();
@@ -1358,127 +1307,14 @@ void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 }
 
 void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  Comment cmnt(masm_, "[ TryCatchStatement");
-  SetStatementPosition(stmt, SKIP_BREAK);
-
-  // The try block adds a handler to the exception handler chain before
-  // entering, and removes it again when exiting normally.  If an exception
-  // is thrown during execution of the try block, the handler is consumed
-  // and control is passed to the catch block with the exception in the
-  // result register.
-
-  Label try_entry, handler_entry, exit;
-  __ jmp(&try_entry);
-  __ bind(&handler_entry);
-  if (stmt->clear_pending_message()) ClearPendingMessage();
-
-  // Exception handler code, the exception is in the result register.
-  // Extend the context before executing the catch block.
-  { Comment cmnt(masm_, "[ Extend catch context");
-    PushOperand(stmt->variable()->name());
-    PushOperand(result_register());
-    PushOperand(stmt->scope()->scope_info());
-    PushFunctionArgumentForContextAllocation();
-    CallRuntimeWithOperands(Runtime::kPushCatchContext);
-    StoreToFrameField(StandardFrameConstants::kContextOffset,
-                      context_register());
-  }
-
-  Scope* saved_scope = scope();
-  scope_ = stmt->scope();
-  DCHECK(scope_->declarations()->is_empty());
-  { WithOrCatch catch_body(this);
-    Visit(stmt->catch_block());
-  }
-  // Restore the context.
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
-  scope_ = saved_scope;
-  __ jmp(&exit);
-
-  // Try block code. Sets up the exception handler chain.
-  __ bind(&try_entry);
-
-  int handler_index = NewHandlerTableEntry();
-  EnterTryBlock(handler_index, &handler_entry, stmt->catch_prediction());
-  {
-    Comment cmnt_try(masm(), "[ Try block");
-    Visit(stmt->try_block());
-  }
-  ExitTryBlock(handler_index);
-  __ bind(&exit);
+  // Exception handling is not supported.
+  UNREACHABLE();
 }
 
 
 void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  Comment cmnt(masm_, "[ TryFinallyStatement");
-  SetStatementPosition(stmt, SKIP_BREAK);
-
-  // Try finally is compiled by setting up a try-handler on the stack while
-  // executing the try body, and removing it again afterwards.
-  //
-  // The try-finally construct can enter the finally block in three ways:
-  // 1. By exiting the try-block normally. This exits the try block,
-  //    pushes the continuation token and falls through to the finally
-  //    block.
-  // 2. By exiting the try-block with a function-local control flow transfer
-  //    (break/continue/return). The site of the, e.g., break exits the
-  //    try block, pushes the continuation token and jumps to the
-  //    finally block. After the finally block executes, the execution
-  //    continues based on the continuation token to a block that
-  //    continues with the control flow transfer.
-  // 3. By exiting the try-block with a thrown exception. In the handler,
-  //    we push the exception and continuation token and jump to the
-  //    finally block (which will again dispatch based on the token once
-  //    it is finished).
-
-  Label try_entry, handler_entry, finally_entry;
-  DeferredCommands deferred(this, &finally_entry);
-
-  // Jump to try-handler setup and try-block code.
-  __ jmp(&try_entry);
-  __ bind(&handler_entry);
-
-  // Exception handler code.  This code is only executed when an exception
-  // is thrown.  Record the continuation and jump to the finally block.
-  {
-    Comment cmnt_handler(masm(), "[ Finally handler");
-    deferred.RecordThrow();
-  }
-
-  // Set up try handler.
-  __ bind(&try_entry);
-  int handler_index = NewHandlerTableEntry();
-  EnterTryBlock(handler_index, &handler_entry, stmt->catch_prediction());
-  {
-    Comment cmnt_try(masm(), "[ Try block");
-    TryFinally try_body(this, &deferred);
-    Visit(stmt->try_block());
-  }
-  ExitTryBlock(handler_index);
-  // Execute the finally block on the way out.  Clobber the unpredictable
-  // value in the result register with one that's safe for GC because the
-  // finally block will unconditionally preserve the result register on the
-  // stack.
-  ClearAccumulator();
-  deferred.EmitFallThrough();
-  // Fall through to the finally block.
-
-  // Finally block implementation.
-  __ bind(&finally_entry);
-  {
-    Comment cmnt_finally(masm(), "[ Finally block");
-    OperandStackDepthIncrement(2);  // Token and accumulator are on stack.
-    EnterFinallyBlock();
-    Visit(stmt->finally_block());
-    ExitFinallyBlock();
-    OperandStackDepthDecrement(2);  // Token and accumulator were on stack.
-  }
-
-  {
-    Comment cmnt_deferred(masm(), "[ Post-finally dispatch");
-    deferred.EmitCommands();  // Return to the calling code.
-  }
+  // Exception handling is not supported.
+  UNREACHABLE();
 }
 
 
@@ -1628,32 +1464,6 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   if (context()->IsStackValue()) OperandStackDepthIncrement(1);
 }
 
-void FullCodeGenerator::EnterTryBlock(
-    int handler_index, Label* handler,
-    HandlerTable::CatchPrediction catch_prediction) {
-  HandlerTableEntry* entry = &handler_table_[handler_index];
-  entry->range_start = masm()->pc_offset();
-  entry->handler_offset = handler->pos();
-  entry->stack_depth = operand_stack_depth_;
-  entry->catch_prediction = catch_prediction;
-
-  // We are using the operand stack depth, check for accuracy.
-  EmitOperandStackDepthCheck();
-
-  // Push context onto operand stack.
-  STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
-  PushOperand(context_register());
-}
-
-
-void FullCodeGenerator::ExitTryBlock(int handler_index) {
-  HandlerTableEntry* entry = &handler_table_[handler_index];
-  entry->range_end = masm()->pc_offset();
-
-  // Drop context from operand stack.
-  DropOperands(TryBlockConstant::kElementCount);
-}
-
 
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
@@ -1770,73 +1580,6 @@ void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
-    int* context_length) {
-  // The macros used here must preserve the result register.
-
-  // Calculate how many operands to drop to get down to handler block.
-  int stack_drop = codegen_->operand_stack_depth_ - GetStackDepthAtTarget();
-  DCHECK_GE(stack_drop, 0);
-
-  // Because the handler block contains the context of the finally
-  // code, we can restore it directly from there for the finally code
-  // rather than iteratively unwinding contexts via their previous
-  // links.
-  if (*context_length > 0) {
-    __ Drop(stack_drop);  // Down to the handler block.
-    // Restore the context to its dedicated register and the stack.
-    STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
-    __ Pop(codegen_->context_register());
-    codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
-                                codegen_->context_register());
-  } else {
-    // Down to the handler block and also drop context.
-    __ Drop(stack_drop + TryBlockConstant::kElementCount);
-  }
-
-  // The caller will ignore outputs.
-  *context_length = -1;
-  return previous_;
-}
-
-void FullCodeGenerator::DeferredCommands::RecordBreak(Statement* target) {
-  TokenId token = dispenser_.GetBreakContinueToken();
-  commands_.push_back({kBreak, token, target});
-  EmitJumpToFinally(token);
-}
-
-void FullCodeGenerator::DeferredCommands::RecordContinue(Statement* target) {
-  TokenId token = dispenser_.GetBreakContinueToken();
-  commands_.push_back({kContinue, token, target});
-  EmitJumpToFinally(token);
-}
-
-void FullCodeGenerator::DeferredCommands::RecordReturn() {
-  if (return_token_ == TokenDispenserForFinally::kInvalidToken) {
-    return_token_ = TokenDispenserForFinally::kReturnToken;
-    commands_.push_back({kReturn, return_token_, nullptr});
-  }
-  EmitJumpToFinally(return_token_);
-}
-
-void FullCodeGenerator::DeferredCommands::RecordThrow() {
-  if (throw_token_ == TokenDispenserForFinally::kInvalidToken) {
-    throw_token_ = TokenDispenserForFinally::kThrowToken;
-    commands_.push_back({kThrow, throw_token_, nullptr});
-  }
-  EmitJumpToFinally(throw_token_);
-}
-
-void FullCodeGenerator::DeferredCommands::EmitFallThrough() {
-  __ Push(Smi::FromInt(TokenDispenserForFinally::kFallThroughToken));
-  __ Push(result_register());
-}
-
-void FullCodeGenerator::DeferredCommands::EmitJumpToFinally(TokenId token) {
-  __ Push(Smi::FromInt(token));
-  __ Push(result_register());
-  __ jmp(finally_entry_);
-}
 
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;

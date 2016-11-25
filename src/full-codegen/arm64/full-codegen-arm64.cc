@@ -3253,68 +3253,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 }
 
 
-void FullCodeGenerator::EnterFinallyBlock() {
-  ASM_LOCATION("FullCodeGenerator::EnterFinallyBlock");
-  DCHECK(!result_register().is(x10));
-  // Store pending message while executing finally block.
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ Mov(x10, pending_message_obj);
-  __ Ldr(x10, MemOperand(x10));
-  PushOperand(x10);
-
-  ClearPendingMessage();
-}
-
-
-void FullCodeGenerator::ExitFinallyBlock() {
-  ASM_LOCATION("FullCodeGenerator::ExitFinallyBlock");
-  DCHECK(!result_register().is(x10));
-
-  // Restore pending message from stack.
-  PopOperand(x10);
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ Mov(x13, pending_message_obj);
-  __ Str(x10, MemOperand(x13));
-}
-
-
-void FullCodeGenerator::ClearPendingMessage() {
-  DCHECK(!result_register().is(x10));
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
-  __ Mov(x13, pending_message_obj);
-  __ Str(x10, MemOperand(x13));
-}
-
-
-void FullCodeGenerator::DeferredCommands::EmitCommands() {
-  __ Pop(result_register(), x1);  // Restore the accumulator and get the token.
-  for (DeferredCommand cmd : commands_) {
-    Label skip;
-    __ Cmp(x1, Operand(Smi::FromInt(cmd.token)));
-    __ B(ne, &skip);
-    switch (cmd.command) {
-      case kReturn:
-        codegen_->EmitUnwindAndReturn();
-        break;
-      case kThrow:
-        __ Push(result_register());
-        __ CallRuntime(Runtime::kReThrow);
-        break;
-      case kContinue:
-        codegen_->EmitContinue(cmd.target);
-        break;
-      case kBreak:
-        codegen_->EmitBreak(cmd.target);
-        break;
-    }
-    __ bind(&skip);
-  }
-}
-
 #undef __
 
 

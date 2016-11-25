@@ -1298,27 +1298,11 @@ Object* Isolate::UnwindAndFindHandler() {
       }
     }
 
-    // For JavaScript frames we perform a range lookup in the handler table.
+    // For JavaScript frames we are guaranteed not to find a handler.
     if (frame->is_java_script() && catchable_by_js) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      int stack_depth = 0;  // Will contain operand stack depth of handler.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_depth, nullptr);
-      if (offset >= 0) {
-        // Compute the stack pointer from the frame pointer. This ensures that
-        // operand stack slots are dropped for nested statements. Also restore
-        // correct context for the handler which is pushed within the try-block.
-        Address return_sp = frame->fp() -
-                            StandardFrameConstants::kFixedFrameSizeFromFp -
-                            stack_depth * kPointerSize;
-        STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
-        context = Context::cast(Memory::Object_at(return_sp - kPointerSize));
-
-        // Gather information from the frame.
-        code = frame->LookupCode();
-        handler_sp = return_sp;
-        handler_fp = frame->fp();
-        break;
-      }
+      offset = js_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
+      CHECK_EQ(-1, offset);
     }
 
     RemoveMaterializedObjectsOnUnwind(frame);
@@ -1357,9 +1341,11 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
           // asm code cannot contain try-catch.
           continue;
         }
+        // Must have been constructed from a bytecode array.
+        CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
         int code_offset = summary.code_offset();
-        int index =
-            code->LookupRangeInHandlerTable(code_offset, nullptr, &prediction);
+        int index = code->GetBytecodeArray()->LookupRangeInHandlerTable(
+            code_offset, nullptr, &prediction);
         if (index <= 0) continue;
         if (prediction == HandlerTable::UNCAUGHT) continue;
         return prediction;

@@ -3098,68 +3098,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 }
 
 
-// ----------------------------------------------------------------------------
-// Non-local control flow support.
-
-
-void FullCodeGenerator::EnterFinallyBlock() {
-  DCHECK(!result_register().is(rdx));
-
-  // Store pending message while executing finally block.
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ Load(rdx, pending_message_obj);
-  PushOperand(rdx);
-
-  ClearPendingMessage();
-}
-
-
-void FullCodeGenerator::ExitFinallyBlock() {
-  DCHECK(!result_register().is(rdx));
-  // Restore pending message from stack.
-  PopOperand(rdx);
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ Store(pending_message_obj, rdx);
-}
-
-
-void FullCodeGenerator::ClearPendingMessage() {
-  DCHECK(!result_register().is(rdx));
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
-  __ Store(pending_message_obj, rdx);
-}
-
-
-void FullCodeGenerator::DeferredCommands::EmitCommands() {
-  __ Pop(result_register());  // Restore the accumulator.
-  __ Pop(rdx);                // Get the token.
-  for (DeferredCommand cmd : commands_) {
-    Label skip;
-    __ SmiCompare(rdx, Smi::FromInt(cmd.token));
-    __ j(not_equal, &skip);
-    switch (cmd.command) {
-      case kReturn:
-        codegen_->EmitUnwindAndReturn();
-        break;
-      case kThrow:
-        __ Push(result_register());
-        __ CallRuntime(Runtime::kReThrow);
-        break;
-      case kContinue:
-        codegen_->EmitContinue(cmd.target);
-        break;
-      case kBreak:
-        codegen_->EmitBreak(cmd.target);
-        break;
-    }
-    __ bind(&skip);
-  }
-}
-
 #undef __
 
 

@@ -982,10 +982,9 @@ Object* JavaScriptFrame::context() const {
 
 int JavaScriptFrame::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
-  Code* code = LookupCode();
-  DCHECK(!code->is_optimized_code());
-  int pc_offset = static_cast<int>(pc() - code->entry());
-  return code->LookupRangeInHandlerTable(pc_offset, stack_depth, prediction);
+  DCHECK_EQ(0, LookupCode()->handler_table()->length());
+  DCHECK(!LookupCode()->is_optimized_code());
+  return -1;
 }
 
 void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,

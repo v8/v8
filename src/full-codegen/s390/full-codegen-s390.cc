@@ -3123,67 +3123,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   PushOperand(ip);
 }
 
-// ----------------------------------------------------------------------------
-// Non-local control flow support.
-
-void FullCodeGenerator::EnterFinallyBlock() {
-  DCHECK(!result_register().is(r3));
-  // Store pending message while executing finally block.
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ mov(ip, Operand(pending_message_obj));
-  __ LoadP(r3, MemOperand(ip));
-  PushOperand(r3);
-
-  ClearPendingMessage();
-}
-
-void FullCodeGenerator::ExitFinallyBlock() {
-  DCHECK(!result_register().is(r3));
-  // Restore pending message from stack.
-  PopOperand(r3);
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ mov(ip, Operand(pending_message_obj));
-  __ StoreP(r3, MemOperand(ip));
-}
-
-void FullCodeGenerator::ClearPendingMessage() {
-  DCHECK(!result_register().is(r3));
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
-  __ mov(ip, Operand(pending_message_obj));
-  __ StoreP(r3, MemOperand(ip));
-}
-
-void FullCodeGenerator::DeferredCommands::EmitCommands() {
-  DCHECK(!result_register().is(r3));
-  // Restore the accumulator (r2) and token (r3).
-  __ Pop(r3, result_register());
-  for (DeferredCommand cmd : commands_) {
-    Label skip;
-    __ CmpSmiLiteral(r3, Smi::FromInt(cmd.token), r0);
-    __ bne(&skip);
-    switch (cmd.command) {
-      case kReturn:
-        codegen_->EmitUnwindAndReturn();
-        break;
-      case kThrow:
-        __ Push(result_register());
-        __ CallRuntime(Runtime::kReThrow);
-        break;
-      case kContinue:
-        codegen_->EmitContinue(cmd.target);
-        break;
-      case kBreak:
-        codegen_->EmitBreak(cmd.target);
-        break;
-    }
-    __ bind(&skip);
-  }
-}
-
 #undef __
 
 #if V8_TARGET_ARCH_S390X

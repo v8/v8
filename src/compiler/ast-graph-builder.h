@@ -71,8 +71,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   class ControlScope;
   class ControlScopeForBreakable;
   class ControlScopeForIteration;
-  class ControlScopeForCatch;
-  class ControlScopeForFinally;
   class Environment;
   friend class ControlBuilder;
 
@@ -97,9 +95,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
   SetOncePointer<Node> new_target_;
-
-  // Tracks how many try-blocks are currently entered.
-  int try_nesting_level_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;

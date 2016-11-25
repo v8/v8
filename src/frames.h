@@ -66,13 +66,6 @@ class InnerPointerToCodeCache {
 };
 
 
-// Every try-block pushes the context register.
-class TryBlockConstant : public AllStatic {
- public:
-  static const int kElementCount = 1;
-};
-
-
 class StackHandlerConstants : public AllStatic {
  public:
   static const int kNextOffset = 0 * kPointerSize;
@@ -894,7 +887,6 @@ class JavaScriptFrame : public StandardFrame {
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
-  //  - JavaScriptFrame : Data is the stack depth at entry of the try-block.
   //  - OptimizedFrame  : Data is the stack slot count of the entire frame.
   //  - InterpretedFrame: Data is the register index holding the context.
   virtual int LookupExceptionHandlerInTable(
