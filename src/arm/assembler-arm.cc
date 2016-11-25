@@ -2873,7 +2873,6 @@ void Assembler::vmov(const DwVfpRegister dst,
        vm);
 }
 
-
 void Assembler::vmov(const DwVfpRegister dst,
                      const VmovIndex index,
                      const Register src,
@@ -3903,28 +3902,70 @@ void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
         (dt & NeonDataTypeSizeMask)*B19 | vd*B12 | 0xA*B8 | m*B5 | B4 | vm);
 }
 
-void Assembler::vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
-  DCHECK(VfpRegisterIsAvailable(srcdst0));
-  DCHECK(VfpRegisterIsAvailable(srcdst1));
-  DCHECK(!srcdst0.is(kScratchDoubleReg));
-  DCHECK(!srcdst1.is(kScratchDoubleReg));
+void Assembler::vmov(const QwNeonRegister dst, const QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // Instruction details available in ARM DDI 0406C.b, A8-938.
+  DCHECK(VfpRegisterIsAvailable(dst));
+  DCHECK(VfpRegisterIsAvailable(src));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(0x1E4 * B23 | d * B22 | 2 * B20 | vm * B16 | vd * B12 | B8 | m * B7 |
+       B6 | m * B5 | B4 | vm);
+}
 
-  if (srcdst0.is(srcdst1)) return;  // Swapping aliased registers emits nothing.
+void Assembler::vswp(DwVfpRegister dst, DwVfpRegister src) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.418.
+  // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
+  // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | m * B5 | vm);
+}
 
-  if (CpuFeatures::IsSupported(NEON)) {
-    // Instruction details available in ARM DDI 0406C.b, A8.8.418.
-    // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
-    // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
-    int vd, d;
-    srcdst0.split_code(&vd, &d);
-    int vm, m;
-    srcdst1.split_code(&vm, &m);
-    emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | m * B5 | vm);
-  } else {
-    vmov(kScratchDoubleReg, srcdst0);
-    vmov(srcdst0, srcdst1);
-    vmov(srcdst1, kScratchDoubleReg);
-  }
+void Assembler::vswp(QwNeonRegister dst, QwNeonRegister src) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.418.
+  // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
+  // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | B6 | m * B5 |
+       vm);
+}
+
+void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
+                     DwVfpRegister src2) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.888.
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(0x1E6 * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | m * B5 | B4 |
+       vm);
+}
+
+void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.888.
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(0x1E6 * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | B6 | m * B5 |
+       B4 | vm);
 }
 
 // Pseudo instructions.

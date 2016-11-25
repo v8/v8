@@ -936,10 +936,26 @@ TEST(Neon) {
               "f3886a11       vmovl.u8 q3, d1");
       COMPARE(vmovl(NeonU8, q4, d2),
               "f3888a12       vmovl.u8 q4, d2");
+      COMPARE(vmov(q0, q15),
+              "f22e01fe       vmov q0, q15");
+      COMPARE(vmov(q8, q9),
+              "f26201f2       vmov q8, q9");
       COMPARE(vswp(d0, d31),
               "f3b2002f       vswp d0, d31");
       COMPARE(vswp(d16, d14),
               "f3f2000e       vswp d16, d14");
+      COMPARE(vswp(q0, q15),
+              "f3b2006e       vswp q0, q15");
+      COMPARE(vswp(q8, q9),
+              "f3f20062       vswp q8, q9");
+      COMPARE(veor(d0, d1, d2),
+              "f3010112       veor d0, d1, d2");
+      COMPARE(veor(d0, d30, d31),
+              "f30e01bf       veor d0, d30, d31");
+      COMPARE(veor(q0, q1, q2),
+              "f3020154       veor q0, q1, q2");
+      COMPARE(veor(q15, q0, q8),
+              "f340e170       veor q15, q0, q8");
   }
 
   VERIFY_RUN();

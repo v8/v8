@@ -264,6 +264,35 @@ void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src,
   }
 }
 
+void MacroAssembler::Move(QwNeonRegister dst, QwNeonRegister src) {
+  if (!dst.is(src)) {
+    vmov(dst, src);
+  }
+}
+
+void MacroAssembler::Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
+  if (srcdst0.is(srcdst1)) return;  // Swapping aliased registers emits nothing.
+
+  DCHECK(VfpRegisterIsAvailable(srcdst0));
+  DCHECK(VfpRegisterIsAvailable(srcdst1));
+
+  if (CpuFeatures::IsSupported(NEON)) {
+    vswp(srcdst0, srcdst1);
+  } else {
+    DCHECK(!srcdst0.is(kScratchDoubleReg));
+    DCHECK(!srcdst1.is(kScratchDoubleReg));
+    vmov(kScratchDoubleReg, srcdst0);
+    vmov(srcdst0, srcdst1);
+    vmov(srcdst1, kScratchDoubleReg);
+  }
+}
+
+void MacroAssembler::Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1) {
+  if (!srcdst0.is(srcdst1)) {
+    vswp(srcdst0, srcdst1);
+  }
+}
+
 void MacroAssembler::Mls(Register dst, Register src1, Register src2,
                          Register srcA, Condition cond) {
   if (CpuFeatures::IsSupported(ARMv7)) {

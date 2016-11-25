@@ -184,6 +184,10 @@ class MacroAssembler: public Assembler {
   }
   void Move(SwVfpRegister dst, SwVfpRegister src, Condition cond = al);
   void Move(DwVfpRegister dst, DwVfpRegister src, Condition cond = al);
+  void Move(QwNeonRegister dst, QwNeonRegister src);
+  // Register swap.
+  void Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
+  void Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1);
 
   void Load(Register dst, const MemOperand& src, Representation r);
   void Store(Register src, const MemOperand& dst, Representation r);

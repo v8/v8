@@ -302,6 +302,20 @@ struct QwNeonRegister {
     *m = (encoded_code & 0x10) >> 4;
     *vm = encoded_code & 0x0F;
   }
+  DwVfpRegister low() const {
+    DwVfpRegister reg;
+    reg.reg_code = reg_code * 2;
+
+    DCHECK(reg.is_valid());
+    return reg;
+  }
+  DwVfpRegister high() const {
+    DwVfpRegister reg;
+    reg.reg_code = reg_code * 2 + 1;
+
+    DCHECK(reg.is_valid());
+    return reg;
+  }
 
   int reg_code;
 };
@@ -403,9 +417,11 @@ const QwNeonRegister q15 = { 15 };
 // compilation unit that includes this header doesn't use the variables.
 #define kFirstCalleeSavedDoubleReg d8
 #define kLastCalleeSavedDoubleReg d15
+// kDoubleRegZero and kScratchDoubleReg must pair to form kScratchQuadReg.
 #define kDoubleRegZero d14
 #define kScratchDoubleReg d15
-
+// After using kScratchQuadReg, kDoubleRegZero must be reset to 0.
+#define kScratchQuadReg q7
 
 // Coprocessor register
 struct CRegister {
@@ -1313,8 +1329,11 @@ class Assembler : public AssemblerBase {
             const NeonMemOperand& dst);
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
 
-  // Currently, vswp supports only D0 to D31.
-  void vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
+  void vmov(const QwNeonRegister dst, const QwNeonRegister src);
+  void vswp(DwVfpRegister dst, DwVfpRegister src);
+  void vswp(QwNeonRegister dst, QwNeonRegister src);
+  void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
+  void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
 
   // Pseudo instructions
 
@@ -1606,6 +1625,12 @@ class Assembler : public AssemblerBase {
     DCHECK(reg.is_valid());
     return IsEnabled(VFP32DREGS) ||
            (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters);
+  }
+
+  bool VfpRegisterIsAvailable(QwNeonRegister reg) {
+    DCHECK(reg.is_valid());
+    return IsEnabled(VFP32DREGS) ||
+           (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters / 2);
   }
 
  private:

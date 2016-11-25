@@ -1891,8 +1891,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK(destination->IsDoubleStackSlot());
         __ vstr(src, g.ToMemOperand(destination));
       }
-    } else {
-      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+    } else if (rep == MachineRepresentation::kFloat32) {
       // GapResolver may give us reg codes that don't map to actual s-registers.
       // Generate code to work around those cases.
       int src_code = LocationOperand::cast(source)->register_code();
@@ -1903,6 +1902,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK(destination->IsFloatStackSlot());
         __ VmovExtended(g.ToMemOperand(destination), src_code, kScratchReg);
       }
+    } else {
+      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+      QwNeonRegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        QwNeonRegister dst = g.ToSimd128Register(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
+        __ vst1(Neon8, NeonListOperand(src.low(), 2),
+                NeonMemOperand(kScratchReg));
+      }
     }
   } else if (source->IsFPStackSlot()) {
     MemOperand src = g.ToMemOperand(source);
@@ -1911,31 +1923,44 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsFPRegister()) {
       if (rep == MachineRepresentation::kFloat64) {
         __ vldr(g.ToDoubleRegister(destination), src);
-      } else {
-        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      } else if (rep == MachineRepresentation::kFloat32) {
         // GapResolver may give us reg codes that don't map to actual
         // s-registers. Generate code to work around those cases.
         int dst_code = LocationOperand::cast(destination)->register_code();
         __ VmovExtended(dst_code, src, kScratchReg);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        QwNeonRegister dst = g.ToSimd128Register(destination);
+        __ add(kScratchReg, src.rn(), Operand(src.offset()));
+        __ vld1(Neon8, NeonListOperand(dst.low(), 2),
+                NeonMemOperand(kScratchReg));
       }
-    } else {
+    } else if (rep == MachineRepresentation::kFloat64) {
       DCHECK(destination->IsFPStackSlot());
       if (rep == MachineRepresentation::kFloat64) {
         DwVfpRegister temp = kScratchDoubleReg;
         __ vldr(temp, src);
         __ vstr(temp, g.ToMemOperand(destination));
-      } else {
-        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      } else if (rep == MachineRepresentation::kFloat32) {
         SwVfpRegister temp = kScratchDoubleReg.low();
         __ vldr(temp, src);
         __ vstr(temp, g.ToMemOperand(destination));
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        MemOperand dst = g.ToMemOperand(destination);
+        __ add(kScratchReg, src.rn(), Operand(src.offset()));
+        __ vld1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
+                NeonMemOperand(kScratchReg));
+        __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
+        __ vst1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
+                NeonMemOperand(kScratchReg));
+        __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
       }
     }
   } else {
     UNREACHABLE();
   }
 }
-
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -1975,7 +2000,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       DwVfpRegister src = g.ToDoubleRegister(source);
       if (destination->IsFPRegister()) {
         DwVfpRegister dst = g.ToDoubleRegister(destination);
-        __ vswp(src, dst);
+        __ Swap(src, dst);
       } else {
         DCHECK(destination->IsFPStackSlot());
         MemOperand dst = g.ToMemOperand(destination);
@@ -1983,8 +2008,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ vldr(src, dst);
         __ vstr(temp, dst);
       }
-    } else {
-      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+    } else if (rep == MachineRepresentation::kFloat32) {
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFPRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
@@ -1998,29 +2022,55 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ VmovExtended(src_code, dst, kScratchReg);
         __ vstr(temp.low(), dst);
       }
+    } else {
+      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+      QwNeonRegister src = g.ToSimd128Register(source);
+      if (destination->IsFPRegister()) {
+        QwNeonRegister dst = g.ToSimd128Register(destination);
+        __ Swap(src, dst);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(kScratchQuadReg, src);
+        __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
+        __ vld1(Neon8, NeonListOperand(src.low(), 2),
+                NeonMemOperand(kScratchReg));
+        __ vst1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
+                NeonMemOperand(kScratchReg));
+        __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
-    Register temp_0 = kScratchReg;
-    LowDwVfpRegister temp_1 = kScratchDoubleReg;
-    MemOperand src0 = g.ToMemOperand(source);
-    MemOperand dst0 = g.ToMemOperand(destination);
+    MemOperand src = g.ToMemOperand(source);
+    MemOperand dst = g.ToMemOperand(destination);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kFloat64) {
-      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
-      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
-      __ vldr(temp_1, dst0);  // Save destination in temp_1.
-      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
-      __ str(temp_0, dst0);
-      __ ldr(temp_0, src1);
-      __ str(temp_0, dst1);
-      __ vstr(temp_1, src0);
+      __ vldr(kScratchDoubleReg, dst);
+      __ vldr(kDoubleRegZero, src);
+      __ vstr(kScratchDoubleReg, src);
+      __ vstr(kDoubleRegZero, dst);
+      // Restore the 0 register.
+      __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
+    } else if (rep == MachineRepresentation::kFloat32) {
+      __ vldr(kScratchDoubleReg.low(), dst);
+      __ vldr(kScratchDoubleReg.high(), src);
+      __ vstr(kScratchDoubleReg.low(), src);
+      __ vstr(kScratchDoubleReg.high(), dst);
     } else {
-      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
-      __ vldr(temp_1.low(), dst0);  // Save destination in temp_1.
-      __ ldr(temp_0, src0);  // Then use temp_0 to copy source to destination.
-      __ str(temp_0, dst0);
-      __ vstr(temp_1.low(), src0);
+      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+      __ vldr(kScratchDoubleReg, dst);
+      __ vldr(kDoubleRegZero, src);
+      __ vstr(kScratchDoubleReg, src);
+      __ vstr(kDoubleRegZero, dst);
+      src.set_offset(src.offset() + kDoubleSize);
+      dst.set_offset(dst.offset() + kDoubleSize);
+      __ vldr(kScratchDoubleReg, dst);
+      __ vldr(kDoubleRegZero, src);
+      __ vstr(kScratchDoubleReg, src);
+      __ vstr(kDoubleRegZero, dst);
+      // Restore the 0 register.
+      __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
     }
   } else {
     // No other combinations are possible.
