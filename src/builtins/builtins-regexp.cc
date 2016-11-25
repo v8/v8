@@ -13,6 +13,11 @@
 namespace v8 {
 namespace internal {
 
+typedef compiler::Node Node;
+typedef CodeStubAssembler::Label CLabel;
+typedef CodeStubAssembler::Variable CVariable;
+typedef compiler::CodeAssemblerState CodeAssemblerState;
+
 // -----------------------------------------------------------------------------
 // ES6 section 21.2 RegExp Objects
 
@@ -170,34 +175,26 @@ BUILTIN(RegExpPrototypeCompile) {
 
 namespace {
 
-compiler::Node* FastLoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
-                                  compiler::Node* regexp) {
+Node* FastLoadLastIndex(CodeStubAssembler* a, Node* context, Node* regexp) {
   // Load the in-object field.
   static const int field_offset =
       JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
   return a->LoadObjectField(regexp, field_offset);
 }
 
-compiler::Node* SlowLoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
-                                  compiler::Node* regexp) {
+Node* SlowLoadLastIndex(CodeStubAssembler* a, Node* context, Node* regexp) {
   // Load through the GetProperty stub.
-  typedef compiler::Node Node;
-
   Node* const name =
       a->HeapConstant(a->isolate()->factory()->lastIndex_string());
   Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
   return a->CallStub(getproperty_callable, context, regexp, name);
 }
 
-compiler::Node* LoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
-                              compiler::Node* has_initialmap,
-                              compiler::Node* regexp) {
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
+Node* LoadLastIndex(CodeStubAssembler* a, Node* context, Node* has_initialmap,
+                    Node* regexp) {
+  CVariable var_value(a, MachineRepresentation::kTagged);
 
-  Variable var_value(a, MachineRepresentation::kTagged);
-
-  Label out(a), if_unmodified(a), if_modified(a);
+  CLabel out(a), if_unmodified(a), if_modified(a);
   a->Branch(has_initialmap, &if_unmodified, &if_modified);
 
   a->Bind(&if_unmodified);
@@ -218,20 +215,18 @@ compiler::Node* LoadLastIndex(CodeStubAssembler* a, compiler::Node* context,
 
 // The fast-path of StoreLastIndex when regexp is guaranteed to be an unmodified
 // JSRegExp instance.
-void FastStoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
-                        compiler::Node* regexp, compiler::Node* value) {
+void FastStoreLastIndex(CodeStubAssembler* a, Node* context, Node* regexp,
+                        Node* value) {
   // Store the in-object field.
   static const int field_offset =
       JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
   a->StoreObjectField(regexp, field_offset, value);
 }
 
-void SlowStoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
-                        compiler::Node* regexp, compiler::Node* value) {
+void SlowStoreLastIndex(CodeStubAssembler* a, Node* context, Node* regexp,
+                        Node* value) {
   // Store through runtime.
   // TODO(ishell): Use SetPropertyStub here once available.
-  typedef compiler::Node Node;
-
   Node* const name =
       a->HeapConstant(a->isolate()->factory()->lastIndex_string());
   Node* const language_mode = a->SmiConstant(Smi::FromInt(STRICT));
@@ -239,12 +234,9 @@ void SlowStoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
                  language_mode);
 }
 
-void StoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
-                    compiler::Node* has_initialmap, compiler::Node* regexp,
-                    compiler::Node* value) {
-  typedef CodeStubAssembler::Label Label;
-
-  Label out(a), if_unmodified(a), if_modified(a);
+void StoreLastIndex(CodeStubAssembler* a, Node* context, Node* has_initialmap,
+                    Node* regexp, Node* value) {
+  CLabel out(a), if_unmodified(a), if_modified(a);
   a->Branch(has_initialmap, &if_unmodified, &if_modified);
 
   a->Bind(&if_unmodified);
@@ -262,16 +254,10 @@ void StoreLastIndex(CodeStubAssembler* a, compiler::Node* context,
   a->Bind(&out);
 }
 
-compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
-                                                CodeStubAssembler* a,
-                                                compiler::Node* context,
-                                                compiler::Node* match_info,
-                                                compiler::Node* string) {
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
-  Label out(a);
+Node* ConstructNewResultFromMatchInfo(Isolate* isolate, CodeStubAssembler* a,
+                                      Node* context, Node* match_info,
+                                      Node* string) {
+  CLabel out(a);
 
   CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
   Node* const num_indices = a->SmiUntag(a->LoadFixedArrayElement(
@@ -301,15 +287,15 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
   Node* const limit = a->IntPtrAdd(
       a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), num_indices);
 
-  Variable var_from_cursor(a, MachineType::PointerRepresentation());
-  Variable var_to_cursor(a, MachineType::PointerRepresentation());
+  CVariable var_from_cursor(a, MachineType::PointerRepresentation());
+  CVariable var_to_cursor(a, MachineType::PointerRepresentation());
 
   var_from_cursor.Bind(
       a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
   var_to_cursor.Bind(a->IntPtrConstant(1));
 
-  Variable* vars[] = {&var_from_cursor, &var_to_cursor};
-  Label loop(a, 2, vars);
+  CVariable* vars[] = {&var_from_cursor, &var_to_cursor};
+  CLabel loop(a, 2, vars);
 
   a->Goto(&loop);
   a->Bind(&loop);
@@ -318,7 +304,7 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
     Node* const to_cursor = var_to_cursor.value();
     Node* const start = a->LoadFixedArrayElement(match_info, from_cursor);
 
-    Label next_iter(a);
+    CLabel next_iter(a);
     a->GotoIf(a->SmiEqual(start, a->SmiConstant(Smi::FromInt(-1))), &next_iter);
 
     Node* const from_cursor_plus1 =
@@ -341,22 +327,16 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
-                                            compiler::Node* context,
-                                            compiler::Node* maybe_receiver,
-                                            compiler::Node* maybe_string) {
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
+Node* RegExpPrototypeExecInternal(CodeStubAssembler* a, Node* context,
+                                  Node* maybe_receiver, Node* maybe_string) {
   Isolate* const isolate = a->isolate();
 
   Node* const null = a->NullConstant();
   Node* const int_zero = a->IntPtrConstant(0);
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
-  Variable var_result(a, MachineRepresentation::kTagged);
-  Label out(a);
+  CVariable var_result(a, MachineRepresentation::kTagged);
+  CLabel out(a);
 
   // Ensure {maybe_receiver} is a JSRegExp.
   Node* const regexp_map = a->ThrowIfNotInstanceType(
@@ -386,10 +366,10 @@ compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
       a->WordNotEqual(is_global_or_sticky, int_zero);
 
   // Grab and possibly update last index.
-  Label run_exec(a);
-  Variable var_lastindex(a, MachineRepresentation::kTagged);
+  CLabel run_exec(a);
+  CVariable var_lastindex(a, MachineRepresentation::kTagged);
   {
-    Label if_doupdate(a), if_dontupdate(a);
+    CLabel if_doupdate(a), if_dontupdate(a);
     a->Branch(should_update_last_index, &if_doupdate, &if_dontupdate);
 
     a->Bind(&if_doupdate);
@@ -402,7 +382,7 @@ compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
           a->CallStub(tolength_callable, context, regexp_lastindex);
       var_lastindex.Bind(lastindex);
 
-      Label if_isoob(a, Label::kDeferred);
+      CLabel if_isoob(a, CLabel::kDeferred);
       a->GotoUnless(a->TaggedIsSmi(lastindex), &if_isoob);
       a->GotoUnless(a->SmiLessThanOrEqual(lastindex, string_length), &if_isoob);
       a->Goto(&run_exec);
@@ -423,7 +403,7 @@ compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
   }
 
   Node* match_indices;
-  Label successful_match(a);
+  CLabel successful_match(a);
   a->Bind(&run_exec);
   {
     // Get last match info from the context.
@@ -439,7 +419,7 @@ compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
     // Return early if exec failed, possibly updating last index.
     a->GotoUnless(a->WordEqual(match_indices, null), &successful_match);
 
-    Label return_null(a);
+    CLabel return_null(a);
     a->GotoUnless(should_update_last_index, &return_null);
 
     StoreLastIndex(a, context, has_initialmap, regexp, smi_zero);
@@ -450,7 +430,7 @@ compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
     a->Goto(&out);
   }
 
-  Label construct_result(a);
+  CLabel construct_result(a);
   a->Bind(&successful_match);
   {
     a->GotoUnless(should_update_last_index, &construct_result);
@@ -480,9 +460,7 @@ compiler::Node* RegExpPrototypeExecInternal(CodeStubAssembler* a,
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-void Builtins::Generate_RegExpPrototypeExec(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+void Builtins::Generate_RegExpPrototypeExec(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
 
   Node* const maybe_receiver = a.Parameter(0);
@@ -496,17 +474,12 @@ void Builtins::Generate_RegExpPrototypeExec(
 
 namespace {
 
-compiler::Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
-                                     compiler::Node* context,
-                                     compiler::Node* value,
-                                     MessageTemplate::Template msg_template,
-                                     char const* method_name) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
-  Label out(a), throw_exception(a, Label::kDeferred);
-  Variable var_value_map(a, MachineRepresentation::kTagged);
+Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
+                           Node* context, Node* value,
+                           MessageTemplate::Template msg_template,
+                           char const* method_name) {
+  CLabel out(a), throw_exception(a, CLabel::kDeferred);
+  CVariable var_value_map(a, MachineRepresentation::kTagged);
 
   a->GotoIf(a->TaggedIsSmi(value), &throw_exception);
 
@@ -538,11 +511,7 @@ compiler::Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
   return var_value_map.value();
 }
 
-compiler::Node* IsInitialRegExpMap(CodeStubAssembler* a,
-                                   compiler::Node* context,
-                                   compiler::Node* map) {
-  typedef compiler::Node Node;
-
+Node* IsInitialRegExpMap(CodeStubAssembler* a, Node* context, Node* map) {
   Node* const native_context = a->LoadNativeContext(context);
   Node* const regexp_fun =
       a->LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
@@ -557,12 +526,8 @@ compiler::Node* IsInitialRegExpMap(CodeStubAssembler* a,
 // We use a fairly coarse granularity for this and simply check whether both
 // the regexp itself is unmodified (i.e. its map has not changed) and its
 // prototype is unmodified.
-void BranchIfFastPath(CodeStubAssembler* a, compiler::Node* context,
-                      compiler::Node* map,
-                      CodeStubAssembler::Label* if_isunmodified,
-                      CodeStubAssembler::Label* if_ismodified) {
-  typedef compiler::Node Node;
-
+void BranchIfFastPath(CodeStubAssembler* a, Node* context, Node* map,
+                      CLabel* if_isunmodified, CLabel* if_ismodified) {
   Node* const native_context = a->LoadNativeContext(context);
   Node* const regexp_fun =
       a->LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
@@ -586,11 +551,7 @@ void BranchIfFastPath(CodeStubAssembler* a, compiler::Node* context,
 
 }  // namespace
 
-void Builtins::Generate_RegExpPrototypeFlagsGetter(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+void Builtins::Generate_RegExpPrototypeFlagsGetter(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
 
   Node* const receiver = a.Parameter(0);
@@ -604,20 +565,20 @@ void Builtins::Generate_RegExpPrototypeFlagsGetter(
                                          MessageTemplate::kRegExpNonObject,
                                          "RegExp.prototype.flags");
 
-  Variable var_length(&a, MachineType::PointerRepresentation());
-  Variable var_flags(&a, MachineType::PointerRepresentation());
+  CVariable var_length(&a, MachineType::PointerRepresentation());
+  CVariable var_flags(&a, MachineType::PointerRepresentation());
 
   // First, count the number of characters we will need and check which flags
   // are set.
 
   var_length.Bind(int_zero);
 
-  Label if_isunmodifiedjsregexp(&a),
-      if_isnotunmodifiedjsregexp(&a, Label::kDeferred);
+  CLabel if_isunmodifiedjsregexp(&a),
+      if_isnotunmodifiedjsregexp(&a, CLabel::kDeferred);
   a.Branch(IsInitialRegExpMap(&a, context, map), &if_isunmodifiedjsregexp,
            &if_isnotunmodifiedjsregexp);
 
-  Label construct_string(&a);
+  CLabel construct_string(&a);
   a.Bind(&if_isunmodifiedjsregexp);
   {
     // Refer to JSRegExp's flag property on the fast-path.
@@ -625,7 +586,7 @@ void Builtins::Generate_RegExpPrototypeFlagsGetter(
     Node* const flags_intptr = a.SmiUntag(flags_smi);
     var_flags.Bind(flags_intptr);
 
-    Label label_global(&a), label_ignorecase(&a), label_multiline(&a),
+    CLabel label_global(&a), label_ignorecase(&a), label_multiline(&a),
         label_unicode(&a), label_sticky(&a);
 
 #define CASE_FOR_FLAG(FLAG, LABEL, NEXT_LABEL)                     \
@@ -653,7 +614,7 @@ void Builtins::Generate_RegExpPrototypeFlagsGetter(
     var_flags.Bind(int_zero);
 
     Callable getproperty_callable = CodeFactory::GetProperty(a.isolate());
-    Label label_global(&a), label_ignorecase(&a), label_multiline(&a),
+    CLabel label_global(&a), label_ignorecase(&a), label_multiline(&a),
         label_unicode(&a), label_sticky(&a);
 
 #define CASE_FOR_FLAG(NAME, FLAG, LABEL, NEXT_LABEL)                         \
@@ -663,7 +624,7 @@ void Builtins::Generate_RegExpPrototypeFlagsGetter(
         a.HeapConstant(isolate->factory()->NewStringFromAsciiChecked(NAME)); \
     Node* const flag =                                                       \
         a.CallStub(getproperty_callable, context, receiver, name);           \
-    Label if_isflagset(&a);                                                  \
+    CLabel if_isflagset(&a);                                                 \
     a.BranchIfToBooleanIsTrue(flag, &if_isflagset, &NEXT_LABEL);             \
     a.Bind(&if_isflagset);                                                   \
     var_length.Bind(a.IntPtrAdd(var_length.value(), int_one));               \
@@ -691,11 +652,11 @@ void Builtins::Generate_RegExpPrototypeFlagsGetter(
         a.AllocateSeqOneByteString(context, var_length.value());
     Node* const flags_intptr = var_flags.value();
 
-    Variable var_offset(&a, MachineType::PointerRepresentation());
+    CVariable var_offset(&a, MachineType::PointerRepresentation());
     var_offset.Bind(
         a.IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
-    Label label_global(&a), label_ignorecase(&a), label_multiline(&a),
+    CLabel label_global(&a), label_ignorecase(&a), label_multiline(&a),
         label_unicode(&a), label_sticky(&a), out(&a);
 
 #define CASE_FOR_FLAG(FLAG, CHAR, LABEL, NEXT_LABEL)               \
@@ -792,11 +753,8 @@ BUILTIN(RegExpPrototypeSpeciesGetter) {
 namespace {
 
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
-compiler::Node* FastFlagGetter(CodeStubAssembler* a,
-                               compiler::Node* const regexp,
-                               JSRegExp::Flag flag) {
-  typedef compiler::Node Node;
-
+Node* FastFlagGetter(CodeStubAssembler* a, Node* const regexp,
+                     JSRegExp::Flag flag) {
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
   Node* const flags = a->LoadObjectField(regexp, JSRegExp::kFlagsOffset);
   Node* const mask = a->SmiConstant(Smi::FromInt(flag));
@@ -808,17 +766,14 @@ compiler::Node* FastFlagGetter(CodeStubAssembler* a,
 void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
                          v8::Isolate::UseCounterFeature counter,
                          const char* method_name) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
   Node* const receiver = a->Parameter(0);
   Node* const context = a->Parameter(3);
 
   Isolate* isolate = a->isolate();
 
   // Check whether we have an unmodified regexp instance.
-  Label if_isunmodifiedjsregexp(a),
-      if_isnotunmodifiedjsregexp(a, Label::kDeferred);
+  CLabel if_isunmodifiedjsregexp(a),
+      if_isnotunmodifiedjsregexp(a, CLabel::kDeferred);
 
   a->GotoIf(a->TaggedIsSmi(receiver), &if_isnotunmodifiedjsregexp);
 
@@ -844,7 +799,7 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
         regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
     Node* const initial_prototype = a->LoadMapPrototype(initial_map);
 
-    Label if_isprototype(a), if_isnotprototype(a);
+    CLabel if_isprototype(a), if_isnotprototype(a);
     a->Branch(a->WordEqual(receiver, initial_prototype), &if_isprototype,
               &if_isnotprototype);
 
@@ -871,8 +826,7 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
 }  // namespace
 
 // ES6 21.2.5.4.
-void Builtins::Generate_RegExpPrototypeGlobalGetter(
-    compiler::CodeAssemblerState* state) {
+void Builtins::Generate_RegExpPrototypeGlobalGetter(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
   Generate_FlagGetter(&a, JSRegExp::kGlobal,
                       v8::Isolate::kRegExpPrototypeOldFlagGetter,
@@ -881,7 +835,7 @@ void Builtins::Generate_RegExpPrototypeGlobalGetter(
 
 // ES6 21.2.5.5.
 void Builtins::Generate_RegExpPrototypeIgnoreCaseGetter(
-    compiler::CodeAssemblerState* state) {
+    CodeAssemblerState* state) {
   CodeStubAssembler a(state);
   Generate_FlagGetter(&a, JSRegExp::kIgnoreCase,
                       v8::Isolate::kRegExpPrototypeOldFlagGetter,
@@ -890,7 +844,7 @@ void Builtins::Generate_RegExpPrototypeIgnoreCaseGetter(
 
 // ES6 21.2.5.7.
 void Builtins::Generate_RegExpPrototypeMultilineGetter(
-    compiler::CodeAssemblerState* state) {
+    CodeAssemblerState* state) {
   CodeStubAssembler a(state);
   Generate_FlagGetter(&a, JSRegExp::kMultiline,
                       v8::Isolate::kRegExpPrototypeOldFlagGetter,
@@ -898,8 +852,7 @@ void Builtins::Generate_RegExpPrototypeMultilineGetter(
 }
 
 // ES6 21.2.5.12.
-void Builtins::Generate_RegExpPrototypeStickyGetter(
-    compiler::CodeAssemblerState* state) {
+void Builtins::Generate_RegExpPrototypeStickyGetter(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
   Generate_FlagGetter(&a, JSRegExp::kSticky,
                       v8::Isolate::kRegExpPrototypeStickyGetter,
@@ -908,7 +861,7 @@ void Builtins::Generate_RegExpPrototypeStickyGetter(
 
 // ES6 21.2.5.15.
 void Builtins::Generate_RegExpPrototypeUnicodeGetter(
-    compiler::CodeAssemblerState* state) {
+    CodeAssemblerState* state) {
   CodeStubAssembler a(state);
   Generate_FlagGetter(&a, JSRegExp::kUnicode,
                       v8::Isolate::kRegExpPrototypeUnicodeGetter,
@@ -1001,18 +954,14 @@ BUILTIN(RegExpRightContextGetter) {
 namespace {
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-compiler::Node* RegExpExec(CodeStubAssembler* a, compiler::Node* context,
-                           compiler::Node* recv, compiler::Node* string) {
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
+Node* RegExpExec(CodeStubAssembler* a, Node* context, Node* recv,
+                 Node* string) {
   Isolate* isolate = a->isolate();
 
   Node* const null = a->NullConstant();
 
-  Variable var_result(a, MachineRepresentation::kTagged);
-  Label out(a), call_builtin_exec(a), slow_path(a, Label::kDeferred);
+  CVariable var_result(a, MachineRepresentation::kTagged);
+  CLabel out(a), call_builtin_exec(a), slow_path(a, CLabel::kDeferred);
 
   Node* const map = a->LoadMap(recv);
   BranchIfFastPath(a, context, map, &call_builtin_exec, &slow_path);
@@ -1035,7 +984,7 @@ compiler::Node* RegExpExec(CodeStubAssembler* a, compiler::Node* context,
     Node* const exec = a->CallStub(getproperty_callable, context, recv, name);
 
     // Is {exec} callable?
-    Label if_iscallable(a), if_isnotcallable(a);
+    CLabel if_iscallable(a), if_isnotcallable(a);
 
     a->GotoIf(a->TaggedIsSmi(exec), &if_isnotcallable);
 
@@ -1073,9 +1022,7 @@ compiler::Node* RegExpExec(CodeStubAssembler* a, compiler::Node* context,
 
 // ES#sec-regexp.prototype.test
 // RegExp.prototype.test ( S )
-void Builtins::Generate_RegExpPrototypeTest(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+void Builtins::Generate_RegExpPrototypeTest(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
 
   Isolate* const isolate = a.isolate();
@@ -1176,13 +1123,9 @@ BUILTIN(RegExpPrototypeMatch) {
 namespace {
 
 void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
-                                        compiler::Node* const receiver,
-                                        compiler::Node* const string,
-                                        compiler::Node* const context,
+                                        Node* const receiver,
+                                        Node* const string, Node* const context,
                                         bool is_fastpath) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
   Isolate* const isolate = a->isolate();
 
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
@@ -1196,7 +1139,7 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
   if (is_fastpath) {
     FastStoreLastIndex(a, context, receiver, smi_zero);
   } else {
-    Label next(a);
+    CLabel next(a);
     a->GotoIf(a->SameValue(previous_last_index, smi_zero, context), &next);
 
     SlowStoreLastIndex(a, context, receiver, smi_zero);
@@ -1213,7 +1156,7 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
   if (is_fastpath) {
     FastStoreLastIndex(a, context, receiver, previous_last_index);
   } else {
-    Label next(a);
+    CLabel next(a);
     Node* const current_last_index = SlowLoadLastIndex(a, context, receiver);
 
     a->GotoIf(a->SameValue(current_last_index, previous_last_index, context),
@@ -1226,7 +1169,7 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
 
   // Return -1 if no match was found.
   {
-    Label next(a);
+    CLabel next(a);
     a->GotoUnless(a->WordEqual(match_indices, a->NullConstant()), &next);
     a->Return(a->SmiConstant(-1));
     a->Bind(&next);
@@ -1234,7 +1177,7 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
 
   // Return the index of the match.
   {
-    Label fast_result(a), slow_result(a, Label::kDeferred);
+    CLabel fast_result(a), slow_result(a, CLabel::kDeferred);
 
     Node* const native_context = a->LoadNativeContext(context);
     Node* const initial_regexp_result_map =
@@ -1267,10 +1210,7 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
 
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
-void Builtins::Generate_RegExpPrototypeSearch(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+void Builtins::Generate_RegExpPrototypeSearch(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
 
   Isolate* const isolate = a.isolate();
@@ -1289,7 +1229,7 @@ void Builtins::Generate_RegExpPrototypeSearch(
   // Convert {maybe_string} to a String.
   Node* const string = a.ToString(context, maybe_string);
 
-  Label fast_path(&a), slow_path(&a);
+  CLabel fast_path(&a), slow_path(&a);
   BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
 
   a.Bind(&fast_path);
@@ -1645,15 +1585,11 @@ BUILTIN(RegExpPrototypeSplit) {
 
 namespace {
 
-compiler::Node* ReplaceGlobalCallableFastPath(
-    CodeStubAssembler* a, compiler::Node* context, compiler::Node* regexp,
-    compiler::Node* subject_string, compiler::Node* replace_callable) {
+Node* ReplaceGlobalCallableFastPath(CodeStubAssembler* a, Node* context,
+                                    Node* regexp, Node* subject_string,
+                                    Node* replace_callable) {
   // The fast path is reached only if {receiver} is a global unmodified
   // JSRegExp instance and {replace_callable} is callable.
-
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
 
   Isolate* const isolate = a->isolate();
 
@@ -1665,8 +1601,8 @@ compiler::Node* ReplaceGlobalCallableFastPath(
 
   Node* const native_context = a->LoadNativeContext(context);
 
-  Label out(a);
-  Variable var_result(a, MachineRepresentation::kTagged);
+  CLabel out(a);
+  CVariable var_result(a, MachineRepresentation::kTagged);
 
   // Set last index to 0.
   FastStoreLastIndex(a, context, regexp, smi_zero);
@@ -1713,7 +1649,7 @@ compiler::Node* ReplaceGlobalCallableFastPath(
       last_match_info,
       a->IntPtrConstant(RegExpMatchInfo::kNumberOfCapturesIndex), 0, mode);
 
-  Label if_hasexplicitcaptures(a), if_noexplicitcaptures(a), create_result(a);
+  CLabel if_hasexplicitcaptures(a), if_noexplicitcaptures(a), create_result(a);
   a->Branch(a->SmiEqual(num_capture_registers, a->SmiConstant(Smi::FromInt(2))),
             &if_noexplicitcaptures, &if_hasexplicitcaptures);
 
@@ -1726,15 +1662,15 @@ compiler::Node* ReplaceGlobalCallableFastPath(
     // input string and some replacements that were returned from the replace
     // function.
 
-    Variable var_match_start(a, MachineRepresentation::kTagged);
+    CVariable var_match_start(a, MachineRepresentation::kTagged);
     var_match_start.Bind(smi_zero);
 
     Node* const end = a->SmiUntag(res_length);
-    Variable var_i(a, MachineType::PointerRepresentation());
+    CVariable var_i(a, MachineType::PointerRepresentation());
     var_i.Bind(int_zero);
 
-    Variable* vars[] = {&var_i, &var_match_start};
-    Label loop(a, 2, vars);
+    CVariable* vars[] = {&var_i, &var_match_start};
+    CLabel loop(a, 2, vars);
     a->Goto(&loop);
     a->Bind(&loop);
     {
@@ -1745,13 +1681,13 @@ compiler::Node* ReplaceGlobalCallableFastPath(
           CodeStubAssembler::INTPTR_PARAMETERS;
       Node* const elem = a->LoadFixedArrayElement(res_elems, i, 0, mode);
 
-      Label if_issmi(a), if_isstring(a), loop_epilogue(a);
+      CLabel if_issmi(a), if_isstring(a), loop_epilogue(a);
       a->Branch(a->TaggedIsSmi(elem), &if_issmi, &if_isstring);
 
       a->Bind(&if_issmi);
       {
         // Integers represent slices of the original string.
-        Label if_isnegativeorzero(a), if_ispositive(a);
+        CLabel if_isnegativeorzero(a), if_ispositive(a);
         a->BranchIfSmiLessThanOrEqual(elem, smi_zero, &if_isnegativeorzero,
                                       &if_ispositive);
 
@@ -1823,7 +1759,7 @@ compiler::Node* ReplaceGlobalCallableFastPath(
           Node* const elem =
               a->LoadFixedArrayElement(res_elems, index, 0, mode);
 
-          Label do_continue(a);
+          CLabel do_continue(a);
           a->GotoIf(a->TaggedIsSmi(elem), &do_continue);
 
           // elem must be an Array.
@@ -1867,19 +1803,13 @@ compiler::Node* ReplaceGlobalCallableFastPath(
   return var_result.value();
 }
 
-compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
-                                            compiler::Node* context,
-                                            compiler::Node* regexp,
-                                            compiler::Node* subject_string,
-                                            compiler::Node* replace_string) {
+Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a, Node* context,
+                                  Node* regexp, Node* subject_string,
+                                  Node* replace_string) {
   // The fast path is reached only if {receiver} is an unmodified
   // JSRegExp instance, {replace_value} is non-callable, and
   // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
   // string replacement.
-
-  typedef CodeStubAssembler::Variable Variable;
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
 
   Isolate* const isolate = a->isolate();
 
@@ -1887,8 +1817,8 @@ compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
   Node* const int_zero = a->IntPtrConstant(0);
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
-  Label out(a);
-  Variable var_result(a, MachineRepresentation::kTagged);
+  CLabel out(a);
+  CVariable var_result(a, MachineRepresentation::kTagged);
 
   // Load the last match info.
   Node* const native_context = a->LoadNativeContext(context);
@@ -1896,7 +1826,7 @@ compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
       native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
   // Is {regexp} global?
-  Label if_isglobal(a), if_isnonglobal(a);
+  CLabel if_isglobal(a), if_isnonglobal(a);
   Node* const flags = a->LoadObjectField(regexp, JSRegExp::kFlagsOffset);
   Node* const is_global =
       a->WordAnd(a->SmiUntag(flags), a->IntPtrConstant(JSRegExp::kGlobal));
@@ -1921,7 +1851,7 @@ compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
         a->CallStub(exec_callable, context, regexp, subject_string, smi_zero,
                     last_match_info);
 
-    Label if_matched(a), if_didnotmatch(a);
+    CLabel if_matched(a), if_didnotmatch(a);
     a->Branch(a->WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
 
     a->Bind(&if_didnotmatch);
@@ -1945,7 +1875,7 @@ compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
           a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1), 0, mode);
       Node* const subject_end = a->LoadStringLength(subject_string);
 
-      Label if_replaceisempty(a), if_replaceisnotempty(a);
+      CLabel if_replaceisempty(a), if_replaceisnotempty(a);
       Node* const replace_length = a->LoadStringLength(replace_string);
       a->Branch(a->SmiEqual(replace_length, smi_zero), &if_replaceisempty,
                 &if_replaceisnotempty);
@@ -1990,10 +1920,7 @@ compiler::Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a,
 
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
-void Builtins::Generate_RegExpPrototypeReplace(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+void Builtins::Generate_RegExpPrototypeReplace(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
 
   Isolate* const isolate = a.isolate();
@@ -2017,14 +1944,14 @@ void Builtins::Generate_RegExpPrototypeReplace(
   Node* const string = a.CallStub(tostring_callable, context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
-  Label checkreplacecallable(&a), runtime(&a, Label::kDeferred), fastpath(&a);
+  CLabel checkreplacecallable(&a), runtime(&a, CLabel::kDeferred), fastpath(&a);
   BranchIfFastPath(&a, context, map, &checkreplacecallable, &runtime);
 
   a.Bind(&checkreplacecallable);
   Node* const regexp = receiver;
 
   // 2. Is {replace_value} callable?
-  Label checkreplacestring(&a), if_iscallable(&a);
+  CLabel checkreplacestring(&a), if_iscallable(&a);
   a.GotoIf(a.TaggedIsSmi(replace_value), &checkreplacestring);
 
   Node* const replace_value_map = a.LoadMap(replace_value);
@@ -2054,7 +1981,7 @@ void Builtins::Generate_RegExpPrototypeReplace(
     Node* const replace_callable = replace_value;
 
     // Check if the {regexp} is global.
-    Label if_isglobal(&a), if_isnotglobal(&a);
+    CLabel if_isglobal(&a), if_isnotglobal(&a);
     Node* const is_global = FastFlagGetter(&a, regexp, JSRegExp::kGlobal);
     a.Branch(is_global, &if_isglobal, &if_isnotglobal);
 
@@ -2084,10 +2011,7 @@ void Builtins::Generate_RegExpPrototypeReplace(
 
 // Simple string matching functionality for internal use which does not modify
 // the last match info.
-void Builtins::Generate_RegExpInternalMatch(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+void Builtins::Generate_RegExpInternalMatch(CodeAssemblerState* state) {
   CodeStubAssembler a(state);
 
   Isolate* const isolate = a.isolate();
@@ -2107,7 +2031,7 @@ void Builtins::Generate_RegExpInternalMatch(
   Node* const match_indices = a.CallStub(exec_callable, context, regexp, string,
                                          smi_zero, internal_match_info);
 
-  Label if_matched(&a), if_didnotmatch(&a);
+  CLabel if_matched(&a), if_didnotmatch(&a);
   a.Branch(a.WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
 
   a.Bind(&if_didnotmatch);
