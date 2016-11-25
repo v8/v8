@@ -474,12 +474,15 @@ char* DoubleToRadixCString(double value, int radix) {
     } while (fraction > delta);
   }
 
-  // Compute integer digits.
+  // Compute integer digits. Fill unrepresented digits with zero.
+  while (Double(integer / radix).Exponent() > 0) {
+    integer /= radix;
+    buffer[--integer_cursor] = '0';
+  }
   do {
-    double multiple = std::floor(integer / radix);
-    int digit = static_cast<int>(integer - multiple * radix);
-    buffer[--integer_cursor] = chars[digit];
-    integer = multiple;
+    double remainder = modulo(integer, radix);
+    buffer[--integer_cursor] = chars[static_cast<int>(remainder)];
+    integer = (integer - remainder) / radix;
   } while (integer > 0);
 
   // Add sign and terminate string.
