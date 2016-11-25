@@ -249,9 +249,7 @@ void MemoryChunk::IncrementLiveBytes(int by) {
 }
 
 bool PagedSpace::Contains(Address addr) {
-  Page* p = Page::FromAddress(addr);
-  if (!Page::IsValid(p)) return false;
-  return p->owner() == this;
+  return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
 bool PagedSpace::Contains(Object* o) {
