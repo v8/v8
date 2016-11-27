@@ -7252,11 +7252,27 @@ class Script: public Struct {
   V(RegExp.prototype, toString, RegExpToString)             \
   V(String.prototype, charCodeAt, StringCharCodeAt)         \
   V(String.prototype, charAt, StringCharAt)                 \
+  V(String.prototype, codePointAt, StringCodePointAt)       \
   V(String.prototype, concat, StringConcat)                 \
+  V(String.prototype, endsWith, StringEndsWith)             \
+  V(String.prototype, includes, StringIncludes)             \
+  V(String.prototype, indexOf, StringIndexOf)               \
+  V(String.prototype, lastIndexOf, StringLastIndexOf)       \
+  V(String.prototype, repeat, StringRepeat)                 \
+  V(String.prototype, slice, StringSlice)                   \
+  V(String.prototype, startsWith, StringStartsWith)         \
   V(String.prototype, substr, StringSubstr)                 \
+  V(String.prototype, substring, StringSubstring)           \
   V(String.prototype, toLowerCase, StringToLowerCase)       \
+  V(String.prototype, toString, StringToString)             \
   V(String.prototype, toUpperCase, StringToUpperCase)       \
+  V(String.prototype, trim, StringTrim)                     \
+  V(String.prototype, trimLeft, StringTrimLeft)             \
+  V(String.prototype, trimRight, StringTrimRight)           \
+  V(String.prototype, valueOf, StringValueOf)               \
   V(String, fromCharCode, StringFromCharCode)               \
+  V(String, fromCodePoint, StringFromCodePoint)             \
+  V(String, raw, StringRaw)                                 \
   V(Math, random, MathRandom)                               \
   V(Math, floor, MathFloor)                                 \
   V(Math, round, MathRound)                                 \
