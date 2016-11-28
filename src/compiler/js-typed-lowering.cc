@@ -76,16 +76,6 @@ class JSBinopReduction final {
     return false;
   }
 
-  bool IsStringCompareOperation() {
-    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
-      DCHECK_EQ(1, node_->op()->EffectOutputCount());
-      return (CompareOperationHintOf(node_->op()) ==
-              CompareOperationHint::kString) &&
-             BothInputsMaybe(Type::String());
-    }
-    return false;
-  }
-
   // Check if a string addition will definitely result in creating a ConsString,
   // i.e. if the combined length of the resulting string exceeds the ConsString
   // minimum length.
@@ -112,23 +102,6 @@ class JSBinopReduction final {
       }
     }
     return false;
-  }
-
-  // Checks that both inputs are String, and if we don't know statically that
-  // one side is already a String, insert a CheckString node.
-  void CheckInputsToString() {
-    if (!left_type()->Is(Type::String())) {
-      Node* left_input = graph()->NewNode(simplified()->CheckString(), left(),
-                                          effect(), control());
-      node_->ReplaceInput(0, left_input);
-      update_effect(left_input);
-    }
-    if (!right_type()->Is(Type::String())) {
-      Node* right_input = graph()->NewNode(simplified()->CheckString(), right(),
-                                           effect(), control());
-      node_->ReplaceInput(1, right_input);
-      update_effect(right_input);
-    }
   }
 
   void ConvertInputsToNumber() {
@@ -343,10 +316,6 @@ class JSBinopReduction final {
   bool OneInputIs(Type* t) { return LeftInputIs(t) || RightInputIs(t); }
 
   bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
-
-  bool BothInputsMaybe(Type* t) {
-    return left_type()->Maybe(t) && right_type()->Maybe(t);
-  }
 
   bool OneInputCannotBe(Type* t) {
     return !left_type()->Maybe(t) || !right_type()->Maybe(t);
@@ -778,10 +747,6 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     r.ConvertInputsToNumber();
     less_than = simplified()->NumberLessThan();
     less_than_or_equal = simplified()->NumberLessThanOrEqual();
-  } else if (r.IsStringCompareOperation()) {
-    r.CheckInputsToString();
-    less_than = simplified()->StringLessThan();
-    less_than_or_equal = simplified()->StringLessThanOrEqual();
   } else {
     return NoChange();
   }
@@ -920,9 +885,6 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
         simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
-  } else if (r.IsStringCompareOperation()) {
-    r.CheckInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   return NoChange();
 }
@@ -985,9 +947,6 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
         simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
-  } else if (r.IsStringCompareOperation()) {
-    r.CheckInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   return NoChange();
 }
