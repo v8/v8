@@ -627,28 +627,23 @@ namespace {
 int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kFunction: {
-      BailoutId node_id = translated_frame->node_id();
+#ifdef DEBUG
       JSFunction* function =
           JSFunction::cast(translated_frame->begin()->GetRawValue());
       Code* non_optimized_code = function->shared()->code();
-      FixedArray* raw_data = non_optimized_code->deoptimization_data();
-      DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-      unsigned pc_and_state =
-          Deoptimizer::GetOutputInfo(data, node_id, function->shared());
-      unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
       HandlerTable* table =
           HandlerTable::cast(non_optimized_code->handler_table());
-      HandlerTable::CatchPrediction prediction;
-      return table->LookupRange(pc_offset, data_out, &prediction);
+      DCHECK_EQ(0, table->NumberOfRangeEntries());
+#endif
+      break;
     }
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
       JSFunction* function =
           JSFunction::cast(translated_frame->begin()->GetRawValue());
       BytecodeArray* bytecode = function->shared()->bytecode_array();
-      HandlerTable::CatchPrediction prediction;
       return bytecode->LookupRangeInHandlerTable(bytecode_offset, data_out,
-                                                 &prediction);
+                                                 nullptr);
     }
     default:
       break;
