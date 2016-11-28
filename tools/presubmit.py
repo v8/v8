@@ -179,8 +179,7 @@ class SourceFileProcessor(object):
     all_files = [
       f.AbsoluteLocalPath()
       for f in files
-      if (os.path.isfile(f.AbsoluteLocalPath()) and
-          not self.IgnoreFile(f.LocalPath()) and
+      if (not self.IgnoreFile(f.LocalPath()) and
           self.IsRelevant(f.LocalPath()) and
           all(not self.IgnoreDir(d) for d in dirs(f.LocalPath())) and
           any(map(f.LocalPath().startswith, search_paths)))

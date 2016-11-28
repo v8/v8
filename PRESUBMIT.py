@@ -71,9 +71,11 @@ def _V8PresubmitChecks(input_api, output_api):
   from presubmit import CheckStatusFiles
 
   results = []
-  if not CppLintProcessor().RunOnFiles(input_api.AffectedFiles()):
+  if not CppLintProcessor().RunOnFiles(
+      input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError("C++ lint check failed"))
-  if not SourceProcessor().RunOnFiles(input_api.AffectedFiles()):
+  if not SourceProcessor().RunOnFiles(
+      input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
