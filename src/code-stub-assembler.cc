@@ -884,13 +884,12 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   }
 }
 
-compiler::Node* CodeStubAssembler::LoadFromFrame(int offset, MachineType rep) {
+Node* CodeStubAssembler::LoadFromFrame(int offset, MachineType rep) {
   Node* frame_pointer = LoadFramePointer();
   return Load(rep, frame_pointer, IntPtrConstant(offset));
 }
 
-compiler::Node* CodeStubAssembler::LoadFromParentFrame(int offset,
-                                                       MachineType rep) {
+Node* CodeStubAssembler::LoadFromParentFrame(int offset, MachineType rep) {
   Node* frame_pointer = LoadParentFramePointer();
   return Load(rep, frame_pointer, IntPtrConstant(offset));
 }
@@ -2076,11 +2075,12 @@ void CodeStubAssembler::CopyFixedArrayElements(
   Comment("] CopyFixedArrayElements");
 }
 
-void CodeStubAssembler::CopyStringCharacters(
-    compiler::Node* from_string, compiler::Node* to_string,
-    compiler::Node* from_index, compiler::Node* to_index,
-    compiler::Node* character_count, String::Encoding from_encoding,
-    String::Encoding to_encoding, ParameterMode mode) {
+void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
+                                             Node* from_index, Node* to_index,
+                                             Node* character_count,
+                                             String::Encoding from_encoding,
+                                             String::Encoding to_encoding,
+                                             ParameterMode mode) {
   bool from_one_byte = from_encoding == String::ONE_BYTE_ENCODING;
   bool to_one_byte = to_encoding == String::ONE_BYTE_ENCODING;
   DCHECK_IMPLIES(to_one_byte, from_one_byte);
@@ -2239,9 +2239,9 @@ Node* CodeStubAssembler::GrowElementsCapacity(
   return new_elements;
 }
 
-void CodeStubAssembler::InitializeAllocationMemento(
-    compiler::Node* base_allocation, int base_allocation_size,
-    compiler::Node* allocation_site) {
+void CodeStubAssembler::InitializeAllocationMemento(Node* base_allocation,
+                                                    int base_allocation_size,
+                                                    Node* allocation_site) {
   StoreObjectFieldNoWriteBarrier(
       base_allocation, AllocationMemento::kMapOffset + base_allocation_size,
       HeapConstant(Handle<Map>(isolate()->heap()->allocation_memento_map())));
@@ -3442,7 +3442,7 @@ Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::StringFromCodePoint(compiler::Node* codepoint,
+Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
                                              UnicodeEncoding encoding) {
   Variable var_result(this, MachineRepresentation::kTagged);
   var_result.Bind(EmptyStringConstant());
@@ -3520,8 +3520,7 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NumberToString(compiler::Node* context,
-                                        compiler::Node* argument) {
+Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   Variable result(this, MachineRepresentation::kTagged);
   Label runtime(this, Label::kDeferred);
   Label smi(this);
@@ -3600,9 +3599,6 @@ Node* CodeStubAssembler::NumberToString(compiler::Node* context,
 }
 
 Node* CodeStubAssembler::ToName(Node* context, Node* value) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
   Label end(this);
   Variable var_result(this, MachineRepresentation::kTagged);
 
@@ -4457,11 +4453,10 @@ void CodeStubAssembler::TryLookupProperty(
   }
 }
 
-void CodeStubAssembler::TryHasOwnProperty(compiler::Node* object,
-                                          compiler::Node* map,
-                                          compiler::Node* instance_type,
-                                          compiler::Node* unique_name,
-                                          Label* if_found, Label* if_not_found,
+void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
+                                          Node* instance_type,
+                                          Node* unique_name, Label* if_found,
+                                          Label* if_not_found,
                                           Label* if_bailout) {
   Comment("TryHasOwnProperty");
   Variable var_meta_storage(this, MachineRepresentation::kTagged);
@@ -5093,10 +5088,10 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   return var_result.value();
 }
 
-compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
-                                                          ElementsKind kind,
-                                                          ParameterMode mode,
-                                                          int base_size) {
+Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
+                                                ElementsKind kind,
+                                                ParameterMode mode,
+                                                int base_size) {
   int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
   int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
@@ -5132,16 +5127,16 @@ compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
   return IntPtrAddFoldConstants(IntPtrConstant(base_size), shifted_index);
 }
 
-compiler::Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
+Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
   Node* function =
       LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset);
   Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
   return LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
 }
 
-void CodeStubAssembler::UpdateFeedback(compiler::Node* feedback,
-                                       compiler::Node* type_feedback_vector,
-                                       compiler::Node* slot_id) {
+void CodeStubAssembler::UpdateFeedback(Node* feedback,
+                                       Node* type_feedback_vector,
+                                       Node* slot_id) {
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
@@ -5154,7 +5149,7 @@ void CodeStubAssembler::UpdateFeedback(compiler::Node* feedback,
                          SKIP_WRITE_BARRIER);
 }
 
-compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
+Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
   Variable var_receiver_map(this, MachineRepresentation::kTagged);
   Label load_smi_map(this, Label::kDeferred), load_receiver_map(this),
       if_result(this);
@@ -5198,7 +5193,7 @@ Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
   return var_intptr_key.value();
 }
 
-void CodeStubAssembler::ExtendPropertiesBackingStore(compiler::Node* object) {
+void CodeStubAssembler::ExtendPropertiesBackingStore(Node* object) {
   Node* properties = LoadProperties(object);
   Node* length = LoadFixedArrayBaseLength(properties);
 
@@ -5652,9 +5647,11 @@ Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
   return new_elements_var.value();
 }
 
-void CodeStubAssembler::TransitionElementsKind(
-    compiler::Node* object, compiler::Node* map, ElementsKind from_kind,
-    ElementsKind to_kind, bool is_jsarray, Label* bailout) {
+void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
+                                               ElementsKind from_kind,
+                                               ElementsKind to_kind,
+                                               bool is_jsarray,
+                                               Label* bailout) {
   DCHECK(!IsFastHoleyElementsKind(from_kind) ||
          IsFastHoleyElementsKind(to_kind));
   if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
@@ -5917,11 +5914,10 @@ void CodeStubAssembler::BuildFastLoop(
 }
 
 void CodeStubAssembler::BuildFastFixedArrayForEach(
-    compiler::Node* fixed_array, ElementsKind kind,
-    compiler::Node* first_element_inclusive,
-    compiler::Node* last_element_exclusive,
-    std::function<void(CodeStubAssembler* assembler,
-                       compiler::Node* fixed_array, compiler::Node* offset)>
+    Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
+    Node* last_element_exclusive,
+    std::function<void(CodeStubAssembler* assembler, Node* fixed_array,
+                       Node* offset)>
         body,
     ParameterMode mode, ForEachDirection direction) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
@@ -5974,10 +5970,8 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
 }
 
 void CodeStubAssembler::BranchIfNumericRelationalComparison(
-    RelationalComparisonMode mode, compiler::Node* lhs, compiler::Node* rhs,
-    Label* if_true, Label* if_false) {
-  typedef compiler::Node Node;
-
+    RelationalComparisonMode mode, Node* lhs, Node* rhs, Label* if_true,
+    Label* if_false) {
   Label end(this);
   Variable result(this, MachineRepresentation::kTagged);
 
@@ -6079,19 +6073,16 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
   }
 }
 
-void CodeStubAssembler::GotoUnlessNumberLessThan(compiler::Node* lhs,
-                                                 compiler::Node* rhs,
+void CodeStubAssembler::GotoUnlessNumberLessThan(Node* lhs, Node* rhs,
                                                  Label* if_false) {
   Label if_true(this);
   BranchIfNumericRelationalComparison(kLessThan, lhs, rhs, &if_true, if_false);
   Bind(&if_true);
 }
 
-compiler::Node* CodeStubAssembler::RelationalComparison(
-    RelationalComparisonMode mode, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* context) {
-  typedef compiler::Node Node;
-
+Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
+                                              Node* lhs, Node* rhs,
+                                              Node* context) {
   Label return_true(this), return_false(this), end(this);
   Variable result(this, MachineRepresentation::kTagged);
 
@@ -6412,7 +6403,7 @@ compiler::Node* CodeStubAssembler::RelationalComparison(
 
 namespace {
 
-void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
+void GenerateEqual_Same(CodeStubAssembler* assembler, Node* value,
                         CodeStubAssembler::Label* if_equal,
                         CodeStubAssembler::Label* if_notequal) {
   // In case of abstract or strict equality checks, we need additional checks
@@ -6422,7 +6413,6 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
   // seems to be what is tested in the current SIMD.js testsuite.
 
   typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
 
   // Check if {value} is a Smi or a HeapObject.
   Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
@@ -6457,9 +6447,9 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
 }
 
 void GenerateEqual_Simd128Value_HeapObject(
-    CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* lhs_map,
-    compiler::Node* rhs, compiler::Node* rhs_map,
-    CodeStubAssembler::Label* if_equal, CodeStubAssembler::Label* if_notequal) {
+    CodeStubAssembler* assembler, Node* lhs, Node* lhs_map, Node* rhs,
+    Node* rhs_map, CodeStubAssembler::Label* if_equal,
+    CodeStubAssembler::Label* if_notequal) {
   assembler->BranchIfSimd128Equal(lhs, lhs_map, rhs, rhs_map, if_equal,
                                   if_notequal);
 }
@@ -6467,14 +6457,12 @@ void GenerateEqual_Simd128Value_HeapObject(
 }  // namespace
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
-                                         compiler::Node* rhs,
-                                         compiler::Node* context) {
+Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
+                               Node* context) {
   // This is a slightly optimized version of Object::Equals represented as
   // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
   // change something functionality wise in here, remember to update the
   // Object::Equals method as well.
-  typedef compiler::Node Node;
 
   Label if_equal(this), if_notequal(this),
       do_rhsstringtonumber(this, Label::kDeferred), end(this);
@@ -6968,10 +6956,8 @@ compiler::Node* CodeStubAssembler::Equal(ResultMode mode, compiler::Node* lhs,
   return result.value();
 }
 
-compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
-                                               compiler::Node* lhs,
-                                               compiler::Node* rhs,
-                                               compiler::Node* context) {
+Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
+                                     Node* context) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -7019,8 +7005,6 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
   //     }
   //   }
   // }
-
-  typedef compiler::Node Node;
 
   Label if_equal(this), if_notequal(this), end(this);
   Variable result(this, MachineRepresentation::kTagged);
@@ -7223,9 +7207,7 @@ compiler::Node* CodeStubAssembler::StrictEqual(ResultMode mode,
 // ECMA#sec-samevalue
 // This algorithm differs from the Strict Equality Comparison Algorithm in its
 // treatment of signed zeroes and NaNs.
-compiler::Node* CodeStubAssembler::SameValue(compiler::Node* lhs,
-                                             compiler::Node* rhs,
-                                             compiler::Node* context) {
+Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs, Node* context) {
   Variable var_result(this, MachineType::PointerRepresentation());
   Label strict_equal(this), out(this);
 
@@ -7309,9 +7291,7 @@ compiler::Node* CodeStubAssembler::SameValue(compiler::Node* lhs,
   return var_result.value();
 }
 
-compiler::Node* CodeStubAssembler::ForInFilter(compiler::Node* key,
-                                               compiler::Node* object,
-                                               compiler::Node* context) {
+Node* CodeStubAssembler::ForInFilter(Node* key, Node* object, Node* context) {
   Label return_undefined(this, Label::kDeferred), return_to_name(this),
       end(this);
 
@@ -7339,13 +7319,9 @@ compiler::Node* CodeStubAssembler::ForInFilter(compiler::Node* key,
   return var_result.value();
 }
 
-compiler::Node* CodeStubAssembler::HasProperty(
-    compiler::Node* object, compiler::Node* key, compiler::Node* context,
+Node* CodeStubAssembler::HasProperty(
+    Node* object, Node* key, Node* context,
     Runtime::FunctionId fallback_runtime_function_id) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this);
 
@@ -7393,8 +7369,7 @@ compiler::Node* CodeStubAssembler::HasProperty(
   return result.value();
 }
 
-compiler::Node* CodeStubAssembler::Typeof(compiler::Node* value,
-                                          compiler::Node* context) {
+Node* CodeStubAssembler::Typeof(Node* value, Node* context) {
   Variable result_var(this, MachineRepresentation::kTagged);
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
@@ -7487,9 +7462,8 @@ compiler::Node* CodeStubAssembler::Typeof(compiler::Node* value,
   return result_var.value();
 }
 
-compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
-                                              compiler::Node* callable,
-                                              compiler::Node* context) {
+Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
+                                    Node* context) {
   Label return_runtime(this, Label::kDeferred), end(this);
   Variable result(this, MachineRepresentation::kTagged);
 
@@ -7519,7 +7493,7 @@ compiler::Node* CodeStubAssembler::InstanceOf(compiler::Node* object,
   return result.value();
 }
 
-compiler::Node* CodeStubAssembler::NumberInc(compiler::Node* value) {
+Node* CodeStubAssembler::NumberInc(Node* value) {
   Variable var_result(this, MachineRepresentation::kTagged),
       var_finc_value(this, MachineRepresentation::kFloat64);
   Label if_issmi(this), if_isnotsmi(this), do_finc(this), end(this);
@@ -7571,9 +7545,9 @@ compiler::Node* CodeStubAssembler::NumberInc(compiler::Node* value) {
   return var_result.value();
 }
 
-compiler::Node* CodeStubAssembler::CreateArrayIterator(
-    compiler::Node* array, compiler::Node* array_map,
-    compiler::Node* array_type, compiler::Node* context, IterationKind mode) {
+Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
+                                             Node* array_type, Node* context,
+                                             IterationKind mode) {
   int kBaseMapIndex = 0;
   switch (mode) {
     case IterationKind::kKeys:
@@ -7759,8 +7733,8 @@ compiler::Node* CodeStubAssembler::CreateArrayIterator(
   return var_result.value();
 }
 
-compiler::Node* CodeStubAssembler::AllocateJSArrayIterator(
-    compiler::Node* array, compiler::Node* array_map, compiler::Node* map) {
+Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
+                                                 Node* map) {
   Node* iterator = Allocate(JSArrayIterator::kSize);
   StoreMapNoWriteBarrier(iterator, map);
   StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOffset,
@@ -7776,7 +7750,7 @@ compiler::Node* CodeStubAssembler::AllocateJSArrayIterator(
   return iterator;
 }
 
-compiler::Node* CodeStubAssembler::IsDetachedBuffer(compiler::Node* buffer) {
+Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
 
   Node* buffer_bit_field = LoadObjectField(
@@ -7787,14 +7761,13 @@ compiler::Node* CodeStubAssembler::IsDetachedBuffer(compiler::Node* buffer) {
                         Int32Constant(0));
 }
 
-CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
-                                     compiler::Node* argc,
+CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
                                      CodeStubAssembler::ParameterMode mode)
     : assembler_(assembler),
       argc_(argc),
       arguments_(nullptr),
       fp_(assembler->LoadFramePointer()) {
-  compiler::Node* offset = assembler->ElementOffsetFromIndex(
+  Node* offset = assembler->ElementOffsetFromIndex(
       argc_, FAST_ELEMENTS, mode,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
   arguments_ = assembler_->IntPtrAddFoldConstants(fp_, offset);
@@ -7805,14 +7778,13 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
   }
 }
 
-compiler::Node* CodeStubArguments::GetReceiver() {
+Node* CodeStubArguments::GetReceiver() {
   return assembler_->Load(MachineType::AnyTagged(), arguments_,
                           assembler_->IntPtrConstant(kPointerSize));
 }
 
-compiler::Node* CodeStubArguments::AtIndex(
-    compiler::Node* index, CodeStubAssembler::ParameterMode mode) {
-  typedef compiler::Node Node;
+Node* CodeStubArguments::AtIndex(Node* index,
+                                 CodeStubAssembler::ParameterMode mode) {
   Node* negated_index = assembler_->IntPtrSubFoldConstants(
       assembler_->IntPtrOrSmiConstant(0, mode), index);
   Node* offset =
@@ -7820,13 +7792,13 @@ compiler::Node* CodeStubArguments::AtIndex(
   return assembler_->Load(MachineType::AnyTagged(), arguments_, offset);
 }
 
-compiler::Node* CodeStubArguments::AtIndex(int index) {
+Node* CodeStubArguments::AtIndex(int index) {
   return AtIndex(assembler_->IntPtrConstant(index));
 }
 
 void CodeStubArguments::ForEach(const CodeStubAssembler::VariableList& vars,
                                 CodeStubArguments::ForEachBodyFunction body,
-                                compiler::Node* first, compiler::Node* last,
+                                Node* first, Node* last,
                                 CodeStubAssembler::ParameterMode mode) {
   assembler_->Comment("CodeStubArguments::ForEach");
   DCHECK_IMPLIES(first == nullptr || last == nullptr,
@@ -7837,35 +7809,33 @@ void CodeStubArguments::ForEach(const CodeStubAssembler::VariableList& vars,
   if (last == nullptr) {
     last = argc_;
   }
-  compiler::Node* start = assembler_->IntPtrSubFoldConstants(
+  Node* start = assembler_->IntPtrSubFoldConstants(
       arguments_,
       assembler_->ElementOffsetFromIndex(first, FAST_ELEMENTS, mode));
-  compiler::Node* end = assembler_->IntPtrSubFoldConstants(
+  Node* end = assembler_->IntPtrSubFoldConstants(
       arguments_,
       assembler_->ElementOffsetFromIndex(last, FAST_ELEMENTS, mode));
   assembler_->BuildFastLoop(
       vars, MachineType::PointerRepresentation(), start, end,
-      [body](CodeStubAssembler* assembler, compiler::Node* current) {
+      [body](CodeStubAssembler* assembler, Node* current) {
         Node* arg = assembler->Load(MachineType::AnyTagged(), current);
         body(assembler, arg);
       },
       -kPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
-void CodeStubArguments::PopAndReturn(compiler::Node* value) {
+void CodeStubArguments::PopAndReturn(Node* value) {
   assembler_->PopAndReturn(
       assembler_->IntPtrAddFoldConstants(argc_, assembler_->IntPtrConstant(1)),
       value);
 }
 
-compiler::Node* CodeStubAssembler::IsFastElementsKind(
-    compiler::Node* elements_kind) {
+Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(LAST_FAST_ELEMENTS_KIND));
 }
 
-compiler::Node* CodeStubAssembler::IsHoleyFastElementsKind(
-    compiler::Node* elements_kind) {
+Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
   CSA_ASSERT(this, IsFastElementsKind(elements_kind));
 
   STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
@@ -7877,7 +7847,7 @@ compiler::Node* CodeStubAssembler::IsHoleyFastElementsKind(
   return Word32Equal(holey_elements, Int32Constant(1));
 }
 
-compiler::Node* CodeStubAssembler::IsDebugActive() {
+Node* CodeStubAssembler::IsDebugActive() {
   Node* is_debug_active = Load(
       MachineType::Uint8(),
       ExternalConstant(ExternalReference::debug_is_active_address(isolate())));
