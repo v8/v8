@@ -61,7 +61,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
       // If the formal parameters include an unbalanced block comment, the
       // function must be rejected. Since JavaScript does not allow nested
       // comments we can include a trailing block comment to catch this.
-      builder.AppendCString("\n/**/");
+      builder.AppendCString("\n/*``*/");
     }
     builder.AppendCString(") {\n");
     if (argc > 0) {
