@@ -13638,8 +13638,10 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     if (fun->function_token_position() == shared->function_token_position() &&
         fun->start_position() == shared->start_position() &&
         fun->end_position() == shared->end_position()) {
+      DCHECK_EQ(fun->function_literal_id(), shared->function_literal_id());
       return Handle<SharedFunctionInfo>(shared);
     }
+    DCHECK_NE(fun->function_literal_id(), shared->function_literal_id());
   }
   return MaybeHandle<SharedFunctionInfo>();
 }
@@ -13991,6 +13993,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_requires_class_field_init(lit->requires_class_field_init());
   shared_info->set_is_class_field_initializer(
       lit->is_class_field_initializer());
+  shared_info->set_function_literal_id(lit->function_literal_id());
   SetExpectedNofPropertiesFromEstimate(shared_info, lit);
 }
 

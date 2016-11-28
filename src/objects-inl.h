@@ -5993,6 +5993,7 @@ ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, TypeFeedbackMetadata,
           kFeedbackMetadataOffset)
+SMI_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if TRACE_MAPS
 SMI_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif

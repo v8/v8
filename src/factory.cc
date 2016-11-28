@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
+#include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
@@ -2312,6 +2313,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   Handle<TypeFeedbackMetadata> feedback_metadata =
       TypeFeedbackMetadata::New(isolate(), &empty_spec);
   share->set_feedback_metadata(*feedback_metadata, SKIP_WRITE_BARRIER);
+  share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
 #if TRACE_MAPS
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif

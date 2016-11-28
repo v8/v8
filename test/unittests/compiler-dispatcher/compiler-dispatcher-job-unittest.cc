@@ -84,6 +84,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   SharedFunctionInfo::SetScript(shared, script);
   shared->set_end_position(source->length());
   shared->set_outer_scope_info(ScopeInfo::Empty(isolate));
+  shared->set_function_literal_id(1);
   return scope.CloseAndEscape(shared);
 }
 

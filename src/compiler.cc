@@ -1001,6 +1001,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     result = NewSharedFunctionInfoForLiteral(isolate, lit, script);
     result->set_is_toplevel(true);
     parse_info->set_shared_info(result);
+    parse_info->set_function_literal_id(result->function_literal_id());
 
     // Compile the code.
     if (!CompileUnoptimizedCode(info)) {
@@ -1588,6 +1589,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   parse_info.set_literal(literal);
   parse_info.set_shared_info(result);
+  parse_info.set_function_literal_id(result->function_literal_id());
   parse_info.set_language_mode(literal->scope()->language_mode());
   parse_info.set_ast_value_factory(
       outer_info->parse_info()->ast_value_factory());

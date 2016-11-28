@@ -7516,6 +7516,12 @@ class SharedFunctionInfo: public HeapObject {
   // available.
   DECL_ACCESSORS(feedback_metadata, TypeFeedbackMetadata)
 
+  // [function_literal_id] - uniquely identifies the FunctionLiteral this
+  // SharedFunctionInfo represents within its script, or -1 if this
+  // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
+  inline int function_literal_id() const;
+  inline void set_function_literal_id(int value);
+
 #if TRACE_MAPS
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
   // even if the GC moves this SharedFunctionInfo.
@@ -7824,13 +7830,15 @@ class SharedFunctionInfo: public HeapObject {
   static const int kFunctionIdentifierOffset = kDebugInfoOffset + kPointerSize;
   static const int kFeedbackMetadataOffset =
       kFunctionIdentifierOffset + kPointerSize;
+  static const int kFunctionLiteralIdOffset =
+      kFeedbackMetadataOffset + kPointerSize;
 #if TRACE_MAPS
-  static const int kUniqueIdOffset = kFeedbackMetadataOffset + kPointerSize;
+  static const int kUniqueIdOffset = kFunctionLiteralIdOffset + kPointerSize;
   static const int kLastPointerFieldOffset = kUniqueIdOffset;
 #else
   // Just to not break the postmortrem support with conditional offsets
-  static const int kUniqueIdOffset = kFeedbackMetadataOffset;
-  static const int kLastPointerFieldOffset = kFeedbackMetadataOffset;
+  static const int kUniqueIdOffset = kFunctionLiteralIdOffset;
+  static const int kLastPointerFieldOffset = kFunctionLiteralIdOffset;
 #endif
 
 #if V8_HOST_ARCH_32_BIT

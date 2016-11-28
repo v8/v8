@@ -652,7 +652,7 @@ class PreParserFactory {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
-      bool has_braces) {
+      bool has_braces, int function_literal_id) {
     return PreParserExpression::Default();
   }
 
@@ -1071,10 +1071,26 @@ class PreParser : public ParserBase<PreParser> {
                                       int class_token_pos, bool* ok) {}
   V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
                                       PreParserExpression property,
-                                      ClassInfo* class_info, bool* ok) {}
+                                      ClassLiteralProperty::Kind kind,
+                                      bool is_static, bool is_constructor,
+                                      ClassInfo* class_info, bool* ok) {
+    if (kind == ClassLiteralProperty::FIELD && !is_static && !is_constructor) {
+      class_info->instance_field_initializers->Add(
+          PreParserExpression::Default(), zone());
+    }
+  }
   V8_INLINE PreParserExpression RewriteClassLiteral(PreParserIdentifier name,
                                                     ClassInfo* class_info,
                                                     int pos, bool* ok) {
+    bool has_default_constructor = !class_info->has_seen_constructor;
+    bool has_instance_fields =
+        class_info->instance_field_initializers->length() > 0;
+    // Account for the default constructor.
+    if (has_default_constructor) GetNextFunctionLiteralId();
+    if (allow_harmony_class_fields() && has_instance_fields) {
+      // Account for initializer function.
+      GetNextFunctionLiteralId();
+    }
     return PreParserExpression::Default();
   }
 

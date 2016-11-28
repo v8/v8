@@ -8,6 +8,7 @@
 
 #include "src/api.h"
 #include "src/ast/ast-expression-rewriter.h"
+#include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-literal-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -290,7 +291,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       expected_property_count, parameter_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
-      true);
+      true, GetNextFunctionLiteralId());
 
   function_literal->set_requires_class_field_init(requires_class_field_init);
 
@@ -744,6 +745,9 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK_NULL(target_stack_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  ResetFunctionLiteralId();
+  DCHECK(info->function_literal_id() == FunctionLiteral::kIdTypeTopLevel ||
+         info->function_literal_id() == FunctionLiteral::kIdTypeInvalid);
 
   FunctionLiteral* result = NULL;
   {
@@ -904,6 +908,10 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
   fni_->PushEnclosingName(raw_name);
 
+  ResetFunctionLiteralId();
+  DCHECK_LT(0, info->function_literal_id());
+  SkipFunctionLiterals(info->function_literal_id() - 1);
+
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
   // Place holder for the result.
@@ -970,6 +978,21 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
 
       if (ok) {
         checkpoint.Restore(&formals.materialized_literals_count);
+        if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
+          // If there were FunctionLiterals in the parameters, we need to
+          // renumber them to shift down so the next function literal id for
+          // the arrow function is the one requested.
+          AstFunctionLiteralIdReindexer reindexer(
+              stack_limit_,
+              (info->function_literal_id() - 1) - GetLastFunctionLiteralId());
+          for (const auto p : formals.params) {
+            if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
+            if (p.initializer != nullptr) reindexer.Reindex(p.initializer);
+          }
+          ResetFunctionLiteralId();
+          SkipFunctionLiterals(info->function_literal_id() - 1);
+        }
+
         // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
         // not be observable, or else the preparser would have failed.
         Expression* expression = ParseArrowFunctionLiteral(true, formals, &ok);
@@ -1022,6 +1045,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
 
   // Make sure the target stack is empty.
   DCHECK_NULL(target_stack_);
+  DCHECK_IMPLIES(result,
+                 info->function_literal_id() == result->function_literal_id());
   return result;
 }
 
@@ -2629,6 +2654,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int num_parameters = -1;
   int function_length = -1;
   bool has_duplicate_parameters = false;
+  int function_literal_id = GetNextFunctionLiteralId();
 
   Zone* outer_zone = zone();
   DeclarationScope* scope;
@@ -2745,7 +2771,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, materialized_literal_count,
       expected_property_count, num_parameters, function_length,
-      duplicate_parameters, function_type, eager_compile_hint, pos, true);
+      duplicate_parameters, function_type, eager_compile_hint, pos, true,
+      function_literal_id);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -2793,6 +2820,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
       if (entry.uses_super_property())
         function_scope->RecordSuperPropertyUsage();
       if (entry.calls_eval()) function_scope->RecordEvalCall();
+      SkipFunctionLiterals(entry.num_inner_functions());
       return kLazyParsingComplete;
     }
     cached_parse_data_->Reject();
@@ -2845,13 +2873,15 @@ Parser::LazyParsingResult Parser::SkipFunction(
   *has_duplicate_parameters = logger->has_duplicate_parameters();
   *materialized_literal_count = logger->literals();
   *expected_property_count = logger->properties();
+  SkipFunctionLiterals(logger->num_inner_functions());
   if (!is_inner_function && produce_cached_parse_data()) {
     DCHECK(log_);
     log_->LogFunction(
         function_scope->start_position(), function_scope->end_position(),
         *num_parameters, *function_length, *has_duplicate_parameters,
         *materialized_literal_count, *expected_property_count, language_mode(),
-        function_scope->uses_super_property(), function_scope->calls_eval());
+        function_scope->uses_super_property(), function_scope->calls_eval(),
+        logger->num_inner_functions());
   }
   return kLazyParsingComplete;
 }
@@ -3432,7 +3462,7 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position(),
-      true);
+      true, GetNextFunctionLiteralId());
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
@@ -3476,8 +3506,11 @@ void Parser::DeclareClassVariable(const AstRawString* name, Scope* block_scope,
 //   - properties
 void Parser::DeclareClassProperty(const AstRawString* class_name,
                                   ClassLiteralProperty* property,
+                                  ClassLiteralProperty::Kind kind,
+                                  bool is_static, bool is_constructor,
                                   ClassInfo* class_info, bool* ok) {
-  if (class_info->has_seen_constructor && class_info->constructor == nullptr) {
+  if (is_constructor) {
+    DCHECK(!class_info->constructor);
     class_info->constructor = GetPropertyValue(property)->AsFunctionLiteral();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(

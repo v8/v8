@@ -37,6 +37,7 @@ class FunctionEntry BASE_EMBEDDED {
     kLiteralCountIndex,
     kPropertyCountIndex,
     kFlagsIndex,
+    kNumInnerFunctionsIndex,
     kSize
   };
 
@@ -80,6 +81,7 @@ class FunctionEntry BASE_EMBEDDED {
   bool has_duplicate_parameters() const {
     return HasDuplicateParametersField::decode(backing_[kFlagsIndex]);
   }
+  int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
 
   bool is_valid() const { return !backing_.is_empty(); }
 
@@ -353,6 +355,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       int class_token_pos, bool* ok);
   V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
                                       ClassLiteralProperty* property,
+                                      ClassLiteralProperty::Kind kind,
+                                      bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok);
   V8_INLINE Expression* RewriteClassLiteral(const AstRawString* name,
                                             ClassInfo* class_info, int pos,

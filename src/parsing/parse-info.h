@@ -144,6 +144,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
 
+  int function_literal_id() const { return function_literal_id_; }
+  void set_function_literal_id(int function_literal_id) {
+    function_literal_id_ = function_literal_id;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   bool requires_class_field_init() const;
@@ -224,6 +229,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int function_literal_id_;
 
   // TODO(titzer): Move handles and isolate out of ParseInfo.
   Isolate* isolate_;

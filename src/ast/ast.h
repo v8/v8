@@ -2572,6 +2572,8 @@ class FunctionLiteral final : public Expression {
     kAccessorOrMethod
   };
 
+  enum IdType { kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
+
   enum ParameterFlag { kNoDuplicateParameters, kHasDuplicateParameters };
 
   enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
@@ -2711,6 +2713,11 @@ class FunctionLiteral final : public Expression {
     return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
   }
 
+  int function_literal_id() const { return function_literal_id_; }
+  void set_function_literal_id(int function_literal_id) {
+    function_literal_id_ = function_literal_id;
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -2721,7 +2728,7 @@ class FunctionLiteral final : public Expression {
                   int function_length, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
-                  bool is_function, bool has_braces)
+                  bool is_function, bool has_braces, int function_literal_id)
       : Expression(position, kFunctionLiteral),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2734,7 +2741,8 @@ class FunctionLiteral final : public Expression {
         scope_(scope),
         body_(body),
         raw_inferred_name_(ast_value_factory->empty_string()),
-        ast_properties_(zone) {
+        ast_properties_(zone),
+        function_literal_id_(function_literal_id) {
     bit_field_ |=
         FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters ==
@@ -2775,6 +2783,7 @@ class FunctionLiteral final : public Expression {
   const AstString* raw_inferred_name_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
+  int function_literal_id_;
 };
 
 // Property is used for passing information
@@ -3464,12 +3473,12 @@ class AstNodeFactory final BASE_EMBEDDED {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
-      bool has_braces) {
+      bool has_braces, int function_literal_id) {
     return new (zone_) FunctionLiteral(
         zone_, name, ast_value_factory_, scope, body,
         materialized_literal_count, expected_property_count, parameter_count,
         function_length, function_type, has_duplicate_parameters,
-        eager_compile_hint, position, true, has_braces);
+        eager_compile_hint, position, true, has_braces, function_literal_id);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3484,7 +3493,8 @@ class AstNodeFactory final BASE_EMBEDDED {
         body, materialized_literal_count, expected_property_count,
         parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kShouldLazyCompile, 0, false, true);
+        FunctionLiteral::kShouldLazyCompile, 0, false, true,
+        FunctionLiteral::kIdTypeTopLevel);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(

@@ -92,6 +92,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
 
+  // In the preparser, we use the function literal ids to count how many
+  // FunctionLiterals were encountered. The PreParser doesn't actually persist
+  // FunctionLiterals, so there IDs don't matter.
+  ResetFunctionLiteralId();
+
   // The caller passes the function_scope which is not yet inserted into the
   // scope_state_. All scopes above the function_scope are ignored by the
   // PreParser.
@@ -195,6 +200,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
+  GetNextFunctionLiteralId();
 
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
@@ -251,10 +257,10 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   DCHECK(this->scope()->is_function_scope());
-  log_.LogFunction(body_end, formals->num_parameters(),
-                   formals->function_length, has_duplicate_parameters,
-                   function_state_->materialized_literal_count(),
-                   function_state_->expected_property_count());
+  log_.LogFunction(
+      body_end, formals->num_parameters(), formals->function_length,
+      has_duplicate_parameters, function_state_->materialized_literal_count(),
+      function_state_->expected_property_count(), GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 
