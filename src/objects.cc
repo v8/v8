@@ -3438,6 +3438,9 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         // Transition from tagged to untagged slot.
         heap->ClearRecordedSlot(*object,
                                 HeapObject::RawField(*object, index.offset()));
+      } else {
+        DCHECK(!heap->HasRecordedSlot(
+            *object, HeapObject::RawField(*object, index.offset())));
       }
     } else {
       object->RawFastPropertyAtPut(index, value);
