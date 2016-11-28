@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 274
+bytecode array length: 268
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -71,24 +71,21 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(15),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(2), U8(16),
                 B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(2), U8(7), U8(17),
+                B(LdaNamedProperty), R(2), U8(7), U8(16),
                 B(Star), R(6),
                 B(LdaNull),
-                B(TestEqual), R(6), U8(19),
+                B(TestEqual), R(6), U8(18),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(4), U8(20),
+                B(TestEqualStrict), R(4), U8(19),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(6),
                 B(TypeOf),
                 B(Star), R(12),
                 B(LdaConstant), U8(8),
-                B(TestEqualStrict), R(12), U8(21),
+                B(TestEqualStrict), R(12), U8(20),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -147,7 +144,7 @@ constant pool: [
 handlers: [
   [7, 120, 126],
   [10, 84, 86],
-  [201, 211, 213],
+  [195, 205, 207],
 ]
 
 ---
@@ -157,7 +154,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 285
+bytecode array length: 279
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -218,24 +215,21 @@ bytecodes: [
                 B(Star), R(12),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(15),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(3), U8(16),
                 B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(3), U8(7), U8(17),
+                B(LdaNamedProperty), R(3), U8(7), U8(16),
                 B(Star), R(7),
                 B(LdaNull),
-                B(TestEqual), R(7), U8(19),
+                B(TestEqual), R(7), U8(18),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(5), U8(20),
+                B(TestEqualStrict), R(5), U8(19),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(7),
                 B(TypeOf),
                 B(Star), R(13),
                 B(LdaConstant), U8(8),
-                B(TestEqualStrict), R(13), U8(21),
+                B(TestEqualStrict), R(13), U8(20),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -299,7 +293,7 @@ constant pool: [
 handlers: [
   [11, 120, 126],
   [14, 84, 86],
-  [202, 212, 214],
+  [196, 206, 208],
 ]
 
 ---
@@ -311,7 +305,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 292
+bytecode array length: 286
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -379,24 +373,21 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(17),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(2), U8(18),
                 B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(2), U8(7), U8(19),
+                B(LdaNamedProperty), R(2), U8(7), U8(18),
                 B(Star), R(6),
                 B(LdaNull),
-                B(TestEqual), R(6), U8(21),
+                B(TestEqual), R(6), U8(20),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(4), U8(22),
+                B(TestEqualStrict), R(4), U8(21),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(6),
                 B(TypeOf),
                 B(Star), R(12),
                 B(LdaConstant), U8(8),
-                B(TestEqualStrict), R(12), U8(23),
+                B(TestEqualStrict), R(12), U8(22),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -455,7 +446,7 @@ constant pool: [
 handlers: [
   [7, 138, 144],
   [10, 102, 104],
-  [219, 229, 231],
+  [213, 223, 225],
 ]
 
 ---
@@ -465,7 +456,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 299
+bytecode array length: 293
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(8),
@@ -530,24 +521,21 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrict), R(3), U8(19),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(1), U8(20),
                 B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(1), U8(9), U8(21),
+                B(LdaNamedProperty), R(1), U8(9), U8(20),
                 B(Star), R(5),
                 B(LdaNull),
-                B(TestEqual), R(5), U8(23),
+                B(TestEqual), R(5), U8(22),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(3), U8(24),
+                B(TestEqualStrict), R(3), U8(23),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(5),
                 B(TypeOf),
                 B(Star), R(11),
                 B(LdaConstant), U8(10),
-                B(TestEqualStrict), R(11), U8(25),
+                B(TestEqualStrict), R(11), U8(24),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -613,6 +601,6 @@ constant pool: [
 handlers: [
   [15, 134, 140],
   [18, 98, 100],
-  [216, 226, 228],
+  [210, 220, 222],
 ]
 

@@ -5461,7 +5461,7 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
   //       %ReThrow(e);
   //     }
   //   } finally {
-  //     if (!(completion === kNormalCompletion || IS_UNDEFINED(#iterator))) {
+  //     if (!(completion === kNormalCompletion)) {
   //       #BuildIteratorCloseForCompletion(#iterator, completion)
   //     }
   //   }
@@ -5472,18 +5472,13 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
 
   const int nopos = kNoSourcePosition;
 
-  // !(completion === kNormalCompletion || IS_UNDEFINED(#iterator))
+  // !(completion === kNormalCompletion)
   Expression* closing_condition;
   {
-    Expression* lhs = factory()->NewCompareOperation(
+    Expression* cmp = factory()->NewCompareOperation(
         Token::EQ_STRICT, factory()->NewVariableProxy(var_completion),
         factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
-    Expression* rhs = factory()->NewCompareOperation(
-        Token::EQ_STRICT, factory()->NewVariableProxy(loop->iterator()),
-        factory()->NewUndefinedLiteral(nopos), nopos);
-    closing_condition = factory()->NewUnaryOperation(
-        Token::NOT, factory()->NewBinaryOperation(Token::OR, lhs, rhs, nopos),
-        nopos);
+    closing_condition = factory()->NewUnaryOperation(Token::NOT, cmp, nopos);
   }
 
   Block* final_loop = factory()->NewBlock(nullptr, 2, false, nopos);
