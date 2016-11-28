@@ -503,9 +503,15 @@ TEST(SizeOfInitialHeap) {
   // Initial size of LO_SPACE
   size_t initial_lo_space = isolate->heap()->lo_space()->Size();
 
-  // The limit for each space for an empty isolate containing just the
-  // snapshot.
+// The limit for each space for an empty isolate containing just the
+// snapshot.
+// In PPC the page size is 64K, causing more internal fragmentation
+// hence requiring a larger limit.
+#if V8_OS_LINUX && V8_HOST_ARCH_PPC
+  const size_t kMaxInitialSizePerSpace = 3 * MB;
+#else
   const size_t kMaxInitialSizePerSpace = 2 * MB;
+#endif
 
   // Freshly initialized VM gets by with the snapshot size (which is below
   // kMaxInitialSizePerSpace per space).
