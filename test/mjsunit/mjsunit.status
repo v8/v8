@@ -495,6 +495,12 @@
   'math-floor-of-div-minus-zero': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
+['arch == x87', {
+   # The result produced by Gcc on linux platform is extended 80-bit double
+   # precision and not the expected standard 64-bit double precision.
+   'number-tostring-big-integer': [SKIP],
+}],  # 'arch == x87'
+
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.

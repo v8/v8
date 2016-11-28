@@ -151,9 +151,6 @@ assertEquals("10000", (81).toString(3));
 assertEquals("10000.01", (81 + 1/9).toString(3));
 assertEquals("0.0212010212010212010212010212010212", (2/7).toString(3));
 
-assertEquals("314404114120101444444424000000000000000",
-             (1.2345e+27).toString(5));
-
 // ----------------------------------------------------------------------
 // toFixed
 assertEquals("NaN", (NaN).toFixed(2));
