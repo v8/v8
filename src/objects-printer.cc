@@ -511,7 +511,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
-  os << "\n - properties = {";
+  os << "\n - properties = " << Brief(obj->properties()) << " {";
   obj->PrintProperties(os);
   os << "\n }\n";
   if (print_elements && obj->elements()->length() > 0) {
@@ -597,7 +597,8 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
      << "#" << NumberOfOwnDescriptors() << ": "
      << Brief(instance_descriptors());
   if (FLAG_unbox_double_fields) {
-    os << "\n - layout descriptor: " << Brief(layout_descriptor());
+    os << "\n - layout descriptor: ";
+    layout_descriptor()->ShortPrint(os);
   }
   int nof_transitions = TransitionArray::NumberOfTransitions(raw_transitions());
   if (nof_transitions > 0) {
@@ -1449,16 +1450,24 @@ void LayoutDescriptor::Print() {
   os << std::flush;
 }
 
+void LayoutDescriptor::ShortPrint(std::ostream& os) {
+  if (IsSmi()) {
+    os << this;  // Print tagged value for easy use with "jld" gdb macro.
+  } else {
+    os << Brief(this);
+  }
+}
 
 void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
   os << "Layout descriptor: ";
-  if (IsOddball() && IsUninitialized(HeapObject::cast(this)->GetIsolate())) {
-    os << "<uninitialized>";
-  } else if (IsFastPointerLayout()) {
+  if (IsFastPointerLayout()) {
     os << "<all tagged>";
   } else if (IsSmi()) {
     os << "fast";
     PrintBitMask(os, static_cast<uint32_t>(Smi::cast(this)->value()));
+  } else if (IsOddball() &&
+             IsUninitialized(HeapObject::cast(this)->GetIsolate())) {
+    os << "<uninitialized>";
   } else {
     os << "slow";
     int len = length();
@@ -1635,6 +1644,15 @@ extern void _v8_internal_Print_DescriptorArray(void* object) {
     printf("Not a descriptor array\n");
   } else {
     reinterpret_cast<i::DescriptorArray*>(object)->Print();
+  }
+}
+
+extern void _v8_internal_Print_LayoutDescriptor(void* object) {
+  i::Object* o = reinterpret_cast<i::Object*>(object);
+  if (!o->IsLayoutDescriptor()) {
+    printf("Not a layout descriptor\n");
+  } else {
+    reinterpret_cast<i::LayoutDescriptor*>(object)->Print();
   }
 }
 
