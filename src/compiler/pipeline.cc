@@ -553,7 +553,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
       info()->MarkAsBailoutOnUninitialized();
     }
   }
-  if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
+  if (info()->is_optimizing_from_bytecode() ||
+      !info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();

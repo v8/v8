@@ -503,14 +503,16 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone),
-      is_liveness_analysis_enabled_(FLAG_analyze_environment_liveness &&
-                                    info->is_deoptimization_enabled()),
+      is_liveness_analysis_enabled_(FLAG_analyze_environment_liveness),
       state_values_cache_(jsgraph),
       liveness_analyzer_(
           static_cast<size_t>(bytecode_array()->register_count()), true,
           local_zone),
       source_positions_(source_positions),
-      start_position_(info->shared_info()->start_position(), inlining_id) {}
+      start_position_(info->shared_info()->start_position(), inlining_id) {
+  // Bytecode graph builder assumes deoptimziation is enabled.
+  DCHECK(info->is_deoptimization_enabled());
+}
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
   if (!new_target_.is_set()) {
