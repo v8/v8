@@ -27,13 +27,11 @@ class DebugWrapper {
     // The listener method called on certain events.
     this.listener = undefined;
 
-    // TODO(jgruber): Determine which of these are still required and possible.
     // Debug events which can occur in the V8 JavaScript engine.
     this.DebugEvent = { Break: 1,
                         Exception: 2,
                         AfterCompile: 3,
                         CompileError: 4,
-                        AsyncTaskEvent: 5
                       };
 
     // The different types of steps.

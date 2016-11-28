@@ -24,7 +24,6 @@ var q = p.then(
   });
 
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.AsyncTaskEvent) return;
   try {
     if (event == Debug.DebugEvent.Exception) {
       expected_events--;
