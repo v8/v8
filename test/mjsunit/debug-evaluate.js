@@ -32,91 +32,22 @@ Debug = debug.Debug
 listenerComplete = false;
 exception = false;
 
-// The base part of all evaluate requests.
-var base_request = '"seq":0,"type":"request","command":"evaluate"'
-
-function safeEval(code) {
-  try {
-    return eval('(' + code + ')');
-  } catch (e) {
-    assertEquals(void 0, e);
-    return undefined;
-  }
-}
-
-function testRequest(dcp, arguments, success, result) {
-  // Generate request with the supplied arguments.
-  var request;
-  if (arguments) {
-    request = '{' + base_request + ',"arguments":' + arguments + '}';
-  } else {
-    request = '{' + base_request + '}'
-  }
-  var response = safeEval(dcp.processDebugJSONRequest(request));
-  if (success) {
-    assertTrue(response.success, request + ' -> ' + response.message);
-    assertEquals(result, response.body.value);
-  } else {
-    assertFalse(response.success, request + ' -> ' + response.message);
-  }
-  assertEquals(response.running, "unspecified_running_state",
-               request + ' -> expected not running');
-}
-
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      // Get the debug command processor.
-      var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
+      assertEquals(3, exec_state.frame(0).evaluate("1+2").value());
+      assertEquals(5, exec_state.frame(0).evaluate("a+2").value());
+      assertEquals(4, exec_state.frame(0).evaluate("({a:1,b:2}).b+2").value());
 
-      // Test some illegal evaluate requests.
-      testRequest(dcp, void 0, false);
-      testRequest(dcp, '{"expression":"1","global"=true}', false);
-      testRequest(dcp, '{"expression":"a","frame":4}', false);
+      assertEquals(3, exec_state.frame(0).evaluate("a").value());
+      assertEquals(2, exec_state.frame(1).evaluate("a").value());
+      assertEquals(1, exec_state.frame(2).evaluate("a").value());
 
-      // Test some legal evaluate requests.
-      testRequest(dcp, '{"expression":"1+2"}', true, 3);
-      testRequest(dcp, '{"expression":"a+2"}', true, 5);
-      testRequest(dcp, '{"expression":"({\\"a\\":1,\\"b\\":2}).b+2"}', true, 4);
+      assertEquals(1, exec_state.evaluateGlobal("a").value());
+      assertEquals(1, exec_state.evaluateGlobal("this.a").value());
 
-      // Test evaluation of a in the stack frames and the global context.
-      testRequest(dcp, '{"expression":"a"}', true, 3);
-      testRequest(dcp, '{"expression":"a","frame":0}', true, 3);
-      testRequest(dcp, '{"expression":"a","frame":1}', true, 2);
-      testRequest(dcp, '{"expression":"a","frame":2}', true, 1);
-      testRequest(dcp, '{"expression":"a","global":true}', true, 1);
-      testRequest(dcp, '{"expression":"this.a","global":true}', true, 1);
-
-      // Test that the whole string text is returned if maxStringLength
-      // parameter is passed.
-      testRequest(
-          dcp,
-          '{"expression":"this.longString","global":true,"maxStringLength":-1}',
-          true,
-          longString);
-      testRequest(
-          dcp,
-          '{"expression":"this.longString","global":true,"maxStringLength":' +
-              longString.length + '}',
-          true,
-          longString);
-      var truncatedStringSuffix = '... (length: ' + longString.length + ')';
-      testRequest(
-          dcp,
-          '{"expression":"this.longString","global":true,"maxStringLength":0}',
-          true,
-          truncatedStringSuffix);
-      testRequest(
-          dcp,
-          '{"expression":"this.longString","global":true,"maxStringLength":1}',
-          true,
-          longString.charAt(0) + truncatedStringSuffix);
-      // Test that by default string is truncated to first 80 chars.
-      testRequest(
-          dcp,
-          '{"expression":"this.longString","global":true}',
-          true,
-          longString.substring(0, 80) + truncatedStringSuffix);
+      assertEquals(longString,
+                   exec_state.evaluateGlobal("this.longString").value());
 
       // Indicate that all was processed.
       listenerComplete = true;

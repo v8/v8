@@ -35,31 +35,16 @@ var exception = false;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      // Get the debug command processor.
-      var dcp = exec_state.debugCommandProcessor();
-
-      var request = {
-         seq: 0,
-         type: 'request',
-         command: 'evaluate',
-         arguments: {
-           expression: 'a',
-           frame: 0
-         }
-      };
-      request = JSON.stringify(request);
-
-      var resp = dcp.processDebugJSONRequest(request);
-      var response = JSON.parse(resp);
-      assertTrue(response.success, 'Command failed: ' + resp);
-      assertEquals('object', response.body.type);
-      assertEquals('Object', response.body.className);
+      var a = exec_state.frame(0).evaluate("a");
+      assertEquals('object', a.type());
+      assertEquals('Object', a.className());
 
       // Indicate that all was processed.
       listenerComplete = true;
     }
   } catch (e) {
-   exception = e
+    print(e);
+    exception = e
   };
 };
 

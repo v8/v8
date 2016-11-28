@@ -639,7 +639,9 @@ class DebugWrapper {
     }
 
     return { value : () => value,
-             isUndefined : () => isUndefined
+             isUndefined : () => isUndefined,
+             type : () => obj.type,
+             className : () => obj.className
            };
   }
 
