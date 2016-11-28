@@ -2176,7 +2176,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(arguments_list, &create_runtime);
 
     // Load native context.
@@ -2198,7 +2199,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ B(eq, &create_arguments);
 
     // Check if argumentsList is a fast JSArray.
-    __ CompareInstanceType(arguments_list_map, native_context, JS_ARRAY_TYPE);
+    __ CompareInstanceType(arguments_list_map, x10, JS_ARRAY_TYPE);
     __ B(eq, &create_array);
 
     // Ask the runtime to create the list (actually a FixedArray).
@@ -2223,14 +2224,42 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ Mov(args, x10);
     __ B(&done_create);
 
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ Bind(&create_holey_array);
+    //  -- x2 : arguments_list_map
+    //  -- x4 : native_context
+    Register arguments_list_prototype = x2;
+    __ Ldr(arguments_list_prototype,
+           FieldMemOperand(arguments_list_map, Map::kPrototypeOffset));
+    __ Ldr(x10, ContextMemOperand(native_context,
+                                  Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ Cmp(arguments_list_prototype, x10);
+    __ B(ne, &create_runtime);
+    __ LoadRoot(x10, Heap::kArrayProtectorRootIndex);
+    __ Ldrsw(x11, UntagSmiFieldMemOperand(x10, PropertyCell::kValueOffset));
+    __ Cmp(x11, Isolate::kProtectorValid);
+    __ B(ne, &create_runtime);
+    __ Ldrsw(len,
+             UntagSmiFieldMemOperand(arguments_list, JSArray::kLengthOffset));
+    __ Ldr(args, FieldMemOperand(arguments_list, JSArray::kElementsOffset));
+    __ B(&done_create);
+
     // Try to create the list from a JSArray object.
     __ Bind(&create_array);
     __ Ldr(x10, FieldMemOperand(arguments_list_map, Map::kBitField2Offset));
     __ DecodeField<Map::ElementsKindBits>(x10);
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
-    // Branch for anything that's not FAST_{SMI_}ELEMENTS.
-    __ TestAndBranchIfAnySet(x10, ~FAST_ELEMENTS, &create_runtime);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+    // Check if it is a holey array, the order of the cmp is important as
+    // anything higher than FAST_HOLEY_ELEMENTS will fall back to runtime.
+    __ Cmp(x10, FAST_HOLEY_ELEMENTS);
+    __ B(hi, &create_runtime);
+    // Only FAST_XXX after this point, FAST_HOLEY_XXX are odd values.
+    __ Tbnz(x10, 0, &create_holey_array);
+    // FAST_SMI_ELEMENTS or FAST_ELEMENTS after this point.
     __ Ldrsw(len,
              UntagSmiFieldMemOperand(arguments_list, JSArray::kLengthOffset));
     __ Ldr(args, FieldMemOperand(arguments_list, JSArray::kElementsOffset));
@@ -2264,16 +2293,24 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
-    Label done, loop;
+    Label done, push, loop;
     Register src = x4;
 
     __ Add(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
     __ Mov(x0, len);  // The 'len' argument for Call() or Construct().
     __ Cbz(len, &done);
+    Register the_hole_value = x11;
+    Register undefined_value = x12;
+    // We do not use the CompareRoot macro as it would do a LoadRoot behind the
+    // scenes and we want to avoid that in a loop.
+    __ LoadRoot(the_hole_value, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
     __ Claim(len);
     __ Bind(&loop);
     __ Sub(len, len, 1);
     __ Ldr(x10, MemOperand(src, kPointerSize, PostIndex));
+    __ Cmp(x10, the_hole_value);
+    __ Csel(x10, x10, undefined_value, ne);
     __ Poke(x10, Operand(len, LSL, kPointerSizeLog2));
     __ Cbnz(len, &loop);
     __ Bind(&done);
