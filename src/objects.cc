@@ -14402,6 +14402,13 @@ uint32_t Code::TranslateAstIdToPcOffset(BailoutId ast_id) {
   return 0;
 }
 
+int Code::LookupRangeInHandlerTable(int code_offset, int* data,
+                                    HandlerTable::CatchPrediction* prediction) {
+  DCHECK(!is_optimized_code());
+  HandlerTable* table = HandlerTable::cast(handler_table());
+  return table->LookupRange(code_offset, data, prediction);
+}
+
 void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
   PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge, NO_MARKING_PARITY);
 }
