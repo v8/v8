@@ -107,7 +107,7 @@ bool CodeRange::SetUp(size_t requested) {
   }
 
   const size_t reserved_area =
-      kReservedCodeRangePages * base::OS::CommitPageSize();
+      kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area))
     requested += reserved_area;
 
@@ -294,8 +294,8 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       highest_ever_allocated_(reinterpret_cast<void*>(0)),
       unmapper_(this) {}
 
-bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
-                            intptr_t code_range_size) {
+bool MemoryAllocator::SetUp(size_t capacity, size_t capacity_executable,
+                            size_t code_range_size) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
   capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
   DCHECK_GE(capacity_, capacity_executable_);
@@ -304,7 +304,7 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
   size_executable_ = 0;
 
   code_range_ = new CodeRange(isolate_);
-  if (!code_range_->SetUp(static_cast<size_t>(code_range_size))) return false;
+  if (!code_range_->SetUp(code_range_size)) return false;
 
   return true;
 }
@@ -548,9 +548,9 @@ bool MemoryChunk::CommitArea(size_t requested) {
       IsFlagSet(IS_EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
   size_t header_size = area_start() - address() - guard_size;
   size_t commit_size =
-      RoundUp(header_size + requested, base::OS::CommitPageSize());
+      RoundUp(header_size + requested, MemoryAllocator::GetCommitPageSize());
   size_t committed_size = RoundUp(header_size + (area_end() - area_start()),
-                                  base::OS::CommitPageSize());
+                                  MemoryAllocator::GetCommitPageSize());
 
   if (commit_size > committed_size) {
     // Commit size should be less or equal than the reserved size.
@@ -618,8 +618,8 @@ void MemoryChunk::Unlink() {
 }
 
 void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
-  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(base::OS::CommitPageSize()));
-  DCHECK_EQ(0u, bytes_to_shrink % base::OS::CommitPageSize());
+  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(GetCommitPageSize()));
+  DCHECK_EQ(0u, bytes_to_shrink % GetCommitPageSize());
   Address free_start = chunk->area_end_ - bytes_to_shrink;
   // Don't adjust the size of the page. The area is just uncomitted but not
   // released.
@@ -629,7 +629,7 @@ void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
     if (chunk->reservation_.IsReserved())
       chunk->reservation_.Guard(chunk->area_end_);
     else
-      base::OS::Guard(chunk->area_end_, base::OS::CommitPageSize());
+      base::OS::Guard(chunk->area_end_, GetCommitPageSize());
   }
 }
 
@@ -678,7 +678,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
   if (executable == EXECUTABLE) {
     chunk_size = RoundUp(CodePageAreaStartOffset() + reserve_area_size,
-                         base::OS::CommitPageSize()) +
+                         GetCommitPageSize()) +
                  CodePageGuardSize();
 
     // Check executable memory limit.
@@ -690,7 +690,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
     // Size of header (not executable) plus area (executable).
     size_t commit_size = RoundUp(CodePageGuardStartOffset() + commit_area_size,
-                                 base::OS::CommitPageSize());
+                                 GetCommitPageSize());
     // Allocate executable memory either from code range or from the
     // OS.
 #ifdef V8_TARGET_ARCH_MIPS64
@@ -726,10 +726,10 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     area_end = area_start + commit_area_size;
   } else {
     chunk_size = RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
-                         base::OS::CommitPageSize());
+                         GetCommitPageSize());
     size_t commit_size =
         RoundUp(MemoryChunk::kObjectStartOffset + commit_area_size,
-                base::OS::CommitPageSize());
+                GetCommitPageSize());
     base =
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
                               executable, &reservation);
@@ -814,7 +814,7 @@ size_t Page::ShrinkToHighWaterMark() {
 
   size_t unused = RoundDown(
       static_cast<size_t>(area_end() - filler->address() - FreeSpace::kSize),
-      base::OS::CommitPageSize());
+      MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
@@ -1012,11 +1012,11 @@ void MemoryAllocator::ReportStatistics() {
 size_t MemoryAllocator::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
-  return RoundUp(Page::kObjectStartOffset, base::OS::CommitPageSize());
+  return RoundUp(Page::kObjectStartOffset, GetCommitPageSize());
 }
 
 size_t MemoryAllocator::CodePageGuardSize() {
-  return static_cast<int>(base::OS::CommitPageSize());
+  return static_cast<int>(GetCommitPageSize());
 }
 
 size_t MemoryAllocator::CodePageAreaStartOffset() {
@@ -1028,7 +1028,16 @@ size_t MemoryAllocator::CodePageAreaStartOffset() {
 size_t MemoryAllocator::CodePageAreaEndOffset() {
   // We are guarding code pages: the last OS page will be protected as
   // non-writable.
-  return Page::kPageSize - static_cast<int>(base::OS::CommitPageSize());
+  return Page::kPageSize - static_cast<int>(GetCommitPageSize());
+}
+
+intptr_t MemoryAllocator::GetCommitPageSize() {
+  if (FLAG_v8_os_page_size != 0) {
+    DCHECK(base::bits::IsPowerOfTwo32(FLAG_v8_os_page_size));
+    return FLAG_v8_os_page_size * KB;
+  } else {
+    return base::OS::CommitPageSize();
+  }
 }
 
 
@@ -1278,25 +1287,6 @@ bool PagedSpace::ContainsSlow(Address addr) {
   return false;
 }
 
-
-Object* PagedSpace::FindObject(Address addr) {
-  // Note: this function can only be called on iterable spaces.
-  DCHECK(!heap()->mark_compact_collector()->in_use());
-
-  if (!Contains(addr)) return Smi::kZero;  // Signaling not found.
-
-  Page* p = Page::FromAddress(addr);
-  HeapObjectIterator it(p);
-  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    Address cur = obj->address();
-    Address next = cur + obj->Size();
-    if ((cur <= addr) && (addr < next)) return obj;
-  }
-
-  UNREACHABLE();
-  return Smi::kZero;
-}
-
 void PagedSpace::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
@@ -1480,10 +1470,11 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-bool NewSpace::SetUp(int initial_semispace_capacity,
-                     int maximum_semispace_capacity) {
+bool NewSpace::SetUp(size_t initial_semispace_capacity,
+                     size_t maximum_semispace_capacity) {
   DCHECK(initial_semispace_capacity <= maximum_semispace_capacity);
-  DCHECK(base::bits::IsPowerOfTwo32(maximum_semispace_capacity));
+  DCHECK(base::bits::IsPowerOfTwo32(
+      static_cast<uint32_t>(maximum_semispace_capacity)));
 
   to_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);
   from_space_.SetUp(initial_semispace_capacity, maximum_semispace_capacity);
@@ -1528,9 +1519,9 @@ void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
 void NewSpace::Grow() {
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
-  int new_capacity =
+  size_t new_capacity =
       Min(MaximumCapacity(),
-          FLAG_semi_space_growth_factor * static_cast<int>(TotalCapacity()));
+          static_cast<size_t>(FLAG_semi_space_growth_factor) * TotalCapacity());
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
@@ -1548,8 +1539,8 @@ void NewSpace::Grow() {
 
 
 void NewSpace::Shrink() {
-  int new_capacity = Max(InitialTotalCapacity(), 2 * static_cast<int>(Size()));
-  int rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
+  size_t new_capacity = Max(InitialTotalCapacity(), 2 * Size());
+  size_t rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {
     // Only shrink from-space if we managed to shrink to-space.
@@ -1576,7 +1567,8 @@ bool NewSpace::Rebalance() {
 
 bool SemiSpace::EnsureCurrentCapacity() {
   if (is_committed()) {
-    const int expected_pages = current_capacity_ / Page::kPageSize;
+    const int expected_pages =
+        static_cast<int>(current_capacity_ / Page::kPageSize);
     int actual_pages = 0;
     Page* current_page = anchor()->next_page();
     while (current_page != anchor()) {
@@ -1877,8 +1869,8 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-void SemiSpace::SetUp(int initial_capacity, int maximum_capacity) {
-  DCHECK_GE(maximum_capacity, Page::kPageSize);
+void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
+  DCHECK_GE(maximum_capacity, static_cast<size_t>(Page::kPageSize));
   minimum_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   current_capacity_ = minimum_capacity_;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
@@ -1901,7 +1893,7 @@ void SemiSpace::TearDown() {
 bool SemiSpace::Commit() {
   DCHECK(!is_committed());
   Page* current = anchor();
-  const int num_pages = current_capacity_ / Page::kPageSize;
+  const int num_pages = static_cast<int>(current_capacity_ / Page::kPageSize);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
@@ -1947,17 +1939,16 @@ size_t SemiSpace::CommittedPhysicalMemory() {
   return size;
 }
 
-
-bool SemiSpace::GrowTo(int new_capacity) {
+bool SemiSpace::GrowTo(size_t new_capacity) {
   if (!is_committed()) {
     if (!Commit()) return false;
   }
-  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0);
+  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0u);
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, current_capacity_);
-  const int delta = new_capacity - current_capacity_;
+  const size_t delta = new_capacity - current_capacity_;
   DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
-  const int delta_pages = delta / Page::kPageSize;
+  const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   Page* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
@@ -1992,14 +1983,14 @@ void SemiSpace::RewindPages(Page* start, int num_pages) {
   }
 }
 
-bool SemiSpace::ShrinkTo(int new_capacity) {
-  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0);
+bool SemiSpace::ShrinkTo(size_t new_capacity) {
+  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0u);
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, current_capacity_);
   if (is_committed()) {
-    const int delta = current_capacity_ - new_capacity;
+    const size_t delta = current_capacity_ - new_capacity;
     DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
-    int delta_pages = delta / Page::kPageSize;
+    int delta_pages = static_cast<int>(delta / Page::kPageSize);
     Page* new_last_page;
     Page* last_page;
     while (delta_pages > 0) {
@@ -2085,7 +2076,7 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
-  for (Page* p : NewSpacePageRange(space_start(), mark)) {
+  for (Page* p : PageRange(space_start(), mark)) {
     p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }
@@ -2606,7 +2597,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  owner_->Allocate(static_cast<int>(new_node_size));
+  owner_->AccountAllocatedBytes(new_node_size);
 
   if (owner_->heap()->inline_allocation_disabled()) {
     // Keep the linear allocation area empty if requested to do so, just
@@ -2771,13 +2762,10 @@ void PagedSpace::PrepareForMarkCompact() {
   free_list_.Reset();
 }
 
-
-intptr_t PagedSpace::SizeOfObjects() {
-  const intptr_t size = Size() - (limit() - top());
+size_t PagedSpace::SizeOfObjects() {
   CHECK_GE(limit(), top());
-  CHECK_GE(size, 0);
-  USE(size);
-  return size;
+  DCHECK_GE(Size(), static_cast<size_t>(limit() - top()));
+  return Size() - (limit() - top());
 }
 
 
@@ -2824,6 +2812,7 @@ HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
 }
 
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
+  DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
 
   // Allocation in this space has failed.
@@ -2894,7 +2883,7 @@ Address LargePage::GetAddressToShrink() {
     return 0;
   }
   size_t used_size = RoundUp((object->address() - address()) + object->Size(),
-                             base::OS::CommitPageSize());
+                             MemoryAllocator::GetCommitPageSize());
   if (used_size < CommittedPhysicalMemory()) {
     return address() + used_size;
   }
@@ -3001,7 +2990,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
   if (heap()->incremental_marking()->black_allocation()) {
     Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-    MemoryChunk::IncrementLiveBytesFromGC(object, object_size);
+    MemoryChunk::IncrementLiveBytes(object, object_size);
   }
   return object;
 }
@@ -3024,6 +3013,10 @@ Object* LargeObjectSpace::FindObject(Address a) {
   return Smi::kZero;  // Signaling not found.
 }
 
+LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
+  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
+  return FindPage(a);
+}
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
   uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
@@ -3060,6 +3053,9 @@ void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
   uintptr_t start = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
   uintptr_t limit = (reinterpret_cast<uintptr_t>(page) + (page->size() - 1)) /
                     MemoryChunk::kAlignment;
+  // There may be concurrent access on the chunk map. We have to take the lock
+  // here.
+  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
   for (uintptr_t key = start; key <= limit; key++) {
     base::HashMap::Entry* entry = chunk_map_.InsertNew(
         reinterpret_cast<void*>(key), static_cast<uint32_t>(key));

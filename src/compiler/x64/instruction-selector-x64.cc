@@ -154,10 +154,18 @@ class X64OperandGenerator final : public OperandGenerator {
     }
     BaseWithIndexAndDisplacement64Matcher m(operand, AddressOption::kAllowAll);
     DCHECK(m.matches());
-    if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
+    if (m.displacement() == nullptr || CanBeImmediate(m.displacement())) {
       return GenerateMemoryOperandInputs(
           m.index(), m.scale(), m.base(), m.displacement(),
           m.displacement_mode(), inputs, input_count);
+    } else if (m.base() == nullptr &&
+               m.displacement_mode() == kPositiveDisplacement) {
+      // The displacement cannot be an immediate, but we can use the
+      // displacement as base instead and still benefit from addressing
+      // modes for the scale.
+      return GenerateMemoryOperandInputs(m.index(), m.scale(), m.displacement(),
+                                         nullptr, m.displacement_mode(), inputs,
+                                         input_count);
     } else {
       inputs[(*input_count)++] = UseRegister(operand->InputAt(0));
       inputs[(*input_count)++] = UseRegister(operand->InputAt(1));

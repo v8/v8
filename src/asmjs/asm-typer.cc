@@ -25,7 +25,7 @@
                    ? -1                                        \
                    : script_->GetLineNumber(node->position()); \
     base::OS::SNPrintF(error_message_, sizeof(error_message_), \
-                       "asm: line %d: %s\n", line + 1, msg);   \
+                       "asm: line %d: %s", line + 1, msg);     \
     return AsmType::None();                                    \
   } while (false)
 

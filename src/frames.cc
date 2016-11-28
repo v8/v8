@@ -177,10 +177,7 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
   if (frame->is_java_script()) {
     JavaScriptFrame* jsFrame = static_cast<JavaScriptFrame*>(frame);
     if (!jsFrame->function()->IsJSFunction()) return false;
-    Object* script = jsFrame->function()->shared()->script();
-    // Don't show functions from native scripts to user.
-    return (script->IsScript() &&
-            Script::TYPE_NATIVE != Script::cast(script)->type());
+    return jsFrame->function()->shared()->IsSubjectToDebugging();
   }
   // apart from javascript, only wasm is valid
   return frame->is_wasm();
@@ -985,10 +982,9 @@ Object* JavaScriptFrame::context() const {
 
 int JavaScriptFrame::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
-  Code* code = LookupCode();
-  DCHECK(!code->is_optimized_code());
-  int pc_offset = static_cast<int>(pc() - code->entry());
-  return code->LookupRangeInHandlerTable(pc_offset, stack_depth, prediction);
+  DCHECK_EQ(0, LookupCode()->handler_table()->length());
+  DCHECK(!LookupCode()->is_optimized_code());
+  return -1;
 }
 
 void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
@@ -1057,15 +1053,6 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
       break;
     }
     it.Advance();
-  }
-}
-
-
-void JavaScriptFrame::SaveOperandStack(FixedArray* store) const {
-  int operands_count = store->length();
-  DCHECK_LE(operands_count, ComputeOperandsCount());
-  for (int i = 0; i < operands_count; i++) {
-    store->set(i, GetOperand(i));
   }
 }
 
@@ -1490,7 +1477,28 @@ void StackFrame::PrintIndex(StringStream* accumulator,
 
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
-  accumulator->Add("wasm frame");
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("WASM [");
+  Script* script = this->script();
+  accumulator->PrintName(script->name());
+  int pc = static_cast<int>(this->pc() - LookupCode()->instruction_start());
+  Vector<const uint8_t> raw_func_name;
+  Object* instance_or_undef = this->wasm_instance();
+  if (instance_or_undef->IsUndefined(this->isolate())) {
+    raw_func_name = STATIC_CHAR_VECTOR("<undefined>");
+  } else {
+    raw_func_name = WasmInstanceObject::cast(instance_or_undef)
+                        ->get_compiled_module()
+                        ->GetRawFunctionName(this->function_index());
+  }
+  const int kMaxPrintedFunctionName = 64;
+  char func_name[kMaxPrintedFunctionName + 1];
+  int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
+  memcpy(func_name, raw_func_name.start(), func_name_len);
+  func_name[func_name_len] = '\0';
+  accumulator->Add("], function #%u ('%s'), pc=%p, pos=%d\n",
+                   this->function_index(), func_name, pc, this->position());
+  if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
 Code* WasmFrame::unchecked_code() const {
@@ -1517,11 +1525,7 @@ uint32_t WasmFrame::function_index() const {
 
 Script* WasmFrame::script() const {
   Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
-  if (wasm::WasmIsAsmJs(*instance, isolate())) {
-    return *wasm::GetAsmWasmScript(instance);
-  }
-  Handle<WasmDebugInfo> debug_info = wasm::GetDebugInfo(instance);
-  return WasmDebugInfo::GetFunctionScript(debug_info, function_index());
+  return *wasm::GetScript(instance);
 }
 
 int WasmFrame::position() const {

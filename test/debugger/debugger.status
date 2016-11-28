@@ -7,7 +7,28 @@
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
+
+  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
+  # live edited. This needs investigation.
+  'debug/debug-liveedit-double-call': [SKIP],
+
+  # Issue 3641: The new 'then' semantics suppress some exceptions.
+  # These tests may be changed or removed when 'chain' is deprecated.
+  'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
+  'debug/es6/debug-promises/reject-with-undefined-reject': [FAIL],
+  'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
+
+  # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
+  # parameter value
+  'debug/es6/debug-scope-default-param-with-eval': [FAIL],
 }],  # ALWAYS
+
+##############################################################################
+['variant == stress', {
+  # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
+  # with Turbofan, which has issues with the debugger issues.
+  'debug/debug-evaluate-locals': [FAIL],
+}],  # 'stress == True'
 
 ##############################################################################
 ['gc_stress == True', {
@@ -30,7 +51,23 @@
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug/debug-evaluate-closure': [FAIL],
+  'debug/debug-evaluate-locals': [FAIL],
+  'debug/debug-liveedit-double-call': [FAIL],
+  'debug/debug-set-variable-value': [FAIL],
+  'debug/es6/debug-evaluate-blockscopes': [FAIL],
 }],  # variant == turbofan_opt
+
+##############################################################################
+['variant == ignition or variant == ignition_staging', {
+  # TODO(5587): fails to liveedit evaled code.
+  'debug/debug-liveedit-double-call': [FAIL],
+}],  # variant == ignition
+
+##############################################################################
+['variant == ignition_turbofan', {
+  # TODO(5587): fails to liveedit evaled code.
+  'debug/debug-liveedit-double-call': [FAIL],
+}],  # variant == ignition_turbofan
 
 ##############################################################################
 ['gc_stress == True', {
@@ -41,4 +78,23 @@
   'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
   'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
+['arch == s390 or arch == s390x', {
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.
+  'debug/debug-liveedit-check-stack': [SKIP],
+  'debug/debug-liveedit-double-call': [SKIP],
+  'debug/debug-liveedit-stack-padding': [SKIP],
+  'debug/debug-liveedit-restart-frame': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 ]

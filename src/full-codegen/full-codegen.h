@@ -82,7 +82,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   class Breakable;
   class Iteration;
-  class TryFinally;
 
   class TestContext;
 
@@ -103,11 +102,9 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
     virtual Breakable* AsBreakable() { return nullptr; }
     virtual Iteration* AsIteration() { return nullptr; }
-    virtual TryFinally* AsTryFinally() { return nullptr; }
 
     virtual bool IsContinueTarget(Statement* target) { return false; }
     virtual bool IsBreakTarget(Statement* target) { return false; }
-    virtual bool IsTryFinally() { return false; }
 
     // Notify the statement that we are exiting it via break, continue, or
     // return and give it a chance to generate cleanup code.  Return the
@@ -183,60 +180,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
       }
       return previous_;
     }
-  };
-
-  class DeferredCommands {
-   public:
-    enum Command { kReturn, kThrow, kBreak, kContinue };
-    typedef int TokenId;
-    struct DeferredCommand {
-      Command command;
-      TokenId token;
-      Statement* target;
-    };
-
-    DeferredCommands(FullCodeGenerator* codegen, Label* finally_entry)
-        : codegen_(codegen),
-          commands_(codegen->zone()),
-          return_token_(TokenDispenserForFinally::kInvalidToken),
-          throw_token_(TokenDispenserForFinally::kInvalidToken),
-          finally_entry_(finally_entry) {}
-
-    void EmitCommands();
-
-    void RecordBreak(Statement* target);
-    void RecordContinue(Statement* target);
-    void RecordReturn();
-    void RecordThrow();
-    void EmitFallThrough();
-
-   private:
-    MacroAssembler* masm() { return codegen_->masm(); }
-    void EmitJumpToFinally(TokenId token);
-
-    FullCodeGenerator* codegen_;
-    ZoneVector<DeferredCommand> commands_;
-    TokenDispenserForFinally dispenser_;
-    TokenId return_token_;
-    TokenId throw_token_;
-    Label* finally_entry_;
-  };
-
-  // The try block of a try/finally statement.
-  class TryFinally : public NestedStatement {
-   public:
-    TryFinally(FullCodeGenerator* codegen, DeferredCommands* commands)
-        : NestedStatement(codegen), deferred_commands_(commands) {}
-
-    NestedStatement* Exit(int* context_length) override;
-
-    bool IsTryFinally() override { return true; }
-    TryFinally* AsTryFinally() override { return this; }
-
-    DeferredCommands* deferred_commands() { return deferred_commands_; }
-
-   private:
-    DeferredCommands* deferred_commands_;
   };
 
   // The body of a with or catch.
@@ -467,7 +410,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
   void EmitKeyedSuperCallWithLoadIC(Call* expr);
-  void EmitPossiblyEvalCall(Call* expr);
 
 #define FOR_EACH_FULL_CODE_INTRINSIC(F) \
   F(IsSmi)                              \
@@ -506,19 +448,11 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void RestoreContext();
 
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
-                                     TypeofMode typeof_mode, Label* slow);
-  MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(VariableProxy* proxy, TypeofMode typeof_mode,
-                                 Label* slow, Label* done);
   void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofMode typeof_mode);
   void EmitVariableLoad(VariableProxy* proxy,
                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(ObjectLiteralProperty* property);
-
-  // Expects the arguments and the function already pushed.
-  void EmitResolvePossiblyDirectEval(Call* expr);
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
@@ -543,11 +477,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
-
-  // Adds the properties to the class (function) object and to its prototype.
-  // Expects the class (function) in the accumulator. The class (function) is
-  // in the accumulator after installing all the properties.
-  void EmitClassDefineProperties(ClassLiteral* lit);
 
   // Pushes the property key as a Name on the stack.
   void EmitPropertyKey(LiteralProperty* property, BailoutId bailout_id);
@@ -648,14 +577,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void RecordStatementPosition(int pos);
   void RecordPosition(int pos);
 
-  // Non-local control flow support.
-  void EnterTryBlock(int handler_index, Label* handler,
-                     HandlerTable::CatchPrediction catch_prediction);
-  void ExitTryBlock(int handler_index);
-  void EnterFinallyBlock();
-  void ExitFinallyBlock();
-  void ClearPendingMessage();
-
+  // Local control flow support.
   void EmitContinue(Statement* target);
   void EmitBreak(Statement* target);
 
@@ -698,8 +620,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // and PushCatchContext.
   void PushFunctionArgumentForContextAllocation();
 
-  void PushCalleeAndWithBaseObject(Call* expr);
-
   // AST node visit functions.
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
@@ -714,12 +634,9 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
-  void PopulateHandlerTable(Handle<Code> code);
 
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
-
-  int NewHandlerTableEntry();
 
   struct BailoutEntry {
     BailoutId id;
@@ -730,14 +647,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
     BailoutId id;
     unsigned pc;
     uint32_t loop_depth;
-  };
-
-  struct HandlerTableEntry {
-    unsigned range_start;
-    unsigned range_end;
-    unsigned handler_offset;
-    int stack_depth;
-    HandlerTable::CatchPrediction catch_prediction;
   };
 
   class ExpressionContext BASE_EMBEDDED {
@@ -937,7 +846,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BackEdgeEntry> back_edges_;
-  ZoneVector<HandlerTableEntry> handler_table_;
   SourcePositionTableBuilder source_position_table_builder_;
   int ic_total_count_;
   Handle<Cell> profiling_counter_;

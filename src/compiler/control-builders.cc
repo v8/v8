@@ -180,65 +180,6 @@ void BlockBuilder::EndBlock() {
   set_environment(break_environment_);
 }
 
-
-void TryCatchBuilder::BeginTry() {
-  exit_environment_ = environment()->CopyAsUnreachable();
-  catch_environment_ = environment()->CopyAsUnreachable();
-  catch_environment_->Push(the_hole());
-}
-
-
-void TryCatchBuilder::Throw(Node* exception) {
-  environment()->Push(exception);
-  catch_environment_->Merge(environment());
-  environment()->Pop();
-  environment()->MarkAsUnreachable();
-}
-
-
-void TryCatchBuilder::EndTry() {
-  exit_environment_->Merge(environment());
-  exception_node_ = catch_environment_->Pop();
-  set_environment(catch_environment_);
-}
-
-
-void TryCatchBuilder::EndCatch() {
-  exit_environment_->Merge(environment());
-  set_environment(exit_environment_);
-}
-
-
-void TryFinallyBuilder::BeginTry() {
-  finally_environment_ = environment()->CopyAsUnreachable();
-  finally_environment_->Push(the_hole());
-  finally_environment_->Push(the_hole());
-}
-
-
-void TryFinallyBuilder::LeaveTry(Node* token, Node* value) {
-  environment()->Push(value);
-  environment()->Push(token);
-  finally_environment_->Merge(environment());
-  environment()->Drop(2);
-}
-
-
-void TryFinallyBuilder::EndTry(Node* fallthrough_token, Node* value) {
-  environment()->Push(value);
-  environment()->Push(fallthrough_token);
-  finally_environment_->Merge(environment());
-  environment()->Drop(2);
-  token_node_ = finally_environment_->Pop();
-  value_node_ = finally_environment_->Pop();
-  set_environment(finally_environment_);
-}
-
-
-void TryFinallyBuilder::EndFinally() {
-  // Nothing to be done here.
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

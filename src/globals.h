@@ -314,25 +314,23 @@ inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   return os;
 }
 
-
 inline bool is_sloppy(LanguageMode language_mode) {
   return language_mode == SLOPPY;
 }
-
 
 inline bool is_strict(LanguageMode language_mode) {
   return language_mode != SLOPPY;
 }
 
-
 inline bool is_valid_language_mode(int language_mode) {
   return language_mode == SLOPPY || language_mode == STRICT;
 }
 
-
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
 }
+
+enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // This constant is used as an undefined value when passing source positions.
 const int kNoSourcePosition = -1;
@@ -591,7 +589,12 @@ enum VisitMode {
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
-enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, NATIVES_CODE };
+enum NativesFlag {
+  NOT_NATIVES_CODE,
+  EXTENSION_CODE,
+  NATIVES_CODE,
+  INSPECTOR_CODE
+};
 
 // JavaScript defines two kinds of 'nil'.
 enum NilValue { kNullValue, kUndefinedValue };
@@ -1238,10 +1241,22 @@ class BinaryOperationFeedback {
   };
 };
 
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kSignedSmall -> kNumber  -> kAny
+//                 kString  -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
  public:
-  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+  enum {
+    kNone = 0x00,
+    kSignedSmall = 0x01,
+    kNumber = 0x3,
+    kNumberOrOddball = 0x7,
+    kString = 0x8,
+    kAny = 0x1F
+  };
 };
 
 // Describes how exactly a frame has been dropped from stack.
@@ -1279,8 +1294,27 @@ inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
   return os;
 }
 
+enum class IterationKind { kKeys, kValues, kEntries };
+
+inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
+  switch (kind) {
+    case IterationKind::kKeys:
+      return os << "IterationKind::kKeys";
+    case IterationKind::kValues:
+      return os << "IterationKind::kValues";
+    case IterationKind::kEntries:
+      return os << "IterationKind::kEntries";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 }  // namespace internal
 }  // namespace v8
+
+// Used by js-builtin-reducer to identify whether ReduceArrayIterator() is
+// reducing a JSArray method, or a JSTypedArray method.
+enum class ArrayIteratorKind { kArray, kTypedArray };
 
 namespace i = v8::internal;
 

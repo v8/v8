@@ -216,10 +216,11 @@ class RuntimeCallStatEntries {
   // binary size increase: std::vector::push_back expands to a large amount of
   // instructions, and this function is invoked repeatedly by macros.
   V8_NOINLINE void Add(RuntimeCallCounter* counter) {
-    if (counter->count == 0) return;
-    entries.push_back(Entry(counter->name, counter->time, counter->count));
-    total_time += counter->time;
-    total_call_count += counter->count;
+    if (counter->count() == 0) return;
+    entries.push_back(
+        Entry(counter->name(), counter->time(), counter->count()));
+    total_time += counter->time();
+    total_call_count += counter->count();
   }
 
  private:
@@ -273,21 +274,60 @@ class RuntimeCallStatEntries {
 };
 
 void RuntimeCallCounter::Reset() {
-  count = 0;
-  time = base::TimeDelta();
+  count_ = 0;
+  time_ = base::TimeDelta();
 }
 
 void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
-  value->BeginArray(name);
-  value->AppendLongInteger(count);
-  value->AppendLongInteger(time.InMicroseconds());
+  value->BeginArray(name_);
+  value->AppendLongInteger(count_);
+  value->AppendLongInteger(time_.InMicroseconds());
   value->EndArray();
 }
+
+void RuntimeCallCounter::Add(RuntimeCallCounter* other) {
+  count_ += other->count();
+  time_ += other->time();
+}
+
+void RuntimeCallTimer::Snapshot() {
+  base::TimeTicks now = Now();
+  // Pause only / topmost timer in the timer stack.
+  Pause(now);
+  // Commit all the timer's elapsed time to the counters.
+  RuntimeCallTimer* timer = this;
+  while (timer != nullptr) {
+    timer->CommitTimeToCounter();
+    timer = timer->parent();
+  }
+  Resume(now);
+}
+
+// static
+const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
+#define CALL_RUNTIME_COUNTER(name) &RuntimeCallStats::name,
+    FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
+#undef CALL_RUNTIME_COUNTER
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
+  &RuntimeCallStats::Runtime_##name,          //
+    FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::Builtin_##name,
+    BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::API_##name,
+    FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::Handler_##name,
+    FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+};
 
 // static
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   RuntimeCallCounter* counter = &(stats->*counter_id);
+  DCHECK(counter->name() != nullptr);
   timer->Start(counter, stats->current_timer_.Value());
   stats->current_timer_.SetValue(timer);
 }
@@ -303,7 +343,16 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
     RuntimeCallTimer* next = stats->current_timer_.Value();
     while (next && next->parent() != timer) next = next->parent();
     if (next == nullptr) return;
-    next->parent_.SetValue(timer->Stop());
+    next->set_parent(timer->Stop());
+  }
+}
+
+void RuntimeCallStats::Add(RuntimeCallStats* other) {
+  for (const RuntimeCallStats::CounterId counter_id :
+       RuntimeCallStats::counters) {
+    RuntimeCallCounter* counter = &(this->*counter_id);
+    RuntimeCallCounter* other_counter = &(other->*counter_id);
+    counter->Add(other_counter);
   }
 }
 
@@ -313,35 +362,19 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
   RuntimeCallTimer* timer = stats->current_timer_.Value();
   // When RCS are enabled dynamically there might be no current timer set up.
   if (timer == nullptr) return;
-  timer->counter_ = &(stats->*counter_id);
+  timer->set_counter(&(stats->*counter_id));
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
   if (current_timer_.Value() != nullptr) {
-    current_timer_.Value()->Elapsed();
+    current_timer_.Value()->Snapshot();
   }
-
-#define PRINT_COUNTER(name) entries.Add(&this->name);
-  FOR_EACH_MANUAL_COUNTER(PRINT_COUNTER)
-#undef PRINT_COUNTER
-
-#define PRINT_COUNTER(name, nargs, ressize) entries.Add(&this->Runtime_##name);
-  FOR_EACH_INTRINSIC(PRINT_COUNTER)
-#undef PRINT_COUNTER
-
-#define PRINT_COUNTER(name) entries.Add(&this->Builtin_##name);
-  BUILTIN_LIST_C(PRINT_COUNTER)
-#undef PRINT_COUNTER
-
-#define PRINT_COUNTER(name) entries.Add(&this->API_##name);
-  FOR_EACH_API_COUNTER(PRINT_COUNTER)
-#undef PRINT_COUNTER
-
-#define PRINT_COUNTER(name) entries.Add(&this->Handler_##name);
-  FOR_EACH_HANDLER_COUNTER(PRINT_COUNTER)
-#undef PRINT_COUNTER
-
+  for (const RuntimeCallStats::CounterId counter_id :
+       RuntimeCallStats::counters) {
+    RuntimeCallCounter* counter = &(this->*counter_id);
+    entries.Add(counter);
+  }
   entries.Print(os);
 }
 
@@ -356,54 +389,21 @@ void RuntimeCallStats::Reset() {
     current_timer_.SetValue(current_timer_.Value()->Stop());
   }
 
-#define RESET_COUNTER(name) this->name.Reset();
-  FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
-#undef RESET_COUNTER
-
-#define RESET_COUNTER(name, nargs, result_size) this->Runtime_##name.Reset();
-  FOR_EACH_INTRINSIC(RESET_COUNTER)
-#undef RESET_COUNTER
-
-#define RESET_COUNTER(name) this->Builtin_##name.Reset();
-  BUILTIN_LIST_C(RESET_COUNTER)
-#undef RESET_COUNTER
-
-#define RESET_COUNTER(name) this->API_##name.Reset();
-  FOR_EACH_API_COUNTER(RESET_COUNTER)
-#undef RESET_COUNTER
-
-#define RESET_COUNTER(name) this->Handler_##name.Reset();
-  FOR_EACH_HANDLER_COUNTER(RESET_COUNTER)
-#undef RESET_COUNTER
+  for (const RuntimeCallStats::CounterId counter_id :
+       RuntimeCallStats::counters) {
+    RuntimeCallCounter* counter = &(this->*counter_id);
+    counter->Reset();
+  }
 
   in_use_ = true;
 }
 
 void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
-#define DUMP_COUNTER(name) \
-  if (this->name.count > 0) this->name.Dump(value);
-  FOR_EACH_MANUAL_COUNTER(DUMP_COUNTER)
-#undef DUMP_COUNTER
-
-#define DUMP_COUNTER(name, nargs, result_size) \
-  if (this->Runtime_##name.count > 0) this->Runtime_##name.Dump(value);
-  FOR_EACH_INTRINSIC(DUMP_COUNTER)
-#undef DUMP_COUNTER
-
-#define DUMP_COUNTER(name) \
-  if (this->Builtin_##name.count > 0) this->Builtin_##name.Dump(value);
-  BUILTIN_LIST_C(DUMP_COUNTER)
-#undef DUMP_COUNTER
-
-#define DUMP_COUNTER(name) \
-  if (this->API_##name.count > 0) this->API_##name.Dump(value);
-  FOR_EACH_API_COUNTER(DUMP_COUNTER)
-#undef DUMP_COUNTER
-
-#define DUMP_COUNTER(name) \
-  if (this->Handler_##name.count > 0) this->Handler_##name.Dump(value);
-  FOR_EACH_HANDLER_COUNTER(DUMP_COUNTER)
-#undef DUMP_COUNTER
+  for (const RuntimeCallStats::CounterId counter_id :
+       RuntimeCallStats::counters) {
+    RuntimeCallCounter* counter = &(this->*counter_id);
+    if (counter->count() > 0) counter->Dump(value);
+  }
 
   in_use_ = false;
 }

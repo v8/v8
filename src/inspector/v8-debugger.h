@@ -13,6 +13,7 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-script.h"
+#include "src/inspector/wasm-translation.h"
 
 #include "include/v8-inspector.h"
 
@@ -36,8 +37,8 @@ class V8Debugger {
 
   bool enabled() const;
 
-  String16 setBreakpoint(const String16& sourceID, const ScriptBreakpoint&,
-                         int* actualLineNumber, int* actualColumnNumber);
+  String16 setBreakpoint(const ScriptBreakpoint&, int* actualLineNumber,
+                         int* actualColumnNumber);
   void removeBreakpoint(const String16& breakpointId);
   void setBreakpointsActivated(bool);
   bool breakpointsActivated() const { return m_breakpointsActivated; }
@@ -94,6 +95,8 @@ class V8Debugger {
 
   V8InspectorImpl* inspector() { return m_inspector; }
 
+  WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
+
  private:
   void compileDebuggerScript();
   v8::MaybeLocal<v8::Value> callDebuggerMethod(const char* functionName,
@@ -123,8 +126,19 @@ class V8Debugger {
                                                v8::Local<v8::Object>);
   v8::Local<v8::Value> functionLocation(v8::Local<v8::Context>,
                                         v8::Local<v8::Function>);
+
+  enum ScopeTargetKind {
+    FUNCTION,
+    GENERATOR,
+  };
+  v8::MaybeLocal<v8::Value> getTargetScopes(v8::Local<v8::Context>,
+                                            v8::Local<v8::Value>,
+                                            ScopeTargetKind);
+
   v8::MaybeLocal<v8::Value> functionScopes(v8::Local<v8::Context>,
                                            v8::Local<v8::Function>);
+  v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
+                                            v8::Local<v8::Value>);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
@@ -148,6 +162,8 @@ class V8Debugger {
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
 
   v8::DebugInterface::ExceptionBreakState m_pauseOnExceptionsState;
+
+  WasmTranslation m_wasmTranslation;
 
   DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 };

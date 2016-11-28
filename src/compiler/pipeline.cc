@@ -65,7 +65,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/tail-call-optimization.h"
-#include "src/compiler/type-hint-analyzer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -199,12 +198,6 @@ class PipelineData {
     loop_assignment_ = loop_assignment;
   }
 
-  TypeHintAnalysis* type_hint_analysis() const { return type_hint_analysis_; }
-  void set_type_hint_analysis(TypeHintAnalysis* type_hint_analysis) {
-    DCHECK_NULL(type_hint_analysis_);
-    type_hint_analysis_ = type_hint_analysis;
-  }
-
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
     DCHECK(!schedule_);
@@ -240,7 +233,6 @@ class PipelineData {
     graph_ = nullptr;
     source_positions_ = nullptr;
     loop_assignment_ = nullptr;
-    type_hint_analysis_ = nullptr;
     simplified_ = nullptr;
     machine_ = nullptr;
     common_ = nullptr;
@@ -325,7 +317,6 @@ class PipelineData {
   Graph* graph_ = nullptr;
   SourcePositionTable* source_positions_ = nullptr;
   LoopAssignmentAnalysis* loop_assignment_ = nullptr;
-  TypeHintAnalysis* type_hint_analysis_ = nullptr;
   SimplifiedOperatorBuilder* simplified_ = nullptr;
   MachineOperatorBuilder* machine_ = nullptr;
   CommonOperatorBuilder* common_ = nullptr;
@@ -425,38 +416,6 @@ void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
     os << "-- Schedule --------------------------------------\n" << *schedule;
   }
 }
-
-
-class AstGraphBuilderWithPositions final : public AstGraphBuilder {
- public:
-  AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
-                               JSGraph* jsgraph,
-                               LoopAssignmentAnalysis* loop_assignment,
-                               TypeHintAnalysis* type_hint_analysis,
-                               SourcePositionTable* source_positions)
-      : AstGraphBuilder(local_zone, info, jsgraph, 1.0f, loop_assignment,
-                        type_hint_analysis),
-        source_positions_(source_positions),
-        start_position_(info->shared_info()->start_position()) {}
-
-  bool CreateGraph() {
-    SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
-    return AstGraphBuilder::CreateGraph();
-  }
-
-#define DEF_VISIT(type)                                               \
-  void Visit##type(type* node) override {                             \
-    SourcePositionTable::Scope pos(source_positions_,                 \
-                                   SourcePosition(node->position())); \
-    AstGraphBuilder::Visit##type(node);                               \
-  }
-  AST_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-
- private:
-  SourcePositionTable* const source_positions_;
-  SourcePosition const start_position_;
-};
 
 
 class SourcePositionWrapper final : public Reducer {
@@ -593,21 +552,18 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (!FLAG_always_opt) {
       info()->MarkAsBailoutOnUninitialized();
     }
-    if (FLAG_turbo_inlining) {
-      info()->MarkAsInliningEnabled();
-    }
   }
-  if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
+  if (info()->is_optimizing_from_bytecode() ||
+      !info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
   }
   if (!info()->is_optimizing_from_bytecode()) {
-    if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
-      info()->MarkAsTypeFeedbackEnabled();
-    }
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
+  } else if (FLAG_turbo_inlining) {
+    info()->MarkAsInliningEnabled();
   }
 
   linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
@@ -726,20 +682,6 @@ struct LoopAssignmentAnalysisPhase {
 };
 
 
-struct TypeHintAnalysisPhase {
-  static const char* phase_name() { return "type hint analysis"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    if (data->info()->is_type_feedback_enabled()) {
-      TypeHintAnalyzer analyzer(data->graph_zone());
-      Handle<Code> code(data->info()->shared_info()->code(), data->isolate());
-      TypeHintAnalysis* type_hint_analysis = analyzer.Analyze(code);
-      data->set_type_hint_analysis(type_hint_analysis);
-    }
-  }
-};
-
-
 struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
@@ -753,8 +695,8 @@ struct GraphBuilderPhase {
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
-          temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
-          data->type_hint_analysis(), data->source_positions());
+          temp_zone, data->info(), data->jsgraph(), 1.0f,
+          data->loop_assignment(), data->source_positions());
       succeeded = graph_builder.CreateGraph();
     }
 
@@ -807,11 +749,11 @@ struct InliningPhase {
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), flags, data->native_context(),
         data->info()->dependencies(), temp_zone);
-    JSInliningHeuristic inlining(&graph_reducer,
-                                 data->info()->is_inlining_enabled()
-                                     ? JSInliningHeuristic::kGeneralInlining
-                                     : JSInliningHeuristic::kRestrictedInlining,
-                                 temp_zone, data->info(), data->jsgraph());
+    JSInliningHeuristic inlining(
+        &graph_reducer, data->info()->is_inlining_enabled()
+                            ? JSInliningHeuristic::kGeneralInlining
+                            : JSInliningHeuristic::kRestrictedInlining,
+        temp_zone, data->info(), data->jsgraph(), data->source_positions());
     JSIntrinsicLowering intrinsic_lowering(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()
@@ -967,6 +909,10 @@ struct EscapeAnalysisPhase {
                                          &escape_analysis, temp_zone);
     AddReducer(data, &graph_reducer, &escape_reducer);
     graph_reducer.ReduceGraph();
+    if (escape_reducer.compilation_failed()) {
+      data->set_compilation_failed();
+      return;
+    }
     escape_reducer.VerifyReplacement();
   }
 };
@@ -1075,7 +1021,8 @@ struct EffectControlLinearizationPhase {
     //   chains and lower them,
     // - get rid of the region markers,
     // - introduce effect phis and rewire effects to get SSA again.
-    EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone);
+    EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone,
+                                       data->source_positions());
     linearizer.Run();
   }
 };
@@ -1501,8 +1448,6 @@ bool PipelineImpl::CreateGraph() {
     Run<LoopAssignmentAnalysisPhase>();
   }
 
-  Run<TypeHintAnalysisPhase>();
-
   Run<GraphBuilderPhase>();
   if (data->compilation_failed()) {
     data->EndPhaseKind();
@@ -1538,7 +1483,7 @@ bool PipelineImpl::CreateGraph() {
     // Determine the Typer operation flags.
     Typer::Flags flags = Typer::kNoFlags;
     if (is_sloppy(info()->shared_info()->language_mode()) &&
-        !info()->shared_info()->IsBuiltin()) {
+        info()->shared_info()->IsUserJavaScript()) {
       // Sloppy mode functions always have an Object for this.
       flags |= Typer::kThisIsReceiver;
     }
@@ -1581,6 +1526,11 @@ bool PipelineImpl::CreateGraph() {
 
       if (FLAG_turbo_escape) {
         Run<EscapeAnalysisPhase>();
+        if (data->compilation_failed()) {
+          info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
+          data->EndPhaseKind();
+          return false;
+        }
         RunPrintAndVerify("Escape Analysed");
       }
     }

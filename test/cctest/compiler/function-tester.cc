@@ -46,9 +46,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
   function->ReplaceCode(*code);
 }
 
-FunctionTester::FunctionTester(const CallInterfaceDescriptor& descriptor,
-                               Handle<Code> code)
-    : FunctionTester(code, descriptor.GetParameterCount()) {}
+FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
 
 MaybeHandle<Object> FunctionTester::Call() {
   return Execution::Call(isolate, function, undefined(), 0, nullptr);
@@ -166,7 +164,9 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
-  if (Compiler::EnsureBytecode(&info)) {
+
+  CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
+  if (info.shared_info()->HasBytecodeArray()) {
     info.MarkAsOptimizeFromBytecode();
   } else {
     CHECK(Compiler::ParseAndAnalyze(info.parse_info()));

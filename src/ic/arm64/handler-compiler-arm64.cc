@@ -478,8 +478,10 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     DCHECK_EQ(Smi::FromInt(Map::kPrototypeChainValid), validity_cell->value());
     __ Mov(scratch1, Operand(validity_cell));
     __ Ldr(scratch1, FieldMemOperand(scratch1, Cell::kValueOffset));
-    __ Cmp(scratch1, Operand(Smi::FromInt(Map::kPrototypeChainValid)));
-    __ B(ne, miss);
+    // Compare scratch1 against Map::kPrototypeChainValid.
+    static_assert(Map::kPrototypeChainValid == 0,
+                  "Map::kPrototypeChainValid has unexpected value");
+    __ Cbnz(scratch1, miss);
   }
 
   // Keep track of the current object in register reg.

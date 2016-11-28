@@ -71,6 +71,8 @@ LINT_RULES = """
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 
+TOOLS_PATH = dirname(abspath(__file__))
+
 def CppLintWorker(command):
   try:
     process = subprocess.Popen(command, stderr=subprocess.PIPE)
@@ -156,13 +158,34 @@ class SourceFileProcessor(object):
   files and invoke a custom check on the files.
   """
 
-  def Run(self, path):
+  def RunOnPath(self, path):
+    """Runs processor on all files under the given path."""
+
     all_files = []
     for file in self.GetPathsToSearch():
       all_files += self.FindFilesIn(join(path, file))
-    if not self.ProcessFiles(all_files, path):
-      return False
-    return True
+    return self.ProcessFiles(all_files)
+
+  def RunOnFiles(self, files):
+    """Runs processor only on affected files."""
+
+    # Helper for getting directory pieces.
+    dirs = lambda f: dirname(f).split(os.sep)
+
+    # Path offsets where to look (to be in sync with RunOnPath).
+    # Normalize '.' to check for it with str.startswith.
+    search_paths = [('' if p == '.' else p) for p in self.GetPathsToSearch()]
+
+    all_files = [
+      f.AbsoluteLocalPath()
+      for f in files
+      if (not self.IgnoreFile(f.LocalPath()) and
+          self.IsRelevant(f.LocalPath()) and
+          all(not self.IgnoreDir(d) for d in dirs(f.LocalPath())) and
+          any(map(f.LocalPath().startswith, search_paths)))
+    ]
+
+    return self.ProcessFiles(all_files)
 
   def IgnoreDir(self, name):
     return (name.startswith('.') or
@@ -214,7 +237,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     return None
 
-  def ProcessFiles(self, files, path):
+  def ProcessFiles(self, files):
     good_files_cache = FileContentsCache('.cpplint-cache')
     good_files_cache.Load()
     files = good_files_cache.FilterUnchangedFiles(files)
@@ -224,7 +247,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     filters = ",".join([n for n in LINT_RULES])
     command = [sys.executable, 'cpplint.py', '--filter', filters]
-    cpplint = self.GetCpplintScript(join(path, "tools"))
+    cpplint = self.GetCpplintScript(TOOLS_PATH)
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
             'depot_tools is installed and in the path.')
@@ -381,7 +404,7 @@ class SourceProcessor(SourceFileProcessor):
         result = False
     return result
 
-  def ProcessFiles(self, files, path):
+  def ProcessFiles(self, files):
     success = True
     violations = 0
     for file in files:
@@ -492,10 +515,10 @@ def Main():
   success = True
   print "Running C++ lint check..."
   if not options.no_lint:
-    success &= CppLintProcessor().Run(workspace)
+    success &= CppLintProcessor().RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
-  success &= SourceProcessor().Run(workspace)
+  success &= SourceProcessor().RunOnPath(workspace)
   success &= CheckStatusFiles(workspace)
   if success:
     return 0

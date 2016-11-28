@@ -153,6 +153,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Isolate* isolate_;
 
+  // TODO(wasm): Use proper typing.
   Handle<Object> wasm_instance_;
   uint32_t wasm_func_index_;
   Handle<AbstractCode> code_;
@@ -172,7 +173,6 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
   Handle<Object> GetFunction() const override;
 
   Handle<Object> GetFileName() override;
-  Handle<Object> GetFunctionName() override;
   Handle<Object> GetScriptNameOrSourceUrl() override;
 
   int GetPosition() const override;

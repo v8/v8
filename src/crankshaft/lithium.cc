@@ -261,7 +261,6 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
       graph_(graph),
       instructions_(32, info->zone()),
       pointer_maps_(8, info->zone()),
-      inlined_functions_(1, info->zone()),
       deprecation_dependencies_(32, info->zone()),
       stability_dependencies_(8, info->zone()) {}
 

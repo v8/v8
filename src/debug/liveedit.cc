@@ -1111,9 +1111,10 @@ void TranslateSourcePositionTable(Handle<AbstractCode> code,
   Handle<ByteArray> source_position_table(code->source_position_table());
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
-    int position = iterator.source_position();
-    int new_position = TranslatePosition(position, position_change_array);
-    builder.AddPosition(iterator.code_offset(), new_position,
+    SourcePosition position = iterator.source_position();
+    position.SetScriptOffset(
+        TranslatePosition(position.ScriptOffset(), position_change_array));
+    builder.AddPosition(iterator.code_offset(), position,
                         iterator.is_statement());
   }
 

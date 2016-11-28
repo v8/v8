@@ -476,7 +476,8 @@ bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
          at->opcode() == IrOpcode::kPhi);
   bool changed = false;
   for (size_t i = 0; i < field_count(); ++i) {
-    if (Node* field = cache->GetFields(i)) {
+    Node* field = cache->GetFields(i);
+    if (field && !IsCreatedPhi(i)) {
       changed = changed || GetField(i) != field;
       SetField(i, field);
       TRACE("    Field %zu agree on rep #%d\n", i, field->id());
@@ -966,6 +967,7 @@ void EscapeAnalysis::RunObjectAnalysis() {
           // VirtualObjects, and we want to delay phis to improve performance.
           if (use->opcode() == IrOpcode::kEffectPhi) {
             if (!status_analysis_->IsInQueue(use->id())) {
+              status_analysis_->SetInQueue(use->id(), true);
               queue.push_front(use);
             }
           } else if ((use->opcode() != IrOpcode::kLoadField &&

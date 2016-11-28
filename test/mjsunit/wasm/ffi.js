@@ -295,7 +295,7 @@ testCallBinopVoid(kAstF64);
 
 
 
-function testCallPrint() {
+(function testCallPrint() {
   var builder = new WasmModuleBuilder();
 
   builder.addImport("print", makeSig_v_x(kAstI32));
@@ -311,7 +311,30 @@ function testCallPrint() {
 
   var main = builder.instantiate({print: print}).exports.main;
   for (var i = -9; i < 900; i += 6.125) main(i);
-}
+})();
 
-testCallPrint();
-testCallPrint();
+
+(function testImportNumbers() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addImport('0', kSig_v_i);
+
+  builder.instantiate({0: print});
+})();
+
+(function testImportNumbers2() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addImportWithModule('foo', '0', kSig_v_i);
+  builder.addImportWithModule('0', 'foo', kSig_v_i);
+  builder.addImportWithModule('0', '0', kSig_v_i);
+  builder.addImportWithModule('18', '-3', kSig_v_i);
+  builder.addImportWithModule('-3', '18', kSig_v_i);
+
+  builder.instantiate({
+    foo: {0: print},
+    0: {0: print, foo: print},
+    18: {'-3': print},
+    '-3': {18: print}
+  });
+})();

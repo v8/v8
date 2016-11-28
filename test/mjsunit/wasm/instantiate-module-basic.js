@@ -215,6 +215,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 })();
 
 (function MustBeMemory() {
+  print("MustBeMemory...");
   var memory = new ArrayBuffer(65536);
   var module = new WebAssembly.Module(buffer);
   assertThrows(() => new WebAssembly.Instance(module, null, memory), TypeError);

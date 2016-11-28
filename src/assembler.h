@@ -52,6 +52,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class SourcePosition;
 class StatsCounter;
 
 // -----------------------------------------------------------------------------
@@ -412,17 +413,15 @@ class RelocInfo {
     // Encoded internal reference, used only on MIPS, MIPS64 and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
-    // Continuation points for a generator yield.
-    GENERATOR_CONTINUATION,
-
     // Marks constant and veneer pools. Only used on ARM and ARM64.
     // They use a custom noncompact encoding.
     CONST_POOL,
     VENEER_POOL,
 
-    DEOPT_POSITION,  // Deoptimization source position.
-    DEOPT_REASON,    // Deoptimization reason index.
-    DEOPT_ID,        // Deoptimization inlining id.
+    DEOPT_SCRIPT_OFFSET,
+    DEOPT_INLINING_ID,  // Deoptimization source position.
+    DEOPT_REASON,       // Deoptimization reason index.
+    DEOPT_ID,           // Deoptimization inlining id.
 
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
@@ -480,7 +479,7 @@ class RelocInfo {
     return mode == VENEER_POOL;
   }
   static inline bool IsDeoptPosition(Mode mode) {
-    return mode == DEOPT_POSITION;
+    return mode == DEOPT_SCRIPT_OFFSET || mode == DEOPT_INLINING_ID;
   }
   static inline bool IsDeoptReason(Mode mode) {
     return mode == DEOPT_REASON;
@@ -521,9 +520,6 @@ class RelocInfo {
   }
   static inline bool IsCodeAgeSequence(Mode mode) {
     return mode == CODE_AGE_SEQUENCE;
-  }
-  static inline bool IsGeneratorContinuation(Mode mode) {
-    return mode == GENERATOR_CONTINUATION;
   }
   static inline bool IsWasmMemoryReference(Mode mode) {
     return mode == WASM_MEMORY_REFERENCE;

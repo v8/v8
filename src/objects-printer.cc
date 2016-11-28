@@ -103,6 +103,44 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
 #undef PRINT_FIXED_TYPED_ARRAY
 
+    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE:
+      JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
+      break;
+
     case FILLER_TYPE:
       os << "filler";
       break;
@@ -648,16 +686,11 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
     return;
   }
 
-  for (int slot = 0, name_index = 0; slot < slot_count;) {
+  for (int slot = 0; slot < slot_count;) {
     FeedbackVectorSlotKind kind = This()->GetKind(slot);
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
-
     os << "\n Slot #" << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
-      os << ", " << Brief(*This()->GetName(name_index++));
-    }
-
     slot += entry_size;
   }
   os << "\n";
@@ -685,9 +718,6 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
-      os << ", " << Brief(iter.name());
-    }
   }
   os << "\n";
 }
@@ -714,9 +744,6 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     FeedbackVectorSlotKind kind = iter.kind();
 
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
-      os << ", " << Brief(iter.name());
-    }
     os << " ";
     switch (kind) {
       case FeedbackVectorSlotKind::LOAD_IC: {
@@ -951,6 +978,26 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - length = " << Brief(length());
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
+}
+
+void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
+  JSObjectPrintHeader(os, this, "JSArrayIterator");
+
+  InstanceType instance_type = map()->instance_type();
+  std::string type;
+  if (instance_type <= LAST_ARRAY_KEY_ITERATOR_TYPE) {
+    type = "keys";
+  } else if (instance_type <= LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE) {
+    type = "entries";
+  } else {
+    type = "values";
+  }
+
+  os << "\n - type = " << type;
+  os << "\n - object = " << Brief(object());
+  os << "\n - index = " << Brief(index());
+
+  JSObjectPrintBody(os, this);
 }
 
 void JSFixedArrayIterator::JSFixedArrayIteratorPrint(

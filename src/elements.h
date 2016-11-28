@@ -56,6 +56,7 @@ class ElementsAccessor {
 
   virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
   virtual bool HasAccessors(JSObject* holder) = 0;
+  virtual uint32_t NumberOfElements(JSObject* holder) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
@@ -174,6 +175,9 @@ class ElementsAccessor {
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
+  virtual Handle<FixedArray> CreateListFromArray(Isolate* isolate,
+                                                 Handle<JSArray> array) = 0;
+
  protected:
   friend class LookupIterator;
 
@@ -185,7 +189,7 @@ class ElementsAccessor {
   // indices are equivalent to entries. In the NumberDictionary
   // ElementsAccessor, entries are mapped to an index using the KeyAt method on
   // the NumberDictionary.
-  virtual uint32_t GetEntryForIndex(JSObject* holder,
+  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
                                     FixedArrayBase* backing_store,
                                     uint32_t index) = 0;
 

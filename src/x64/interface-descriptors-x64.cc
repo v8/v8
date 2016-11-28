@@ -29,9 +29,9 @@ const Register LoadDescriptor::ReceiverRegister() { return rdx; }
 const Register LoadDescriptor::NameRegister() { return rcx; }
 const Register LoadDescriptor::SlotRegister() { return rax; }
 
-
 const Register LoadWithVectorDescriptor::VectorRegister() { return rbx; }
 
+const Register LoadICProtoArrayDescriptor::HandlerRegister() { return rdi; }
 
 const Register StoreDescriptor::ReceiverRegister() { return rdx; }
 const Register StoreDescriptor::NameRegister() { return rcx; }

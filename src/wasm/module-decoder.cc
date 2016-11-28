@@ -586,6 +586,14 @@ class ModuleDecoder : public Decoder {
         uint32_t size = consume_u32v("body size");
         function->code_start_offset = pc_offset();
         function->code_end_offset = pc_offset() + size;
+        if (verify_functions) {
+          ModuleEnv module_env;
+          module_env.module = module;
+          module_env.origin = module->origin;
+
+          VerifyFunctionBody(i + module->num_imported_functions, &module_env,
+                             function);
+        }
         consume_bytes(size, "function body");
       }
       section_iter.advance();
@@ -615,17 +623,16 @@ class ModuleDecoder : public Decoder {
 
     // ===== Name section ====================================================
     if (section_iter.section_code() == kNameSectionCode) {
-      const byte* pos = pc_;
       uint32_t functions_count = consume_u32v("functions count");
-      if (functions_count != module->num_declared_functions) {
-        error(pos, pos, "function name count %u mismatch (%u expected)",
-              functions_count, module->num_declared_functions);
-      }
 
       for (uint32_t i = 0; ok() && i < functions_count; ++i) {
-        WasmFunction* function =
-            &module->functions[i + module->num_imported_functions];
-        function->name_offset = consume_string(&function->name_length, false);
+        uint32_t function_name_length = 0;
+        uint32_t name_offset = consume_string(&function_name_length, false);
+        uint32_t func_index = i;
+        if (func_index < module->functions.size()) {
+          module->functions[func_index].name_offset = name_offset;
+          module->functions[func_index].name_length = function_name_length;
+        }
 
         uint32_t local_names_count = consume_u32v("local names count");
         for (uint32_t j = 0; ok() && j < local_names_count; j++) {
@@ -646,6 +653,9 @@ class ModuleDecoder : public Decoder {
     }
     const WasmModule* finished_module = module;
     ModuleResult result = toResult(finished_module);
+    if (verify_functions && result.ok()) {
+      result.MoveFrom(result_);  // Copy error code and location.
+    }
     if (FLAG_dump_wasm_module) DumpModule(module, result);
     return result;
   }
@@ -1152,9 +1162,8 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   return decoder.DecodeSingleFunction(module_env, function);
 }
 
-FunctionOffsetsResult DecodeWasmFunctionOffsets(
-    const byte* module_start, const byte* module_end,
-    uint32_t num_imported_functions) {
+FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
+                                                const byte* module_end) {
   // Find and decode the code section.
   Vector<const byte> code_section =
       FindSection(module_start, module_end, kCodeSectionCode);
@@ -1168,11 +1177,8 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Reserve space for the entries, taking care of invalid input.
   if (functions_count < static_cast<unsigned>(code_section.length()) / 2) {
-    table.reserve(num_imported_functions + functions_count);
+    table.reserve(functions_count);
   }
-
-  // Add null entries for the imported functions.
-  table.resize(num_imported_functions);
 
   int section_offset = static_cast<int>(code_section.start() - module_start);
   DCHECK_LE(0, section_offset);
@@ -1189,19 +1195,15 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
-                                      const byte* tables_end,
-                                      uint32_t num_imported_functions) {
+                                      const byte* tables_end) {
   AsmJsOffsets table;
 
   Decoder decoder(tables_start, tables_end);
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Reserve space for the entries, taking care of invalid input.
   if (functions_count < static_cast<unsigned>(tables_end - tables_start)) {
-    table.reserve(num_imported_functions + functions_count);
+    table.reserve(functions_count);
   }
-
-  // Add null entries for the imported functions.
-  table.resize(num_imported_functions);
 
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("table size");

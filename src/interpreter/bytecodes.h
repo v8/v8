@@ -38,8 +38,9 @@ namespace interpreter {
   V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                    \
                                                                                \
   /* Globals */                                                                \
-  V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx)                      \
-  V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)          \
+  V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx, OperandType::kIdx)   \
+  V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx,          \
+    OperandType::kIdx)                                                         \
   V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                 \
     OperandType::kIdx)                                                         \
   V(StaGlobalStrict, AccumulatorUse::kRead, OperandType::kIdx,                 \
@@ -97,6 +98,8 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kReg, OperandType::kIdx)                                      \
+  V(StaDataPropertyInLiteral, AccumulatorUse::kRead, OperandType::kReg,        \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg)                   \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
@@ -240,6 +243,9 @@ namespace interpreter {
                                                                                \
   /* Perform a stack guard check */                                            \
   V(StackCheck, AccumulatorUse::kNone)                                         \
+                                                                               \
+  /* Update the pending message */                                             \
+  V(SetPendingMessage, AccumulatorUse::kReadWrite)                             \
                                                                                \
   /* Non-local flow control */                                                 \
   V(Throw, AccumulatorUse::kRead)                                              \

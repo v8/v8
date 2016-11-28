@@ -43,6 +43,7 @@ class V8DebuggerScript {
   V8DebuggerScript(v8::Isolate* isolate,
                    v8::Local<v8::DebugInterface::Script> script,
                    bool isLiveEdit);
+  V8DebuggerScript(String16 id, String16 url, String16 source);
   ~V8DebuggerScript();
 
   const String16& scriptId() const { return m_id; }
@@ -50,8 +51,8 @@ class V8DebuggerScript {
   bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
   const String16& sourceURL() const;
   const String16& sourceMappingURL() const { return m_sourceMappingURL; }
-  v8::Local<v8::String> source(v8::Isolate*) const;
-  const String16& hash() const { return m_hash; }
+  String16 source(v8::Isolate*) const;
+  const String16& hash(v8::Isolate*) const;
   int startLine() const { return m_startLine; }
   int startColumn() const { return m_startColumn; }
   int endLine() const { return m_endLine; }
@@ -76,15 +77,16 @@ class V8DebuggerScript {
   String16 m_url;
   String16 m_sourceURL;
   String16 m_sourceMappingURL;
-  v8::Global<v8::String> m_source;
-  String16 m_hash;
-  int m_startLine;
-  int m_startColumn;
-  int m_endLine;
-  int m_endColumn;
-  int m_executionContextId;
+  v8::Global<v8::String> m_sourceObj;
+  String16 m_source;
+  mutable String16 m_hash;
+  int m_startLine = 0;
+  int m_startColumn = 0;
+  int m_endLine = 0;
+  int m_endColumn = 0;
+  int m_executionContextId = 0;
   String16 m_executionContextAuxData;
-  bool m_isLiveEdit;
+  bool m_isLiveEdit = false;
 
   v8::Isolate* m_isolate;
   v8::Global<v8::DebugInterface::Script> m_script;

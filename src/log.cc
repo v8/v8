@@ -1149,12 +1149,13 @@ void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
          iter.Advance()) {
       if (iter.is_statement()) {
         jit_logger_->AddCodeLinePosInfoEvent(
-            jit_handler_data, iter.code_offset(), iter.source_position(),
+            jit_handler_data, iter.code_offset(),
+            iter.source_position().ScriptOffset(),
             JitCodeEvent::STATEMENT_POSITION);
       }
-      jit_logger_->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                           iter.source_position(),
-                                           JitCodeEvent::POSITION);
+      jit_logger_->AddCodeLinePosInfoEvent(
+          jit_handler_data, iter.code_offset(),
+          iter.source_position().ScriptOffset(), JitCodeEvent::POSITION);
     }
     jit_logger_->EndCodePosInfoEvent(code, jit_handler_data);
   }
@@ -1278,7 +1279,7 @@ void Logger::RuntimeCallTimerEvent() {
   if (counter == nullptr) return;
   Log::MessageBuilder msg(log_);
   msg.Append("active-runtime-timer,");
-  msg.AppendDoubleQuotedString(counter->name);
+  msg.AppendDoubleQuotedString(counter->name());
   msg.WriteToLogFile();
 }
 

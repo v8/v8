@@ -1771,7 +1771,6 @@ TEST(CodeSerializerEagerCompilationAndPreAge) {
   FLAG_serialize_toplevel = true;
   FLAG_serialize_age_code = true;
   FLAG_serialize_eager = true;
-  FLAG_min_preparse_length = 1;
 
   static const char* source =
       "function f() {"
@@ -1821,6 +1820,7 @@ TEST(CodeSerializerEagerCompilationAndPreAge) {
 }
 
 TEST(Regress503552) {
+  if (!FLAG_incremental_marking) return;
   // Test that the code serializer can deal with weak cells that form a linked
   // list during incremental marking.
   CcTest::InitializeVM();

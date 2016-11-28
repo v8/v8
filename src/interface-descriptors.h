@@ -21,6 +21,7 @@ class PlatformInterfaceDescriptor;
   V(ContextOnly)                          \
   V(Load)                                 \
   V(LoadWithVector)                       \
+  V(LoadICProtoArray)                     \
   V(LoadGlobal)                           \
   V(LoadGlobalWithVector)                 \
   V(Store)                                \
@@ -156,8 +157,7 @@ class CallDescriptors {
   };
 };
 
-
-class CallInterfaceDescriptor {
+class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
  public:
   CallInterfaceDescriptor() : data_(NULL) {}
   virtual ~CallInterfaceDescriptor() {}
@@ -306,9 +306,13 @@ class LoadDescriptor : public CallInterfaceDescriptor {
 
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kSlot)
+  DEFINE_PARAMETERS(kName, kSlot)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalDescriptor,
                                                CallInterfaceDescriptor)
+
+  static const Register NameRegister() {
+    return LoadDescriptor::NameRegister();
+  }
 
   static const Register SlotRegister() {
     return LoadDescriptor::SlotRegister();
@@ -389,9 +393,18 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
   static const Register VectorRegister();
 };
 
+class LoadICProtoArrayDescriptor : public LoadWithVectorDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector, kHandler)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadICProtoArrayDescriptor,
+                                               LoadWithVectorDescriptor)
+
+  static const Register HandlerRegister();
+};
+
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
  public:
-  DEFINE_PARAMETERS(kSlot, kVector)
+  DEFINE_PARAMETERS(kName, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
                                                LoadGlobalDescriptor)
 
@@ -765,7 +778,8 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
   static const Register KeyRegister();
 };
 
-class InterpreterDispatchDescriptor : public CallInterfaceDescriptor {
+class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
+    : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
                     kDispatchTable)

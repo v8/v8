@@ -49,7 +49,6 @@ class CompilationInfo final {
     kSourcePositionsEnabled = 1 << 13,
     kBailoutOnUninitialized = 1 << 14,
     kOptimizeFromBytecode = 1 << 15,
-    kTypeFeedbackEnabled = 1 << 16,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -139,12 +138,6 @@ class CompilationInfo final {
 
   bool is_deoptimization_enabled() const {
     return GetFlag(kDeoptimizationEnabled);
-  }
-
-  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
-
-  bool is_type_feedback_enabled() const {
-    return GetFlag(kTypeFeedbackEnabled);
   }
 
   void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }
@@ -283,18 +276,29 @@ class CompilationInfo final {
     // Do not remove.
     Handle<Code> inlined_code_object_root;
 
+    InliningPosition position;
+
     InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
-                          Handle<Code> inlined_code_object_root)
+                          Handle<Code> inlined_code_object_root,
+                          SourcePosition pos)
         : shared_info(inlined_shared_info),
-          inlined_code_object_root(inlined_code_object_root) {}
+          inlined_code_object_root(inlined_code_object_root) {
+      position.position = pos;
+      // initialized when generating the deoptimization literals
+      position.inlined_function_id = DeoptimizationInputData::kNotInlinedIndex;
+    }
+
+    void RegisterInlinedFunctionId(size_t inlined_function_id) {
+      position.inlined_function_id = static_cast<int>(inlined_function_id);
+    }
   };
 
   typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
-  InlinedFunctionList const& inlined_functions() const {
-    return inlined_functions_;
-  }
+  InlinedFunctionList& inlined_functions() { return inlined_functions_; }
 
-  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function);
+  // Returns the inlining id for source position tracking.
+  int AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function,
+                         SourcePosition pos);
 
   std::unique_ptr<char[]> GetDebugName() const;
 

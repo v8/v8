@@ -44,8 +44,8 @@ int InjectedScriptNative::bind(v8::Local<v8::Value> value,
                                const String16& groupName) {
   if (m_lastBoundObjectId <= 0) m_lastBoundObjectId = 1;
   int id = m_lastBoundObjectId++;
-  m_idToWrappedObject[id] =
-      wrapUnique(new v8::Global<v8::Value>(m_isolate, value));
+  m_idToWrappedObject[id] = std::unique_ptr<v8::Global<v8::Value>>(
+      new v8::Global<v8::Value>(m_isolate, value));
   addObjectToGroup(id, groupName);
   return id;
 }

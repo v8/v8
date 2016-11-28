@@ -21,9 +21,9 @@ namespace internal {
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
   static const size_t kMaxPoolSizeLowMemoryDevice = 8ul * KB;
-  static const size_t kMaxPoolSizeMediumMemoryDevice = 1ul * MB;
-  static const size_t kMaxPoolSizeHighMemoryDevice = 2ul * MB;
-  static const size_t kMaxPoolSizeHugeMemoryDevice = 3ul * MB;
+  static const size_t kMaxPoolSizeMediumMemoryDevice = 8ul * KB;
+  static const size_t kMaxPoolSizeHighMemoryDevice = 8ul * KB;
+  static const size_t kMaxPoolSizeHugeMemoryDevice = 8ul * KB;
 
   AccountingAllocator();
   virtual ~AccountingAllocator();

@@ -211,7 +211,7 @@ void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
             static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
         return;
       }
-      variable_feedback_slot_ = spec->AddLoadGlobalICSlot(var()->name());
+      variable_feedback_slot_ = spec->AddLoadGlobalICSlot();
       cache->Put(var(), variable_feedback_slot_);
     } else {
       variable_feedback_slot_ = spec->AddLoadICSlot();
@@ -903,12 +903,12 @@ void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
 Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
-    if (is_possibly_eval()) {
-      return POSSIBLY_EVAL_CALL;
-    } else if (proxy->var()->IsUnallocated()) {
+    if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
-      return LOOKUP_SLOT_CALL;
+      // Calls going through 'with' always use DYNAMIC rather than DYNAMIC_LOCAL
+      // or DYNAMIC_GLOBAL.
+      return proxy->var()->mode() == DYNAMIC ? WITH_CALL : OTHER_CALL;
     }
   }
 

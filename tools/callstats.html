@@ -348,9 +348,48 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
     }
 
+    window.addEventListener('popstate', (event) => {
+      popHistoryState(event.state);
+    });
+
+    function popHistoryState(state) {
+      if (!state.version) return false;
+      if (!versions) return false;
+      var version = versions.getByName(state.version);
+      if (!version) return false;
+      var page = version.get(state.page);
+      if (!page) return false;
+      if (!state.entry) {
+        showPage(page);
+      } else {
+        var entry = page.get(state.entry);
+        if (!entry) {
+          showPage(page);
+        } else {
+          showEntry(entry);
+        }
+      }
+      return true;
+    }
+
+    function pushHistoryState() {
+      var selection = selectedEntry ? selectedEntry : selectedPage;
+      if (!selection) return;
+      var state = selection.urlParams();
+      // Don't push a history state if it didn't change.
+      if (JSON.stringify(window.history.state) === JSON.stringify(state)) return;
+      var params = "?";
+      for (var pairs of Object.entries(state)) {
+        params += encodeURIComponent(pairs[0]) + "="
+            + encodeURIComponent(pairs[1]) + "&";
+      }
+      window.history.pushState(state, selection.toString(), params);
+    }
+
     function showPage(firstPage) {
       var changeSelectedEntry = selectedEntry !== undefined 
           && selectedEntry.page === selectedPage;
+      pushHistoryState();
       selectedPage = firstPage;
       selectedPage.sort();
       showPageInColumn(firstPage, 0);
@@ -367,6 +406,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         showEntryDetail(selectedPage.getEntry(selectedEntry));
       }
       showImpactList(selectedPage);
+      pushHistoryState();
     }
 
     function showPageInColumn(page, columnIndex) {
@@ -491,6 +531,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
     }
 
+    function showEntry(entry) {
+      selectedEntry = entry;
+      selectEntry(entry, true);
+    }
+
     function selectEntry(entry, updateSelectedPage) {
       if (updateSelectedPage) {
         entry = selectedPage.version.getEntry(entry);
@@ -533,6 +578,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       showPageDetails(entry);
       showImpactList(entry.page);
       showGraphs(entry.page);
+      pushHistoryState();
     }
     
     function showVersionDetails(entry) {
@@ -1046,12 +1092,26 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       handleLoadJSON(JSON.parse(text));
     }
 
+    function getStateFromParams() {
+      var query = window.location.search.substr(1);
+      var result = {};
+      query.split("&").forEach((part) => {
+        var item = part.split("=");
+        var key = decodeURIComponent(item[0])
+        result[key] = decodeURIComponent(item[1]);
+      });
+      return result;
+    }
+
     function handleLoadJSON(json) {
+      var state = getStateFromParams();
       pages = new Pages();
       versions = Versions.fromJSON(json);
       initialize()
       showPage(versions.versions[0].pages[0]);
-      selectEntry(selectedPage.total);
+      if (!popHistoryState(state)) {
+        selectEntry(selectedPage.total);
+      }
     }
 
     function handleToggleGroup(event) {
@@ -1188,7 +1248,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       get(index) {
         return this.versions[index]
-      };
+      }
+      getByName(name) {
+        return this.versions.find((each) => each.name == name);
+      }
       forEach(f) {
         this.versions.forEach(f);
       }
@@ -1365,6 +1428,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           Group.groups.get('ic').entry(),
           Group.groups.get('optimize').entry(),
           Group.groups.get('compile').entry(),
+          Group.groups.get('parse-background').entry(),
           Group.groups.get('parse').entry(),
           Group.groups.get('callback').entry(),
           Group.groups.get('api').entry(),
@@ -1379,6 +1443,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           this.entryDict.set(entry.name, entry);
         });
         this.version = version;
+      }
+      toString() {
+        return this.version.name + ": " + this.name;
+      }
+      urlParams() {
+        return { version: this.version.name, page: this.name};
       }
       add(entry) {
         // Ignore accidentally added Group entries.
@@ -1473,6 +1543,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.parent = undefined;
         this.isTotal = false;
       }
+      urlParams() {
+        var params = this.page.urlParams();
+        params.entry = this.name;
+        return params;
+      }
       getCompareWithBaseline(value, property) {
         if (baselineVersion == undefined) return value;
         var baselineEntry = baselineVersion.getEntry(this);
@@ -1554,19 +1629,24 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     Group.groups = new Map();
     Group.add = function(name, group) {
       this.groups.set(name, group);
+      return group;
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB'));
     Group.add('ic', new Group('IC', /.*IC.*/, "#3366CC"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
     Group.add('compile', new Group('Compile', /.*Compile.*/, "#FFAA00"));
+    Group.add('parse-background',
+        new Group('Parse-Background', /.*ParseBackground.*/, "#af744d"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
     Group.add('callback', new Group('Callback', /.*Callback.*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc', new Group('GC', /GC|AllocateInTargetSpace/, "#0099C6"));
     Group.add('javascript', new Group('JavaScript', /JS_Execution/, "#DD4477"));
     Group.add('runtime', new Group('Runtime', /.*/, "#88BB00"));
-    Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
+    var group = 
+      Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
+    group.enabled = false;
 
     class GroupedEntry extends Entry {
       constructor(group) {

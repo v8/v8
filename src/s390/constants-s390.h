@@ -915,7 +915,8 @@ enum Opcode {
   XSCH = 0xB276,      // Cancel Subchannel
   XY = 0xE357,        // Exclusive Or (32)
   ZAP = 0xF8,         // Zero And Add
-  BKPT = 0x0001       // GDB Software Breakpoint
+  BKPT = 0x0001,      // GDB Software Breakpoint
+  DUMY = 0xE353       // Special dummy opcode
 };
 
 // Instruction encoding bits and masks.

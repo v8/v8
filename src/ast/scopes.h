@@ -113,6 +113,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // tree and its children are reparented.
   Scope* FinalizeBlockScope();
 
+  bool HasBeenRemoved() const;
+
+  // Find the first scope that hasn't been removed.
+  Scope* GetUnremovedScope();
+
   // Inserts outer_scope into this scope's scope chain (and removes this
   // from the current outer_scope_'s inner scope list).
   // Assumes outer_scope_ is non-null.
@@ -439,9 +444,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_typed(bool typed) { typed_ = typed; }
 
  private:
-  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, VariableKind kind,
-                    InitializationFlag initialization_flag,
+  Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
+                    VariableKind kind, InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
@@ -535,8 +539,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
+  // If a ParseInfo* is passed, non-free variables will be resolved.
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
                                     bool try_to_resolve = true,
+                                    ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
   // Predicates.
@@ -564,7 +570,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
         Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
-    DCHECK_EQ(!needs_migration_, inner_scope->zone() == zone());
     inner_scope->sibling_ = inner_scope_;
     inner_scope_ = inner_scope;
     inner_scope->outer_scope_ = this;
@@ -637,7 +642,7 @@ class DeclarationScope : public Scope {
   bool asm_module() const { return asm_module_; }
   void set_asm_module();
   bool asm_function() const { return asm_function_; }
-  void set_asm_function() { asm_module_ = true; }
+  void set_asm_function() { asm_function_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);

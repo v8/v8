@@ -60,10 +60,12 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
-  static const int kLargeObjectSpaceFillerLength = 3 * (Page::kPageSize / 10);
-  static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
-      kLargeObjectSpaceFillerLength);
-  CHECK(kLargeObjectSpaceFillerSize > heap->old_space()->AreaSize());
+  static const size_t kLargeObjectSpaceFillerLength =
+      3 * (Page::kPageSize / 10);
+  static const size_t kLargeObjectSpaceFillerSize =
+      FixedArray::SizeFor(kLargeObjectSpaceFillerLength);
+  CHECK_GT(kLargeObjectSpaceFillerSize,
+           static_cast<size_t>(heap->old_space()->AreaSize()));
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     heap->AllocateFixedArray(
         kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();

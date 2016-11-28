@@ -522,7 +522,12 @@ class WasmModuleBuilder {
       if (debug) print("emitting names @ " + binary.length);
       binary.emit_section(kUnknownSectionCode, section => {
         section.emit_string("name");
-        section.emit_u32v(wasm.functions.length);
+        var count = wasm.functions.length + wasm.num_imported_funcs;
+        section.emit_u32v(count);
+        for (var i = 0; i < wasm.num_imported_funcs; i++) {
+          section.emit_u8(0); // empty string
+          section.emit_u8(0); // local names count == 0
+        }
         for (let func of wasm.functions) {
           var name = func.name == undefined ? "" : func.name;
           section.emit_string(name);

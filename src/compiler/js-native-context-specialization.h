@@ -53,6 +53,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
@@ -114,6 +115,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                         ElementAccessInfo const& access_info,
                                         AccessMode access_mode,
                                         KeyedAccessStoreMode store_mode);
+
+  // Construct an appropriate heap object check.
+  Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
 
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,

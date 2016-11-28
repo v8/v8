@@ -13,6 +13,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
@@ -25,7 +26,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
-#include "src/compiler/source-position.h"
 #include "src/compiler/zone-stats.h"
 
 #include "src/code-factory.h"
@@ -36,6 +36,7 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-text.h"
 
 // TODO(titzer): pull WASM_64 up to a common header.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -412,6 +413,7 @@ Node* WasmGraphBuilder::Int64Constant(int64_t value) {
 
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
                                   Node** effect, Node** control) {
+  if (FLAG_wasm_no_stack_checks) return;
   if (effect == nullptr) {
     effect = effect_;
   }
@@ -2783,16 +2785,8 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
       FromJS(call, HeapConstant(isolate->native_context()),
              sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
   Node* pop_size = jsgraph()->Int32Constant(0);
-  if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
-      sig->GetReturn() == wasm::kAstI64) {
-    ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val,
-                           graph()->NewNode(jsgraph()->machine()->Word32Sar(),
-                                            val, jsgraph()->Int32Constant(31)),
-                           call, start);
-  } else {
     ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val, call,
                            start);
-  }
 
   MergeControlToEnd(jsgraph(), ret);
 }
@@ -2895,6 +2889,7 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                       uint32_t offset,
                                       wasm::WasmCodePosition position) {
   DCHECK(module_ && module_->instance);
+  if (FLAG_wasm_no_bounds_checks) return;
   uint32_t size = module_->instance->mem_size;
   byte memsize = wasm::WasmOpcodes::MemSize(memtype);
 
@@ -2962,6 +2957,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
   if (aligned ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler) {
+      DCHECK(FLAG_wasm_guard_pages);
       Node* context = HeapConstant(module_->instance->context);
       Node* position_node = jsgraph()->Int32Constant(position);
       load = graph()->NewNode(jsgraph()->machine()->ProtectedLoad(memtype),
@@ -3086,9 +3082,8 @@ void WasmGraphBuilder::SimdScalarLoweringForTesting() {
 void WasmGraphBuilder::SetSourcePosition(Node* node,
                                          wasm::WasmCodePosition position) {
   DCHECK_NE(position, wasm::kNoCodePosition);
-  compiler::SourcePosition pos(position);
   if (source_position_table_)
-    source_position_table_->SetSourcePosition(node, pos);
+    source_position_table_->SetSourcePosition(node, SourcePosition(position));
 }
 
 Node* WasmGraphBuilder::CreateS128Value(int32_t value) {
@@ -3346,14 +3341,20 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     r.LowerGraph();
   }
 
-  SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
-      .LowerGraph();
+  if (!CpuFeatures::SupportsSimd128()) {
+    SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
+        .LowerGraph();
+  }
 
   int index = static_cast<int>(function_->func_index);
 
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     OFStream os(stdout);
     PrintAst(isolate_->allocator(), body, os, nullptr);
+  }
+  if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
+    OFStream os(stdout);
+    PrintWasmText(module_env_->module, function_->func_index, os, nullptr);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();

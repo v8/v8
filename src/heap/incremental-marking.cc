@@ -129,7 +129,7 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
     HeapObject* heap_obj = HeapObject::cast(obj);
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(HeapObject::cast(obj));
     if (Marking::IsBlack(mark_bit)) {
-      MemoryChunk::IncrementLiveBytesFromGC(heap_obj, -heap_obj->Size());
+      MemoryChunk::IncrementLiveBytes(heap_obj, -heap_obj->Size());
     }
     Marking::AnyToGrey(mark_bit);
   }
@@ -268,7 +268,7 @@ class IncrementalMarkingMarkingVisitor
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(heap_object);
     if (Marking::IsWhite(mark_bit)) {
       Marking::MarkBlack(mark_bit);
-      MemoryChunk::IncrementLiveBytesFromGC(heap_object, heap_object->Size());
+      MemoryChunk::IncrementLiveBytes(heap_object, heap_object->Size());
       return true;
     }
     return false;
@@ -864,7 +864,7 @@ void IncrementalMarking::MarkBlack(HeapObject* obj, int size) {
   MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
   if (Marking::IsBlack(mark_bit)) return;
   Marking::GreyToBlack(mark_bit);
-  MemoryChunk::IncrementLiveBytesFromGC(obj, size);
+  MemoryChunk::IncrementLiveBytes(obj, size);
 }
 
 intptr_t IncrementalMarking::ProcessMarkingDeque(
@@ -933,7 +933,7 @@ void IncrementalMarking::Hurry() {
       MarkBit mark_bit = ObjectMarking::MarkBitFrom(cache);
       if (Marking::IsGrey(mark_bit)) {
         Marking::GreyToBlack(mark_bit);
-        MemoryChunk::IncrementLiveBytesFromGC(cache, cache->Size());
+        MemoryChunk::IncrementLiveBytes(cache, cache->Size());
       }
     }
     context = Context::cast(context)->next_context_link();
@@ -1069,6 +1069,13 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   // target step count are chosen based on benchmarks.
   const int kRampUpIntervalMs = 300;
   const size_t kTargetStepCount = 128;
+  const size_t kTargetStepCountAtOOM = 16;
+  size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
+
+  if (heap()->IsCloseToOutOfMemory(oom_slack)) {
+    return heap()->PromotedSpaceSizeOfObjects() / kTargetStepCountAtOOM;
+  }
+
   size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,
                          IncrementalMarking::kAllocatedThreshold);
   double time_passed_ms =

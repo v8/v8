@@ -28,10 +28,14 @@ PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
   return tmp;
 }
 
-NewSpacePageRange::NewSpacePageRange(Address start, Address limit)
-    : range_(Page::FromAddress(start),
-             Page::FromAllocationAreaAddress(limit)->next_page()) {
-  SemiSpace::AssertValidRange(start, limit);
+PageRange::PageRange(Address start, Address limit)
+    : begin_(Page::FromAddress(start)),
+      end_(Page::FromAllocationAreaAddress(limit)->next_page()) {
+#ifdef DEBUG
+  if (begin_->InNewSpace()) {
+    SemiSpace::AssertValidRange(start, limit);
+  }
+#endif  // DEBUG
 }
 
 // -----------------------------------------------------------------------------
@@ -221,7 +225,7 @@ void Page::InitializeFreeListCategories() {
   }
 }
 
-void MemoryChunk::IncrementLiveBytesFromGC(HeapObject* object, int by) {
+void MemoryChunk::IncrementLiveBytes(HeapObject* object, int by) {
   MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
 }
 
@@ -244,18 +248,8 @@ void MemoryChunk::IncrementLiveBytes(int by) {
   DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
 }
 
-void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->SweepingDone()) {
-    static_cast<PagedSpace*>(chunk->owner())->Allocate(by);
-  }
-  chunk->IncrementLiveBytes(by);
-}
-
 bool PagedSpace::Contains(Address addr) {
-  Page* p = Page::FromAddress(addr);
-  if (!Page::IsValid(p)) return false;
-  return p->owner() == this;
+  return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
 bool PagedSpace::Contains(Object* o) {
@@ -288,7 +282,7 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   uintptr_t offset = addr - chunk->address();
   if (offset < MemoryChunk::kHeaderSize || !chunk->HasPageHeader()) {
-    chunk = heap->lo_space()->FindPage(addr);
+    chunk = heap->lo_space()->FindPageThreadSafe(addr);
   }
   return chunk;
 }
@@ -439,7 +433,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
     if (object != NULL) {
       if (heap()->incremental_marking()->black_allocation()) {
         Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-        MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
+        MemoryChunk::IncrementLiveBytes(object, size_in_bytes);
       }
     }
   }
@@ -599,8 +593,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   return static_cast<LargePage*>(chunk);
 }
 
-
-intptr_t LargeObjectSpace::Available() {
+size_t LargeObjectSpace::Available() {
   return ObjectSizeFor(heap()->memory_allocator()->Available());
 }
 

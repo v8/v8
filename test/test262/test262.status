@@ -302,9 +302,6 @@
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5012
-  # http://bugs.icu-project.org/trac/ticket/12671
-  'intl402/Intl/getCanonicalLocales/weird-cases': [FAIL],
   # https://github.com/tc39/test262/issues/743
   'intl402/Intl/getCanonicalLocales/main': [FAIL],
 
@@ -450,7 +447,33 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5537
   'built-ins/global/*': [SKIP],
 
-  ######################## NEEDS INVESTIGATION ###########################
+  # PreParser doesn't produce early errors
+  # https://bugs.chromium.org/p/v8/issues/detail?id=2728
+  'language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate': [FAIL],
+  'language/expressions/async-function/early-errors-expression-formals-body-duplicate': [FAIL],
+  'language/expressions/object/method-definition/generator-param-redecl-const': [FAIL],
+  'language/expressions/object/method-definition/generator-param-redecl-let': [FAIL],
+  'language/expressions/object/method-definition/name-param-redecl': [FAIL],
+  'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
+
+  # Module-related tests
+  # v8:5485
+  'language/module-code/comment-multi-line-html*': [FAIL],
+  'language/module-code/comment-single-line-html*': [FAIL],
+
+  # v8:5486
+  'language/module-code/instn-iee-star-cycle': [FAIL],
+  'language/module-code/instn-named-star-cycle': [FAIL],
+  'language/module-code/instn-star-star-cycle': [FAIL],
+
+  # v8:5487
+  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
+
+  # v8:5401
+  'language/module-code/namespace/internals/set': [FAIL],
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
+
+######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
   # to be either marked as bugs with issues filed for them or as deliberate
@@ -595,34 +618,8 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
-
-# Module-related tests
-# https://bugs.chromium.org/p/v8/issues/detail?id=1569
-
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  'language/eval-code/direct/export': [SKIP],
-  'language/eval-code/direct/import': [SKIP],
-  'language/eval-code/indirect/export': [SKIP],
-  'language/eval-code/indirect/import': [SKIP],
-  'language/module-code/*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
-
-['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
-  # v8:5485
-  'language/module-code/comment-multi-line-html*': [FAIL],
-  'language/module-code/comment-single-line-html*': [FAIL],
-
-  # v8:5486
-  'language/module-code/instn-iee-star-cycle': [FAIL],
-  'language/module-code/instn-named-star-cycle': [FAIL],
-  'language/module-code/instn-star-star-cycle': [FAIL],
-
-  # v8:5487
-  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
-
-  # v8:5401
-  'language/module-code/namespace/internals/set': [FAIL],
-  'language/module-code/namespace/internals/define-own-property': [FAIL],
-}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
 
 ]

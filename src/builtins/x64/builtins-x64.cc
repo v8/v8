@@ -514,14 +514,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Dispatch on the kind of generator object.
-  Label old_generator;
-  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
-  __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
-  __ j(not_equal, &old_generator);
+  // Underlying function needs to have bytecode available.
+  if (FLAG_debug_code) {
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
+    __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
+    __ Assert(equal, kMissingBytecodeArray);
+  }
 
-  // New-style (ignition/turbofan) generator object.
+  // Resume (Ignition/TurboFan) generator object.
   {
     __ PushReturnAddressFrom(rax);
     __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -532,53 +533,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     __ movp(rdx, rbx);
     __ jmp(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  }
-
-  // Old-style (full-codegen) generator object.
-  __ bind(&old_generator);
-  {
-    // Enter a new JavaScript frame, and initialize its slots as they were when
-    // the generator was suspended.
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PushReturnAddressFrom(rax);  // Return address.
-    __ Push(rbp);                   // Caller's frame pointer.
-    __ Move(rbp, rsp);
-    __ Push(rsi);  // Callee's context.
-    __ Push(rdi);  // Callee's JS Function.
-
-    // Restore the operand stack.
-    __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset));
-    __ SmiToInteger32(rax, FieldOperand(rsi, FixedArray::kLengthOffset));
-    {
-      Label done_loop, loop;
-      __ Set(rcx, 0);
-      __ bind(&loop);
-      __ cmpl(rcx, rax);
-      __ j(equal, &done_loop, Label::kNear);
-      __ Push(
-          FieldOperand(rsi, rcx, times_pointer_size, FixedArray::kHeaderSize));
-      __ addl(rcx, Immediate(1));
-      __ jmp(&loop);
-      __ bind(&done_loop);
-    }
-
-    // Reset operand stack so we don't leak.
-    __ LoadRoot(FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset),
-                Heap::kEmptyFixedArrayRootIndex);
-
-    // Restore context.
-    __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
-
-    // Resume the generator function at the continuation.
-    __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-    __ SmiToInteger64(
-        rcx, FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
-    __ leap(rdx, FieldOperand(rdx, rcx, times_1, Code::kHeaderSize));
-    __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
-            Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-    __ movp(rax, rbx);  // Continuation expects generator object in rax.
-    __ jmp(rdx);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -1166,7 +1120,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Preserve argument count for later compare.
-    __ movp(kScratchRegister, rax);
+    __ movp(rcx, rax);
     // Push the number of arguments to the callee.
     __ Integer32ToSmi(rax, rax);
     __ Push(rax);
@@ -1181,7 +1135,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     for (int j = 0; j < 4; ++j) {
       Label over;
       if (j < 3) {
-        __ cmpp(kScratchRegister, Immediate(j));
+        __ cmpp(rcx, Immediate(j));
         __ j(not_equal, &over, Label::kNear);
       }
       for (int i = j - 1; i >= 0; --i) {
@@ -1204,13 +1158,13 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ JumpIfSmi(rax, &failed, Label::kNear);
 
     __ Drop(2);
-    __ Pop(kScratchRegister);
-    __ SmiToInteger32(kScratchRegister, kScratchRegister);
+    __ Pop(rcx);
+    __ SmiToInteger32(rcx, rcx);
     scope.GenerateLeaveFrame();
 
     __ PopReturnAddressTo(rbx);
-    __ incp(kScratchRegister);
-    __ leap(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
+    __ incp(rcx);
+    __ leap(rsp, Operand(rsp, rcx, times_pointer_size, 0));
     __ PushReturnAddressFrom(rbx);
     __ ret(0);
 
@@ -2292,7 +2246,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(rax, &create_runtime);
 
     // Load the map of argumentsList into rcx.
@@ -2335,6 +2290,21 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ movp(rax, rcx);
     __ jmp(&done_create);
 
+    __ bind(&create_holey_array);
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ movp(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
+    __ cmpp(rcx, ContextOperand(rbx, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ j(not_equal, &create_runtime);
+    __ LoadRoot(rcx, Heap::kArrayProtectorRootIndex);
+    __ Cmp(FieldOperand(rcx, PropertyCell::kValueOffset),
+           Smi::FromInt(Isolate::kProtectorValid));
+    __ j(not_equal, &create_runtime);
+    __ SmiToInteger32(rbx, FieldOperand(rax, JSArray::kLengthOffset));
+    __ movp(rax, FieldOperand(rax, JSArray::kElementsOffset));
+    __ jmp(&done_create);
+
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
     __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
@@ -2342,10 +2312,12 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
-    __ cmpl(rcx, Immediate(FAST_ELEMENTS));
-    __ j(above, &create_runtime);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
     __ cmpl(rcx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
-    __ j(equal, &create_runtime);
+    __ j(equal, &create_holey_array);
+    __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ j(equal, &create_holey_array);
+    __ j(above, &create_runtime);
     __ SmiToInteger32(rbx, FieldOperand(rax, JSArray::kLengthOffset));
     __ movp(rax, FieldOperand(rax, JSArray::kElementsOffset));
 
@@ -2383,12 +2355,18 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   {
     __ PopReturnAddressTo(r8);
     __ Set(rcx, 0);
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmpl(rcx, rbx);
     __ j(equal, &done, Label::kNear);
-    __ Push(
-        FieldOperand(rax, rcx, times_pointer_size, FixedArray::kHeaderSize));
+    // Turn the hole into undefined as we go.
+    __ movp(r9, FieldOperand(rax, rcx, times_pointer_size,
+                             FixedArray::kHeaderSize));
+    __ CompareRoot(r9, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &push, Label::kNear);
+    __ LoadRoot(r9, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
+    __ Push(r9);
     __ incl(rcx);
     __ jmp(&loop);
     __ bind(&done);

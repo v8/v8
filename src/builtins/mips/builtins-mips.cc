@@ -905,14 +905,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Dispatch on the kind of generator object.
-  Label old_generator;
-  __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
-  __ GetObjectType(a3, a3, a3);
-  __ Branch(&old_generator, ne, a3, Operand(BYTECODE_ARRAY_TYPE));
+  // Underlying function needs to have bytecode available.
+  if (FLAG_debug_code) {
+    __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
+    __ GetObjectType(a3, a3, a3);
+    __ Assert(eq, kMissingBytecodeArray, a3, Operand(BYTECODE_ARRAY_TYPE));
+  }
 
-  // New-style (ignition/turbofan) generator object.
+  // Resume (Ignition/TurboFan) generator object.
   {
     __ lw(a0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
     __ lw(a0,
@@ -925,49 +926,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Move(a1, t0);
     __ lw(a2, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
     __ Jump(a2);
-  }
-
-  // Old-style (full-codegen) generator object
-  __ bind(&old_generator);
-  {
-    // Enter a new JavaScript frame, and initialize its slots as they were when
-    // the generator was suspended.
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ Push(ra, fp);
-    __ Move(fp, sp);
-    __ Push(cp, t0);
-
-    // Restore the operand stack.
-    __ lw(a0, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
-    __ lw(a3, FieldMemOperand(a0, FixedArray::kLengthOffset));
-    __ Addu(a0, a0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-    __ Lsa(a3, a0, a3, kPointerSizeLog2 - 1);
-    {
-      Label done_loop, loop;
-      __ bind(&loop);
-      __ Branch(&done_loop, eq, a0, Operand(a3));
-      __ lw(t1, MemOperand(a0));
-      __ Push(t1);
-      __ Branch(USE_DELAY_SLOT, &loop);
-      __ addiu(a0, a0, kPointerSize);  // In delay slot.
-      __ bind(&done_loop);
-    }
-
-    // Reset operand stack so we don't leak.
-    __ LoadRoot(t1, Heap::kEmptyFixedArrayRootIndex);
-    __ sw(t1, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
-
-    // Resume the generator function at the continuation.
-    __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-    __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kCodeOffset));
-    __ Addu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ lw(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
-    __ SmiUntag(a2);
-    __ Addu(a3, a3, Operand(a2));
-    __ li(a2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
-    __ sw(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
-    __ Move(v0, a1);  // Continuation expects generator object in v0.
-    __ Jump(a3);
   }
 
   __ bind(&prepare_step_in_if_stepping);

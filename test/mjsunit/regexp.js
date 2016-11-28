@@ -748,3 +748,19 @@ RegExp.prototype.exec = RegExpPrototypeExec;
 var re = /./;
 re.lastIndex = { [Symbol.toPrimitive]: 42 };
 try { "abc".search(re); } catch (_) {}  // Ensure we don't crash.
+
+// Test lastIndex values of -0.0 and NaN (since @@search uses SameValue).
+
+var re = /./;
+re.exec = function(str) { assertEquals(0, re.lastIndex); return []; }
+re.lastIndex = -0.0;
+assertEquals(-0, re.lastIndex);
+"abc".search(re);
+assertEquals(-0, re.lastIndex);
+
+var re = /./;
+re.exec = function(str) { assertEquals(0, re.lastIndex); return []; }
+re.lastIndex = NaN;
+assertEquals(NaN, re.lastIndex);
+"abc".search(re);
+assertEquals(NaN, re.lastIndex);

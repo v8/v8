@@ -140,7 +140,6 @@ v8_source_set("inspector") {
     "inspected-context.h",
     "java-script-call-frame.cc",
     "java-script-call-frame.h",
-    "protocol-platform.h",
     "remote-object-id.cc",
     "remote-object-id.h",
     "script-breakpoint.h",
@@ -186,5 +185,7 @@ v8_source_set("inspector") {
     "v8-stack-trace-impl.h",
     "v8-value-copier.cc",
     "v8-value-copier.h",
+    "wasm-translation.cc",
+    "wasm-translation.h",
   ]
 }

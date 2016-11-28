@@ -250,7 +250,7 @@ class ThreadId {
 
   static int AllocateThreadId();
 
-  static int GetCurrentThreadId();
+  V8_EXPORT_PRIVATE static int GetCurrentThreadId();
 
   base::Atomic32 id_;
 
@@ -987,8 +987,8 @@ class Isolate {
 
   Map* get_initial_js_array_map(ElementsKind kind);
 
-  static const int kArrayProtectorValid = 1;
-  static const int kArrayProtectorInvalid = 0;
+  static const int kProtectorValid = 1;
+  static const int kProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
   inline bool IsArraySpeciesLookupChainIntact();
@@ -996,6 +996,13 @@ class Isolate {
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
+  inline bool IsArrayIteratorLookupChainIntact();
+
+  // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
+  inline bool IsFastArrayIterationIntact();
+
+  // Make sure we do check for neutered array buffers.
+  inline bool IsArrayBufferNeuteringIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1015,11 +1022,14 @@ class Isolate {
   void InvalidateHasInstanceProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
+  void InvalidateArrayIteratorProtector();
+  void InvalidateArrayBufferNeuteringProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
 
-  CallInterfaceDescriptorData* call_descriptor_data(int index);
+  V8_EXPORT_PRIVATE CallInterfaceDescriptorData* call_descriptor_data(
+      int index);
 
   AccessCompilerData* access_compiler_data() { return access_compiler_data_; }
 
@@ -1566,14 +1576,13 @@ class StackLimitCheck BASE_EMBEDDED {
   Isolate* isolate_;
 };
 
-#define STACK_CHECK(isolate, result_value)               \
-  do {                                                   \
-    StackLimitCheck stack_check(isolate);                \
-    if (stack_check.HasOverflowed()) {                   \
-      isolate->Throw(*isolate->factory()->NewRangeError( \
-          MessageTemplate::kStackOverflow));             \
-      return result_value;                               \
-    }                                                    \
+#define STACK_CHECK(isolate, result_value) \
+  do {                                     \
+    StackLimitCheck stack_check(isolate);  \
+    if (stack_check.HasOverflowed()) {     \
+      isolate->StackOverflow();            \
+      return result_value;                 \
+    }                                      \
   } while (false)
 
 // Support for temporarily postponing interrupts. When the outermost

@@ -875,6 +875,25 @@ TEST_F(Int64LoweringTest, EffectPhiLoop) {
 
   LowerGraph(load, MachineRepresentation::kWord64);
 }
+
+TEST_F(Int64LoweringTest, LoopCycle) {
+  // New node with two placeholders.
+  Node* compare = graph()->NewNode(machine()->Word64Equal(), Int64Constant(0),
+                                   Int64Constant(value(0)));
+
+  Node* load = graph()->NewNode(
+      machine()->Load(MachineType::Int64()), Int64Constant(value(1)),
+      Int64Constant(value(2)), graph()->start(),
+      graph()->NewNode(
+          common()->Loop(2), graph()->start(),
+          graph()->NewNode(common()->IfFalse(),
+                           graph()->NewNode(common()->Branch(), compare,
+                                            graph()->start()))));
+
+  NodeProperties::ReplaceValueInput(compare, load, 0);
+
+  LowerGraph(load, MachineRepresentation::kWord64);
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

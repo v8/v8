@@ -15,10 +15,8 @@ static size_t CountTotalHolesSize(Heap* heap) {
   size_t holes_size = 0;
   OldSpaces spaces(heap);
   for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
-    DCHECK_GE(space->Waste(), 0);
-    DCHECK_GE(space->Available(), 0);
     DCHECK_GE(holes_size + space->Waste() + space->Available(), holes_size);
-    holes_size += static_cast<size_t>(space->Waste() + space->Available());
+    holes_size += space->Waste() + space->Available();
   }
   return holes_size;
 }
@@ -176,8 +174,7 @@ void GCTracer::Start(GarbageCollector collector,
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
-  current_.new_space_object_size =
-      heap_->new_space()->top() - heap_->new_space()->bottom();
+  current_.new_space_object_size = heap_->new_space()->Size();
 
   current_.incremental_marking_bytes = 0;
   current_.incremental_marking_duration = 0;
@@ -469,9 +466,9 @@ void GCTracer::PrintNVP() const {
           " "
           "allocated=%" PRIuS
           " "
-          "promoted=%" V8PRIdPTR
+          "promoted=%" PRIuS
           " "
-          "semi_space_copied=%" V8PRIdPTR
+          "semi_space_copied=%" PRIuS
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
@@ -512,9 +509,14 @@ void GCTracer::PrintNVP() const {
           "pause=%.1f "
           "mutator=%.1f "
           "gc=%s "
-          "reduce_memory=%d\n",
-          duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory);
+          "reduce_memory=%d "
+          "mark=%.2f "
+          "mark.roots=%.2f "
+          "mark.old_to_new=%.2f\n",
+          duration, spent_in_mutator, "mmc", current_.reduce_memory,
+          current_.scopes[Scope::MINOR_MC_MARK],
+          current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
+          current_.scopes[Scope::MINOR_MC_MARK_OLD_TO_NEW_POINTERS]);
       break;
     case Event::MARK_COMPACTOR:
     case Event::INCREMENTAL_MARK_COMPACTOR:
@@ -591,9 +593,9 @@ void GCTracer::PrintNVP() const {
           " "
           "allocated=%" PRIuS
           " "
-          "promoted=%" V8PRIdPTR
+          "promoted=%" PRIuS
           " "
-          "semi_space_copied=%" V8PRIdPTR
+          "semi_space_copied=%" PRIuS
           " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "

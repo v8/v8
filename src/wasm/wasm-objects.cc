@@ -97,6 +97,14 @@ WasmModuleObject* WasmModuleObject::cast(Object* object) {
   return reinterpret_cast<WasmModuleObject*>(object);
 }
 
+bool WasmModuleObject::IsWasmModuleObject(Object* object) {
+  return object->IsJSObject() &&
+         JSObject::cast(object)->GetInternalFieldCount() == kFieldCount;
+}
+
+DEFINE_GETTER(WasmModuleObject, compiled_module, kCompiledModule,
+              WasmCompiledModule)
+
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
                                              uint32_t maximum,
                                              Handle<FixedArray>* js_functions) {
@@ -166,7 +174,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                int maximum) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor());
-  Handle<JSObject> memory_obj = isolate->factory()->NewJSObject(memory_ctor);
+  Handle<JSObject> memory_obj =
+      isolate->factory()->NewJSObject(memory_ctor, TENURED);
   memory_obj->SetInternalField(kArrayBuffer, *buffer);
   memory_obj->SetInternalField(kMaximum,
                                static_cast<Object*>(Smi::FromInt(maximum)));
@@ -176,6 +185,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
 }
 
 DEFINE_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer, JSArrayBuffer)
+DEFINE_OPTIONAL_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
+                          WasmInstanceWrapper)
 
 uint32_t WasmMemoryObject::current_pages() {
   return SafeUint32(get_buffer()->byte_length()) / wasm::WasmModule::kPageSize;
@@ -191,10 +202,26 @@ WasmMemoryObject* WasmMemoryObject::cast(Object* object) {
   return reinterpret_cast<WasmMemoryObject*>(object);
 }
 
-void WasmMemoryObject::AddInstance(WasmInstanceObject* instance) {
-  // TODO(gdeepti): This should be a weak list of instance objects
-  // for instances that share memory.
-  SetInternalField(kInstance, instance);
+void WasmMemoryObject::AddInstance(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance) {
+  Handle<WasmInstanceWrapper> instance_wrapper;
+  if (has_instances_link()) {
+    Handle<WasmInstanceWrapper> current_wrapper(get_instances_link());
+    DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*current_wrapper));
+    DCHECK(!current_wrapper->has_previous());
+    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
+    instance_wrapper->set_next_wrapper(*current_wrapper);
+    current_wrapper->set_previous_wrapper(*instance_wrapper);
+  } else {
+    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
+  }
+  set_instances_link(*instance_wrapper);
+  instance->set_instance_wrapper(*instance_wrapper);
+}
+
+void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  SetInternalField(kInstancesLink, *undefined);
 }
 
 DEFINE_ACCESSORS(WasmInstanceObject, compiled_module, kCompiledModule,
@@ -207,6 +234,8 @@ DEFINE_OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, kMemoryObject,
                           WasmMemoryObject)
 DEFINE_OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, kDebugInfo,
                           WasmDebugInfo)
+DEFINE_OPTIONAL_ACCESSORS(WasmInstanceObject, instance_wrapper,
+                          kWasmMemInstanceWrapper, WasmInstanceWrapper)
 
 WasmModuleObject* WasmInstanceObject::module_object() {
   return WasmModuleObject::cast(*get_compiled_module()->wasm_module());
@@ -304,7 +333,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
 }
 
 wasm::WasmModule* WasmCompiledModule::module() const {
-  return reinterpret_cast<WasmModuleWrapper*>(*module_wrapper())->get();
+  return reinterpret_cast<WasmModuleWrapper*>(ptr_to_module_wrapper())->get();
 }
 
 void WasmCompiledModule::InitId() {
@@ -341,7 +370,7 @@ void WasmCompiledModule::PrintInstancesChain() {
   if (!FLAG_trace_wasm_instances) return;
   for (WasmCompiledModule* current = this; current != nullptr;) {
     PrintF("->%d", current->instance_id());
-    if (current->ptr_to_weak_next_instance() == nullptr) break;
+    if (!current->has_weak_next_instance()) break;
     CHECK(!current->ptr_to_weak_next_instance()->cleared());
     current =
         WasmCompiledModule::cast(current->ptr_to_weak_next_instance()->value());
@@ -356,4 +385,94 @@ uint32_t WasmCompiledModule::mem_size() const {
 
 uint32_t WasmCompiledModule::default_mem_size() const {
   return min_mem_pages() * WasmModule::kPageSize;
+}
+
+Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
+    uint32_t func_index) {
+  DCHECK_GT(module()->functions.size(), func_index);
+  WasmFunction& function = module()->functions[func_index];
+  SeqOneByteString* bytes = ptr_to_module_bytes();
+  DCHECK_GE(static_cast<size_t>(bytes->length()), function.name_offset);
+  DCHECK_GE(static_cast<size_t>(bytes->length() - function.name_offset),
+            function.name_length);
+  return Vector<const uint8_t>(bytes->GetCharsAddress() + function.name_offset,
+                               function.name_length);
+}
+
+int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) const {
+  std::vector<WasmFunction>& functions = module()->functions;
+  if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
+  DCHECK_GE(static_cast<uint32_t>(kMaxInt),
+            functions[func_index].code_start_offset);
+  return static_cast<int>(functions[func_index].code_start_offset);
+}
+
+int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) const {
+  std::vector<WasmFunction>& functions = module()->functions;
+
+  // Binary search for a function containing the given position.
+  int left = 0;                                    // inclusive
+  int right = static_cast<int>(functions.size());  // exclusive
+  if (right == 0) return false;
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    if (functions[mid].code_start_offset <= byte_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // If the found function does not contains the given position, return -1.
+  WasmFunction& func = functions[left];
+  if (byte_offset < func.code_start_offset ||
+      byte_offset >= func.code_end_offset) {
+    return -1;
+  }
+
+  return left;
+}
+
+bool WasmCompiledModule::GetPositionInfo(uint32_t position,
+                                         Script::PositionInfo* info) {
+  int func_index = GetContainingFunction(position);
+  if (func_index < 0) return false;
+
+  WasmFunction& function = module()->functions[func_index];
+
+  info->line = func_index;
+  info->column = position - function.code_start_offset;
+  info->line_start = function.code_start_offset;
+  info->line_end = function.code_end_offset;
+  return true;
+}
+
+Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
+    Isolate* isolate, Handle<WasmInstanceObject> instance) {
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(kWrapperPropertyCount, TENURED);
+  Handle<WasmInstanceWrapper> instance_wrapper(
+      reinterpret_cast<WasmInstanceWrapper*>(*array), isolate);
+  instance_wrapper->set_instance_object(instance, isolate);
+  return instance_wrapper;
+}
+
+bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
+  if (!obj->IsFixedArray()) return false;
+  Handle<FixedArray> array = handle(FixedArray::cast(obj));
+  if (array->length() != kWrapperPropertyCount) return false;
+  if (!array->get(kWrapperInstanceObject)->IsWeakCell()) return false;
+  Isolate* isolate = array->GetIsolate();
+  if (!array->get(kNextInstanceWrapper)->IsUndefined(isolate) &&
+      !array->get(kNextInstanceWrapper)->IsFixedArray())
+    return false;
+  if (!array->get(kPreviousInstanceWrapper)->IsUndefined(isolate) &&
+      !array->get(kPreviousInstanceWrapper)->IsFixedArray())
+    return false;
+  return true;
+}
+
+void WasmInstanceWrapper::set_instance_object(Handle<JSObject> instance,
+                                              Isolate* isolate) {
+  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
+  set(kWrapperInstanceObject, *cell);
 }

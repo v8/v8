@@ -1284,6 +1284,18 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccessImm1& acc) {
   return os << acc.type;
 }
 
+struct MemoryAccessImm2 {
+  MachineType type;
+  ArchOpcode store_opcode;
+  ArchOpcode store_opcode_unaligned;
+  bool (InstructionSelectorTest::Stream::*val_predicate)(
+      const InstructionOperand*) const;
+  const int32_t immediates[40];
+};
+
+std::ostream& operator<<(std::ostream& os, const MemoryAccessImm2& acc) {
+  return os << acc.type;
+}
 
 // ----------------------------------------------------------------------------
 // Loads and stores immediate values
@@ -1348,14 +1360,13 @@ const MemoryAccessImm kMemoryAccessesImm[] = {
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}}};
 
-
 const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
     {MachineType::Int8(),
      kMips64Lb,
      kMips64Sb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
-    {MachineType::Int8(),
+    {MachineType::Uint8(),
      kMips64Lbu,
      kMips64Sb,
      &InstructionSelectorTest::Stream::IsInteger,
@@ -1365,7 +1376,7 @@ const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
      kMips64Sh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
-    {MachineType::Int16(),
+    {MachineType::Uint16(),
      kMips64Lhu,
      kMips64Sh,
      &InstructionSelectorTest::Stream::IsInteger,
@@ -1390,6 +1401,48 @@ const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
      kMips64Sd,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}}};
+
+const MemoryAccessImm2 kMemoryAccessesImmUnaligned[] = {
+    {MachineType::Int16(),
+     kMips64Ush,
+     kMips64Sh,
+     &InstructionSelectorTest::Stream::IsInteger,
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
+    {MachineType::Int32(),
+     kMips64Usw,
+     kMips64Sw,
+     &InstructionSelectorTest::Stream::IsInteger,
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
+    {MachineType::Int64(),
+     kMips64Usd,
+     kMips64Sd,
+     &InstructionSelectorTest::Stream::IsInteger,
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
+    {MachineType::Float32(),
+     kMips64Uswc1,
+     kMips64Swc1,
+     &InstructionSelectorTest::Stream::IsDouble,
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
+    {MachineType::Float64(),
+     kMips64Usdc1,
+     kMips64Sdc1,
+     &InstructionSelectorTest::Stream::IsDouble,
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}}};
 
 }  // namespace
 
@@ -1477,10 +1530,60 @@ TEST_P(InstructionSelectorMemoryAccessImmTest, StoreWithImmediateIndex) {
   }
 }
 
+TEST_P(InstructionSelectorMemoryAccessImmTest, StoreZero) {
+  const MemoryAccessImm memacc = GetParam();
+  TRACED_FOREACH(int32_t, index, memacc.immediates) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+    m.Store(memacc.type.representation(), m.Parameter(0),
+            m.Int32Constant(index), m.Int32Constant(0), kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.store_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorMemoryAccessImmTest,
                         ::testing::ValuesIn(kMemoryAccessesImm));
 
+typedef InstructionSelectorTestWithParam<MemoryAccessImm2>
+    InstructionSelectorMemoryAccessUnalignedImmTest;
+
+TEST_P(InstructionSelectorMemoryAccessUnalignedImmTest, StoreZero) {
+  const MemoryAccessImm2 memacc = GetParam();
+  TRACED_FOREACH(int32_t, index, memacc.immediates) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+    bool unaligned_store_supported = m.machine()->UnalignedStoreSupported(
+        MachineType::TypeForRepresentation(memacc.type.representation()), 1);
+    m.UnalignedStore(memacc.type.representation(), m.Parameter(0),
+                     m.Int32Constant(index), m.Int32Constant(0));
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(unaligned_store_supported ? memacc.store_opcode_unaligned
+                                        : memacc.store_opcode,
+              s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorMemoryAccessUnalignedImmTest,
+                        ::testing::ValuesIn(kMemoryAccessesImmUnaligned));
 
 // ----------------------------------------------------------------------------
 // Load/store offsets more than 16 bits.
@@ -1497,11 +1600,9 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
     StreamBuilder m(this, memacc.type, MachineType::Pointer());
     m.Return(m.Load(memacc.type, m.Parameter(0), m.Int32Constant(index)));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // kMips64Dadd is expected opcode
-    // size more than 16 bits wide
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.load_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -1517,13 +1618,11 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
             m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // kMips64Add is expected opcode
-    // size more than 16 bits wide
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    EXPECT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.store_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
 

@@ -536,7 +536,7 @@ TEST(TestInterruptLoop) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
-    const Handle<JSObject> instance =
+    const Handle<WasmInstanceObject> instance =
         testing::CompileInstantiateWasmModuleForTesting(
             isolate, &thrower, buffer.begin(), buffer.end(),
             ModuleOrigin::kWasmOrigin);

@@ -939,55 +939,10 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
 }
 
 namespace {
-void ConvertCaseWithTransliterator(icu::UnicodeString* input,
-                                   const char* transliterator_id) {
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::Transliterator> translit(
-      icu::Transliterator::createInstance(
-          icu::UnicodeString(transliterator_id, -1, US_INV), UTRANS_FORWARD,
-          status));
-  if (U_FAILURE(status)) return;
-  translit->transliterate(*input);
-}
-
 MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
                                           bool is_to_upper, const char* lang) {
-  int32_t src_length = s->length();
-
-  // Greek uppercasing has to be done via transliteration.
-  // TODO(jshin): Drop this special-casing once ICU's regular case conversion
-  // API supports Greek uppercasing. See
-  // http://bugs.icu-project.org/trac/ticket/10582 .
-  // In the meantime, if there's no Greek character in |s|, call this
-  // function again with the root locale (lang="").
-  // ICU's C API for transliteration is nasty and we just use C++ API.
-  if (V8_UNLIKELY(is_to_upper && lang[0] == 'e' && lang[1] == 'l')) {
-    icu::UnicodeString converted;
-    std::unique_ptr<uc16[]> sap;
-    {
-      DisallowHeapAllocation no_gc;
-      String::FlatContent flat = s->GetFlatContent();
-      const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
-      // Starts with the source string (read-only alias with copy-on-write
-      // semantics) and will be modified to contain the converted result.
-      // Using read-only alias at first saves one copy operation if
-      // transliteration does not change the input, which is rather rare.
-      // Moreover, transliteration takes rather long so that saving one copy
-      // helps only a little bit.
-      converted.setTo(false, src, src_length);
-      ConvertCaseWithTransliterator(&converted, "el-Upper");
-      // If no change is made, just return |s|.
-      if (converted.getBuffer() == src) return *s;
-    }
-    RETURN_RESULT_OR_FAILURE(
-        isolate,
-        isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-            reinterpret_cast<const uint16_t*>(converted.getBuffer()),
-            converted.length())));
-  }
-
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
-
+  int32_t src_length = s->length();
   int32_t dest_length = src_length;
   UErrorCode status;
   Handle<SeqTwoByteString> result;

@@ -194,6 +194,11 @@ void LookupIterator::InternalUpdateProtector() {
   } else if (*name_ == heap()->has_instance_symbol()) {
     if (!isolate_->IsHasInstanceLookupChainIntact()) return;
     isolate_->InvalidateHasInstanceProtector();
+  } else if (*name_ == heap()->iterator_symbol()) {
+    if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
+    if (holder_->IsJSArray()) {
+      isolate_->InvalidateArrayIteratorProtector();
+    }
   }
 }
 
@@ -804,7 +809,8 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     JSObject* js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object->GetElementsAccessor();
     FixedArrayBase* backing_store = js_object->elements();
-    number_ = accessor->GetEntryForIndex(js_object, backing_store, index_);
+    number_ =
+        accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
     if (number_ == kMaxUInt32) {
       return holder->IsJSTypedArray() ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
     }

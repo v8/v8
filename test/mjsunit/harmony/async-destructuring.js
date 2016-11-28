@@ -151,10 +151,11 @@ function assertEqualsAsync(expected, run, msg) {
   var g21 = async ({x}) => { { function x() { return 2 } } return x(); }
   assertThrowsAsync(() => g21({x: 1}), TypeError);
 
-  assertThrows("'use strict'; async function f(x) { let x = 0; }", SyntaxError);
-  assertThrows("'use strict'; async function f({x}) { let x = 0; }", SyntaxError);
-  assertThrows("'use strict'; async function f(x) { const x = 0; }", SyntaxError);
-  assertThrows("'use strict'; async function f({x}) { const x = 0; }", SyntaxError);
+  // These errors are not recognized in lazy parsing; see mjsunit/bugs/bug-2728.js
+  assertThrows("'use strict'; (async function f(x) { let x = 0; })()", SyntaxError);
+  assertThrows("'use strict'; (async function f({x}) { let x = 0; })()", SyntaxError);
+  assertThrows("'use strict'; (async function f(x) { const x = 0; })()", SyntaxError);
+  assertThrows("'use strict'; (async function f({x}) { const x = 0; })()", SyntaxError);
 
   assertThrows("'use strict'; let g = async (x) => { let x = 0; }", SyntaxError);
   assertThrows("'use strict'; let g = async ({x}) => { let x = 0; }", SyntaxError);

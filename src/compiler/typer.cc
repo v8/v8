@@ -1103,6 +1103,9 @@ Type* Typer::Visitor::TypeJSCreateIterResultObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
+  return Type::OtherObject();
+}
 
 Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
   return Type::OtherObject();
@@ -1230,6 +1233,10 @@ Type* Typer::Visitor::TypeJSStoreGlobal(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
 
 Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
   return Type::Boolean();
@@ -1238,6 +1245,10 @@ Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
 Type* Typer::Visitor::TypeJSHasProperty(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeJSInstanceOf(Node* node) { return Type::Boolean(); }
+
+Type* Typer::Visitor::TypeJSOrdinaryHasInstance(Node* node) {
+  return Type::Boolean();
+}
 
 // JS context operators.
 
@@ -1337,6 +1348,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathClz32:
           return t->cache_.kZeroToThirtyTwo;
         // Date functions.
+        case kDateNow:
+          return t->cache_.kTimeValueType;
         case kDateGetDate:
           return t->cache_.kJSDateDayType;
         case kDateGetDay:
@@ -1356,6 +1369,7 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return t->cache_.kJSDateSecondType;
         case kDateGetTime:
           return t->cache_.kJSDateValueType;
+
         // Number functions.
         case kNumberIsFinite:
         case kNumberIsInteger:
@@ -1368,31 +1382,108 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         case kNumberToString:
           return Type::String();
+
         // String functions.
         case kStringCharCodeAt:
           return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
                              t->zone());
         case kStringCharAt:
+          return Type::String();
+        case kStringCodePointAt:
+          return Type::Union(Type::Range(0.0, String::kMaxCodePoint, t->zone()),
+                             Type::Undefined(), t->zone());
         case kStringConcat:
         case kStringFromCharCode:
+        case kStringFromCodePoint:
+          return Type::String();
+        case kStringIndexOf:
+        case kStringLastIndexOf:
+          return Type::Range(-1.0, String::kMaxLength - 1.0, t->zone());
+        case kStringEndsWith:
+        case kStringIncludes:
+          return Type::Boolean();
+        case kStringRaw:
+        case kStringRepeat:
+        case kStringSlice:
+          return Type::String();
+        case kStringStartsWith:
+          return Type::Boolean();
         case kStringSubstr:
+        case kStringSubstring:
         case kStringToLowerCase:
+        case kStringToString:
         case kStringToUpperCase:
+        case kStringTrim:
+        case kStringTrimLeft:
+        case kStringTrimRight:
+        case kStringValueOf:
           return Type::String();
 
         case kStringIterator:
         case kStringIteratorNext:
           return Type::OtherObject();
 
+        case kArrayEntries:
+        case kArrayKeys:
+        case kArrayValues:
+        case kTypedArrayEntries:
+        case kTypedArrayKeys:
+        case kTypedArrayValues:
+        case kArrayIteratorNext:
+          return Type::OtherObject();
+
         // Array functions.
+        case kArrayConcat:
+          return Type::Receiver();
+        case kArrayEvery:
+          return Type::Boolean();
+        case kArrayFill:
+        case kArrayFilter:
+          return Type::Receiver();
+        case kArrayFindIndex:
+          return Type::Range(-1, kMaxSafeInteger, t->zone());
+        case kArrayForEach:
+          return Type::Undefined();
+        case kArrayIncludes:
+          return Type::Boolean();
         case kArrayIndexOf:
+          return Type::Range(-1, kMaxSafeInteger, t->zone());
+        case kArrayJoin:
+          return Type::String();
         case kArrayLastIndexOf:
           return Type::Range(-1, kMaxSafeInteger, t->zone());
+        case kArrayMap:
+          return Type::Receiver();
         case kArrayPush:
           return t->cache_.kPositiveSafeInteger;
+        case kArrayReverse:
+        case kArraySlice:
+          return Type::Receiver();
+        case kArraySome:
+          return Type::Boolean();
+        case kArraySplice:
+          return Type::Receiver();
+        case kArrayUnshift:
+          return t->cache_.kPositiveSafeInteger;
+
         // Object functions.
         case kObjectHasOwnProperty:
           return Type::Boolean();
+
+        // RegExp functions.
+        case kRegExpCompile:
+          return Type::OtherObject();
+        case kRegExpExec:
+          return Type::Union(Type::OtherObject(), Type::Null(), t->zone());
+        case kRegExpTest:
+          return Type::Boolean();
+        case kRegExpToString:
+          return Type::String();
+
+        // Function functions.
+        case kFunctionHasInstance:
+          return Type::Boolean();
+
         // Global functions.
         case kGlobalDecodeURI:
         case kGlobalDecodeURIComponent:

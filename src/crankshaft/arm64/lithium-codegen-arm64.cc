@@ -704,8 +704,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -3241,11 +3240,11 @@ void LCodeGen::DoLoadKeyedFixed(LLoadKeyedFixed* instr) {
     __ B(ne, &done);
     if (info()->IsStub()) {
       // A stub can safely convert the hole to undefined only if the array
-      // protector cell contains (Smi) Isolate::kArrayProtectorValid. Otherwise
+      // protector cell contains (Smi) Isolate::kProtectorValid. Otherwise
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
-      __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-      __ Cmp(result, Operand(Smi::FromInt(Isolate::kArrayProtectorValid)));
+      __ Ldr(result, FieldMemOperand(result, PropertyCell::kValueOffset));
+      __ Cmp(result, Operand(Smi::FromInt(Isolate::kProtectorValid)));
       DeoptimizeIf(ne, instr, DeoptimizeReason::kHole);
     }
     __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
@@ -4596,7 +4595,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
   // TODO(all): if Mov could handle object in new space then it could be used
   // here.
-  __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
+  __ LoadHeapObject(scratch1, instr->hydrogen()->declarations());
   __ Mov(scratch2, Smi::FromInt(instr->hydrogen()->flags()));
   __ Push(scratch1, scratch2);
   __ LoadHeapObject(scratch1, instr->hydrogen()->feedback_vector());

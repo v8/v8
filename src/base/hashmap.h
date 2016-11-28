@@ -70,6 +70,14 @@ class TemplateHashMapImpl {
   // Empties the hash map (occupancy() == 0).
   void Clear();
 
+  // Empties the map and makes it unusable for allocation.
+  void Invalidate() {
+    AllocationPolicy::Delete(map_);
+    map_ = nullptr;
+    occupancy_ = 0;
+    capacity_ = 0;
+  }
+
   // The number of (non-empty) entries in the table.
   uint32_t occupancy() const { return occupancy_; }
 
@@ -89,6 +97,14 @@ class TemplateHashMapImpl {
   Entry* Start() const;
   Entry* Next(Entry* entry) const;
 
+  void Reset(AllocationPolicy allocator) {
+    Initialize(capacity_, allocator);
+    occupancy_ = 0;
+  }
+
+ protected:
+  void Initialize(uint32_t capacity, AllocationPolicy allocator);
+
  private:
   Entry* map_;
   uint32_t capacity_;
@@ -102,7 +118,6 @@ class TemplateHashMapImpl {
   Entry* FillEmptyEntry(Entry* entry, const Key& key, const Value& value,
                         uint32_t hash,
                         AllocationPolicy allocator = AllocationPolicy());
-  void Initialize(uint32_t capacity, AllocationPolicy allocator);
   void Resize(AllocationPolicy allocator);
 };
 template <typename Key, typename Value, typename MatchFun,
@@ -229,9 +244,8 @@ template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Clear() {
   // Mark all entries as empty.
-  const Entry* end = map_end();
-  for (Entry* entry = map_; entry < end; entry++) {
-    entry->clear();
+  for (size_t i = 0; i < capacity_; ++i) {
+    map_[i].clear();
   }
   occupancy_ = 0;
 }
@@ -264,19 +278,15 @@ typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
     const Key& key, uint32_t hash) const {
   DCHECK(base::bits::IsPowerOfTwo32(capacity_));
-  Entry* entry = map_ + (hash & (capacity_ - 1));
-  const Entry* end = map_end();
-  DCHECK(map_ <= entry && entry < end);
+  size_t i = hash & (capacity_ - 1);
+  DCHECK(i < capacity_);
 
   DCHECK(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (entry->exists() && !match_(hash, entry->hash, key, entry->key)) {
-    entry++;
-    if (entry >= end) {
-      entry = map_;
-    }
+  while (map_[i].exists() && !match_(hash, map_[i].hash, key, map_[i].key)) {
+    i = (i + 1) & (capacity_ - 1);
   }
 
-  return entry;
+  return &map_[i];
 }
 
 template <typename Key, typename Value, typename MatchFun,

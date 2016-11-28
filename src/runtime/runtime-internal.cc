@@ -365,20 +365,19 @@ namespace {
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
   JavaScriptFrameIterator it(isolate);
   if (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
-    JSFunction* fun = frame->function();
-    Object* script = fun->shared()->script();
+    // Compute the location from the function and the relocation info of the
+    // baseline code. For optimized code this will use the deoptimization
+    // information to get canonical location information.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    it.frame()->Summarize(&frames);
+    FrameSummary& summary = frames.last();
+    Handle<JSFunction> function = summary.function();
+    Handle<Object> script(function->shared()->script(), isolate);
+    int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
-        !(Script::cast(script)->source()->IsUndefined(isolate))) {
-      Handle<Script> casted_script(Script::cast(script), isolate);
-      // Compute the location from the function and the relocation info of the
-      // baseline code. For optimized code this will use the deoptimization
-      // information to get canonical location information.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      it.frame()->Summarize(&frames);
-      FrameSummary& summary = frames.last();
-      int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
-      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
+        !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {
+      Handle<Script> casted_script = Handle<Script>::cast(script);
+      *target = MessageLocation(casted_script, pos, pos + 1, function);
       return true;
     }
   }
@@ -395,7 +394,8 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
             ? new ParseInfo(&zone, handle(location.function()->shared()))
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
+      CallPrinter printer(isolate,
+                          location.function()->shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
     } else {

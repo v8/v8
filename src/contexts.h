@@ -88,6 +88,7 @@ enum ContextLookupFlags {
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                            \
   V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                            \
   V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                            \
+  V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)       \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                         \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                       \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                       \
@@ -226,6 +227,10 @@ enum ContextLookupFlags {
   V(GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                             \
     generator_function_function)                                               \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
+  V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
+    initial_array_iterator_prototype)                                          \
+  V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                           \
+    initial_array_iterator_prototype_map)                                      \
   V(INITIAL_ARRAY_PROTOTYPE_INDEX, JSObject, initial_array_prototype)          \
   V(INITIAL_GENERATOR_PROTOTYPE_INDEX, JSObject, initial_generator_prototype)  \
   V(INITIAL_ITERATOR_PROTOTYPE_INDEX, JSObject, initial_iterator_prototype)    \

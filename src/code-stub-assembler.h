@@ -20,23 +20,24 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-enum class IterationKind { kKeys, kValues, kEntries };
-
-#define HEAP_CONSTANT_LIST(V)                 \
-  V(BooleanMap, BooleanMap)                   \
-  V(CodeMap, CodeMap)                         \
-  V(empty_string, EmptyString)                \
-  V(EmptyFixedArray, EmptyFixedArray)         \
-  V(FalseValue, False)                        \
-  V(FixedArrayMap, FixedArrayMap)             \
-  V(FixedCOWArrayMap, FixedCOWArrayMap)       \
-  V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
-  V(HeapNumberMap, HeapNumberMap)             \
-  V(MinusZeroValue, MinusZero)                \
-  V(NanValue, Nan)                            \
-  V(NullValue, Null)                          \
-  V(TheHoleValue, TheHole)                    \
-  V(TrueValue, True)                          \
+#define HEAP_CONSTANT_LIST(V)                         \
+  V(AccessorInfoMap, AccessorInfoMap)                 \
+  V(BooleanMap, BooleanMap)                           \
+  V(CodeMap, CodeMap)                                 \
+  V(empty_string, EmptyString)                        \
+  V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(FalseValue, False)                                \
+  V(FixedArrayMap, FixedArrayMap)                     \
+  V(FixedCOWArrayMap, FixedCOWArrayMap)               \
+  V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
+  V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
+  V(HeapNumberMap, HeapNumberMap)                     \
+  V(MinusZeroValue, MinusZero)                        \
+  V(NanValue, Nan)                                    \
+  V(NullValue, Null)                                  \
+  V(SymbolMap, SymbolMap)                             \
+  V(TheHoleValue, TheHole)                            \
+  V(TrueValue, True)                                  \
   V(UndefinedValue, Undefined)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
@@ -46,17 +47,8 @@ enum class IterationKind { kKeys, kValues, kEntries };
 // from a compiler directory OWNER).
 class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
  public:
-  // Create with CallStub linkage.
-  // |result_size| specifies the number of results returned by the stub.
-  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
-  CodeStubAssembler(Isolate* isolate, Zone* zone,
-                    const CallInterfaceDescriptor& descriptor,
-                    Code::Flags flags, const char* name,
-                    size_t result_size = 1);
-
-  // Create with JSCall linkage.
-  CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
-                    Code::Flags flags, const char* name);
+  CodeStubAssembler(compiler::CodeAssemblerState* state)
+      : compiler::CodeAssembler(state) {}
 
   enum AllocationFlag : uint8_t {
     kNone = 0,
@@ -368,15 +360,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Store an array element to a FixedArray.
   compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, int index, compiler::Node* value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS) {
-    return StoreFixedArrayElement(object, Int32Constant(index), value,
-                                  barrier_mode, parameter_mode);
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+                                  barrier_mode, 0, INTPTR_PARAMETERS);
   }
 
   compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, compiler::Node* index, compiler::Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   compiler::Node* StoreFixedDoubleArrayElement(
@@ -580,6 +572,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                    int base_allocation_size,
                                    compiler::Node* allocation_site);
 
+  compiler::Node* TryTaggedToFloat64(compiler::Node* value,
+                                     Label* if_valueisnotnumber);
   compiler::Node* TruncateTaggedToFloat64(compiler::Node* context,
                                           compiler::Node* value);
   compiler::Node* TruncateTaggedToWord32(compiler::Node* context,
@@ -633,6 +627,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* IsHashTable(compiler::Node* object);
   compiler::Node* IsDictionary(compiler::Node* object);
   compiler::Node* IsUnseededNumberDictionary(compiler::Node* object);
+
+  // ElementsKind helpers:
+  compiler::Node* IsFastElementsKind(compiler::Node* elements_kind);
+  compiler::Node* IsHoleyFastElementsKind(compiler::Node* elements_kind);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
@@ -767,16 +765,38 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Calculate a valid size for the a hash table.
   compiler::Node* HashTableComputeCapacity(compiler::Node* at_least_space_for);
 
+  template <class Dictionary>
+  compiler::Node* GetNumberOfElements(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  void SetNumberOfElements(compiler::Node* dictionary,
+                           compiler::Node* num_elements_smi);
+
+  template <class Dictionary>
+  compiler::Node* GetNumberOfDeletedElements(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  compiler::Node* GetCapacity(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  compiler::Node* GetNextEnumerationIndex(compiler::Node* dictionary);
+
+  template <class Dictionary>
+  void SetNextEnumerationIndex(compiler::Node* dictionary,
+                               compiler::Node* next_enum_index_smi);
+
   // Looks up an entry in a NameDictionaryBase successor. If the entry is found
   // control goes to {if_found} and {var_name_index} contains an index of the
   // key field of the entry found. If the key is not found control goes to
   // {if_not_found}.
   static const int kInlinedDictionaryProbes = 4;
+  enum LookupMode { kFindExisting, kFindInsertionIndex };
   template <typename Dictionary>
   void NameDictionaryLookup(compiler::Node* dictionary,
                             compiler::Node* unique_name, Label* if_found,
                             Variable* var_name_index, Label* if_not_found,
-                            int inlined_probes = kInlinedDictionaryProbes);
+                            int inlined_probes = kInlinedDictionaryProbes,
+                            LookupMode mode = kFindExisting);
 
   compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
 
@@ -784,6 +804,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void NumberDictionaryLookup(compiler::Node* dictionary,
                               compiler::Node* intptr_index, Label* if_found,
                               Variable* var_entry, Label* if_not_found);
+
+  template <class Dictionary>
+  void FindInsertionEntry(compiler::Node* dictionary, compiler::Node* key,
+                          Variable* var_key_index);
+
+  template <class Dictionary>
+  void InsertEntry(compiler::Node* dictionary, compiler::Node* key,
+                   compiler::Node* value, compiler::Node* index,
+                   compiler::Node* enum_index);
+
+  template <class Dictionary>
+  void Add(compiler::Node* dictionary, compiler::Node* key,
+           compiler::Node* value, Label* bailout);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(compiler::Node* object, compiler::Node* map,
@@ -866,33 +899,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* callable,
                                       compiler::Node* object);
 
-  // Load/StoreIC helpers.
-  struct LoadICParameters {
-    LoadICParameters(compiler::Node* context, compiler::Node* receiver,
-                     compiler::Node* name, compiler::Node* slot,
-                     compiler::Node* vector)
-        : context(context),
-          receiver(receiver),
-          name(name),
-          slot(slot),
-          vector(vector) {}
-
-    compiler::Node* context;
-    compiler::Node* receiver;
-    compiler::Node* name;
-    compiler::Node* slot;
-    compiler::Node* vector;
-  };
-
-  struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(compiler::Node* context, compiler::Node* receiver,
-                      compiler::Node* name, compiler::Node* value,
-                      compiler::Node* slot, compiler::Node* vector)
-        : LoadICParameters(context, receiver, name, slot, vector),
-          value(value) {}
-    compiler::Node* value;
-  };
-
   // Load type feedback vector from the stub caller's frame.
   compiler::Node* LoadTypeFeedbackVectorForStub();
 
@@ -902,43 +908,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                       compiler::Node* slot_id);
 
   compiler::Node* LoadReceiverMap(compiler::Node* receiver);
-
-  // Checks monomorphic case. Returns {feedback} entry of the vector.
-  compiler::Node* TryMonomorphicCase(compiler::Node* slot,
-                                     compiler::Node* vector,
-                                     compiler::Node* receiver_map,
-                                     Label* if_handler, Variable* var_handler,
-                                     Label* if_miss);
-  void HandlePolymorphicCase(compiler::Node* receiver_map,
-                             compiler::Node* feedback, Label* if_handler,
-                             Variable* var_handler, Label* if_miss,
-                             int unroll_count);
-  void HandleKeyedStorePolymorphicCase(compiler::Node* receiver_map,
-                                       compiler::Node* feedback,
-                                       Label* if_handler, Variable* var_handler,
-                                       Label* if_transition_handler,
-                                       Variable* var_transition_map_cell,
-                                       Label* if_miss);
-
-  compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
-                                         compiler::Node* map);
-
-  compiler::Node* StubCacheSecondaryOffset(compiler::Node* name,
-                                           compiler::Node* seed);
-
-  // This enum is used here as a replacement for StubCache::Table to avoid
-  // including stub cache header.
-  enum StubCacheTable : int;
-
-  void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
-                              compiler::Node* entry_offset,
-                              compiler::Node* name, compiler::Node* map,
-                              Label* if_handler, Variable* var_handler,
-                              Label* if_miss);
-
-  void TryProbeStubCache(StubCache* stub_cache, compiler::Node* receiver,
-                         compiler::Node* name, Label* if_handler,
-                         Variable* var_handler, Label* if_miss);
 
   // Extends properties backing store by JSObject::kFieldsAdded elements.
   void ExtendPropertiesBackingStore(compiler::Node* object);
@@ -995,13 +964,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* elements,
                                       ElementsKind kind, compiler::Node* length,
                                       ParameterMode mode, Label* bailout);
-
-  void LoadIC(const LoadICParameters* p);
-  void LoadGlobalIC(const LoadICParameters* p);
-  void KeyedLoadIC(const LoadICParameters* p);
-  void KeyedLoadICGeneric(const LoadICParameters* p);
-  void StoreIC(const StoreICParameters* p);
-  void KeyedStoreIC(const StoreICParameters* p, LanguageMode language_mode);
 
   void TransitionElementsKind(compiler::Node* object, compiler::Node* map,
                               ElementsKind from_kind, ElementsKind to_kind,
@@ -1101,6 +1063,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* StrictEqual(ResultMode mode, compiler::Node* lhs,
                               compiler::Node* rhs, compiler::Node* context);
 
+  // ECMA#sec-samevalue
+  // Similar to StrictEqual except that NaNs are treated as equal and minus zero
+  // differs from positive zero.
+  // Unlike Equal and StrictEqual, returns a value suitable for use in Branch
+  // instructions, e.g. Branch(SameValue(...), &label).
+  compiler::Node* SameValue(compiler::Node* lhs, compiler::Node* rhs,
+                            compiler::Node* context);
+
   compiler::Node* HasProperty(
       compiler::Node* object, compiler::Node* key, compiler::Node* context,
       Runtime::FunctionId fallback_runtime_function_id = Runtime::kHasProperty);
@@ -1112,6 +1082,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* InstanceOf(compiler::Node* object, compiler::Node* callable,
                              compiler::Node* context);
 
+  // Debug helpers
+  compiler::Node* IsDebugActive();
+
   // TypedArray/ArrayBuffer helpers
   compiler::Node* IsDetachedBuffer(compiler::Node* buffer);
 
@@ -1120,72 +1093,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                          int base_size = 0);
 
  protected:
-  void HandleStoreICHandlerCase(const StoreICParameters* p,
-                                compiler::Node* handler, Label* miss);
-
- private:
-  friend class CodeStubArguments;
-
-  enum ElementSupport { kOnlyProperties, kSupportElements };
-
   void DescriptorLookupLinear(compiler::Node* unique_name,
                               compiler::Node* descriptors, compiler::Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
+
   compiler::Node* CallGetterIfAccessor(compiler::Node* value,
                                        compiler::Node* details,
                                        compiler::Node* context,
                                        compiler::Node* receiver,
                                        Label* if_bailout);
 
-  void HandleLoadICHandlerCase(
-      const LoadICParameters* p, compiler::Node* handler, Label* miss,
-      ElementSupport support_elements = kOnlyProperties);
-
-  void HandleLoadICProtoHandler(const LoadICParameters* p,
-                                compiler::Node* handler, Variable* var_holder,
-                                Variable* var_smi_handler,
-                                Label* if_smi_handler, Label* miss);
-
-  void CheckPrototype(compiler::Node* prototype_cell, compiler::Node* name,
-                      Label* miss);
-
-  void NameDictionaryNegativeLookup(compiler::Node* object,
-                                    compiler::Node* name, Label* miss);
-
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
-  void HandleStoreFieldAndReturn(compiler::Node* handler_word,
-                                 compiler::Node* holder,
-                                 Representation representation,
-                                 compiler::Node* value,
-                                 compiler::Node* transition, Label* miss);
-
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
-  void HandleStoreICSmiHandlerCase(compiler::Node* handler_word,
-                                   compiler::Node* holder,
-                                   compiler::Node* value,
-                                   compiler::Node* transition, Label* miss);
-
-  void HandleStoreICProtoHandler(const StoreICParameters* p,
-                                 compiler::Node* handler, Label* miss);
-
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
-  void EmitFastElementsBoundsCheck(compiler::Node* object,
-                                   compiler::Node* elements,
-                                   compiler::Node* intptr_index,
-                                   compiler::Node* is_jsarray_condition,
-                                   Label* miss);
-  void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
-                       compiler::Node* elements_kind, compiler::Node* key,
-                       compiler::Node* is_jsarray_condition, Label* if_hole,
-                       Label* rebox_double, Variable* var_double_value,
-                       Label* unimplemented_elements_kind, Label* out_of_bounds,
-                       Label* miss);
+
   void BranchIfPrototypesHaveNoElements(compiler::Node* receiver_map,
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
+
+ private:
+  friend class CodeStubArguments;
 
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
                                      AllocationFlags flags,

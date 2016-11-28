@@ -92,22 +92,24 @@ void LoadDescriptor::InitializePlatformSpecific(
 
 void LoadGlobalDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kSlot
-  MachineType machine_types[] = {MachineType::TaggedSigned()};
+  // kName, kSlot
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::TaggedSigned()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
 
 void LoadGlobalDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {LoadWithVectorDescriptor::SlotRegister()};
+  Register registers[] = {NameRegister(), SlotRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void LoadGlobalWithVectorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kSlot, kVector
-  MachineType machine_types[] = {MachineType::TaggedSigned(),
+  // kName, kSlot, kVector
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::TaggedSigned(),
                                  MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
@@ -115,8 +117,7 @@ void LoadGlobalWithVectorDescriptor::InitializePlatformIndependent(
 
 void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {LoadWithVectorDescriptor::SlotRegister(),
-                          LoadWithVectorDescriptor::VectorRegister()};
+  Register registers[] = {NameRegister(), SlotRegister(), VectorRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -217,11 +218,28 @@ void LoadWithVectorDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-
 void LoadWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
                           VectorRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void LoadICProtoArrayDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kReceiver, kName, kSlot, kVector, kHandler
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(),
+      MachineType::TaggedSigned(), MachineType::AnyTagged(),
+      MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void LoadICProtoArrayDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
+                          VectorRegister(), HandlerRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

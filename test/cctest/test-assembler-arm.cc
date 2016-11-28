@@ -1255,6 +1255,8 @@ TEST(15) {
     uint32_t dstA5;
     uint32_t dstA6;
     uint32_t dstA7;
+    uint32_t vmov_src[4], vmov_dst[4];
+    uint32_t veor_src[4], veor_dst[4];
   } T;
   T t;
 
@@ -1287,6 +1289,22 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, dstA4))));
     __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
 
+    // Test vmov for q-registers.
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmov_src))));
+    __ vld1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(r4));
+    __ vmov(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmov_dst))));
+    __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
+
+    // Test veor for q-registers.
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, veor_src))));
+    __ vld1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, veor_dst))));
+    __ vld1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
+    __ veor(q1, q1, q0);
+    __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
+
+    // Restore and return.
     __ ldm(ia_w, sp, r4.bit() | pc.bit());
 
     CodeDesc desc;
@@ -1324,6 +1342,10 @@ TEST(15) {
     t.dstA5 = 0;
     t.dstA6 = 0;
     t.dstA7 = 0;
+    t.vmov_src[0] = t.vmov_src[1] = t.vmov_src[2] = t.vmov_src[3] = 1;
+    t.vmov_dst[0] = t.vmov_dst[1] = t.vmov_dst[2] = t.vmov_dst[3] = 0;
+    t.veor_src[0] = t.veor_src[1] = t.veor_src[2] = t.veor_src[3] = 0xAA;
+    t.veor_dst[0] = t.veor_dst[1] = t.veor_dst[2] = t.veor_dst[3] = 0x55;
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(0x01020304u, t.dst0);
@@ -1342,6 +1364,14 @@ TEST(15) {
     CHECK_EQ(0x00410042u, t.dstA5);
     CHECK_EQ(0x00830084u, t.dstA6);
     CHECK_EQ(0x00810082u, t.dstA7);
+    CHECK_EQ(1u, t.vmov_dst[0]);
+    CHECK_EQ(1u, t.vmov_dst[1]);
+    CHECK_EQ(1u, t.vmov_dst[2]);
+    CHECK_EQ(1u, t.vmov_dst[3]);
+    CHECK_EQ(0xFFu, t.veor_dst[0]);
+    CHECK_EQ(0xFFu, t.veor_dst[1]);
+    CHECK_EQ(0xFFu, t.veor_dst[2]);
+    CHECK_EQ(0xFFu, t.veor_dst[3]);
   }
 }
 
@@ -2881,6 +2911,8 @@ TEST(unaligned_stores) {
 }
 
 TEST(vswp) {
+  if (!CpuFeatures::IsSupported(NEON)) return;
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2891,6 +2923,10 @@ TEST(vswp) {
     double result1;
     double result2;
     double result3;
+    double result4;
+    double result5;
+    double result6;
+    double result7;
   } T;
   T t;
 
@@ -2907,6 +2943,17 @@ TEST(vswp) {
     __ vstr(d30, r0, offsetof(T, result2));
     __ vstr(d31, r0, offsetof(T, result3));
   }
+
+  // q-register swap.
+  __ vmov(d8, 1.0);
+  __ vmov(d9, 2.0);
+  __ vmov(d10, 3.0);
+  __ vmov(d11, 4.0);
+  __ vswp(q4, q5);
+  __ vstr(d8, r0, offsetof(T, result4));
+  __ vstr(d9, r0, offsetof(T, result5));
+  __ vstr(d10, r0, offsetof(T, result6));
+  __ vstr(d11, r0, offsetof(T, result7));
 
   __ bx(lr);
 
@@ -2927,6 +2974,10 @@ TEST(vswp) {
     CHECK_EQ(-1.0, t.result2);
     CHECK_EQ(1.0, t.result3);
   }
+  CHECK_EQ(3.0, t.result4);
+  CHECK_EQ(4.0, t.result5);
+  CHECK_EQ(1.0, t.result6);
+  CHECK_EQ(2.0, t.result7);
 }
 
 TEST(regress4292_b) {

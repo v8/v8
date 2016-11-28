@@ -64,7 +64,6 @@
       'compiler/test-run-bytecode-graph-builder.cc',
       'compiler/test-run-calls-to-external-references.cc',
       'compiler/test-run-deopt.cc',
-      'compiler/test-run-inlining.cc',
       'compiler/test-run-intrinsics.cc',
       'compiler/test-run-jsbranches.cc',
       'compiler/test-run-jscalls.cc',
@@ -112,6 +111,7 @@
       'heap/test-spaces.cc',
       'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
+      'parsing/test-parse-decision.cc',
       'parsing/test-scanner-streams.cc',
       'parsing/test-scanner.cc',
       'print-extension.cc',
@@ -119,6 +119,7 @@
       'profiler-extension.cc',
       'profiler-extension.h',
       'test-access-checks.cc',
+      'test-accessor-assembler.cc',
       'test-accessors.cc',
       'test-api.cc',
       'test-api.h',
@@ -223,7 +224,8 @@
       'test-disasm-ia32.cc',
       'test-macro-assembler-ia32.cc',
       'test-log-stack-tracer.cc',
-      'test-run-wasm-relocation-ia32.cc'
+      'test-run-wasm-relocation-ia32.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_x64': [  ### gcmole(arch:x64) ###
       'test-assembler-x64.cc',
@@ -235,7 +237,6 @@
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-x64.cc',
       'wasm/test-run-wasm-simd.cc',
-      'wasm/test-run-wasm-simd-lowering.cc',
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
       'test-assembler-arm.cc',
@@ -244,7 +245,8 @@
       'test-code-stubs-arm.cc',
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
-      'test-run-wasm-relocation-arm.cc'
+      'test-run-wasm-relocation-arm.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
       'test-utils-arm64.cc',
@@ -257,19 +259,22 @@
       'test-fuzz-arm64.cc',
       'test-javascript-arm64.cc',
       'test-js-arm64-variables.cc',
-      'test-run-wasm-relocation-arm64.cc'
+      'test-run-wasm-relocation-arm64.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
-      'test-disasm-s390.cc'
+      'test-disasm-s390.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_ppc': [  ### gcmole(arch:ppc) ###
       'test-assembler-ppc.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
-      'test-disasm-ppc.cc'
+      'test-disasm-ppc.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mips': [  ### gcmole(arch:mips) ###
       'test-assembler-mips.cc',
@@ -277,7 +282,8 @@
       'test-code-stubs.h',
       'test-code-stubs-mips.cc',
       'test-disasm-mips.cc',
-      'test-macro-assembler-mips.cc'
+      'test-macro-assembler-mips.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mipsel': [  ### gcmole(arch:mipsel) ###
       'test-assembler-mips.cc',
@@ -285,7 +291,8 @@
       'test-code-stubs.h',
       'test-code-stubs-mips.cc',
       'test-disasm-mips.cc',
-      'test-macro-assembler-mips.cc'
+      'test-macro-assembler-mips.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mips64': [  ### gcmole(arch:mips64) ###
       'test-assembler-mips64.cc',
@@ -293,7 +300,8 @@
       'test-code-stubs.h',
       'test-code-stubs-mips64.cc',
       'test-disasm-mips64.cc',
-      'test-macro-assembler-mips64.cc'
+      'test-macro-assembler-mips64.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mips64el': [  ### gcmole(arch:mips64el) ###
       'test-assembler-mips64.cc',
@@ -301,7 +309,8 @@
       'test-code-stubs.h',
       'test-code-stubs-mips64.cc',
       'test-disasm-mips64.cc',
-      'test-macro-assembler-mips64.cc'
+      'test-macro-assembler-mips64.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_x87': [  ### gcmole(arch:x87) ###
       'test-assembler-x87.cc',
@@ -311,7 +320,8 @@
       'test-disasm-x87.cc',
       'test-macro-assembler-x87.cc',
       'test-log-stack-tracer.cc',
-      'test-run-wasm-relocation-x87.cc'
+      'test-run-wasm-relocation-x87.cc',
+      'wasm/test-run-wasm-simd-lowering.cc'
     ],
   },
   'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],

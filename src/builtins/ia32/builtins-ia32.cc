@@ -437,67 +437,25 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Dispatch on the kind of generator object.
-  Label old_generator;
-  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFunctionDataOffset));
-  __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, ecx);
-  __ j(not_equal, &old_generator);
+  // Underlying function needs to have bytecode available.
+  if (FLAG_debug_code) {
+    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFunctionDataOffset));
+    __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, ecx);
+    __ Assert(equal, kMissingBytecodeArray);
+  }
 
-  // New-style (ignition/turbofan) generator object
+  // Resume (Ignition/TurboFan) generator object.
   {
     __ PushReturnAddressFrom(eax);
     __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
     __ mov(eax,
-           FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+           FieldOperand(eax, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
     __ mov(edx, ebx);
     __ jmp(FieldOperand(edi, JSFunction::kCodeEntryOffset));
-  }
-
-  // Old-style (full-codegen) generator object
-  __ bind(&old_generator);
-  {
-    // Enter a new JavaScript frame, and initialize its slots as they were when
-    // the generator was suspended.
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PushReturnAddressFrom(eax);  // Return address.
-    __ Push(ebp);                   // Caller's frame pointer.
-    __ Move(ebp, esp);
-    __ Push(esi);  // Callee's context.
-    __ Push(edi);  // Callee's JS Function.
-
-    // Restore the operand stack.
-    __ mov(eax, FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset));
-    {
-      Label done_loop, loop;
-      __ Move(ecx, Smi::kZero);
-      __ bind(&loop);
-      __ cmp(ecx, FieldOperand(eax, FixedArray::kLengthOffset));
-      __ j(equal, &done_loop, Label::kNear);
-      __ Push(FieldOperand(eax, ecx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
-      __ add(ecx, Immediate(Smi::FromInt(1)));
-      __ jmp(&loop);
-      __ bind(&done_loop);
-    }
-
-    // Reset operand stack so we don't leak.
-    __ mov(FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset),
-           Immediate(masm->isolate()->factory()->empty_fixed_array()));
-
-    // Resume the generator function at the continuation.
-    __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-    __ mov(ecx, FieldOperand(ebx, JSGeneratorObject::kContinuationOffset));
-    __ SmiUntag(ecx);
-    __ lea(edx, FieldOperand(edx, ecx, times_1, Code::kHeaderSize));
-    __ mov(FieldOperand(ebx, JSGeneratorObject::kContinuationOffset),
-           Immediate(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
-    __ mov(eax, ebx);  // Continuation expects generator object in eax.
-    __ jmp(edx);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -2193,7 +2151,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(eax, &create_runtime);
 
     // Load the map of argumentsList into ecx.
@@ -2237,6 +2196,22 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ mov(eax, ecx);
     __ jmp(&done_create);
 
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ bind(&create_holey_array);
+    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ mov(ecx, FieldOperand(ecx, Map::kPrototypeOffset));
+    __ cmp(ecx, ContextOperand(ebx, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ j(not_equal, &create_runtime);
+    __ LoadRoot(ecx, Heap::kArrayProtectorRootIndex);
+    __ cmp(FieldOperand(ecx, PropertyCell::kValueOffset),
+           Immediate(Smi::FromInt(Isolate::kProtectorValid)));
+    __ j(not_equal, &create_runtime);
+    __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
+    __ SmiUntag(ebx);
+    __ mov(eax, FieldOperand(eax, JSArray::kElementsOffset));
+    __ jmp(&done_create);
+
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
     __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
@@ -2244,10 +2219,12 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
-    __ cmp(ecx, Immediate(FAST_ELEMENTS));
-    __ j(above, &create_runtime);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
     __ cmp(ecx, Immediate(FAST_HOLEY_SMI_ELEMENTS));
-    __ j(equal, &create_runtime);
+    __ j(equal, &create_holey_array, Label::kNear);
+    __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ j(equal, &create_holey_array, Label::kNear);
+    __ j(above, &create_runtime);
     __ mov(ebx, FieldOperand(eax, JSArray::kLengthOffset));
     __ SmiUntag(ebx);
     __ mov(eax, FieldOperand(eax, JSArray::kElementsOffset));
@@ -2287,18 +2264,26 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
     __ movd(xmm0, edx);
+    __ movd(xmm1, edi);
     __ PopReturnAddressTo(edx);
     __ Move(ecx, Immediate(0));
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmp(ecx, ebx);
     __ j(equal, &done, Label::kNear);
-    __ Push(
-        FieldOperand(eax, ecx, times_pointer_size, FixedArray::kHeaderSize));
+    // Turn the hole into undefined as we go.
+    __ mov(edi,
+           FieldOperand(eax, ecx, times_pointer_size, FixedArray::kHeaderSize));
+    __ CompareRoot(edi, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &push, Label::kNear);
+    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
+    __ Push(edi);
     __ inc(ecx);
     __ jmp(&loop);
     __ bind(&done);
     __ PushReturnAddressFrom(edx);
+    __ movd(edi, xmm1);
     __ movd(edx, xmm0);
     __ Move(eax, ebx);
   }

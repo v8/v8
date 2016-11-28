@@ -48,6 +48,7 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
   set_language_mode(shared->language_mode());
   set_typed(shared->typed());
   set_shared_info(shared);
+  set_module(shared->kind() == FunctionKind::kModule);
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
@@ -64,8 +65,7 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
 ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   isolate_ = script->GetIsolate();
 
-  set_allow_lazy_parsing(String::cast(script->source())->length() >
-                         FLAG_min_preparse_length);
+  set_allow_lazy_parsing();
   set_toplevel();
   set_hash_seed(isolate_->heap()->HashSeed());
   set_stack_limit(isolate_->stack_guard()->real_climit());

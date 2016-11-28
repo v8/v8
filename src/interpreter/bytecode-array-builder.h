@@ -84,7 +84,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& LoadFalse();
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(int feedback_slot, TypeofMode typeof_mode);
+  BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
+                                   TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
                                     int feedback_slot,
                                     LanguageMode language_mode);
@@ -120,6 +121,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                           int feedback_slot);
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
+
+  // Store properties. Flag for NeedsSetFunctionName() should
+  // be in the accumulator.
+  BytecodeArrayBuilder& StoreDataPropertyInLiteral(Register object,
+                                                   Register name,
+                                                   Register value,
+                                                   Register attrs);
 
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,
@@ -271,6 +279,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
 
   BytecodeArrayBuilder& StackCheck(int position);
+
+  // Sets the pending message to the value in the accumulator, and returns the
+  // previous pending message in the accumulator.
+  BytecodeArrayBuilder& SetPendingMessage();
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();

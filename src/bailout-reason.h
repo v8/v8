@@ -61,6 +61,8 @@ namespace internal {
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \
+  V(kCyclicObjectStateDetectedInEscapeAnalysis,                                \
+    "Cyclic object state detected by escape analysis")                         \
   V(kEval, "eval")                                                             \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
   V(kExpectedBooleanValue, "Expected boolean value")                           \
@@ -123,6 +125,7 @@ namespace internal {
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
   V(kMapBecameUnstable, "Map became unstable")                                 \
+  V(kMissingBytecodeArray, "Missing bytecode array from function")             \
   V(kNativeFunctionLiteral, "Native function literal")                         \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \
@@ -136,7 +139,6 @@ namespace internal {
   V(kNotEnoughSpillSlotsForOsr, "Not enough spill slots for OSR")              \
   V(kNotEnoughVirtualRegistersRegalloc,                                        \
     "Not enough virtual registers (regalloc)")                                 \
-  V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")              \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
   V(kOperandIsANumber, "Operand is a number")                                  \

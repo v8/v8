@@ -258,7 +258,8 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         *name_ == heap()->constructor_string() ||
         *name_ == heap()->species_symbol() ||
-        *name_ == heap()->has_instance_symbol()) {
+        *name_ == heap()->has_instance_symbol() ||
+        *name_ == heap()->iterator_symbol()) {
       InternalUpdateProtector();
     }
   }

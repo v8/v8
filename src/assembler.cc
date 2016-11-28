@@ -760,8 +760,10 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case INTERNAL_REFERENCE_ENCODED:
       return "encoded internal reference";
-    case DEOPT_POSITION:
-      return "deopt position";
+    case DEOPT_SCRIPT_OFFSET:
+      return "deopt script offset";
+    case DEOPT_INLINING_ID:
+      return "deopt inlining id";
     case DEOPT_REASON:
       return "deopt reason";
     case DEOPT_ID:
@@ -780,8 +782,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break slot at tail call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
-    case GENERATOR_CONTINUATION:
-      return "generator continuation";
     case WASM_MEMORY_REFERENCE:
       return "wasm memory reference";
     case WASM_MEMORY_SIZE_REFERENCE:
@@ -801,7 +801,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
-  } else if (rmode_ == DEOPT_POSITION) {
+  } else if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
     os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
     os << "  ("
@@ -872,7 +872,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case RUNTIME_ENTRY:
     case COMMENT:
     case EXTERNAL_REFERENCE:
-    case DEOPT_POSITION:
+    case DEOPT_SCRIPT_OFFSET:
+    case DEOPT_INLINING_ID:
     case DEOPT_REASON:
     case DEOPT_ID:
     case CONST_POOL:
@@ -881,7 +882,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
-    case GENERATOR_CONTINUATION:
     case WASM_MEMORY_REFERENCE:
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
@@ -1891,11 +1891,12 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 // Platform specific but identical code for all the platforms.
 
-void Assembler::RecordDeoptReason(DeoptimizeReason reason, int raw_position,
-                                  int id) {
+void Assembler::RecordDeoptReason(DeoptimizeReason reason,
+                                  SourcePosition position, int id) {
   if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::DEOPT_POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
+    RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
     RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
     RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }
@@ -1907,12 +1908,6 @@ void Assembler::RecordComment(const char* msg) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
-}
-
-
-void Assembler::RecordGeneratorContinuation() {
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::GENERATOR_CONTINUATION);
 }
 
 

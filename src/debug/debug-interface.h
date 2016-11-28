@@ -179,6 +179,7 @@ class DebugInterface {
     MaybeLocal<String> SourceMappingURL() const;
     MaybeLocal<String> ContextData() const;
     MaybeLocal<String> Source() const;
+    bool IsWasm() const;
     bool GetPossibleBreakpoints(const Location& start, const Location& end,
                                 std::vector<Location>* locations) const;
 
@@ -197,11 +198,20 @@ class DebugInterface {
     int GetSourcePosition(const Location& location) const;
   };
 
-  /**
-   * Return array of compiled scripts.
-   */
   static void GetLoadedScripts(Isolate* isolate,
                                PersistentValueVector<Script>& scripts);
+
+  /**
+   * Compute the disassembly of a wasm function.
+   * Returns the disassembly string and a list of <byte_offset, line, column>
+   * entries, mapping wasm byte offsets to line and column in the disassembly.
+   * The list is guaranteed to be ordered by the byte_offset.
+   */
+  static std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
+  DisassembleWasmFunction(Isolate* isolate, v8::Local<v8::Object> script,
+                          int function_index);
+  static MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
+                                                          Local<String> source);
 };
 
 }  // namespace v8

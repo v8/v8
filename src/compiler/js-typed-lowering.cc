@@ -69,8 +69,19 @@ class JSBinopReduction final {
           return true;
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
+        case CompareOperationHint::kString:
           break;
       }
+    }
+    return false;
+  }
+
+  bool IsStringCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kString) &&
+             BothInputsMaybe(Type::String());
     }
     return false;
   }
@@ -101,6 +112,23 @@ class JSBinopReduction final {
       }
     }
     return false;
+  }
+
+  // Checks that both inputs are String, and if we don't know statically that
+  // one side is already a String, insert a CheckString node.
+  void CheckInputsToString() {
+    if (!left_type()->Is(Type::String())) {
+      Node* left_input = graph()->NewNode(simplified()->CheckString(), left(),
+                                          effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type()->Is(Type::String())) {
+      Node* right_input = graph()->NewNode(simplified()->CheckString(), right(),
+                                           effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
   }
 
   void ConvertInputsToNumber() {
@@ -315,6 +343,10 @@ class JSBinopReduction final {
   bool OneInputIs(Type* t) { return LeftInputIs(t) || RightInputIs(t); }
 
   bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
+
+  bool BothInputsMaybe(Type* t) {
+    return left_type()->Maybe(t) && right_type()->Maybe(t);
+  }
 
   bool OneInputCannotBe(Type* t) {
     return !left_type()->Maybe(t) || !right_type()->Maybe(t);
@@ -746,6 +778,10 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     r.ConvertInputsToNumber();
     less_than = simplified()->NumberLessThan();
     less_than_or_equal = simplified()->NumberLessThanOrEqual();
+  } else if (r.IsStringCompareOperation()) {
+    r.CheckInputsToString();
+    less_than = simplified()->StringLessThan();
+    less_than_or_equal = simplified()->StringLessThanOrEqual();
   } else {
     return NoChange();
   }
@@ -884,6 +920,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
         simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+  } else if (r.IsStringCompareOperation()) {
+    r.CheckInputsToString();
+    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   return NoChange();
 }
@@ -946,6 +985,9 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
         simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+  } else if (r.IsStringCompareOperation()) {
+    r.CheckInputsToString();
+    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   return NoChange();
 }
@@ -958,7 +1000,6 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     return Replace(input);
   } else if (input_type->Is(Type::OrderedNumber())) {
     // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
-    RelaxEffectsAndControls(node);
     node->ReplaceInput(0, graph()->NewNode(simplified()->NumberEqual(), input,
                                            jsgraph()->ZeroConstant()));
     node->TrimInputCount(1);
@@ -966,9 +1007,24 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     return Changed(node);
   } else if (input_type->Is(Type::Number())) {
     // JSToBoolean(x:number) => NumberToBoolean(x)
-    RelaxEffectsAndControls(node);
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->NumberToBoolean());
+    return Changed(node);
+  } else if (input_type->Is(Type::DetectableReceiverOrNull())) {
+    // JSToBoolean(x:detectable receiver \/ null)
+    //   => BooleanNot(ReferenceEqual(x,#null))
+    node->ReplaceInput(0, graph()->NewNode(simplified()->ReferenceEqual(),
+                                           input, jsgraph()->NullConstant()));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  } else if (input_type->Is(Type::ReceiverOrNullOrUndefined())) {
+    // JSToBoolean(x:receiver \/ null \/ undefined)
+    //   => BooleanNot(ObjectIsUndetectable(x))
+    node->ReplaceInput(
+        0, graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);
   }
   return NoChange();
@@ -1311,47 +1367,35 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
-  Node* const context = NodeProperties::GetContextInput(node);
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node);
+Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSOrdinaryHasInstance, node->opcode());
+  Node* constructor = NodeProperties::GetValueInput(node, 0);
+  Type* constructor_type = NodeProperties::GetType(constructor);
+  Node* object = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
 
-  // If deoptimization is disabled, we cannot optimize.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
-  // If we are in a try block, don't optimize since the runtime call
-  // in the proxy case can throw.
-  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
-
-  JSBinopReduction r(this, node);
-  Node* object = r.left();
-  Node* effect = r.effect();
-  Node* control = r.control();
-
-  if (!r.right_type()->IsHeapConstant() ||
-      !r.right_type()->AsHeapConstant()->Value()->IsJSFunction()) {
+  // Check if the {constructor} is a (known) JSFunction.
+  if (!constructor_type->IsHeapConstant() ||
+      !constructor_type->AsHeapConstant()->Value()->IsJSFunction()) {
     return NoChange();
   }
-
   Handle<JSFunction> function =
-      Handle<JSFunction>::cast(r.right_type()->AsHeapConstant()->Value());
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+      Handle<JSFunction>::cast(constructor_type->AsHeapConstant()->Value());
 
-  // Make sure the prototype of {function} is the %FunctionPrototype%, and it
-  // already has a meaningful initial map (i.e. we constructed at least one
-  // instance using the constructor {function}).
-  if (function->map()->prototype() != function->native_context()->closure() ||
-      function->map()->has_non_instance_prototype() ||
-      !function->has_initial_map()) {
-    return NoChange();
-  }
+  // Check if the {function} already has an initial map (i.e. the
+  // {function} has been used as a constructor at least once).
+  if (!function->has_initial_map()) return NoChange();
 
-  // We can only use the fast case if @@hasInstance was not used so far.
-  if (!isolate()->IsHasInstanceLookupChainIntact()) return NoChange();
-  dependencies()->AssumePropertyCell(factory()->has_instance_protector());
+  // Check if the {function}s "prototype" is a JSReceiver.
+  if (!function->prototype()->IsJSReceiver()) return NoChange();
 
+  // Install a code dependency on the {function}s initial map.
   Handle<Map> initial_map(function->initial_map(), isolate());
   dependencies()->AssumeInitialMapCantChange(initial_map);
+
   Node* prototype =
       jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
 
@@ -1419,6 +1463,15 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
         javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
         prototype, context, frame_state, efalse1, if_false1);
     if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+
+    // Replace any potential IfException on {node} to catch exceptions
+    // from this %HasInPrototypeChain runtime call instead.
+    for (Edge edge : node->use_edges()) {
+      if (edge.from()->opcode() == IrOpcode::kIfException) {
+        edge.UpdateTo(vfalse1);
+        Revisit(edge.from());
+      }
+    }
   }
 
   // Load the {object} prototype.
@@ -2098,7 +2151,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   int register_count = OpParameter<int>(node);
 
-  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectOperandStack();
+  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
   FieldAccess context_field = AccessBuilder::ForJSGeneratorObjectContext();
   FieldAccess continuation_field =
       AccessBuilder::ForJSGeneratorObjectContinuation();
@@ -2152,7 +2205,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   int index = OpParameter<int>(node);
 
-  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectOperandStack();
+  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
   FieldAccess element_field = AccessBuilder::ForFixedArraySlot(index);
 
   Node* array = effect = graph()->NewNode(simplified()->LoadField(array_field),
@@ -2198,6 +2251,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
       return ReduceNumberBinop(node);
+    case IrOpcode::kJSOrdinaryHasInstance:
+      return ReduceJSOrdinaryHasInstance(node);
     case IrOpcode::kJSToBoolean:
       return ReduceJSToBoolean(node);
     case IrOpcode::kJSToInteger:
@@ -2220,8 +2275,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
-    case IrOpcode::kJSInstanceOf:
-      return ReduceJSInstanceOf(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:

@@ -98,6 +98,9 @@ Matcher<Node*> GraphTest::IsTrueConstant() {
   return IsHeapConstant(factory()->true_value());
 }
 
+Matcher<Node*> GraphTest::IsNullConstant() {
+  return IsHeapConstant(factory()->null_value());
+}
 
 Matcher<Node*> GraphTest::IsUndefinedConstant() {
   return IsHeapConstant(factory()->undefined_value());

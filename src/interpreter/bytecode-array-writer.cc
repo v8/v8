@@ -94,9 +94,9 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
   int bytecode_offset = static_cast<int>(bytecodes()->size());
   const BytecodeSourceInfo& source_info = node->source_info();
   if (source_info.is_valid()) {
-    source_position_table_builder()->AddPosition(bytecode_offset,
-                                                 source_info.source_position(),
-                                                 source_info.is_statement());
+    source_position_table_builder()->AddPosition(
+        bytecode_offset, SourcePosition(source_info.source_position()),
+        source_info.is_statement());
   }
 }
 

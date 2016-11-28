@@ -1091,9 +1091,6 @@ class Assembler : public AssemblerBase {
 
   // Debugging.
 
-  // Mark generator continuation.
-  void RecordGeneratorContinuation();
-
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
@@ -1117,7 +1114,8 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
+  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
+                         int id);
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
                                        intptr_t pc_delta);
@@ -1235,6 +1233,7 @@ class Assembler : public AssemblerBase {
 
   // Helpers.
   void LoadRegPlusOffsetToAt(const MemOperand& src);
+  int32_t LoadRegPlusUpperOffsetPartToAt(const MemOperand& src);
 
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to

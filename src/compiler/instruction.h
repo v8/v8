@@ -15,7 +15,6 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/source-position.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
@@ -23,10 +22,13 @@
 
 namespace v8 {
 namespace internal {
+
+class SourcePosition;
+
 namespace compiler {
 
-// Forward declarations.
 class Schedule;
+class SourcePositionTable;
 
 class V8_EXPORT_PRIVATE InstructionOperand {
  public:

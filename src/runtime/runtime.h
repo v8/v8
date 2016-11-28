@@ -56,7 +56,8 @@ namespace internal {
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)   \
   F(ArrayIncludes_Slow, 3, 1)        \
-  F(ArrayIndexOf, 3, 1)
+  F(ArrayIndexOf, 3, 1)              \
+  F(SpreadIterablePrepare, 1, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)           \
   F(ThrowNotIntegerSharedTypedArrayError, 1, 1) \
@@ -80,7 +81,6 @@ namespace internal {
   F(ThrowConstructorNonCallableError, 1, 1) \
   F(ThrowArrayNotSubclassableError, 0, 1)   \
   F(ThrowStaticPrototypeError, 0, 1)        \
-  F(ThrowIfStaticPrototype, 1, 1)           \
   F(HomeObjectSymbol, 0, 1)                 \
   F(DefineClass, 4, 1)                      \
   F(LoadFromSuper, 3, 1)                    \
@@ -168,6 +168,7 @@ namespace internal {
   F(ChangeBreakOnException, 2, 1)               \
   F(IsBreakOnException, 1, 1)                   \
   F(PrepareStep, 2, 1)                          \
+  F(PrepareStepFrame, 0, 1)                     \
   F(ClearStepping, 0, 1)                        \
   F(DebugEvaluate, 6, 1)                        \
   F(DebugEvaluateGlobal, 4, 1)                  \
@@ -189,18 +190,17 @@ namespace internal {
   F(ScriptLocationFromLine, 4, 1)               \
   F(ScriptLocationFromLine2, 4, 1)              \
   F(ScriptPositionInfo, 3, 1)                   \
+  F(ScriptPositionInfo2, 3, 1)                  \
   F(ScriptSourceLine, 2, 1)                     \
   F(DebugPrepareStepInIfStepping, 1, 1)         \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
-  F(DebugRecordAsyncFunction, 1, 1)             \
+  F(DebugRecordGenerator, 1, 1)                 \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugNextMicrotaskId, 0, 1)                 \
   F(DebugAsyncTaskEvent, 3, 1)                  \
   F(DebugIsActive, 0, 1)                        \
-  F(DebugBreakInOptimizedCode, 0, 1)            \
-  F(GetWasmFunctionOffsetTable, 1, 1)           \
-  F(DisassembleWasmFunction, 1, 1)
+  F(DebugBreakInOptimizedCode, 0, 1)
 
 #define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
 
@@ -214,8 +214,6 @@ namespace internal {
   F(InterpreterNewClosure, 2, 1)          \
   F(InterpreterTraceBytecodeEntry, 3, 1)  \
   F(InterpreterTraceBytecodeExit, 3, 1)   \
-  F(InterpreterClearPendingMessage, 0, 1) \
-  F(InterpreterSetPendingMessage, 1, 1)   \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
@@ -242,7 +240,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F) \
   F(CreateJSGeneratorObject, 2, 1)      \
-  F(SuspendJSGeneratorObject, 1, 1)     \
   F(GeneratorClose, 1, 1)               \
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \
@@ -426,6 +423,7 @@ namespace internal {
   F(Compare, 3, 1)                                   \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
+  F(CreateKeyValueArray, 2, 1)                       \
   F(IsAccessCheckNeeded, 1, 1)                       \
   F(CreateDataProperty, 3, 1)
 
@@ -946,8 +944,8 @@ namespace internal {
   F(KeyedStoreIC_Miss, 5, 1)                 \
   F(KeyedStoreIC_Slow, 5, 1)                 \
   F(LoadElementWithInterceptor, 2, 1)        \
-  F(LoadGlobalIC_Miss, 2, 1)                 \
-  F(LoadGlobalIC_Slow, 2, 1)                 \
+  F(LoadGlobalIC_Miss, 3, 1)                 \
+  F(LoadGlobalIC_Slow, 1, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadPropertyWithInterceptor, 3, 1)       \
   F(LoadPropertyWithInterceptorOnly, 3, 1)   \

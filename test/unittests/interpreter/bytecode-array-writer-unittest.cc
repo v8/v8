@@ -136,7 +136,8 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
-    CHECK_EQ(source_iterator.source_position(), expected.source_position);
+    CHECK_EQ(source_iterator.source_position().ScriptOffset(),
+             expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();
   }
@@ -222,7 +223,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
-    CHECK_EQ(source_iterator.source_position(), expected.source_position);
+    CHECK_EQ(source_iterator.source_position().ScriptOffset(),
+             expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();
   }

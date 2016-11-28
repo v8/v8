@@ -44,7 +44,6 @@
       'inspector/inspected-context.h',
       'inspector/java-script-call-frame.cc',
       'inspector/java-script-call-frame.h',
-      'inspector/protocol-platform.h',
       'inspector/remote-object-id.cc',
       'inspector/remote-object-id.h',
       'inspector/script-breakpoint.h',
@@ -90,6 +89,8 @@
       'inspector/v8-stack-trace-impl.h',
       'inspector/v8-value-copier.cc',
       'inspector/v8-value-copier.h',
+      'inspector/wasm-translation.cc',
+      'inspector/wasm-translation.h',
     ]
   }
 }

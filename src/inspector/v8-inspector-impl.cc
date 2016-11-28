@@ -45,7 +45,7 @@ namespace v8_inspector {
 
 std::unique_ptr<V8Inspector> V8Inspector::create(v8::Isolate* isolate,
                                                  V8InspectorClient* client) {
-  return wrapUnique(new V8InspectorImpl(isolate, client));
+  return std::unique_ptr<V8Inspector>(new V8InspectorImpl(isolate, client));
 }
 
 V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
@@ -97,8 +97,22 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::runCompiledScript(
 v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
     v8::Local<v8::Function> function, v8::Local<v8::Context> context,
     v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[]) {
-  v8::MicrotasksScope microtasksScope(m_isolate,
-                                      v8::MicrotasksScope::kRunMicrotasks);
+  return callFunction(function, context, receiver, argc, info,
+                      v8::MicrotasksScope::kRunMicrotasks);
+}
+
+v8::MaybeLocal<v8::Value> V8InspectorImpl::callInternalFunction(
+    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
+    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[]) {
+  return callFunction(function, context, receiver, argc, info,
+                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+}
+
+v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
+    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
+    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[],
+    v8::MicrotasksScope::Type runMicrotasks) {
+  v8::MicrotasksScope microtasksScope(m_isolate, runMicrotasks);
   int groupId = V8Debugger::getGroupId(context);
   if (V8DebuggerAgentImpl* agent = enabledDebuggerAgentForGroup(groupId))
     agent->willExecuteScript(function->ScriptId());
@@ -113,32 +127,28 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
 
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
     v8::Local<v8::Context> context, v8::Local<v8::String> source) {
-  v8::Local<v8::Script> script =
-      compileScript(context, source, String16(), true);
-  if (script.IsEmpty()) return v8::MaybeLocal<v8::Value>();
+  v8::Local<v8::UnboundScript> unboundScript;
+  if (!v8::DebugInterface::CompileInspectorScript(m_isolate, source)
+           .ToLocal(&unboundScript))
+    return v8::MaybeLocal<v8::Value>();
   v8::MicrotasksScope microtasksScope(m_isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  return script->Run(context);
+  v8::Context::Scope contextScope(context);
+  return unboundScript->BindToCurrentContext()->Run(context);
 }
 
-v8::Local<v8::Script> V8InspectorImpl::compileScript(
-    v8::Local<v8::Context> context, v8::Local<v8::String> code,
-    const String16& fileName, bool markAsInternal) {
+v8::MaybeLocal<v8::Script> V8InspectorImpl::compileScript(
+    v8::Local<v8::Context> context, const String16& code,
+    const String16& fileName) {
   v8::ScriptOrigin origin(
       toV8String(m_isolate, fileName), v8::Integer::New(m_isolate, 0),
       v8::Integer::New(m_isolate, 0),
-      v8::False(m_isolate),  // sharable
-      v8::Local<v8::Integer>(),
-      v8::Boolean::New(m_isolate, markAsInternal),  // internal
-      toV8String(m_isolate, String16()),            // sourceMap
-      v8::True(m_isolate));                         // opaqueresource
-  v8::ScriptCompiler::Source source(code, origin);
-  v8::Local<v8::Script> script;
-  if (!v8::ScriptCompiler::Compile(context, &source,
-                                   v8::ScriptCompiler::kNoCompileOptions)
-           .ToLocal(&script))
-    return v8::Local<v8::Script>();
-  return script;
+      v8::False(m_isolate),                                         // sharable
+      v8::Local<v8::Integer>(), toV8String(m_isolate, String16()),  // sourceMap
+      v8::True(m_isolate));  // opaqueresource
+  v8::ScriptCompiler::Source source(toV8String(m_isolate, code), origin);
+  return v8::ScriptCompiler::Compile(context, &source,
+                                     v8::ScriptCompiler::kNoCompileOptions);
 }
 
 void V8InspectorImpl::enableStackCapturingIfNeeded() {
@@ -167,12 +177,12 @@ V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
   ConsoleStorageMap::iterator storageIt =
       m_consoleStorageMap.find(contextGroupId);
   if (storageIt == m_consoleStorageMap.end())
-    storageIt =
-        m_consoleStorageMap
-            .insert(std::make_pair(
-                contextGroupId,
-                wrapUnique(new V8ConsoleMessageStorage(this, contextGroupId))))
-            .first;
+    storageIt = m_consoleStorageMap
+                    .insert(std::make_pair(
+                        contextGroupId,
+                        std::unique_ptr<V8ConsoleMessageStorage>(
+                            new V8ConsoleMessageStorage(this, contextGroupId))))
+                    .first;
   return storageIt->second.get();
 }
 
@@ -221,15 +231,16 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   ContextsByGroupMap::iterator contextIt = m_contexts.find(info.contextGroupId);
   if (contextIt == m_contexts.end())
     contextIt = m_contexts
-                    .insert(std::make_pair(info.contextGroupId,
-                                           wrapUnique(new ContextByIdMap())))
+                    .insert(std::make_pair(
+                        info.contextGroupId,
+                        std::unique_ptr<ContextByIdMap>(new ContextByIdMap())))
                     .first;
 
   const auto& contextById = contextIt->second;
 
   DCHECK(contextById->find(contextId) == contextById->cend());
   InspectedContext* context = new InspectedContext(this, info, contextId);
-  (*contextById)[contextId] = wrapUnique(context);
+  (*contextById)[contextId].reset(context);
   SessionMap::iterator sessionIt = m_sessions.find(info.contextGroupId);
   if (sessionIt != m_sessions.end())
     sessionIt->second->runtimeAgent()->reportExecutionContextCreated(context);
@@ -260,6 +271,7 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   SessionMap::iterator session = m_sessions.find(contextGroupId);
   if (session != m_sessions.end()) session->second->reset();
   m_contexts.erase(contextGroupId);
+  m_debugger->wasmTranslation()->Clear();
 }
 
 void V8InspectorImpl::willExecuteScript(v8::Local<v8::Context> context,
@@ -294,8 +306,8 @@ unsigned V8InspectorImpl::exceptionThrown(
     std::unique_ptr<V8StackTrace> stackTrace, int scriptId) {
   int contextGroupId = V8Debugger::getGroupId(context);
   if (!contextGroupId || m_muteExceptionsMap[contextGroupId]) return 0;
-  std::unique_ptr<V8StackTraceImpl> stackTraceImpl =
-      wrapUnique(static_cast<V8StackTraceImpl*>(stackTrace.release()));
+  std::unique_ptr<V8StackTraceImpl> stackTraceImpl(
+      static_cast<V8StackTraceImpl*>(stackTrace.release()));
   unsigned exceptionId = nextExceptionId();
   std::unique_ptr<V8ConsoleMessage> consoleMessage =
       V8ConsoleMessage::createForException(

@@ -203,6 +203,8 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
       return AstType::Number();
     case CompareOperationHint::kNumberOrOddball:
       return AstType::NumberOrOddball();
+    case CompareOperationHint::kString:
+      return AstType::String();
     case CompareOperationHint::kAny:
       return AstType::Any();
   }

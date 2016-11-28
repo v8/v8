@@ -53,16 +53,6 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
-  # Issue 3641: The new 'then' semantics suppress some exceptions.
-  # These tests may be changed or removed when 'chain' is deprecated.
-  'es6/debug-promises/reject-with-throw-in-reject': [FAIL],
-  'es6/debug-promises/reject-with-undefined-reject': [FAIL],
-  'es6/debug-promises/reject-with-invalid-reject': [FAIL],
-
-  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
-  # live edited. This needs investigation.
-  'debug-liveedit-double-call': [SKIP],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
@@ -249,6 +239,9 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+
+  # BUG(chromium:664490)
+  'debug-scopes': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -510,9 +503,6 @@
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:3435)
-  'debug-script-breakpoints': [PASS, FAIL],
-
   # BUG(v8:4495).
   'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
 }],  # 'system == windows'
@@ -522,16 +512,6 @@
   # BUG(v8:5333)
   'big-object-literal': [SKIP],
 }],  # 'system == macos'
-
-##############################################################################
-['arch == s390 or arch == s390x', {
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-}],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
 ['deopt_fuzzer == True', {
@@ -560,12 +540,9 @@
   'shared-function-tier-up-ignition': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  # The deopt fuzzer currently does not respect the 'variant != ignition' rule
-  # further down in this file, so we have to duplicate this here.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5374
-  'modules-*': [SKIP],
+  # Fails deopt_fuzzer due to --deopt_every_n_times or
+  # deopt_every_n_garbage_collections
+  'es6/array-iterator-turbo': [SKIP]
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
@@ -592,19 +569,21 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
+['variant == nocrankshaft', {
+  'es6/array-iterator-turbo': [SKIP],
+}],  # variant == nocranshaft
+
+##############################################################################
 ['variant == stress', {
+  'es6/array-iterator-turbo': [SKIP],
+
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
 ['variant == turbofan_opt', {
-
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-locals': [FAIL],
-  'debug-set-variable-value': [FAIL],
-  'debug-liveedit-double-call': [FAIL],
-  'es6/debug-evaluate-blockscopes': [FAIL],
+  'es6/array-iterator-turbo': [SKIP],
 
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
@@ -617,16 +596,7 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition or variant == ignition_staging', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition
-
-##############################################################################
 ['variant == ignition_turbofan', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug-liveedit-double-call': [FAIL],
-
   # TODO(rmcilroy,titzer): Times out after
   # https://codereview.chromium.org/1951013002 .
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
@@ -637,13 +607,6 @@
   # TODO(rmcilroy): Flaky OOM.
   'unicodelctest-no-optimization': [SKIP],
 }],  # variant == ignition_turbofan
-
-##############################################################################
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'modules-*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
 
 ##############################################################################
 ['gcov_coverage', {
@@ -678,5 +641,23 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 }],  # variant == asm_wasm
+
+['variant == wasm_traps', {
+  # Skip stuff uninteresting for wasm traps
+  'bugs/*': [SKIP],
+  'compiler/*': [SKIP],
+  'es6/*': [SKIP],
+  'es7/*': [SKIP],
+  'es8/*': [SKIP],
+  'harmony/*': [SKIP],
+  'ignition/*': [SKIP],
+  'lithium/*': [SKIP],
+  'third_party/*': [SKIP],
+  'tools/*': [SKIP],
+  'apply': [SKIP],
+  'math-*': [SKIP],
+  'unicode-test': [SKIP],
+  'whitespaces': [SKIP],
+}],  # variant == wasm_traps
 
 ]

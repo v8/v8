@@ -14,11 +14,12 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/ostreams.h"
@@ -579,6 +580,10 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateKeyValueArray:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
@@ -586,20 +591,43 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSLoadProperty:
+      // Type can be anything.
+      CheckTypeIs(node, Type::Any());
+      CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
+      break;
     case IrOpcode::kJSLoadNamed:
+      // Type can be anything.
+      CheckTypeIs(node, Type::Any());
+      CHECK(NamedAccessOf(node->op()).feedback().IsValid());
+      break;
     case IrOpcode::kJSLoadGlobal:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());
+      CHECK(LoadGlobalParametersOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSStoreProperty:
+      // Type is empty.
+      CheckNotTyped(node);
+      CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
+      break;
     case IrOpcode::kJSStoreNamed:
+      // Type is empty.
+      CheckNotTyped(node);
+      CHECK(NamedAccessOf(node->op()).feedback().IsValid());
+      break;
     case IrOpcode::kJSStoreGlobal:
+      // Type is empty.
+      CheckNotTyped(node);
+      CHECK(StoreGlobalParametersOf(node->op()).feedback().IsValid());
+      break;
+    case IrOpcode::kJSStoreDataPropertyInLiteral:
       // Type is empty.
       CheckNotTyped(node);
       break;
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
+    case IrOpcode::kJSOrdinaryHasInstance:
       // Type is Boolean.
       CheckTypeIs(node, Type::Boolean());
       break;

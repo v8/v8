@@ -56,7 +56,8 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_runningNestedMessageLoop(false),
       m_ignoreScriptParsedEventsCounter(0),
       m_maxAsyncCallStackDepth(0),
-      m_pauseOnExceptionsState(v8::DebugInterface::NoBreakOnException) {}
+      m_pauseOnExceptionsState(v8::DebugInterface::NoBreakOnException),
+      m_wasmTranslation(isolate, this) {}
 
 V8Debugger::~V8Debugger() {}
 
@@ -82,6 +83,7 @@ void V8Debugger::disable() {
   m_debuggerScript.Reset();
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
+  m_wasmTranslation.Clear();
   v8::DebugInterface::SetDebugEventListener(m_isolate, nullptr);
 }
 
@@ -124,19 +126,16 @@ void V8Debugger::getCompiledScripts(
   for (size_t i = 0; i < scripts.Size(); ++i) {
     v8::Local<v8::DebugInterface::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
-    v8::ScriptOriginOptions origin = script->OriginOptions();
-    if (origin.IsEmbedderDebugScript()) continue;
     v8::Local<v8::String> v8ContextData;
     if (!script->ContextData().ToLocal(&v8ContextData)) continue;
     String16 contextData = toProtocolString(v8ContextData);
     if (contextData.find(contextPrefix) != 0) continue;
-    result.push_back(
-        wrapUnique(new V8DebuggerScript(m_isolate, script, false)));
+    result.push_back(std::unique_ptr<V8DebuggerScript>(
+        new V8DebuggerScript(m_isolate, script, false)));
   }
 }
 
-String16 V8Debugger::setBreakpoint(const String16& sourceID,
-                                   const ScriptBreakpoint& scriptBreakpoint,
+String16 V8Debugger::setBreakpoint(const ScriptBreakpoint& breakpoint,
                                    int* actualLineNumber,
                                    int* actualColumnNumber) {
   v8::HandleScope scope(m_isolate);
@@ -146,20 +145,20 @@ String16 V8Debugger::setBreakpoint(const String16& sourceID,
   v8::Local<v8::Object> info = v8::Object::New(m_isolate);
   bool success = false;
   success = info->Set(context, toV8StringInternalized(m_isolate, "sourceID"),
-                      toV8String(m_isolate, sourceID))
+                      toV8String(m_isolate, breakpoint.script_id))
                 .FromMaybe(false);
   DCHECK(success);
   success = info->Set(context, toV8StringInternalized(m_isolate, "lineNumber"),
-                      v8::Integer::New(m_isolate, scriptBreakpoint.lineNumber))
+                      v8::Integer::New(m_isolate, breakpoint.line_number))
                 .FromMaybe(false);
   DCHECK(success);
   success =
       info->Set(context, toV8StringInternalized(m_isolate, "columnNumber"),
-                v8::Integer::New(m_isolate, scriptBreakpoint.columnNumber))
+                v8::Integer::New(m_isolate, breakpoint.column_number))
           .FromMaybe(false);
   DCHECK(success);
   success = info->Set(context, toV8StringInternalized(m_isolate, "condition"),
-                      toV8String(m_isolate, scriptBreakpoint.condition))
+                      toV8String(m_isolate, breakpoint.condition))
                 .FromMaybe(false);
   DCHECK(success);
 
@@ -355,7 +354,7 @@ Response V8Debugger::setScriptSource(
 
   std::unique_ptr<v8::Context::Scope> contextScope;
   if (!isPaused())
-    contextScope = wrapUnique(new v8::Context::Scope(debuggerContext()));
+    contextScope.reset(new v8::Context::Scope(debuggerContext()));
 
   v8::Local<v8::Value> argv[] = {toV8String(m_isolate, sourceID), newSource,
                                  v8Boolean(dryRun, m_isolate)};
@@ -550,7 +549,7 @@ v8::Local<v8::Value> V8Debugger::callInternalGetterFunction(
           .ToLocalChecked();
   DCHECK(!getterValue.IsEmpty() && getterValue->IsFunction());
   return v8::Local<v8::Function>::Cast(getterValue)
-      ->Call(m_isolate->GetCurrentContext(), object, 0, 0)
+      ->Call(m_isolate->GetCurrentContext(), object, 0, nullptr)
       .ToLocalChecked();
 }
 
@@ -560,7 +559,7 @@ void V8Debugger::handleV8DebugEvent(
   v8::DebugEvent event = eventDetails.GetEvent();
   if (event != v8::AsyncTaskEvent && event != v8::Break &&
       event != v8::Exception && event != v8::AfterCompile &&
-      event != v8::BeforeCompile && event != v8::CompileError)
+      event != v8::CompileError)
     return;
 
   v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
@@ -575,48 +574,53 @@ void V8Debugger::handleV8DebugEvent(
 
   V8DebuggerAgentImpl* agent =
       m_inspector->enabledDebuggerAgentForGroup(getGroupId(eventContext));
-  if (agent) {
-    v8::HandleScope scope(m_isolate);
-    if (m_ignoreScriptParsedEventsCounter == 0 &&
-        (event == v8::AfterCompile || event == v8::CompileError)) {
-      v8::Local<v8::Context> context = debuggerContext();
-      v8::Context::Scope contextScope(context);
-      v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-      v8::Local<v8::Value> value =
-          callDebuggerMethod("getAfterCompileScript", 1, argv).ToLocalChecked();
-      if (value->IsNull()) return;
-      DCHECK(value->IsObject());
-      v8::Local<v8::Object> scriptObject = v8::Local<v8::Object>::Cast(value);
-      v8::Local<v8::DebugInterface::Script> script;
-      if (!v8::DebugInterface::Script::Wrap(m_isolate, scriptObject)
-               .ToLocal(&script))
-        return;
-      agent->didParseSource(
-          wrapUnique(new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
-          event == v8::AfterCompile);
-    } else if (event == v8::Exception) {
-      v8::Local<v8::Context> context = debuggerContext();
-      v8::Local<v8::Object> eventData = eventDetails.GetEventData();
-      v8::Local<v8::Value> exception =
-          callInternalGetterFunction(eventData, "exception");
-      v8::Local<v8::Value> promise =
-          callInternalGetterFunction(eventData, "promise");
-      bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
-      v8::Local<v8::Value> uncaught =
-          callInternalGetterFunction(eventData, "uncaught");
-      bool isUncaught = uncaught->BooleanValue(context).FromJust();
-      handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                         exception, v8::Local<v8::Array>(), isPromiseRejection,
-                         isUncaught);
-    } else if (event == v8::Break) {
-      v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-      v8::Local<v8::Value> hitBreakpoints =
-          callDebuggerMethod("getBreakpointNumbers", 1, argv).ToLocalChecked();
-      DCHECK(hitBreakpoints->IsArray());
-      handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                         v8::Local<v8::Value>(),
-                         hitBreakpoints.As<v8::Array>());
+  if (!agent) return;
+
+  v8::HandleScope scope(m_isolate);
+  if (event == v8::AfterCompile || event == v8::CompileError) {
+    v8::Context::Scope contextScope(debuggerContext());
+    // Determine if the script is a wasm script.
+    v8::Local<v8::Value> scriptMirror =
+        callInternalGetterFunction(eventDetails.GetEventData(), "script");
+    DCHECK(scriptMirror->IsObject());
+    v8::Local<v8::Value> scriptWrapper =
+        callInternalGetterFunction(scriptMirror.As<v8::Object>(), "value");
+    DCHECK(scriptWrapper->IsObject());
+    v8::Local<v8::DebugInterface::Script> script;
+    if (!v8::DebugInterface::Script::Wrap(m_isolate,
+                                          scriptWrapper.As<v8::Object>())
+             .ToLocal(&script)) {
+      return;
     }
+    if (script->IsWasm()) {
+      m_wasmTranslation.AddScript(scriptWrapper.As<v8::Object>());
+    } else if (m_ignoreScriptParsedEventsCounter == 0) {
+      agent->didParseSource(
+          std::unique_ptr<V8DebuggerScript>(
+              new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
+          event == v8::AfterCompile);
+    }
+  } else if (event == v8::Exception) {
+    v8::Local<v8::Context> context = debuggerContext();
+    v8::Local<v8::Object> eventData = eventDetails.GetEventData();
+    v8::Local<v8::Value> exception =
+        callInternalGetterFunction(eventData, "exception");
+    v8::Local<v8::Value> promise =
+        callInternalGetterFunction(eventData, "promise");
+    bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
+    v8::Local<v8::Value> uncaught =
+        callInternalGetterFunction(eventData, "uncaught");
+    bool isUncaught = uncaught->BooleanValue(context).FromJust();
+    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
+                       exception, v8::Local<v8::Array>(), isPromiseRejection,
+                       isUncaught);
+  } else if (event == v8::Break) {
+    v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
+    v8::Local<v8::Value> hitBreakpoints =
+        callDebuggerMethod("getBreakpointNumbers", 1, argv).ToLocalChecked();
+    DCHECK(hitBreakpoints->IsArray());
+    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
+                       v8::Local<v8::Value>(), hitBreakpoints.As<v8::Array>());
   }
 }
 
@@ -685,15 +689,27 @@ v8::Local<v8::Context> V8Debugger::debuggerContext() const {
   return m_debuggerContext.Get(m_isolate);
 }
 
-v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
-    v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
+v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> value,
+    ScopeTargetKind kind) {
   if (!enabled()) {
     UNREACHABLE();
     return v8::Local<v8::Value>::New(m_isolate, v8::Undefined(m_isolate));
   }
-  v8::Local<v8::Value> argv[] = {function};
+  v8::Local<v8::Value> argv[] = {value};
   v8::Local<v8::Value> scopesValue;
-  if (!callDebuggerMethod("getFunctionScopes", 1, argv).ToLocal(&scopesValue))
+
+  const char* debuggerMethod = nullptr;
+  switch (kind) {
+    case FUNCTION:
+      debuggerMethod = "getFunctionScopes";
+      break;
+    case GENERATOR:
+      debuggerMethod = "getGeneratorScopes";
+      break;
+  }
+
+  if (!callDebuggerMethod(debuggerMethod, 1, argv).ToLocal(&scopesValue))
     return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Value> copied;
   if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
@@ -708,6 +724,16 @@ v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
                                   V8InternalValueType::kScope))
     return v8::MaybeLocal<v8::Value>();
   return copied;
+}
+
+v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
+    v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
+  return getTargetScopes(context, function, FUNCTION);
+}
+
+v8::MaybeLocal<v8::Value> V8Debugger::generatorScopes(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> generator) {
+  return getTargetScopes(context, generator, GENERATOR);
 }
 
 v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
@@ -751,6 +777,12 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
           context, properties, properties->Length(),
           toV8StringInternalized(m_isolate, "[[GeneratorLocation]]"));
       createDataProperty(context, properties, properties->Length(), location);
+    }
+    v8::Local<v8::Value> scopes;
+    if (generatorScopes(context, value).ToLocal(&scopes)) {
+      createDataProperty(context, properties, properties->Length(),
+                         toV8StringInternalized(m_isolate, "[[Scopes]]"));
+      createDataProperty(context, properties, properties->Length(), scopes);
     }
   }
   if (value->IsFunction()) {

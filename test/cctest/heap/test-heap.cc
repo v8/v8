@@ -1362,6 +1362,7 @@ TEST(TestCodeFlushingPreAged) {
 
 
 TEST(TestCodeFlushingIncremental) {
+  if (!i::FLAG_incremental_marking) return;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
@@ -1434,6 +1435,7 @@ TEST(TestCodeFlushingIncremental) {
 
 
 TEST(TestCodeFlushingIncrementalScavenge) {
+  if (!FLAG_incremental_marking) return;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
@@ -1505,6 +1507,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
 
 
 TEST(TestCodeFlushingIncrementalAbort) {
+  if (!i::FLAG_incremental_marking) return;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
@@ -1571,6 +1574,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
 }
 
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
+  if (!i::FLAG_incremental_marking) return;
   // Turn off always_opt because it interferes with running the built-in for
   // the last call to g().
   i::FLAG_always_opt = false;
@@ -1643,9 +1647,8 @@ TEST(CompilationCacheCachingBehavior) {
 
   // The script should be in the cache now.
   MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
+      source, Handle<Object>(), 0, 0, v8::ScriptOriginOptions(true, false),
+      native_context, language_mode);
   CHECK(!info.is_null());
 
   // Check that the code cache entry survives at least on GC.
@@ -1653,10 +1656,9 @@ TEST(CompilationCacheCachingBehavior) {
   // immediately.)
   if (!FLAG_optimize_for_size) {
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    info = compilation_cache->LookupScript(
-        source, Handle<Object>(), 0, 0,
-        v8::ScriptOriginOptions(false, true, false), native_context,
-        language_mode);
+    info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                           v8::ScriptOriginOptions(true, false),
+                                           native_context, language_mode);
     CHECK(!info.is_null());
   }
 
@@ -1672,10 +1674,9 @@ TEST(CompilationCacheCachingBehavior) {
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   // Ensure code aging cleared the entry from the cache.
-  info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                         v8::ScriptOriginOptions(true, false),
+                                         native_context, language_mode);
   CHECK(info.is_null());
 }
 
@@ -1712,7 +1713,7 @@ static int CountOptimizedUserFunctions(v8::Local<v8::Context> context) {
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
   Object* object = icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST);
   while (object->IsJSFunction() &&
-         !JSFunction::cast(object)->shared()->IsBuiltin()) {
+         JSFunction::cast(object)->shared()->IsUserJavaScript()) {
     count++;
     object = JSFunction::cast(object)->next_function_link();
   }
@@ -1854,7 +1855,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Local<v8::Context> context,
   Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST),
                         isolate);
   while (object->IsJSFunction() &&
-         !Handle<JSFunction>::cast(object)->shared()->IsBuiltin()) {
+         Handle<JSFunction>::cast(object)->shared()->IsUserJavaScript()) {
     count++;
     if (count == n)
       isolate->heap()->CollectAllGarbage(
@@ -2339,7 +2340,7 @@ TEST(GrowAndShrinkNewSpace) {
   }
 
   // Explicitly growing should double the space capacity.
-  intptr_t old_capacity, new_capacity;
+  size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   new_capacity = new_space->TotalCapacity();
@@ -2387,7 +2388,7 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 
   v8::HandleScope scope(CcTest::isolate());
   NewSpace* new_space = heap->new_space();
-  intptr_t old_capacity, new_capacity;
+  size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   new_capacity = new_space->TotalCapacity();
@@ -2608,6 +2609,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 
 TEST(InstanceOfStubWriteBarrier) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
@@ -2674,6 +2676,7 @@ int GetProfilerTicks(SharedFunctionInfo* shared) {
 }  // namespace
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
@@ -2765,6 +2768,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 
 
 HEAP_TEST(GCFlags) {
+  if (!i::FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
 
@@ -2797,6 +2801,7 @@ HEAP_TEST(GCFlags) {
 
 
 TEST(IdleNotificationFinishMarking) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   const int initial_gc_count = CcTest::heap()->gc_count();
@@ -3296,6 +3301,7 @@ static int CountMapTransitions(Map* map) {
 // Test that map transitions are cleared and maps are collected with
 // incremental marking as well.
 TEST(Regress1465) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
@@ -3671,6 +3677,7 @@ TEST(PrintSharedFunctionInfo) {
 
 
 TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
+  if (!FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3746,6 +3753,7 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3769,6 +3777,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3790,6 +3799,7 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
 }
 
 TEST(IncrementalMarkingPreservesPolymorphicIC) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3827,6 +3837,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
 }
 
 TEST(ContextDisposeDoesntClearPolymorphicIC) {
+  if (!i::FLAG_incremental_marking) return;
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3982,6 +3993,7 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
 
 
 TEST(Regress159140) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4042,6 +4054,7 @@ TEST(Regress159140) {
 
 
 TEST(Regress165495) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4088,6 +4101,7 @@ TEST(Regress165495) {
 
 
 TEST(Regress169209) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_always_opt = false;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
@@ -4304,6 +4318,7 @@ TEST(Regress513507) {
 
 
 TEST(Regress514122) {
+  if (!i::FLAG_incremental_marking) return;
   i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
@@ -4565,6 +4580,7 @@ TEST(Regress513496) {
 
 
 TEST(LargeObjectSlotRecording) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4637,6 +4653,7 @@ TEST(DeferredHandles) {
 
 
 TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   CompileRun("function f(n) {"
@@ -5448,6 +5465,7 @@ TEST(WeakCell) {
 
 
 TEST(WeakCellsWithIncrementalMarking) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -5678,7 +5696,8 @@ UNINITIALIZED_TEST(PromotionQueue) {
 
 
     CHECK(new_space->IsAtMaximumCapacity());
-    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
+    CHECK_EQ(static_cast<size_t>(i::FLAG_min_semi_space_size * MB),
+             new_space->TotalCapacity());
 
     // Call the scavenger two times to get an empty new space
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
@@ -5694,7 +5713,8 @@ UNINITIALIZED_TEST(PromotionQueue) {
     }
 
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
-    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
+    CHECK_EQ(static_cast<size_t>(i::FLAG_min_semi_space_size * MB),
+             new_space->TotalCapacity());
 
     // Fill-up the first semi-space page.
     heap::FillUpOnePage(new_space);
@@ -5717,6 +5737,7 @@ UNINITIALIZED_TEST(PromotionQueue) {
 
 
 TEST(Regress388880) {
+  if (!FLAG_incremental_marking) return;
   i::FLAG_expose_gc = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -5764,6 +5785,7 @@ TEST(Regress388880) {
 
 
 TEST(Regress3631) {
+  if (!FLAG_incremental_marking) return;
   i::FLAG_expose_gc = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -5897,6 +5919,7 @@ void CheckMapRetainingFor(int n) {
 
 
 TEST(MapRetaining) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   CheckMapRetainingFor(FLAG_retain_maps_for_n_gc);
@@ -5961,8 +5984,7 @@ static void TestRightTrimFixedTypedArray(i::ExternalArrayType type,
   Handle<FixedTypedArrayBase> array =
       factory->NewFixedTypedArray(initial_length, type, true);
   int old_size = array->size();
-  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array,
-                                                         elements_to_trim);
+  heap->RightTrimFixedArray(*array, elements_to_trim);
 
   // Check that free space filler is at the right place and did not smash the
   // array header.
@@ -6253,9 +6275,9 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<Object> obj = v8::Utils::OpenHandle(*args[0]);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
+  fun->shared()->ClearBytecodeArray();  // Bytecode is code too.
   fun->ReplaceCode(*isolate->builtins()->CompileLazy());
   fun->shared()->ReplaceCode(*isolate->builtins()->CompileLazy());
-  fun->shared()->ClearBytecodeArray();  // Bytecode is code too.
   CcTest::CollectAllAvailableGarbage();
 }
 
@@ -6397,6 +6419,7 @@ static UniqueId MakeUniqueId(const Persistent<T>& p) {
 
 
 TEST(Regress519319) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -6447,7 +6470,7 @@ HEAP_TEST(Regress587004) {
   }
   CcTest::CollectGarbage(OLD_SPACE);
   heap::SimulateFullSpace(heap->old_space());
-  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array, N - 1);
+  heap->RightTrimFixedArray(*array, N - 1);
   heap->mark_compact_collector()->EnsureSweepingCompleted();
   ByteArray* byte_array;
   const int M = 256;
@@ -6465,6 +6488,7 @@ HEAP_TEST(Regress587004) {
 }
 
 HEAP_TEST(Regress589413) {
+  if (!FLAG_incremental_marking) return;
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
@@ -6531,7 +6555,7 @@ HEAP_TEST(Regress589413) {
     }
     heap::SimulateIncrementalMarking(heap);
     for (size_t j = 0; j < arrays.size(); j++) {
-      heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(arrays[j], N - 1);
+      heap->RightTrimFixedArray(arrays[j], N - 1);
     }
   }
   // Force allocation from the free list.
@@ -6540,6 +6564,7 @@ HEAP_TEST(Regress589413) {
 }
 
 TEST(Regress598319) {
+  if (!FLAG_incremental_marking) return;
   // This test ensures that no white objects can cross the progress bar of large
   // objects during incremental marking. It checks this by using Shift() during
   // incremental marking.
@@ -6656,6 +6681,7 @@ TEST(Regress609761) {
 }
 
 TEST(Regress615489) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6710,6 +6736,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(Regress631969) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   FLAG_concurrent_sweeping = false;
@@ -6755,6 +6782,7 @@ TEST(Regress631969) {
 }
 
 TEST(LeftTrimFixedArrayInBlackArea) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6793,6 +6821,7 @@ TEST(LeftTrimFixedArrayInBlackArea) {
 }
 
 TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6858,6 +6887,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
 }
 
 TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  if (!i::FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6896,7 +6926,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   // Trim it once by one word to make checking for white marking color uniform.
   Address previous = end_address - kPointerSize;
-  heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(*array, 1);
+  heap->RightTrimFixedArray(*array, 1);
   HeapObject* filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
   CHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(previous)));
@@ -6905,7 +6935,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kPointerSize * i;
-      heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(*array, i);
+      heap->RightTrimFixedArray(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
       CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(previous)));
@@ -6916,6 +6946,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 }
 
 TEST(Regress618958) {
+  if (!i::FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();

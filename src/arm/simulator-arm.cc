@@ -3743,6 +3743,19 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
 
 void Simulator::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
+    case 4:
+      if (instr->Bits(21, 20) == 2 && instr->Bits(11, 8) == 1 &&
+          instr->Bit(4) == 1) {
+        // vmov Qd, Qm
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        uint32_t data[4];
+        get_q_register(Vm, data);
+        set_q_register(Vd, data);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     case 5:
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
@@ -3763,6 +3776,35 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           e++;
         }
         set_q_register(Vd, reinterpret_cast<uint64_t*>(to));
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case 6:
+      if (instr->Bits(21, 20) == 0 && instr->Bits(11, 8) == 1 &&
+          instr->Bit(4) == 1) {
+        if (instr->Bit(6) == 0) {
+          // veor Dd, Dn, Dm
+          int Vd = instr->VFPDRegValue(kDoublePrecision);
+          int Vn = instr->VFPNRegValue(kDoublePrecision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          uint64_t n_data, m_data;
+          get_d_register(Vn, &n_data);
+          get_d_register(Vm, &m_data);
+          n_data ^= m_data;
+          set_d_register(Vd, &n_data);
+
+        } else {
+          // veor Qd, Qn, Qm
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vn = instr->VFPNRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          uint32_t n_data[4], m_data[4];
+          get_q_register(Vn, n_data);
+          get_q_register(Vm, m_data);
+          for (int i = 0; i < 4; i++) n_data[i] ^= m_data[i];
+          set_q_register(Vd, n_data);
+        }
       } else {
         UNIMPLEMENTED();
       }
@@ -3789,18 +3831,24 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         set_q_register(Vd, reinterpret_cast<uint64_t*>(to));
       } else if ((instr->Bits(21, 16) == 0x32) && (instr->Bits(11, 7) == 0) &&
                  (instr->Bit(4) == 0)) {
-        int vd = instr->VFPDRegValue(kDoublePrecision);
-        int vm = instr->VFPMRegValue(kDoublePrecision);
         if (instr->Bit(6) == 0) {
           // vswp Dd, Dm.
           uint64_t dval, mval;
+          int vd = instr->VFPDRegValue(kDoublePrecision);
+          int vm = instr->VFPMRegValue(kDoublePrecision);
           get_d_register(vd, &dval);
           get_d_register(vm, &mval);
           set_d_register(vm, &dval);
           set_d_register(vd, &mval);
         } else {
-          // Q register vswp unimplemented.
-          UNIMPLEMENTED();
+          // vswp Qd, Qm.
+          uint32_t dval[4], mval[4];
+          int vd = instr->VFPDRegValue(kSimd128Precision);
+          int vm = instr->VFPMRegValue(kSimd128Precision);
+          get_q_register(vd, dval);
+          get_q_register(vm, mval);
+          set_q_register(vm, dval);
+          set_q_register(vd, mval);
         }
       } else {
         UNIMPLEMENTED();

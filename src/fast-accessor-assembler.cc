@@ -10,7 +10,6 @@
 #include "src/handles-inl.h"
 #include "src/objects.h"  // For FAA::LoadInternalField impl.
 
-using v8::internal::CodeStubAssembler;
 using v8::internal::compiler::Node;
 
 namespace v8 {
@@ -19,9 +18,9 @@ namespace internal {
 FastAccessorAssembler::FastAccessorAssembler(Isolate* isolate)
     : zone_(isolate->allocator(), ZONE_NAME),
       isolate_(isolate),
-      assembler_(new CodeStubAssembler(isolate, zone(), 1,
-                                       Code::ComputeFlags(Code::STUB),
-                                       "FastAccessorAssembler")),
+      assembler_state_(isolate, zone(), 1, Code::ComputeFlags(Code::STUB),
+                       "FastAccessorAssembler"),
+      assembler_(new CodeStubAssembler(&assembler_state_)),
       state_(kBuilding) {}
 
 FastAccessorAssembler::~FastAccessorAssembler() { Clear(); }
@@ -248,7 +247,7 @@ void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
 
 MaybeHandle<Code> FastAccessorAssembler::Build() {
   CHECK_EQ(kBuilding, state_);
-  Handle<Code> code = assembler_->GenerateCode();
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&assembler_state_);
   state_ = !code.is_null() ? kBuilt : kError;
   Clear();
   return code;

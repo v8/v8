@@ -66,6 +66,11 @@ static size_t offset(const char* src, const char* substring) {
   return static_cast<size_t>(it - src);
 }
 
+template <typename A, typename B>
+static int dist(A a, B b) {
+  return abs(static_cast<int>(a) - static_cast<int>(b));
+}
+
 static const char* reason(const i::DeoptimizeReason reason) {
   return i::DeoptimizeReasonToString(reason);
 }
@@ -1570,6 +1575,7 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
 static const char* inlining_test_source =
     "%NeverOptimizeFunction(action);\n"
     "%NeverOptimizeFunction(start);\n"
+    "level1()\n"
     "%OptimizeFunctionOnNextCall(level1);\n"
     "%OptimizeFunctionOnNextCall(level2);\n"
     "%OptimizeFunctionOnNextCall(level3);\n"
@@ -1905,10 +1911,9 @@ TEST(SourceLocation) {
       .ToLocalChecked();
 }
 
-
 static const char* inlined_source =
-    "function opt_function(left, right) { var k = left / 10; var r = 10 / "
-    "right; return k + r; }\n";
+    "function opt_function(left, right) { var k = left*right; return k + 1; "
+    "}\n";
 //   0.........1.........2.........3.........4....*....5.........6......*..7
 
 
@@ -1935,7 +1940,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
       "\n"
       "test(10, 10);\n"
       "\n"
-      "test(undefined, 10);\n"
+      "test(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -1970,10 +1975,11 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
   CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
 
@@ -1995,7 +2001,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
       "function test2(left, right) { return opt_function(left, right); }\n"
-      "function test1(left, right) { return test2(left, right); }\n"
+      "function test1(left, right) { return test2(left, right); } \n"
       "\n"
       "startProfiling();\n"
       "\n"
@@ -2005,7 +2011,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
       "\n"
       "test1(10, 10);\n"
       "\n"
-      "test1(undefined, 10);\n"
+      "test1(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -2043,10 +2049,11 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
   CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
   CHECK_EQ(offset(source, "test2(left, right);"), info.stack[2].position);

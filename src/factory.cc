@@ -137,6 +137,15 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
       FixedArray);
 }
 
+MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
+                                                  PretenureFlag pretenure) {
+  DCHECK(0 <= size);
+  AllocationResult allocation =
+      isolate()->heap()->AllocateFixedArray(size, pretenure);
+  Object* array = NULL;
+  if (!allocation.To(&array)) return MaybeHandle<FixedArray>();
+  return Handle<FixedArray>(FixedArray::cast(array), isolate());
+}
 
 Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
                                                    PretenureFlag pretenure) {
@@ -174,11 +183,7 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
   DCHECK(0 <= size);
   Handle<FixedArrayBase> array = NewFixedDoubleArray(size, pretenure);
   if (size > 0) {
-    Handle<FixedDoubleArray> double_array =
-        Handle<FixedDoubleArray>::cast(array);
-    for (int i = 0; i < size; ++i) {
-      double_array->set_the_hole(i);
-    }
+    Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, size);
   }
   return array;
 }
@@ -2001,6 +2006,12 @@ void SetupArrayBufferView(i::Isolate* isolate,
   DCHECK(byte_offset + byte_length <=
          static_cast<size_t>(buffer->byte_length()->Number()));
 
+  DCHECK_EQ(obj->GetInternalFieldCount(),
+            v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    obj->SetInternalField(i, Smi::kZero);
+  }
+
   obj->set_buffer(*buffer);
 
   i::Handle<i::Object> byte_offset_object =
@@ -2070,6 +2081,11 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
                                               size_t number_of_elements,
                                               PretenureFlag pretenure) {
   Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, pretenure);
+  DCHECK_EQ(obj->GetInternalFieldCount(),
+            v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    obj->SetInternalField(i, Smi::kZero);
+  }
 
   size_t element_size = GetFixedTypedArraysElementSize(elements_kind);
   ExternalArrayType array_type = GetArrayTypeFromElementsKind(elements_kind);
@@ -2199,12 +2215,11 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   // The proxy's hash should be retained across reinitialization.
   Handle<Object> hash(object->hash(), isolate());
 
-  JSObject::InvalidatePrototypeChains(*old_map);
   if (old_map->is_prototype_map()) {
     map = Map::Copy(map, "CopyAsPrototypeForJSGlobalProxy");
     map->set_is_prototype_map(true);
   }
-  JSObject::UpdatePrototypeUserRegistration(old_map, map, isolate());
+  JSObject::NotifyMapChange(old_map, map, isolate());
 
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.

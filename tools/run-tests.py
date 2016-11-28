@@ -111,6 +111,7 @@ MORE_VARIANTS = [
   "stress",
   "turbofan_opt",
   "asm_wasm",
+  "wasm_traps",
 ]
 
 EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS

@@ -718,6 +718,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Call to a runtime function with four arguments.
   Node* CallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
                      Node* arg3, Node* arg4, Node* context);
+  // Call to a runtime function with five arguments.
+  Node* CallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                     Node* arg3, Node* arg4, Node* arg5, Node* context);
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.

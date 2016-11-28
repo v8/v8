@@ -141,6 +141,7 @@ class Interpreter {
 
   // Generates code to load a global.
   compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
+                                  compiler::Node* name_index,
                                   compiler::Node* feedback_slot,
                                   InterpreterAssembler* assembler);
 

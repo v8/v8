@@ -160,13 +160,20 @@ void NonLiveFrameStateSlotReplacer::ClearNonLiveFrameStateSlots(
 Node* NonLiveFrameStateSlotReplacer::ClearNonLiveStateValues(
     Node* values, BitVector* liveness) {
   DCHECK(inputs_buffer_.empty());
-  for (StateValuesAccess::TypedNode node : StateValuesAccess(values)) {
+
+  int var = 0;
+  for (Node* value_node : values->inputs()) {
+    // Make sure this isn't a state value tree
+    DCHECK(value_node->opcode() != IrOpcode::kStateValues);
+
     // Index of the next variable is its furure index in the inputs buffer,
     // i.e., the buffer's size.
-    int var = static_cast<int>(inputs_buffer_.size());
     bool live = liveness->Contains(var) || permanently_live_.Contains(var);
-    inputs_buffer_.push_back(live ? node.node : replacement_node_);
+    inputs_buffer_.push_back(live ? value_node : replacement_node_);
+
+    var++;
   }
+
   Node* result = state_values_cache()->GetNodeForValues(
       inputs_buffer_.empty() ? nullptr : &(inputs_buffer_.front()),
       inputs_buffer_.size());

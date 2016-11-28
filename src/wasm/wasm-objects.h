@@ -17,6 +17,7 @@ struct WasmModule;
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
+class WasmInstanceWrapper;
 
 #define DECLARE_CASTS(name)             \
   static bool Is##name(Object* object); \
@@ -39,7 +40,7 @@ class WasmModuleObject : public JSObject {
 
   DECLARE_CASTS(WasmModuleObject);
 
-  WasmCompiledModule* compiled_module();
+  WasmCompiledModule* get_compiled_module();
   wasm::WasmModule* module();
   int num_functions();
   bool is_asm_js();
@@ -79,12 +80,14 @@ class WasmTableObject : public JSObject {
 class WasmMemoryObject : public JSObject {
  public:
   // TODO(titzer): add the brand as an internal field instead of a property.
-  enum Fields : uint8_t { kArrayBuffer, kMaximum, kInstance, kFieldCount };
+  enum Fields : uint8_t { kArrayBuffer, kMaximum, kInstancesLink, kFieldCount };
 
   DECLARE_CASTS(WasmMemoryObject);
   DECLARE_ACCESSORS(buffer, JSArrayBuffer);
+  DECLARE_OPTIONAL_ACCESSORS(instances_link, WasmInstanceWrapper);
 
-  void AddInstance(WasmInstanceObject* object);
+  void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);
+  void ResetInstancesLink(Isolate* isolate);
   uint32_t current_pages();
   int32_t maximum_pages();  // returns < 0 if there is no maximum
 
@@ -105,6 +108,7 @@ class WasmInstanceObject : public JSObject {
     kMemoryArrayBuffer,
     kGlobalsArrayBuffer,
     kDebugInfo,
+    kWasmMemInstanceWrapper,
     kFieldCount
   };
 
@@ -115,6 +119,7 @@ class WasmInstanceObject : public JSObject {
   DECLARE_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer);
   DECLARE_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject);
   DECLARE_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo);
+  DECLARE_OPTIONAL_ACCESSORS(instance_wrapper, WasmInstanceWrapper);
 
   WasmModuleObject* module_object();
   wasm::WasmModule* module();
@@ -157,9 +162,15 @@ class WasmCompiledModule : public FixedArray {
     return MaybeHandle<TYPE>();                                      \
   }                                                                  \
                                                                      \
-  TYPE* ptr_to_##NAME() const {                                      \
+  TYPE* maybe_ptr_to_##NAME() const {                                \
     Object* obj = get(ID);                                           \
     if (!obj->Is##TYPE()) return nullptr;                            \
+    return TYPE::cast(obj);                                          \
+  }                                                                  \
+                                                                     \
+  TYPE* ptr_to_##NAME() const {                                      \
+    Object* obj = get(ID);                                           \
+    DCHECK(obj->Is##TYPE());                                         \
     return TYPE::cast(obj);                                          \
   }                                                                  \
                                                                      \
@@ -189,11 +200,13 @@ class WasmCompiledModule : public FixedArray {
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                \
   MACRO(OBJECT, FixedArray, code_table)               \
   MACRO(OBJECT, Foreign, module_wrapper)              \
+  /* For debugging: */                                \
   MACRO(OBJECT, SeqOneByteString, module_bytes)       \
-  MACRO(OBJECT, Script, asm_js_script)                \
+  MACRO(OBJECT, Script, script)                       \
+  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
+  /* End of debugging stuff */                        \
   MACRO(OBJECT, FixedArray, function_tables)          \
   MACRO(OBJECT, FixedArray, empty_function_tables)    \
-  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
   MACRO(OBJECT, JSArrayBuffer, memory)                \
   MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)        \
   MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)        \
@@ -251,6 +264,33 @@ class WasmCompiledModule : public FixedArray {
   static void RecreateModuleWrapper(Isolate* isolate,
                                     Handle<FixedArray> compiled_module);
 
+  // Get the function name of the function identified by the given index.
+  // Returns a null handle if the function is unnamed or the name is not a valid
+  // UTF-8 string.
+  static MaybeHandle<String> GetFunctionName(
+      Handle<WasmCompiledModule> compiled_module, uint32_t func_index);
+
+  // Get the raw bytes of the function name of the function identified by the
+  // given index.
+  // Meant to be used for debugging or frame printing.
+  // Does not allocate, hence gc-safe.
+  Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
+
+  // Return the byte offset of the function identified by the given index.
+  // The offset will be relative to the start of the module bytes.
+  // Returns -1 if the function index is invalid.
+  int GetFunctionOffset(uint32_t func_index) const;
+
+  // Returns the function containing the given byte offset.
+  // Returns -1 if the byte offset is not contained in any function of this
+  // module.
+  int GetContainingFunction(uint32_t byte_offset) const;
+
+  // Translate from byte offset in the module to function number and byte offset
+  // within that function, encoded as line and column in the position info.
+  // Returns true if the position is valid inside this module, false otherwise.
+  bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
+
  private:
   void InitId();
 
@@ -261,12 +301,12 @@ class WasmDebugInfo : public FixedArray {
  public:
   enum class Fields { kFieldCount };
 
-  static Handle<WasmDebugInfo> New(Handle<JSObject> wasm);
+  static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject> instance);
 
   static bool IsDebugInfo(Object* object);
   static WasmDebugInfo* cast(Object* object);
 
-  JSObject* wasm_instance();
+  WasmInstanceObject* wasm_instance();
 
   bool SetBreakPoint(int byte_offset);
 
@@ -289,6 +329,61 @@ class WasmDebugInfo : public FixedArray {
   // Must only be called if the associated wasm object was created from asm.js.
   static int GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
                                     int func_index, int byte_offset);
+};
+
+class WasmInstanceWrapper : public FixedArray {
+ public:
+  static Handle<WasmInstanceWrapper> New(Isolate* isolate,
+                                         Handle<WasmInstanceObject> instance);
+  static WasmInstanceWrapper* cast(Object* fixed_array) {
+    SLOW_DCHECK(IsWasmInstanceWrapper(fixed_array));
+    return reinterpret_cast<WasmInstanceWrapper*>(fixed_array);
+  }
+  static bool IsWasmInstanceWrapper(Object* obj);
+  bool has_instance() { return get(kWrapperInstanceObject)->IsWeakCell(); }
+  Handle<WasmInstanceObject> instance_object() {
+    Object* obj = get(kWrapperInstanceObject);
+    DCHECK(obj->IsWeakCell());
+    WeakCell* cell = WeakCell::cast(obj);
+    DCHECK(cell->value()->IsJSObject());
+    return handle(WasmInstanceObject::cast(cell->value()));
+  }
+  bool has_next() { return IsWasmInstanceWrapper(get(kNextInstanceWrapper)); }
+  bool has_previous() {
+    return IsWasmInstanceWrapper(get(kPreviousInstanceWrapper));
+  }
+  void set_instance_object(Handle<JSObject> instance, Isolate* isolate);
+  void set_next_wrapper(Object* obj) {
+    DCHECK(IsWasmInstanceWrapper(obj));
+    set(kNextInstanceWrapper, obj);
+  }
+  void set_previous_wrapper(Object* obj) {
+    DCHECK(IsWasmInstanceWrapper(obj));
+    set(kPreviousInstanceWrapper, obj);
+  }
+  Handle<WasmInstanceWrapper> next_wrapper() {
+    Object* obj = get(kNextInstanceWrapper);
+    DCHECK(IsWasmInstanceWrapper(obj));
+    return handle(WasmInstanceWrapper::cast(obj));
+  }
+  Handle<WasmInstanceWrapper> previous_wrapper() {
+    Object* obj = get(kPreviousInstanceWrapper);
+    DCHECK(IsWasmInstanceWrapper(obj));
+    return handle(WasmInstanceWrapper::cast(obj));
+  }
+  void reset_next_wrapper() { set_undefined(kNextInstanceWrapper); }
+  void reset_previous_wrapper() { set_undefined(kPreviousInstanceWrapper); }
+  void reset() {
+    for (int kID = 0; kID < kWrapperPropertyCount; kID++) set_undefined(kID);
+  }
+
+ private:
+  enum {
+    kWrapperInstanceObject,
+    kNextInstanceWrapper,
+    kPreviousInstanceWrapper,
+    kWrapperPropertyCount
+  };
 };
 
 #undef DECLARE_ACCESSORS

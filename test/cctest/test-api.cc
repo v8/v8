@@ -4928,7 +4928,6 @@ static void check_message_3(v8::Local<v8::Message> message,
                             v8::Local<Value> data) {
   CHECK(message->IsSharedCrossOrigin());
   CHECK(message->GetScriptOrigin().Options().IsSharedCrossOrigin());
-  CHECK(message->GetScriptOrigin().Options().IsEmbedderDebugScript());
   CHECK(message->GetScriptOrigin().Options().IsOpaque());
   CHECK_EQ(6.75, message->GetScriptOrigin()
                      .ResourceName()
@@ -4949,10 +4948,10 @@ TEST(MessageHandler3) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_3);
   LocalContext context;
-  v8::ScriptOrigin origin = v8::ScriptOrigin(
-      v8_str("6.75"), v8::Integer::New(isolate, 1),
-      v8::Integer::New(isolate, 2), v8::True(isolate), Local<v8::Integer>(),
-      v8::True(isolate), v8_str("7.40"), v8::True(isolate));
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
+                       v8::Integer::New(isolate, 2), v8::True(isolate),
+                       Local<v8::Integer>(), v8_str("7.40"), v8::True(isolate));
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin)
           .ToLocalChecked();
@@ -7770,7 +7769,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
 
   FlagAndPersistent object_a, object_b;
 
-  intptr_t big_heap_size;
+  size_t big_heap_size;
 
   {
     v8::HandleScope handle_scope(iso);
@@ -14561,7 +14560,7 @@ void SetFunctionEntryHookTest::RunTest() {
     RunLoopInNewEnv(isolate);
 
     // Check the expected invocation counts.
-    if (!i::FLAG_ignition && !i::FLAG_turbo) {
+    if (i::FLAG_always_opt || (!i::FLAG_ignition && !i::FLAG_turbo)) {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
@@ -15364,7 +15363,6 @@ TEST(PreCompileSerialization) {
   v8::Isolate* isolate = env->GetIsolate();
   HandleScope handle_scope(isolate);
 
-  i::FLAG_min_preparse_length = 0;
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptCompiler::Source source(v8_str(script));
   v8::ScriptCompiler::Compile(env.local(), &source,
@@ -18773,8 +18771,8 @@ THREADED_TEST(ScriptOrigin) {
   v8::ScriptOrigin origin = v8::ScriptOrigin(
       v8_str("test"), v8::Integer::New(env->GetIsolate(), 1),
       v8::Integer::New(env->GetIsolate(), 1), v8::True(env->GetIsolate()),
-      v8::Local<v8::Integer>(), v8::True(env->GetIsolate()),
-      v8_str("http://sourceMapUrl"), v8::True(env->GetIsolate()));
+      v8::Local<v8::Integer>(), v8_str("http://sourceMapUrl"),
+      v8::True(env->GetIsolate()));
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -18792,7 +18790,6 @@ THREADED_TEST(ScriptOrigin) {
       1,
       script_origin_f.ResourceLineOffset()->Int32Value(env.local()).FromJust());
   CHECK(script_origin_f.Options().IsSharedCrossOrigin());
-  CHECK(script_origin_f.Options().IsEmbedderDebugScript());
   CHECK(script_origin_f.Options().IsOpaque());
   printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
 
@@ -18806,7 +18803,6 @@ THREADED_TEST(ScriptOrigin) {
       1,
       script_origin_g.ResourceLineOffset()->Int32Value(env.local()).FromJust());
   CHECK(script_origin_g.Options().IsSharedCrossOrigin());
-  CHECK(script_origin_g.Options().IsEmbedderDebugScript());
   CHECK(script_origin_g.Options().IsOpaque());
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(script_origin_g.SourceMapUrl())));
@@ -19015,24 +19011,6 @@ THREADED_TEST(ScriptColumnNumber) {
       env->Global()->Get(env.local(), v8_str("bar")).ToLocalChecked());
   CHECK_EQ(14, foo->GetScriptColumnNumber());
   CHECK_EQ(17, bar->GetScriptColumnNumber());
-}
-
-
-THREADED_TEST(FunctionIsBuiltin) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Function> f;
-  f = v8::Local<v8::Function>::Cast(CompileRun("Math.floor"));
-  CHECK(f->IsBuiltin());
-  f = v8::Local<v8::Function>::Cast(CompileRun("Object"));
-  CHECK(f->IsBuiltin());
-  f = v8::Local<v8::Function>::Cast(CompileRun("Object.__defineSetter__"));
-  CHECK(f->IsBuiltin());
-  f = v8::Local<v8::Function>::Cast(CompileRun("Array.prototype.toString"));
-  CHECK(f->IsBuiltin());
-  f = v8::Local<v8::Function>::Cast(CompileRun("function a() {}; a;"));
-  CHECK(!f->IsBuiltin());
 }
 
 
@@ -21813,10 +21791,10 @@ void TestStubCache(bool primary) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,        i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF, i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,       i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreIC,  i::CodeStub::KeyedStoreICTrampoline,
+          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
+          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Heap* heap = i_isolate->heap();
@@ -22740,10 +22718,10 @@ TEST(AccessCheckInIC) {
       // Enforce recompilation of IC stubs that access megamorphic stub cache
       // to respect enabled native code counters and stub cache test flags.
       i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,        i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF, i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,       i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreIC,  i::CodeStub::KeyedStoreICTrampoline,
+          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
+          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Heap* heap = i_isolate->heap();
@@ -24123,65 +24101,69 @@ TEST(ScriptPositionInfo) {
 
   v8::internal::Script::PositionInfo info;
 
-  // With offset.
+  for (int i = 0; i < 2; ++i) {
+    // With offset.
 
-  // Behave as if 0 was passed if position is negative.
-  CHECK(script1->GetPositionInfo(-1, &info, script1->WITH_OFFSET));
-  CHECK_EQ(13, info.line);
-  CHECK_EQ(0, info.column);
-  CHECK_EQ(0, info.line_start);
-  CHECK_EQ(8, info.line_end);
+    // Behave as if 0 was passed if position is negative.
+    CHECK(script1->GetPositionInfo(-1, &info, script1->WITH_OFFSET));
+    CHECK_EQ(13, info.line);
+    CHECK_EQ(0, info.column);
+    CHECK_EQ(0, info.line_start);
+    CHECK_EQ(8, info.line_end);
 
-  CHECK(script1->GetPositionInfo(0, &info, script1->WITH_OFFSET));
-  CHECK_EQ(13, info.line);
-  CHECK_EQ(0, info.column);
-  CHECK_EQ(0, info.line_start);
-  CHECK_EQ(8, info.line_end);
+    CHECK(script1->GetPositionInfo(0, &info, script1->WITH_OFFSET));
+    CHECK_EQ(13, info.line);
+    CHECK_EQ(0, info.column);
+    CHECK_EQ(0, info.line_start);
+    CHECK_EQ(8, info.line_end);
 
-  CHECK(script1->GetPositionInfo(8, &info, script1->WITH_OFFSET));
-  CHECK_EQ(13, info.line);
-  CHECK_EQ(8, info.column);
-  CHECK_EQ(0, info.line_start);
-  CHECK_EQ(8, info.line_end);
+    CHECK(script1->GetPositionInfo(8, &info, script1->WITH_OFFSET));
+    CHECK_EQ(13, info.line);
+    CHECK_EQ(8, info.column);
+    CHECK_EQ(0, info.line_start);
+    CHECK_EQ(8, info.line_end);
 
-  CHECK(script1->GetPositionInfo(9, &info, script1->WITH_OFFSET));
-  CHECK_EQ(14, info.line);
-  CHECK_EQ(0, info.column);
-  CHECK_EQ(9, info.line_start);
-  CHECK_EQ(17, info.line_end);
+    CHECK(script1->GetPositionInfo(9, &info, script1->WITH_OFFSET));
+    CHECK_EQ(14, info.line);
+    CHECK_EQ(0, info.column);
+    CHECK_EQ(9, info.line_start);
+    CHECK_EQ(17, info.line_end);
 
-  // Fail when position is larger than script size.
-  CHECK(!script1->GetPositionInfo(220384, &info, script1->WITH_OFFSET));
+    // Fail when position is larger than script size.
+    CHECK(!script1->GetPositionInfo(220384, &info, script1->WITH_OFFSET));
 
-  // Without offset.
+    // Without offset.
 
-  // Behave as if 0 was passed if position is negative.
-  CHECK(script1->GetPositionInfo(-1, &info, script1->NO_OFFSET));
-  CHECK_EQ(0, info.line);
-  CHECK_EQ(0, info.column);
-  CHECK_EQ(0, info.line_start);
-  CHECK_EQ(8, info.line_end);
+    // Behave as if 0 was passed if position is negative.
+    CHECK(script1->GetPositionInfo(-1, &info, script1->NO_OFFSET));
+    CHECK_EQ(0, info.line);
+    CHECK_EQ(0, info.column);
+    CHECK_EQ(0, info.line_start);
+    CHECK_EQ(8, info.line_end);
 
-  CHECK(script1->GetPositionInfo(0, &info, script1->NO_OFFSET));
-  CHECK_EQ(0, info.line);
-  CHECK_EQ(0, info.column);
-  CHECK_EQ(0, info.line_start);
-  CHECK_EQ(8, info.line_end);
+    CHECK(script1->GetPositionInfo(0, &info, script1->NO_OFFSET));
+    CHECK_EQ(0, info.line);
+    CHECK_EQ(0, info.column);
+    CHECK_EQ(0, info.line_start);
+    CHECK_EQ(8, info.line_end);
 
-  CHECK(script1->GetPositionInfo(8, &info, script1->NO_OFFSET));
-  CHECK_EQ(0, info.line);
-  CHECK_EQ(8, info.column);
-  CHECK_EQ(0, info.line_start);
-  CHECK_EQ(8, info.line_end);
+    CHECK(script1->GetPositionInfo(8, &info, script1->NO_OFFSET));
+    CHECK_EQ(0, info.line);
+    CHECK_EQ(8, info.column);
+    CHECK_EQ(0, info.line_start);
+    CHECK_EQ(8, info.line_end);
 
-  CHECK(script1->GetPositionInfo(9, &info, script1->NO_OFFSET));
-  CHECK_EQ(1, info.line);
-  CHECK_EQ(0, info.column);
-  CHECK_EQ(9, info.line_start);
-  CHECK_EQ(17, info.line_end);
+    CHECK(script1->GetPositionInfo(9, &info, script1->NO_OFFSET));
+    CHECK_EQ(1, info.line);
+    CHECK_EQ(0, info.column);
+    CHECK_EQ(9, info.line_start);
+    CHECK_EQ(17, info.line_end);
 
-  // Fail when position is larger than script size.
-  CHECK(!script1->GetPositionInfo(220384, &info, script1->NO_OFFSET));
+    // Fail when position is larger than script size.
+    CHECK(!script1->GetPositionInfo(220384, &info, script1->NO_OFFSET));
+
+    i::Script::InitLineEnds(script1);
+  }
 }
 
 void CheckMagicComments(Local<Script> script, const char* expected_source_url,
@@ -24687,7 +24669,6 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
 
 
 TEST(StreamingProducesParserCache) {
-  i::FLAG_min_preparse_length = 0;
   const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
                           NULL};
 
@@ -24720,7 +24701,6 @@ TEST(StreamingWithDebuggingEnabledLate) {
   // fully parsed. However, we may compile inner functions eagerly when
   // debugging. Make sure that we can deal with this when turning on debugging
   // after streaming parser has already finished parsing.
-  i::FLAG_min_preparse_length = 0;
   const char* chunks[] = {"with({x:1}) {",
                           "  var foo = function foo(y) {",
                           "    return x + y;",
@@ -24967,7 +24947,6 @@ TEST(ParserCacheRejectedGracefully) {
   // Producing cached parser data while parsing eagerly is not supported.
   if (!i::FLAG_lazy) return;
 
-  i::FLAG_min_preparse_length = 0;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
@@ -25392,6 +25371,12 @@ TEST(ExtrasUtilsObject) {
   rejected_promise->Catch(env.local(), store).ToLocalChecked();
   isolate->RunMicrotasks();
   CHECK_EQ(3, CompileRun("result")->Int32Value(env.local()).FromJust());
+
+  auto rejected_but_handled_promise =
+      result->Get(env.local(), v8_str("rejectedButHandledPromise"))
+          .ToLocalChecked()
+          .As<v8::Promise>();
+  CHECK_EQ(true, rejected_but_handled_promise->HasHandler());
 }
 
 
@@ -26145,4 +26130,32 @@ THREADED_TEST(MutableProtoGlobal) {
       "})()");
   CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 0))
             .FromJust());
+}
+
+TEST(InternalFieldsOnTypedArray) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  Context::Scope context_scope(context);
+  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, 1);
+  v8::Local<v8::Uint8Array> array = v8::Uint8Array::New(buffer, 0, 1);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    CHECK_EQ(static_cast<void*>(nullptr),
+             array->GetAlignedPointerFromInternalField(i));
+  }
+}
+
+TEST(InternalFieldsOnDataView) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  Context::Scope context_scope(context);
+  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, 1);
+  v8::Local<v8::DataView> array = v8::DataView::New(buffer, 0, 1);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    CHECK_EQ(static_cast<void*>(nullptr),
+             array->GetAlignedPointerFromInternalField(i));
+  }
 }

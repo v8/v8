@@ -625,7 +625,6 @@ TEST(IgnitionEntryTrampolineSelfHealing) {
   CcTest::InitializeVM();
   FLAG_ignition = true;
   Isolate* isolate = CcTest::i_isolate();
-  isolate->interpreter()->Initialize();
   v8::HandleScope scope(CcTest::isolate());
 
   CompileRun(

@@ -93,19 +93,20 @@ bool stringViewStartsWith(const StringView& string, const char* prefix) {
 
 namespace protocol {
 
-std::unique_ptr<protocol::Value> parseJSON(const StringView& string) {
+std::unique_ptr<protocol::Value> StringUtil::parseJSON(
+    const StringView& string) {
   if (!string.length()) return nullptr;
   if (string.is8Bit()) {
-    return protocol::parseJSON(string.characters8(),
+    return parseJSONCharacters(string.characters8(),
                                static_cast<int>(string.length()));
   }
-  return protocol::parseJSON(string.characters16(),
+  return parseJSONCharacters(string.characters16(),
                              static_cast<int>(string.length()));
 }
 
-std::unique_ptr<protocol::Value> parseJSON(const String16& string) {
+std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
   if (!string.length()) return nullptr;
-  return protocol::parseJSON(string.characters16(),
+  return parseJSONCharacters(string.characters16(),
                              static_cast<int>(string.length()));
 }
 
@@ -119,7 +120,7 @@ std::unique_ptr<StringBuffer> StringBuffer::create(const StringView& string) {
 
 // static
 std::unique_ptr<StringBufferImpl> StringBufferImpl::adopt(String16& string) {
-  return wrapUnique(new StringBufferImpl(string));
+  return std::unique_ptr<StringBufferImpl>(new StringBufferImpl(string));
 }
 
 StringBufferImpl::StringBufferImpl(String16& string) {

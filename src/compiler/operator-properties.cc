@@ -61,6 +61,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
+    case IrOpcode::kJSOrdinaryHasInstance:
 
     // Object operations
     case IrOpcode::kJSCreate:
@@ -77,6 +78,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSLoadGlobal:
     case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSStoreDataPropertyInLiteral:
     case IrOpcode::kJSDeleteProperty:
 
     // Context operations

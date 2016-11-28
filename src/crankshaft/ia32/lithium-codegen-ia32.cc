@@ -327,8 +327,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -2626,11 +2625,11 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     __ j(not_equal, &done);
     if (info()->IsStub()) {
       // A stub can safely convert the hole to undefined only if the array
-      // protector cell contains (Smi) Isolate::kArrayProtectorValid.
+      // protector cell contains (Smi) Isolate::kProtectorValid.
       // Otherwise it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
       __ cmp(FieldOperand(result, PropertyCell::kValueOffset),
-             Immediate(Smi::FromInt(Isolate::kArrayProtectorValid)));
+             Immediate(Smi::FromInt(Isolate::kProtectorValid)));
       DeoptimizeIf(not_equal, instr, DeoptimizeReason::kHole);
     }
     __ mov(result, isolate()->factory()->undefined_value());
@@ -2870,7 +2869,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
-  __ push(Immediate(instr->hydrogen()->pairs()));
+  __ push(Immediate(instr->hydrogen()->declarations()));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->flags())));
   __ push(Immediate(instr->hydrogen()->feedback_vector()));
   CallRuntime(Runtime::kDeclareGlobals, instr);

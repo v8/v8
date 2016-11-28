@@ -374,9 +374,9 @@ const int32_t  kDefaultStopCode = -1;
 // Type of VFP register. Determines register encoding.
 enum VFPRegPrecision {
   kSinglePrecision = 0,
-  kDoublePrecision = 1
+  kDoublePrecision = 1,
+  kSimd128Precision = 2
 };
-
 
 // VFP FPSCR constants.
 enum VFPConversionMode {
@@ -674,8 +674,15 @@ class Instruction {
   inline int VFPGlueRegValue(VFPRegPrecision pre, int four_bit, int one_bit) {
     if (pre == kSinglePrecision) {
       return (Bits(four_bit + 3, four_bit) << 1) | Bit(one_bit);
+    } else {
+      int reg_num = (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
+      if (pre == kDoublePrecision) {
+        return reg_num;
+      }
+      DCHECK_EQ(kSimd128Precision, pre);
+      DCHECK_EQ(reg_num & 1, 0);
+      return reg_num / 2;
     }
-    return (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
   }
 
   // We need to prevent the creation of instances of class Instruction.

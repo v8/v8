@@ -20,15 +20,13 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+using compiler::CodeAssemblerState;
 using compiler::Node;
 
-InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
+InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                            Bytecode bytecode,
                                            OperandScale operand_scale)
-    : CodeStubAssembler(isolate, zone, InterpreterDispatchDescriptor(isolate),
-                        Code::ComputeFlags(Code::BYTECODE_HANDLER),
-                        Bytecodes::ToString(bytecode),
-                        Bytecodes::ReturnCount(bytecode)),
+    : CodeStubAssembler(state),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
       bytecode_offset_(this, MachineType::PointerRepresentation()),

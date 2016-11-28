@@ -445,15 +445,18 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(ToString, Operator::kNoProperties, 1, 1)                \
   V(Create, Operator::kEliminatable, 2, 1)                  \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1)  \
+  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)     \
   V(HasProperty, Operator::kNoProperties, 2, 1)             \
   V(TypeOf, Operator::kPure, 1, 1)                          \
   V(InstanceOf, Operator::kNoProperties, 2, 1)              \
+  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)     \
   V(ForInNext, Operator::kNoProperties, 4, 1)               \
   V(ForInPrepare, Operator::kNoProperties, 1, 3)            \
   V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
   V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
-  V(StackCheck, Operator::kNoWrite, 0, 0)
+  V(StackCheck, Operator::kNoWrite, 0, 0)                   \
+  V(StoreDataPropertyInLiteral, Operator::kNoProperties, 5, 0)
 
 #define BINARY_OP_LIST(V) \
   V(BitwiseOr)            \
@@ -525,6 +528,7 @@ struct JSOperatorGlobalCache final {
   Name##Operator<CompareOperationHint::kNumber> k##Name##NumberOperator;  \
   Name##Operator<CompareOperationHint::kNumberOrOddball>                  \
       k##Name##NumberOrOddballOperator;                                   \
+  Name##Operator<CompareOperationHint::kString> k##Name##StringOperator;  \
   Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
   COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
@@ -576,6 +580,8 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##NumberOperator;                        \
       case CompareOperationHint::kNumberOrOddball:                     \
         return &cache_.k##Name##NumberOrOddballOperator;               \
+      case CompareOperationHint::kString:                              \
+        return &cache_.k##Name##StringOperator;                        \
       case CompareOperationHint::kAny:                                 \
         return &cache_.k##Name##AnyOperator;                           \
     }                                                                  \
@@ -657,7 +663,7 @@ const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
   return new (zone()) Operator1<NamedAccess>(           // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
-      2, 1, 1, 1, 1, 2,                                 // counts
+      1, 1, 1, 1, 1, 2,                                 // counts
       access);                                          // parameter
 }
 
@@ -667,7 +673,7 @@ const Operator* JSOperatorBuilder::LoadProperty(
   return new (zone()) Operator1<PropertyAccess>(           // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name
-      3, 1, 1, 1, 1, 2,                                    // counts
+      2, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
 }
 
@@ -694,7 +700,7 @@ const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
   return new (zone()) Operator1<NamedAccess>(            // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
-      3, 1, 1, 0, 1, 2,                                  // counts
+      2, 1, 1, 0, 1, 2,                                  // counts
       access);                                           // parameter
 }
 
@@ -705,7 +711,7 @@ const Operator* JSOperatorBuilder::StoreProperty(
   return new (zone()) Operator1<PropertyAccess>(            // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
       "JSStoreProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                     // counts
+      3, 1, 1, 0, 1, 2,                                     // counts
       access);                                              // parameter
 }
 
@@ -726,7 +732,7 @@ const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
-      1, 1, 1, 1, 1, 2,                                  // counts
+      0, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
@@ -738,7 +744,7 @@ const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
   return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
       "JSStoreGlobal",                                    // name
-      2, 1, 1, 0, 1, 2,                                   // counts
+      1, 1, 1, 0, 1, 2,                                   // counts
       parameters);                                        // parameter
 }
 

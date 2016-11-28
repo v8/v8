@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/adapters.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"

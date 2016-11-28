@@ -258,8 +258,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(
           ";;; <@%d,#%d> "
@@ -3010,11 +3009,11 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     __ bne(&done);
     if (info()->IsStub()) {
       // A stub can safely convert the hole to undefined only if the array
-      // protector cell contains (Smi) Isolate::kArrayProtectorValid. Otherwise
+      // protector cell contains (Smi) Isolate::kProtectorValid. Otherwise
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
-      __ LoadP(result, FieldMemOperand(result, Cell::kValueOffset));
-      __ CmpSmiLiteral(result, Smi::FromInt(Isolate::kArrayProtectorValid), r0);
+      __ LoadP(result, FieldMemOperand(result, PropertyCell::kValueOffset));
+      __ CmpSmiLiteral(result, Smi::FromInt(Isolate::kProtectorValid), r0);
       DeoptimizeIf(ne, instr, DeoptimizeReason::kHole);
     }
     __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
@@ -3258,7 +3257,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
-  __ Move(scratch0(), instr->hydrogen()->pairs());
+  __ Move(scratch0(), instr->hydrogen()->declarations());
   __ push(scratch0());
   __ LoadSmiLiteral(scratch0(), Smi::FromInt(instr->hydrogen()->flags()));
   __ push(scratch0());

@@ -85,8 +85,8 @@ PreParserIdentifier PreParser::GetSymbol() const {
 
 PreParser::PreParseResult PreParser::PreParseFunction(
     FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
-    bool is_inner_function, bool may_abort, int* use_counts,
-    typesystem::TypeFlags type_flags) {
+    bool is_inner_function, typesystem::TypeFlags type_flags, bool may_abort,
+    int* use_counts) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
   use_counts_ = use_counts;
@@ -151,7 +151,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (!*ok) {
-    DCHECK(log_.has_error());
+    DCHECK(pending_error_handler_->has_pending_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
 
@@ -198,6 +198,14 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
+  const RuntimeCallStats::CounterId counters[2][2] = {
+      {&RuntimeCallStats::PreParseBackgroundWithVariableResolution,
+       &RuntimeCallStats::PreParseWithVariableResolution},
+      {&RuntimeCallStats::PreParseBackgroundNoVariableResolution,
+       &RuntimeCallStats::PreParseNoVariableResolution}};
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
   // Parse function body.
   PreParserStatementList body;
@@ -300,8 +308,11 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
     // AstValueFactory doesn't know about it.
     factory.set_zone(zone());
     DCHECK_NOT_NULL(name.string_);
-    scope()->NewUnresolved(&factory, name.string_, start_position,
-                           NORMAL_VARIABLE);
+    VariableProxy* proxy = scope()->NewUnresolved(
+        &factory, name.string_, start_position, NORMAL_VARIABLE);
+    // We don't know whether the preparsed function assigns or not, so we set
+    // is_assigned pessimistically.
+    proxy->set_is_assigned();
   }
   return PreParserExpression::FromIdentifier(name, zone());
 }

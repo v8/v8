@@ -102,8 +102,6 @@ class ParseData {
   FunctionEntry GetFunctionEntry(int start);
   int FunctionCount();
 
-  bool HasError();
-
   unsigned* Data() {  // Writable data as unsigned int array.
     return reinterpret_cast<unsigned*>(const_cast<byte*>(script_data_->data()));
   }
@@ -216,6 +214,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     cached_parse_data_ = NULL;
   }
 
+  static bool const IsPreParser() { return false; }
+
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
@@ -303,12 +303,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return compile_options_;
   }
   bool consume_cached_parse_data() const {
-    return allow_lazy() &&
-           compile_options_ == ScriptCompiler::kConsumeParserCache;
+    return compile_options_ == ScriptCompiler::kConsumeParserCache;
   }
   bool produce_cached_parse_data() const {
-    return allow_lazy() &&
-           compile_options_ == ScriptCompiler::kProduceParserCache;
+    return compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
@@ -551,10 +549,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       bool is_inner_function, typesystem::TypeFlags type_flags, bool may_abort,
       bool* ok);
 
-  PreParser::PreParseResult ParseFunctionWithPreParser(
-      FunctionKind kind, DeclarationScope* scope, bool is_inner_function,
-      typesystem::TypeFlags type_flags, bool may_abort);
-
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
   Block* BuildRejectPromiseOnException(Block* block, bool* ok);
@@ -660,14 +654,16 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
 
-  void FinalizeIteratorUse(Variable* completion, Expression* condition,
-                           Variable* iter, Block* iterator_use, Block* result);
+  void FinalizeIteratorUse(Scope* use_scope, Variable* completion,
+                           Expression* condition, Variable* iter,
+                           Block* iterator_use, Block* result);
 
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     int pos);
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
                           Variable* input, Variable* output);
-  void BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
+  void BuildIteratorCloseForCompletion(Scope* scope,
+                                       ZoneList<Statement*>* statements,
                                        Variable* iterator,
                                        Expression* completion);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
@@ -740,12 +736,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE bool IsConstructor(const AstRawString* identifier) const {
     return identifier == ast_value_factory()->constructor_string();
-  }
-
-  V8_INLINE bool IsDirectEvalCall(Expression* expression) const {
-    if (!expression->IsCall()) return false;
-    expression = expression->AsCall()->expression();
-    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
   }
 
   V8_INLINE static bool IsBoilerplateProperty(
@@ -848,12 +838,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator.
-  V8_INLINE static Expression* MarkExpressionAsAssigned(
-      Expression* expression) {
-    VariableProxy* proxy =
-        expression != NULL ? expression->AsVariableProxy() : NULL;
-    if (proxy != NULL) proxy->set_is_assigned();
-    return expression;
+  V8_INLINE static void MarkExpressionAsAssigned(Expression* expression) {
+    DCHECK_NOT_NULL(expression);
+    if (expression->IsVariableProxy()) {
+      expression->AsVariableProxy()->set_is_assigned();
+    }
   }
 
   // Returns true if we have a binary expression between two numeric
@@ -1209,8 +1198,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // parsing.
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
-
-  bool parsing_on_main_thread_;
+  bool allow_lazy_;
+  bool temp_zoned_;
   ParserLogger* log_;
 };
 

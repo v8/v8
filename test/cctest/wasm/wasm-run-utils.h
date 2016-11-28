@@ -13,6 +13,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/zone/accounting-allocator.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
@@ -306,7 +307,9 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
-  builder.SimdScalarLoweringForTesting();
+  if (!CpuFeatures::SupportsSimd128()) {
+    builder.SimdScalarLoweringForTesting();
+  }
 }
 
 template <typename ReturnType>

@@ -226,9 +226,6 @@ bool OptimizedBytecodeSourcePositionTester::SourcePositionsMatch(
 
 void TestSourcePositionsEquivalent(int optimization_bitmap) {
   HandleAndZoneScope handles;
-  // Ensure handler table is generated.
-  handles.main_isolate()->interpreter()->Initialize();
-
   OptimizedBytecodeSourcePositionTester tester(handles.main_isolate());
   for (auto test_case_data : kTestCaseData) {
     CHECK(tester.SourcePositionsMatch(

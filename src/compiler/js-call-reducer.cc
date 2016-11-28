@@ -412,7 +412,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
       if (!function->IsConstructor()) {
         NodeProperties::ReplaceValueInputs(node, target);
         NodeProperties::ChangeOp(
-            node, javascript()->CallRuntime(Runtime::kThrowCalledNonCallable));
+            node, javascript()->CallRuntime(
+                      Runtime::kThrowConstructedNonConstructable));
         return Changed(node);
       }
 
