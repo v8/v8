@@ -14,6 +14,7 @@
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/pending-compilation-error-handler.h"
+#include "src/utils.h"
 
 namespace v8 {
 
@@ -135,7 +136,7 @@ class Parser;
 
 
 struct ParserFormalParameters : FormalParametersBase {
-  struct Parameter {
+  struct Parameter : public ZoneObject {
     Parameter(const AstRawString* name, Expression* pattern,
               Expression* initializer, int initializer_end_position,
               bool is_rest)
@@ -149,16 +150,17 @@ struct ParserFormalParameters : FormalParametersBase {
     Expression* initializer;
     int initializer_end_position;
     bool is_rest;
+    Parameter* next_parameter = nullptr;
     bool is_simple() const {
       return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
     }
+    Parameter** next() { return &next_parameter; }
+    Parameter* const* next() const { return &next_parameter; }
   };
 
   explicit ParserFormalParameters(DeclarationScope* scope)
-      : FormalParametersBase(scope), params(4, scope->zone()) {}
-  ZoneList<Parameter> params;
-
-  const Parameter& at(int i) const { return params[i]; }
+      : FormalParametersBase(scope) {}
+  ThreadedList<Parameter> params;
 };
 
 template <>
@@ -1045,34 +1047,39 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     const AstRawString* name = is_simple
                                    ? pattern->AsVariableProxy()->raw_name()
                                    : ast_value_factory()->empty_string();
-    parameters->params.Add(
-        ParserFormalParameters::Parameter(name, pattern, initializer,
-                                          initializer_end_position, is_rest),
-        parameters->scope->zone());
+    auto parameter =
+        new (parameters->scope->zone()) ParserFormalParameters::Parameter(
+            name, pattern, initializer, initializer_end_position, is_rest);
+
+    parameters->params.Add(parameter);
   }
 
-  V8_INLINE void DeclareFormalParameter(
+  V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
-      const ParserFormalParameters::Parameter& parameter) {
-    bool is_duplicate = false;
-    bool is_simple = classifier()->is_simple_parameter_list();
-    auto name = is_simple || parameter.is_rest
-                    ? parameter.name
-                    : ast_value_factory()->empty_string();
-    auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
-    if (!is_simple) scope->SetHasNonSimpleParameters();
-    bool is_optional = parameter.initializer != nullptr;
-    Variable* var =
-        scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
-                                &is_duplicate, ast_value_factory());
-    if (is_duplicate) {
-      classifier()->RecordDuplicateFormalParameterError(scanner()->location());
-    }
-    if (is_sloppy(scope->language_mode())) {
-      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-      // conservative approximation necessary to account for parameters
-      // that are assigned via the arguments array.
-      var->set_maybe_assigned();
+      const ThreadedList<ParserFormalParameters::Parameter>& parameters) {
+    for (auto parameter : parameters) {
+      bool is_duplicate = false;
+      bool is_simple = classifier()->is_simple_parameter_list();
+      auto name = is_simple || parameter->is_rest
+                      ? parameter->name
+                      : ast_value_factory()->empty_string();
+      auto mode = is_simple || parameter->is_rest ? VAR : TEMPORARY;
+      if (!is_simple) scope->SetHasNonSimpleParameters();
+      bool is_optional = parameter->initializer != nullptr;
+      Variable* var =
+          scope->DeclareParameter(name, mode, is_optional, parameter->is_rest,
+                                  &is_duplicate, ast_value_factory());
+      if (is_duplicate &&
+          classifier()->is_valid_formal_parameter_list_without_duplicates()) {
+        classifier()->RecordDuplicateFormalParameterError(
+            scanner()->location());
+      }
+      if (is_sloppy(scope->language_mode())) {
+        // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+        // conservative approximation necessary to account for parameters
+        // that are assigned via the arguments array.
+        var->set_maybe_assigned();
+      }
     }
   }
 

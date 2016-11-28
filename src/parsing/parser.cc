@@ -964,7 +964,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals, &ok);
-          if (ok) DeclareFormalParameter(formals.scope, formals.at(0));
+          if (ok) DeclareFormalParameters(formals.scope, formals.params);
         }
       }
 
@@ -2476,15 +2476,11 @@ void Parser::DeclareArrowFunctionFormalParameters(
   if (!parameters->is_simple) {
     this->classifier()->RecordNonSimpleParameter();
   }
-  for (int i = 0; i < parameters->arity; ++i) {
-    auto parameter = parameters->at(i);
-    DeclareFormalParameter(parameters->scope, parameter);
-    if (!this->classifier()
-             ->is_valid_formal_parameter_list_without_duplicates() &&
-        !duplicate_loc->IsValid()) {
-      *duplicate_loc =
-          this->classifier()->duplicate_formal_parameter_error().location;
-    }
+  DeclareFormalParameters(parameters->scope, parameters->params);
+  if (!this->classifier()
+           ->is_valid_formal_parameter_list_without_duplicates()) {
+    *duplicate_loc =
+        this->classifier()->duplicate_formal_parameter_error().location;
   }
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
@@ -2493,9 +2489,9 @@ void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
   if (function_state_->materialized_literal_count() > 0) {
     AstLiteralReindexer reindexer;
 
-    for (const auto p : parameters.params) {
-      if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
-      if (p.initializer != nullptr) reindexer.Reindex(p.initializer);
+    for (auto p : parameters.params) {
+      if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
+      if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
     }
 
     DCHECK(reindexer.count() <= function_state_->materialized_literal_count());
@@ -2926,44 +2922,44 @@ Block* Parser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   Block* init_block = factory()->NewBlock(NULL, 1, true, kNoSourcePosition);
-  for (int i = 0; i < parameters.params.length(); ++i) {
-    auto parameter = parameters.params[i];
-    if (parameter.is_rest && parameter.pattern->IsVariableProxy()) break;
+  int index = 0;
+  for (auto parameter : parameters.params) {
+    if (parameter->is_rest && parameter->pattern->IsVariableProxy()) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.scope = scope();
     descriptor.hoist_scope = nullptr;
     descriptor.mode = LET;
-    descriptor.declaration_pos = parameter.pattern->position();
+    descriptor.declaration_pos = parameter->pattern->position();
     // The position that will be used by the AssignmentExpression
     // which copies from the temp parameter to the pattern.
     //
     // TODO(adamk): Should this be kNoSourcePosition, since
     // it's just copying from a temp var to the real param var?
-    descriptor.initialization_pos = parameter.pattern->position();
+    descriptor.initialization_pos = parameter->pattern->position();
     Expression* initial_value =
-        factory()->NewVariableProxy(parameters.scope->parameter(i));
-    if (parameter.initializer != nullptr) {
+        factory()->NewVariableProxy(parameters.scope->parameter(index));
+    if (parameter->initializer != nullptr) {
       // IS_UNDEFINED($param) ? initializer : $param
 
       // Ensure initializer is rewritten
-      RewriteParameterInitializer(parameter.initializer, scope());
+      RewriteParameterInitializer(parameter->initializer, scope());
 
       auto condition = factory()->NewCompareOperation(
           Token::EQ_STRICT,
-          factory()->NewVariableProxy(parameters.scope->parameter(i)),
+          factory()->NewVariableProxy(parameters.scope->parameter(index)),
           factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
       initial_value = factory()->NewConditional(
-          condition, parameter.initializer, initial_value, kNoSourcePosition);
-      descriptor.initialization_pos = parameter.initializer->position();
+          condition, parameter->initializer, initial_value, kNoSourcePosition);
+      descriptor.initialization_pos = parameter->initializer->position();
     }
 
     Scope* param_scope = scope();
     Block* param_block = init_block;
-    if (!parameter.is_simple() && scope()->calls_sloppy_eval()) {
+    if (!parameter->is_simple() && scope()->calls_sloppy_eval()) {
       param_scope = NewVarblockScope();
       param_scope->set_start_position(descriptor.initialization_pos);
-      param_scope->set_end_position(parameter.initializer_end_position);
+      param_scope->set_end_position(parameter->initializer_end_position);
       param_scope->RecordEvalCall();
       param_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
       param_block->set_scope(param_scope);
@@ -2978,7 +2974,7 @@ Block* Parser::BuildParameterInitializationBlock(
 
     BlockState block_state(&scope_state_, param_scope);
     DeclarationParsingResult::Declaration decl(
-        parameter.pattern, parameter.initializer_end_position, initial_value);
+        parameter->pattern, parameter->initializer_end_position, initial_value);
     PatternRewriter::DeclareAndInitializeVariables(
         this, param_block, &descriptor, &decl, nullptr, CHECK_OK);
 
@@ -2989,6 +2985,7 @@ Block* Parser::BuildParameterInitializationBlock(
       }
       init_block->statements()->Add(param_block, zone());
     }
+    ++index;
   }
   return init_block;
 }

@@ -3520,10 +3520,7 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
     }
   }
 
-  for (int i = 0; i < parameters->arity; ++i) {
-    auto parameter = parameters->at(i);
-    impl()->DeclareFormalParameter(parameters->scope, parameter);
-  }
+  impl()->DeclareFormalParameters(parameters->scope, parameters->params);
 }
 
 template <typename Impl>

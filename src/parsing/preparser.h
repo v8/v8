@@ -752,7 +752,8 @@ class PreParserFactory {
 struct PreParserFormalParameters : FormalParametersBase {
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
-  PreParserIdentifier at(int i) { return PreParserIdentifier(); }  // Dummy
+
+  void* params = nullptr;  // Dummy
 };
 
 
@@ -1440,8 +1441,8 @@ class PreParser : public ParserBase<PreParser> {
     parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }
 
-  V8_INLINE void DeclareFormalParameter(DeclarationScope* scope,
-                                        PreParserIdentifier parameter) {
+  V8_INLINE void DeclareFormalParameters(DeclarationScope* scope,
+                                         void* parameters) {
     if (!classifier()->is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
     }
