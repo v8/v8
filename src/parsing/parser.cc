@@ -985,9 +985,9 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
           AstFunctionLiteralIdReindexer reindexer(
               stack_limit_,
               (info->function_literal_id() - 1) - GetLastFunctionLiteralId());
-          for (const auto p : formals.params) {
-            if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
-            if (p.initializer != nullptr) reindexer.Reindex(p.initializer);
+          for (auto p : formals.params) {
+            if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
+            if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
           }
           ResetFunctionLiteralId();
           SkipFunctionLiterals(info->function_literal_id() - 1);
