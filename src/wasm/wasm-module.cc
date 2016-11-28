@@ -1974,9 +1974,9 @@ bool wasm::WasmIsAsmJs(Object* instance, Isolate* isolate) {
   DCHECK(IsWasmInstance(instance));
   WasmCompiledModule* compiled_module =
       WasmInstanceObject::cast(instance)->get_compiled_module();
-  DCHECK_EQ(compiled_module->has_asm_js_offset_tables(),
+  DCHECK_EQ(compiled_module->has_asm_js_offset_table(),
             compiled_module->script()->type() == Script::TYPE_NORMAL);
-  return compiled_module->has_asm_js_offset_tables();
+  return compiled_module->has_asm_js_offset_table();
 }
 
 Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
@@ -2003,12 +2003,6 @@ wasm::DisassembleFunction(Handle<WasmCompiledModule> compiled_module,
   return {disassembly_os.str(), std::move(offset_table)};
 }
 
-int wasm::GetAsmWasmSourcePosition(Handle<JSObject> instance, int func_index,
-                                   int byte_offset) {
-  return WasmDebugInfo::GetAsmJsSourcePosition(GetDebugInfo(instance),
-                                               func_index, byte_offset);
-}
-
 Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> object) {
   auto instance = Handle<WasmInstanceObject>::cast(object);
   if (instance->has_debug_info()) {
@@ -2019,11 +2013,6 @@ Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> object) {
   Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(instance);
   instance->set_debug_info(*new_info);
   return new_info;
-}
-
-int wasm::GetNumberOfFunctions(Handle<JSObject> object) {
-  return static_cast<int>(
-      Handle<WasmInstanceObject>::cast(object)->module()->functions.size());
 }
 
 // TODO(clemensh): origin can be inferred from asm_js_script; remove it.
@@ -2056,19 +2045,19 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
 
   DCHECK_EQ(origin == kAsmJsOrigin, !asm_js_script.is_null());
   DCHECK(!compiled_module->has_script());
-  DCHECK(!compiled_module->has_asm_js_offset_tables());
+  DCHECK(!compiled_module->has_asm_js_offset_table());
   if (origin == kAsmJsOrigin) {
     // Set script for the asm.js source, and the offset table mapping wasm byte
     // offsets to source positions.
     compiled_module->set_script(asm_js_script);
-    size_t offset_tables_len =
+    size_t offset_table_len =
         asm_js_offset_tables_end - asm_js_offset_tables_start;
-    DCHECK_GE(static_cast<size_t>(kMaxInt), offset_tables_len);
-    Handle<ByteArray> offset_tables =
-        isolate->factory()->NewByteArray(static_cast<int>(offset_tables_len));
-    memcpy(offset_tables->GetDataStartAddress(), asm_js_offset_tables_start,
-           offset_tables_len);
-    compiled_module->set_asm_js_offset_tables(offset_tables);
+    DCHECK_GE(static_cast<size_t>(kMaxInt), offset_table_len);
+    Handle<ByteArray> offset_table =
+        isolate->factory()->NewByteArray(static_cast<int>(offset_table_len));
+    memcpy(offset_table->GetDataStartAddress(), asm_js_offset_tables_start,
+           offset_table_len);
+    compiled_module->set_asm_js_offset_table(offset_table);
   } else {
     // Create a new Script object representing this wasm module, store it in the
     // compiled wasm module, and register it at the debugger.

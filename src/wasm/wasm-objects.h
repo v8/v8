@@ -203,7 +203,7 @@ class WasmCompiledModule : public FixedArray {
   /* For debugging: */                                \
   MACRO(OBJECT, SeqOneByteString, module_bytes)       \
   MACRO(OBJECT, Script, script)                       \
-  MACRO(OBJECT, ByteArray, asm_js_offset_tables)      \
+  MACRO(OBJECT, ByteArray, asm_js_offset_table)       \
   /* End of debugging stuff */                        \
   MACRO(OBJECT, FixedArray, function_tables)          \
   MACRO(OBJECT, FixedArray, empty_function_tables)    \
@@ -291,12 +291,18 @@ class WasmCompiledModule : public FixedArray {
   // Returns true if the position is valid inside this module, false otherwise.
   bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
 
+  // Get the asm.js source position from a byte offset.
+  // Must only be called if the associated wasm object was created from asm.js.
+  static int GetAsmJsSourcePosition(Handle<WasmCompiledModule> debug_info,
+                                    uint32_t func_index, uint32_t byte_offset);
+
  private:
   void InitId();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };
 
+// TODO(clemensh): Extend this object for breakpoint support, or remove it.
 class WasmDebugInfo : public FixedArray {
  public:
   enum class Fields { kFieldCount };
@@ -307,28 +313,6 @@ class WasmDebugInfo : public FixedArray {
   static WasmDebugInfo* cast(Object* object);
 
   WasmInstanceObject* wasm_instance();
-
-  bool SetBreakPoint(int byte_offset);
-
-  // Get the Script for the specified function.
-  static Script* GetFunctionScript(Handle<WasmDebugInfo> debug_info,
-                                   int func_index);
-
-  // Disassemble the specified function from this module.
-  static Handle<String> DisassembleFunction(Handle<WasmDebugInfo> debug_info,
-                                            int func_index);
-
-  // Get the offset table for the specified function, mapping from byte offsets
-  // to position in the disassembly.
-  // Returns an array with three entries per instruction: byte offset, line and
-  // column.
-  static Handle<FixedArray> GetFunctionOffsetTable(
-      Handle<WasmDebugInfo> debug_info, int func_index);
-
-  // Get the asm.js source position from a byte offset.
-  // Must only be called if the associated wasm object was created from asm.js.
-  static int GetAsmJsSourcePosition(Handle<WasmDebugInfo> debug_info,
-                                    int func_index, int byte_offset);
 };
 
 class WasmInstanceWrapper : public FixedArray {

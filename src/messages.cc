@@ -706,8 +706,12 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
   int byte_offset = code_->SourcePosition(offset_);
-  return wasm::GetAsmWasmSourcePosition(Handle<JSObject>::cast(wasm_instance_),
-                                        wasm_func_index_, byte_offset);
+  Handle<WasmCompiledModule> compiled_module(
+      WasmInstanceObject::cast(*wasm_instance_)->get_compiled_module(),
+      isolate_);
+  DCHECK_LE(0, byte_offset);
+  return WasmCompiledModule::GetAsmJsSourcePosition(
+      compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset));
 }
 
 int AsmJsWasmStackFrame::GetLineNumber() {

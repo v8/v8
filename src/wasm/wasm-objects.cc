@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-objects.h"
+
+#include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
 
 #define TRACE(...)                                      \
@@ -444,6 +446,99 @@ bool WasmCompiledModule::GetPositionInfo(uint32_t position,
   info->line_start = function.code_start_offset;
   info->line_end = function.code_end_offset;
   return true;
+}
+
+namespace {
+Handle<ByteArray> GetDecodedAsmJsOffsetTable(
+    Handle<WasmCompiledModule> compiled_module, Isolate* isolate) {
+  DCHECK(compiled_module->has_asm_js_offset_table());
+  Handle<ByteArray> offset_table = compiled_module->asm_js_offset_table();
+
+  // The last byte in the asm_js_offset_tables ByteArray tells whether it is
+  // still encoded (0) or decoded (1).
+  enum AsmJsTableType : int { Encoded = 0, Decoded = 1 };
+  int table_type = offset_table->get(offset_table->length() - 1);
+  DCHECK(table_type == Encoded || table_type == Decoded);
+  if (table_type == Decoded) return offset_table;
+
+  AsmJsOffsetsResult asm_offsets;
+  {
+    DisallowHeapAllocation no_gc;
+    const byte* bytes_start = offset_table->GetDataStartAddress();
+    const byte* bytes_end = bytes_start + offset_table->length() - 1;
+    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end);
+  }
+  // Wasm bytes must be valid and must contain asm.js offset table.
+  DCHECK(asm_offsets.ok());
+  DCHECK_GE(static_cast<size_t>(kMaxInt), asm_offsets.val.size());
+  int num_functions = static_cast<int>(asm_offsets.val.size());
+  int num_imported_functions =
+      static_cast<int>(compiled_module->module()->num_imported_functions);
+  DCHECK_EQ(compiled_module->module()->functions.size(),
+            static_cast<size_t>(num_functions) + num_imported_functions);
+  // One byte to encode that this is a decoded table.
+  int total_size = 1;
+  for (int func = 0; func < num_functions; ++func) {
+    size_t new_size = asm_offsets.val[func].size() * 2 * kIntSize;
+    DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - total_size);
+    total_size += static_cast<int>(new_size);
+  }
+  Handle<ByteArray> decoded_table =
+      isolate->factory()->NewByteArray(total_size, TENURED);
+  decoded_table->set(total_size - 1, AsmJsTableType::Decoded);
+  compiled_module->set_asm_js_offset_table(decoded_table);
+
+  int idx = 0;
+  std::vector<WasmFunction>& wasm_funs = compiled_module->module()->functions;
+  for (int func = 0; func < num_functions; ++func) {
+    std::vector<std::pair<int, int>>& func_asm_offsets = asm_offsets.val[func];
+    if (func_asm_offsets.empty()) continue;
+    int func_offset =
+        wasm_funs[num_imported_functions + func].code_start_offset;
+    for (std::pair<int, int> p : func_asm_offsets) {
+      // Byte offsets must be strictly monotonously increasing:
+      DCHECK(idx == 0 ||
+             func_offset + p.first > decoded_table->get_int(idx - 2));
+      decoded_table->set_int(idx++, func_offset + p.first);
+      decoded_table->set_int(idx++, p.second);
+    }
+  }
+  DCHECK_EQ(total_size, idx * kIntSize + 1);
+  return decoded_table;
+}
+}  // namespace
+
+int WasmCompiledModule::GetAsmJsSourcePosition(
+    Handle<WasmCompiledModule> compiled_module, uint32_t func_index,
+    uint32_t byte_offset) {
+  Isolate* isolate = compiled_module->GetIsolate();
+  Handle<ByteArray> offset_table =
+      GetDecodedAsmJsOffsetTable(compiled_module, isolate);
+
+  DCHECK_LT(func_index, compiled_module->module()->functions.size());
+  uint32_t func_code_offset =
+      compiled_module->module()->functions[func_index].code_start_offset;
+  uint32_t total_offset = func_code_offset + byte_offset;
+
+  // Binary search for the total byte offset.
+  int left = 0;                                       // inclusive
+  int right = offset_table->length() / kIntSize / 2;  // exclusive
+  DCHECK_LT(left, right);
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    int mid_entry = offset_table->get_int(2 * mid);
+    DCHECK_GE(kMaxInt, mid_entry);
+    if (static_cast<uint32_t>(mid_entry) <= total_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // There should be an entry for each position that could show up on the stack
+  // trace:
+  DCHECK_EQ(total_offset,
+            static_cast<uint32_t>(offset_table->get_int(2 * left)));
+  return offset_table->get_int(2 * left + 1);
 }
 
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(

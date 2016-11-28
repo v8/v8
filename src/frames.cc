@@ -1531,9 +1531,12 @@ Script* WasmFrame::script() const {
 int WasmFrame::position() const {
   int position = StandardFrame::position();
   if (wasm::WasmIsAsmJs(wasm_instance(), isolate())) {
-    Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
-    position =
-        wasm::GetAsmWasmSourcePosition(instance, function_index(), position);
+    Handle<WasmCompiledModule> compiled_module(
+        WasmInstanceObject::cast(wasm_instance())->get_compiled_module(),
+        isolate());
+    DCHECK_LE(0, position);
+    position = WasmCompiledModule::GetAsmJsSourcePosition(
+        compiled_module, function_index(), static_cast<uint32_t>(position));
   }
   return position;
 }

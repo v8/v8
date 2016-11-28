@@ -368,9 +368,6 @@ Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> instance,
 // If no debug info exists yet, it is created automatically.
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 
-// Return the number of functions in the given wasm object.
-int GetNumberOfFunctions(Handle<JSObject> wasm);
-
 // Check whether the given object represents a WebAssembly.Instance instance.
 // This checks the number and type of internal fields, so it's not 100 percent
 // secure. If it turns out that we need more complete checks, we could add a
@@ -393,11 +390,6 @@ Handle<Script> GetScript(Handle<JSObject> instance);
 // Returns an empty string and empty vector if the function index is invalid.
 std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
 DisassembleFunction(Handle<WasmCompiledModule> compiled_module, int func_index);
-
-// Get the asm.js source position for the given byte offset in the given
-// function.
-int GetAsmWasmSourcePosition(Handle<JSObject> instance, int func_index,
-                             int byte_offset);
 
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
