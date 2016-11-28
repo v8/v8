@@ -31,13 +31,6 @@ Debug = debug.Debug
 var breaks = 0;
 var exception = false;
 
-function sendCommand(state, cmd) {
-  // Get the debug command processor in paused state.
-  var dcp = state.debugCommandProcessor(false);
-  var request = JSON.stringify(cmd);
-  var response = dcp.processDebugJSONRequest(request);
-}
-
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
@@ -48,14 +41,7 @@ function listener(event, exec_state, event_data, data) {
                    "should not break on unexpected lines")
       assertEquals('BREAK ' + breaks, line.substr(-7));
       breaks++;
-      if (breaks < 4) {
-        sendCommand(exec_state, {
-          seq: 0,
-          type: "request",
-          command: "continue",
-          arguments: { stepaction: "next" }
-        });
-      }
+      if (breaks < 4) exec_state.prepareStep(Debug.StepAction.StepNext);
     }
   } catch (e) {
     print(e);

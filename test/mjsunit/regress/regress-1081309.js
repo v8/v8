@@ -34,57 +34,21 @@ Debug = debug.Debug
 listenerCalled = false;
 exception = false;
 
-function ParsedResponse(json) {
-  this.response_ = eval('(' + json + ')');
-  this.refs_ = [];
-  if (this.response_.refs) {
-    for (var i = 0; i < this.response_.refs.length; i++) {
-      this.refs_[this.response_.refs[i].handle] = this.response_.refs[i];
-    }
-  }
-}
-
-
-ParsedResponse.prototype.response = function() {
-  return this.response_;
-}
-
-
-ParsedResponse.prototype.body = function() {
-  return this.response_.body;
-}
-
-
-ParsedResponse.prototype.lookup = function(handle) {
-  return this.refs_[handle];
-}
-
-
 function listener(event, exec_state, event_data, data) {
   try {
-  if (event == Debug.DebugEvent.Exception)
-  {
-    // The expected backtrace is
-    // 1: g
-    // 0: [anonymous]
+    if (event == Debug.DebugEvent.Exception) {
+      // The expected backtrace is
+      // 1: g
+      // 0: [anonymous]
 
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor(false);
+      assertEquals(2, exec_state.frameCount());
+      assertEquals("g", exec_state.frame(0).func().name());
+      assertEquals("", exec_state.frame(1).func().name());
 
-    // Get the backtrace.
-    var json;
-    json = '{"seq":0,"type":"request","command":"backtrace"}'
-    var response = new ParsedResponse(dcp.processDebugJSONRequest(json));
-    var backtrace = response.body();
-    assertEquals(2, backtrace.totalFrames);
-    assertEquals(2, backtrace.frames.length);
-
-    assertEquals("g", response.lookup(backtrace.frames[0].func.ref).name);
-    assertEquals("", response.lookup(backtrace.frames[1].func.ref).name);
-
-    listenerCalled = true;
-  }
+      listenerCalled = true;
+    }
   } catch (e) {
+    print(e);
     exception = e
   };
 };
