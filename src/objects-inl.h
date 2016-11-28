@@ -2337,7 +2337,7 @@ void Object::VerifyApiCallResultType() {
 
 Object* FixedArray::get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->length());
-  return READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  return NOBARRIER_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
 Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
@@ -2366,7 +2366,7 @@ void FixedArray::set(int index, Smi* value) {
   DCHECK(index >= 0 && index < this->length());
   DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
+  NOBARRIER_WRITE_FIELD(this, offset, value);
 }
 
 
@@ -2376,7 +2376,7 @@ void FixedArray::set(int index, Object* value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
+  NOBARRIER_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
