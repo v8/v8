@@ -7228,11 +7228,25 @@ class Script: public Struct {
 // Installation of ids for the selected builtin functions is handled
 // by the bootstrapper.
 #define FUNCTIONS_WITH_ID_LIST(V)                           \
+  V(Array.prototype, concat, ArrayConcat)                   \
+  V(Array.prototype, every, ArrayEvery)                     \
+  V(Array.prototype, fill, ArrayFill)                       \
+  V(Array.prototype, filter, ArrayFilter)                   \
+  V(Array.prototype, findIndex, ArrayFindIndex)             \
+  V(Array.prototype, forEach, ArrayForEach)                 \
+  V(Array.prototype, includes, ArrayIncludes)               \
   V(Array.prototype, indexOf, ArrayIndexOf)                 \
+  V(Array.prototype, join, ArrayJoin)                       \
   V(Array.prototype, lastIndexOf, ArrayLastIndexOf)         \
-  V(Array.prototype, push, ArrayPush)                       \
+  V(Array.prototype, map, ArrayMap)                         \
   V(Array.prototype, pop, ArrayPop)                         \
+  V(Array.prototype, push, ArrayPush)                       \
+  V(Array.prototype, reverse, ArrayReverse)                 \
   V(Array.prototype, shift, ArrayShift)                     \
+  V(Array.prototype, slice, ArraySlice)                     \
+  V(Array.prototype, some, ArraySome)                       \
+  V(Array.prototype, splice, ArraySplice)                   \
+  V(Array.prototype, unshift, ArrayUnshift)                 \
   V(Date, now, DateNow)                                     \
   V(Date.prototype, getDate, DateGetDate)                   \
   V(Date.prototype, getDay, DateGetDay)                     \
