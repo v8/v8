@@ -991,8 +991,9 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a
   // dictionary.
-  bool fast_case =
-      is_array_species && (estimate_nof_elements * 2) >= estimate_result_length;
+  bool fast_case = is_array_species &&
+                   (estimate_nof_elements * 2) >= estimate_result_length &&
+                   isolate->IsIsConcatSpreadableLookupChainIntact();
 
   if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
     Handle<FixedArrayBase> storage =
