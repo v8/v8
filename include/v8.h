@@ -1910,7 +1910,6 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a symbol or a string.
-   * This is an experimental feature.
    */
   bool IsName() const;
 
@@ -1922,7 +1921,6 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a symbol.
-   * This is an experimental feature.
    */
   bool IsSymbol() const;
 
@@ -1994,7 +1992,6 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a Symbol object.
-   * This is an experimental feature.
    */
   bool IsSymbolObject() const;
 
@@ -2015,19 +2012,16 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a Generator function.
-   * This is an experimental feature.
    */
   bool IsGeneratorFunction() const;
 
   /**
    * Returns true if this value is a Generator object (iterator).
-   * This is an experimental feature.
    */
   bool IsGeneratorObject() const;
 
   /**
    * Returns true if this value is a Promise.
-   * This is an experimental feature.
    */
   bool IsPromise() const;
 
@@ -2063,73 +2057,61 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is an ArrayBuffer.
-   * This is an experimental feature.
    */
   bool IsArrayBuffer() const;
 
   /**
    * Returns true if this value is an ArrayBufferView.
-   * This is an experimental feature.
    */
   bool IsArrayBufferView() const;
 
   /**
    * Returns true if this value is one of TypedArrays.
-   * This is an experimental feature.
    */
   bool IsTypedArray() const;
 
   /**
    * Returns true if this value is an Uint8Array.
-   * This is an experimental feature.
    */
   bool IsUint8Array() const;
 
   /**
    * Returns true if this value is an Uint8ClampedArray.
-   * This is an experimental feature.
    */
   bool IsUint8ClampedArray() const;
 
   /**
    * Returns true if this value is an Int8Array.
-   * This is an experimental feature.
    */
   bool IsInt8Array() const;
 
   /**
    * Returns true if this value is an Uint16Array.
-   * This is an experimental feature.
    */
   bool IsUint16Array() const;
 
   /**
    * Returns true if this value is an Int16Array.
-   * This is an experimental feature.
    */
   bool IsInt16Array() const;
 
   /**
    * Returns true if this value is an Uint32Array.
-   * This is an experimental feature.
    */
   bool IsUint32Array() const;
 
   /**
    * Returns true if this value is an Int32Array.
-   * This is an experimental feature.
    */
   bool IsInt32Array() const;
 
   /**
    * Returns true if this value is a Float32Array.
-   * This is an experimental feature.
    */
   bool IsFloat32Array() const;
 
   /**
    * Returns true if this value is a Float64Array.
-   * This is an experimental feature.
    */
   bool IsFloat64Array() const;
 
@@ -2141,7 +2123,6 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a DataView.
-   * This is an experimental feature.
    */
   bool IsDataView() const;
 
@@ -2659,8 +2640,6 @@ class V8_EXPORT String : public Name {
 
 /**
  * A JavaScript symbol (ECMA-262 edition 6)
- *
- * This is an experimental feature. Use at your own risk.
  */
 class V8_EXPORT Symbol : public Name {
  public:
@@ -3710,7 +3689,6 @@ class V8_EXPORT Function : public Object {
 
 /**
  * An instance of the built-in Promise constructor (ES6 draft).
- * This API is experimental. Only works with --harmony flag.
  */
 class V8_EXPORT Promise : public Object {
  public:
@@ -3916,7 +3894,6 @@ enum class ArrayBufferCreationMode { kInternalized, kExternalized };
 
 /**
  * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT ArrayBuffer : public Object {
  public:
@@ -3972,8 +3949,6 @@ class V8_EXPORT ArrayBuffer : public Object {
    *
    * The Data pointer of ArrayBuffer::Contents is always allocated with
    * Allocator::Allocate that is set via Isolate::CreateParams.
-   *
-   * This API is experimental and may change significantly.
    */
   class V8_EXPORT Contents { // NOLINT
    public:
@@ -4074,8 +4049,6 @@ class V8_EXPORT ArrayBuffer : public Object {
 /**
  * A base class for an instance of one of "views" over ArrayBuffer,
  * including TypedArrays and DataView (ES6 draft 15.13).
- *
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT ArrayBufferView : public Object {
  public:
@@ -4123,7 +4096,6 @@ class V8_EXPORT ArrayBufferView : public Object {
 /**
  * A base class for an instance of TypedArray series of constructors
  * (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT TypedArray : public ArrayBufferView {
  public:
@@ -4143,7 +4115,6 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
 
 /**
  * An instance of Uint8Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Uint8Array : public TypedArray {
  public:
@@ -4161,7 +4132,6 @@ class V8_EXPORT Uint8Array : public TypedArray {
 
 /**
  * An instance of Uint8ClampedArray constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Uint8ClampedArray : public TypedArray {
  public:
@@ -4179,7 +4149,6 @@ class V8_EXPORT Uint8ClampedArray : public TypedArray {
 
 /**
  * An instance of Int8Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Int8Array : public TypedArray {
  public:
@@ -4197,7 +4166,6 @@ class V8_EXPORT Int8Array : public TypedArray {
 
 /**
  * An instance of Uint16Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Uint16Array : public TypedArray {
  public:
@@ -4215,7 +4183,6 @@ class V8_EXPORT Uint16Array : public TypedArray {
 
 /**
  * An instance of Int16Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Int16Array : public TypedArray {
  public:
@@ -4233,7 +4200,6 @@ class V8_EXPORT Int16Array : public TypedArray {
 
 /**
  * An instance of Uint32Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Uint32Array : public TypedArray {
  public:
@@ -4251,7 +4217,6 @@ class V8_EXPORT Uint32Array : public TypedArray {
 
 /**
  * An instance of Int32Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Int32Array : public TypedArray {
  public:
@@ -4269,7 +4234,6 @@ class V8_EXPORT Int32Array : public TypedArray {
 
 /**
  * An instance of Float32Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Float32Array : public TypedArray {
  public:
@@ -4287,7 +4251,6 @@ class V8_EXPORT Float32Array : public TypedArray {
 
 /**
  * An instance of Float64Array constructor (ES6 draft 15.13.6).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT Float64Array : public TypedArray {
  public:
@@ -4305,7 +4268,6 @@ class V8_EXPORT Float64Array : public TypedArray {
 
 /**
  * An instance of DataView constructor (ES6 draft 15.13.7).
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT DataView : public ArrayBufferView {
  public:
@@ -4508,8 +4470,6 @@ class V8_EXPORT StringObject : public Object {
 
 /**
  * A Symbol object (ECMA-262 edition 6).
- *
- * This is an experimental feature. Use at your own risk.
  */
 class V8_EXPORT SymbolObject : public Object {
  public:
