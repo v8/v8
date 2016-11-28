@@ -335,18 +335,6 @@ Node* AstGraphBuilder::GetFunctionContext() {
   return function_context_.get();
 }
 
-
-Node* AstGraphBuilder::GetNewTarget() {
-  if (!new_target_.is_set()) {
-    int params = info()->num_parameters_including_this();
-    int index = Linkage::GetJSCallNewTargetParamIndex(params);
-    const Operator* op = common()->Parameter(index, "%new.target");
-    Node* node = NewNode(op, graph()->start());
-    new_target_.set(node);
-  }
-  return new_target_.get();
-}
-
 Node* AstGraphBuilder::GetEmptyFrameState() {
   if (!empty_frame_state_.is_set()) {
     const Operator* op = common()->FrameState(
@@ -425,15 +413,10 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
 
-  // Build rest arguments array if it is used.
-  Variable* rest_parameter = scope->rest_parameter();
-  BuildRestArgumentsArray(rest_parameter);
-
-  // Build assignment to {.this_function} variable if it is used.
-  BuildThisFunctionVariable(scope->this_function_var());
-
-  // Build assignment to {new.target} variable if it is used.
-  BuildNewTargetVariable(scope->new_target_var());
+  // We don't support new.target and rest parameters here.
+  DCHECK_NULL(scope->new_target_var());
+  DCHECK_NULL(scope->rest_parameter());
+  DCHECK_NULL(scope->this_function_var());
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
@@ -2793,52 +2776,6 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
                           BailoutId::None());
   return object;
 }
-
-Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest) {
-  if (rest == nullptr) return nullptr;
-
-  // Allocate and initialize a new arguments object.
-  CreateArgumentsType type = CreateArgumentsType::kRestParameter;
-  const Operator* op = javascript()->CreateArguments(type);
-  Node* object = NewNode(op, GetFunctionClosure());
-  PrepareFrameState(object, BailoutId::None());
-
-  // Assign the object to the {rest} variable. This should never lazy
-  // deopt, so it is fine to send invalid bailout id.
-  DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
-  BuildVariableAssignment(rest, object, Token::ASSIGN, VectorSlotPair(),
-                          BailoutId::None());
-  return object;
-}
-
-
-Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
-  if (this_function_var == nullptr) return nullptr;
-
-  // Retrieve the closure we were called with.
-  Node* this_function = GetFunctionClosure();
-
-  // Assign the object to the {.this_function} variable. This should never lazy
-  // deopt, so it is fine to send invalid bailout id.
-  BuildVariableAssignment(this_function_var, this_function, Token::INIT,
-                          VectorSlotPair(), BailoutId::None());
-  return this_function;
-}
-
-
-Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
-  if (new_target_var == nullptr) return nullptr;
-
-  // Retrieve the new target we were called with.
-  Node* object = GetNewTarget();
-
-  // Assign the object to the {new.target} variable. This should never lazy
-  // deopt, so it is fine to send invalid bailout id.
-  BuildVariableAssignment(new_target_var, object, Token::INIT, VectorSlotPair(),
-                          BailoutId::None());
-  return object;
-}
-
 
 Node* AstGraphBuilder::BuildHoleCheckThenThrow(Node* value, Variable* variable,
                                                Node* not_hole,

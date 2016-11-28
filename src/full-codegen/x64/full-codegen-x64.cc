@@ -241,37 +241,10 @@ void FullCodeGenerator::Generate() {
   PrepareForBailoutForId(BailoutId::FunctionContext(),
                          BailoutState::NO_REGISTERS);
 
-  // Possibly set up a local binding to the this function which is used in
-  // derived constructors with super calls.
-  Variable* this_function_var = info->scope()->this_function_var();
-  if (this_function_var != nullptr) {
-    Comment cmnt(masm_, "[ This function");
-    if (!function_in_register) {
-      __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-      // The write barrier clobbers register again, keep it marked as such.
-    }
-    SetVar(this_function_var, rdi, rbx, rcx);
-  }
-
-  // Possibly set up a local binding to the new target value.
-  Variable* new_target_var = info->scope()->new_target_var();
-  if (new_target_var != nullptr) {
-    Comment cmnt(masm_, "[ new.target");
-    SetVar(new_target_var, rdx, rbx, rcx);
-  }
-
-  // Possibly allocate RestParameters
-  Variable* rest_param = info->scope()->rest_parameter();
-  if (rest_param != nullptr) {
-    Comment cmnt(masm_, "[ Allocate rest parameter array");
-    if (!function_in_register) {
-      __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    }
-    FastNewRestParameterStub stub(isolate());
-    __ CallStub(&stub);
-    function_in_register = false;
-    SetVar(rest_param, rax, rbx, rdx);
-  }
+  // We don't support new.target and rest parameters here.
+  DCHECK_NULL(info->scope()->new_target_var());
+  DCHECK_NULL(info->scope()->rest_parameter());
+  DCHECK_NULL(info->scope()->this_function_var());
 
   // Possibly allocate an arguments object.
   DCHECK_EQ(scope(), info->scope());

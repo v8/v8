@@ -94,7 +94,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
-  SetOncePointer<Node> new_target_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -160,9 +159,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Get or create the node that represents the incoming function context.
   Node* GetFunctionContext();
-
-  // Get or create the node that represents the incoming new target value.
-  Node* GetNewTarget();
 
   // Get or create the node that represents the empty frame state.
   Node* GetEmptyFrameState();
@@ -268,15 +264,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builder to create an arguments object if it is used.
   Node* BuildArgumentsObject(Variable* arguments);
-
-  // Builder to create an array of rest parameters if used.
-  Node* BuildRestArgumentsArray(Variable* rest);
-
-  // Builder that assigns to the {.this_function} internal variable if needed.
-  Node* BuildThisFunctionVariable(Variable* this_function_var);
-
-  // Builder that assigns to the {new.target} internal variable if needed.
-  Node* BuildNewTargetVariable(Variable* new_target_var);
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,
