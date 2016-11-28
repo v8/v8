@@ -1006,10 +1006,10 @@ void ValueDeserializer::TransferArrayBuffer(
   }
   Handle<SeededNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
-  const bool used_as_prototype = false;
+  Handle<JSObject> not_a_prototype_holder;
   Handle<SeededNumberDictionary> new_dictionary =
       SeededNumberDictionary::AtNumberPut(dictionary, transfer_id, array_buffer,
-                                          used_as_prototype);
+                                          not_a_prototype_holder);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
     array_buffer_transfer_map_ = Handle<SeededNumberDictionary>::cast(

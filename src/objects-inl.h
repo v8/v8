@@ -5764,8 +5764,8 @@ ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
-ACCESSORS(Tuple3, value1, Object, kValue1Offset)
-ACCESSORS(Tuple3, value2, Object, kValue2Offset)
+ACCESSORS(Tuple2, value1, Object, kValue1Offset)
+ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
