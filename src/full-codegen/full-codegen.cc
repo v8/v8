@@ -1470,9 +1470,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     case Call::KEYED_SUPER_PROPERTY_CALL:
       EmitKeyedSuperCallWithLoadIC(expr);
       break;
-    case Call::SUPER_CALL:
-      EmitSuperConstructorCall(expr);
-      break;
     case Call::OTHER_CALL:
       // Call to an arbitrary expression not handled specially above.
       VisitForStackValue(callee);
@@ -1481,6 +1478,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Emit function call.
       EmitCall(expr);
       break;
+    case Call::SUPER_CALL:
     case Call::WITH_CALL:
       UNREACHABLE();
   }

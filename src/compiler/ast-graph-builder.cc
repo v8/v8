@@ -1995,14 +1995,13 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       environment()->Drop(1);
       break;
     }
-    case Call::SUPER_CALL:
-      return VisitCallSuper(expr);
     case Call::OTHER_CALL:
       VisitForValue(callee);
       callee_value = environment()->Pop();
       receiver_hint = ConvertReceiverMode::kNullOrUndefined;
       receiver_value = jsgraph()->UndefinedConstant();
       break;
+    case Call::SUPER_CALL:
     case Call::WITH_CALL:
       UNREACHABLE();
   }
@@ -2058,34 +2057,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   environment()->Push(jsgraph()->OptimizedOutConstant());
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   environment()->Drop(1);
-  ast_context()->ProduceValue(expr, value);
-}
-
-
-void AstGraphBuilder::VisitCallSuper(Call* expr) {
-  SuperCallReference* super = expr->expression()->AsSuperCallReference();
-  DCHECK_NOT_NULL(super);
-
-  // Prepare the callee to the super call.
-  VisitForValue(super->this_function_var());
-  Node* this_function = environment()->Pop();
-  const Operator* op =
-      javascript()->CallRuntime(Runtime::kInlineGetSuperConstructor, 1);
-  Node* super_function = NewNode(op, this_function);
-  environment()->Push(super_function);
-
-  // Evaluate all arguments to the super call.
-  ZoneList<Expression*>* args = expr->arguments();
-  VisitForValues(args);
-
-  // The new target is loaded from the {new.target} variable.
-  VisitForValue(super->new_target_var());
-
-  // Create node to perform the super call.
-  const Operator* call =
-      javascript()->CallConstruct(args->length() + 2, 0.0f, VectorSlotPair());
-  Node* value = ProcessArguments(call, args->length() + 2);
-  PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(expr, value);
 }
 

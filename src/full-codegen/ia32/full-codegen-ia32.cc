@@ -2081,47 +2081,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 }
 
 
-void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
-  SuperCallReference* super_call_ref =
-      expr->expression()->AsSuperCallReference();
-  DCHECK_NOT_NULL(super_call_ref);
-
-  // Push the super constructor target on the stack (may be null,
-  // but the Construct builtin can deal with that properly).
-  VisitForAccumulatorValue(super_call_ref->this_function_var());
-  __ AssertFunction(result_register());
-  __ mov(result_register(),
-         FieldOperand(result_register(), HeapObject::kMapOffset));
-  PushOperand(FieldOperand(result_register(), Map::kPrototypeOffset));
-
-  // Push the arguments ("left-to-right") on the stack.
-  ZoneList<Expression*>* args = expr->arguments();
-  int arg_count = args->length();
-  for (int i = 0; i < arg_count; i++) {
-    VisitForStackValue(args->at(i));
-  }
-
-  // Call the construct call builtin that handles allocation and
-  // constructor invocation.
-  SetConstructCallPosition(expr);
-
-  // Load new target into edx.
-  VisitForAccumulatorValue(super_call_ref->new_target_var());
-  __ mov(edx, result_register());
-
-  // Load function and argument count into edi and eax.
-  __ Move(eax, Immediate(arg_count));
-  __ mov(edi, Operand(esp, arg_count * kPointerSize));
-
-  __ Call(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-  OperandStackDepthDecrement(arg_count + 1);
-
-  RecordJSReturnSite(expr);
-  RestoreContext();
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
