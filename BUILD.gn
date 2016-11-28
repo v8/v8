@@ -2516,6 +2516,7 @@ if (is_component_build) {
       ":v8_base",
       ":v8_maybe_snapshot",
     ]
+
     public_configs = [ ":external_config" ]
   }
 }

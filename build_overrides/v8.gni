@@ -18,3 +18,8 @@ v8_experimental_extra_library_files =
     [ "//test/cctest/test-experimental-extra.js" ]
 
 v8_enable_inspector_override = true
+
+declare_args() {
+  # Use static libraries instead of source_sets.
+  v8_static_library = false
+}

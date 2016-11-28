@@ -87,11 +87,20 @@ if (is_posix && v8_enable_backtrace) {
 
 # All templates should be kept in sync.
 template("v8_source_set") {
-  source_set(target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
-    configs += invoker.configs
-    configs -= v8_remove_configs
-    configs += v8_add_configs
+  if (defined(v8_static_library) && v8_static_library) {
+    static_library(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      configs += invoker.configs
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+    }
+  } else {
+    source_set(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      configs += invoker.configs
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+    }
   }
 }
 
