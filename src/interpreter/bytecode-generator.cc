@@ -1405,9 +1405,8 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
   VisitClassLiteralForRuntimeDefinition(expr);
 
   // Load the "prototype" from the constructor.
-  RegisterList args = register_allocator()->NewRegisterList(2);
-  Register literal = args[0];
-  Register prototype = args[1];
+  Register literal = register_allocator()->NewRegister();
+  Register prototype = register_allocator()->NewRegister();
   FeedbackVectorSlot slot = expr->PrototypeSlot();
   builder()
       ->StoreAccumulatorInRegister(literal)
