@@ -1152,7 +1152,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         }
 
         if (next_.literal_chars->one_byte_literal().length() <= 10 &&
-            value <= Smi::kMaxValue && c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
+            value <= Smi::kMaxValue && c0_ != '.' &&
+            (c0_ == kEndOfInput || !unicode_cache_->IsIdentifierStart(c0_))) {
           next_.smi_value_ = static_cast<uint32_t>(value);
           literal.Complete();
           HandleLeadSurrogate();
