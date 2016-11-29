@@ -10657,7 +10657,7 @@ int HandlerTable::LookupRange(int pc_offset, int* data_out,
     int handler_offset = HandlerOffsetField::decode(handler_field);
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
     int handler_data = Smi::cast(get(i + kRangeDataIndex))->value();
-    if (pc_offset > start_offset && pc_offset <= end_offset) {
+    if (pc_offset >= start_offset && pc_offset < end_offset) {
       DCHECK_GE(start_offset, innermost_start);
       DCHECK_LT(end_offset, innermost_end);
       innermost_handler = handler_offset;
@@ -15175,13 +15175,6 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray* to) {
   DCHECK_EQ(from->length(), to->length());
   CopyBytes(to->GetFirstBytecodeAddress(), from->GetFirstBytecodeAddress(),
             from->length());
-}
-
-int BytecodeArray::LookupRangeInHandlerTable(
-    int code_offset, int* data, HandlerTable::CatchPrediction* prediction) {
-  HandlerTable* table = HandlerTable::cast(handler_table());
-  code_offset++;  // Point after current bytecode.
-  return table->LookupRange(code_offset, data, prediction);
 }
 
 // static

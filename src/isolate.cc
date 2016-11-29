@@ -1344,8 +1344,9 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         // Must have been constructed from a bytecode array.
         CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
         int code_offset = summary.code_offset();
-        int index = code->GetBytecodeArray()->LookupRangeInHandlerTable(
-            code_offset, nullptr, &prediction);
+        BytecodeArray* bytecode = code->GetBytecodeArray();
+        HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+        int index = table->LookupRange(code_offset, nullptr, &prediction);
         if (index <= 0) continue;
         if (prediction == HandlerTable::UNCAUGHT) continue;
         return prediction;

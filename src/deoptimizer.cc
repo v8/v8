@@ -642,8 +642,8 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
       JSFunction* function =
           JSFunction::cast(translated_frame->begin()->GetRawValue());
       BytecodeArray* bytecode = function->shared()->bytecode_array();
-      return bytecode->LookupRangeInHandlerTable(bytecode_offset, data_out,
-                                                 nullptr);
+      HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+      return table->LookupRange(bytecode_offset, data_out, nullptr);
     }
     default:
       break;

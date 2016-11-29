@@ -1357,8 +1357,8 @@ int InterpretedFrame::position() const {
 int InterpretedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
   BytecodeArray* bytecode = function()->shared()->bytecode_array();
-  return bytecode->LookupRangeInHandlerTable(GetBytecodeOffset(),
-                                             context_register, prediction);
+  HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+  return table->LookupRange(GetBytecodeOffset(), context_register, prediction);
 }
 
 int InterpretedFrame::GetBytecodeOffset() const {

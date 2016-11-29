@@ -4817,7 +4817,9 @@ class HandlerTable : public FixedArray {
   inline void SetReturnOffset(int index, int value);
   inline void SetReturnHandler(int index, int offset);
 
-  // Lookup handler in a table based on ranges.
+  // Lookup handler in a table based on ranges. The {pc_offset} is an offset to
+  // the start of the potentially throwing instruction (using return addresses
+  // for this value would be invalid).
   int LookupRange(int pc_offset, int* data, CatchPrediction* prediction);
 
   // Lookup handler in a table based on return addresses.
@@ -5001,9 +5003,6 @@ class BytecodeArray : public FixedArrayBase {
   void Disassemble(std::ostream& os);
 
   void CopyBytecodesTo(BytecodeArray* to);
-
-  int LookupRangeInHandlerTable(int code_offset, int* data,
-                                HandlerTable::CatchPrediction* prediction);
 
   // Layout description.
   static const int kConstantPoolOffset = FixedArrayBase::kHeaderSize;
