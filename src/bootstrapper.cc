@@ -1882,9 +1882,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         InstallFunction(prototype, fun, factory->split_symbol(), DONT_ENUM);
       }
 
+      Handle<Map> prototype_map(prototype->map());
+      Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
+
       // Store the initial RegExp.prototype map. This is used in fast-path
       // checks. Do not alter the prototype after this point.
-      native_context()->set_regexp_prototype_map(prototype->map());
+      native_context()->set_regexp_prototype_map(*prototype_map);
     }
 
     {
