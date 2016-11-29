@@ -189,6 +189,35 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   return reduction.Changed() ? reduction : Changed(node);
 }
 
+// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] (V)
+Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* object = (node->op()->ValueInputCount() >= 3)
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // TODO(turbofan): If JSOrdinaryToInstance raises an exception, the
+  // stack trace doesn't contain the @@hasInstance call; we have the
+  // corresponding bug in the baseline case. Some massaging of the frame
+  // state would be necessary here.
+
+  // Morph this {node} into a JSOrdinaryHasInstance node.
+  node->ReplaceInput(0, receiver);
+  node->ReplaceInput(1, object);
+  node->ReplaceInput(2, context);
+  node->ReplaceInput(3, frame_state);
+  node->ReplaceInput(4, effect);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
+  return Changed(node);
+}
+
 namespace {
 
 // TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
@@ -280,6 +309,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           return ReduceFunctionPrototypeApply(node);
         case Builtins::kFunctionPrototypeCall:
           return ReduceFunctionPrototypeCall(node);
+        case Builtins::kFunctionPrototypeHasInstance:
+          return ReduceFunctionPrototypeHasInstance(node);
         case Builtins::kNumberConstructor:
           return ReduceNumberConstructor(node);
         case Builtins::kObjectPrototypeGetProto:

@@ -71,6 +71,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSInstanceOf:
       return ReduceJSInstanceOf(node);
+    case IrOpcode::kJSOrdinaryHasInstance:
+      return ReduceJSOrdinaryHasInstance(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSLoadNamed:
@@ -133,7 +135,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       NodeProperties::ReplaceValueInput(node, object, 1);
       NodeProperties::ReplaceEffectInput(node, effect);
       NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
-      return Changed(node);
+      Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
+      return reduction.Changed() ? reduction : Changed(node);
     }
   } else if (access_info.IsDataConstant()) {
     DCHECK(access_info.constant()->IsCallable());
@@ -169,6 +172,31 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       }
     }
     return Changed(node);
+  }
+
+  return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSOrdinaryHasInstance, node->opcode());
+  Node* constructor = NodeProperties::GetValueInput(node, 0);
+  Node* object = NodeProperties::GetValueInput(node, 1);
+
+  // Check if the {constructor} is a JSBoundFunction.
+  HeapObjectMatcher m(constructor);
+  if (m.HasValue() && m.Value()->IsJSBoundFunction()) {
+    // OrdinaryHasInstance on bound functions turns into a recursive
+    // invocation of the instanceof operator again.
+    // ES6 section 7.3.19 OrdinaryHasInstance (C, O) step 2.
+    Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(m.Value());
+    Handle<JSReceiver> bound_target_function(function->bound_target_function());
+    NodeProperties::ReplaceValueInput(node, object, 0);
+    NodeProperties::ReplaceValueInput(
+        node, jsgraph()->HeapConstant(bound_target_function), 1);
+    NodeProperties::ChangeOp(node, javascript()->InstanceOf());
+    Reduction const reduction = ReduceJSInstanceOf(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
 
   return NoChange();
