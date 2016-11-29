@@ -242,6 +242,9 @@
 
   # BUG(chromium:664490)
   'debug-scopes': [SKIP],
+
+  #BUG(v8:5683)
+  'wasm/import-memory': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
