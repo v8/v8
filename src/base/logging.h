@@ -55,13 +55,14 @@ namespace base {
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use CHECK_EQ et al below.
-#define CHECK_OP(name, op, lhs, rhs)                                    \
-  do {                                                                  \
-    if (std::string* _msg = ::v8::base::Check##name##Impl(              \
-            (lhs), (rhs), #lhs " " #op " " #rhs)) {                     \
-      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str()); \
-      delete _msg;                                                      \
-    }                                                                   \
+#define CHECK_OP(name, op, lhs, rhs)                                     \
+  do {                                                                   \
+    if (std::string* _msg =                                              \
+            ::v8::base::Check##name##Impl<decltype(lhs), decltype(rhs)>( \
+                (lhs), (rhs), #lhs " " #op " " #rhs)) {                  \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str());  \
+      delete _msg;                                                       \
+    }                                                                    \
   } while (0)
 
 #else
@@ -73,13 +74,22 @@ namespace base {
 
 #endif
 
+// Helper to determine how to pass values: Pass scalars and arrays by value,
+// others by const reference. std::decay<T> provides the type which should be
+// used to pass T by value, e.g. converts array to pointer and removes const,
+// volatile and reference.
+template <typename T>
+struct PassType : public std::conditional<
+                      std::is_scalar<typename std::decay<T>::type>::value,
+                      typename std::decay<T>::type, T const&> {};
 
 // Build the error message string.  This is separate from the "Impl"
 // function template because it is not performance critical and so can
 // be out of line, while the "Impl" code should be inline. Caller
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
-std::string* MakeCheckOpString(Lhs const& lhs, Rhs const& rhs,
+std::string* MakeCheckOpString(typename PassType<Lhs>::type lhs,
+                               typename PassType<Rhs>::type rhs,
                                char const* msg) {
   std::ostringstream ss;
   ss << msg << " (" << lhs << " vs. " << rhs << ")";
@@ -90,7 +100,7 @@ std::string* MakeCheckOpString(Lhs const& lhs, Rhs const& rhs,
 // in logging.cc.
 #define DEFINE_MAKE_CHECK_OP_STRING(type)                                    \
   extern template V8_BASE_EXPORT std::string* MakeCheckOpString<type, type>( \
-      type const&, type const&, char const*);
+      type, type, char const*);
 DEFINE_MAKE_CHECK_OP_STRING(int)
 DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
@@ -101,27 +111,21 @@ DEFINE_MAKE_CHECK_OP_STRING(char const*)
 DEFINE_MAKE_CHECK_OP_STRING(void const*)
 #undef DEFINE_MAKE_CHECK_OP_STRING
 
-
 // Helper functions for CHECK_OP macro.
-// The (int, int) specialization works around the issue that the compiler
-// will not instantiate the template version of the function on values of
-// unnamed enum type - see comment below.
 // The (float, float) and (double, double) instantiations are explicitly
 // externialized to ensure proper 32/64-bit comparisons on x86.
 #define DEFINE_CHECK_OP_IMPL(NAME, op)                                         \
   template <typename Lhs, typename Rhs>                                        \
-  V8_INLINE std::string* Check##NAME##Impl(Lhs const& lhs, Rhs const& rhs,     \
+  V8_INLINE std::string* Check##NAME##Impl(typename PassType<Lhs>::type lhs,   \
+                                           typename PassType<Rhs>::type rhs,   \
                                            char const* msg) {                  \
-    return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
-  }                                                                            \
-  V8_INLINE std::string* Check##NAME##Impl(int lhs, int rhs,                   \
-                                           char const* msg) {                  \
-    return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
+    return V8_LIKELY(lhs op rhs) ? nullptr                                     \
+                                 : MakeCheckOpString<Lhs, Rhs>(lhs, rhs, msg); \
   }                                                                            \
   extern template V8_BASE_EXPORT std::string* Check##NAME##Impl<float, float>( \
-      float const& lhs, float const& rhs, char const* msg);                    \
+      float lhs, float rhs, char const* msg);                                  \
   extern template V8_BASE_EXPORT std::string*                                  \
-      Check##NAME##Impl<double, double>(double const& lhs, double const& rhs,  \
+      Check##NAME##Impl<double, double>(double lhs, double rhs,                \
                                         char const* msg);
 DEFINE_CHECK_OP_IMPL(EQ, ==)
 DEFINE_CHECK_OP_IMPL(NE, !=)
