@@ -809,7 +809,7 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreTransitionDH)                   \
   V(StoreIC_StoreViaSetter)
 
-class V8_EXPORT_PRIVATE RuntimeCallStats final : public ZoneObject {
+class RuntimeCallStats final : public ZoneObject {
  public:
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
 
@@ -838,23 +838,25 @@ class V8_EXPORT_PRIVATE RuntimeCallStats final : public ZoneObject {
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
-  static void Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
-                    CounterId counter_id);
+  V8_EXPORT_PRIVATE static void Enter(RuntimeCallStats* stats,
+                                      RuntimeCallTimer* timer,
+                                      CounterId counter_id);
 
   // Leave a scope for a measured runtime function. This will properly add
   // the time delta to the current_counter and subtract the delta from its
   // parent.
-  static void Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer);
+  V8_EXPORT_PRIVATE static void Leave(RuntimeCallStats* stats,
+                                      RuntimeCallTimer* timer);
 
   // Set counter id for the innermost measurement. It can be used to refine
   // event kind when a runtime entry counter is too generic.
-  static void CorrectCurrentCounterId(RuntimeCallStats* stats,
-                                      CounterId counter_id);
+  V8_EXPORT_PRIVATE static void CorrectCurrentCounterId(RuntimeCallStats* stats,
+                                                        CounterId counter_id);
 
-  void Reset();
+  V8_EXPORT_PRIVATE void Reset();
   // Add all entries from another stats object.
   void Add(RuntimeCallStats* other);
-  void Print(std::ostream& os);
+  V8_EXPORT_PRIVATE void Print(std::ostream& os);
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
   RuntimeCallStats() {
