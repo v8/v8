@@ -14416,13 +14416,12 @@ uint32_t Code::TranslateAstIdToPcOffset(BailoutId ast_id) {
 }
 
 void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
-  PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge, NO_MARKING_PARITY);
+  PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge);
 }
 
 
 void Code::MarkCodeAsExecuted(byte* sequence, Isolate* isolate) {
-  PatchPlatformCodeAge(isolate, sequence, kExecutedOnceCodeAge,
-      NO_MARKING_PARITY);
+  PatchPlatformCodeAge(isolate, sequence, kExecutedOnceCodeAge);
 }
 
 
@@ -14456,28 +14455,25 @@ void Code::MakeYoung(Isolate* isolate) {
 void Code::PreAge(Isolate* isolate) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
-    PatchPlatformCodeAge(isolate, sequence, kPreAgedCodeAge, NO_MARKING_PARITY);
+    PatchPlatformCodeAge(isolate, sequence, kPreAgedCodeAge);
   }
 }
 
 void Code::MarkToBeExecutedOnce(Isolate* isolate) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
-    PatchPlatformCodeAge(isolate, sequence, kToBeExecutedOnceCodeAge,
-                         NO_MARKING_PARITY);
+    PatchPlatformCodeAge(isolate, sequence, kToBeExecutedOnceCodeAge);
   }
 }
 
-void Code::MakeOlder(MarkingParity current_parity) {
+void Code::MakeOlder() {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
-    Age age;
-    MarkingParity code_parity;
     Isolate* isolate = GetIsolate();
-    GetCodeAgeAndParity(isolate, sequence, &age, &code_parity);
+    Age age = GetCodeAge(isolate, sequence);
     Age next_age = NextAge(age);
-    if (age != next_age && code_parity != current_parity) {
-      PatchPlatformCodeAge(isolate, sequence, next_age, current_parity);
+    if (age != next_age) {
+      PatchPlatformCodeAge(isolate, sequence, next_age);
     }
   }
 }
@@ -14503,77 +14499,47 @@ Code::Age Code::GetAge() {
   if (sequence == NULL) {
     return kNoAgeCodeAge;
   }
-  Age age;
-  MarkingParity parity;
-  GetCodeAgeAndParity(GetIsolate(), sequence, &age, &parity);
-  return age;
+  return GetCodeAge(GetIsolate(), sequence);
 }
 
-
-void Code::GetCodeAgeAndParity(Code* code, Age* age,
-                               MarkingParity* parity) {
+Code::Age Code::GetAgeOfCodeAgeStub(Code* code) {
   Isolate* isolate = code->GetIsolate();
   Builtins* builtins = isolate->builtins();
-  Code* stub = NULL;
-#define HANDLE_CODE_AGE(AGE)                                            \
-  stub = *builtins->Make##AGE##CodeYoungAgainEvenMarking();             \
-  if (code == stub) {                                                   \
-    *age = k##AGE##CodeAge;                                             \
-    *parity = EVEN_MARKING_PARITY;                                      \
-    return;                                                             \
-  }                                                                     \
-  stub = *builtins->Make##AGE##CodeYoungAgainOddMarking();              \
-  if (code == stub) {                                                   \
-    *age = k##AGE##CodeAge;                                             \
-    *parity = ODD_MARKING_PARITY;                                       \
-    return;                                                             \
+#define HANDLE_CODE_AGE(AGE)                            \
+  if (code == *builtins->Make##AGE##CodeYoungAgain()) { \
+    return k##AGE##CodeAge;                             \
   }
   CODE_AGE_LIST(HANDLE_CODE_AGE)
 #undef HANDLE_CODE_AGE
-  stub = *builtins->MarkCodeAsExecutedOnce();
-  if (code == stub) {
-    *age = kNotExecutedCodeAge;
-    *parity = NO_MARKING_PARITY;
-    return;
+  if (code == *builtins->MarkCodeAsExecutedOnce()) {
+    return kNotExecutedCodeAge;
   }
-  stub = *builtins->MarkCodeAsExecutedTwice();
-  if (code == stub) {
-    *age = kExecutedOnceCodeAge;
-    *parity = NO_MARKING_PARITY;
-    return;
+  if (code == *builtins->MarkCodeAsExecutedTwice()) {
+    return kExecutedOnceCodeAge;
   }
-  stub = *builtins->MarkCodeAsToBeExecutedOnce();
-  if (code == stub) {
-    *age = kToBeExecutedOnceCodeAge;
-    *parity = NO_MARKING_PARITY;
-    return;
+  if (code == *builtins->MarkCodeAsToBeExecutedOnce()) {
+    return kToBeExecutedOnceCodeAge;
   }
   UNREACHABLE();
+  return kNoAgeCodeAge;
 }
 
-
-Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
+Code* Code::GetCodeAgeStub(Isolate* isolate, Age age) {
   Builtins* builtins = isolate->builtins();
   switch (age) {
-#define HANDLE_CODE_AGE(AGE)                                            \
-    case k##AGE##CodeAge: {                                             \
-      Code* stub = parity == EVEN_MARKING_PARITY                        \
-          ? *builtins->Make##AGE##CodeYoungAgainEvenMarking()           \
-          : *builtins->Make##AGE##CodeYoungAgainOddMarking();           \
-      return stub;                                                      \
-    }
+#define HANDLE_CODE_AGE(AGE)                       \
+  case k##AGE##CodeAge: {                          \
+    return *builtins->Make##AGE##CodeYoungAgain(); \
+  }
     CODE_AGE_LIST(HANDLE_CODE_AGE)
 #undef HANDLE_CODE_AGE
     case kNotExecutedCodeAge: {
-      DCHECK(parity == NO_MARKING_PARITY);
       return *builtins->MarkCodeAsExecutedOnce();
     }
     case kExecutedOnceCodeAge: {
-      DCHECK(parity == NO_MARKING_PARITY);
       return *builtins->MarkCodeAsExecutedTwice();
     }
     case kToBeExecutedOnceCodeAge: {
-      DCHECK(parity == NO_MARKING_PARITY);
       return *builtins->MarkCodeAsToBeExecutedOnce();
     }
     default:

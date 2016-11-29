@@ -5925,7 +5925,7 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
     Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
     nop(Assembler::CODE_AGE_MARKER_NOP);
     // Load the stub address to t9 and call it,
-    // GetCodeAgeAndParity() extracts the stub address from this instruction.
+    // GetCodeAge() extracts the stub address from this instruction.
     li(t9,
        Operand(reinterpret_cast<uint64_t>(stub->instruction_start())),
        ADDRESS_LOAD);

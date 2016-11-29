@@ -29,9 +29,7 @@ namespace internal {
   V(NoAge)                        \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
-#define DECLARE_CODE_AGE_BUILTIN(C, V) \
-  V(Make##C##CodeYoungAgainOddMarking) \
-  V(Make##C##CodeYoungAgainEvenMarking)
+#define DECLARE_CODE_AGE_BUILTIN(C, V) V(Make##C##CodeYoungAgain)
 
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
 //      Args: name

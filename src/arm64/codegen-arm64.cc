@@ -72,30 +72,22 @@ bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
   return MacroAssembler::IsYoungSequence(isolate, sequence);
 }
 
+Code::Age Code::GetCodeAge(Isolate* isolate, byte* sequence) {
+  if (IsYoungSequence(isolate, sequence)) return kNoAgeCodeAge;
 
-void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
-                               MarkingParity* parity) {
-  if (IsYoungSequence(isolate, sequence)) {
-    *age = kNoAgeCodeAge;
-    *parity = NO_MARKING_PARITY;
-  } else {
-    byte* target = sequence + kCodeAgeStubEntryOffset;
-    Code* stub = GetCodeFromTargetAddress(Memory::Address_at(target));
-    GetCodeAgeAndParity(stub, age, parity);
-  }
+  byte* target = sequence + kCodeAgeStubEntryOffset;
+  Code* stub = GetCodeFromTargetAddress(Memory::Address_at(target));
+  return GetAgeOfCodeAgeStub(stub);
 }
 
-
-void Code::PatchPlatformCodeAge(Isolate* isolate,
-                                byte* sequence,
-                                Code::Age age,
-                                MarkingParity parity) {
+void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
+                                Code::Age age) {
   PatchingAssembler patcher(isolate, sequence,
                             kNoCodeAgeSequenceLength / kInstructionSize);
   if (age == kNoAgeCodeAge) {
     MacroAssembler::EmitFrameSetupForCodeAgePatching(&patcher);
   } else {
-    Code * stub = GetCodeAgeStub(isolate, age, parity);
+    Code* stub = GetCodeAgeStub(isolate, age);
     MacroAssembler::EmitCodeAgeSequence(&patcher, stub);
   }
 }

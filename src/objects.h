@@ -284,19 +284,6 @@ enum DescriptorFlag {
   OWN_DESCRIPTORS
 };
 
-// The GC maintains a bit of information, the MarkingParity, which toggles
-// from odd to even and back every time marking is completed. Incremental
-// marking can visit an object twice during a marking phase, so algorithms that
-// that piggy-back on marking can use the parity to ensure that they only
-// perform an operation on an object once per marking phase: they record the
-// MarkingParity when they visit an object, and only re-visit the object when it
-// is marked again and the MarkingParity changes.
-enum MarkingParity {
-  NO_MARKING_PARITY,
-  ODD_MARKING_PARITY,
-  EVEN_MARKING_PARITY
-};
-
 // ICs store extra state in a Code object. The default extra state is
 // kNoExtraICState.
 typedef int ExtraICState;
@@ -5737,12 +5724,12 @@ class Code: public HeapObject {
   void MakeYoung(Isolate* isolate);
   void PreAge(Isolate* isolate);
   void MarkToBeExecutedOnce(Isolate* isolate);
-  void MakeOlder(MarkingParity);
+  void MakeOlder();
   static bool IsYoungSequence(Isolate* isolate, byte* sequence);
   bool IsOld();
   Age GetAge();
   static inline Code* GetPreAgedCodeAgeStub(Isolate* isolate) {
-    return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
+    return GetCodeAgeStub(isolate, kNotExecutedCodeAge);
   }
 
   void PrintDeoptLocation(FILE* out, Address pc);
@@ -5884,16 +5871,12 @@ class Code: public HeapObject {
 
   // Code aging
   byte* FindCodeAgeSequence();
-  static void GetCodeAgeAndParity(Code* code, Age* age,
-                                  MarkingParity* parity);
-  static void GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
-                                  MarkingParity* parity);
-  static Code* GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity);
+  static Age GetCodeAge(Isolate* isolate, byte* sequence);
+  static Age GetAgeOfCodeAgeStub(Code* code);
+  static Code* GetCodeAgeStub(Isolate* isolate, Age age);
 
   // Code aging -- platform-specific
-  static void PatchPlatformCodeAge(Isolate* isolate,
-                                   byte* sequence, Age age,
-                                   MarkingParity parity);
+  static void PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Age age);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };

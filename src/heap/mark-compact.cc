@@ -53,7 +53,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
-      marking_parity_(ODD_MARKING_PARITY),
       was_marked_incrementally_(false),
       evacuation_(false),
       compacting_(false),
@@ -872,13 +871,6 @@ void MarkCompactCollector::Finish() {
   }
 
   heap_->incremental_marking()->ClearIdleMarkingDelayCounter();
-
-  if (marking_parity_ == EVEN_MARKING_PARITY) {
-    marking_parity_ = ODD_MARKING_PARITY;
-  } else {
-    DCHECK(marking_parity_ == ODD_MARKING_PARITY);
-    marking_parity_ = EVEN_MARKING_PARITY;
-  }
 }
 
 

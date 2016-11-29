@@ -412,7 +412,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(Map* map,
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
   if (FLAG_age_code && !heap->isolate()->serializer_enabled()) {
-    code->MakeOlder(heap->mark_compact_collector()->marking_parity());
+    code->MakeOlder();
   }
   CodeBodyVisitor::Visit(map, object);
 }

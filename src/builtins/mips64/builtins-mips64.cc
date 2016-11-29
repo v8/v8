@@ -1553,14 +1553,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ Jump(a0);
 }
 
-#define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                  \
-  void Builtins::Generate_Make##C##CodeYoungAgainEvenMarking( \
-      MacroAssembler* masm) {                                 \
-    GenerateMakeCodeYoungAgainCommon(masm);                   \
-  }                                                           \
-  void Builtins::Generate_Make##C##CodeYoungAgainOddMarking(  \
-      MacroAssembler* masm) {                                 \
-    GenerateMakeCodeYoungAgainCommon(masm);                   \
+#define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                              \
+  void Builtins::Generate_Make##C##CodeYoungAgain(MacroAssembler* masm) { \
+    GenerateMakeCodeYoungAgainCommon(masm);                               \
   }
 CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR

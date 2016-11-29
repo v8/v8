@@ -1486,8 +1486,8 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   // object is still located in new-space.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    function->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
-    function2->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    function->shared()->code()->MakeOlder();
+    function2->shared()->code()->MakeOlder();
   }
 
   // Simulate incremental marking so that the functions are enqueued as
@@ -1545,7 +1545,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // Bump the code age so that flushing is triggered.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    function->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    function->shared()->code()->MakeOlder();
   }
 
   // Simulate incremental marking so that the function is enqueued as
@@ -1664,12 +1664,7 @@ TEST(CompilationCacheCachingBehavior) {
 
   // Progress code age until it's old and ready for GC.
   while (!info.ToHandleChecked()->code()->IsOld()) {
-    // To guarantee progress, we have to MakeOlder with different parities.
-    // We can't just use NO_MARKING_PARITY, since e.g. kExecutedOnceCodeAge is
-    // always NO_MARKING_PARITY and the code age only progresses if the parity
-    // is different.
-    info.ToHandleChecked()->code()->MakeOlder(ODD_MARKING_PARITY);
-    info.ToHandleChecked()->code()->MakeOlder(EVEN_MARKING_PARITY);
+    info.ToHandleChecked()->code()->MakeOlder();
   }
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
@@ -4035,7 +4030,7 @@ TEST(Regress159140) {
     CHECK(g->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      g->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      g->code()->MakeOlder();
     }
 
     code = inner_scope.CloseAndEscape(Handle<Code>(f->code()));
@@ -4083,7 +4078,7 @@ TEST(Regress165495) {
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      f->shared()->code()->MakeOlder();
     }
 
     CompileRun("f = null;");
@@ -4136,7 +4131,7 @@ TEST(Regress169209) {
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      f->shared()->code()->MakeOlder();
     }
 
     shared1 = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
@@ -4161,7 +4156,7 @@ TEST(Regress169209) {
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      f->shared()->code()->MakeOlder();
     }
 
     shared2 = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
@@ -4552,7 +4547,7 @@ TEST(Regress513496) {
     CHECK(g->shared()->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      g->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      g->shared()->code()->MakeOlder();
     }
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
