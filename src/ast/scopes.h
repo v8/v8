@@ -207,14 +207,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Scope-specific info.
 
   // Inform the scope and outer scopes that the corresponding code contains an
-  // eval call. We don't record eval calls from innner scopes in the outer most
-  // script scope, as we only see those when parsing eagerly. If we recorded the
-  // calls then, the outer most script scope would look different depending on
-  // whether we parsed eagerly or not which is undesirable.
+  // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
     inner_scope_calls_eval_ = true;
-    for (Scope* scope = outer_scope(); scope && !scope->is_script_scope();
+    for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
       scope->inner_scope_calls_eval_ = true;
     }

@@ -795,6 +795,7 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   DCHECK(!already_resolved_);
   DCHECK(!other->already_resolved_);
   if (calls_eval()) other->RecordEvalCall();
+  if (inner_scope_calls_eval_) other->inner_scope_calls_eval_ = true;
 }
 
 Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
