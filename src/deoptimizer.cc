@@ -391,14 +391,13 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
   }
 }
 
-
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code* code) {
   Isolate* isolate = function->GetIsolate();
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  Code* code = function->code();
+  if (code == nullptr) code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also
     // refer to that code. The code cannot be shared across native contexts,
@@ -3934,8 +3933,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
   return nullptr;
 }
 
-
-void TranslatedState::StoreMaterializedValuesAndDeopt() {
+void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   MaterializedObjectStore* materialized_store =
       isolate_->materialized_object_store();
   Handle<FixedArray> previously_materialized_objects =
@@ -3981,8 +3979,8 @@ void TranslatedState::StoreMaterializedValuesAndDeopt() {
     CHECK(frames_[0].kind() == TranslatedFrame::kFunction ||
           frames_[0].kind() == TranslatedFrame::kInterpretedFunction ||
           frames_[0].kind() == TranslatedFrame::kTailCallerFunction);
-    Object* const function = frames_[0].front().GetRawValue();
-    Deoptimizer::DeoptimizeFunction(JSFunction::cast(function));
+    CHECK_EQ(frame->function(), frames_[0].front().GetRawValue());
+    Deoptimizer::DeoptimizeFunction(frame->function(), frame->LookupCode());
   }
 }
 

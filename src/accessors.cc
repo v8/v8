@@ -801,8 +801,8 @@ static Handle<Object> ArgumentsForInlinedFunction(
   Handle<FixedArray> array = factory->NewFixedArray(argument_count);
   bool should_deoptimize = false;
   for (int i = 0; i < argument_count; ++i) {
-    // If we materialize any object, we should deopt because we might alias
-    // an object that was eliminated by escape analysis.
+    // If we materialize any object, we should deoptimize the frame because we
+    // might alias an object that was eliminated by escape analysis.
     should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
     Handle<Object> value = iter->GetValue();
     array->set(i, *value);
@@ -811,7 +811,7 @@ static Handle<Object> ArgumentsForInlinedFunction(
   arguments->set_elements(*array);
 
   if (should_deoptimize) {
-    translated_values.StoreMaterializedValuesAndDeopt();
+    translated_values.StoreMaterializedValuesAndDeopt(frame);
   }
 
   // Return the freshly allocated arguments object.

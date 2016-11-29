@@ -377,6 +377,8 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
         NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
+      // If we materialize any object, we should deoptimize the frame because we
+      // might alias an object that was eliminated by escape analysis.
       should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
       Handle<Object> value = iter->GetValue();
       param_data[i] = value;
@@ -384,7 +386,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     }
 
     if (should_deoptimize) {
-      translated_values.StoreMaterializedValuesAndDeopt();
+      translated_values.StoreMaterializedValuesAndDeopt(frame);
     }
 
     return param_data;
