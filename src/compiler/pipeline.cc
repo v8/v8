@@ -552,6 +552,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (!FLAG_always_opt) {
       info()->MarkAsBailoutOnUninitialized();
     }
+    if (FLAG_turbo_loop_peeling) {
+      info()->MarkAsLoopPeelingEnabled();
+    }
   }
   if (info()->is_optimizing_from_bytecode() ||
       !info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
@@ -1505,7 +1508,7 @@ bool PipelineImpl::CreateGraph() {
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
 
-    if (FLAG_turbo_loop_peeling) {
+    if (data->info()->is_loop_peeling_enabled()) {
       Run<LoopPeelingPhase>();
       RunPrintAndVerify("Loops peeled", true);
     } else {
