@@ -55,10 +55,8 @@ void LoopBuilder::LoopHeader(ZoneVector<BytecodeLabel>* additional_labels) {
   // and misplaced between the headers.
   DCHECK(break_labels_.empty() && continue_labels_.empty());
   builder()->Bind(&loop_header_);
-  if (additional_labels != nullptr) {
-    for (auto& label : *additional_labels) {
-      builder()->Bind(&label);
-    }
+  for (auto& label : *additional_labels) {
+    builder()->Bind(&label);
   }
 }
 

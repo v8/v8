@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --noanalyze-environment-liveness
+// Flags: --expose-debug-as debug
 
 var Debug = debug.Debug;
 

@@ -48,8 +48,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   // not for a jump or conditional jump.
   int GetJumpTargetOffset() const;
 
-  std::ostream& PrintTo(std::ostream& os) const;
-
  private:
   bool OffsetInBounds() const;
 

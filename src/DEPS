@@ -10,7 +10,6 @@ include_rules = [
   "+src/heap/heap-inl.h",
   "-src/inspector",
   "-src/interpreter",
-  "+src/interpreter/bytecode-array-accessor.h",
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecode-array-reverse-iterator.h",
   "+src/interpreter/bytecode-decoder.h",

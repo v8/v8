@@ -722,25 +722,22 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
                                              LoopBuilder* loop_builder) {
   // Recall that stmt->yield_count() is always zero inside ordinary
   // (i.e. non-generator) functions.
-  if (stmt->yield_count() == 0) {
-    loop_builder->LoopHeader();
-  } else {
-    // Collect all labels for generator resume points within the loop (if any)
-    // so that they can be bound to the loop header below. Also create fresh
-    // labels for these resume points, to be used inside the loop.
-    ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
-    size_t first_yield = stmt->first_yield_id();
-    DCHECK_LE(first_yield + stmt->yield_count(),
-              generator_resume_points_.size());
-    for (size_t id = first_yield; id < first_yield + stmt->yield_count();
-         id++) {
-      auto& label = generator_resume_points_[id];
-      resume_points_in_loop.push_back(label);
-      generator_resume_points_[id] = BytecodeLabel();
-    }
 
-    loop_builder->LoopHeader(&resume_points_in_loop);
+  // Collect all labels for generator resume points within the loop (if any) so
+  // that they can be bound to the loop header below. Also create fresh labels
+  // for these resume points, to be used inside the loop.
+  ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
+  size_t first_yield = stmt->first_yield_id();
+  DCHECK_LE(first_yield + stmt->yield_count(), generator_resume_points_.size());
+  for (size_t id = first_yield; id < first_yield + stmt->yield_count(); id++) {
+    auto& label = generator_resume_points_[id];
+    resume_points_in_loop.push_back(label);
+    generator_resume_points_[id] = BytecodeLabel();
+  }
 
+  loop_builder->LoopHeader(&resume_points_in_loop);
+
+  if (stmt->yield_count() > 0) {
     // If we are not resuming, fall through to loop body.
     // If we are resuming, perform state dispatch.
     BytecodeLabel not_resuming;

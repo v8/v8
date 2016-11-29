@@ -135,6 +135,10 @@ class BytecodeGraphBuilder {
   // Conceptually this frame state is "after" a given operation.
   void PrepareFrameState(Node* node, OutputFrameStateCombine combine);
 
+  // Computes register liveness and replaces dead ones in frame states with the
+  // undefined values.
+  void ClearNonLiveSlotsInFrameStates();
+
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
@@ -256,6 +260,8 @@ class BytecodeGraphBuilder {
     bytecode_analysis_ = bytecode_analysis;
   }
 
+  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
+
   bool IsLivenessAnalysisEnabled() const {
     return this->is_liveness_analysis_enabled_;
   }
@@ -300,6 +306,9 @@ class BytecodeGraphBuilder {
   bool const is_liveness_analysis_enabled_;
 
   StateValuesCache state_values_cache_;
+
+  // Analyzer of register liveness.
+  LivenessAnalyzer liveness_analyzer_;
 
   // The Turbofan source position table, to be populated.
   SourcePositionTable* source_positions_;
