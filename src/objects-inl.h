@@ -2604,7 +2604,7 @@ void FixedArray::set(int index,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
+  NOBARRIER_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
@@ -2616,7 +2616,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray* array,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!array->GetHeap()->InNewSpace(value));
-  WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  NOBARRIER_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
 void FixedArray::set_undefined(int index) {
