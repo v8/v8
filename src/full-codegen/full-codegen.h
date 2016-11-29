@@ -182,19 +182,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
     }
   };
 
-  // The body of a with or catch.
-  class WithOrCatch : public NestedStatement {
-   public:
-    explicit WithOrCatch(FullCodeGenerator* codegen)
-        : NestedStatement(codegen) {
-    }
-
-    NestedStatement* Exit(int* context_length) override {
-      ++(*context_length);
-      return previous_;
-    }
-  };
-
   // A platform-specific utility to overwrite the accumulator register
   // with a GC-safe value.
   void ClearAccumulator();

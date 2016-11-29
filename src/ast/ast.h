@@ -922,30 +922,16 @@ class WithStatement final : public Statement {
   Statement* statement() const { return statement_; }
   void set_statement(Statement* s) { statement_ = s; }
 
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 2; }
-  BailoutId ToObjectId() const { return BailoutId(local_id(0)); }
-  BailoutId EntryId() const { return BailoutId(local_id(1)); }
-
  private:
   friend class AstNodeFactory;
 
   WithStatement(Scope* scope, Expression* expression, Statement* statement,
                 int pos)
       : Statement(pos, kWithStatement),
-        base_id_(BailoutId::None().ToInt()),
         scope_(scope),
         expression_(expression),
         statement_(statement) {}
 
-  static int parent_num_ids() { return 0; }
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
-  int base_id_;
   Scope* scope_;
   Expression* expression_;
   Statement* statement_;

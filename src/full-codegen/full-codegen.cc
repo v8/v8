@@ -1114,33 +1114,8 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
-  Comment cmnt(masm_, "[ WithStatement");
-  SetStatementPosition(stmt);
-
-  VisitForAccumulatorValue(stmt->expression());
-  Callable callable = CodeFactory::ToObject(isolate());
-  __ Move(callable.descriptor().GetRegisterParameter(0), result_register());
-  __ Call(callable.code(), RelocInfo::CODE_TARGET);
-  RestoreContext();
-  PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
-  PushOperand(result_register());
-  PushOperand(stmt->scope()->scope_info());
-  PushFunctionArgumentForContextAllocation();
-  CallRuntimeWithOperands(Runtime::kPushWithContext);
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
-  PrepareForBailoutForId(stmt->EntryId(), BailoutState::NO_REGISTERS);
-
-  Scope* saved_scope = scope();
-  scope_ = stmt->scope();
-  { WithOrCatch body(this);
-    Visit(stmt->statement());
-  }
-  scope_ = saved_scope;
-
-  // Pop context.
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+  // Dynamic scoping is not supported.
+  UNREACHABLE();
 }
 
 

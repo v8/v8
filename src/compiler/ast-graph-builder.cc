@@ -1061,14 +1061,8 @@ void AstGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
-  VisitForValue(stmt->expression());
-  Node* value = environment()->Pop();
-  Node* object = BuildToObject(value, stmt->ToObjectId());
-  Handle<ScopeInfo> scope_info = stmt->scope()->scope_info();
-  const Operator* op = javascript()->CreateWithContext(scope_info);
-  Node* context = NewNode(op, object, GetFunctionClosureForContext());
-  PrepareFrameState(context, stmt->EntryId());
-  VisitInScope(stmt->statement(), stmt->scope(), context);
+  // Dynamic scoping is supported only by going through Ignition first.
+  UNREACHABLE();
 }
 
 
@@ -2474,12 +2468,6 @@ void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
   Visit(stmt);
 }
 
-
-void AstGraphBuilder::VisitInScope(Statement* stmt, Scope* s, Node* context) {
-  ContextScope scope(this, s, context);
-  DCHECK(s->declarations()->is_empty());
-  Visit(stmt);
-}
 
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
                                          LoopBuilder* loop,
