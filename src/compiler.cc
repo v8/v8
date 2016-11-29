@@ -681,7 +681,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
-    info->AbortOptimization(kOptimizedTooManyTimes);
+    info->AbortOptimization(kDeoptimizedTooManyTimes);
     return MaybeHandle<Code>();
   }
 
