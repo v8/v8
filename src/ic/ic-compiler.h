@@ -14,22 +14,22 @@ namespace internal {
 class PropertyICCompiler : public PropertyAccessCompiler {
  public:
   // Keyed
-  static Handle<Object> ComputeKeyedStoreMonomorphicHandler(
+  static Handle<Code> ComputeKeyedStoreMonomorphicHandler(
       Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
   static void ComputeKeyedStorePolymorphicHandlers(
       MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
-      List<Handle<Object>>* handlers, KeyedAccessStoreMode store_mode);
+      CodeHandleList* handlers, KeyedAccessStoreMode store_mode);
 
  private:
   explicit PropertyICCompiler(Isolate* isolate)
       : PropertyAccessCompiler(isolate, Code::KEYED_STORE_IC,
                                kCacheOnReceiver) {}
 
-  Handle<Object> CompileKeyedStoreMonomorphicHandler(
+  Handle<Code> CompileKeyedStoreMonomorphicHandler(
       Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
   void CompileKeyedStorePolymorphicHandlers(MapHandleList* receiver_maps,
                                             MapHandleList* transitioned_maps,
-                                            List<Handle<Object>>* handlers,
+                                            CodeHandleList* handlers,
                                             KeyedAccessStoreMode store_mode);
 };
 

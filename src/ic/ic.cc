@@ -603,9 +603,10 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
   OnTypeFeedbackChanged(isolate(), get_host());
 }
 
+
 void IC::ConfigureVectorState(MapHandleList* maps,
                               MapHandleList* transitioned_maps,
-                              List<Handle<Object>>* handlers) {
+                              CodeHandleList* handlers) {
   DCHECK(UseVector());
   DCHECK(kind() == Code::KEYED_STORE_IC);
   KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
@@ -2207,7 +2208,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
-    Handle<Object> handler =
+    Handle<Code> handler =
         PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(monomorphic_map,
                                                                 store_mode);
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
@@ -2241,7 +2242,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
-      Handle<Object> handler =
+      Handle<Code> handler =
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
               transitioned_receiver_map, store_mode);
       ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
@@ -2255,7 +2256,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
-      Handle<Object> handler =
+      Handle<Code> handler =
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(receiver_map,
                                                                   store_mode);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
@@ -2316,7 +2317,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   MapHandleList transitioned_maps(target_receiver_maps.length());
-  List<Handle<Object>> handlers(target_receiver_maps.length());
+  CodeHandleList handlers(target_receiver_maps.length());
   PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
       &target_receiver_maps, &transitioned_maps, &handlers, store_mode);
   ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);

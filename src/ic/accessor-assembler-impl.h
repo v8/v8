@@ -81,12 +81,12 @@ class AccessorAssemblerImpl : public CodeStubAssembler {
     Node* value;
   };
 
-  enum ElementSupport { kOnlyProperties, kSupportElements };
-  void HandleStoreICHandlerCase(
-      const StoreICParameters* p, Node* handler, Label* miss,
-      ElementSupport support_elements = kOnlyProperties);
+  void HandleStoreICHandlerCase(const StoreICParameters* p, Node* handler,
+                                Label* miss);
 
  private:
+  enum ElementSupport { kOnlyProperties, kSupportElements };
+
   // Stub generation entry points.
 
   void LoadIC(const LoadICParameters* p);
@@ -141,9 +141,6 @@ class AccessorAssemblerImpl : public CodeStubAssembler {
                                      bool throw_reference_error_if_nonexistent);
 
   // StoreIC implementation.
-
-  void HandleStoreICElementHandlerCase(const StoreICParameters* p,
-                                       Node* handler, Label* miss);
 
   void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
                                  Label* miss);

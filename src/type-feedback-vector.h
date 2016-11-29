@@ -264,6 +264,9 @@ class TypeFeedbackVector : public FixedArray {
     ClearSlotsImpl(shared, false);
   }
 
+  static void ClearAllKeyedStoreICs(Isolate* isolate);
+  void ClearKeyedStoreICs(SharedFunctionInfo* shared);
+
   // The object that indicates an uninitialized cache.
   static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
 
@@ -603,7 +606,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
                             List<Handle<Object>>* handlers);
   void ConfigurePolymorphic(MapHandleList* maps,
                             MapHandleList* transitioned_maps,
-                            List<Handle<Object>>* handlers);
+                            CodeHandleList* handlers);
   void ConfigureMegamorphicKeyed(IcCheckType property_type);
 
   KeyedAccessStoreMode GetKeyedAccessStoreMode() const;

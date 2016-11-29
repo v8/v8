@@ -457,9 +457,8 @@ class ArrayConcatVisitor {
         SeededNumberDictionary::cast(*storage_));
     // The object holding this backing store has just been allocated, so
     // it cannot yet be used as a prototype.
-    Handle<JSObject> not_a_prototype_holder;
-    Handle<SeededNumberDictionary> result = SeededNumberDictionary::AtNumberPut(
-        dict, index, elm, not_a_prototype_holder);
+    Handle<SeededNumberDictionary> result =
+        SeededNumberDictionary::AtNumberPut(dict, index, elm, false);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
       clear_storage();
@@ -526,10 +525,9 @@ class ArrayConcatVisitor {
           if (!element->IsTheHole(isolate_)) {
             // The object holding this backing store has just been allocated, so
             // it cannot yet be used as a prototype.
-            Handle<JSObject> not_a_prototype_holder;
             Handle<SeededNumberDictionary> new_storage =
                 SeededNumberDictionary::AtNumberPut(slow_storage, i, element,
-                                                    not_a_prototype_holder);
+                                                    false);
             if (!new_storage.is_identical_to(slow_storage)) {
               slow_storage = loop_scope.CloseAndEscape(new_storage);
             }

@@ -38,8 +38,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(SymbolMap, SymbolMap)                             \
   V(TheHoleValue, TheHole)                            \
   V(TrueValue, True)                                  \
-  V(Tuple2Map, Tuple2Map)                             \
-  V(Tuple3Map, Tuple3Map)                             \
   V(UndefinedValue, Undefined)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the

@@ -6163,10 +6163,9 @@ void JSObject::ResetElements(Handle<JSObject> object) {
 void JSObject::RequireSlowElements(SeededNumberDictionary* dictionary) {
   if (dictionary->requires_slow_elements()) return;
   dictionary->set_requires_slow_elements();
+  // TODO(verwaest): Remove this hack.
   if (map()->is_prototype_map()) {
-    // If this object is a prototype (the callee will check), invalidate any
-    // prototype chains involving it.
-    InvalidatePrototypeChains(map());
+    TypeFeedbackVector::ClearAllKeyedStoreICs(GetIsolate());
   }
 }
 
@@ -15621,6 +15620,9 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   // SpiderMonkey behaves this way.
   if (!value->IsJSReceiver() && !value->IsNull(isolate)) return Just(true);
 
+  bool dictionary_elements_in_chain =
+      object->map()->DictionaryElementsInPrototypeChainOnly();
+
   bool all_extensible = object->map()->is_extensible();
   Handle<JSObject> real_receiver = object;
   if (from_javascript) {
@@ -15685,6 +15687,14 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   Handle<Map> new_map = Map::TransitionToPrototype(map, value, mode);
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
+
+  if (from_javascript && !dictionary_elements_in_chain &&
+      new_map->DictionaryElementsInPrototypeChainOnly()) {
+    // If the prototype chain didn't previously have element callbacks, then
+    // KeyedStoreICs need to be cleared to ensure any that involve this
+    // map go generic.
+    TypeFeedbackVector::ClearAllKeyedStoreICs(isolate);
+  }
 
   heap->ClearInstanceofCache();
   DCHECK(size == object->Size());
@@ -17382,7 +17392,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
         return bailout;
       } else {
         Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-            new_dict, pos, value, details, object);
+            new_dict, pos, value, details, object->map()->is_prototype_map());
         DCHECK(result.is_identical_to(new_dict));
         USE(result);
         pos++;
@@ -17393,7 +17403,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
       return bailout;
     } else {
       Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-          new_dict, key, value, details, object);
+          new_dict, key, value, details, object->map()->is_prototype_map());
       DCHECK(result.is_identical_to(new_dict));
       USE(result);
     }
@@ -17410,7 +17420,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
     HandleScope scope(isolate);
     Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
         new_dict, pos, isolate->factory()->undefined_value(), no_details,
-        object);
+        object->map()->is_prototype_map());
     DCHECK(result.is_identical_to(new_dict));
     USE(result);
     pos++;
@@ -18274,8 +18284,8 @@ bool SeededNumberDictionary::HasComplexElements() {
   return false;
 }
 
-void SeededNumberDictionary::UpdateMaxNumberKey(
-    uint32_t key, Handle<JSObject> dictionary_holder) {
+void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key,
+                                                bool used_as_prototype) {
   DisallowHeapAllocation no_allocation;
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
@@ -18283,8 +18293,9 @@ void SeededNumberDictionary::UpdateMaxNumberKey(
   // Check if this index is high enough that we should require slow
   // elements.
   if (key > kRequiresSlowElementsLimit) {
-    if (!dictionary_holder.is_null()) {
-      dictionary_holder->RequireSlowElements(this);
+    if (used_as_prototype) {
+      // TODO(verwaest): Remove this hack.
+      TypeFeedbackVector::ClearAllKeyedStoreICs(GetIsolate());
     }
     set_requires_slow_elements();
     return;
@@ -18297,11 +18308,11 @@ void SeededNumberDictionary::UpdateMaxNumberKey(
   }
 }
 
+
 Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
     Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, PropertyDetails details,
-    Handle<JSObject> dictionary_holder) {
-  dictionary->UpdateMaxNumberKey(key, dictionary_holder);
+    Handle<Object> value, PropertyDetails details, bool used_as_prototype) {
+  dictionary->UpdateMaxNumberKey(key, used_as_prototype);
   SLOW_DCHECK(dictionary->FindEntry(key) == kNotFound);
   return Add(dictionary, key, value, details);
 }
@@ -18329,8 +18340,8 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::DeleteKey(
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
     Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, Handle<JSObject> dictionary_holder) {
-  dictionary->UpdateMaxNumberKey(key, dictionary_holder);
+    Handle<Object> value, bool used_as_prototype) {
+  dictionary->UpdateMaxNumberKey(key, used_as_prototype);
   return AtPut(dictionary, key, value);
 }
 
@@ -18342,13 +18353,13 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AtNumberPut(
   return AtPut(dictionary, key, value);
 }
 
+
 Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
     Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, PropertyDetails details,
-    Handle<JSObject> dictionary_holder) {
+    Handle<Object> value, PropertyDetails details, bool used_as_prototype) {
   int entry = dictionary->FindEntry(key);
   if (entry == kNotFound) {
-    return AddNumberEntry(dictionary, key, value, details, dictionary_holder);
+    return AddNumberEntry(dictionary, key, value, details, used_as_prototype);
   }
   // Preserve enumeration index.
   details = details.set_index(dictionary->DetailsAt(entry).dictionary_index());

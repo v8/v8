@@ -1078,12 +1078,6 @@ void PrototypeInfo::PrototypeInfoVerify() {
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
 }
 
-void Tuple2::Tuple2Verify() {
-  CHECK(IsTuple2());
-  VerifyObjectField(kValue1Offset);
-  VerifyObjectField(kValue2Offset);
-}
-
 void Tuple3::Tuple3Verify() {
   CHECK(IsTuple3());
   VerifyObjectField(kValue1Offset);

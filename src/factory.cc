@@ -103,14 +103,6 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   return result;
 }
 
-Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1,
-                                  Handle<Object> value2) {
-  Handle<Tuple2> result = Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE));
-  result->set_value1(*value1);
-  result->set_value2(*value2);
-  return result;
-}
-
 Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
                                   Handle<Object> value3) {
   Handle<Tuple3> result = Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE));
