@@ -1193,9 +1193,11 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
   if (!info->shared_info()->is_compiled()) {
     if (GetUnoptimizedCode(info).is_null()) return false;
-    if (info->shared_info()->HasAsmWasmData()) return false;
   }
   DCHECK(info->shared_info()->is_compiled());
+
+  if (info->shared_info()->HasAsmWasmData()) return false;
+
   DCHECK_EQ(ShouldUseIgnition(info), info->shared_info()->HasBytecodeArray());
   return info->shared_info()->HasBytecodeArray();
 }
@@ -1711,6 +1713,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   Handle<SharedFunctionInfo> shared(function->shared());
 
   if (FLAG_always_opt && shared->allows_lazy_compilation() &&
+      !function->shared()->HasAsmWasmData() &&
       function->shared()->is_compiled()) {
     function->MarkForOptimization();
   }
