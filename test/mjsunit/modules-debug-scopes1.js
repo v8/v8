@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --expose-debug-as debug --allow-natives-syntax --noanalyze-environment-liveness
 
 // These tests are copied from mjsunit/debug-scopes.js and adapted for modules.
 

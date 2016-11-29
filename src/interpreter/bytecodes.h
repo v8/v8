@@ -471,6 +471,12 @@ class V8_EXPORT_PRIVATE Bytecodes final {
            IsConditionalJumpConstant(bytecode);
   }
 
+  // Returns true if the bytecode is an unconditional jump.
+  static CONSTEXPR bool IsUnconditionalJump(Bytecode bytecode) {
+    return bytecode == Bytecode::kJump || bytecode == Bytecode::kJumpConstant ||
+           bytecode == Bytecode::kJumpLoop;
+  }
+
   // Returns true if the bytecode is a jump or a conditional jump taking
   // an immediate byte operand (OperandType::kImm).
   static CONSTEXPR bool IsJumpImmediate(Bytecode bytecode) {
@@ -498,6 +504,12 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // any kind of operand.
   static CONSTEXPR bool IsJump(Bytecode bytecode) {
     return IsJumpImmediate(bytecode) || IsJumpConstant(bytecode);
+  }
+
+  // Returns true if the bytecode is a forward jump or conditional jump taking
+  // any kind of operand.
+  static CONSTEXPR bool IsForwardJump(Bytecode bytecode) {
+    return bytecode != Bytecode::kJumpLoop && IsJump(bytecode);
   }
 
   // Returns true if the bytecode is a conditional jump, a jump, or a return.
