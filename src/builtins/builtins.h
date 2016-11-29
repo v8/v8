@@ -605,7 +605,7 @@ namespace internal {
   TFJ(RegExpPrototypeFlagsGetter, 0)                                          \
   TFJ(RegExpPrototypeGlobalGetter, 0)                                         \
   TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                     \
-  CPP(RegExpPrototypeMatch)                                                   \
+  TFJ(RegExpPrototypeMatch, 1)                                                \
   TFJ(RegExpPrototypeMultilineGetter, 0)                                      \
   TFJ(RegExpPrototypeReplace, 2)                                              \
   TFJ(RegExpPrototypeSearch, 1)                                               \
