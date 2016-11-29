@@ -4,7 +4,7 @@
 
 {
   'variables': {
-    'protocol_path': '<(PRODUCT_DIR)/../../third_party/inspector_protocol',
+    'protocol_path': '../../third_party/inspector_protocol',
   },
   'includes': [
     'inspector.gypi',
@@ -97,7 +97,7 @@
           'action': [
             'python',
             '<(protocol_path)/CodeGenerator.py',
-            '--jinja_dir', '<(PRODUCT_DIR)/../../third_party',
+            '--jinja_dir', '../../third_party',
             '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
             '--config', 'inspector_protocol_config.json',
           ],
