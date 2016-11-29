@@ -2818,16 +2818,6 @@ class ClassLiteral final : public Expression {
     static_initializer_proxy_ = proxy;
   }
 
-  BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
-  BailoutId PrototypeId() { return BailoutId(local_id(1)); }
-
-  // Return an AST id for a property that is used in simulate instructions.
-  BailoutId GetIdForProperty(int i) { return BailoutId(local_id(i + 2)); }
-
-  // Unlike other AST nodes, this number of bailout IDs allocated for an
-  // ClassLiteral can vary, so num_ids() is not a static method.
-  int num_ids() const { return parent_num_ids() + 2 + properties()->length(); }
-
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
@@ -2854,9 +2844,6 @@ class ClassLiteral final : public Expression {
         constructor_(constructor),
         properties_(properties),
         static_initializer_proxy_(nullptr) {}
-
-  static int parent_num_ids() { return Expression::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   int end_position_;
   FeedbackVectorSlot prototype_slot_;

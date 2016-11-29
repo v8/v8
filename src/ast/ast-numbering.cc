@@ -486,7 +486,7 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
   DisableFullCodegenAndCrankshaft(kClassLiteral);
-  node->set_base_id(ReserveIdRange(node->num_ids()));
+  node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
   if (node->class_variable_proxy()) {
