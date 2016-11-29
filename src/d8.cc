@@ -1827,13 +1827,14 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
   virtual ~InspectorFrontend() = default;
 
  private:
-  void sendProtocolResponse(int callId,
-                            const v8_inspector::StringView& message) override {
-    Send(message);
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    Send(message->string());
   }
-  void sendProtocolNotification(
-      const v8_inspector::StringView& message) override {
-    Send(message);
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    Send(message->string());
   }
   void flushProtocolNotifications() override {}
 
