@@ -218,6 +218,7 @@ namespace internal {
   TFJ(ArrayIndexOf, 2)                                                        \
   CPP(ArrayPop)                                                               \
   CPP(ArrayPush)                                                              \
+  TFJ(FastArrayPush, -1)                                                      \
   CPP(ArrayShift)                                                             \
   CPP(ArraySlice)                                                             \
   CPP(ArraySplice)                                                            \

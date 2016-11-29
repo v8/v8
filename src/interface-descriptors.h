@@ -618,6 +618,7 @@ class BuiltinDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
   static const Register ArgumentsCountRegister();
   static const Register NewTargetRegister();
+  static const Register TargetRegister();
 };
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {

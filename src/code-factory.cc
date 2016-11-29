@@ -495,5 +495,10 @@ Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
                   ContextOnlyDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::ArrayPush(Isolate* isolate) {
+  return Callable(isolate->builtins()->ArrayPush(), BuiltinDescriptor(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8

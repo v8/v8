@@ -45,7 +45,6 @@ namespace internal {
   F(EstimateNumberOfElements, 1, 1)  \
   F(GetArrayKeys, 2, 1)              \
   F(NewArray, -1 /* >= 3 */, 1)      \
-  F(ArrayPush, -1, 1)                \
   F(FunctionBind, -1, 1)             \
   F(NormalizeElements, 1, 1)         \
   F(GrowArrayElements, 2, 1)         \

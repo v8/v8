@@ -525,6 +525,12 @@ Node* CodeStubAssembler::TaggedIsSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
+Node* CodeStubAssembler::TaggedIsNotSmi(Node* a) {
+  return WordNotEqual(
+      WordAnd(BitcastTaggedToWord(a), IntPtrConstant(kSmiTagMask)),
+      IntPtrConstant(0));
+}
+
 Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
   return WordEqual(WordAnd(a, IntPtrConstant(kSmiTagMask | kSmiSignMask)),
                    IntPtrConstant(0));
@@ -653,8 +659,9 @@ void CodeStubAssembler::BranchIfJSObject(Node* object, Label* if_true,
          if_true, if_false);
 }
 
-void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
-                                            Label* if_true, Label* if_false) {
+void CodeStubAssembler::BranchIfFastJSArray(
+    Node* object, Node* context, CodeStubAssembler::FastJSArrayAccessMode mode,
+    Label* if_true, Label* if_false) {
   // Bailout if receiver is a Smi.
   GotoIf(TaggedIsSmi(object), if_false);
 
@@ -670,8 +677,9 @@ void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
   GotoUnless(IsFastElementsKind(elements_kind), if_false);
 
   // Check prototype chain if receiver does not have packed elements.
-  GotoUnless(IsHoleyFastElementsKind(elements_kind), if_true);
-
+  if (mode == FastJSArrayAccessMode::INBOUNDS_READ) {
+    GotoUnless(IsHoleyFastElementsKind(elements_kind), if_true);
+  }
   BranchIfPrototypesHaveNoElements(map, if_true, if_false);
 }
 
@@ -1359,6 +1367,79 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
                              FixedArray::kHeaderSize - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kFloat64;
   return StoreNoWriteBarrier(rep, object, offset, value);
+}
+
+Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
+                                            Node* array,
+                                            CodeStubArguments& args,
+                                            Variable& arg_index,
+                                            Label* bailout) {
+  Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
+  Label pre_bailout(this);
+  Label success(this);
+  Variable elements(this, MachineRepresentation::kTagged);
+  ParameterMode mode = OptimalParameterMode();
+  Variable length(this, OptimalParameterRepresentation());
+  length.Bind(UntagParameter(LoadJSArrayLength(array), mode));
+  elements.Bind(LoadElements(array));
+  Node* capacity =
+      UntagParameter(LoadFixedArrayBaseLength(elements.value()), mode);
+
+  // Resize the capacity of the fixed array if it doesn't fit.
+  Label fits(this, &elements);
+  Node* first = arg_index.value();
+  Node* growth = IntPtrSubFoldConstants(args.GetLength(), first);
+  Node* new_length = IntPtrAdd(
+      mode == INTPTR_PARAMETERS ? growth : SmiTag(growth), length.value());
+  GotoUnless(IntPtrGreaterThanOrEqual(new_length, capacity), &fits);
+  Node* new_capacity = CalculateNewElementsCapacity(
+      IntPtrAdd(new_length, IntPtrOrSmiConstant(1, mode)), mode);
+  elements.Bind(GrowElementsCapacity(array, elements.value(), kind, kind,
+                                     capacity, new_capacity, mode,
+                                     &pre_bailout));
+  Goto(&fits);
+  Bind(&fits);
+
+  // Push each argument onto the end of the array now that there is enough
+  // capacity.
+  CodeStubAssembler::VariableList push_vars({&length, &elements}, zone());
+  args.ForEach(
+      push_vars,
+      [kind, mode, &length, &elements, &pre_bailout](
+          CodeStubAssembler* assembler, Node* arg) {
+        if (IsFastSmiElementsKind(kind)) {
+          assembler->GotoIf(assembler->TaggedIsNotSmi(arg), &pre_bailout);
+        } else if (IsFastDoubleElementsKind(kind)) {
+          assembler->GotoIfNotNumber(arg, &pre_bailout);
+        }
+        if (IsFastDoubleElementsKind(kind)) {
+          Node* double_value = assembler->ChangeNumberToFloat64(arg);
+          assembler->StoreFixedDoubleArrayElement(
+              elements.value(), length.value(),
+              assembler->Float64SilenceNaN(double_value), mode);
+        } else {
+          WriteBarrierMode barrier_mode = IsFastSmiElementsKind(kind)
+                                              ? SKIP_WRITE_BARRIER
+                                              : UPDATE_WRITE_BARRIER;
+          assembler->StoreFixedArrayElement(elements.value(), length.value(),
+                                            arg, barrier_mode, 0, mode);
+        }
+        assembler->Increment(length, 1, mode);
+      },
+      first, nullptr);
+  length.Bind(TagParameter(length.value(), mode));
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length.value());
+  Goto(&success);
+
+  Bind(&pre_bailout);
+  length.Bind(TagParameter(length.value(), mode));
+  Node* diff = SmiSub(length.value(), LoadJSArrayLength(array));
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length.value());
+  arg_index.Bind(IntPtrAdd(arg_index.value(), SmiUntag(diff)));
+  Goto(bailout);
+
+  Bind(&success);
+  return length.value();
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
@@ -2130,9 +2211,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                       rep, to_string,
                       index_same ? offset : current_to_offset.value(), value);
                   if (!index_same) {
-                    current_to_offset.Bind(assembler->IntPtrAdd(
-                        current_to_offset.value(),
-                        assembler->IntPtrConstant(to_increment)));
+                    assembler->Increment(current_to_offset, to_increment);
                   }
                 },
                 from_increment, IndexAdvanceMode::kPost);
@@ -2552,6 +2631,25 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
   }
   Bind(&if_valueisstring);
   return var_value.value();
+}
+
+Node* CodeStubAssembler::ChangeNumberToFloat64(compiler::Node* value) {
+  Variable result(this, MachineRepresentation::kFloat64);
+  Label smi(this);
+  Label done(this, &result);
+  GotoIf(TaggedIsSmi(value), &smi);
+  result.Bind(
+      LoadObjectField(value, HeapNumber::kValueOffset, MachineType::Float64()));
+  Goto(&done);
+
+  Bind(&smi);
+  {
+    result.Bind(ChangeInt32ToFloat64(SmiUntag(value)));
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return result.value();
 }
 
 Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
@@ -3966,6 +4064,16 @@ void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
   }
 }
 
+void CodeStubAssembler::Increment(Variable& variable, int value,
+                                  ParameterMode mode) {
+  DCHECK_IMPLIES(mode == INTPTR_PARAMETERS,
+                 variable.rep() == MachineType::PointerRepresentation());
+  DCHECK_IMPLIES(mode == SMI_PARAMETERS,
+                 variable.rep() == MachineRepresentation::kTagged ||
+                     variable.rep() == MachineRepresentation::kTaggedSigned);
+  variable.Bind(IntPtrAdd(variable.value(), IntPtrOrSmiConstant(value, mode)));
+}
+
 void CodeStubAssembler::Use(Label* label) {
   GotoIf(Word32Equal(Int32Constant(0), Int32Constant(1)), label);
 }
@@ -4126,7 +4234,6 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
   Goto(&loop);
   Bind(&loop);
   {
-    Node* count = var_count.value();
     Node* entry = var_entry.value();
 
     Node* index = EntryToIndex<Dictionary>(entry);
@@ -4143,10 +4250,9 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     }
 
     // See Dictionary::NextProbe().
-    count = IntPtrAdd(count, IntPtrConstant(1));
-    entry = WordAnd(IntPtrAdd(entry, count), mask);
+    Increment(var_count);
+    entry = WordAnd(IntPtrAdd(entry, var_count.value()), mask);
 
-    var_count.Bind(count);
     var_entry.Bind(entry);
     Goto(&loop);
   }
@@ -4209,7 +4315,6 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
   Goto(&loop);
   Bind(&loop);
   {
-    Node* count = var_count.value();
     Node* entry = var_entry->value();
 
     Node* index = EntryToIndex<Dictionary>(entry);
@@ -4237,10 +4342,9 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
 
     Bind(&next_probe);
     // See Dictionary::NextProbe().
-    count = IntPtrAdd(count, IntPtrConstant(1));
-    entry = WordAnd(IntPtrAdd(entry, count), mask);
+    Increment(var_count);
+    entry = WordAnd(IntPtrAdd(entry, var_count.value()), mask);
 
-    var_count.Bind(count);
     var_entry->Bind(entry);
     Goto(&loop);
   }
@@ -5902,11 +6006,11 @@ void CodeStubAssembler::BuildFastLoop(
   Bind(&loop);
   {
     if (mode == IndexAdvanceMode::kPre) {
-      var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
+      Increment(var, increment);
     }
     body(this, var.value());
     if (mode == IndexAdvanceMode::kPost) {
-      var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
+      Increment(var, increment);
     }
     Branch(WordNotEqual(var.value(), end_index), &loop, &after_loop);
   }
@@ -7545,6 +7649,20 @@ Node* CodeStubAssembler::NumberInc(Node* value) {
   return var_result.value();
 }
 
+void CodeStubAssembler::GotoIfNotNumber(Node* input, Label* is_not_number) {
+  Label is_number(this);
+  GotoIf(TaggedIsSmi(input), &is_number);
+  Node* input_map = LoadMap(input);
+  Branch(IsHeapNumberMap(input_map), &is_number, is_not_number);
+  Bind(&is_number);
+}
+
+void CodeStubAssembler::GotoIfNumber(Node* input, Label* is_number) {
+  GotoIf(TaggedIsSmi(input), is_number);
+  Node* input_map = LoadMap(input);
+  GotoIf(IsHeapNumberMap(input_map), is_number);
+}
+
 Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
                                              Node* array_type, Node* context,
                                              IterationKind mode) {
@@ -7601,7 +7719,8 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
     Bind(&if_isgeneric);
     {
       Label if_isfast(this), if_isslow(this);
-      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
+      BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
+                          &if_isfast, &if_isslow);
 
       Bind(&if_isfast);
       {
@@ -7635,7 +7754,8 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
     Bind(&if_isgeneric);
     {
       Label if_isfast(this), if_isslow(this);
-      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
+      BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
+                          &if_isfast, &if_isslow);
 
       Bind(&if_isfast);
       {
@@ -7778,13 +7898,14 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
   }
 }
 
-Node* CodeStubArguments::GetReceiver() {
+Node* CodeStubArguments::GetReceiver() const {
   return assembler_->Load(MachineType::AnyTagged(), arguments_,
                           assembler_->IntPtrConstant(kPointerSize));
 }
 
 Node* CodeStubArguments::AtIndex(Node* index,
-                                 CodeStubAssembler::ParameterMode mode) {
+                                 CodeStubAssembler::ParameterMode mode) const {
+  typedef compiler::Node Node;
   Node* negated_index = assembler_->IntPtrSubFoldConstants(
       assembler_->IntPtrOrSmiConstant(0, mode), index);
   Node* offset =
@@ -7792,7 +7913,7 @@ Node* CodeStubArguments::AtIndex(Node* index,
   return assembler_->Load(MachineType::AnyTagged(), arguments_, offset);
 }
 
-Node* CodeStubArguments::AtIndex(int index) {
+Node* CodeStubArguments::AtIndex(int index) const {
   return AtIndex(assembler_->IntPtrConstant(index));
 }
 

@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class CallInterfaceDescriptor;
+class CodeStubArguments;
 class StatsCounter;
 class StubCache;
 
@@ -72,6 +73,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // platforms.
   ParameterMode OptimalParameterMode() const {
     return Is64() ? INTPTR_PARAMETERS : SMI_PARAMETERS;
+  }
+
+  MachineRepresentation OptimalParameterRepresentation() const {
+    return OptimalParameterMode() == INTPTR_PARAMETERS
+               ? MachineType::PointerRepresentation()
+               : MachineRepresentation::kTaggedSigned;
   }
 
   Node* UntagParameter(Node* value, ParameterMode mode) {
@@ -144,6 +151,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Smi | HeapNumber operations.
   Node* NumberInc(Node* value);
+  void GotoIfNotNumber(Node* value, Label* is_not_number);
+  void GotoIfNumber(Node* value, Label* is_number);
 
   // Allocate an object of the given size.
   Node* Allocate(Node* size, AllocationFlags flags = kNone);
@@ -158,6 +167,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Check a value for smi-ness
   Node* TaggedIsSmi(Node* a);
+  Node* TaggedIsNotSmi(Node* a);
   // Check that the value is a non-negative smi.
   Node* WordIsPositiveSmi(Node* a);
   // Check that a word has a word-aligned address.
@@ -195,7 +205,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
   void BranchIfJSObject(Node* object, Label* if_true, Label* if_false);
-  void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
+
+  enum class FastJSArrayAccessMode { INBOUNDS_READ, ANY_ACCESS };
+  void BranchIfFastJSArray(Node* object, Node* context,
+                           FastJSArrayAccessMode mode, Label* if_true,
                            Label* if_false);
 
   // Load value from current frame by given offset in bytes.
@@ -348,6 +361,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StoreFixedDoubleArrayElement(
       Node* object, Node* index, Node* value,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
+
+  Node* BuildAppendJSArray(ElementsKind kind, Node* context, Node* array,
+                           CodeStubArguments& args, Variable& arg_index,
+                           Label* bailout);
 
   void StoreFieldsNoWriteBarrier(Node* start_address, Node* end_address,
                                  Node* value);
@@ -518,6 +535,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ChangeFloat64ToTagged(Node* value);
   Node* ChangeInt32ToTagged(Node* value);
   Node* ChangeUint32ToTagged(Node* value);
+  Node* ChangeNumberToFloat64(Node* value);
 
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,
@@ -662,6 +680,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void SetCounter(StatsCounter* counter, int value);
   void IncrementCounter(StatsCounter* counter, int delta);
   void DecrementCounter(StatsCounter* counter, int delta);
+
+  void Increment(Variable& variable, int value = 1,
+                 ParameterMode mode = INTPTR_PARAMETERS);
 
   // Generates "if (false) goto label" code. Useful for marking a label as
   // "live" to avoid assertion failures during graph building. In the resulting
@@ -1018,13 +1039,15 @@ class CodeStubArguments {
                     CodeStubAssembler::ParameterMode mode =
                         CodeStubAssembler::INTPTR_PARAMETERS);
 
-  Node* GetReceiver();
+  Node* GetReceiver() const;
 
   // |index| is zero-based and does not include the receiver
   Node* AtIndex(Node* index, CodeStubAssembler::ParameterMode mode =
-                                 CodeStubAssembler::INTPTR_PARAMETERS);
+                                 CodeStubAssembler::INTPTR_PARAMETERS) const;
 
-  Node* AtIndex(int index);
+  Node* AtIndex(int index) const;
+
+  Node* GetLength() const { return argc_; }
 
   typedef std::function<void(CodeStubAssembler* assembler, Node* arg)>
       ForEachBodyFunction;

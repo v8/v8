@@ -62,7 +62,6 @@ class ObjectLiteral;
   /* These builtins w/ JS linkage are */      \
   /* just fast-cases of C++ builtins. They */ \
   /* require varg support from TF */          \
-  V(FastArrayPush)                            \
   V(FastFunctionBind)                         \
   /* These will be ported/eliminated */       \
   /* as part of the new IC system, ask */     \
@@ -1009,15 +1008,6 @@ class GrowArrayElementsStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(GrowArrayElements);
   DEFINE_TURBOFAN_CODE_STUB(GrowArrayElements, TurboFanCodeStub);
-};
-
-class FastArrayPushStub : public HydrogenCodeStub {
- public:
-  explicit FastArrayPushStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VarArgFunction);
-  DEFINE_HYDROGEN_CODE_STUB(FastArrayPush, HydrogenCodeStub);
 };
 
 class FastFunctionBindStub : public HydrogenCodeStub {
