@@ -299,6 +299,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
   return Smi::FromInt(function->shared()->opt_count());
 }
 
+static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args.This());
+}
 
 RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   HandleScope scope(isolate);
@@ -307,6 +310,7 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
 
   Local<v8::ObjectTemplate> desc = v8::ObjectTemplate::New(v8_isolate);
   desc->MarkAsUndetectable();
+  desc->SetCallAsFunctionHandler(ReturnThis);
   Local<v8::Object> obj;
   if (!desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocal(&obj)) {
     return nullptr;

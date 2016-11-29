@@ -104,7 +104,9 @@
 #define JS_SIMPLE_BINOP_LIST(V) \
   JS_COMPARE_BINOP_LIST(V)      \
   JS_BITWISE_BINOP_LIST(V)      \
-  JS_ARITH_BINOP_LIST(V)
+  JS_ARITH_BINOP_LIST(V)        \
+  V(JSInstanceOf)               \
+  V(JSOrdinaryHasInstance)
 
 #define JS_CONVERSION_UNOP_LIST(V) \
   V(JSToBoolean)                   \
@@ -140,9 +142,7 @@
   V(JSStoreGlobal)                \
   V(JSStoreDataPropertyInLiteral) \
   V(JSDeleteProperty)             \
-  V(JSHasProperty)                \
-  V(JSInstanceOf)                 \
-  V(JSOrdinaryHasInstance)
+  V(JSHasProperty)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSLoadContext)            \

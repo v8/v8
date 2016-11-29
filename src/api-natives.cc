@@ -675,6 +675,12 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
+    // We only allow callable undetectable receivers here, since this whole
+    // undetectable business is only to support document.all, which is both
+    // undetectable and callable. If we ever see the need to have an object
+    // that is undetectable but not callable, we need to update the types.h
+    // to allow encoding this.
+    CHECK(!obj->instance_call_handler()->IsUndefined(isolate));
     map->set_is_undetectable();
   }
 

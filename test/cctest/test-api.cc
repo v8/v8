@@ -7085,6 +7085,9 @@ THREADED_TEST(Regress892105) {
                        .FromJust());
 }
 
+static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args.This());
+}
 
 THREADED_TEST(UndetectableObject) {
   LocalContext env;
@@ -7093,6 +7096,7 @@ THREADED_TEST(UndetectableObject) {
   Local<v8::FunctionTemplate> desc =
       v8::FunctionTemplate::New(env->GetIsolate());
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
 
   Local<v8::Object> obj = desc->GetFunction(env.local())
                               .ToLocalChecked()
@@ -7141,6 +7145,7 @@ THREADED_TEST(VoidLiteral) {
 
   Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
 
   Local<v8::Object> obj = desc->GetFunction(env.local())
                               .ToLocalChecked()
@@ -7191,6 +7196,7 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 
   Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
 
   Local<v8::Object> obj = desc->GetFunction(env.local())
                               .ToLocalChecked()
@@ -11772,11 +11778,6 @@ static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(args[0]);
-}
-
-
-static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(args.This());
 }
 
 

@@ -1331,10 +1331,29 @@ Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   Node* constructor = NodeProperties::GetValueInput(node, 0);
   Type* constructor_type = NodeProperties::GetType(constructor);
   Node* object = NodeProperties::GetValueInput(node, 1);
+  Type* object_type = NodeProperties::GetType(object);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if the {constructor} cannot be callable.
+  // See ES6 section 7.3.19 OrdinaryHasInstance ( C, O ) step 1.
+  if (!constructor_type->Maybe(Type::Callable())) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+
+  // If the {constructor} cannot be a JSBoundFunction and then {object}
+  // cannot be a JSReceiver, then this can be constant-folded to false.
+  // See ES6 section 7.3.19 OrdinaryHasInstance ( C, O ) step 2 and 3.
+  if (!object_type->Maybe(Type::Receiver()) &&
+      !constructor_type->Maybe(Type::BoundFunction())) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
 
   // Check if the {constructor} is a (known) JSFunction.
   if (!constructor_type->IsHeapConstant() ||

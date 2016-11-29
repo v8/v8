@@ -1244,9 +1244,14 @@ Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
 
 Type* Typer::Visitor::TypeJSHasProperty(Node* node) { return Type::Boolean(); }
 
-Type* Typer::Visitor::TypeJSInstanceOf(Node* node) { return Type::Boolean(); }
+// JS instanceof operator.
 
-Type* Typer::Visitor::TypeJSOrdinaryHasInstance(Node* node) {
+Type* Typer::Visitor::JSInstanceOfTyper(Type* lhs, Type* rhs, Typer* t) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::JSOrdinaryHasInstanceTyper(Type* lhs, Type* rhs,
+                                                 Typer* t) {
   return Type::Boolean();
 }
 
