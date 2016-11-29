@@ -826,12 +826,6 @@ class ForOfStatement final : public ForEachStatement {
   void set_result_done(Expression* e) { result_done_ = e; }
   void set_assign_each(Expression* e) { assign_each_ = e; }
 
-  BailoutId ContinueId() const { return EntryId(); }
-  BailoutId StackCheckId() const { return BackEdgeId(); }
-
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId BackEdgeId() const { return BailoutId(local_id(0)); }
-
  private:
   friend class AstNodeFactory;
 
@@ -842,8 +836,6 @@ class ForOfStatement final : public ForEachStatement {
         next_result_(NULL),
         result_done_(NULL),
         assign_each_(NULL) {}
-  static int parent_num_ids() { return ForEachStatement::num_ids(); }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Variable* iterator_;
   Expression* assign_iterator_;

@@ -1265,17 +1265,8 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
 
 void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
-  LoopBuilder for_loop(this);
-  VisitForEffect(stmt->assign_iterator());
-  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-  VisitForEffect(stmt->next_result());
-  VisitForTest(stmt->result_done());
-  Node* condition = environment()->Pop();
-  for_loop.BreakWhen(condition);
-  VisitForEffect(stmt->assign_each());
-  VisitIterationBody(stmt, &for_loop, stmt->StackCheckId());
-  for_loop.EndBody();
-  for_loop.EndLoop();
+  // Iterator looping is supported only by going through Ignition first.
+  UNREACHABLE();
 }
 
 

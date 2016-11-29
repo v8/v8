@@ -1261,43 +1261,8 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
 
 void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
-  Comment cmnt(masm_, "[ ForOfStatement");
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  // var iterator = iterable[Symbol.iterator]();
-  SetExpressionAsStatementPosition(stmt->assign_iterator());
-  VisitForEffect(stmt->assign_iterator());
-
-  // Loop entry.
-  __ bind(loop_statement.continue_label());
-
-  // result = iterator.next()
-  SetExpressionAsStatementPosition(stmt->next_result());
-  VisitForEffect(stmt->next_result());
-
-  // if (result.done) break;
-  Label result_not_done;
-  VisitForControl(stmt->result_done(), loop_statement.break_label(),
-                  &result_not_done, &result_not_done);
-  __ bind(&result_not_done);
-
-  // each = result.value
-  VisitForEffect(stmt->assign_each());
-
-  // Generate code for the body of the loop.
-  Visit(stmt->body());
-
-  // Check stack before looping.
-  PrepareForBailoutForId(stmt->BackEdgeId(), BailoutState::NO_REGISTERS);
-  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
-  __ jmp(loop_statement.continue_label());
-
-  // Exit and decrement the loop depth.
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
-  __ bind(loop_statement.break_label());
-  decrement_loop_depth();
+  // Iterator looping is not supported.
+  UNREACHABLE();
 }
 
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
