@@ -11165,6 +11165,11 @@ class JSTypedArray: public JSArrayBufferView {
   DECL_ACCESSORS(length, Object)
   inline uint32_t length_value() const;
 
+  // ES6 9.4.5.3
+  MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
+      Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
+
   DECLARE_CAST(JSTypedArray)
 
   ExternalArrayType type();

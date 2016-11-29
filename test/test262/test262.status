@@ -418,13 +418,6 @@
   'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5328
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-numericindex-desc-not-writable': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5329
   'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],
 
