@@ -502,7 +502,9 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
   if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  store_buffer()->InsertEntry(HeapObject::cast(object)->address() + offset);
+  RememberedSet<OLD_TO_NEW>::Insert(
+      Page::FromAddress(reinterpret_cast<Address>(object)),
+      HeapObject::cast(object)->address() + offset);
 }
 
 void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
@@ -513,9 +515,11 @@ void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
 
 void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
   if (InNewSpace(array)) return;
+  Page* page = Page::FromAddress(reinterpret_cast<Address>(array));
   for (int i = 0; i < length; i++) {
     if (!InNewSpace(array->get(offset + i))) continue;
-    store_buffer()->InsertEntry(
+    RememberedSet<OLD_TO_NEW>::Insert(
+        page,
         reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
   }
 }

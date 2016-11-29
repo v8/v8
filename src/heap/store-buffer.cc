@@ -138,28 +138,14 @@ void StoreBuffer::ConcurrentlyProcessStoreBuffer() {
 }
 
 void StoreBuffer::DeleteEntry(Address start, Address end) {
-  // Deletions coming from the GC are directly deleted from the remembered
-  // set. Deletions coming from the runtime are added to the store buffer
-  // to allow concurrent processing.
-  if (heap_->gc_state() == Heap::NOT_IN_GC) {
-    if (top_ + sizeof(Address) * 2 > limit_[current_]) {
-      StoreBufferOverflow(heap_->isolate());
-    }
-    *top_ = MarkDeletionAddress(start);
-    top_++;
-    *top_ = end;
-    top_++;
-  } else {
-    // In GC the store buffer has to be empty at any time.
-    DCHECK(Empty());
-    Page* page = Page::FromAddress(start);
-    if (end) {
-      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                             SlotSet::PREFREE_EMPTY_BUCKETS);
-    } else {
-      RememberedSet<OLD_TO_NEW>::Remove(page, start);
-    }
+  if (top_ + sizeof(Address) * 2 > limit_[current_]) {
+    StoreBufferOverflow(heap_->isolate());
   }
+  *top_ = MarkDeletionAddress(start);
+  top_++;
+  *top_ = end;
+  top_++;
 }
+
 }  // namespace internal
 }  // namespace v8
