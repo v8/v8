@@ -375,6 +375,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
  protected:
   INLINE(static void VisitMap(Map* map, HeapObject* object));
   INLINE(static void VisitCode(Map* map, HeapObject* object));
+  INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
   INLINE(static void VisitSharedFunctionInfo(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));

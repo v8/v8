@@ -1029,6 +1029,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
               Operand(BYTECODE_ARRAY_TYPE));
   }
 
+  // Reset code age.
+  DCHECK_EQ(0, BytecodeArray::kNoAgeBytecodeAge);
+  __ sb(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                  BytecodeArray::kBytecodeAgeOffset));
+
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));

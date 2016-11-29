@@ -1619,7 +1619,6 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this
   // test is invalid.
-  i::FLAG_allow_natives_syntax = true;
   if (!FLAG_flush_code || !FLAG_compilation_cache) {
     return;
   }
@@ -1663,8 +1662,12 @@ TEST(CompilationCacheCachingBehavior) {
   }
 
   // Progress code age until it's old and ready for GC.
-  while (!info.ToHandleChecked()->code()->IsOld()) {
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
     info.ToHandleChecked()->code()->MakeOlder();
+    if (info.ToHandleChecked()->HasBytecodeArray()) {
+      info.ToHandleChecked()->bytecode_array()->MakeOlder();
+    }
   }
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);

@@ -148,10 +148,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
-  table_.Register(
-      kVisitBytecodeArray,
-      &FixedBodyVisitor<StaticVisitor, BytecodeArray::MarkingBodyDescriptor,
-                        void>::Visit);
+  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 
@@ -277,7 +274,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
   StaticVisitor::MarkObject(heap, target);
 }
 
-
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
     Heap* heap, RelocInfo* rinfo) {
@@ -289,6 +285,13 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
   StaticVisitor::MarkObject(heap, target);
 }
 
+template <typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
+    Map* map, HeapObject* object) {
+  FixedBodyVisitor<StaticVisitor, BytecodeArray::MarkingBodyDescriptor,
+                   void>::Visit(map, object);
+  BytecodeArray::cast(object)->MakeOlder();
+}
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(

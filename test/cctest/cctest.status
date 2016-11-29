@@ -323,38 +323,24 @@
 
 ##############################################################################
 ['variant == turbofan_opt', {
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
   # BUG(v8:5457)
   'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
 }],  # variant == turbofan_opt
 
 ##############################################################################
 ['variant == ignition', {
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_staging
 
 ##############################################################################
 ['variant == turbofan or variant == ignition_turbofan', {
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
   # BUG(4751). Deopts with kNotASmi instead of expected deopt reason.
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
 

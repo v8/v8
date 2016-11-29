@@ -4930,6 +4930,17 @@ class PodArray : public ByteArray {
 // BytecodeArray represents a sequence of interpreter bytecodes.
 class BytecodeArray : public FixedArrayBase {
  public:
+#define DECLARE_BYTECODE_AGE_ENUM(X) k##X##BytecodeAge,
+  enum Age {
+    kNoAgeBytecodeAge = 0,
+    CODE_AGE_LIST(DECLARE_BYTECODE_AGE_ENUM) kAfterLastBytecodeAge,
+    kFirstBytecodeAge = kNoAgeBytecodeAge,
+    kLastBytecodeAge = kAfterLastBytecodeAge - 1,
+    kBytecodeAgeCount = kAfterLastBytecodeAge - kFirstBytecodeAge - 1,
+    kIsOldBytecodeAge = kSexagenarianBytecodeAge
+  };
+#undef DECLARE_BYTECODE_AGE_ENUM
+
   static int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
@@ -4959,6 +4970,10 @@ class BytecodeArray : public FixedArrayBase {
   // Accessors for OSR loop nesting level.
   inline int osr_loop_nesting_level() const;
   inline void set_osr_loop_nesting_level(int depth);
+
+  // Accessors for bytecode's code age.
+  inline Age bytecode_age() const;
+  inline void set_bytecode_age(Age age);
 
   // Accessors for the constant pool.
   DECL_ACCESSORS(constant_pool, FixedArray)
@@ -4991,6 +5006,10 @@ class BytecodeArray : public FixedArrayBase {
 
   void CopyBytecodesTo(BytecodeArray* to);
 
+  // Bytecode aging
+  bool IsOld() const;
+  void MakeOlder();
+
   // Layout description.
   static const int kConstantPoolOffset = FixedArrayBase::kHeaderSize;
   static const int kHandlerTableOffset = kConstantPoolOffset + kPointerSize;
@@ -5000,7 +5019,8 @@ class BytecodeArray : public FixedArrayBase {
   static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
   static const int kInterruptBudgetOffset = kParameterSizeOffset + kIntSize;
   static const int kOSRNestingLevelOffset = kInterruptBudgetOffset + kIntSize;
-  static const int kHeaderSize = kOSRNestingLevelOffset + kCharSize;
+  static const int kBytecodeAgeOffset = kOSRNestingLevelOffset + kCharSize;
+  static const int kHeaderSize = kBytecodeAgeOffset + kCharSize;
 
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;

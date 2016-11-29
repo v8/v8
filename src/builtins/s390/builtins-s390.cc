@@ -1058,6 +1058,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Assert(eq, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
+  // Reset code age.
+  __ mov(r1, Operand(BytecodeArray::kNoAgeBytecodeAge));
+  __ StoreByte(r1, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                   BytecodeArray::kBytecodeAgeOffset),
+               r0);
+
   // Load the initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));

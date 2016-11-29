@@ -3041,6 +3041,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_parameter_count(parameter_count);
   instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_osr_loop_nesting_level(0);
+  instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(constant_pool);
   instance->set_handler_table(empty_fixed_array());
   instance->set_source_position_table(empty_byte_array());
@@ -3391,6 +3392,7 @@ AllocationResult Heap::CopyBytecodeArray(BytecodeArray* bytecode_array) {
   copy->set_source_position_table(bytecode_array->source_position_table());
   copy->set_interrupt_budget(bytecode_array->interrupt_budget());
   copy->set_osr_loop_nesting_level(bytecode_array->osr_loop_nesting_level());
+  copy->set_bytecode_age(bytecode_array->bytecode_age());
   bytecode_array->CopyBytecodesTo(copy);
   return copy;
 }

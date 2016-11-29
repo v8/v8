@@ -4218,12 +4218,22 @@ void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   WRITE_INT8_FIELD(this, kOSRNestingLevelOffset, depth);
 }
 
+BytecodeArray::Age BytecodeArray::bytecode_age() const {
+  return static_cast<Age>(READ_INT8_FIELD(this, kBytecodeAgeOffset));
+}
+
+void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
+  DCHECK_GE(age, kFirstBytecodeAge);
+  DCHECK_LE(age, kLastBytecodeAge);
+  STATIC_ASSERT(kLastBytecodeAge <= kMaxInt8);
+  WRITE_INT8_FIELD(this, kBytecodeAgeOffset, static_cast<int8_t>(age));
+}
+
 int BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
   return READ_INT_FIELD(this, kParameterSizeOffset) >> kPointerSizeLog2;
 }
-
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)

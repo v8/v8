@@ -15143,6 +15143,19 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray* to) {
             from->length());
 }
 
+void BytecodeArray::MakeOlder() {
+  Age age = bytecode_age();
+  if (age < kLastBytecodeAge) {
+    set_bytecode_age(static_cast<Age>(age + 1));
+  }
+  DCHECK_GE(bytecode_age(), kFirstBytecodeAge);
+  DCHECK_LE(bytecode_age(), kLastBytecodeAge);
+}
+
+bool BytecodeArray::IsOld() const {
+  return bytecode_age() >= kIsOldBytecodeAge;
+}
+
 // static
 void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
   DCHECK(capacity >= 0);
@@ -18030,7 +18043,11 @@ void CompilationCacheTable::Age() {
       }
     } else if (get(entry_index)->IsFixedArray()) {
       SharedFunctionInfo* info = SharedFunctionInfo::cast(get(value_index));
-      if (info->code()->kind() != Code::FUNCTION || info->code()->IsOld()) {
+      bool is_old =
+          info->IsInterpreted()
+              ? info->bytecode_array()->IsOld()
+              : info->code()->kind() != Code::FUNCTION || info->code()->IsOld();
+      if (is_old) {
         NoWriteBarrierSet(this, entry_index, the_hole_value);
         NoWriteBarrierSet(this, value_index, the_hole_value);
         ElementRemoved();

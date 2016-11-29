@@ -564,6 +564,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
+  // Reset code age.
+  __ mov_b(FieldOperand(kInterpreterBytecodeArrayRegister,
+                        BytecodeArray::kBytecodeAgeOffset),
+           Immediate(BytecodeArray::kNoAgeBytecodeAge));
+
   // Push bytecode array.
   __ push(kInterpreterBytecodeArrayRegister);
   // Push Smi tagged initial bytecode array offset.
