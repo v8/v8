@@ -550,7 +550,9 @@ class PipelineCompilationJob final : public CompilationJob {
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   if (info()->shared_info()->asm_function()) {
-    if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
+    if (info()->osr_frame() && !info()->is_optimizing_from_bytecode()) {
+      info()->MarkAsFrameSpecializing();
+    }
     info()->MarkAsFunctionContextSpecializing();
   } else {
     if (!FLAG_always_opt) {
