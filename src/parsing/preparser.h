@@ -7,6 +7,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
+#include "src/parsing/preparse-data.h"
 
 namespace v8 {
 namespace internal {

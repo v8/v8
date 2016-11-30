@@ -15,7 +15,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -335,11 +335,13 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info(
-        location.function()->shared()->is_function()
-            ? new ParseInfo(&zone, handle(location.function()->shared()))
-            : new ParseInfo(&zone, location.script()));
-    if (Parser::ParseStatic(info.get())) {
+    std::unique_ptr<ParseInfo> info;
+    if (location.function()->shared()->is_function()) {
+      info.reset(new ParseInfo(&zone, handle(location.function()->shared())));
+    } else {
+      info.reset(new ParseInfo(&zone, location.script()));
+    }
+    if (parsing::ParseAny(info.get())) {
       CallPrinter printer(isolate,
                           location.function()->shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());

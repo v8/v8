@@ -3829,41 +3829,6 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
   }
 }
 
-
-// ----------------------------------------------------------------------------
-// The Parser interface.
-
-
-bool Parser::ParseStatic(ParseInfo* info) {
-  Parser parser(info);
-  if (parser.Parse(info)) {
-    info->set_language_mode(info->literal()->language_mode());
-    return true;
-  }
-  return false;
-}
-
-
-bool Parser::Parse(ParseInfo* info) {
-  DCHECK(info->literal() == NULL);
-  FunctionLiteral* result = NULL;
-  // Ok to use Isolate here; this function is only called in the main thread.
-  DCHECK(parsing_on_main_thread_);
-  Isolate* isolate = info->isolate();
-
-  if (info->is_toplevel()) {
-    SetCachedData(info);
-    result = ParseProgram(isolate, info);
-  } else {
-    result = ParseFunction(isolate, info);
-  }
-  info->set_literal(result);
-
-  Internalize(isolate, info->script(), result == NULL);
-  return (result != NULL);
-}
-
-
 void Parser::ParseOnBackground(ParseInfo* info) {
   parsing_on_main_thread_ = false;
 

@@ -43,6 +43,7 @@
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -819,8 +820,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::ParseInfo info(&zone, script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
-      i::Parser parser(&info);
-      CHECK(parser.Parse(&info));
+      CHECK(i::parsing::ParseProgram(&info));
       CHECK(i::Rewriter::Rewrite(&info));
       i::DeclarationScope::Analyze(&info, i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
@@ -1173,9 +1173,8 @@ TEST(ScopePositions) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
     info.set_language_mode(source_data[i].language_mode);
-    parser.Parse(&info);
+    i::parsing::ParseProgram(&info);
     CHECK_NOT_NULL(info.literal());
 
     // Check scope types and positions.
@@ -1221,8 +1220,7 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
-    parser.Parse(&info);
+    i::parsing::ParseProgram(&info);
     function = info.literal();
     CHECK_NOT_NULL(function);
     CHECK_NOT_NULL(function->body());
@@ -1287,9 +1285,17 @@ enum ParserSyncTestResult {
   kError
 };
 
-template <typename Traits>
-void SetParserFlags(i::ParserBase<Traits>* parser,
-                    i::EnumSet<ParserFlag> flags) {
+void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
+  i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
+  i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
+  i::FLAG_harmony_async_await = flags.Contains(kAllowHarmonyAsyncAwait);
+  i::FLAG_harmony_restrictive_generators =
+      flags.Contains(kAllowHarmonyRestrictiveGenerators);
+  i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
+  i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
+}
+
+void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
@@ -1302,7 +1308,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_class_fields(
       flags.Contains(kAllowHarmonyClassFields));
 }
-
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags,
@@ -1342,10 +1347,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
-    i::Parser parser(&info);
-    SetParserFlags(&parser, flags);
+    SetGlobalFlags(flags);
     if (is_module) info.set_module();
-    parser.Parse(&info);
+    i::parsing::ParseProgram(&info);
     function = info.literal();
     if (function) {
       parser_materialized_literals = function->materialized_literal_count();
@@ -2477,7 +2481,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::ScriptData* sd = NULL;
     info.set_cached_data(&sd);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
-    i::Parser::ParseStatic(&info);
+    i::parsing::ParseProgram(&info);
     i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
     if (pd->FunctionCount() != test_cases[i].functions) {
@@ -3363,6 +3367,7 @@ TEST(InnerAssignment) {
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
+          CHECK(i::parsing::ParseFunction(info.get()));
         } else {
           i::Handle<i::String> source =
               factory->InternalizeUtf8String(program.start());
@@ -3371,9 +3376,8 @@ TEST(InnerAssignment) {
           i::Handle<i::Script> script = factory->NewScript(source);
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
           info->set_allow_lazy_parsing(false);
+          CHECK(i::parsing::ParseProgram(info.get()));
         }
-        i::Parser parser(info.get());
-        CHECK(parser.Parse(info.get()));
         CHECK(i::Compiler::Analyze(info.get()));
         CHECK(info->literal() != NULL);
 
@@ -5736,9 +5740,8 @@ TEST(BasicImportExportParsing) {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
       i::ParseInfo info(&zone, script);
-      i::Parser parser(&info);
       info.set_module();
-      if (!parser.Parse(&info)) {
+      if (!i::parsing::ParseProgram(&info)) {
         i::Handle<i::JSObject> exception_handle(
             i::JSObject::cast(isolate->pending_exception()));
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
@@ -5762,8 +5765,7 @@ TEST(BasicImportExportParsing) {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
       i::ParseInfo info(&zone, script);
-      i::Parser parser(&info);
-      CHECK(!parser.Parse(&info));
+      CHECK(!i::parsing::ParseProgram(&info));
       isolate->clear_pending_exception();
     }
   }
@@ -5854,9 +5856,8 @@ TEST(ImportExportParsingErrors) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
     info.set_module();
-    CHECK(!parser.Parse(&info));
+    CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
   }
 }
@@ -5892,9 +5893,8 @@ TEST(ModuleTopLevelFunctionDecl) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
     info.set_module();
-    CHECK(!parser.Parse(&info));
+    CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
   }
 }
@@ -6091,9 +6091,8 @@ TEST(ModuleParsingInternals) {
   i::Handle<i::Script> script = factory->NewScript(source);
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::ParseInfo info(&zone, script);
-  i::Parser parser(&info);
   info.set_module();
-  CHECK(parser.Parse(&info));
+  CHECK(i::parsing::ParseProgram(&info));
   CHECK(i::Compiler::Analyze(&info));
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
@@ -6352,8 +6351,7 @@ void TestLanguageMode(const char* source,
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::ParseInfo info(&zone, script);
-  i::Parser parser(&info);
-  parser.Parse(&info);
+  i::parsing::ParseProgram(&info);
   CHECK(info.literal() != NULL);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }

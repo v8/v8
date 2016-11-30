@@ -10,6 +10,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
@@ -207,11 +208,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   static bool const IsPreParser() { return false; }
 
-  // Parses the source code represented by the compilation info and sets its
-  // function literal.  Returns false (and deallocates any allocated AST
-  // nodes) if parsing failed.
-  static bool ParseStatic(ParseInfo* info);
-  bool Parse(ParseInfo* info);
   void ParseOnBackground(ParseInfo* info);
 
   // Deserialize the scope chain prior to parsing in which the script is going
@@ -233,6 +229,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  private:
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
+  friend bool v8::internal::parsing::ParseProgram(ParseInfo*);
+  friend bool v8::internal::parsing::ParseFunction(ParseInfo*);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(

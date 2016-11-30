@@ -1074,6 +1074,8 @@
         'parsing/parser-base.h',
         'parsing/parser.cc',
         'parsing/parser.h',
+        'parsing/parsing.cc',
+        'parsing/parsing.h',
         'parsing/pattern-rewriter.cc',
         'parsing/preparse-data-format.h',
         'parsing/preparse-data.cc',

@@ -28,7 +28,7 @@
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/messages.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/runtime-profiler.h"
@@ -465,7 +465,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   PostponeInterruptsScope postpone(info->isolate());
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
+  if (!parsing::ParseAny(info->parse_info())) return MaybeHandle<Code>();
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -835,7 +835,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   }
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info.parse_info())) return MaybeHandle<Code>();
+  if (!parsing::ParseFunction(info.parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info.shared_info();
   DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
 
@@ -965,7 +965,8 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
-    if (parse_info->literal() == nullptr && !Parser::ParseStatic(parse_info)) {
+    if (parse_info->literal() == nullptr &&
+        !parsing::ParseProgram(parse_info)) {
       return Handle<SharedFunctionInfo>::null();
     }
 
@@ -1030,7 +1031,7 @@ bool Compiler::Analyze(ParseInfo* info) {
 }
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
-  if (!Parser::ParseStatic(info)) return false;
+  if (!parsing::ParseAny(info)) return false;
   if (!Compiler::Analyze(info)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
