@@ -328,18 +328,6 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition', {
-  # BUG(5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
-}],  # variant == ignition
-
-##############################################################################
-['variant == ignition_staging', {
-  # BUG(5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
-}],  # variant == ignition_staging
-
-##############################################################################
 ['variant == turbofan or variant == ignition_turbofan', {
   # BUG(4751). Deopts with kNotASmi instead of expected deopt reason.
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],

@@ -605,19 +605,6 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition_turbofan', {
-  # TODO(rmcilroy,titzer): Times out after
-  # https://codereview.chromium.org/1951013002 .
-  'regress/regress-599717': [PASS, ['tsan', SKIP]],
-
-  # TODO(jarin): No truncations on CheckFloat64Hole.
-  'getters-on-elements': [SKIP],
-
-  # TODO(rmcilroy): Flaky OOM.
-  'unicodelctest-no-optimization': [SKIP],
-}],  # variant == ignition_turbofan
-
-##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
