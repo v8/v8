@@ -119,6 +119,16 @@ class S390OperandConverter final : public InstructionOperandConverter {
     InstructionOperand* op = instr_->InputAt(index);
     return SlotToMemOperand(AllocatedOperand::cast(op)->index());
   }
+
+  MemOperand InputStackSlot32(size_t index) {
+#if V8_TARGET_ARCH_S390X && !V8_TARGET_LITTLE_ENDIAN
+    // We want to read the 32-bits directly from memory
+    MemOperand mem = InputStackSlot(index);
+    return MemOperand(mem.rb(), mem.rx(), mem.offset() + 4);
+#else
+    return InputStackSlot(index);
+#endif
+  }
 };
 
 static inline bool HasRegisterInput(Instruction* instr, int index) {
@@ -335,9 +345,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                           \
   } while (0)
 
-#define ASSEMBLE_FLOAT_COMPARE(cmp_instr)                            \
-  do {                                                               \
-    __ cmp_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1); \
+#define ASSEMBLE_FLOAT_COMPARE(cmp_instr)                             \
+  do {                                                                \
+    __ cmp_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
   } while (0)
 
 // Divide instruction dr will implicity use register pair
@@ -1357,16 +1367,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (HasImmediateInput(instr, 1)) {
         __ Mul32(i.InputRegister(0), i.InputImmediate(1));
       } else if (HasStackSlotInput(instr, 1)) {
-#ifdef V8_TARGET_ARCH_S390X
-        // Avoid endian-issue here:
-        // stg r1, 0(fp)
-        // ...
-        // msy r2, 0(fp) <-- This will read the upper 32 bits
-        __ lg(kScratchReg, i.InputStackSlot(1));
-        __ Mul32(i.InputRegister(0), kScratchReg);
-#else
-        __ Mul32(i.InputRegister(0), i.InputStackSlot(1));
-#endif
+        __ Mul32(i.InputRegister(0), i.InputStackSlot32(1));
       } else {
         UNIMPLEMENTED();
       }
@@ -1387,16 +1388,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 1)) {
         __ mr_z(r0, i.InputRegister(1));
       } else if (HasStackSlotInput(instr, 1)) {
-#ifdef V8_TARGET_ARCH_S390X
-        // Avoid endian-issue here:
-        // stg r1, 0(fp)
-        // ...
-        // mfy r2, 0(fp) <-- This will read the upper 32 bits
-        __ lg(kScratchReg, i.InputStackSlot(1));
-        __ mr_z(r0, kScratchReg);
-#else
-        __ mfy(r0, i.InputStackSlot(1));
-#endif
+        __ mfy(r0, i.InputStackSlot32(1));
       } else {
         UNIMPLEMENTED();
       }
@@ -1413,16 +1405,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 1)) {
         __ mlr(r0, i.InputRegister(1));
       } else if (HasStackSlotInput(instr, 1)) {
-#ifdef V8_TARGET_ARCH_S390X
-        // Avoid endian-issue here:
-        // stg r1, 0(fp)
-        // ...
-        // mfy r2, 0(fp) <-- This will read the upper 32 bits
-        __ lg(kScratchReg, i.InputStackSlot(1));
-        __ mlr(r0, kScratchReg);
-#else
-        __ ml(r0, i.InputStackSlot(1));
-#endif
+        __ ml(r0, i.InputStackSlot32(1));
       } else {
         UNIMPLEMENTED();
       }
