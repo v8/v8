@@ -603,7 +603,7 @@ class Heap {
   static const int kMaxOldSpaceSizeMediumMemoryDevice =
       256 * kPointerMultiplier;
   static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kPointerMultiplier;
+  static const int kMaxOldSpaceSizeHugeMemoryDevice = 1024 * kPointerMultiplier;
 
   // The executable size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
