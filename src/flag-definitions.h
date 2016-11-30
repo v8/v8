@@ -399,7 +399,7 @@ DEFINE_BOOL(inline_construct, true, "inline constructor calls")
 DEFINE_BOOL(inline_arguments, true, "inline functions with arguments object")
 DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
-DEFINE_INT(escape_analysis_iterations, 2,
+DEFINE_INT(escape_analysis_iterations, 1,
            "maximum number of escape analysis fix-point iterations")
 
 DEFINE_BOOL(concurrent_recompilation, true,
