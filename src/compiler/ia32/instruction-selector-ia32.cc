@@ -1352,11 +1352,6 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
         cont);
   }
 
-  if (g.CanBeBetterLeftOperand(right)) {
-    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    std::swap(left, right);
-  }
-
   return VisitCompare(selector, opcode, left, right, cont,
                       node->op()->HasProperty(Operator::kCommutative));
 }
