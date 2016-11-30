@@ -24,7 +24,7 @@ namespace internal {
 // slots are moved to the remembered set.
 class StoreBuffer {
  public:
-  static const int kStoreBufferSize = 1 << (14 + kPointerSizeLog2);
+  static const int kStoreBufferSize = 1 << (11 + kPointerSizeLog2);
   static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const int kStoreBuffers = 2;
   static const intptr_t kDeletionTag = 1;
