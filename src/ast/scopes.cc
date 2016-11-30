@@ -638,23 +638,12 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
 }
 
 bool Scope::HasBeenRemoved() const {
-  // TODO(neis): Store this information somewhere instead of calculating it.
-
-  if (!is_block_scope()) return false;  // Shortcut.
-
-  Scope* parent = outer_scope();
-  if (parent == nullptr) {
-    DCHECK(is_script_scope());
-    return false;
+  if (sibling() == this) {
+    DCHECK_NULL(inner_scope_);
+    DCHECK(is_block_scope());
+    return true;
   }
-
-  Scope* sibling = parent->inner_scope();
-  for (; sibling != nullptr; sibling = sibling->sibling()) {
-    if (sibling == this) return false;
-  }
-
-  DCHECK_NULL(inner_scope_);
-  return true;
+  return false;
 }
 
 Scope* Scope::GetUnremovedScope() {
@@ -668,6 +657,7 @@ Scope* Scope::GetUnremovedScope() {
 
 Scope* Scope::FinalizeBlockScope() {
   DCHECK(is_block_scope());
+  DCHECK(!HasBeenRemoved());
 
   if (variables_.occupancy() > 0 ||
       (is_declaration_scope() && calls_sloppy_eval())) {
@@ -706,7 +696,12 @@ Scope* Scope::FinalizeBlockScope() {
   PropagateUsageFlagsToScope(outer_scope_);
   // This block does not need a context.
   num_heap_slots_ = 0;
-  return NULL;
+
+  // Mark scope as removed by making it its own sibling.
+  sibling_ = this;
+  DCHECK(HasBeenRemoved());
+
+  return nullptr;
 }
 
 void DeclarationScope::AddLocal(Variable* var) {
