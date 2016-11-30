@@ -100,6 +100,13 @@ Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
 
 }  // namespace
 
+// TODO(eholk): Support trap handlers on other platforms.
+#if V8_TARGET_ARCH_X64 && V8_OS_LINUX
+const bool kTrapHandlerSupported = true;
+#else
+const bool kTrapHandlerSupported = false;
+#endif
+
 // A helper that handles building graph fragments for trapping.
 // To avoid generating a ton of redundant code that just calls the runtime
 // to trap, we generate a per-trap-reason block of code that all trap sites
@@ -2948,7 +2955,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
   Node* load;
 
   // WASM semantics throw on OOB. Introduce explicit bounds check.
-  if (!FLAG_wasm_trap_handler) {
+  if (!FLAG_wasm_trap_handler || !kTrapHandlerSupported) {
     BoundsCheckMem(memtype, index, offset, position);
   }
   bool aligned = static_cast<int>(alignment) >=
@@ -2956,7 +2963,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
 
   if (aligned ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
-    if (FLAG_wasm_trap_handler) {
+    if (FLAG_wasm_trap_handler && kTrapHandlerSupported) {
       DCHECK(FLAG_wasm_guard_pages);
       Node* context = HeapConstant(module_->instance->context);
       Node* position_node = jsgraph()->Int32Constant(position);
@@ -2968,7 +2975,8 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
                               MemBuffer(offset), index, *effect_, *control_);
     }
   } else {
-    DCHECK(!FLAG_wasm_trap_handler);
+    // TODO(eholk): Support unaligned loads with trap handlers.
+    DCHECK(!FLAG_wasm_trap_handler || !kTrapHandlerSupported);
     load = graph()->NewNode(jsgraph()->machine()->UnalignedLoad(memtype),
                             MemBuffer(offset), index, *effect_, *control_);
   }
@@ -3002,7 +3010,9 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   Node* store;
 
   // WASM semantics throw on OOB. Introduce explicit bounds check.
-  BoundsCheckMem(memtype, index, offset, position);
+  if (!FLAG_wasm_trap_handler || !kTrapHandlerSupported) {
+    BoundsCheckMem(memtype, index, offset, position);
+  }
   StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
 
   bool aligned = static_cast<int>(alignment) >=
@@ -3014,11 +3024,22 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
 
   if (aligned ||
       jsgraph()->machine()->UnalignedStoreSupported(memtype, alignment)) {
-    StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
-    store =
-        graph()->NewNode(jsgraph()->machine()->Store(rep), MemBuffer(offset),
-                         index, val, *effect_, *control_);
+    if (FLAG_wasm_trap_handler && kTrapHandlerSupported) {
+      Node* context = HeapConstant(module_->instance->context);
+      Node* position_node = jsgraph()->Int32Constant(position);
+      store = graph()->NewNode(
+          jsgraph()->machine()->ProtectedStore(memtype.representation()),
+          MemBuffer(offset), index, val, context, position_node, *effect_,
+          *control_);
+    } else {
+      StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
+      store =
+          graph()->NewNode(jsgraph()->machine()->Store(rep), MemBuffer(offset),
+                           index, val, *effect_, *control_);
+    }
   } else {
+    // TODO(eholk): Support unaligned stores with trap handlers.
+    DCHECK(!FLAG_wasm_trap_handler || !kTrapHandlerSupported);
     UnalignedStoreRepresentation rep(memtype.representation());
     store =
         graph()->NewNode(jsgraph()->machine()->UnalignedStore(rep),

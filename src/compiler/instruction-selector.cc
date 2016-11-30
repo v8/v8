@@ -1033,6 +1033,8 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kStore:
       return VisitStore(node);
+    case IrOpcode::kProtectedStore:
+      return VisitProtectedStore(node);
     case IrOpcode::kWord32And:
       return MarkAsWord32(node), VisitWord32And(node);
     case IrOpcode::kWord32Or:

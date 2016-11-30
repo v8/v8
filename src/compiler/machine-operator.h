@@ -43,7 +43,6 @@ class OptionalOperator final {
 
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
-typedef LoadRepresentation ProtectedLoadRepresentation;
 
 LoadRepresentation LoadRepresentationOf(Operator const*);
 
@@ -615,6 +614,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
+  const Operator* ProtectedStore(MachineRepresentation rep);
 
   // unaligned load [base + index]
   const Operator* UnalignedLoad(UnalignedLoadRepresentation rep);

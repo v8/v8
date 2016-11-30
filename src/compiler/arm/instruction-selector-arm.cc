@@ -501,6 +501,11 @@ void InstructionSelector::VisitStore(Node* node) {
   }
 }
 
+void InstructionSelector::VisitProtectedStore(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitUnalignedLoad(Node* node) {
   UnalignedLoadRepresentation load_rep =
       UnalignedLoadRepresentationOf(node->op());

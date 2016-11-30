@@ -528,6 +528,7 @@
   V(Word32PairShr)              \
   V(Word32PairSar)              \
   V(ProtectedLoad)              \
+  V(ProtectedStore)             \
   V(AtomicLoad)                 \
   V(AtomicStore)                \
   V(UnsafePointerAdd)

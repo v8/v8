@@ -1163,6 +1163,7 @@ void Verifier::Visitor::Check(Node* node) {
     // -----------------------
     case IrOpcode::kLoad:
     case IrOpcode::kProtectedLoad:
+    case IrOpcode::kProtectedStore:
     case IrOpcode::kStore:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:

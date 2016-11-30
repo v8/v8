@@ -464,6 +464,10 @@ void InstructionSelector::VisitStore(Node* node) {
   }
 }
 
+void InstructionSelector::VisitProtectedStore(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitWord32And(Node* node) {
   Mips64OperandGenerator g(this);

@@ -155,7 +155,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kHasSideEffect;
 
     case kX64Movl:
-    case kX64TrapMovl:
       if (instr->HasOutput()) {
         DCHECK(instr->InputCount() >= 1);
         return instr->InputAt(0)->IsRegister() ? kNoOpcodeFlags

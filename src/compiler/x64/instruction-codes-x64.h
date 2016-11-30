@@ -128,7 +128,6 @@ namespace compiler {
   V(X64Movzxwq)                    \
   V(X64Movw)                       \
   V(X64Movl)                       \
-  V(X64TrapMovl)                   \
   V(X64Movsxlq)                    \
   V(X64Movq)                       \
   V(X64Movsd)                      \
@@ -182,6 +181,8 @@ namespace compiler {
   V(M4I)  /* [      %r2*4 + K] */      \
   V(M8I)  /* [      %r2*8 + K] */      \
   V(Root) /* [%root       + K] */
+
+enum X64MemoryProtection { kUnprotected = 0, kProtected = 1 };
 
 }  // namespace compiler
 }  // namespace internal
