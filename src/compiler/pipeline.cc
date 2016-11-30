@@ -113,15 +113,19 @@ class PipelineData {
   }
 
   // For WASM compile entry point.
-  PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Graph* graph,
+  PipelineData(ZoneStats* zone_stats, CompilationInfo* info, JSGraph* jsgraph,
                SourcePositionTable* source_positions)
       : isolate_(info->isolate()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
-        graph_(graph),
+        graph_(jsgraph->graph()),
         source_positions_(source_positions),
+        machine_(jsgraph->machine()),
+        common_(jsgraph->common()),
+        javascript_(jsgraph->javascript()),
+        jsgraph_(jsgraph),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
@@ -603,13 +607,13 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
 
 class PipelineWasmCompilationJob final : public CompilationJob {
  public:
-  explicit PipelineWasmCompilationJob(CompilationInfo* info, Graph* graph,
+  explicit PipelineWasmCompilationJob(CompilationInfo* info, JSGraph* jsgraph,
                                       CallDescriptor* descriptor,
                                       SourcePositionTable* source_positions)
       : CompilationJob(info->isolate(), info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
-        data_(&zone_stats_, info, graph, source_positions),
+        data_(&zone_stats_, info, jsgraph, source_positions),
         pipeline_(&data_),
         linkage_(descriptor) {}
 
@@ -640,6 +644,23 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   }
 
   pipeline_.RunPrintAndVerify("Machine", true);
+  if (FLAG_wasm_opt) {
+    PipelineData* data = &data_;
+    PipelineRunScope scope(data, "WASM optimization");
+    JSGraphReducer graph_reducer(data->jsgraph(), scope.zone());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
+    ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
+    MachineOperatorReducer machine_reducer(data->jsgraph());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &value_numbering);
+    AddReducer(data, &graph_reducer, &machine_reducer);
+    AddReducer(data, &graph_reducer, &common_reducer);
+    graph_reducer.ReduceGraph();
+    pipeline_.RunPrintAndVerify("Optimized Machine", true);
+  }
 
   if (!pipeline_.ScheduleAndSelectInstructions(&linkage_, true)) return FAILED;
   return SUCCEEDED;
@@ -1703,9 +1724,9 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
 
 // static
 CompilationJob* Pipeline::NewWasmCompilationJob(
-    CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
+    CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions) {
-  return new PipelineWasmCompilationJob(info, graph, descriptor,
+  return new PipelineWasmCompilationJob(info, jsgraph, descriptor,
                                         source_positions);
 }
 

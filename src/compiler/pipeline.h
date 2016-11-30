@@ -20,6 +20,7 @@ class RegisterConfiguration;
 namespace compiler {
 
 class CallDescriptor;
+class JSGraph;
 class Graph;
 class InstructionSequence;
 class Schedule;
@@ -32,7 +33,7 @@ class Pipeline : public AllStatic {
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static CompilationJob* NewWasmCompilationJob(
-      CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
+      CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must

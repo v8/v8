@@ -522,6 +522,7 @@ DEFINE_BOOL(wasm_mv_prototype, false,
 DEFINE_BOOL(wasm_atomics_prototype, false,
             "enable prototype atomic opcodes for wasm")
 
+DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,
             "disable bounds checks (performance testing only)")
 DEFINE_BOOL(wasm_no_stack_checks, false,
