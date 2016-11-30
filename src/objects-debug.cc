@@ -604,21 +604,29 @@ void JSFunction::JSFunctionVerify() {
 
 void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
-  VerifyObjectField(kNameOffset);
+
   VerifyObjectField(kCodeOffset);
-  VerifyObjectField(kOptimizedCodeMapOffset);
+  VerifyObjectField(kDebugInfoOffset);
   VerifyObjectField(kFeedbackMetadataOffset);
-  VerifyObjectField(kScopeInfoOffset);
-  VerifyObjectField(kOuterScopeInfoOffset);
+  VerifyObjectField(kFunctionDataOffset);
+  VerifyObjectField(kFunctionIdentifierOffset);
   VerifyObjectField(kInstanceClassNameOffset);
+  VerifyObjectField(kNameOffset);
+  VerifyObjectField(kOptimizedCodeMapOffset);
+  VerifyObjectField(kOuterScopeInfoOffset);
+  VerifyObjectField(kScopeInfoOffset);
+  VerifyObjectField(kScriptOffset);
+
   CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData());
-  VerifyObjectField(kFunctionDataOffset);
-  VerifyObjectField(kScriptOffset);
-  VerifyObjectField(kDebugInfoOffset);
+
   CHECK(function_identifier()->IsUndefined(GetIsolate()) ||
         HasBuiltinFunctionId() || HasInferredName());
-  VerifyObjectField(kFunctionIdentifierOffset);
+
+  if (scope_info()->length() > 0) {
+    CHECK(kind() == scope_info()->function_kind());
+    CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
+  }
 }
 
 
