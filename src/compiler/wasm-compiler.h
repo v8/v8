@@ -11,6 +11,8 @@
 // Do not include anything from src/compiler here!
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/trap-handler/trap-handler.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone.h"
@@ -58,13 +60,15 @@ class WasmCompilationUnit final {
                                           Isolate* isolate,
                                           wasm::ModuleBytesEnv* module_env,
                                           const wasm::WasmFunction* function) {
-    WasmCompilationUnit unit(thrower, isolate, module_env, function, 0);
+    WasmCompilationUnit unit(thrower, isolate, module_env, function,
+                             function->func_index);
     unit.ExecuteCompilation();
     return unit.FinishCompilation();
   }
 
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
+  Handle<FixedArray> PackProtectedInstructions() const;
 
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
@@ -79,6 +83,9 @@ class WasmCompilationUnit final {
   uint32_t index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_;
+  ZoneVector<trap_handler::ProtectedInstructionData>
+      protected_instructions_;  // Instructions that are protected by the signal
+                                // handler.
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

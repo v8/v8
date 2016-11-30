@@ -6808,6 +6808,7 @@ ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, source_position_table, ByteArray, kSourcePositionTableOffset)
+ACCESSORS(Code, protected_instructions, FixedArray, kProtectedInstructionOffset)
 ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, next_code_link, Object, kNextCodeLinkOffset)
 

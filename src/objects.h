@@ -5421,6 +5421,10 @@ class Code: public HeapObject {
   // [source_position_table]: ByteArray for the source positions table.
   DECL_ACCESSORS(source_position_table, ByteArray)
 
+  // [protected_instructions]: Fixed array containing protected instruction and
+  // corresponding landing pad offsets.
+  DECL_ACCESSORS(protected_instructions, FixedArray)
+
   // [raw_type_feedback_info]: This field stores various things, depending on
   // the kind of the code object.
   //   FUNCTION           => type feedback information.
@@ -5800,7 +5804,12 @@ class Code: public HeapObject {
   static const int kConstantPoolOffset = kPrologueOffset + kIntSize;
   static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
-  static const int kHeaderPaddingStart = kBuiltinIndexOffset + kIntSize;
+  static const int kProtectedInstructionOffset = kBuiltinIndexOffset + kIntSize;
+
+  enum TrapFields { kTrapCodeOffset, kTrapLandingOffset, kTrapDataSize };
+
+  static const int kHeaderPaddingStart =
+      kProtectedInstructionOffset + kPointerSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.

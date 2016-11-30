@@ -3411,7 +3411,8 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
             Code::ComputeFlags(Code::WASM_FUNCTION)),
       job_(),
       index_(index),
-      ok_(true) {
+      ok_(true),
+      protected_instructions_(&compilation_zone_) {
   // Create and cache this node in the main thread.
   jsgraph_->CEntryStubConstant(1);
 }
@@ -3452,7 +3453,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
         module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
   }
   job_.reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_, descriptor,
-                                             source_positions));
+                                             source_positions,
+                                             &protected_instructions_));
   ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(ahaas): The counters are not thread-safe at the moment.
@@ -3510,7 +3512,25 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
            compile_ms);
   }
 
+  Handle<FixedArray> protected_instructions = PackProtectedInstructions();
+  code->set_protected_instructions(*protected_instructions);
+
   return code;
+}
+
+Handle<FixedArray> WasmCompilationUnit::PackProtectedInstructions() const {
+  const int num_instructions = static_cast<int>(protected_instructions_.size());
+  Handle<FixedArray> fn_protected = isolate_->factory()->NewFixedArray(
+      num_instructions * Code::kTrapDataSize, TENURED);
+  for (unsigned i = 0; i < protected_instructions_.size(); ++i) {
+    const trap_handler::ProtectedInstructionData& instruction =
+        protected_instructions_[i];
+    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapCodeOffset,
+                      Smi::FromInt(instruction.instr_offset));
+    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapLandingOffset,
+                      Smi::FromInt(instruction.landing_offset));
+  }
+  return fn_protected;
 }
 
 }  // namespace compiler

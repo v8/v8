@@ -1260,6 +1260,38 @@ class WasmInstanceBuilder {
     FlushICache(isolate_, code_table);
 
     //--------------------------------------------------------------------------
+    // Unpack and notify signal handler of protected instructions.
+    //--------------------------------------------------------------------------
+    {
+      for (int i = 0; i < code_table->length(); ++i) {
+        Handle<Code> code = code_table->GetValueChecked<Code>(isolate_, i);
+
+        if (code->kind() != Code::WASM_FUNCTION) {
+          continue;
+        }
+
+        FixedArray* protected_instructions = code->protected_instructions();
+
+        Zone zone(isolate_->allocator(), "Wasm Module");
+        ZoneVector<trap_handler::ProtectedInstructionData> unpacked(&zone);
+        for (int i = 0; i < protected_instructions->length();
+             i += Code::kTrapDataSize) {
+          trap_handler::ProtectedInstructionData data;
+          data.instr_offset =
+              protected_instructions
+                  ->GetValueChecked<Smi>(isolate_, i + Code::kTrapCodeOffset)
+                  ->value();
+          data.landing_offset =
+              protected_instructions
+                  ->GetValueChecked<Smi>(isolate_, i + Code::kTrapLandingOffset)
+                  ->value();
+          unpacked.emplace_back(data);
+        }
+        // TODO(eholk): Register the protected instruction information once the
+        // trap handler is in place.
+      }
+    }
+
     // Set up and link the new instance.
     //--------------------------------------------------------------------------
     {

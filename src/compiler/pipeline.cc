@@ -74,6 +74,7 @@
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/type-info.h"
 #include "src/utils.h"
 
@@ -114,7 +115,9 @@ class PipelineData {
 
   // For WASM compile entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, JSGraph* jsgraph,
-               SourcePositionTable* source_positions)
+               SourcePositionTable* source_positions,
+               ZoneVector<trap_handler::ProtectedInstructionData>*
+                   protected_instructions)
       : isolate_(info->isolate()),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -129,7 +132,8 @@ class PipelineData {
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
+        register_allocation_zone_(register_allocation_zone_scope_.zone()),
+        protected_instructions_(protected_instructions) {}
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Graph* graph,
@@ -228,6 +232,11 @@ class PipelineData {
   }
   void set_source_position_output(std::string const& source_position_output) {
     source_position_output_ = source_position_output;
+  }
+
+  ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions()
+      const {
+    return protected_instructions_;
   }
 
   void DeleteGraphZone() {
@@ -349,6 +358,9 @@ class PipelineData {
 
   // Source position output for --trace-turbo.
   std::string source_position_output_;
+
+  ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions_ =
+      nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -609,13 +621,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
 
 class PipelineWasmCompilationJob final : public CompilationJob {
  public:
-  explicit PipelineWasmCompilationJob(CompilationInfo* info, JSGraph* jsgraph,
-                                      CallDescriptor* descriptor,
-                                      SourcePositionTable* source_positions)
+  explicit PipelineWasmCompilationJob(
+      CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
+      SourcePositionTable* source_positions,
+      ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts)
       : CompilationJob(info->isolate(), info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
-        data_(&zone_stats_, info, jsgraph, source_positions),
+        data_(&zone_stats_, info, jsgraph, source_positions, protected_insts),
         pipeline_(&data_),
         linkage_(descriptor) {}
 
@@ -1403,7 +1416,7 @@ struct GenerateCodePhase {
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     CodeGenerator generator(data->frame(), linkage, data->sequence(),
-                            data->info());
+                            data->info(), data->protected_instructions());
     data->set_code(generator.GenerateCode());
   }
 };
@@ -1727,9 +1740,11 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
 // static
 CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
-    SourcePositionTable* source_positions) {
-  return new PipelineWasmCompilationJob(info, jsgraph, descriptor,
-                                        source_positions);
+    SourcePositionTable* source_positions,
+    ZoneVector<trap_handler::ProtectedInstructionData>*
+        protected_instructions) {
+  return new PipelineWasmCompilationJob(
+      info, jsgraph, descriptor, source_positions, protected_instructions);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

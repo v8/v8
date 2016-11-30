@@ -179,8 +179,7 @@ class X64OperandGenerator final : public OperandGenerator {
 };
 
 namespace {
-
-ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
+ArchOpcode GetLoadOpcode(LoadRepresentation load_rep, bool protect) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -252,7 +251,8 @@ void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   X64OperandGenerator g(this);
 
-  ArchOpcode opcode = GetLoadOpcode(load_rep);
+  const bool protect = false;
+  ArchOpcode opcode = GetLoadOpcode(load_rep, protect);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[3];
@@ -267,7 +267,8 @@ void InstructionSelector::VisitProtectedLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   X64OperandGenerator g(this);
 
-  ArchOpcode opcode = GetLoadOpcode(load_rep);
+  const bool protect = true;
+  ArchOpcode opcode = GetLoadOpcode(load_rep, protect);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[4];

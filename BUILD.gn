@@ -1700,6 +1700,7 @@ v8_source_set("v8_base") {
     "src/transitions-inl.h",
     "src/transitions.cc",
     "src/transitions.h",
+    "src/trap-handler/trap-handler.h",
     "src/type-feedback-vector-inl.h",
     "src/type-feedback-vector.cc",
     "src/type-feedback-vector.h",

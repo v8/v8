@@ -566,7 +566,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
-        &info, &jsgraph, desc, &source_position_table_));
+        &info, &jsgraph, desc, &source_position_table_, nullptr));
     if (job->ExecuteJob() != CompilationJob::SUCCEEDED ||
         job->FinalizeJob() != CompilationJob::SUCCEEDED)
       return Handle<Code>::null();

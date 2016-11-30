@@ -6,6 +6,7 @@
 #define V8_WASM_OBJECTS_H_
 
 #include "src/objects-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/managed.h"
 
 namespace v8 {

@@ -1238,6 +1238,7 @@
         'transitions-inl.h',
         'transitions.cc',
         'transitions.h',
+        'trap-handler/trap-handler.h',
         'type-feedback-vector-inl.h',
         'type-feedback-vector.cc',
         'type-feedback-vector.h',
