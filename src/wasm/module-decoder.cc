@@ -189,7 +189,7 @@ class ModuleDecoder : public Decoder {
     pc_ = limit_;  // On error, terminate section decoding loop.
   }
 
-  static void DumpModule(WasmModule* module, const ModuleResult& result) {
+  void DumpModule(const ModuleResult& result) {
     std::string path;
     if (FLAG_dump_wasm_module_path) {
       path = FLAG_dump_wasm_module_path;
@@ -199,7 +199,7 @@ class ModuleDecoder : public Decoder {
       }
     }
     // File are named `HASH.{ok,failed}.wasm`.
-    size_t hash = base::hash_range(module->module_start, module->module_end);
+    size_t hash = base::hash_range(start_, limit_);
     char buf[32] = {'\0'};
 #if V8_OS_WIN && _MSC_VER < 1900
 #define snprintf sprintf_s
@@ -208,17 +208,15 @@ class ModuleDecoder : public Decoder {
              result.ok() ? "ok" : "failed");
     std::string name(buf);
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      fwrite(module->module_start, module->module_end - module->module_start, 1,
-             wasm_file);
+      fwrite(start_, limit_ - start_, 1, wasm_file);
       fclose(wasm_file);
     }
   }
 
   // Decodes an entire module.
-  ModuleResult DecodeModule(WasmModule* module, bool verify_functions = true) {
+  ModuleResult DecodeModule(bool verify_functions = true) {
     pc_ = start_;
-    module->module_start = start_;
-    module->module_end = limit_;
+    WasmModule* module = new WasmModule(module_zone);
     module->min_mem_pages = 0;
     module->max_mem_pages = 0;
     module->mem_export = false;
@@ -587,10 +585,8 @@ class ModuleDecoder : public Decoder {
         function->code_start_offset = pc_offset();
         function->code_end_offset = pc_offset() + size;
         if (verify_functions) {
-          ModuleEnv module_env;
-          module_env.module = module;
-          module_env.origin = module->origin;
-
+          ModuleBytesEnv module_env(module, nullptr,
+                                    ModuleWireBytes(start_, limit_));
           VerifyFunctionBody(i + module->num_imported_functions, &module_env,
                              function);
         }
@@ -656,7 +652,7 @@ class ModuleDecoder : public Decoder {
     if (verify_functions && result.ok()) {
       result.MoveFrom(result_);  // Copy error code and location.
     }
-    if (FLAG_dump_wasm_module) DumpModule(module, result);
+    if (FLAG_dump_wasm_module) DumpModule(result);
     return result;
   }
 
@@ -667,7 +663,7 @@ class ModuleDecoder : public Decoder {
   }
 
   // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunction(ModuleEnv* module_env,
+  FunctionResult DecodeSingleFunction(ModuleBytesEnv* module_env,
                                       WasmFunction* function) {
     pc_ = start_;
     function->sig = consume_sig();            // read signature
@@ -779,7 +775,7 @@ class ModuleDecoder : public Decoder {
   }
 
   // Verifies the body (code) of a given function.
-  void VerifyFunctionBody(uint32_t func_num, ModuleEnv* menv,
+  void VerifyFunctionBody(uint32_t func_num, ModuleBytesEnv* menv,
                           WasmFunction* function) {
     if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
       OFStream os(stdout);
@@ -1120,9 +1116,8 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
-  WasmModule* module = new WasmModule(zone, module_start);
   ModuleDecoder decoder(zone, module_start, module_end, origin);
-  ModuleResult result = decoder.DecodeModule(module, verify_functions);
+  ModuleResult result = decoder.DecodeModule(verify_functions);
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(titzer): this isn't accurate, since it doesn't count the data
   // allocated on the C++ heap.
@@ -1146,7 +1141,7 @@ WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
 }
 
 FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                  ModuleEnv* module_env,
+                                  ModuleBytesEnv* module_env,
                                   const byte* function_start,
                                   const byte* function_end) {
   HistogramTimerScope wasm_decode_function_time_scope(

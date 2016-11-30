@@ -29,8 +29,10 @@ class SourcePositionTable;
 
 namespace wasm {
 // Forward declarations for some WASM data structures.
+struct ModuleBytesEnv;
 struct ModuleEnv;
 struct WasmFunction;
+struct WasmModule;
 class ErrorThrower;
 struct DecodeStruct;
 
@@ -43,7 +45,7 @@ namespace compiler {
 class WasmCompilationUnit final {
  public:
   WasmCompilationUnit(wasm::ErrorThrower* thrower, Isolate* isolate,
-                      wasm::ModuleEnv* module_env,
+                      wasm::ModuleBytesEnv* module_env,
                       const wasm::WasmFunction* function, uint32_t index);
 
   Zone* graph_zone() { return graph_zone_.get(); }
@@ -54,7 +56,7 @@ class WasmCompilationUnit final {
 
   static Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower,
                                           Isolate* isolate,
-                                          wasm::ModuleEnv* module_env,
+                                          wasm::ModuleBytesEnv* module_env,
                                           const wasm::WasmFunction* function) {
     WasmCompilationUnit unit(thrower, isolate, module_env, function, 0);
     unit.ExecuteCompilation();
@@ -66,7 +68,7 @@ class WasmCompilationUnit final {
 
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
-  wasm::ModuleEnv* module_env_;
+  wasm::ModuleBytesEnv* module_env_;
   const wasm::WasmFunction* function_;
   // The graph zone is deallocated at the end of ExecuteCompilation.
   std::unique_ptr<Zone> graph_zone_;
@@ -88,7 +90,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     MaybeHandle<String> import_name);
 
 // Wraps a given wasm code object, producing a code object.
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                    const wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate

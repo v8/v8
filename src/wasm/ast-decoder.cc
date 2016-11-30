@@ -31,13 +31,13 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#define CHECK_PROTOTYPE_OPCODE(flag)                   \
-  if (module_ && module_->origin == kAsmJsOrigin) {    \
-    error("Opcode not supported for asmjs modules");   \
-  }                                                    \
-  if (!FLAG_##flag) {                                  \
-    error("Invalid opcode (enable with --" #flag ")"); \
-    break;                                             \
+#define CHECK_PROTOTYPE_OPCODE(flag)                        \
+  if (module_ && module_->module->origin == kAsmJsOrigin) { \
+    error("Opcode not supported for asmjs modules");        \
+  }                                                         \
+  if (!FLAG_##flag) {                                       \
+    error("Invalid opcode (enable with --" #flag ")");      \
+    break;                                                  \
   }
 // TODO(titzer): this is only for intermediate migration.
 #define IMPLICIT_FUNCTION_END 1
@@ -1118,7 +1118,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           case kExprGrowMemory: {
             MemoryIndexOperand operand(this, pc_);
-            if (module_->origin != kAsmJsOrigin) {
+            if (module_->module->origin != kAsmJsOrigin) {
               Value val = Pop(0, kAstI32);
               Push(kAstI32, BUILD(GrowMemory, val.node));
             } else {
@@ -1168,7 +1168,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kAtomicPrefix: {
-            if (!module_ || module_->origin != kAsmJsOrigin) {
+            if (!module_ || module_->module->origin != kAsmJsOrigin) {
               error("Atomics are allowed only in AsmJs modules");
               break;
             }
@@ -1187,7 +1187,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           default: {
             // Deal with special asmjs opcodes.
-            if (module_ && module_->origin == kAsmJsOrigin) {
+            if (module_ && module_->module->origin == kAsmJsOrigin) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);

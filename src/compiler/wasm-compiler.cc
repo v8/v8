@@ -3152,9 +3152,10 @@ static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                    *script_str, 0, 0));
 }
 
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                    const wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index) {
-  const wasm::WasmFunction* func = &module->module->functions[index];
+  const wasm::WasmFunction* func = &module->functions[index];
 
   //----------------------------------------------------------------------------
   // Create the Graph
@@ -3168,10 +3169,11 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   Node* control = nullptr;
   Node* effect = nullptr;
 
+  wasm::ModuleEnv module_env(module, nullptr);
   WasmGraphBuilder builder(&zone, &jsgraph, func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.set_module(module);
+  builder.set_module(&module_env);
   builder.BuildJSToWasmWrapper(wasm_code, func->sig);
 
   //----------------------------------------------------------------------------
@@ -3184,8 +3186,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   }
 
   // Schedule and compile to machine code.
-  int params =
-      static_cast<int>(module->GetFunctionSignature(index)->parameter_count());
+  int params = static_cast<int>(
+      module_env.GetFunctionSignature(index)->parameter_count());
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
   Code::Flags flags = Code::ComputeFlags(Code::JS_TO_WASM_FUNCTION);
@@ -3218,10 +3220,11 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   }
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    RecordFunctionCompilation(
-        CodeEventListener::FUNCTION_TAG, isolate, code, "js-to-wasm", index,
-        wasm::WasmName("export"),
-        module->module->GetName(func->name_offset, func->name_length));
+    char func_name[32];
+    SNPrintF(ArrayVector(func_name), "js-to-wasm#%d", func->func_index);
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
+                              "js-to-wasm", index, wasm::WasmName("export"),
+                              CStrVector(func_name));
   }
   return code;
 }
@@ -3321,10 +3324,10 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
       new (jsgraph_->zone()) SourcePositionTable(graph);
   WasmGraphBuilder builder(jsgraph_->zone(), jsgraph_, function_->sig,
                            source_position_table);
-  wasm::FunctionBody body = {
-      module_env_, function_->sig, module_env_->module->module_start,
-      module_env_->module->module_start + function_->code_start_offset,
-      module_env_->module->module_start + function_->code_end_offset};
+  const byte* module_start = module_env_->module_bytes.start();
+  wasm::FunctionBody body = {module_env_, function_->sig, module_start,
+                             module_start + function_->code_start_offset,
+                             module_start + function_->code_end_offset};
   graph_construction_result_ =
       wasm::BuildTFGraph(isolate_->allocator(), &builder, body);
 
@@ -3354,7 +3357,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   }
   if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
     OFStream os(stdout);
-    PrintWasmText(module_env_->module, function_->func_index, os, nullptr);
+    PrintWasmText(module_env_->module, *module_env_, function_->func_index, os,
+                  nullptr);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
@@ -3364,13 +3368,13 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
 WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
                                          Isolate* isolate,
-                                         wasm::ModuleEnv* module_env,
+                                         wasm::ModuleBytesEnv* module_env,
                                          const wasm::WasmFunction* function,
                                          uint32_t index)
     : thrower_(thrower),
       isolate_(isolate),
       module_env_(module_env),
-      function_(function),
+      function_(&module_env->module->functions[index]),
       graph_zone_(new Zone(isolate->allocator(), ZONE_NAME)),
       jsgraph_(new (graph_zone()) JSGraph(
           isolate, new (graph_zone()) Graph(graph_zone()),
@@ -3380,10 +3384,8 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
                        InstructionSelector::SupportedMachineOperatorFlags(),
                        InstructionSelector::AlignmentRequirements()))),
       compilation_zone_(isolate->allocator(), ZONE_NAME),
-      info_(function->name_length != 0
-                ? module_env->module->GetNameOrNull(function->name_offset,
-                                                    function->name_length)
-                : ArrayVector("wasm"),
+      info_(function->name_length != 0 ? module_env->GetNameOrNull(function)
+                                       : ArrayVector("wasm"),
             isolate, &compilation_zone_,
             Code::ComputeFlags(Code::WASM_FUNCTION)),
       job_(),
@@ -3453,8 +3455,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
     if (graph_construction_result_.failed()) {
       // Add the function as another context for the exception
       ScopedVector<char> buffer(128);
-      wasm::WasmName name = module_env_->module->GetName(
-          function_->name_offset, function_->name_length);
+      wasm::WasmName name = module_env_->GetName(function_);
       SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
                function_->func_index, name.length(), name.start());
       thrower_->CompileFailed(buffer.start(), graph_construction_result_);
@@ -3474,11 +3475,10 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
 
   if (isolate_->logger()->is_logging_code_events() ||
       isolate_->is_profiling()) {
-    RecordFunctionCompilation(
-        CodeEventListener::FUNCTION_TAG, isolate_, code, "WASM_function",
-        function_->func_index, wasm::WasmName("module"),
-        module_env_->module->GetName(function_->name_offset,
-                                     function_->name_length));
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
+                              "WASM_function", function_->func_index,
+                              wasm::WasmName("module"),
+                              module_env_->GetName(function_));
   }
 
   if (FLAG_trace_wasm_decode_time) {

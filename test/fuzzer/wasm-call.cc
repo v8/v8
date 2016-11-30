@@ -141,18 +141,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (module == nullptr) {
     return 0;
   }
+  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
   int32_t result_interpreted;
   bool possible_nondeterminism = false;
   {
     result_interpreted = testing::InterpretWasmModule(
-        i_isolate, &interpreter_thrower, module.get(), 0, interpreter_args,
-        &possible_nondeterminism);
+        i_isolate, &interpreter_thrower, module.get(), wire_bytes, 0,
+        interpreter_args, &possible_nondeterminism);
   }
 
   ErrorThrower compiler_thrower(i_isolate, "Compiler");
   v8::internal::Handle<v8::internal::JSObject> instance =
       testing::InstantiateModuleForTesting(i_isolate, &compiler_thrower,
-                                           module.get());
+                                           module.get(), wire_bytes);
 
   if (!interpreter_thrower.error()) {
     CHECK(!instance.is_null());

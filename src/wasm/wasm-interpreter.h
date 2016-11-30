@@ -17,8 +17,8 @@ namespace internal {
 namespace wasm {
 
 // forward declarations.
+struct ModuleBytesEnv;
 struct WasmFunction;
-struct WasmInstance;
 class WasmInterpreterInternals;
 
 typedef size_t pc_t;
@@ -135,7 +135,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     bool GetBreakpoint(const WasmFunction* function, int pc);
   };
 
-  WasmInterpreter(WasmInstance* instance, AccountingAllocator* allocator);
+  WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);
   ~WasmInterpreter();
 
   //==========================================================================

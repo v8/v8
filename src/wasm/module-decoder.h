@@ -37,7 +37,8 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
 // Decodes the bytes of a WASM function between
 // {function_start} and {function_end}.
 V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
-                                                    Zone* zone, ModuleEnv* env,
+                                                    Zone* zone,
+                                                    ModuleBytesEnv* env,
                                                     const byte* function_start,
                                                     const byte* function_end);
 

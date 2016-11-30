@@ -1279,9 +1279,9 @@ namespace {
 // globals.
 class TestModuleEnv : public ModuleEnv {
  public:
-  TestModuleEnv() {
-    instance = nullptr;
-    module = &mod;
+  explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin)
+      : ModuleEnv(&mod, nullptr) {
+    mod.origin = origin;
   }
   byte AddGlobal(LocalType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
@@ -1654,7 +1654,6 @@ TEST_F(AstDecoderTest, AllSetGlobalCombinations) {
 TEST_F(AstDecoderTest, WasmGrowMemory) {
   TestModuleEnv module_env;
   module = &module_env;
-  module->origin = kWasmOrigin;
 
   byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
   EXPECT_VERIFIES_C(i_i, code);
@@ -1662,9 +1661,8 @@ TEST_F(AstDecoderTest, WasmGrowMemory) {
 }
 
 TEST_F(AstDecoderTest, AsmJsGrowMemory) {
-  TestModuleEnv module_env;
+  TestModuleEnv module_env(kAsmJsOrigin);
   module = &module_env;
-  module->origin = kAsmJsOrigin;
 
   byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
   EXPECT_FAILURE_C(i_i, code);
@@ -1694,9 +1692,8 @@ TEST_F(AstDecoderTest, AsmJsBinOpsCheckOrigin) {
   };
 
   {
-    TestModuleEnv module_env;
+    TestModuleEnv module_env(kAsmJsOrigin);
     module = &module_env;
-    module->origin = kAsmJsOrigin;
     for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       TestBinop(AsmJsBinOps[i].op, AsmJsBinOps[i].sig);
     }
@@ -1705,7 +1702,6 @@ TEST_F(AstDecoderTest, AsmJsBinOpsCheckOrigin) {
   {
     TestModuleEnv module_env;
     module = &module_env;
-    module->origin = kWasmOrigin;
     for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       byte code[] = {
           WASM_BINOP(AsmJsBinOps[i].op, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
@@ -1742,9 +1738,8 @@ TEST_F(AstDecoderTest, AsmJsUnOpsCheckOrigin) {
                     {kExprI32AsmjsSConvertF64, sigs.i_d()},
                     {kExprI32AsmjsUConvertF64, sigs.i_d()}};
   {
-    TestModuleEnv module_env;
+    TestModuleEnv module_env(kAsmJsOrigin);
     module = &module_env;
-    module->origin = kAsmJsOrigin;
     for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       TestUnop(AsmJsUnOps[i].op, AsmJsUnOps[i].sig);
     }
@@ -1753,7 +1748,6 @@ TEST_F(AstDecoderTest, AsmJsUnOpsCheckOrigin) {
   {
     TestModuleEnv module_env;
     module = &module_env;
-    module->origin = kWasmOrigin;
     for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       byte code[] = {WASM_UNOP(AsmJsUnOps[i].op, WASM_GET_LOCAL(0))};
       EXPECT_FAILURE_SC(AsmJsUnOps[i].sig, code);

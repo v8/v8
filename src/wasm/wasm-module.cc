@@ -304,7 +304,7 @@ Address GetGlobalStartAddressFromCodeTemplate(Object* undefined,
 void InitializeParallelCompilation(
     Isolate* isolate, const std::vector<WasmFunction>& functions,
     std::vector<compiler::WasmCompilationUnit*>& compilation_units,
-    ModuleEnv& module_env, ErrorThrower* thrower) {
+    ModuleBytesEnv& module_env, ErrorThrower* thrower) {
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size(); ++i) {
     const WasmFunction* func = &functions[i];
     compilation_units[i] =
@@ -368,9 +368,10 @@ void FinishCompilationUnits(
   }
 }
 
-void CompileInParallel(Isolate* isolate, const WasmModule* module,
+void CompileInParallel(Isolate* isolate, ModuleBytesEnv* module_env,
                        std::vector<Handle<Code>>& functions,
-                       ErrorThrower* thrower, ModuleEnv* module_env) {
+                       ErrorThrower* thrower) {
+  const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
   std::vector<compiler::WasmCompilationUnit*> compilation_units(
       module->functions.size());
@@ -432,22 +433,23 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
   FinishCompilationUnits(executed_units, functions, result_mutex);
 }
 
-void CompileSequentially(Isolate* isolate, const WasmModule* module,
+void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
                          std::vector<Handle<Code>>& functions,
-                         ErrorThrower* thrower, ModuleEnv* module_env) {
+                         ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
+  const WasmModule* module = module_env->module;
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
        i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
-    WasmName str = module->GetName(func.name_offset, func.name_length);
     Handle<Code> code = Handle<Code>::null();
     // Compile the function.
     code = compiler::WasmCompilationUnit::CompileWasmFunction(
         thrower, isolate, module_env, &func);
     if (code.is_null()) {
+      WasmName str = module_env->GetName(&func);
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, str.length(),
                             str.start());
       break;
@@ -780,15 +782,12 @@ std::ostream& wasm::operator<<(std::ostream& os, const WasmFunction& function) {
   return os;
 }
 
-std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& pair) {
-  os << "#" << pair.function_->func_index << ":";
-  if (pair.function_->name_offset > 0) {
-    if (pair.module_) {
-      WasmName name = pair.module_->GetName(pair.function_->name_offset,
-                                            pair.function_->name_length);
-      os.write(name.start(), name.length());
-    } else {
-      os << "+" << pair.function_->func_index;
+std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& name) {
+  os << "#" << name.function_->func_index;
+  if (name.function_->name_offset > 0) {
+    if (name.name_.start()) {
+      os << ":";
+      os.write(name.name_.start(), name.name_.length());
     }
   } else {
     os << "?";
@@ -814,26 +813,24 @@ int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
   return GetFunctionOffsetAndLength(compiled_module, func_index).first;
 }
 
-WasmModule::WasmModule(Zone* owned, const byte* module_start)
-    : owned_zone(owned),
-      module_start(module_start),
-      pending_tasks(new base::Semaphore(0)) {}
+WasmModule::WasmModule(Zone* owned)
+    : owned_zone(owned), pending_tasks(new base::Semaphore(0)) {}
 
 MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     Isolate* isolate, Handle<WasmModuleWrapper> module_wrapper,
-    ErrorThrower* thrower) const {
+    ErrorThrower* thrower, const ModuleWireBytes& wire_bytes) const {
   Factory* factory = isolate->factory();
 
   MaybeHandle<WasmCompiledModule> nothing;
 
   WasmInstance temp_instance(this);
   temp_instance.context = isolate->native_context();
-  temp_instance.mem_size = WasmModule::kPageSize * this->min_mem_pages;
+  temp_instance.mem_size = WasmModule::kPageSize * min_mem_pages;
   temp_instance.mem_start = nullptr;
   temp_instance.globals_start = nullptr;
 
   // Initialize the indirect tables with placeholders.
-  int function_table_count = static_cast<int>(this->function_tables.size());
+  int function_table_count = static_cast<int>(function_tables.size());
   Handle<FixedArray> function_tables =
       factory->NewFixedArray(function_table_count);
   for (int i = 0; i < function_table_count; ++i) {
@@ -844,10 +841,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   HistogramTimerScope wasm_compile_module_time_scope(
       isolate->counters()->wasm_compile_module_time());
 
-  ModuleEnv module_env;
-  module_env.module = this;
-  module_env.instance = &temp_instance;
-  module_env.origin = origin;
+  ModuleBytesEnv module_env(this, &temp_instance, wire_bytes);
 
   // The {code_table} array contains import wrappers and functions (which
   // are both included in {functions.size()}, and export wrappers.
@@ -874,14 +868,14 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     for (size_t i = 0; i < temp_instance.function_code.size(); ++i) {
       results.push_back(temp_instance.function_code[i]);
     }
-    CompileInParallel(isolate, this, results, thrower, &module_env);
+    CompileInParallel(isolate, &module_env, results, thrower);
 
     for (size_t i = 0; i < results.size(); ++i) {
       temp_instance.function_code[i] = results[i];
     }
   } else {
-    CompileSequentially(isolate, this, temp_instance.function_code, thrower,
-                        &module_env);
+    CompileSequentially(isolate, &module_env, temp_instance.function_code,
+                        thrower);
   }
   if (thrower->error()) return nothing;
 
@@ -924,8 +918,8 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     if (exp.kind != kExternalFunction) continue;
     Handle<Code> wasm_code =
         code_table->GetValueChecked<Code>(isolate, exp.index);
-    Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
-        isolate, &module_env, wasm_code, exp.index);
+    Handle<Code> wrapper_code =
+        compiler::CompileJSToWasmWrapper(isolate, this, wasm_code, exp.index);
     int export_index = static_cast<int>(functions.size() + func_index);
     code_table->set(export_index, *wrapper_code);
     func_index++;
@@ -934,12 +928,8 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   {
     // TODO(wasm): only save the sections necessary to deserialize a
     // {WasmModule}. E.g. function bodies could be omitted.
-    size_t module_bytes_len = module_end - module_start;
-    DCHECK_LE(module_bytes_len, static_cast<size_t>(kMaxInt));
-    Vector<const uint8_t> module_bytes_vec(module_start,
-                                           static_cast<int>(module_bytes_len));
     Handle<String> module_bytes_string =
-        factory->NewStringFromOneByte(module_bytes_vec, TENURED)
+        factory->NewStringFromOneByte(wire_bytes.module_bytes, TENURED)
             .ToHandleChecked();
     DCHECK(module_bytes_string->IsSeqOneByteString());
     ret->set_module_bytes(Handle<SeqOneByteString>::cast(module_bytes_string));
@@ -1310,16 +1300,12 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     if (module_->start_function_index >= 0) {
       HandleScope scope(isolate_);
-      ModuleEnv module_env;
-      module_env.module = module_;
-      module_env.instance = nullptr;
-      module_env.origin = module_->origin;
       int start_index = module_->start_function_index;
       Handle<Code> startup_code =
           code_table->GetValueChecked<Code>(isolate_, start_index);
       FunctionSig* sig = module_->functions[start_index].sig;
       Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
-          isolate_, &module_env, startup_code, start_index);
+          isolate_, module_, startup_code, start_index);
       Handle<WasmExportedFunction> startup_fct = WasmExportedFunction::New(
           isolate_, instance, factory->InternalizeUtf8String("start"),
           wrapper_code, static_cast<int>(sig->parameter_count()), start_index);
@@ -1894,13 +1880,8 @@ class WasmInstanceBuilder {
               temp_instance.mem_start = nullptr;
               temp_instance.globals_start = nullptr;
 
-              ModuleEnv module_env;
-              module_env.module = module_;
-              module_env.instance = &temp_instance;
-              module_env.origin = module_->origin;
-
               Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
-                  isolate_, &module_env, wasm_code, func_index);
+                  isolate_, module_, wasm_code, func_index);
               Handle<WasmExportedFunction> js_function =
                   WasmExportedFunction::New(
                       isolate_, instance, isolate_->factory()->empty_string(),
@@ -1986,19 +1967,27 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
   return compiled_module->script();
 }
 
+// TODO(clemensh): Make this a non-static method of WasmCompiledModule.
 std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
 wasm::DisassembleFunction(Handle<WasmCompiledModule> compiled_module,
                           int func_index) {
+  DisallowHeapAllocation no_gc;
+
   if (func_index < 0 ||
       static_cast<uint32_t>(func_index) >=
           compiled_module->module()->functions.size())
     return {};
 
+  SeqOneByteString* module_bytes_str = compiled_module->ptr_to_module_bytes();
+  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
+                                  module_bytes_str->length());
+
   std::ostringstream disassembly_os;
   std::vector<std::tuple<uint32_t, int, int>> offset_table;
 
-  PrintWasmText(compiled_module->module(), static_cast<uint32_t>(func_index),
-                disassembly_os, &offset_table);
+  PrintWasmText(compiled_module->module(), module_bytes,
+                static_cast<uint32_t>(func_index), disassembly_os,
+                &offset_table);
 
   return {disassembly_os.str(), std::move(offset_table)};
 }
@@ -2036,7 +2025,8 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
 
   // Compile the functions of the module, producing a compiled module.
   MaybeHandle<WasmCompiledModule> maybe_compiled_module =
-      result.val->CompileFunctions(isolate, module_wrapper, thrower);
+      result.val->CompileFunctions(isolate, module_wrapper, thrower,
+                                   ModuleWireBytes(start, end));
 
   if (maybe_compiled_module.is_null()) return nothing;
 

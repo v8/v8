@@ -104,19 +104,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     os << "})();" << std::endl;
   }
 
+  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
   int32_t result_interpreted;
   bool possible_nondeterminism = false;
   {
     WasmVal args[] = {WasmVal(1), WasmVal(2), WasmVal(3)};
     result_interpreted = testing::InterpretWasmModule(
-        i_isolate, &interpreter_thrower, module.get(), 0, args,
+        i_isolate, &interpreter_thrower, module.get(), wire_bytes, 0, args,
         &possible_nondeterminism);
   }
 
   ErrorThrower compiler_thrower(i_isolate, "Compiler");
   v8::internal::Handle<v8::internal::JSObject> instance =
       testing::InstantiateModuleForTesting(i_isolate, &compiler_thrower,
-                                           module.get());
+                                           module.get(), wire_bytes);
   // Restore the flag.
   v8::internal::FLAG_wasm_code_fuzzer_gen_test = generate_test;
   if (!interpreter_thrower.error()) {

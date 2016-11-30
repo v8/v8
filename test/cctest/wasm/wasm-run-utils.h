@@ -72,21 +72,22 @@ const uint32_t kMaxGlobalsSize = 128;
 class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(WasmExecutionMode mode = kExecuteCompiled)
-      : execution_mode_(mode),
+      : ModuleEnv(&module_, &instance_),
+        execution_mode_(mode),
         instance_(&module_),
         isolate_(CcTest::InitIsolateOnce()),
         global_offset(0),
         interpreter_(mode == kExecuteInterpreted
-                         ? new WasmInterpreter(&instance_, &allocator_)
+                         ? new WasmInterpreter(
+                               ModuleBytesEnv(&module_, &instance_,
+                                              Vector<const byte>::empty()),
+                               &allocator_)
                          : nullptr) {
-    module = &module_;
-    instance = &instance_;
     instance->module = &module_;
     instance->globals_start = global_data;
     module_.globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
-    origin = kWasmOrigin;
     memset(global_data, 0, sizeof(global_data));
   }
 
@@ -97,7 +98,7 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
-  void ChangeOriginToAsmjs() { origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { module_.origin = kAsmJsOrigin; }
 
   byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
@@ -212,7 +213,7 @@ class TestingModule : public ModuleEnv {
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
-        compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
+        compiler::CompileJSToWasmWrapper(isolate_, &module_, code, index);
     Handle<JSFunction> ret = WasmExportedFunction::New(
         isolate_, instance_obj, name, ret_code,
         static_cast<int>(this->module->functions[index].sig->parameter_count()),
@@ -481,7 +482,8 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     function_->func_index = 0;
     function_->sig_index = 0;
     if (mode == kExecuteInterpreted) {
-      interpreter_ = new WasmInterpreter(nullptr, zone()->allocator());
+      ModuleBytesEnv empty_env(nullptr, nullptr, Vector<const byte>::empty());
+      interpreter_ = new WasmInterpreter(empty_env, zone()->allocator());
       int index = interpreter_->AddFunctionForTesting(function_);
       CHECK_EQ(0, index);
     }

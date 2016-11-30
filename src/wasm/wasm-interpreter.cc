@@ -721,8 +721,8 @@ class ControlTransfers : public ZoneObject {
  public:
   ControlTransferMap map_;
 
-  ControlTransfers(Zone* zone, ModuleEnv* env, AstLocalDecls* locals,
-                   const byte* start, const byte* end)
+  ControlTransfers(Zone* zone, AstLocalDecls* locals, const byte* start,
+                   const byte* end)
       : map_(zone) {
     // Represents a control flow label.
     struct CLabel : public ZoneObject {
@@ -890,14 +890,13 @@ class CodeMap {
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
 
-  CodeMap(const WasmModule* module, Zone* zone)
+  CodeMap(const WasmModule* module, const uint8_t* module_start, Zone* zone)
       : zone_(zone), module_(module), interpreter_code_(zone) {
     if (module == nullptr) return;
     for (size_t i = 0; i < module->functions.size(); ++i) {
       const WasmFunction* function = &module->functions[i];
-      const byte* code_start =
-          module->module_start + function->code_start_offset;
-      const byte* code_end = module->module_start + function->code_end_offset;
+      const byte* code_start = module_start + function->code_start_offset;
+      const byte* code_end = module_start + function->code_end_offset;
       AddFunction(function, code_start, code_end);
     }
   }
@@ -930,9 +929,8 @@ class CodeMap {
     if (code->targets == nullptr && code->start) {
       // Compute the control targets map and the local declarations.
       CHECK(DecodeLocalDecls(code->locals, code->start, code->end));
-      ModuleEnv env = {module_, nullptr, kWasmOrigin};
       code->targets = new (zone_) ControlTransfers(
-          zone_, &env, &code->locals, code->orig_start, code->orig_end);
+          zone_, &code->locals, code->orig_start, code->orig_end);
     }
     return code;
   }
@@ -1760,14 +1758,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
 class WasmInterpreterInternals : public ZoneObject {
  public:
   WasmInstance* instance_;
+  // Create a copy of the module bytes for the interpreter, since the passed
+  // pointer might be invalidated after constructing the interpreter.
+  const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
   ZoneVector<ThreadImpl*> threads_;
 
-  WasmInterpreterInternals(Zone* zone, WasmInstance* instance)
-      : instance_(instance),
-        codemap_(instance_ ? instance_->module : nullptr, zone),
+  WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
+      : instance_(env.instance),
+        module_bytes_(env.module_bytes.start(), env.module_bytes.end(), zone),
+        codemap_(env.instance ? env.instance->module : nullptr,
+                 module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.push_back(new ThreadImpl(zone, &codemap_, instance));
+    threads_.push_back(new ThreadImpl(zone, &codemap_, env.instance));
   }
 
   void Delete() {
@@ -1780,10 +1783,10 @@ class WasmInterpreterInternals : public ZoneObject {
 //============================================================================
 // Implementation of the public interface of the interpreter.
 //============================================================================
-WasmInterpreter::WasmInterpreter(WasmInstance* instance,
+WasmInterpreter::WasmInterpreter(const ModuleBytesEnv& env,
                                  AccountingAllocator* allocator)
     : zone_(allocator, ZONE_NAME),
-      internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}
+      internals_(new (&zone_) WasmInterpreterInternals(&zone_, env)) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
 
@@ -1885,7 +1888,7 @@ bool WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
     Zone* zone, const byte* start, const byte* end) {
-  ControlTransfers targets(zone, nullptr, nullptr, start, end);
+  ControlTransfers targets(zone, nullptr, start, end);
   return targets.map_;
 }
 
