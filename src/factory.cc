@@ -2261,6 +2261,17 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   return shared;
 }
 
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
+    FunctionLiteral* literal, Handle<Script> script) {
+  Handle<Code> code = isolate()->builtins()->CompileLazy();
+  Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
+  Handle<SharedFunctionInfo> result = NewSharedFunctionInfo(
+      literal->name(), literal->materialized_literal_count(), literal->kind(),
+      code, scope_info);
+  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
+  SharedFunctionInfo::SetScript(result, script);
+  return result;
+}
 
 Handle<JSMessageObject> Factory::NewJSMessageObject(
     MessageTemplate::Template message, Handle<Object> argument,

@@ -948,18 +948,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-    Isolate* isolate, FunctionLiteral* literal, Handle<Script> script) {
-  Handle<Code> code = isolate->builtins()->CompileLazy();
-  Handle<ScopeInfo> scope_info = handle(ScopeInfo::Empty(isolate));
-  Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
-      literal->name(), literal->materialized_literal_count(), literal->kind(),
-      code, scope_info);
-  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-  SharedFunctionInfo::SetScript(result, script);
-  return result;
-}
-
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
@@ -998,7 +986,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     // Allocate a shared function info object.
     DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
-    result = NewSharedFunctionInfoForLiteral(isolate, lit, script);
+    result = isolate->factory()->NewSharedFunctionInfoForLiteral(lit, script);
     result->set_is_toplevel(true);
     parse_info->set_shared_info(result);
     parse_info->set_function_literal_id(result->function_literal_id());
@@ -1577,7 +1565,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Allocate a shared function info object.
   Handle<SharedFunctionInfo> result;
   if (!maybe_existing.ToHandle(&result)) {
-    result = NewSharedFunctionInfoForLiteral(isolate, literal, script);
+    result =
+        isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
     result->set_is_toplevel(false);
 
     // If the outer function has been compiled before, we cannot be sure that

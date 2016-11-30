@@ -859,6 +859,12 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   }
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
+  if (info->asm_function_scope()) {
+    original_scope_ = info->asm_function_scope();
+    factory()->set_zone(info->zone());
+  } else {
+    DCHECK_EQ(factory()->zone(), info->zone());
+  }
 
   // Initialize parser state.
   source = String::Flatten(source);
@@ -2631,8 +2637,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   //   FunctionExpression; even without enclosing parentheses it might be
   //   immediately invoked.
   // - The function literal shouldn't be hinted to eagerly compile.
-  // - For asm.js functions the body needs to be available when module
-  //   validation is active, because we examine the entire module at once.
 
   // Inner functions will be parsed using a temporary Zone. After parsing, we
   // will migrate unresolved variable into a Scope in the main Zone.
@@ -2642,8 +2646,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
            ? can_preparse
            : (is_lazy_top_level_function ||
               (allow_lazy_ && function_type == FunctionLiteral::kDeclaration &&
-               eager_compile_hint == FunctionLiteral::kShouldLazyCompile))) &&
-      !(FLAG_validate_asm && scope()->IsAsmModule());
+               eager_compile_hint == FunctionLiteral::kShouldLazyCompile)));
   bool is_lazy_inner_function =
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
 

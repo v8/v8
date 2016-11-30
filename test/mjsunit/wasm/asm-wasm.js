@@ -1082,6 +1082,7 @@ function TestForeignFunctionMultipleUse() {
   assertEquals(89, module.caller(83, 83.25));
 }
 
+print("TestForeignFunctionMultipleUse...");
 TestForeignFunctionMultipleUse();
 
 
@@ -1173,6 +1174,7 @@ function TestForeignVariables() {
   TestCase(undefined, 0, NaN, 0, NaN);
 }
 
+print("TestForeignVariables...");
 TestForeignVariables();
 
 
@@ -1386,6 +1388,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
     }
     return {func: func};
   }
+  print("TestBadAssignDoubleFromIntish...");
   Module(stdlib);
   assertTrue(%IsNotAsmWasmCode(Module));
 })();
@@ -1401,6 +1404,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
     }
     return {func: func};
   }
+  print("TestBadAssignIntFromDouble...");
   Module(stdlib);
   assertTrue(%IsNotAsmWasmCode(Module));
 })();
@@ -1415,6 +1419,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
     }
     return {func: func};
   }
+  print("TestBadMultiplyIntish...");
   Module(stdlib);
   assertTrue(%IsNotAsmWasmCode(Module));
 })();
@@ -1429,6 +1434,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
     }
     return {func: func};
   }
+  print("TestBadCastFromInt...");
   Module(stdlib);
   assertTrue(%IsNotAsmWasmCode(Module));
 })();

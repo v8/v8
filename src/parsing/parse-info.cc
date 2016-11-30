@@ -19,6 +19,7 @@ ParseInfo::ParseInfo(Zone* zone)
       extension_(nullptr),
       compile_options_(ScriptCompiler::kNoCompileOptions),
       script_scope_(nullptr),
+      asm_function_scope_(nullptr),
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),

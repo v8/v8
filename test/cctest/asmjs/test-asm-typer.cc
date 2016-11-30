@@ -126,7 +126,7 @@ class AsmTyperHarnessBuilder {
     WithGlobal(var_name, type);
     auto* var_info = typer_->Lookup(DeclareVariable(var_name));
     CHECK(var_info);
-    var_info->FirstForwardUseIs(nullptr);
+    var_info->SetFirstForwardUse(-1);
     return this;
   }
 

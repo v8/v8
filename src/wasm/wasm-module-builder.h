@@ -230,7 +230,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                      const WasmInitExpr& init = WasmInitExpr());
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
-  void AddIndirectFunction(uint32_t index);
+  uint32_t AllocateIndirectFunctions(uint32_t count);
+  void SetIndirectFunction(uint32_t indirect, uint32_t direct);
   void MarkStartFunction(WasmFunctionBuilder* builder);
 
   // Writing methods.

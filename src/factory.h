@@ -706,6 +706,9 @@ class V8_EXPORT_PRIVATE Factory final {
                                                    MaybeHandle<Code> code,
                                                    bool is_constructor);
 
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
+      FunctionLiteral* literal, Handle<Script> script);
+
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
     return (function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
             function_mode == FUNCTION_WITH_READONLY_PROTOTYPE);

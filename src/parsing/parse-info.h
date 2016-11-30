@@ -105,6 +105,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
     script_scope_ = script_scope;
   }
 
+  DeclarationScope* asm_function_scope() const { return asm_function_scope_; }
+  void set_asm_function_scope(DeclarationScope* scope) {
+    asm_function_scope_ = scope;
+  }
+
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   void set_ast_value_factory(AstValueFactory* ast_value_factory) {
     ast_value_factory_ = ast_value_factory;
@@ -223,6 +228,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
   DeclarationScope* script_scope_;
+  DeclarationScope* asm_function_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;

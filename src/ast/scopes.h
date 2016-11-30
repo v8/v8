@@ -420,6 +420,22 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
+  bool RemoveInnerScope(Scope* inner_scope) {
+    DCHECK_NOT_NULL(inner_scope);
+    if (inner_scope == inner_scope_) {
+      inner_scope_ = inner_scope_->sibling_;
+      return true;
+    }
+    for (Scope* scope = inner_scope_; scope != nullptr;
+         scope = scope->sibling_) {
+      if (scope->sibling_ == inner_scope) {
+        scope->sibling_ = scope->sibling_->sibling_;
+        return true;
+      }
+    }
+    return false;
+  }
+
  protected:
   explicit Scope(Zone* zone);
 
@@ -555,21 +571,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     inner_scope->sibling_ = inner_scope_;
     inner_scope_ = inner_scope;
     inner_scope->outer_scope_ = this;
-  }
-
-  void RemoveInnerScope(Scope* inner_scope) {
-    DCHECK_NOT_NULL(inner_scope);
-    if (inner_scope == inner_scope_) {
-      inner_scope_ = inner_scope_->sibling_;
-      return;
-    }
-    for (Scope* scope = inner_scope_; scope != nullptr;
-         scope = scope->sibling_) {
-      if (scope->sibling_ == inner_scope) {
-        scope->sibling_ = scope->sibling_->sibling_;
-        return;
-      }
-    }
   }
 
   void SetDefaults();

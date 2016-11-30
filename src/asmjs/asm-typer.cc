@@ -19,14 +19,19 @@
 #include "src/globals.h"
 #include "src/utils.h"
 
+#define FAIL_LINE(line, msg)                                   \
+  do {                                                         \
+    base::OS::SNPrintF(error_message_, sizeof(error_message_), \
+                       "asm: line %d: %s", (line) + 1, msg);   \
+    return AsmType::None();                                    \
+  } while (false)
+
 #define FAIL(node, msg)                                        \
   do {                                                         \
     int line = node->position() == kNoSourcePosition           \
                    ? -1                                        \
                    : script_->GetLineNumber(node->position()); \
-    base::OS::SNPrintF(error_message_, sizeof(error_message_), \
-                       "asm: line %d: %s", line + 1, msg);     \
-    return AsmType::None();                                    \
+    FAIL_LINE(line, msg);                                      \
   } while (false)
 
 #define RECURSE(call)                                             \
@@ -91,6 +96,53 @@ Statement* AsmTyper::FlattenedStatements::Next() {
 }
 
 // ----------------------------------------------------------------------------
+// Implementation of AsmTyper::SourceLayoutTracker
+
+bool AsmTyper::SourceLayoutTracker::IsValid() const {
+  const Section* kAllSections[] = {&use_asm_, &globals_, &functions_, &tables_,
+                                   &exports_};
+  for (size_t ii = 0; ii < arraysize(kAllSections); ++ii) {
+    const auto& curr_section = *kAllSections[ii];
+    for (size_t jj = ii + 1; jj < arraysize(kAllSections); ++jj) {
+      if (curr_section.IsPrecededBy(*kAllSections[jj])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void AsmTyper::SourceLayoutTracker::Section::AddNewElement(
+    const AstNode& node) {
+  const int node_pos = node.position();
+  if (start_ == kNoSourcePosition) {
+    start_ = node_pos;
+  } else {
+    start_ = std::min(start_, node_pos);
+  }
+  if (end_ == kNoSourcePosition) {
+    end_ = node_pos;
+  } else {
+    end_ = std::max(end_, node_pos);
+  }
+}
+
+bool AsmTyper::SourceLayoutTracker::Section::IsPrecededBy(
+    const Section& other) const {
+  if (start_ == kNoSourcePosition) {
+    DCHECK_EQ(end_, kNoSourcePosition);
+    return false;
+  }
+  if (other.start_ == kNoSourcePosition) {
+    DCHECK_EQ(other.end_, kNoSourcePosition);
+    return false;
+  }
+  DCHECK_LE(start_, end_);
+  DCHECK_LE(other.start_, other.end_);
+  return other.start_ <= end_;
+}
+
+// ----------------------------------------------------------------------------
 // Implementation of AsmTyper::VariableInfo
 
 AsmTyper::VariableInfo* AsmTyper::VariableInfo::ForSpecialSymbol(
@@ -112,10 +164,10 @@ AsmTyper::VariableInfo* AsmTyper::VariableInfo::Clone(Zone* zone) const {
   return new_var_info;
 }
 
-void AsmTyper::VariableInfo::FirstForwardUseIs(VariableProxy* var) {
-  DCHECK(first_forward_use_ == nullptr);
+void AsmTyper::VariableInfo::SetFirstForwardUse(int source_location) {
+  DCHECK(source_location_ == -1);
   missing_definition_ = true;
-  first_forward_use_ = var;
+  source_location_ = source_location;
 }
 
 // ----------------------------------------------------------------------------
@@ -137,9 +189,11 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
       local_scope_(ZoneHashMap::kDefaultHashMapCapacity,
                    ZoneAllocationPolicy(zone)),
       stack_limit_(isolate->stack_guard()->real_climit()),
-      node_types_(zone_),
+      module_node_types_(zone_),
+      function_node_types_(zone_),
       fround_type_(AsmType::FroundType(zone_)),
-      ffi_type_(AsmType::FFIType(zone_)) {
+      ffi_type_(AsmType::FFIType(zone_)),
+      function_pointer_tables_(zone_) {
   InitializeStdlib();
 }
 
@@ -345,7 +399,9 @@ AsmTyper::VariableInfo* AsmTyper::Lookup(Variable* variable) const {
 }
 
 void AsmTyper::AddForwardReference(VariableProxy* proxy, VariableInfo* info) {
-  info->FirstForwardUseIs(proxy);
+  info->SetFirstForwardUse(proxy->position() == kNoSourcePosition
+                               ? -1
+                               : script_->GetLineNumber(proxy->position()));
   forward_definitions_.push_back(info);
 }
 
@@ -390,13 +446,22 @@ bool AsmTyper::AddLocal(Variable* variable, VariableInfo* info) {
 
 void AsmTyper::SetTypeOf(AstNode* node, AsmType* type) {
   DCHECK_NE(type, AsmType::None());
-  DCHECK(node_types_.find(node) == node_types_.end());
-  node_types_.insert(std::make_pair(node, type));
+  if (in_function_) {
+    DCHECK(function_node_types_.find(node) == function_node_types_.end());
+    function_node_types_.insert(std::make_pair(node, type));
+  } else {
+    DCHECK(module_node_types_.find(node) == module_node_types_.end());
+    module_node_types_.insert(std::make_pair(node, type));
+  }
 }
 
 AsmType* AsmTyper::TypeOf(AstNode* node) const {
-  auto node_type_iter = node_types_.find(node);
-  if (node_type_iter != node_types_.end()) {
+  auto node_type_iter = function_node_types_.find(node);
+  if (node_type_iter != function_node_types_.end()) {
+    return node_type_iter->second;
+  }
+  node_type_iter = module_node_types_.find(node);
+  if (node_type_iter != module_node_types_.end()) {
     return node_type_iter->second;
   }
 
@@ -434,11 +499,33 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(Variable* var) {
 }
 
 bool AsmTyper::Validate() {
-  if (!AsmType::None()->IsExactly(ValidateModule(root_))) {
+  return ValidateBeforeFunctionsPhase() &&
+         !AsmType::None()->IsExactly(ValidateModuleFunctions(root_)) &&
+         ValidateAfterFunctionsPhase();
+}
+
+bool AsmTyper::ValidateBeforeFunctionsPhase() {
+  if (!AsmType::None()->IsExactly(ValidateModuleBeforeFunctionsPhase(root_))) {
     return true;
   }
   return false;
 }
+
+bool AsmTyper::ValidateInnerFunction(FunctionDeclaration* fun_decl) {
+  if (!AsmType::None()->IsExactly(ValidateModuleFunction(fun_decl))) {
+    return true;
+  }
+  return false;
+}
+
+bool AsmTyper::ValidateAfterFunctionsPhase() {
+  if (!AsmType::None()->IsExactly(ValidateModuleAfterFunctionsPhase(root_))) {
+    return true;
+  }
+  return false;
+}
+
+void AsmTyper::ClearFunctionNodeTypes() { function_node_types_.clear(); }
 
 namespace {
 bool IsUseAsmDirective(Statement* first_statement) {
@@ -477,89 +564,7 @@ Assignment* ExtractInitializerExpression(Statement* statement) {
 }  // namespace
 
 // 6.1 ValidateModule
-namespace {
-// SourceLayoutTracker keeps track of the start and end positions of each
-// section in the asm.js source. The sections should not overlap, otherwise the
-// asm.js source is invalid.
-class SourceLayoutTracker {
- public:
-  SourceLayoutTracker() = default;
-
-  bool IsValid() const {
-    const Section* kAllSections[] = {&use_asm_, &globals_, &functions_,
-                                     &tables_, &exports_};
-    for (size_t ii = 0; ii < arraysize(kAllSections); ++ii) {
-      const auto& curr_section = *kAllSections[ii];
-      for (size_t jj = ii + 1; jj < arraysize(kAllSections); ++jj) {
-        if (curr_section.OverlapsWith(*kAllSections[jj])) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  void AddUseAsm(const AstNode& node) { use_asm_.AddNewElement(node); }
-
-  void AddGlobal(const AstNode& node) { globals_.AddNewElement(node); }
-
-  void AddFunction(const AstNode& node) { functions_.AddNewElement(node); }
-
-  void AddTable(const AstNode& node) { tables_.AddNewElement(node); }
-
-  void AddExport(const AstNode& node) { exports_.AddNewElement(node); }
-
- private:
-  class Section {
-   public:
-    Section() = default;
-    Section(const Section&) = default;
-    Section& operator=(const Section&) = default;
-
-    void AddNewElement(const AstNode& node) {
-      const int node_pos = node.position();
-      if (start_ == kNoSourcePosition) {
-        start_ = node_pos;
-      } else {
-        start_ = std::max(start_, node_pos);
-      }
-      if (end_ == kNoSourcePosition) {
-        end_ = node_pos;
-      } else {
-        end_ = std::max(end_, node_pos);
-      }
-    }
-
-    bool OverlapsWith(const Section& other) const {
-      if (start_ == kNoSourcePosition) {
-        DCHECK_EQ(end_, kNoSourcePosition);
-        return false;
-      }
-      if (other.start_ == kNoSourcePosition) {
-        DCHECK_EQ(other.end_, kNoSourcePosition);
-        return false;
-      }
-      return other.start_ < end_ || other.end_ < start_;
-    }
-
-   private:
-    int start_ = kNoSourcePosition;
-    int end_ = kNoSourcePosition;
-  };
-
-  Section use_asm_;
-  Section globals_;
-  Section functions_;
-  Section tables_;
-  Section exports_;
-
-  DISALLOW_COPY_AND_ASSIGN(SourceLayoutTracker);
-};
-}  // namespace
-
-AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
-  SourceLayoutTracker source_layout;
-
+AsmType* AsmTyper::ValidateModuleBeforeFunctionsPhase(FunctionLiteral* fun) {
   DeclarationScope* scope = fun->scope();
   if (!scope->is_function_scope()) FAIL(fun, "Not at function scope.");
   if (!ValidAsmIdentifier(fun->name()))
@@ -594,7 +599,6 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
     }
   }
 
-  ZoneVector<Assignment*> function_pointer_tables(zone_);
   FlattenedStatements iter(zone_, fun->body());
   auto* use_asm_directive = iter.Next();
   if (use_asm_directive == nullptr) {
@@ -616,8 +620,8 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   if (!IsUseAsmDirective(use_asm_directive)) {
     FAIL(fun, "Missing \"use asm\".");
   }
-  source_layout.AddUseAsm(*use_asm_directive);
-  ReturnStatement* module_return = nullptr;
+  source_layout_.AddUseAsm(*use_asm_directive);
+  module_return_ = nullptr;
 
   // *VIOLATION* The spec states that globals should be followed by function
   // declarations, which should be followed by function pointer tables, followed
@@ -627,40 +631,57 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
     if (auto* assign = ExtractInitializerExpression(current)) {
       if (assign->value()->IsArrayLiteral()) {
         // Save function tables for later validation.
-        function_pointer_tables.push_back(assign);
+        function_pointer_tables_.push_back(assign);
       } else {
         RECURSE(ValidateGlobalDeclaration(assign));
-        source_layout.AddGlobal(*assign);
+        source_layout_.AddGlobal(*assign);
       }
       continue;
     }
 
     if (auto* current_as_return = current->AsReturnStatement()) {
-      if (module_return != nullptr) {
+      if (module_return_ != nullptr) {
         FAIL(fun, "Multiple export statements.");
       }
-      module_return = current_as_return;
-      source_layout.AddExport(*module_return);
+      module_return_ = current_as_return;
+      source_layout_.AddExport(*module_return_);
       continue;
     }
 
     FAIL(current, "Invalid top-level statement in asm.js module.");
   }
 
+  return AsmType::Int();  // Any type that is not AsmType::None();
+}
+
+AsmType* AsmTyper::ValidateModuleFunction(FunctionDeclaration* fun_decl) {
+  RECURSE(ValidateFunction(fun_decl));
+  source_layout_.AddFunction(*fun_decl);
+
+  return AsmType::Int();  // Any type that is not AsmType::None();
+}
+
+AsmType* AsmTyper::ValidateModuleFunctions(FunctionLiteral* fun) {
+  DeclarationScope* scope = fun->scope();
   Declaration::List* decls = scope->declarations();
   for (Declaration* decl : *decls) {
     if (FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration()) {
-      RECURSE(ValidateFunction(fun_decl));
-      source_layout.AddFunction(*fun_decl);
+      RECURSE(ValidateModuleFunction(fun_decl));
       continue;
     }
   }
 
-  for (auto* function_table : function_pointer_tables) {
+  return AsmType::Int();  // Any type that is not AsmType::None();
+}
+
+AsmType* AsmTyper::ValidateModuleAfterFunctionsPhase(FunctionLiteral* fun) {
+  for (auto* function_table : function_pointer_tables_) {
     RECURSE(ValidateFunctionTable(function_table));
-    source_layout.AddTable(*function_table);
+    source_layout_.AddTable(*function_table);
   }
 
+  DeclarationScope* scope = fun->scope();
+  Declaration::List* decls = scope->declarations();
   for (Declaration* decl : *decls) {
     if (decl->IsFunctionDeclaration()) {
       continue;
@@ -682,20 +703,20 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   }
 
   // 6.2 ValidateExport
-  if (module_return == nullptr) {
+  if (module_return_ == nullptr) {
     FAIL(fun, "Missing asm.js module export.");
   }
 
   for (auto* forward_def : forward_definitions_) {
     if (forward_def->missing_definition()) {
-      FAIL(forward_def->first_forward_use(),
-           "Missing definition for forward declared identifier.");
+      FAIL_LINE(forward_def->source_location(),
+                "Missing definition for forward declared identifier.");
     }
   }
 
-  RECURSE(ValidateExport(module_return));
+  RECURSE(ValidateExport(module_return_));
 
-  if (!source_layout.IsValid()) {
+  if (!source_layout_.IsValid()) {
     FAIL(fun, "Invalid asm.js source code layout.");
   }
 

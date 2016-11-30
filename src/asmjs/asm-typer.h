@@ -25,6 +25,7 @@ namespace wasm {
 
 class AsmType;
 class AsmTyperHarnessBuilder;
+class SourceLayoutTracker;
 
 class AsmTyper final {
  public:
@@ -69,6 +70,11 @@ class AsmTyper final {
   AsmTyper(Isolate* isolate, Zone* zone, Script* script, FunctionLiteral* root);
 
   bool Validate();
+  // Do asm.js validation in phases (to interleave with conversion to wasm).
+  bool ValidateBeforeFunctionsPhase();
+  bool ValidateInnerFunction(FunctionDeclaration* decl);
+  bool ValidateAfterFunctionsPhase();
+  void ClearFunctionNodeTypes();
 
   const char* error_message() const { return error_message_; }
 
@@ -130,7 +136,7 @@ class AsmTyper final {
     bool IsHeap() const { return standard_member_ == kHeap; }
 
     void MarkDefined() { missing_definition_ = false; }
-    void FirstForwardUseIs(VariableProxy* var);
+    void SetFirstForwardUse(int source_location);
 
     StandardMember standard_member() const { return standard_member_; }
     void set_standard_member(StandardMember standard_member) {
@@ -145,7 +151,7 @@ class AsmTyper final {
 
     bool missing_definition() const { return missing_definition_; }
 
-    VariableProxy* first_forward_use() const { return first_forward_use_; }
+    int source_location() const { return source_location_; }
 
     static VariableInfo* ForSpecialSymbol(Zone* zone,
                                           StandardMember standard_member);
@@ -157,9 +163,11 @@ class AsmTyper final {
     // missing_definition_ is set to true for forward definition - i.e., use
     // before definition.
     bool missing_definition_ = false;
-    // first_forward_use_ holds the AST node that first referenced this
+    // source_location_ holds the line number that first referenced this
     // VariableInfo. Used for error messages.
-    VariableProxy* first_forward_use_ = nullptr;
+    // TODO(bradnelson): When merged with console change, this should
+    // become a source location.
+    int source_location_ = -1;
   };
 
   // RAII-style manager for the in_function_ member variable.
@@ -199,6 +207,40 @@ class AsmTyper final {
     DISALLOW_IMPLICIT_CONSTRUCTORS(FlattenedStatements);
   };
 
+  class SourceLayoutTracker {
+   public:
+    SourceLayoutTracker() = default;
+    bool IsValid() const;
+    void AddUseAsm(const AstNode& node) { use_asm_.AddNewElement(node); }
+    void AddGlobal(const AstNode& node) { globals_.AddNewElement(node); }
+    void AddFunction(const AstNode& node) { functions_.AddNewElement(node); }
+    void AddTable(const AstNode& node) { tables_.AddNewElement(node); }
+    void AddExport(const AstNode& node) { exports_.AddNewElement(node); }
+
+   private:
+    class Section {
+     public:
+      Section() = default;
+      Section(const Section&) = default;
+      Section& operator=(const Section&) = default;
+
+      void AddNewElement(const AstNode& node);
+      bool IsPrecededBy(const Section& other) const;
+
+     private:
+      int start_ = kNoSourcePosition;
+      int end_ = kNoSourcePosition;
+    };
+
+    Section use_asm_;
+    Section globals_;
+    Section functions_;
+    Section tables_;
+    Section exports_;
+
+    DISALLOW_COPY_AND_ASSIGN(SourceLayoutTracker);
+  };
+
   using ObjectTypeMap = ZoneMap<std::string, VariableInfo*>;
   void InitializeStdlib();
   void SetTypeOf(AstNode* node, AsmType* type);
@@ -220,7 +262,10 @@ class AsmTyper final {
   // validation failure.
 
   // 6.1 ValidateModule
-  AsmType* ValidateModule(FunctionLiteral* fun);
+  AsmType* ValidateModuleBeforeFunctionsPhase(FunctionLiteral* fun);
+  AsmType* ValidateModuleFunction(FunctionDeclaration* fun_decl);
+  AsmType* ValidateModuleFunctions(FunctionLiteral* fun);
+  AsmType* ValidateModuleAfterFunctionsPhase(FunctionLiteral* fun);
   AsmType* ValidateGlobalDeclaration(Assignment* assign);
   // 6.2 ValidateExport
   AsmType* ExportType(VariableProxy* fun_export);
@@ -345,12 +390,17 @@ class AsmTyper final {
 
   std::uintptr_t stack_limit_;
   bool stack_overflow_ = false;
-  ZoneMap<AstNode*, AsmType*> node_types_;
+  ZoneMap<AstNode*, AsmType*> module_node_types_;
+  ZoneMap<AstNode*, AsmType*> function_node_types_;
   static const int kErrorMessageLimit = 128;
   AsmType* fround_type_;
   AsmType* ffi_type_;
   char error_message_[kErrorMessageLimit];
   StdlibSet stdlib_uses_;
+
+  SourceLayoutTracker source_layout_;
+  ReturnStatement* module_return_;
+  ZoneVector<Assignment*> function_pointer_tables_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmTyper);
 };

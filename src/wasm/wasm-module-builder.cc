@@ -271,8 +271,15 @@ uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
   }
 }
 
-void WasmModuleBuilder::AddIndirectFunction(uint32_t index) {
-  indirect_functions_.push_back(index);
+uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
+  uint32_t ret = static_cast<uint32_t>(indirect_functions_.size());
+  indirect_functions_.resize(indirect_functions_.size() + count);
+  return ret;
+}
+
+void WasmModuleBuilder::SetIndirectFunction(uint32_t indirect,
+                                            uint32_t direct) {
+  indirect_functions_[indirect] = direct;
 }
 
 uint32_t WasmModuleBuilder::AddImport(const char* name, int name_length,
