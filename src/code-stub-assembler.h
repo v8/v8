@@ -115,6 +115,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* Float64Ceil(Node* x);
   Node* Float64Floor(Node* x);
   Node* Float64Round(Node* x);
+  Node* Float64RoundToEven(Node* x);
   Node* Float64Trunc(Node* x);
 
   // Tag a Word as a Smi value.
@@ -860,7 +861,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Loads script context from the script context table.
   Node* LoadScriptContext(Node* context, int context_index);
 
-  Node* ClampedToUint8(Node* int32_value);
+  Node* Int32ToUint8Clamped(Node* int32_value);
+  Node* Float64ToUint8Clamped(Node* float64_value);
+
+  Node* PrepareValueForWriteToTypedArray(Node* key, ElementsKind elements_kind,
+                                         Label* bailout);
 
   // Store value to an elements array with given elements kind.
   void StoreElement(Node* elements, ElementsKind kind, Node* index, Node* value,
