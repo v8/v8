@@ -517,8 +517,10 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   const Operator* op =
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
-  Node* native_context = NewNode(op, environment()->Context());
-  return NewNode(javascript()->LoadContext(0, index, true), native_context);
+  Node* native_context = NewNode(op);
+  Node* result = NewNode(javascript()->LoadContext(0, index, true));
+  NodeProperties::ReplaceContextInput(result, native_context);
+  return result;
 }
 
 
@@ -777,9 +779,10 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
   const Operator* op = javascript()->LoadContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
       bytecode_iterator().GetIndexOperand(1), false);
+  Node* node = NewNode(op);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* node = NewNode(op, context);
+  NodeProperties::ReplaceContextInput(node, context);
   environment()->BindAccumulator(node);
 }
 
@@ -789,8 +792,7 @@ void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
   // changes.
   const Operator* op = javascript()->LoadContext(
       0, bytecode_iterator().GetIndexOperand(0), false);
-  Node* context = environment()->Context();
-  Node* node = NewNode(op, context);
+  Node* node = NewNode(op);
   environment()->BindAccumulator(node);
 }
 
@@ -798,18 +800,18 @@ void BytecodeGraphBuilder::VisitStaContextSlot() {
   const Operator* op = javascript()->StoreContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
       bytecode_iterator().GetIndexOperand(1));
+  Node* value = environment()->LookupAccumulator();
+  Node* node = NewNode(op, value);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* value = environment()->LookupAccumulator();
-  NewNode(op, context, value);
+  NodeProperties::ReplaceContextInput(node, context);
 }
 
 void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
   const Operator* op =
       javascript()->StoreContext(0, bytecode_iterator().GetIndexOperand(0));
-  Node* context = environment()->Context();
   Node* value = environment()->LookupAccumulator();
-  NewNode(op, context, value);
+  NewNode(op, value);
 }
 
 void BytecodeGraphBuilder::BuildLdaLookupSlot(TypeofMode typeof_mode) {
@@ -841,8 +843,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
   // the same scope as the variable itself has no way of shadowing it.
   for (uint32_t d = 0; d < depth; d++) {
     Node* extension_slot =
-        NewNode(javascript()->LoadContext(d, Context::EXTENSION_INDEX, false),
-                environment()->Context());
+        NewNode(javascript()->LoadContext(d, Context::EXTENSION_INDEX, false));
 
     Node* check_no_extension =
         NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
@@ -888,8 +889,7 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     uint32_t slot_index = bytecode_iterator().GetIndexOperand(1);
 
     const Operator* op = javascript()->LoadContext(depth, slot_index, false);
-    Node* context = environment()->Context();
-    environment()->BindAccumulator(NewNode(op, context));
+    environment()->BindAccumulator(NewNode(op));
   }
 
   // Only build the slow path if there were any slow-path checks.
@@ -1070,9 +1070,8 @@ void BytecodeGraphBuilder::VisitStaKeyedPropertyStrict() {
 void BytecodeGraphBuilder::VisitLdaModuleVariable() {
   int32_t cell_index = bytecode_iterator().GetImmediateOperand(0);
   uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(1);
-  Node* module =
-      NewNode(javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
-              environment()->Context());
+  Node* module = NewNode(
+      javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false));
   Node* value = NewNode(javascript()->LoadModule(cell_index), module);
   environment()->BindAccumulator(value);
 }
@@ -1080,9 +1079,8 @@ void BytecodeGraphBuilder::VisitLdaModuleVariable() {
 void BytecodeGraphBuilder::VisitStaModuleVariable() {
   int32_t cell_index = bytecode_iterator().GetImmediateOperand(0);
   uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(1);
-  Node* module =
-      NewNode(javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
-              environment()->Context());
+  Node* module = NewNode(
+      javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false));
   Node* value = environment()->LookupAccumulator();
   NewNode(javascript()->StoreModule(cell_index), module, value);
 }

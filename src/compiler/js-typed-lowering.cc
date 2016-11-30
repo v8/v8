@@ -1507,16 +1507,17 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
   Node* control = graph()->start();
   for (size_t i = 0; i < access.depth(); ++i) {
-    Node* previous = effect = graph()->NewNode(
+    context = effect = graph()->NewNode(
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
-        NodeProperties::GetValueInput(node, 0), effect, control);
-    node->ReplaceInput(0, previous);
+        context, effect, control);
   }
+  node->ReplaceInput(0, context);
   node->ReplaceInput(1, effect);
-  node->ReplaceInput(2, control);
+  node->AppendInput(jsgraph()->zone(), control);
   NodeProperties::ChangeOp(
       node,
       simplified()->LoadField(AccessBuilder::ForContextSlot(access.index())));
@@ -1527,15 +1528,17 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
   Node* control = graph()->start();
+  Node* value = NodeProperties::GetValueInput(node, 0);
   for (size_t i = 0; i < access.depth(); ++i) {
-    Node* previous = effect = graph()->NewNode(
+    context = effect = graph()->NewNode(
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
-        NodeProperties::GetValueInput(node, 0), effect, control);
-    node->ReplaceInput(0, previous);
+        context, effect, control);
   }
-  node->RemoveInput(2);
+  node->ReplaceInput(0, context);
+  node->ReplaceInput(1, value);
   node->ReplaceInput(2, effect);
   NodeProperties::ChangeOp(
       node,
@@ -1648,10 +1651,10 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
     } else {
       Node* native_context = effect = graph()->NewNode(
           javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, context, effect);
+          context, effect);
       receiver = effect = graph()->NewNode(
           javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
-          native_context, native_context, effect);
+          native_context, effect);
     }
     ReplaceWithValue(node, receiver, effect, control);
     return Replace(receiver);
@@ -1753,10 +1756,10 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
     } else {
       Node* native_context = eglobal = graph()->NewNode(
           javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, context, eglobal);
+          context, eglobal);
       rglobal = eglobal = graph()->NewNode(
           javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
-          native_context, native_context, eglobal);
+          native_context, eglobal);
     }
   }
 

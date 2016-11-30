@@ -305,7 +305,7 @@ Node* AstGraphBuilder::GetFunctionClosureForContext() {
     // calling eval, not the anonymous closure containing the eval code.
     const Operator* op =
         javascript()->LoadContext(0, Context::CLOSURE_INDEX, false);
-    return NewNode(op, current_context());
+    return NewNode(op);
   } else {
     DCHECK(closure_scope->is_function_scope());
     return GetFunctionClosure();
@@ -945,7 +945,7 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
       if (variable->binding_needs_init()) {
         Node* value = jsgraph()->TheHoleConstant();
         const Operator* op = javascript()->StoreContext(0, variable->index());
-        NewNode(op, current_context(), value);
+        NewNode(op, value);
       }
       break;
     case VariableLocation::LOOKUP:
@@ -981,7 +981,7 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       VisitForValue(decl->fun());
       Node* value = environment()->Pop();
       const Operator* op = javascript()->StoreContext(0, variable->index());
-      NewNode(op, current_context(), value);
+      NewNode(op, value);
       break;
     }
     case VariableLocation::LOOKUP:
@@ -2650,7 +2650,8 @@ Node* AstGraphBuilder::BuildLocalActivationContext(Node* context) {
     Variable* variable = scope->receiver();
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     const Operator* op = javascript()->StoreContext(0, variable->index());
-    NewNode(op, local_context, receiver);
+    Node* node = NewNode(op, receiver);
+    NodeProperties::ReplaceContextInput(node, local_context);
   }
 
   // Copy parameters into context if necessary.
@@ -2662,7 +2663,8 @@ Node* AstGraphBuilder::BuildLocalActivationContext(Node* context) {
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     const Operator* op = javascript()->StoreContext(0, variable->index());
-    NewNode(op, local_context, parameter);
+    Node* node = NewNode(op, parameter);
+    NodeProperties::ReplaceContextInput(node, local_context);
   }
 
   return local_context;
@@ -2801,7 +2803,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                        info()->is_function_context_specializing();
       const Operator* op =
           javascript()->LoadContext(depth, variable->index(), immutable);
-      Node* value = NewNode(op, current_context());
+      Node* value = NewNode(op);
       // TODO(titzer): initialization checks are redundant for already
       // initialized immutable context loads, but only specialization knows.
       // Maybe specializer should be a parameter to the graph builder?
@@ -2918,7 +2920,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         // Perform an initialization check for let declared variables.
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
-        Node* current = NewNode(op, current_context());
+        Node* current = NewNode(op);
         value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
       } else if (mode == CONST && op == Token::INIT) {
         // Perform an initialization check for const {this} variables.
@@ -2927,7 +2929,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (variable->is_this()) {
           const Operator* op =
               javascript()->LoadContext(depth, variable->index(), false);
-          Node* current = NewNode(op, current_context());
+          Node* current = NewNode(op);
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op != Token::INIT &&
@@ -2944,14 +2946,14 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (variable->binding_needs_init()) {
           const Operator* op =
               javascript()->LoadContext(depth, variable->index(), false);
-          Node* current = NewNode(op, current_context());
+          Node* current = NewNode(op);
           BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         }
         // Assignment to const is exception in all modes.
         return BuildThrowConstAssignError(bailout_id);
       }
       const Operator* op = javascript()->StoreContext(depth, variable->index());
-      return NewNode(op, current_context(), value);
+      return NewNode(op, value);
     }
     case VariableLocation::LOOKUP:
     case VariableLocation::MODULE:
@@ -3063,8 +3065,10 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
 Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
   const Operator* op =
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
-  Node* native_context = NewNode(op, current_context());
-  return NewNode(javascript()->LoadContext(0, index, true), native_context);
+  Node* native_context = NewNode(op);
+  Node* result = NewNode(javascript()->LoadContext(0, index, true));
+  NodeProperties::ReplaceContextInput(result, native_context);
+  return result;
 }
 
 
@@ -3499,8 +3503,7 @@ void AstGraphBuilder::Environment::PrepareForOsrEntry() {
   Node* osr_context = effect = contexts()->back();
   int last = static_cast<int>(contexts()->size() - 1);
   for (int i = last - 1; i >= 0; i--) {
-    osr_context = effect =
-        graph->NewNode(load_op, osr_context, osr_context, effect);
+    osr_context = effect = graph->NewNode(load_op, osr_context, effect);
     contexts()->at(i) = osr_context;
   }
   UpdateEffectDependency(effect);

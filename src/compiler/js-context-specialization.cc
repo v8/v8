@@ -33,7 +33,7 @@ MaybeHandle<Context> JSContextSpecialization::GetSpecializationContext(
     Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadContext ||
          node->opcode() == IrOpcode::kJSStoreContext);
-  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const object = NodeProperties::GetContextInput(node);
   return NodeProperties::GetSpecializationContext(object, context());
 }
 
@@ -59,7 +59,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     }
     const Operator* op = jsgraph_->javascript()->LoadContext(
         0, access.index(), access.immutable());
-    node->ReplaceInput(0, jsgraph_->Constant(context));
+    NodeProperties::ReplaceContextInput(node, jsgraph_->Constant(context));
     NodeProperties::ChangeOp(node, op);
     return Changed(node);
   }
@@ -101,7 +101,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
     context = handle(context->previous(), isolate());
   }
 
-  node->ReplaceInput(0, jsgraph_->Constant(context));
+  NodeProperties::ReplaceContextInput(node, jsgraph_->Constant(context));
   NodeProperties::ChangeOp(node, javascript()->StoreContext(0, access.index()));
   return Changed(node);
 }

@@ -756,7 +756,7 @@ const Operator* JSOperatorBuilder::LoadContext(size_t depth, size_t index,
       IrOpcode::kJSLoadContext,                  // opcode
       Operator::kNoWrite | Operator::kNoThrow,   // flags
       "JSLoadContext",                           // name
-      1, 1, 0, 1, 1, 0,                          // counts
+      0, 1, 0, 1, 1, 0,                          // counts
       access);                                   // parameter
 }
 
@@ -767,7 +767,7 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       IrOpcode::kJSStoreContext,                 // opcode
       Operator::kNoRead | Operator::kNoThrow,    // flags
       "JSStoreContext",                          // name
-      2, 1, 1, 0, 1, 0,                          // counts
+      1, 1, 1, 0, 1, 0,                          // counts
       access);                                   // parameter
 }
 
