@@ -161,7 +161,10 @@ void BytecodeAnalysis::Analyze() {
     int current_offset = iterator.current_offset();
 
     if (bytecode == Bytecode::kJumpLoop) {
-      PushLoop(iterator.GetJumpTargetOffset(), current_offset);
+      // Every byte up to and including the last byte within the backwards jump
+      // instruction is considered part of the loop, set loop end accordingly.
+      int loop_end = current_offset + iterator.current_bytecode_size();
+      PushLoop(iterator.GetJumpTargetOffset(), loop_end);
 
       // Save the last offset so that we can do another pass later.
       if (last_invalid_jumploop_offset == -1) {
@@ -296,7 +299,7 @@ bool BytecodeAnalysis::IsLoopHeader(int offset) const {
 }
 
 int BytecodeAnalysis::GetLoopOffsetFor(int offset) const {
-  auto loop_end_to_header = end_to_header_.lower_bound(offset);
+  auto loop_end_to_header = end_to_header_.upper_bound(offset);
   // If there is no next end => offset is not in a loop.
   if (loop_end_to_header == end_to_header_.end()) {
     return -1;

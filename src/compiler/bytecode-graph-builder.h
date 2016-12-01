@@ -204,6 +204,10 @@ class BytecodeGraphBuilder {
   // Simulates entry and exit of exception handlers.
   void EnterAndExitExceptionHandlers(int current_offset);
 
+  // Update the current position of the {SourcePositionTable} to that of the
+  // bytecode at {offset}, if any.
+  void UpdateCurrentSourcePosition(SourcePositionTableIterator* it, int offset);
+
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
@@ -275,6 +279,7 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
+  int osr_loop_offset_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -301,14 +306,10 @@ class BytecodeGraphBuilder {
 
   StateValuesCache state_values_cache_;
 
-  // The Turbofan source position table, to be populated.
+  // The source position table, to be populated.
   SourcePositionTable* source_positions_;
 
   SourcePosition const start_position_;
-
-  // Update [source_positions_]'s current position to that of the bytecode at
-  // [offset], if any.
-  void UpdateCurrentSourcePosition(SourcePositionTableIterator* it, int offset);
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;

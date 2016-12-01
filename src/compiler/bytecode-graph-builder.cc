@@ -465,6 +465,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           bytecode_array()->parameter_count(),
           bytecode_array()->register_count(), info->shared_info())),
       osr_ast_id_(info->osr_ast_id()),
+      osr_loop_offset_(-1),
       merge_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
@@ -1898,7 +1899,7 @@ void BytecodeGraphBuilder::MergeControlToLeaveFunction(Node* exit) {
 }
 
 void BytecodeGraphBuilder::BuildOSRLoopEntryPoint(int current_offset) {
-  if (!osr_ast_id_.IsNone() && osr_ast_id_.ToInt() == current_offset) {
+  if (!osr_ast_id_.IsNone() && osr_loop_offset_ == current_offset) {
     // For OSR add a special {OsrLoopEntry} node into the current loop header.
     // It will be turned into a usable entry by the OSR deconstruction.
     Environment* loop_env = merge_environments_[current_offset];
@@ -1913,8 +1914,11 @@ void BytecodeGraphBuilder::BuildOSRNormalEntryPoint() {
     // For OSR add an {OsrNormalEntry} as the the top-level environment start.
     // It will be replaced with {Dead} by the OSR deconstruction.
     NewNode(common()->OsrNormalEntry());
-    // Note that the requested OSR entry point must be the header of a loop.
-    DCHECK(bytecode_analysis()->IsLoopHeader(osr_ast_id_.ToInt()));
+    // Translate the offset of the jump instruction to the jump target offset of
+    // that instruction so that the derived BailoutId points to the loop header.
+    osr_loop_offset_ =
+        bytecode_analysis()->GetLoopOffsetFor(osr_ast_id_.ToInt());
+    DCHECK(bytecode_analysis()->IsLoopHeader(osr_loop_offset_));
   }
 }
 
