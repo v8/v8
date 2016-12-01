@@ -523,11 +523,11 @@ TEST(cvt_s_w_Trunc_uw_s) {
   CcTest::InitializeVM();
   FOR_UINT32_INPUTS(i, cvt_trunc_uint32_test_values) {
     uint32_t input = *i;
-    CHECK_EQ(static_cast<float>(input),
-             run_Cvt<uint32_t>(input, [](MacroAssembler* masm) {
-               __ cvt_s_w(f0, f4);
-               __ Trunc_uw_s(f2, f0, f1);
-             }));
+    auto fn = [](MacroAssembler* masm) {
+      __ cvt_s_w(f0, f4);
+      __ Trunc_uw_s(f2, f0, f1);
+    };
+    CHECK_EQ(static_cast<float>(input), run_Cvt<uint32_t>(input, fn));
   }
 }
 
@@ -535,11 +535,11 @@ TEST(cvt_d_w_Trunc_w_d) {
   CcTest::InitializeVM();
   FOR_INT32_INPUTS(i, cvt_trunc_int32_test_values) {
     int32_t input = *i;
-    CHECK_EQ(static_cast<double>(input),
-             run_Cvt<int32_t>(input, [](MacroAssembler* masm) {
-               __ cvt_d_w(f0, f4);
-               __ Trunc_w_d(f2, f0);
-             }));
+    auto fn = [](MacroAssembler* masm) {
+      __ cvt_d_w(f0, f4);
+      __ Trunc_w_d(f2, f0);
+    };
+    CHECK_EQ(static_cast<double>(input), run_Cvt<int32_t>(input, fn));
   }
 }
 
@@ -1125,36 +1125,39 @@ TEST(Ulh) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulh(v0, MemOperand(a0, in_offset));
-                             __ Ush(v0, MemOperand(a0, out_offset), v0);
-                           }));
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ mov(t0, a0);
-                             __ Ulh(a0, MemOperand(a0, in_offset));
-                             __ Ush(a0, MemOperand(t0, out_offset), v0);
-                           }));
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ mov(t0, a0);
-                             __ Ulhu(a0, MemOperand(a0, in_offset));
-                             __ Ush(a0, MemOperand(t0, out_offset), t1);
-                           }));
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulhu(v0, MemOperand(a0, in_offset));
-                             __ Ush(v0, MemOperand(a0, out_offset), t1);
-                           }));
+        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ Ulh(v0, MemOperand(a0, in_offset));
+          __ Ush(v0, MemOperand(a0, out_offset), v0);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_1));
+
+        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulh(a0, MemOperand(a0, in_offset));
+          __ Ush(a0, MemOperand(t0, out_offset), v0);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_2));
+
+        auto fn_3 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulhu(a0, MemOperand(a0, in_offset));
+          __ Ush(a0, MemOperand(t0, out_offset), t1);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_3));
+
+        auto fn_4 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ Ulhu(v0, MemOperand(a0, in_offset));
+          __ Ush(v0, MemOperand(a0, out_offset), t1);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_4));
       }
     }
   }
@@ -1174,39 +1177,39 @@ TEST(Ulh_bitextension) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             Label success, fail, end, different;
-                             __ Ulh(t0, MemOperand(a0, in_offset));
-                             __ Ulhu(t1, MemOperand(a0, in_offset));
-                             __ Branch(&different, ne, t0, Operand(t1));
+        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+                     int32_t out_offset) {
+          Label success, fail, end, different;
+          __ Ulh(t0, MemOperand(a0, in_offset));
+          __ Ulhu(t1, MemOperand(a0, in_offset));
+          __ Branch(&different, ne, t0, Operand(t1));
 
-                             // If signed and unsigned values are same, check
-                             // the upper bits to see if they are zero
-                             __ sra(t0, t0, 15);
-                             __ Branch(&success, eq, t0, Operand(zero_reg));
-                             __ Branch(&fail);
+          // If signed and unsigned values are same, check
+          // the upper bits to see if they are zero
+          __ sra(t0, t0, 15);
+          __ Branch(&success, eq, t0, Operand(zero_reg));
+          __ Branch(&fail);
 
-                             // If signed and unsigned values are different,
-                             // check that the upper bits are complementary
-                             __ bind(&different);
-                             __ sra(t1, t1, 15);
-                             __ Branch(&fail, ne, t1, Operand(1));
-                             __ sra(t0, t0, 15);
-                             __ addiu(t0, t0, 1);
-                             __ Branch(&fail, ne, t0, Operand(zero_reg));
-                             // Fall through to success
+          // If signed and unsigned values are different,
+          // check that the upper bits are complementary
+          __ bind(&different);
+          __ sra(t1, t1, 15);
+          __ Branch(&fail, ne, t1, Operand(1));
+          __ sra(t0, t0, 15);
+          __ addiu(t0, t0, 1);
+          __ Branch(&fail, ne, t0, Operand(zero_reg));
+          // Fall through to success
 
-                             __ bind(&success);
-                             __ Ulh(t0, MemOperand(a0, in_offset));
-                             __ Ush(t0, MemOperand(a0, out_offset), v0);
-                             __ Branch(&end);
-                             __ bind(&fail);
-                             __ Ush(zero_reg, MemOperand(a0, out_offset), v0);
-                             __ bind(&end);
-                           }));
+          __ bind(&success);
+          __ Ulh(t0, MemOperand(a0, in_offset));
+          __ Ush(t0, MemOperand(a0, out_offset), v0);
+          __ Branch(&end);
+          __ bind(&fail);
+          __ Ush(zero_reg, MemOperand(a0, out_offset), v0);
+          __ bind(&end);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn));
       }
     }
   }
@@ -1226,22 +1229,23 @@ TEST(Ulw) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<uint32_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulw(v0, MemOperand(a0, in_offset));
-                             __ Usw(v0, MemOperand(a0, out_offset));
-                           }));
+        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ Ulw(v0, MemOperand(a0, in_offset));
+          __ Usw(v0, MemOperand(a0, out_offset));
+        };
+        CHECK_EQ(true, run_Unaligned<uint32_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_1));
+
+        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulw(a0, MemOperand(a0, in_offset));
+          __ Usw(a0, MemOperand(t0, out_offset));
+        };
         CHECK_EQ(true,
-                 run_Unaligned<uint32_t>(
-                     buffer_middle, in_offset, out_offset, (uint32_t)value,
-                     [](MacroAssembler* masm, int32_t in_offset,
-                        int32_t out_offset) {
-                       __ mov(t0, a0);
-                       __ Ulw(a0, MemOperand(a0, in_offset));
-                       __ Usw(a0, MemOperand(t0, out_offset));
-                     }));
+                 run_Unaligned<uint32_t>(buffer_middle, in_offset, out_offset,
+                                         (uint32_t)value, fn_2));
       }
     }
   }
@@ -1261,13 +1265,13 @@ TEST(Ulwc1) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<float>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulwc1(f0, MemOperand(a0, in_offset), t0);
-                             __ Uswc1(f0, MemOperand(a0, out_offset), t0);
-                           }));
+        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+                     int32_t out_offset) {
+          __ Ulwc1(f0, MemOperand(a0, in_offset), t0);
+          __ Uswc1(f0, MemOperand(a0, out_offset), t0);
+        };
+        CHECK_EQ(true, run_Unaligned<float>(buffer_middle, in_offset,
+                                            out_offset, value, fn));
       }
     }
   }
@@ -1287,13 +1291,13 @@ TEST(Uldc1) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<double>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Uldc1(f0, MemOperand(a0, in_offset), t0);
-                             __ Usdc1(f0, MemOperand(a0, out_offset), t0);
-                           }));
+        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+                     int32_t out_offset) {
+          __ Uldc1(f0, MemOperand(a0, in_offset), t0);
+          __ Usdc1(f0, MemOperand(a0, out_offset), t0);
+        };
+        CHECK_EQ(true, run_Unaligned<double>(buffer_middle, in_offset,
+                                             out_offset, value, fn));
       }
     }
   }
@@ -1341,13 +1345,15 @@ TEST(Sltu) {
       uint32_t rs = *i;
       uint32_t rd = *j;
 
-      CHECK_EQ(rs < rd, run_Sltu(rs, rd,
-                                 [](MacroAssembler* masm, uint32_t imm) {
-                                   __ Sltu(v0, a0, Operand(imm));
-                                 }));
-      CHECK_EQ(rs < rd,
-               run_Sltu(rs, rd, [](MacroAssembler* masm,
-                                   uint32_t imm) { __ Sltu(v0, a0, a1); }));
+      auto fn_1 = [](MacroAssembler* masm, uint32_t imm) {
+        __ Sltu(v0, a0, Operand(imm));
+      };
+      CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_1));
+
+      auto fn_2 = [](MacroAssembler* masm, uint32_t imm) {
+        __ Sltu(v0, a0, a1);
+      };
+      CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_2));
     }
   }
 }
