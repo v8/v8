@@ -271,8 +271,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadRoot(Heap::RootListIndex root_index);
 
   // Store value to raw memory location.
-  Node* Store(MachineRepresentation rep, Node* base, Node* value);
-  Node* Store(MachineRepresentation rep, Node* base, Node* offset, Node* value);
+  Node* Store(Node* base, Node* value);
+  Node* Store(Node* base, Node* offset, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);

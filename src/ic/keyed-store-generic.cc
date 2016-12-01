@@ -282,7 +282,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
                             FAST_ELEMENTS, slow);
       }
-      Store(MachineRepresentation::kTagged, elements, offset, value);
+      Store(elements, offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
 
       Bind(&must_transition);
@@ -326,7 +326,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                            FAST_SMI_ELEMENTS, target_kind, slow);
         // The elements backing store didn't change, no reload necessary.
         CSA_ASSERT(this, WordEqual(elements, LoadElements(receiver)));
-        Store(MachineRepresentation::kTagged, elements, offset, value);
+        Store(elements, offset, value);
         MaybeUpdateLengthAndReturn(receiver, intptr_index, value,
                                    update_length);
       }
@@ -390,7 +390,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       Node* fast_elements = LoadElements(receiver);
       Node* fast_offset = ElementOffsetFromIndex(
           intptr_index, FAST_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
-      Store(MachineRepresentation::kTagged, fast_elements, fast_offset, value);
+      Store(fast_elements, fast_offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
     }
   }

@@ -307,13 +307,14 @@ Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
               IntPtrConstant(root_index * kPointerSize));
 }
 
-Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* value) {
-  return raw_assembler()->Store(rep, base, value, kFullWriteBarrier);
+Node* CodeAssembler::Store(Node* base, Node* value) {
+  return raw_assembler()->Store(MachineRepresentation::kTagged, base, value,
+                                kFullWriteBarrier);
 }
 
-Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* offset,
-                           Node* value) {
-  return raw_assembler()->Store(rep, base, offset, value, kFullWriteBarrier);
+Node* CodeAssembler::Store(Node* base, Node* offset, Node* value) {
+  return raw_assembler()->Store(MachineRepresentation::kTagged, base, offset,
+                                value, kFullWriteBarrier);
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,

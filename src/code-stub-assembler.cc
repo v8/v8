@@ -1296,8 +1296,7 @@ Node* CodeStubAssembler::LoadContextElement(Node* context, Node* slot_index) {
 Node* CodeStubAssembler::StoreContextElement(Node* context, int slot_index,
                                              Node* value) {
   int offset = Context::SlotOffset(slot_index);
-  return Store(MachineRepresentation::kTagged, context, IntPtrConstant(offset),
-               value);
+  return Store(context, IntPtrConstant(offset), value);
 }
 
 Node* CodeStubAssembler::StoreContextElement(Node* context, Node* slot_index,
@@ -1305,7 +1304,7 @@ Node* CodeStubAssembler::StoreContextElement(Node* context, Node* slot_index,
   Node* offset =
       IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
                 IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-  return Store(MachineRepresentation::kTagged, context, offset, value);
+  return Store(context, offset, value);
 }
 
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
@@ -1326,8 +1325,7 @@ Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
 
 Node* CodeStubAssembler::StoreObjectField(
     Node* object, int offset, Node* value) {
-  return Store(MachineRepresentation::kTagged, object,
-               IntPtrConstant(offset - kHeapObjectTag), value);
+  return Store(object, IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
 Node* CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
@@ -1336,8 +1334,8 @@ Node* CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
   if (ToInt32Constant(offset, const_offset)) {
     return StoreObjectField(object, const_offset, value);
   }
-  return Store(MachineRepresentation::kTagged, object,
-               IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
+  return Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)),
+               value);
 }
 
 Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
@@ -1382,11 +1380,11 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
-  MachineRepresentation rep = MachineRepresentation::kTagged;
   if (barrier_mode == SKIP_WRITE_BARRIER) {
-    return StoreNoWriteBarrier(rep, object, offset, value);
+    return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
+                               value);
   } else {
-    return Store(rep, object, offset, value);
+    return Store(object, offset, value);
   }
 }
 
@@ -2144,7 +2142,7 @@ void CodeStubAssembler::CopyFixedArrayElements(
         from_array, var_from_offset.value(), from_kind, to_kind, if_hole);
 
     if (needs_write_barrier) {
-      Store(MachineRepresentation::kTagged, to_array, to_offset, value);
+      Store(to_array, to_offset, value);
     } else if (to_double_elements) {
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array, to_offset,
                           value);
