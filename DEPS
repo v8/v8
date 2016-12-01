@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "4e4ff82c7f5b4e494b1b9402681f1890116ed89b",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "ac12d5e9eca90f812fdcd67377956f87becb24da",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "45f5814b1543e41ea0be54c771e3840ea52cca4a",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "991f459071f96102b7bcb5fb5db6757b52d4238f",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "102c16366d8b26e4a116d42f334860756d0e268e",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
   "v8/third_party/jinja2":
@@ -39,15 +39,15 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "f81598c69560079ed923c388bba99c150273f0b5",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "ccd4a12db7c619ca2c66c3272ea555e6cfb39784",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("chromium_url") + "/android_tools.git" + "@" + "811a2c3f91b62550df8479515513bc198ac8fce0",
+      Var("chromium_url") + "/android_tools.git" + "@" + "b43a6a289a7588b1769814f04dd6c7d7176974cc",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "2dd86f198093f8c64411ad6d74b5d5e6c26c367f",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "582ccd4ab71bd01044002b4798dc7c5fc5ad7fde",
   },
   "win": {
     "v8/third_party/cygwin":
