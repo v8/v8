@@ -1675,3 +1675,17 @@ function TestFloatGlobals(stdlib) {
 }
 
 assertWasm(3.25, TestFloatGlobals);
+
+
+(function TestExportTwice() {
+  function asmModule() {
+    "use asm";
+    function foo() {
+      return 42;
+    }
+    return {bar: foo, baz: foo};
+  }
+  var m = asmModule();
+  assertEquals(42, m.bar());
+  assertEquals(42, m.baz());
+})();

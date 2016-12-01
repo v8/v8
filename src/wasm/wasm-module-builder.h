@@ -132,17 +132,15 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
   void EmitDirectCallIndex(uint32_t index);
-  void Export();
   void ExportAs(Vector<const char> name);
   void SetName(Vector<const char> name);
   void AddAsmWasmOffset(int asm_position);
 
   void WriteSignature(ZoneBuffer& buffer) const;
-  void WriteExport(ZoneBuffer& buffer) const;
+  void WriteExports(ZoneBuffer& buffer) const;
   void WriteBody(ZoneBuffer& buffer) const;
   void WriteAsmWasmOffsetTable(ZoneBuffer& buffer) const;
 
-  bool exported() { return exported_; }
   uint32_t func_index() { return func_index_; }
   FunctionSig* signature();
 
@@ -159,11 +157,10 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   WasmModuleBuilder* builder_;
   LocalDeclEncoder locals_;
   uint32_t signature_index_;
-  bool exported_;
   uint32_t func_index_;
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
-  ZoneVector<char> exported_name_;
+  ZoneVector<ZoneVector<char>> exported_names_;
   ZoneVector<uint32_t> i32_temps_;
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;

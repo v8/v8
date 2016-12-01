@@ -715,9 +715,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       const AstRawString* raw_name = name->AsRawPropertyName();
       if (var->is_function()) {
         WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-        function->Export();
-        function->SetName({reinterpret_cast<const char*>(raw_name->raw_data()),
-                           raw_name->length()});
+        function->ExportAs({reinterpret_cast<const char*>(raw_name->raw_data()),
+                            raw_name->length()});
       }
     }
   }
