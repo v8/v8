@@ -38,6 +38,7 @@ class AllocationBuilder final {
   // Primitive allocation of static size.
   void Allocate(int size, PretenureFlag pretenure = NOT_TENURED,
                 Type* type = Type::Any()) {
+    DCHECK_LE(size, kMaxRegularHeapObjectSize);
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
@@ -1104,23 +1105,15 @@ Node* JSCreateLowering::AllocateFastLiteral(
                                              boilerplate_object, site_context);
         site_context->ExitScope(current_site, boilerplate_object);
       } else if (property_details.representation().IsDouble()) {
+        double number = Handle<HeapNumber>::cast(boilerplate_value)->value();
         // Allocate a mutable HeapNumber box and store the value into it.
-        effect = graph()->NewNode(
-            common()->BeginRegion(RegionObservability::kNotObservable), effect);
-        value = effect = graph()->NewNode(
-            simplified()->Allocate(pretenure),
-            jsgraph()->Constant(HeapNumber::kSize), effect, control);
-        effect = graph()->NewNode(
-            simplified()->StoreField(AccessBuilder::ForMap()), value,
-            jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
-            effect, control);
-        effect = graph()->NewNode(
-            simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
-            value, jsgraph()->Constant(
-                       Handle<HeapNumber>::cast(boilerplate_value)->value()),
-            effect, control);
-        value = effect =
-            graph()->NewNode(common()->FinishRegion(), value, effect);
+        AllocationBuilder builder(jsgraph(), effect, control);
+        builder.Allocate(HeapNumber::kSize, pretenure);
+        builder.Store(AccessBuilder::ForMap(),
+                      factory()->mutable_heap_number_map());
+        builder.Store(AccessBuilder::ForHeapNumberValue(),
+                      jsgraph()->Constant(number));
+        value = effect = builder.Finish();
       } else if (property_details.representation().IsSmi()) {
         // Ensure that value is stored as smi.
         value = boilerplate_value->IsUninitialized(isolate())
