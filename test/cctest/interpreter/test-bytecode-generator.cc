@@ -2246,6 +2246,48 @@ TEST(Modules) {
                      LoadGolden("Modules.golden")));
 }
 
+TEST(SuperCallAndSpread) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("test");
+  const char* snippets[] = {
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    constructor(...args) { this.baseArgs = args; }\n"
+      "  }\n"
+      "  class B extends A {}\n"
+      "  test = new B(1, 2, 3).constructor;\n"
+      "})();\n",
+
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    constructor(...args) { this.baseArgs = args; }\n"
+      "  }\n"
+      "  class B extends A {\n"
+      "    constructor(...args) { super(1, ...args); }\n"
+      "  }\n"
+      "  test = new B(1, 2, 3).constructor;\n"
+      "})();\n",
+
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    constructor(...args) { this.baseArgs = args; }\n"
+      "  }\n"
+      "  class B extends A {\n"
+      "    constructor(...args) { super(1, ...args, 1); }\n"
+      "  }\n"
+      "  test = new B(1, 2, 3).constructor;\n"
+      "})();\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("SuperCallAndSpread.golden")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

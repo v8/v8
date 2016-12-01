@@ -2488,24 +2488,49 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register constructor = this_function;  // Re-use dead this_function register.
   builder()->StoreAccumulatorInRegister(constructor);
 
-  RegisterList args =
-      register_allocator()->NewRegisterList(expr->arguments()->length());
-  VisitArguments(expr->arguments(), args);
+  ZoneList<Expression*>* args = expr->arguments();
 
-  // The new target is loaded into the accumulator from the
-  // {new.target} variable.
-  VisitForAccumulatorValue(super->new_target_var());
+  // When a super call contains a spread, a CallSuper AST node is only created
+  // if there is exactly one spread, and it is the last argument.
+  if (!args->is_empty() && args->last()->IsSpread()) {
+    // Prepare the spread arguments.
+    RegisterList spread_prepare_args =
+        register_allocator()->NewRegisterList(args->length());
+    VisitArguments(args, spread_prepare_args);
 
-  // Call construct.
-  builder()->SetExpressionPosition(expr);
-  // TODO(turbofan): For now we do gather feedback on super constructor
-  // calls, utilizing the existing machinery to inline the actual call
-  // target and the JSCreate for the implicit receiver allocation. This
-  // is not an ideal solution for super constructor calls, but it gets
-  // the job done for now. In the long run we might want to revisit this
-  // and come up with a better way.
-  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-  builder()->New(constructor, args, feedback_slot_index);
+    builder()->CallRuntime(Runtime::kSpreadIterablePrepareVarargs,
+                           spread_prepare_args);
+
+    // Call ReflectConstruct to do the actual super constructor call.
+    RegisterList reflect_construct_args =
+        register_allocator()->NewRegisterList(4);
+    builder()
+        ->StoreAccumulatorInRegister(reflect_construct_args[2])
+        .LoadUndefined()
+        .StoreAccumulatorInRegister(reflect_construct_args[0])
+        .MoveRegister(constructor, reflect_construct_args[1]);
+    VisitForRegisterValue(super->new_target_var(), reflect_construct_args[3]);
+    builder()->CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX,
+                             reflect_construct_args);
+  } else {
+    RegisterList args_regs =
+        register_allocator()->NewRegisterList(args->length());
+    VisitArguments(args, args_regs);
+    // The new target is loaded into the accumulator from the
+    // {new.target} variable.
+    VisitForAccumulatorValue(super->new_target_var());
+
+    // Call construct.
+    builder()->SetExpressionPosition(expr);
+    // TODO(turbofan): For now we do gather feedback on super constructor
+    // calls, utilizing the existing machinery to inline the actual call
+    // target and the JSCreate for the implicit receiver allocation. This
+    // is not an ideal solution for super constructor calls, but it gets
+    // the job done for now. In the long run we might want to revisit this
+    // and come up with a better way.
+    int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
+    builder()->New(constructor, args_regs, feedback_slot_index);
+  }
 }
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) {
@@ -2813,7 +2838,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
 }
 
-void BytecodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
+void BytecodeGenerator::VisitSpread(Spread* expr) { Visit(expr->expression()); }
 
 void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();

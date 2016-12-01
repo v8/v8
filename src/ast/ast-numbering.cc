@@ -393,9 +393,13 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
   ReserveFeedbackSlots(node);
 }
 
-
-void AstNumberingVisitor::VisitSpread(Spread* node) { UNREACHABLE(); }
-
+void AstNumberingVisitor::VisitSpread(Spread* node) {
+  IncrementNodeCount();
+  // We can only get here from super calls currently.
+  DisableFullCodegenAndCrankshaft(kSuperReference);
+  node->set_base_id(ReserveIdRange(Spread::num_ids()));
+  Visit(node->expression());
+}
 
 void AstNumberingVisitor::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();

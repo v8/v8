@@ -3152,7 +3152,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
         bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
-          args = impl()->PrepareSpreadArguments(args);
           result = impl()->SpreadCall(result, args, pos);
         } else {
           result = factory()->NewCall(result, args, pos, is_possibly_eval);
@@ -3244,7 +3243,6 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
       ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
 
       if (spread_pos.IsValid()) {
-        args = impl()->PrepareSpreadArguments(args);
         result = impl()->SpreadCallNew(result, args, new_pos);
       } else {
         result = factory()->NewCallNew(result, args, new_pos);

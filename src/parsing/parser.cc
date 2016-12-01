@@ -244,9 +244,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
-      // $super_constructor = %_GetSuperConstructor(<this-function>)
-      // %reflect_construct(
-      //     $super_constructor, InternalArray(...args), new.target)
+      // Create a SuperCallReference and handle in BytecodeGenerator.
       auto constructor_args_name = ast_value_factory()->empty_string();
       bool is_duplicate;
       bool is_rest = true;
@@ -256,29 +254,13 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
           ast_value_factory());
 
       ZoneList<Expression*>* args =
-          new (zone()) ZoneList<Expression*>(2, zone());
-      VariableProxy* this_function_proxy =
-          NewUnresolved(ast_value_factory()->this_function_string(), pos);
-      ZoneList<Expression*>* tmp =
           new (zone()) ZoneList<Expression*>(1, zone());
-      tmp->Add(this_function_proxy, zone());
-      Expression* super_constructor = factory()->NewCallRuntime(
-          Runtime::kInlineGetSuperConstructor, tmp, pos);
-      args->Add(super_constructor, zone());
       Spread* spread_args = factory()->NewSpread(
           factory()->NewVariableProxy(constructor_args), pos, pos);
-      ZoneList<Expression*>* spread_args_expr =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      spread_args_expr->Add(spread_args, zone());
-      args->AddAll(*PrepareSpreadArguments(spread_args_expr), zone());
-      VariableProxy* new_target_proxy =
-          NewUnresolved(ast_value_factory()->new_target_string(), pos);
-      args->Add(new_target_proxy, zone());
-      Expression* call = factory()->NewCallRuntime(
-          Context::REFLECT_CONSTRUCT_INDEX, args, pos);
-      if (requires_class_field_init) {
-        call = CallClassFieldInitializer(scope(), call);
-      }
+
+      args->Add(spread_args, zone());
+      Expression* super_call_ref = NewSuperCallReference(pos);
+      Expression* call = factory()->NewCall(super_call_ref, args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());
     }
 
@@ -4076,6 +4058,23 @@ Expression* Parser::SpreadCall(Expression* function,
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
     // %reflect_construct($super_constructor, args, new.target)
+
+    bool only_last_arg_is_spread = false;
+    for (int i = 0; i < args->length(); i++) {
+      if (args->at(i)->IsSpread()) {
+        if (i == args->length() - 1) {
+          only_last_arg_is_spread = true;
+        }
+        break;
+      }
+    }
+
+    if (only_last_arg_is_spread) {
+      // Handle in BytecodeGenerator.
+      Expression* super_call_ref = NewSuperCallReference(pos);
+      return factory()->NewCall(super_call_ref, args, pos);
+    }
+    args = PrepareSpreadArguments(args);
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
     Expression* super_constructor = factory()->NewCallRuntime(
@@ -4085,6 +4084,7 @@ Expression* Parser::SpreadCall(Expression* function,
     return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args,
                                      pos);
   } else {
+    args = PrepareSpreadArguments(args);
     if (function->IsProperty()) {
       // Method calls
       if (function->AsProperty()->IsSuperAccess()) {
@@ -4115,6 +4115,7 @@ Expression* Parser::SpreadCall(Expression* function,
 
 Expression* Parser::SpreadCallNew(Expression* function,
                                   ZoneList<Expression*>* args, int pos) {
+  args = PrepareSpreadArguments(args);
   args->InsertAt(0, function, zone());
 
   return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);

@@ -953,11 +953,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void MarkCollectedTailCallExpressions() {}
   V8_INLINE void MarkTailPosition(PreParserExpression expression) {}
 
-  V8_INLINE PreParserExpressionList
-  PrepareSpreadArguments(PreParserExpressionList list) {
-    return list;
-  }
-
   V8_INLINE PreParserExpression SpreadCall(PreParserExpression function,
                                            PreParserExpressionList args,
                                            int pos);
