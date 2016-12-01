@@ -1185,13 +1185,18 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   Handle<FixedArray> constant_elements = Handle<FixedArray>::cast(
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
-  int literal_flags = bytecode_iterator().GetFlagOperand(2);
+  int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
+  int literal_flags =
+      interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
   // Disable allocation site mementos. Only unoptimized code will collect
   // feedback about allocation site. Once the code is optimized we expect the
   // data to converge. So, we disable allocation site mementos in optimized
   // code. We can revisit this when we have data to the contrary.
   literal_flags |= ArrayLiteral::kDisableMementos;
-  int number_of_elements = constant_elements->length();
+  // TODO(mstarzinger): Thread through number of elements. The below number is
+  // only an estimate and does not match {ArrayLiteral::values::length}.
+  int number_of_elements =
+      FixedArrayBase::cast(constant_elements->get(1))->length();
   Node* literal = NewNode(
       javascript()->CreateLiteralArray(constant_elements, literal_flags,
                                        literal_index, number_of_elements),
@@ -1207,7 +1212,8 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
-  // TODO(mstarzinger): Thread through number of properties.
+  // TODO(mstarzinger): Thread through number of properties. The below number is
+  // only an estimate and does not match {ObjectLiteral::properties_count}.
   int number_of_properties = constant_properties->length() / 2;
   Node* literal = NewNode(
       javascript()->CreateLiteralObject(constant_properties, literal_flags,
