@@ -1878,7 +1878,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       {
         Handle<JSFunction> fun = SimpleCreateFunction(
             isolate, factory->InternalizeUtf8String("[Symbol.split]"),
-            Builtins::kRegExpPrototypeSplit, 2, false);
+            Builtins::kRegExpPrototypeSplit, 2, true);
         InstallFunction(prototype, fun, factory->split_symbol(), DONT_ENUM);
       }
 

@@ -614,6 +614,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Convert any object to a Number.
   Node* ToNumber(Node* context, Node* input);
 
+  // Converts |input| to one of 2^32 integer values in the range 0 through
+  // 2^32−1, inclusive.
+  // ES#sec-touint32
+  compiler::Node* ToUint32(compiler::Node* context, compiler::Node* input);
+
   // Convert any object to a String.
   Node* ToString(Node* context, Node* input);
 

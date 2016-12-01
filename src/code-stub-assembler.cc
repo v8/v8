@@ -3892,6 +3892,108 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
+  Node* const float_zero = Float64Constant(0.0);
+  Node* const float_two_32 = Float64Constant(static_cast<double>(1ULL << 32));
+
+  Label out(this);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  var_result.Bind(input);
+
+  // Early exit for positive smis.
+  {
+    // TODO(jgruber): This branch and the recheck below can be removed once we
+    // have a ToNumber with multiple exits.
+    Label next(this, Label::kDeferred);
+    Branch(WordIsPositiveSmi(input), &out, &next);
+    Bind(&next);
+  }
+
+  Node* const number = ToNumber(context, input);
+  var_result.Bind(number);
+
+  // Perhaps we have a positive smi now.
+  {
+    Label next(this, Label::kDeferred);
+    Branch(WordIsPositiveSmi(number), &out, &next);
+    Bind(&next);
+  }
+
+  Label if_isnegativesmi(this), if_isheapnumber(this);
+  Branch(TaggedIsSmi(number), &if_isnegativesmi, &if_isheapnumber);
+
+  Bind(&if_isnegativesmi);
+  {
+    // floor({input}) mod 2^32 === {input} + 2^32.
+    Node* const float_number = SmiToFloat64(number);
+    Node* const float_result = Float64Add(float_number, float_two_32);
+    Node* const result = ChangeFloat64ToTagged(float_result);
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&if_isheapnumber);
+  {
+    Label return_zero(this);
+    Node* const value = LoadHeapNumberValue(number);
+
+    {
+      // +-0.
+      Label next(this);
+      Branch(Float64Equal(value, float_zero), &return_zero, &next);
+      Bind(&next);
+    }
+
+    {
+      // NaN.
+      Label next(this);
+      Branch(Float64Equal(value, value), &next, &return_zero);
+      Bind(&next);
+    }
+
+    {
+      // +Infinity.
+      Label next(this);
+      Node* const positive_infinity =
+          Float64Constant(std::numeric_limits<double>::infinity());
+      Branch(Float64Equal(value, positive_infinity), &return_zero, &next);
+      Bind(&next);
+    }
+
+    {
+      // -Infinity.
+      Label next(this);
+      Node* const negative_infinity =
+          Float64Constant(-1.0 * std::numeric_limits<double>::infinity());
+      Branch(Float64Equal(value, negative_infinity), &return_zero, &next);
+      Bind(&next);
+    }
+
+    // Return floor({input}) mod 2^32 (assuming mod semantics that always return
+    // positive results).
+    {
+      Node* x = Float64Floor(value);
+      x = Float64Mod(x, float_two_32);
+      x = Float64Add(x, float_two_32);
+      x = Float64Mod(x, float_two_32);
+
+      Node* const result = ChangeFloat64ToTagged(x);
+      var_result.Bind(result);
+      Goto(&out);
+    }
+
+    Bind(&return_zero);
+    {
+      var_result.Bind(SmiConstant(Smi::kZero));
+      Goto(&out);
+    }
+  }
+
+  Bind(&out);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   Label is_number(this);
   Label runtime(this, Label::kDeferred);
