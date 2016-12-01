@@ -180,7 +180,7 @@ template("v8_isolate_run") {
       if (is_win) {
         args += [
           "--config-variable",
-          "msvs_version=2013",
+          "msvs_version=2015",
         ]
       } else {
         args += [
