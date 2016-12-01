@@ -3017,7 +3017,16 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // object as a receiver to normal functions. Values have to be
   // passed unchanged to builtins and strict-mode functions.
   Label receiver_ok, global_object;
-  Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
+  Label::Distance dist;
+
+  // For x87 debug version jitted code's size exceeds 128 bytes whether
+  // FLAG_deopt_every_n_times
+  // is set or not. Always use Label:kFar for label distance for debug mode.
+  if (FLAG_debug_code)
+    dist = Label::kFar;
+  else
+    dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
+
   Register scratch = ToRegister(instr->temp());
 
   if (!instr->hydrogen()->known_function()) {
@@ -3037,9 +3046,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
   __ cmp(receiver, factory()->undefined_value());
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
 
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
@@ -3047,7 +3056,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, scratch);
   DeoptimizeIf(below, instr, DeoptimizeReason::kNotAJavaScriptObject);
 
-  __ jmp(&receiver_ok, Label::kNear);
+  __ jmp(&receiver_ok, dist);
   __ bind(&global_object);
   __ mov(receiver, FieldOperand(function, JSFunction::kContextOffset));
   __ mov(receiver, ContextOperand(receiver, Context::NATIVE_CONTEXT_INDEX));
