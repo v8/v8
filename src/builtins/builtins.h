@@ -559,6 +559,9 @@ namespace internal {
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
   /* Promise */                                                               \
+  TFJ(PromiseConstructor, 1)                                                  \
+  TFJ(PromiseInternalConstructor, 0)                                          \
+  TFJ(IsPromise, 1)                                                           \
   CPP(CreateResolvingFunctions)                                               \
   CPP(PromiseResolveClosure)                                                  \
   CPP(PromiseRejectClosure)                                                   \

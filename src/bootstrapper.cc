@@ -1800,6 +1800,76 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     to_primitive->shared()->set_length(1);
   }
 
+  {  // -- P r o m i s e
+    // Set catch prediction
+    Handle<Code> promise_code = isolate->builtins()->PromiseConstructor();
+    promise_code->set_is_promise_rejection(true);
+
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    Handle<JSFunction> promise_fun = InstallFunction(
+        global, "Promise", JS_PROMISE_TYPE, JSObject::kHeaderSize, prototype,
+        Builtins::kPromiseConstructor);
+    InstallWithIntrinsicDefaultProto(isolate, promise_fun,
+                                     Context::PROMISE_FUNCTION_INDEX);
+
+    Handle<SharedFunctionInfo> shared(promise_fun->shared(), isolate);
+    shared->SetConstructStub(*isolate->builtins()->JSBuiltinsConstructStub());
+    shared->set_instance_class_name(isolate->heap()->Object_string());
+    shared->set_internal_formal_parameter_count(1);
+    shared->set_length(1);
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory->constructor_string(), promise_fun,
+                          DONT_ENUM);
+
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        prototype, factory->to_string_tag_symbol(), factory->Promise_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    {  // Internal: PromiseInternalConstructor
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kPromiseInternalConstructor, 0, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::PROMISE_INTERNAL_CONSTRUCTOR_INDEX);
+    }
+
+    {  // Internal: IsPromise
+      Handle<JSFunction> function = SimpleCreateFunction(
+          isolate, factory->empty_string(), Builtins::kIsPromise, 1, false);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::IS_PROMISE_INDEX);
+    }
+
+    {
+      Handle<Code> code =
+          handle(isolate->builtins()->builtin(Builtins::kPromiseResolveClosure),
+                 isolate);
+      Handle<SharedFunctionInfo> info =
+          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context()->set_promise_resolve_shared_fun(*info);
+
+      code =
+          handle(isolate->builtins()->builtin(Builtins::kPromiseRejectClosure),
+                 isolate);
+      info =
+          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(2);
+      info->set_length(1);
+      native_context()->set_promise_reject_shared_fun(*info);
+    }
+
+    Handle<JSFunction> create_resolving_functions =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kCreateResolvingFunctions, 2, false);
+    native_context()->set_create_resolving_functions(
+        *create_resolving_functions);
+  }
+
   {  // -- R e g E x p
     // Builtin functions for RegExp.prototype.
     Handle<JSObject> prototype =
@@ -3578,46 +3648,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     DCHECK(concat->is_compiled());
     // Set the lengths for the functions to satisfy ECMA-262.
     concat->shared()->set_length(1);
-  }
-
-  // Set up the Promise constructor.
-  {
-    Handle<String> key = factory()->Promise_string();
-    Handle<JSFunction> function = Handle<JSFunction>::cast(
-        JSReceiver::GetProperty(global_object, key).ToHandleChecked());
-    JSFunction::EnsureHasInitialMap(function);
-    function->initial_map()->set_instance_type(JS_PROMISE_TYPE);
-    function->shared()->SetConstructStub(
-        *isolate()->builtins()->JSBuiltinsConstructStub());
-    InstallWithIntrinsicDefaultProto(isolate(), function,
-                                     Context::PROMISE_FUNCTION_INDEX);
-
-    {
-      Handle<Code> code = handle(
-          isolate()->builtins()->builtin(Builtins::kPromiseResolveClosure),
-          isolate());
-      Handle<SharedFunctionInfo> info =
-          isolate()->factory()->NewSharedFunctionInfo(factory()->empty_string(),
-                                                      code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
-      native_context()->set_promise_resolve_shared_fun(*info);
-
-      code = handle(
-          isolate()->builtins()->builtin(Builtins::kPromiseRejectClosure),
-          isolate());
-      info = isolate()->factory()->NewSharedFunctionInfo(
-          factory()->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(2);
-      info->set_length(1);
-      native_context()->set_promise_reject_shared_fun(*info);
-    }
-
-    Handle<JSFunction> create_resolving_functions =
-        SimpleCreateFunction(isolate(), factory()->empty_string(),
-                             Builtins::kCreateResolvingFunctions, 2, false);
-    native_context()->set_create_resolving_functions(
-        *create_resolving_functions);
   }
 
   InstallBuiltinFunctionIds();

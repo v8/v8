@@ -1335,6 +1335,10 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       frame->Summarize(&summaries);
       for (const FrameSummary& summary : summaries) {
         Handle<AbstractCode> code = summary.abstract_code();
+        if (code->IsCode() && code->kind() == AbstractCode::BUILTIN &&
+            code->GetCode()->is_promise_rejection()) {
+          return HandlerTable::PROMISE;
+        }
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
           DCHECK(summary.function()->shared()->asm_function());
           DCHECK(!FLAG_turbo_asm_deoptimization);

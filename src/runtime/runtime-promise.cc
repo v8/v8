@@ -189,5 +189,20 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_CreateResolvingFunctions) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  Handle<JSFunction> resolve, reject;
+
+  PromiseUtils::CreateResolvingFunctions(
+      isolate, promise, isolate->factory()->true_value(), &resolve, &reject);
+
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2);
+  result->set(0, *resolve);
+  result->set(1, *reject);
+
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

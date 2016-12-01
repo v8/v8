@@ -5574,6 +5574,11 @@ class Code: public HeapObject {
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
 
+  // [is_promise_rejection]: For kind BUILTIN tells whether the exception
+  // thrown by the code will lead to promise rejection.
+  inline bool is_promise_rejection();
+  inline void set_is_promise_rejection(bool flag);
+
   // [constant_pool]: The constant pool for this function.
   inline Address constant_pool();
 
@@ -5850,9 +5855,10 @@ class Code: public HeapObject {
   static const int kCanHaveWeakObjects = kIsTurbofannedBit + 1;
   // Could be moved to overlap previous bits when we need more space.
   static const int kIsConstructStub = kCanHaveWeakObjects + 1;
+  static const int kIsPromiseRejection = kIsConstructStub + 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
-  STATIC_ASSERT(kIsConstructStub + 1 <= 32);
+  STATIC_ASSERT(kIsPromiseRejection + 1 <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
@@ -5864,6 +5870,8 @@ class Code: public HeapObject {
       : public BitField<bool, kCanHaveWeakObjects, 1> {};  // NOLINT
   class IsConstructStubField : public BitField<bool, kIsConstructStub, 1> {
   };  // NOLINT
+  class IsPromiseRejectionField
+      : public BitField<bool, kIsPromiseRejection, 1> {};  // NOLINT
 
   // KindSpecificFlags2 layout (ALL)
   static const int kIsCrankshaftedBit = 0;

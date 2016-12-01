@@ -289,6 +289,7 @@ namespace internal {
   F(AllocateSeqTwoByteString, 1, 1)                 \
   F(CheckIsBootstrapping, 0, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                  \
+  F(CreateResolvingFunctions, 1, 1)                 \
   F(EnqueueMicrotask, 1, 1)                         \
   F(EnqueuePromiseReactionJob, 4, 1)                \
   F(EnqueuePromiseResolveThenableJob, 3, 1)         \

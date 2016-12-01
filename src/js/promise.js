@@ -35,6 +35,7 @@ var SpeciesConstructor;
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var ObjectHasOwnProperty;
+var GlobalPromise = global.Promise;
 
 utils.Import(function(from) {
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
@@ -51,35 +52,6 @@ const kRejected = +2;
 
 const kResolveCallback = 0;
 const kRejectCallback = 1;
-
-// ES#sec-promise-executor
-// Promise ( executor )
-var GlobalPromise = function Promise(executor) {
-  if (executor === promiseRawSymbol) {
-    return %_NewObject(GlobalPromise, new.target);
-  }
-  if (IS_UNDEFINED(new.target)) throw %make_type_error(kNotAPromise, this);
-  if (!IS_CALLABLE(executor)) {
-    throw %make_type_error(kResolverNotAFunction, executor);
-  }
-
-  var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
-  // Calling the reject function would be a new exception, so debugEvent = true
-  // TODO(gsathya): Remove container for callbacks when this is moved
-  // to CPP/TF.
-  var callbacks = %create_resolving_functions(promise, true);
-  var debug_is_active = DEBUG_IS_ACTIVE;
-  try {
-    if (debug_is_active) %DebugPushPromise(promise);
-    executor(callbacks[kResolveCallback], callbacks[kRejectCallback]);
-  } %catch (e) {  // Natives syntax to mark this catch block.
-    %_Call(callbacks[kRejectCallback], UNDEFINED, e);
-  } finally {
-    if (debug_is_active) %DebugPopPromise();
-  }
-
-  return promise;
-}
 
 // Core functionality.
 
@@ -109,7 +81,7 @@ function PromiseSet(promise, status, value) {
 }
 
 function PromiseCreateAndSet(status, value) {
-  var promise = new GlobalPromise(promiseRawSymbol);
+  var promise = %promise_internal_constructor();
   // If debug is active, notify about the newly created promise first.
   if (DEBUG_IS_ACTIVE) PromiseSet(promise, kPending, UNDEFINED);
   return PromiseSet(promise, status, value);
@@ -208,13 +180,14 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 
 // For bootstrapper.
 
+// Only used by utils
 // ES#sec-ispromise IsPromise ( x )
 function IsPromise(x) {
   return IS_RECEIVER(x) && HAS_DEFINED_PRIVATE(x, promiseStateSymbol);
 }
 
 function PromiseCreate() {
-  return PromiseInit(new GlobalPromise(promiseRawSymbol));
+  return PromiseInit(%promise_internal_constructor());
 }
 
 // ES#sec-promise-resolve-functions
@@ -385,8 +358,7 @@ function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
 // Promise.prototype.then ( onFulfilled, onRejected )
 // Multi-unwrapped chaining with thenable coercion.
 function PromiseThen(onResolve, onReject) {
-  var status = GET_PRIVATE(this, promiseStateSymbol);
-  if (IS_UNDEFINED(status)) {
+  if (!IsPromise(this)) {
     throw %make_type_error(kNotAPromise, this);
   }
 
@@ -600,10 +572,6 @@ function PromiseSpecies() {
 
 // -------------------------------------------------------------------
 // Install exported functions.
-
-%AddNamedProperty(global, 'Promise', GlobalPromise, DONT_ENUM);
-%AddNamedProperty(GlobalPromise.prototype, toStringTagSymbol, "Promise",
-                  DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "reject", PromiseReject,
