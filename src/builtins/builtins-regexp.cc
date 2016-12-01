@@ -226,22 +226,26 @@ void StoreLastIndex(CodeStubAssembler* a, Node* context, Node* regexp,
   }
 }
 
+Node* LoadMatchInfoField(CodeStubAssembler* a, Node* const match_info,
+                         const int index) {
+  const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
+  Node* const result =
+      a->LoadFixedArrayElement(match_info, a->IntPtrConstant(index), 0, mode);
+  return result;
+}
+
 Node* ConstructNewResultFromMatchInfo(Isolate* isolate, CodeStubAssembler* a,
                                       Node* context, Node* match_info,
                                       Node* string) {
   CLabel out(a);
 
-  ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-  Node* const num_indices = a->SmiUntag(a->LoadFixedArrayElement(
-      match_info, a->IntPtrConstant(RegExpMatchInfo::kNumberOfCapturesIndex), 0,
-      mode));
+  Node* const num_indices = a->SmiUntag(LoadMatchInfoField(
+      a, match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
   Node* const num_results = a->SmiTag(a->WordShr(num_indices, 1));
-  Node* const start = a->LoadFixedArrayElement(
-      match_info, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), 0,
-      mode);
-  Node* const end = a->LoadFixedArrayElement(
-      match_info, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1), 0,
-      mode);
+  Node* const start =
+      LoadMatchInfoField(a, match_info, RegExpMatchInfo::kFirstCaptureIndex);
+  Node* const end = LoadMatchInfoField(a, match_info,
+                                       RegExpMatchInfo::kFirstCaptureIndex + 1);
 
   // Calculate the substring of the first match before creating the result array
   // to avoid an unnecessary write barrier storing the first result.
@@ -416,9 +420,8 @@ Node* RegExpPrototypeExecBodyWithoutResult(
     a->GotoUnless(should_update_last_index, &out);
 
     // Update the new last index from {match_indices}.
-    Node* const new_lastindex = a->LoadFixedArrayElement(
-        match_indices,
-        a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1));
+    Node* const new_lastindex = LoadMatchInfoField(
+        a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
     StoreLastIndex(a, context, regexp, new_lastindex, is_fastpath);
     a->Goto(&out);
@@ -460,10 +463,6 @@ Node* RegExpPrototypeExecBody(CodeStubAssembler* a, Node* const context,
   a->Bind(&out);
   return var_result.value();
 }
-
-}  // namespace
-
-namespace {
 
 Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
                            Node* context, Node* value,
@@ -1135,21 +1134,38 @@ void Builtins::Generate_RegExpPrototypeTest(CodeAssemblerState* state) {
   Node* const context = a.Parameter(4);
 
   // Ensure {maybe_receiver} is a JSReceiver.
-  ThrowIfNotJSReceiver(&a, isolate, context, maybe_receiver,
-                       MessageTemplate::kIncompatibleMethodReceiver,
-                       "RegExp.prototype.test");
+  Node* const map = ThrowIfNotJSReceiver(
+      &a, isolate, context, maybe_receiver,
+      MessageTemplate::kIncompatibleMethodReceiver, "RegExp.prototype.test");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Node* const string = a.ToString(context, maybe_string);
 
-  // Call exec.
-  Node* const match_indices = RegExpExec(&a, context, receiver, string);
+  CLabel fast_path(&a), slow_path(&a);
+  BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
 
-  // Return true iff exec matched successfully.
-  Node* const result = a.Select(a.WordEqual(match_indices, a.NullConstant()),
-                                a.FalseConstant(), a.TrueConstant());
-  a.Return(result);
+  a.Bind(&fast_path);
+  {
+    CLabel if_didnotmatch(&a);
+    RegExpPrototypeExecBodyWithoutResult(&a, context, receiver, string,
+                                         &if_didnotmatch, true);
+    a.Return(a.TrueConstant());
+
+    a.Bind(&if_didnotmatch);
+    a.Return(a.FalseConstant());
+  }
+
+  a.Bind(&slow_path);
+  {
+    // Call exec.
+    Node* const match_indices = RegExpExec(&a, context, receiver, string);
+
+    // Return true iff exec matched successfully.
+    Node* const result = a.Select(a.WordEqual(match_indices, a.NullConstant()),
+                                  a.FalseConstant(), a.TrueConstant());
+    a.Return(result);
+  }
 }
 
 namespace {
@@ -1319,10 +1335,9 @@ class GrowableFixedArray {
   CVariable var_capacity_;
 };
 
-void Generate_RegExpPrototypeMatchBody(CodeStubAssembler* a,
-                                       Node* const receiver, Node* const string,
-                                       Node* const context,
-                                       const bool is_fastpath) {
+void RegExpPrototypeMatchBody(CodeStubAssembler* a, Node* const receiver,
+                              Node* const string, Node* const context,
+                              const bool is_fastpath) {
   Isolate* const isolate = a->isolate();
 
   Node* const null = a->NullConstant();
@@ -1365,45 +1380,39 @@ void Generate_RegExpPrototypeMatchBody(CodeStubAssembler* a,
 
     a->Bind(&loop);
     {
-      Node* const result = is_fastpath ? RegExpPrototypeExecBody(
-                                             a, context, regexp, string, true)
-                                       : RegExpExec(a, context, regexp, string);
+      CVariable var_match(a, MachineRepresentation::kTagged);
 
       CLabel if_didmatch(a), if_didnotmatch(a);
-      a->Branch(a->WordEqual(result, null), &if_didnotmatch, &if_didmatch);
+      if (is_fastpath) {
+        // On the fast path, grab the matching string from the raw match index
+        // array.
+        Node* const match_indices = RegExpPrototypeExecBodyWithoutResult(
+            a, context, regexp, string, &if_didnotmatch, true);
 
-      a->Bind(&if_didnotmatch);
-      {
-        // Return null if there were no matches, otherwise just exit the loop.
-        a->GotoUnless(a->IntPtrEqual(array.length(), int_zero), &out);
-        a->Return(null);
-      }
+        Node* const match_from = LoadMatchInfoField(
+            a, match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+        Node* const match_to = LoadMatchInfoField(
+            a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
-      a->Bind(&if_didmatch);
-      {
-        Node* match = nullptr;
-        if (is_fastpath) {
-          // TODO(jgruber): We could optimize further here and in other
-          // methods (e.g. @@search) by bypassing RegExp result construction.
-          Node* const result_fixed_array = a->LoadElements(result);
-          const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-          match =
-              a->LoadFixedArrayElement(result_fixed_array, int_zero, 0, mode);
+        Node* match = a->SubString(context, string, match_from, match_to);
+        var_match.Bind(match);
 
-          // The match is guaranteed to be a string on the fast path.
-          CSA_ASSERT(a, a->IsStringInstanceType(a->LoadInstanceType(match)));
-        } else {
-          DCHECK(!is_fastpath);
+        a->Goto(&if_didmatch);
+      } else {
+        DCHECK(!is_fastpath);
+        Node* const result = RegExpExec(a, context, regexp, string);
 
-          CVariable var_match(a, MachineRepresentation::kTagged);
-          CLabel fast_result(a), slow_result(a), match_loaded(a);
+        CLabel load_match(a);
+        a->Branch(a->WordEqual(result, null), &if_didnotmatch, &load_match);
+
+        a->Bind(&load_match);
+        {
+          CLabel fast_result(a), slow_result(a);
           BranchIfFastRegExpResult(a, context, a->LoadMap(result), &fast_result,
                                    &slow_result);
 
           a->Bind(&fast_result);
           {
-            // TODO(jgruber): We could optimize further here and in other
-            // methods (e.g. @@search) by bypassing RegExp result construction.
             Node* const result_fixed_array = a->LoadElements(result);
             const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
             Node* const match =
@@ -1413,7 +1422,7 @@ void Generate_RegExpPrototypeMatchBody(CodeStubAssembler* a,
             CSA_ASSERT(a, a->IsStringInstanceType(a->LoadInstanceType(match)));
 
             var_match.Bind(match);
-            a->Goto(&match_loaded);
+            a->Goto(&if_didmatch);
           }
 
           a->Bind(&slow_result);
@@ -1424,14 +1433,22 @@ void Generate_RegExpPrototypeMatchBody(CodeStubAssembler* a,
             Node* const match =
                 a->CallStub(getproperty_callable, context, result, name);
 
-            var_match.Bind(match);
-            a->Goto(&match_loaded);
+            var_match.Bind(a->ToString(context, match));
+            a->Goto(&if_didmatch);
           }
-
-          a->Bind(&match_loaded);
-          match = a->ToString(context, var_match.value());
         }
-        DCHECK(match != nullptr);
+      }
+
+      a->Bind(&if_didnotmatch);
+      {
+        // Return null if there were no matches, otherwise just exit the loop.
+        a->GotoUnless(a->IntPtrEqual(array.length(), int_zero), &out);
+        a->Return(null);
+      }
+
+      a->Bind(&if_didmatch);
+      {
+        Node* match = var_match.value();
 
         // Store the match, growing the fixed array if needed.
 
@@ -1490,30 +1507,57 @@ void Builtins::Generate_RegExpPrototypeMatch(CodeAssemblerState* state) {
   BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
 
   a.Bind(&fast_path);
-  Generate_RegExpPrototypeMatchBody(&a, receiver, string, context, true);
+  RegExpPrototypeMatchBody(&a, receiver, string, context, true);
 
   a.Bind(&slow_path);
-  Generate_RegExpPrototypeMatchBody(&a, receiver, string, context, false);
+  RegExpPrototypeMatchBody(&a, receiver, string, context, false);
 }
 
 namespace {
 
-void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
-                                        Node* const receiver,
-                                        Node* const string, Node* const context,
-                                        bool is_fastpath) {
+void RegExpPrototypeSearchBodyFast(CodeStubAssembler* a, Node* const receiver,
+                                   Node* const string, Node* const context) {
+  // Grab the initial value of last index.
+  Node* const previous_last_index = FastLoadLastIndex(a, receiver);
+
+  // Ensure last index is 0.
+  FastStoreLastIndex(a, receiver, a->SmiConstant(Smi::kZero));
+
+  // Call exec.
+  CLabel if_didnotmatch(a);
+  Node* const match_indices = RegExpPrototypeExecBodyWithoutResult(
+      a, context, receiver, string, &if_didnotmatch, true);
+
+  // Successful match.
+  {
+    // Reset last index.
+    FastStoreLastIndex(a, receiver, previous_last_index);
+
+    // Return the index of the match.
+    Node* const index = LoadMatchInfoField(a, match_indices,
+                                           RegExpMatchInfo::kFirstCaptureIndex);
+    a->Return(index);
+  }
+
+  a->Bind(&if_didnotmatch);
+  {
+    // Reset last index and return -1.
+    FastStoreLastIndex(a, receiver, previous_last_index);
+    a->Return(a->SmiConstant(-1));
+  }
+}
+
+void RegExpPrototypeSearchBodySlow(CodeStubAssembler* a, Node* const receiver,
+                                   Node* const string, Node* const context) {
   Isolate* const isolate = a->isolate();
 
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
   // Grab the initial value of last index.
-  Node* const previous_last_index =
-      LoadLastIndex(a, context, receiver, is_fastpath);
+  Node* const previous_last_index = SlowLoadLastIndex(a, context, receiver);
 
   // Ensure last index is 0.
-  if (is_fastpath) {
-    FastStoreLastIndex(a, receiver, smi_zero);
-  } else {
+  {
     CLabel next(a);
     a->GotoIf(a->SameValue(previous_last_index, smi_zero, context), &next);
 
@@ -1523,14 +1567,10 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
   }
 
   // Call exec.
-  Node* const match_indices =
-      is_fastpath ? RegExpPrototypeExecBody(a, context, receiver, string, true)
-                  : RegExpExec(a, context, receiver, string);
+  Node* const exec_result = RegExpExec(a, context, receiver, string);
 
   // Reset last index if necessary.
-  if (is_fastpath) {
-    FastStoreLastIndex(a, receiver, previous_last_index);
-  } else {
+  {
     CLabel next(a);
     Node* const current_last_index = SlowLoadLastIndex(a, context, receiver);
 
@@ -1539,34 +1579,28 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
 
     SlowStoreLastIndex(a, context, receiver, previous_last_index);
     a->Goto(&next);
+
     a->Bind(&next);
   }
 
   // Return -1 if no match was found.
   {
     CLabel next(a);
-    a->GotoUnless(a->WordEqual(match_indices, a->NullConstant()), &next);
+    a->GotoUnless(a->WordEqual(exec_result, a->NullConstant()), &next);
     a->Return(a->SmiConstant(-1));
     a->Bind(&next);
   }
 
   // Return the index of the match.
-  if (is_fastpath) {
-    Node* const index = a->LoadObjectField(
-        match_indices, JSRegExpResult::kIndexOffset, MachineType::AnyTagged());
-    a->Return(index);
-  } else {
-    DCHECK(!is_fastpath);
-
+  {
     CLabel fast_result(a), slow_result(a, CLabel::kDeferred);
-    BranchIfFastRegExpResult(a, context, a->LoadMap(match_indices),
-                             &fast_result, &slow_result);
+    BranchIfFastRegExpResult(a, context, a->LoadMap(exec_result), &fast_result,
+                             &slow_result);
 
     a->Bind(&fast_result);
     {
       Node* const index =
-          a->LoadObjectField(match_indices, JSRegExpResult::kIndexOffset,
-                             MachineType::AnyTagged());
+          a->LoadObjectField(exec_result, JSRegExpResult::kIndexOffset);
       a->Return(index);
     }
 
@@ -1575,7 +1609,7 @@ void Generate_RegExpPrototypeSearchBody(CodeStubAssembler* a,
       Node* const name = a->HeapConstant(isolate->factory()->index_string());
       Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
       Node* const index =
-          a->CallStub(getproperty_callable, context, match_indices, name);
+          a->CallStub(getproperty_callable, context, exec_result, name);
       a->Return(index);
     }
   }
@@ -1608,10 +1642,10 @@ void Builtins::Generate_RegExpPrototypeSearch(CodeAssemblerState* state) {
   BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
 
   a.Bind(&fast_path);
-  Generate_RegExpPrototypeSearchBody(&a, receiver, string, context, true);
+  RegExpPrototypeSearchBodyFast(&a, receiver, string, context);
 
   a.Bind(&slow_path);
-  Generate_RegExpPrototypeSearchBody(&a, receiver, string, context, false);
+  RegExpPrototypeSearchBodySlow(&a, receiver, string, context);
 }
 
 namespace {
@@ -1729,9 +1763,8 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
       a->Bind(&next);
     }
 
-    Node* const match_from = a->LoadFixedArrayElement(
-        match_indices, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex),
-        0, mode);
+    Node* const match_from = LoadMatchInfoField(
+        a, match_indices, RegExpMatchInfo::kFirstCaptureIndex);
 
     // We're done if the match starts beyond the string.
     {
@@ -1741,9 +1774,8 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
       a->Bind(&next);
     }
 
-    Node* const match_to = a->LoadFixedArrayElement(
-        match_indices,
-        a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1), 0, mode);
+    Node* const match_to = LoadMatchInfoField(
+        a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
     // Advance index and continue if the match is empty.
     {
@@ -1774,9 +1806,8 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
 
     // Add all captures to the array.
     {
-      Node* const num_registers = a->LoadFixedArrayElement(
-          match_indices,
-          a->IntPtrConstant(RegExpMatchInfo::kNumberOfCapturesIndex), 0, mode);
+      Node* const num_registers = LoadMatchInfoField(
+          a, match_indices, RegExpMatchInfo::kNumberOfCapturesIndex);
       Node* const int_num_registers = a->SmiUntag(num_registers);
 
       CVariable var_reg(a, MachineType::PointerRepresentation());
@@ -1994,10 +2025,8 @@ Node* ReplaceGlobalCallableFastPath(CodeStubAssembler* a, Node* context,
   Node* const res_elems = a->LoadElements(res);
   CSA_ASSERT(a, a->HasInstanceType(res_elems, FIXED_ARRAY_TYPE));
 
-  ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-  Node* const num_capture_registers = a->LoadFixedArrayElement(
-      last_match_info,
-      a->IntPtrConstant(RegExpMatchInfo::kNumberOfCapturesIndex), 0, mode);
+  Node* const num_capture_registers = LoadMatchInfoField(
+      a, last_match_info, RegExpMatchInfo::kNumberOfCapturesIndex);
 
   CLabel if_hasexplicitcaptures(a), if_noexplicitcaptures(a), create_result(a);
   a->Branch(a->SmiEqual(num_capture_registers, a->SmiConstant(Smi::FromInt(2))),
@@ -2211,15 +2240,11 @@ Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a, Node* context,
 
     a->Bind(&if_matched);
     {
-      ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-
       Node* const subject_start = smi_zero;
-      Node* const match_start = a->LoadFixedArrayElement(
-          match_indices, a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex),
-          0, mode);
-      Node* const match_end = a->LoadFixedArrayElement(
-          match_indices,
-          a->IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 1), 0, mode);
+      Node* const match_start = LoadMatchInfoField(
+          a, match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+      Node* const match_end = LoadMatchInfoField(
+          a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
       Node* const subject_end = a->LoadStringLength(subject_string);
 
       CLabel if_replaceisempty(a), if_replaceisnotempty(a);
