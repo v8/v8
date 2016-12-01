@@ -67,7 +67,7 @@ shell_g
 /third_party/icu
 /third_party/instrumented_libraries
 /third_party/inspector_protocol
-/third_party/jinga2
+/third_party/jinja2
 /third_party/llvm
 /third_party/llvm-build
 /third_party/markupsafe
