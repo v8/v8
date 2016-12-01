@@ -297,6 +297,14 @@ class WasmCompiledModule : public FixedArray {
   static int GetAsmJsSourcePosition(Handle<WasmCompiledModule> debug_info,
                                     uint32_t func_index, uint32_t byte_offset);
 
+  // Compute the disassembly of a wasm function.
+  // Returns the disassembly string and a list of <byte_offset, line, column>
+  // entries, mapping wasm byte offsets to line and column in the disassembly.
+  // The list is guaranteed to be ordered by the byte_offset.
+  // Returns an empty string and empty vector if the function index is invalid.
+  std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
+  DisassembleFunction(int func_index);
+
  private:
   void InitId();
 

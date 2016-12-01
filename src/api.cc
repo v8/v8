@@ -9161,7 +9161,7 @@ DebugInterface::DisassembleWasmFunction(Isolate* v8_isolate,
   if (script->type() != i::Script::TYPE_WASM) return {};
   i::Handle<i::WasmCompiledModule> compiled_module(
       i::WasmCompiledModule::cast(script->wasm_compiled_module()), isolate);
-  return i::wasm::DisassembleFunction(compiled_module, function_index);
+  return compiled_module->DisassembleFunction(function_index);
 }
 
 MaybeLocal<UnboundScript> DebugInterface::CompileInspectorScript(

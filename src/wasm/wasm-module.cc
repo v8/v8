@@ -20,7 +20,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
-#include "src/wasm/wasm-text.h"
 
 #include "src/compiler/wasm-compiler.h"
 
@@ -1997,31 +1996,6 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
       WasmInstanceObject::cast(*instance)->get_compiled_module();
   DCHECK(compiled_module->has_script());
   return compiled_module->script();
-}
-
-// TODO(clemensh): Make this a non-static method of WasmCompiledModule.
-std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
-wasm::DisassembleFunction(Handle<WasmCompiledModule> compiled_module,
-                          int func_index) {
-  DisallowHeapAllocation no_gc;
-
-  if (func_index < 0 ||
-      static_cast<uint32_t>(func_index) >=
-          compiled_module->module()->functions.size())
-    return {};
-
-  SeqOneByteString* module_bytes_str = compiled_module->ptr_to_module_bytes();
-  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
-                                  module_bytes_str->length());
-
-  std::ostringstream disassembly_os;
-  std::vector<std::tuple<uint32_t, int, int>> offset_table;
-
-  PrintWasmText(compiled_module->module(), module_bytes,
-                static_cast<uint32_t>(func_index), disassembly_os,
-                &offset_table);
-
-  return {disassembly_os.str(), std::move(offset_table)};
 }
 
 Handle<WasmDebugInfo> wasm::GetDebugInfo(Handle<JSObject> object) {

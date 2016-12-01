@@ -6,6 +6,7 @@
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-text.h"
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -537,6 +538,27 @@ int WasmCompiledModule::GetAsmJsSourcePosition(
   DCHECK_EQ(total_offset,
             static_cast<uint32_t>(offset_table->get_int(2 * left)));
   return offset_table->get_int(2 * left + 1);
+}
+
+std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
+WasmCompiledModule::DisassembleFunction(int func_index) {
+  DisallowHeapAllocation no_gc;
+
+  if (func_index < 0 ||
+      static_cast<uint32_t>(func_index) >= module()->functions.size())
+    return {};
+
+  SeqOneByteString* module_bytes_str = ptr_to_module_bytes();
+  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
+                                  module_bytes_str->length());
+
+  std::ostringstream disassembly_os;
+  std::vector<std::tuple<uint32_t, int, int>> offset_table;
+
+  PrintWasmText(module(), module_bytes, static_cast<uint32_t>(func_index),
+                disassembly_os, &offset_table);
+
+  return {disassembly_os.str(), std::move(offset_table)};
 }
 
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
