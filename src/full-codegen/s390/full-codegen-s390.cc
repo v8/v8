@@ -1159,10 +1159,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   bool result_saved = false;
 
   AccessorTable accessor_table(zone());
-  int property_index = 0;
-  for (; property_index < expr->properties()->length(); property_index++) {
-    ObjectLiteral::Property* property = expr->properties()->at(property_index);
-    if (property->is_computed_name()) break;
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
+    DCHECK(!property->is_computed_name());
     if (property->IsCompileTimeValue()) continue;
 
     Literal* key = property->key()->AsLiteral();
@@ -1220,20 +1219,20 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(value);
         DCHECK(property->emit_store());
         CallRuntimeWithOperands(Runtime::kInternalSetPrototype);
-        PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
+        PrepareForBailoutForId(expr->GetIdForPropertySet(i),
                                BailoutState::NO_REGISTERS);
         break;
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(property_index);
+          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->getter = property;
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(property_index);
+          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->setter = property;
         }
         break;
@@ -1253,62 +1252,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     PushOperand(r2);
     CallRuntimeWithOperands(Runtime::kDefineAccessorPropertyUnchecked);
     PrepareForBailoutForId(it->second->bailout_id, BailoutState::NO_REGISTERS);
-  }
-
-  // Object literals have two parts. The "static" part on the left contains no
-  // computed property names, and so we can compute its map ahead of time; see
-  // runtime.cc::CreateObjectLiteralBoilerplate. The second "dynamic" part
-  // starts with the first computed property name, and continues with all
-  // properties to its right.  All the code from above initializes the static
-  // component of the object literal, and arranges for the map of the result to
-  // reflect the static order in which the keys appear. For the dynamic
-  // properties, we compile them into a series of "SetOwnProperty" runtime
-  // calls. This will preserve insertion order.
-  for (; property_index < expr->properties()->length(); property_index++) {
-    ObjectLiteral::Property* property = expr->properties()->at(property_index);
-
-    Expression* value = property->value();
-    if (!result_saved) {
-      PushOperand(r2);  // Save result on the stack
-      result_saved = true;
-    }
-
-    __ LoadP(r2, MemOperand(sp));  // Duplicate receiver.
-    PushOperand(r2);
-
-    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
-      DCHECK(!property->is_computed_name());
-      VisitForStackValue(value);
-      DCHECK(property->emit_store());
-      CallRuntimeWithOperands(Runtime::kInternalSetPrototype);
-      PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
-                             BailoutState::NO_REGISTERS);
-    } else {
-      EmitPropertyKey(property, expr->GetIdForPropertyName(property_index));
-      VisitForStackValue(value);
-      if (NeedsHomeObject(value)) {
-        EmitSetHomeObject(value, 2, property->GetSlot());
-      }
-
-      switch (property->kind()) {
-        case ObjectLiteral::Property::CONSTANT:
-        case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        case ObjectLiteral::Property::COMPUTED:
-        case ObjectLiteral::Property::PROTOTYPE:
-          UNREACHABLE();
-          break;
-
-        case ObjectLiteral::Property::GETTER:
-          PushOperand(Smi::FromInt(NONE));
-          CallRuntimeWithOperands(Runtime::kDefineGetterPropertyUnchecked);
-          break;
-
-        case ObjectLiteral::Property::SETTER:
-          PushOperand(Smi::FromInt(NONE));
-          CallRuntimeWithOperands(Runtime::kDefineSetterPropertyUnchecked);
-          break;
-      }
-    }
   }
 
   if (result_saved) {

@@ -1372,10 +1372,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   environment()->Push(literal);
 
   // Create nodes to store computed values into the literal.
-  int property_index = 0;
   AccessorTable accessor_table(local_zone());
-  for (; property_index < expr->properties()->length(); property_index++) {
-    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
     DCHECK(!property->is_computed_name());
     if (property->IsCompileTimeValue()) continue;
 
@@ -1433,21 +1432,20 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             javascript()->CallRuntime(Runtime::kInternalSetPrototype);
         Node* set_prototype = NewNode(op, receiver, value);
         // SetPrototype should not lazy deopt on an object literal.
-        PrepareFrameState(set_prototype,
-                          expr->GetIdForPropertySet(property_index));
+        PrepareFrameState(set_prototype, expr->GetIdForPropertySet(i));
         break;
       }
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(property_index);
+          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->getter = property;
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(property_index);
+          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->setter = property;
         }
         break;
