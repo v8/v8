@@ -1031,8 +1031,7 @@ void Builtins::Generate_StringPrototypeSubstr(
       // two cases according to the spec: if it is negative, "" is returned; if
       // it is positive, then length is set to {string_length} - {start}.
 
-      CSA_ASSERT(&a, a.WordEqual(a.LoadMap(var_length.value()),
-                                 a.HeapNumberMapConstant()));
+      CSA_ASSERT(&a, a.IsHeapNumberMap(a.LoadMap(var_length.value())));
 
       Label if_isnegative(&a), if_ispositive(&a);
       Node* const float_zero = a.Float64Constant(0.);
@@ -1101,8 +1100,7 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
   a->Bind(&if_isnotsmi);
   {
     // {value} is a heap number - in this case, it is definitely out of bounds.
-    CSA_ASSERT(a,
-               a->WordEqual(a->LoadMap(value_int), a->HeapNumberMapConstant()));
+    CSA_ASSERT(a, a->IsHeapNumberMap(a->LoadMap(value_int)));
 
     Node* const float_zero = a->Float64Constant(0.);
     Node* const smi_zero = a->SmiConstant(Smi::kZero);

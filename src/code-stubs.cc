@@ -1047,8 +1047,6 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       var_result(assembler, MachineRepresentation::kTagged),
       var_type_feedback(assembler, MachineRepresentation::kWord32);
 
-  Node* number_map = assembler->HeapNumberMapConstant();
-
   Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
@@ -1076,7 +1074,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
                             &check_rhsisoddball);
 
       // Convert {lhs} to a double and multiply it with the value of {rhs}.
@@ -1091,7 +1089,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if {lhs} is a HeapNumber.
-    assembler->GotoUnless(assembler->WordEqual(lhs_map, number_map),
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
                           &if_lhsisnotnumber);
 
     // Check if {rhs} is a Smi.
@@ -1112,7 +1110,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
                             &check_rhsisoddball);
 
       // Both {lhs} and {rhs} are HeapNumbers. Load their values and
@@ -1211,8 +1209,6 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       var_result(assembler, MachineRepresentation::kTagged),
       var_type_feedback(assembler, MachineRepresentation::kWord32);
 
-  Node* number_map = assembler->HeapNumberMapConstant();
-
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                     &dividend_is_not_smi);
@@ -1297,7 +1293,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       Node* divisor_map = assembler->LoadMap(divisor);
 
       // Check if {divisor} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                             &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
@@ -1312,7 +1308,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       Node* dividend_map = assembler->LoadMap(dividend);
 
       // Check if {dividend} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(dividend_map),
                             &dividend_is_not_number);
 
       // Check if {divisor} is a Smi.
@@ -1334,7 +1330,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
         Node* divisor_map = assembler->LoadMap(divisor);
 
         // Check if {divisor} is a HeapNumber.
-        assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+        assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                               &check_divisor_for_oddball);
 
         // Both {dividend} and {divisor} are HeapNumbers. Load their values
@@ -1433,8 +1429,6 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
       var_result(assembler, MachineRepresentation::kTagged),
       var_type_feedback(assembler, MachineRepresentation::kWord32);
 
-  Node* number_map = assembler->HeapNumberMapConstant();
-
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                     &dividend_is_not_smi);
@@ -1460,7 +1454,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
       Node* divisor_map = assembler->LoadMap(divisor);
 
       // Check if {divisor} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                             &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
@@ -1476,7 +1470,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
     Node* dividend_map = assembler->LoadMap(dividend);
 
     // Check if {dividend} is a HeapNumber.
-    assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
+    assembler->GotoUnless(assembler->IsHeapNumberMap(dividend_map),
                           &dividend_is_not_number);
 
     // Check if {divisor} is a Smi.
@@ -1498,7 +1492,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
       Node* divisor_map = assembler->LoadMap(divisor);
 
       // Check if {divisor} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                             &check_divisor_for_oddball);
 
       // Both {dividend} and {divisor} are HeapNumbers. Load their values

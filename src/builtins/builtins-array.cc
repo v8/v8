@@ -1423,7 +1423,6 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
 
   Node* the_hole = assembler.TheHoleConstant();
   Node* undefined = assembler.UndefinedConstant();
-  Node* heap_number_map = assembler.HeapNumberMapConstant();
 
   Variable len_var(&assembler, MachineType::PointerRepresentation()),
       index_var(&assembler, MachineType::PointerRepresentation()),
@@ -1554,8 +1553,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &undef_loop);
     Node* map = assembler.LoadMap(search_element);
-    assembler.GotoIf(assembler.WordNotEqual(map, heap_number_map),
-                     &not_heap_num);
+    assembler.GotoUnless(assembler.IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -1619,9 +1617,9 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
             &return_true, &continue_loop);
 
         assembler.Bind(&not_smi);
-        assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(element_k),
-                                                heap_number_map),
-                         &continue_loop);
+        assembler.GotoUnless(
+            assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
+            &continue_loop);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
                                    assembler.LoadHeapNumberValue(element_k)),
@@ -1642,9 +1640,9 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
         assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-        assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(element_k),
-                                                heap_number_map),
-                         &continue_loop);
+        assembler.GotoUnless(
+            assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
+            &continue_loop);
         assembler.BranchIfFloat64IsNaN(assembler.LoadHeapNumberValue(element_k),
                                        &return_true, &continue_loop);
 
@@ -1718,9 +1716,9 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(search_element),
-                                            heap_number_map),
-                     &return_false);
+    assembler.GotoUnless(
+        assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
+        &return_false);
 
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
 
@@ -1775,9 +1773,9 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&search_notnan);
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &hole_loop);
-    assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(search_element),
-                                            heap_number_map),
-                     &return_false);
+    assembler.GotoUnless(
+        assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
+        &return_false);
 
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
 
@@ -1866,7 +1864,6 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
   Node* intptr_one = assembler.IntPtrConstant(1);
 
   Node* undefined = assembler.UndefinedConstant();
-  Node* heap_number_map = assembler.HeapNumberMapConstant();
 
   Variable len_var(&assembler, MachineType::PointerRepresentation()),
       index_var(&assembler, MachineType::PointerRepresentation()),
@@ -1997,8 +1994,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &undef_loop);
     Node* map = assembler.LoadMap(search_element);
-    assembler.GotoIf(assembler.WordNotEqual(map, heap_number_map),
-                     &not_heap_num);
+    assembler.GotoUnless(assembler.IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -2061,9 +2057,9 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
             &return_found, &continue_loop);
 
         assembler.Bind(&not_smi);
-        assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(element_k),
-                                                heap_number_map),
-                         &continue_loop);
+        assembler.GotoUnless(
+            assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
+            &continue_loop);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
                                    assembler.LoadHeapNumberValue(element_k)),
@@ -2137,9 +2133,9 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(search_element),
-                                            heap_number_map),
-                     &return_not_found);
+    assembler.GotoUnless(
+        assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
+        &return_not_found);
 
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
 
@@ -2174,9 +2170,9 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoIf(assembler.WordNotEqual(assembler.LoadMap(search_element),
-                                            heap_number_map),
-                     &return_not_found);
+    assembler.GotoUnless(
+        assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
+        &return_not_found);
 
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
 

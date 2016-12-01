@@ -2463,8 +2463,8 @@ Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
       // Check if {value} is a HeapNumber.
       Label if_valueisheapnumber(this),
           if_valueisnotheapnumber(this, Label::kDeferred);
-      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
-             &if_valueisheapnumber, &if_valueisnotheapnumber);
+      Branch(IsHeapNumberMap(LoadMap(value)), &if_valueisheapnumber,
+             &if_valueisnotheapnumber);
 
       Bind(&if_valueisheapnumber);
       {
@@ -3668,7 +3668,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
 
   // Argument isn't smi, check to see if it's a heap-number.
   Node* map = LoadMap(argument);
-  GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
+  GotoUnless(IsHeapNumberMap(map), &runtime);
 
   // Make a hash from the two 32-bit values of the double.
   Node* low =
@@ -3685,7 +3685,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
       LoadFixedArrayElement(number_string_cache, index, 0, INTPTR_PARAMETERS);
   GotoIf(TaggedIsSmi(number_key), &runtime);
   map = LoadMap(number_key);
-  GotoUnless(WordEqual(map, HeapNumberMapConstant()), &runtime);
+  GotoUnless(IsHeapNumberMap(map), &runtime);
 
   // Cache entry's key must match the heap number value we're looking for.
   Node* low_compare = LoadObjectField(number_key, HeapNumber::kValueOffset,
@@ -3776,7 +3776,7 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
 Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
   // Assert input is a HeapObject (not smi or heap number)
   CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(input)));
-  CSA_ASSERT(this, Word32NotEqual(LoadMap(input), HeapNumberMapConstant()));
+  CSA_ASSERT(this, Word32BinaryNot(IsHeapNumberMap(LoadMap(input))));
 
   // We might need to loop once here due to ToPrimitive conversions.
   Variable var_input(this, MachineRepresentation::kTagged);
@@ -3827,7 +3827,7 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
       Label if_resultisnumber(this), if_resultisnotnumber(this);
       GotoIf(TaggedIsSmi(result), &if_resultisnumber);
       Node* result_map = LoadMap(result);
-      Branch(WordEqual(result_map, HeapNumberMapConstant()), &if_resultisnumber,
+      Branch(IsHeapNumberMap(result_map), &if_resultisnumber,
              &if_resultisnotnumber);
 
       Bind(&if_resultisnumber);
@@ -3875,8 +3875,7 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   {
     Label not_heap_number(this, Label::kDeferred);
     Node* input_map = LoadMap(input);
-    GotoIf(Word32NotEqual(input_map, HeapNumberMapConstant()),
-           &not_heap_number);
+    GotoUnless(IsHeapNumberMap(input_map), &not_heap_number);
 
     var_result.Bind(input);
     Goto(&end);
@@ -4009,8 +4008,7 @@ Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   GotoIf(IsStringInstanceType(input_instance_type), &done);
 
   Label not_heap_number(this);
-  Branch(WordNotEqual(input_map, HeapNumberMapConstant()), &not_heap_number,
-         &is_number);
+  Branch(IsHeapNumberMap(input_map), &is_number, &not_heap_number);
 
   Bind(&is_number);
   result.Bind(NumberToString(context, input));
@@ -4119,8 +4117,8 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
     // Check if {arg} is a HeapNumber.
     Label if_argisheapnumber(this),
         if_argisnotheapnumber(this, Label::kDeferred);
-    Branch(WordEqual(LoadMap(arg), HeapNumberMapConstant()),
-           &if_argisheapnumber, &if_argisnotheapnumber);
+    Branch(IsHeapNumberMap(LoadMap(arg)), &if_argisheapnumber,
+           &if_argisnotheapnumber);
 
     Bind(&if_argisheapnumber);
     {
@@ -5411,7 +5409,7 @@ Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
   Label done(this, &var_intptr_key), key_is_smi(this);
   GotoIf(TaggedIsSmi(key), &key_is_smi);
   // Try to convert a heap number to a Smi.
-  GotoUnless(WordEqual(LoadMap(key), HeapNumberMapConstant()), miss);
+  GotoUnless(IsHeapNumberMap(LoadMap(key)), miss);
   {
     Node* value = LoadHeapNumberValue(key);
     Node* int_value = RoundFloat64ToInt32(value);
@@ -6325,7 +6323,7 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 
     Bind(&if_rhsisnotsmi);
     {
-      CSA_ASSERT(this, WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
+      CSA_ASSERT(this, IsHeapNumberMap(LoadMap(rhs)));
       // Convert the {lhs} and {rhs} to floating point values, and
       // perform a floating point comparison.
       var_fcmp_lhs.Bind(SmiToFloat64(lhs));
@@ -6336,7 +6334,7 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 
   Bind(&if_lhsisnotsmi);
   {
-    CSA_ASSERT(this, WordEqual(LoadMap(lhs), HeapNumberMapConstant()));
+    CSA_ASSERT(this, IsHeapNumberMap(LoadMap(lhs)));
 
     // Check if {rhs} is a Smi or a HeapObject.
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
@@ -6353,7 +6351,7 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 
     Bind(&if_rhsisnotsmi);
     {
-      CSA_ASSERT(this, WordEqual(LoadMap(rhs), HeapNumberMapConstant()));
+      CSA_ASSERT(this, IsHeapNumberMap(LoadMap(rhs)));
 
       // Convert the {lhs} and {rhs} to floating point values, and
       // perform a floating point comparison.
@@ -6482,9 +6480,6 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
     Bind(&if_lhsisnotsmi);
     {
-      // Load the HeapNumber map for later comparisons.
-      Node* number_map = HeapNumberMapConstant();
-
       // Load the map of {lhs}.
       Node* lhs_map = LoadMap(lhs);
 
@@ -6496,8 +6491,7 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
       {
         // Check if the {lhs} is a HeapNumber.
         Label if_lhsisnumber(this), if_lhsisnotnumber(this, Label::kDeferred);
-        Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
-               &if_lhsisnotnumber);
+        Branch(IsHeapNumberMap(lhs_map), &if_lhsisnumber, &if_lhsisnotnumber);
 
         Bind(&if_lhsisnumber);
         {
@@ -6527,8 +6521,7 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
         // Check if {lhs} is a HeapNumber.
         Label if_lhsisnumber(this), if_lhsisnotnumber(this);
-        Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
-               &if_lhsisnotnumber);
+        Branch(IsHeapNumberMap(lhs_map), &if_lhsisnumber, &if_lhsisnotnumber);
 
         Bind(&if_lhsisnumber);
         {
@@ -6836,10 +6829,8 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
           Node* rhs_map = LoadMap(rhs);
 
           // Check if {rhs} is a HeapNumber.
-          Node* number_map = HeapNumberMapConstant();
           Label if_rhsisnumber(this), if_rhsisnotnumber(this);
-          Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
-                 &if_rhsisnotnumber);
+          Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
           Bind(&if_rhsisnumber);
           {
@@ -7338,7 +7329,6 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
   {
     // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber,
     // String and Simd128Value they can still be considered equal.
-    Node* number_map = HeapNumberMapConstant();
 
     // Check if {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -7351,8 +7341,7 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
 
       // Check if {lhs} is a HeapNumber.
       Label if_lhsisnumber(this), if_lhsisnotnumber(this);
-      Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
-             &if_lhsisnotnumber);
+      Branch(IsHeapNumberMap(lhs_map), &if_lhsisnumber, &if_lhsisnotnumber);
 
       Bind(&if_lhsisnumber);
       {
@@ -7377,8 +7366,7 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
 
           // Check if {rhs} is also a HeapNumber.
           Label if_rhsisnumber(this), if_rhsisnotnumber(this);
-          Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
-                 &if_rhsisnotnumber);
+          Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
           Bind(&if_rhsisnumber);
           {
@@ -7483,8 +7471,7 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
 
         // The {rhs} could be a HeapNumber with the same value as {lhs}.
         Label if_rhsisnumber(this), if_rhsisnotnumber(this);
-        Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
-               &if_rhsisnotnumber);
+        Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
         Bind(&if_rhsisnumber);
         {

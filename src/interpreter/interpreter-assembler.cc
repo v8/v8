@@ -1112,8 +1112,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       Label if_valueisheapnumber(this),
           if_valueisnotheapnumber(this, Label::kDeferred);
       Node* value_map = LoadMap(value);
-      Branch(WordEqual(value_map, HeapNumberMapConstant()),
-             &if_valueisheapnumber, &if_valueisnotheapnumber);
+      Branch(IsHeapNumberMap(value_map), &if_valueisheapnumber,
+             &if_valueisnotheapnumber);
 
       Bind(&if_valueisheapnumber);
       {

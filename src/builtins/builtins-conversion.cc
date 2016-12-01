@@ -184,9 +184,8 @@ void Builtins::Generate_ToString(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&not_string);
   {
-    assembler.GotoUnless(
-        assembler.WordEqual(input_map, assembler.HeapNumberMapConstant()),
-        &not_heap_number);
+    assembler.GotoUnless(assembler.IsHeapNumberMap(input_map),
+                         &not_heap_number);
     assembler.Goto(&is_number);
   }
 

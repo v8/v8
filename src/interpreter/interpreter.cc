@@ -1036,8 +1036,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
     __ Bind(&lhs_is_not_smi);
     {
       Node* lhs_map = __ LoadMap(lhs);
-      __ GotoUnless(__ WordEqual(lhs_map, __ HeapNumberMapConstant()),
-                    &lhs_is_not_number);
+      __ GotoUnless(__ IsHeapNumberMap(lhs_map), &lhs_is_not_number);
 
       var_type_feedback.Bind(
           __ Int32Constant(CompareOperationFeedback::kNumber));
@@ -1081,8 +1080,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
       __ Bind(&rhs_is_not_smi);
       {
         Node* rhs_map = __ LoadMap(rhs);
-        __ GotoUnless(__ WordEqual(rhs_map, __ HeapNumberMapConstant()),
-                      &rhs_is_not_number);
+        __ GotoUnless(__ IsHeapNumberMap(rhs_map), &rhs_is_not_number);
 
         var_type_feedback.Bind(
             __ Word32Or(var_type_feedback.value(),

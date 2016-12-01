@@ -127,8 +127,7 @@ void Builtins::Generate_GlobalIsFinite(compiler::CodeAssemblerState* state) {
     // Check if {num} is a HeapNumber.
     Label if_numisheapnumber(&assembler),
         if_numisnotheapnumber(&assembler, Label::kDeferred);
-    assembler.Branch(assembler.WordEqual(assembler.LoadMap(num),
-                                         assembler.HeapNumberMapConstant()),
+    assembler.Branch(assembler.IsHeapNumberMap(assembler.LoadMap(num)),
                      &if_numisheapnumber, &if_numisnotheapnumber);
 
     assembler.Bind(&if_numisheapnumber);
@@ -182,8 +181,7 @@ void Builtins::Generate_GlobalIsNaN(compiler::CodeAssemblerState* state) {
     // Check if {num} is a HeapNumber.
     Label if_numisheapnumber(&assembler),
         if_numisnotheapnumber(&assembler, Label::kDeferred);
-    assembler.Branch(assembler.WordEqual(assembler.LoadMap(num),
-                                         assembler.HeapNumberMapConstant()),
+    assembler.Branch(assembler.IsHeapNumberMap(assembler.LoadMap(num)),
                      &if_numisheapnumber, &if_numisnotheapnumber);
 
     assembler.Bind(&if_numisheapnumber);

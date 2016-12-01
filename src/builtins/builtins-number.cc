@@ -989,9 +989,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
 
       // Check if the {lhs} is a HeapNumber.
       Label if_lhsisnumber(this), if_lhsisnotnumber(this, Label::kDeferred);
-      Node* number_map = HeapNumberMapConstant();
-      Branch(WordEqual(lhs_map, number_map), &if_lhsisnumber,
-             &if_lhsisnotnumber);
+      Branch(IsHeapNumberMap(lhs_map), &if_lhsisnumber, &if_lhsisnotnumber);
 
       Bind(&if_lhsisnumber);
       {
@@ -1014,8 +1012,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
 
           // Check if the {rhs} is a HeapNumber.
           Label if_rhsisnumber(this), if_rhsisnotnumber(this, Label::kDeferred);
-          Branch(WordEqual(rhs_map, number_map), &if_rhsisnumber,
-                 &if_rhsisnotnumber);
+          Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
           Bind(&if_rhsisnumber);
           {
@@ -1067,8 +1064,6 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
   Variable var_lhs_float64(this, MachineRepresentation::kFloat64),
       var_rhs_float64(this, MachineRepresentation::kFloat64);
 
-  Node* number_map = HeapNumberMapConstant();
-
   // We might need to loop one or two times due to ToNumber conversions.
   Variable var_lhs(this, MachineRepresentation::kTagged),
       var_rhs(this, MachineRepresentation::kTagged),
@@ -1105,8 +1100,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
 
         // Check if {rhs} is a HeapNumber.
         Label rhs_is_number(this), rhs_is_not_number(this, Label::kDeferred);
-        Branch(WordEqual(rhs_map, number_map), &rhs_is_number,
-               &rhs_is_not_number);
+        Branch(IsHeapNumberMap(rhs_map), &rhs_is_number, &rhs_is_not_number);
 
         Bind(&rhs_is_number);
         {
@@ -1132,8 +1126,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
 
       // Check if {lhs} is a HeapNumber.
       Label lhs_is_number(this), lhs_is_not_number(this, Label::kDeferred);
-      Branch(WordEqual(lhs_map, number_map), &lhs_is_number,
-             &lhs_is_not_number);
+      Branch(IsHeapNumberMap(lhs_map), &lhs_is_number, &lhs_is_not_number);
 
       Bind(&lhs_is_number);
       {
@@ -1155,8 +1148,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
 
           // Check if {rhs} is a HeapNumber.
           Label rhs_is_number(this), rhs_is_not_number(this, Label::kDeferred);
-          Branch(WordEqual(rhs_map, number_map), &rhs_is_number,
-                 &rhs_is_not_number);
+          Branch(IsHeapNumberMap(rhs_map), &rhs_is_number, &rhs_is_not_number);
 
           Bind(&rhs_is_number);
           {
@@ -1208,8 +1200,6 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
   Label do_fdiv(this), end(this);
   Variable var_dividend_float64(this, MachineRepresentation::kFloat64),
       var_divisor_float64(this, MachineRepresentation::kFloat64);
-
-  Node* number_map = HeapNumberMapConstant();
 
   // We might need to loop one or two times due to ToNumber conversions.
   Variable var_dividend(this, MachineRepresentation::kTagged),
@@ -1299,7 +1289,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         // Check if {divisor} is a HeapNumber.
         Label divisor_is_number(this),
             divisor_is_not_number(this, Label::kDeferred);
-        Branch(WordEqual(divisor_map, number_map), &divisor_is_number,
+        Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                &divisor_is_not_number);
 
         Bind(&divisor_is_number);
@@ -1328,7 +1318,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
       // Check if {dividend} is a HeapNumber.
       Label dividend_is_number(this),
           dividend_is_not_number(this, Label::kDeferred);
-      Branch(WordEqual(dividend_map, number_map), &dividend_is_number,
+      Branch(IsHeapNumberMap(dividend_map), &dividend_is_number,
              &dividend_is_not_number);
 
       Bind(&dividend_is_number);
@@ -1353,7 +1343,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
           // Check if {divisor} is a HeapNumber.
           Label divisor_is_number(this),
               divisor_is_not_number(this, Label::kDeferred);
-          Branch(WordEqual(divisor_map, number_map), &divisor_is_number,
+          Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                  &divisor_is_not_number);
 
           Bind(&divisor_is_number);
@@ -1409,8 +1399,6 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
   Variable var_dividend_float64(this, MachineRepresentation::kFloat64),
       var_divisor_float64(this, MachineRepresentation::kFloat64);
 
-  Node* number_map = HeapNumberMapConstant();
-
   // We might need to loop one or two times due to ToNumber conversions.
   Variable var_dividend(this, MachineRepresentation::kTagged),
       var_divisor(this, MachineRepresentation::kTagged);
@@ -1447,7 +1435,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
         // Check if {divisor} is a HeapNumber.
         Label divisor_is_number(this),
             divisor_is_not_number(this, Label::kDeferred);
-        Branch(WordEqual(divisor_map, number_map), &divisor_is_number,
+        Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                &divisor_is_not_number);
 
         Bind(&divisor_is_number);
@@ -1476,7 +1464,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
       // Check if {dividend} is a HeapNumber.
       Label dividend_is_number(this),
           dividend_is_not_number(this, Label::kDeferred);
-      Branch(WordEqual(dividend_map, number_map), &dividend_is_number,
+      Branch(IsHeapNumberMap(dividend_map), &dividend_is_number,
              &dividend_is_not_number);
 
       Bind(&dividend_is_number);
@@ -1501,7 +1489,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
           // Check if {divisor} is a HeapNumber.
           Label divisor_is_number(this),
               divisor_is_not_number(this, Label::kDeferred);
-          Branch(WordEqual(divisor_map, number_map), &divisor_is_number,
+          Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                  &divisor_is_not_number);
 
           Bind(&divisor_is_number);
