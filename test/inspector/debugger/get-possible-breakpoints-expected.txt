@@ -541,6 +541,12 @@ Running test: arrowFunctionOnPause
         breakpointId : <breakpointId>
     }
 }
+paused in 
+{
+    columnNumber : 0
+    lineNumber : 2
+    scriptId : <scriptId>
+}
 paused in foo3
 {
     columnNumber : 28
@@ -553,6 +559,12 @@ paused in foo3
     lineNumber : 0
     scriptId : <scriptId>
 }
+paused in 
+{
+    columnNumber : 0
+    lineNumber : 3
+    scriptId : <scriptId>
+}
 paused in foo4
 {
     columnNumber : 18
@@ -563,6 +575,12 @@ paused in foo4
 {
     columnNumber : 51
     lineNumber : 1
+    scriptId : <scriptId>
+}
+paused in 
+{
+    columnNumber : 6
+    lineNumber : 3
     scriptId : <scriptId>
 }
 paused in Promise.resolve.then
