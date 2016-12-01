@@ -2624,7 +2624,7 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
 
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
-  Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
+  Node* receiver_map = __ LoadMap(receiver);
   __ Branch(__ WordEqual(receiver_map, cache_type), &if_fast, &if_slow);
   __ Bind(&if_fast);
   {

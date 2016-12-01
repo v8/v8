@@ -590,7 +590,7 @@ void AccessorAssemblerImpl::HandleStoreICProtoHandler(
           descriptors, value_index_in_descriptor, 0, INTPTR_PARAMETERS);
       GotoIf(WordNotEqual(p->value, constant), miss);
 
-      StoreObjectField(p->receiver, JSObject::kMapOffset, transition);
+      StoreMap(p->receiver, transition);
       Return(p->value);
     }
   }
@@ -709,7 +709,7 @@ void AccessorAssemblerImpl::HandleStoreFieldAndReturn(
     StoreNamedField(holder, offset, true, representation, prepared_value,
                     transition_to_field);
     if (transition_to_field) {
-      StoreObjectField(holder, JSObject::kMapOffset, transition);
+      StoreMap(holder, transition);
     }
     Return(value);
   }
@@ -719,7 +719,7 @@ void AccessorAssemblerImpl::HandleStoreFieldAndReturn(
     StoreNamedField(holder, offset, false, representation, prepared_value,
                     transition_to_field);
     if (transition_to_field) {
-      StoreObjectField(holder, JSObject::kMapOffset, transition);
+      StoreMap(holder, transition);
     }
     Return(value);
   }

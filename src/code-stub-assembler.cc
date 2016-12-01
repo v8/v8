@@ -1324,6 +1324,7 @@ Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
 
 Node* CodeStubAssembler::StoreObjectField(
     Node* object, int offset, Node* value) {
+  DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
   return Store(object, IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
@@ -1353,10 +1354,22 @@ Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
       rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
 }
 
+Node* CodeStubAssembler::StoreMap(Node* object, Node* map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+  return StoreWithMapWriteBarrier(
+      object, IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag), map);
+}
+
+Node* CodeStubAssembler::StoreMapNoWriteBarrier(
+    Node* object, Heap::RootListIndex map_root_index) {
+  return StoreMapNoWriteBarrier(object, LoadRoot(map_root_index));
+}
+
 Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
   return StoreNoWriteBarrier(
       MachineRepresentation::kTagged, object,
-      IntPtrConstant(HeapNumber::kMapOffset - kHeapObjectTag), map);
+      IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag), map);
 }
 
 Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
@@ -1475,8 +1488,7 @@ Node* CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
   Heap::RootListIndex heap_map_index =
       mode == IMMUTABLE ? Heap::kHeapNumberMapRootIndex
                         : Heap::kMutableHeapNumberMapRootIndex;
-  Node* map = LoadRoot(heap_map_index);
-  StoreMapNoWriteBarrier(result, map);
+  StoreMapNoWriteBarrier(result, heap_map_index);
   return result;
 }
 
@@ -1492,7 +1504,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
   Comment("AllocateSeqOneByteString");
   Node* result = Allocate(SeqOneByteString::SizeFor(length), flags);
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
-  StoreMapNoWriteBarrier(result, LoadRoot(Heap::kOneByteStringMapRootIndex));
+  StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
@@ -1522,7 +1534,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
     // Just allocate the SeqOneByteString in new space.
     Node* result = Allocate(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
-    StoreMapNoWriteBarrier(result, LoadRoot(Heap::kOneByteStringMapRootIndex));
+    StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(
         result, SeqOneByteString::kLengthOffset,
         mode == SMI_PARAMETERS ? length : SmiFromWord(length));
@@ -1552,7 +1564,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
   Comment("AllocateSeqTwoByteString");
   Node* result = Allocate(SeqTwoByteString::SizeFor(length), flags);
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
-  StoreMapNoWriteBarrier(result, LoadRoot(Heap::kStringMapRootIndex));
+  StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
@@ -1582,7 +1594,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
     // Just allocate the SeqTwoByteString in new space.
     Node* result = Allocate(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
-    StoreMapNoWriteBarrier(result, LoadRoot(Heap::kStringMapRootIndex));
+    StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(
         result, SeqTwoByteString::kLengthOffset,
         mode == SMI_PARAMETERS ? length : SmiFromWord(length));
@@ -1612,9 +1624,8 @@ Node* CodeStubAssembler::AllocateSlicedString(
     Node* offset) {
   CSA_ASSERT(this, TaggedIsSmi(length));
   Node* result = Allocate(SlicedString::kSize);
-  Node* map = LoadRoot(map_root_index);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
-  StoreMapNoWriteBarrier(result, map);
+  StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kLengthOffset, length,
                                  MachineRepresentation::kTagged);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldOffset,
@@ -1645,9 +1656,8 @@ Node* CodeStubAssembler::AllocateConsString(Heap::RootListIndex map_root_index,
                                             AllocationFlags flags) {
   CSA_ASSERT(this, TaggedIsSmi(length));
   Node* result = Allocate(ConsString::kSize, flags);
-  Node* map = LoadRoot(map_root_index);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
-  StoreMapNoWriteBarrier(result, map);
+  StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
                                  MachineRepresentation::kTagged);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
@@ -1798,8 +1808,8 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
   Node* result = Allocate(store_size);
   Comment("Initialize NameDictionary");
   // Initialize FixedArray fields.
-  StoreObjectFieldRoot(result, FixedArray::kMapOffset,
-                       Heap::kHashTableMapRootIndex);
+  DCHECK(Heap::RootIsImmortalImmovable(Heap::kHashTableMapRootIndex));
+  StoreMapNoWriteBarrier(result, Heap::kHashTableMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
                                  SmiFromWord(length));
   // Initialized HashTable fields.
@@ -1958,17 +1968,16 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                          Node* capacity, Node* length,
                                          Node* allocation_site,
                                          ParameterMode capacity_mode) {
-  bool is_double = IsFastDoubleElementsKind(kind);
-
   // Allocate both array and elements object, and initialize the JSArray.
   Node *array, *elements;
   std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
       kind, array_map, length, allocation_site, capacity, capacity_mode);
   // Setup elements object.
-  Heap* heap = isolate()->heap();
-  Handle<Map> elements_map(is_double ? heap->fixed_double_array_map()
-                                     : heap->fixed_array_map());
-  StoreMapNoWriteBarrier(elements, HeapConstant(elements_map));
+  Heap::RootListIndex elements_map_index =
+      IsFastDoubleElementsKind(kind) ? Heap::kFixedDoubleArrayMapRootIndex
+                                     : Heap::kFixedArrayMapRootIndex;
+  DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
+  StoreMapNoWriteBarrier(elements, elements_map_index);
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
                                  TagParameter(capacity, capacity_mode));
 
@@ -1991,15 +2000,11 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
 
   // Allocate both array and elements object, and initialize the JSArray.
   Node* array = Allocate(total_size, flags);
-  Heap* heap = isolate()->heap();
-  Handle<Map> map(IsFastDoubleElementsKind(kind)
-                      ? heap->fixed_double_array_map()
-                      : heap->fixed_array_map());
-  if (flags & kPretenured) {
-    StoreObjectField(array, JSObject::kMapOffset, HeapConstant(map));
-  } else {
-    StoreMapNoWriteBarrier(array, HeapConstant(map));
-  }
+  Heap::RootListIndex map_index = IsFastDoubleElementsKind(kind)
+                                      ? Heap::kFixedDoubleArrayMapRootIndex
+                                      : Heap::kFixedArrayMapRootIndex;
+  DCHECK(Heap::RootIsImmortalImmovable(map_index));
+  StoreMapNoWriteBarrier(array, map_index);
   StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
                                  TagParameter(capacity_node, mode));
   return array;
@@ -5982,7 +5987,7 @@ void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
     Bind(&done);
   }
 
-  StoreObjectField(object, JSObject::kMapOffset, map);
+  StoreMap(object, map);
 }
 
 void CodeStubAssembler::TrapAllocationMemento(Node* object,
@@ -6122,9 +6127,7 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   Node* size = IntPtrConstant(AllocationSite::kSize);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
 
-  // Store the map
-  StoreObjectFieldRoot(site, AllocationSite::kMapOffset,
-                       Heap::kAllocationSiteMapRootIndex);
+  StoreMap(site, LoadRoot(Heap::kAllocationSiteMapRootIndex));
   Node* kind = SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
   StoreObjectFieldNoWriteBarrier(site, AllocationSite::kTransitionInfoOffset,
                                  kind);
@@ -6170,7 +6173,8 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   Node* cell = Allocate(size, CodeStubAssembler::kPretenured);
 
   // Initialize the WeakCell.
-  StoreObjectFieldRoot(cell, WeakCell::kMapOffset, Heap::kWeakCellMapRootIndex);
+  DCHECK(Heap::RootIsImmortalImmovable(Heap::kWeakCellMapRootIndex));
+  StoreMapNoWriteBarrier(cell, Heap::kWeakCellMapRootIndex);
   StoreObjectField(cell, WeakCell::kValueOffset, value);
   StoreObjectFieldRoot(cell, WeakCell::kNextOffset,
                        Heap::kTheHoleValueRootIndex);

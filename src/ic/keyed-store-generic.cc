@@ -149,7 +149,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
                            capacity, INTPTR_PARAMETERS, bailout);
     }
-    StoreObjectField(receiver, JSObject::kMapOffset, var_target_map.value());
+    StoreMap(receiver, var_target_map.value());
   }
 }
 
@@ -166,7 +166,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   }
   Node* holey_map =
       LoadContextElement(native_context, Context::ArrayMapIndex(holey_kind));
-  StoreObjectField(receiver, JSObject::kMapOffset, holey_map);
+  StoreMap(receiver, holey_map);
   Goto(done);
 }
 

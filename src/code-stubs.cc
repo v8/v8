@@ -478,7 +478,7 @@ void StoreMapStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
   Node* map = assembler.Parameter(Descriptor::kMap);
   Node* value = assembler.Parameter(Descriptor::kValue);
 
-  assembler.StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler.StoreMap(receiver, map);
   assembler.Return(value);
 }
 
@@ -521,7 +521,7 @@ void StoreTransitionStub::GenerateAssembly(
 
   // And finally update the map.
   assembler.Comment("Store map");
-  assembler.StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler.StoreMap(receiver, map);
   assembler.Return(value);
 
   // Only store to tagged field never bails out.
@@ -2233,9 +2233,8 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
 
   if (FLAG_allocation_site_pretenuring) {
     Node* memento = assembler->InnerAllocate(copy, object_size);
-    assembler->StoreObjectFieldNoWriteBarrier(
-        memento, HeapObject::kMapOffset,
-        assembler->LoadRoot(Heap::kAllocationMementoMapRootIndex));
+    assembler->StoreMapNoWriteBarrier(memento,
+                                      Heap::kAllocationMementoMapRootIndex);
     assembler->StoreObjectFieldNoWriteBarrier(
         memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
     Node* memento_create_count = assembler->LoadObjectField(
@@ -2602,10 +2601,8 @@ compiler::Node* FastNewFunctionContextStub::Generate(
   // Create a new closure from the given function info in new space
   Node* function_context = assembler->Allocate(size);
 
-  Isolate* isolate = assembler->isolate();
-  assembler->StoreMapNoWriteBarrier(
-      function_context,
-      assembler->HeapConstant(isolate->factory()->function_context_map()));
+  assembler->StoreMapNoWriteBarrier(function_context,
+                                    Heap::kFunctionContextMapRootIndex);
   assembler->StoreObjectFieldNoWriteBarrier(function_context,
                                             Context::kLengthOffset,
                                             assembler->SmiFromWord32(length));
@@ -2734,10 +2731,14 @@ compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
           kind, boilerplate_map, length, allocation_site, capacity, param_mode);
 
   assembler->Comment("copy elements header");
-  for (int offset = 0; offset < FixedArrayBase::kHeaderSize;
-       offset += kPointerSize) {
-    Node* value = assembler->LoadObjectField(boilerplate_elements, offset);
-    assembler->StoreObjectField(elements, offset, value);
+  // Header consists of map and length.
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
+  assembler->StoreMap(elements, assembler->LoadMap(boilerplate_elements));
+  {
+    int offset = FixedArrayBase::kLengthOffset;
+    assembler->StoreObjectFieldNoWriteBarrier(
+        elements, offset,
+        assembler->LoadObjectField(boilerplate_elements, offset));
   }
 
   if (assembler->Is64()) {

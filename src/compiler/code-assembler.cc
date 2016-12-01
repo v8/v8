@@ -317,6 +317,12 @@ Node* CodeAssembler::Store(Node* base, Node* offset, Node* value) {
                                 value, kFullWriteBarrier);
 }
 
+Node* CodeAssembler::StoreWithMapWriteBarrier(Node* base, Node* offset,
+                                              Node* value) {
+  return raw_assembler()->Store(MachineRepresentation::kTagged, base, offset,
+                                value, kMapWriteBarrier);
+}
+
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* value) {
   return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);

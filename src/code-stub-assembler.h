@@ -347,6 +347,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* object, Node* offset, Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
   // Store the Map of an HeapObject.
+  Node* StoreMap(Node* object, Node* map);
+  Node* StoreMapNoWriteBarrier(Node* object,
+                               Heap::RootListIndex map_root_index);
   Node* StoreMapNoWriteBarrier(Node* object, Node* map);
   Node* StoreObjectFieldRoot(Node* object, int offset,
                              Heap::RootListIndex root);
