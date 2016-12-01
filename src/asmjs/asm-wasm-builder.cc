@@ -782,7 +782,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void PopulateFunctionTable(VariableProxy* table, ArrayLiteral* funcs) {
     FunctionTableIndices* indices = LookupFunctionTable(table->var());
-    DCHECK_NOT_NULL(indices);
+    // Ignore unused function tables.
+    if (indices == nullptr) {
+      return;
+    }
     for (int i = 0; i < funcs->values()->length(); ++i) {
       VariableProxy* func = funcs->values()->at(i)->AsVariableProxy();
       DCHECK_NOT_NULL(func);
