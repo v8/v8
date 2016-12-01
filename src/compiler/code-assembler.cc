@@ -283,12 +283,12 @@ Node* CodeAssembler::Load(MachineType rep, Node* base) {
   return raw_assembler()->Load(rep, base);
 }
 
-Node* CodeAssembler::Load(MachineType rep, Node* base, Node* index) {
-  return raw_assembler()->Load(rep, base, index);
+Node* CodeAssembler::Load(MachineType rep, Node* base, Node* offset) {
+  return raw_assembler()->Load(rep, base, offset);
 }
 
-Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* index) {
-  return raw_assembler()->AtomicLoad(rep, base, index);
+Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
+  return raw_assembler()->AtomicLoad(rep, base, offset);
 }
 
 Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
@@ -311,9 +311,9 @@ Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* value) {
   return raw_assembler()->Store(rep, base, value, kFullWriteBarrier);
 }
 
-Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* index,
+Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* offset,
                            Node* value) {
-  return raw_assembler()->Store(rep, base, index, value, kFullWriteBarrier);
+  return raw_assembler()->Store(rep, base, offset, value, kFullWriteBarrier);
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
@@ -322,13 +322,13 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                         Node* index, Node* value) {
-  return raw_assembler()->Store(rep, base, index, value, kNoWriteBarrier);
+                                         Node* offset, Node* value) {
+  return raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
-                                 Node* index, Node* value) {
-  return raw_assembler()->AtomicStore(rep, base, index, value);
+                                 Node* offset, Node* value) {
+  return raw_assembler()->AtomicStore(rep, base, offset, value);
 }
 
 Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {

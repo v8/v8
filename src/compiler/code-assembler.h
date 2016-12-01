@@ -264,19 +264,19 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
-  Node* Load(MachineType rep, Node* base, Node* index);
-  Node* AtomicLoad(MachineType rep, Node* base, Node* index);
+  Node* Load(MachineType rep, Node* base, Node* offset);
+  Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
 
   // Store value to raw memory location.
   Node* Store(MachineRepresentation rep, Node* base, Node* value);
-  Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value);
+  Node* Store(MachineRepresentation rep, Node* base, Node* offset, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* index,
+  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
-  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
                     Node* value);
 
   // Store a value to the root array.
