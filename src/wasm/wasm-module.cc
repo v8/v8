@@ -52,8 +52,8 @@ MaybeHandle<String> ExtractStringFromModuleBytes(
     uint32_t offset, uint32_t size) {
   // TODO(wasm): cache strings from modules if it's a performance win.
   Handle<SeqOneByteString> module_bytes = compiled_module->module_bytes();
-  DCHECK_GE(static_cast<size_t>(module_bytes->length()), offset);
-  DCHECK_GE(static_cast<size_t>(module_bytes->length() - offset), size);
+  DCHECK_GE(module_bytes->length(), offset);
+  DCHECK_GE(module_bytes->length() - offset, size);
   Address raw = module_bytes->GetCharsAddress() + offset;
   if (!unibrow::Utf8::Validate(reinterpret_cast<const byte*>(raw), size))
     return {};  // UTF8 decoding error for name.
@@ -111,7 +111,7 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
     // addressable memory after the guard page can be made inaccessible.
     const size_t alloc_size =
         RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
-    DCHECK_EQ(0u, size % base::OS::CommitPageSize());
+    DCHECK_EQ(0, size % base::OS::CommitPageSize());
 
     // AllocateGuarded makes the whole region inaccessible by default.
     void* memory = base::OS::AllocateGuarded(alloc_size);
@@ -2074,7 +2074,7 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
     compiled_module->set_script(asm_js_script);
     size_t offset_table_len =
         asm_js_offset_tables_end - asm_js_offset_tables_start;
-    DCHECK_GE(static_cast<size_t>(kMaxInt), offset_table_len);
+    DCHECK_GE(kMaxInt, offset_table_len);
     Handle<ByteArray> offset_table =
         isolate->factory()->NewByteArray(static_cast<int>(offset_table_len));
     memcpy(offset_table->GetDataStartAddress(), asm_js_offset_tables_start,

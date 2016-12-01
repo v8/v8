@@ -1171,7 +1171,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   bool DoReturn(InterpreterCode** code, pc_t* pc, pc_t* limit, size_t arity) {
-    DCHECK_GT(frames_.size(), 0u);
+    DCHECK_GT(frames_.size(), 0);
     // Pop all blocks for this frame.
     while (!blocks_.empty() && blocks_.back().fp == frames_.size()) {
       blocks_.pop_back();
@@ -1678,8 +1678,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   WasmVal Pop() {
-    DCHECK_GT(stack_.size(), 0u);
-    DCHECK_GT(frames_.size(), 0u);
+    DCHECK_GT(stack_.size(), 0);
+    DCHECK_GT(frames_.size(), 0);
     DCHECK_GT(stack_.size(), frames_.back().llimit());  // can't pop into locals
     WasmVal val = stack_.back();
     stack_.pop_back();
@@ -1687,8 +1687,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   void PopN(int n) {
-    DCHECK_GE(stack_.size(), static_cast<size_t>(n));
-    DCHECK_GT(frames_.size(), 0u);
+    DCHECK_GE(stack_.size(), n);
+    DCHECK_GT(frames_.size(), 0);
     size_t nsize = stack_.size() - n;
     DCHECK_GE(nsize, frames_.back().llimit());  // can't pop into locals
     stack_.resize(nsize);
@@ -1696,7 +1696,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
   WasmVal PopArity(size_t arity) {
     if (arity == 0) return WasmVal();
-    CHECK_EQ(1u, arity);
+    CHECK_EQ(1, arity);
     return Pop();
   }
 
