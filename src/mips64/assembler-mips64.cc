@@ -1939,9 +1939,27 @@ void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
 void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
   DCHECK(!src.rm().is(at));
   DCHECK(is_int32(src.offset_));
-  lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
-  ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
-  daddu(at, at, src.rm());  // Add base register.
+
+  if (kArchVariant == kMips64r6) {
+    int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
+    if (src.offset_ & kNegOffset) {
+      if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
+        lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
+        ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
+        daddu(at, at, src.rm());                // Add base register.
+        return;
+      }
+
+      hi += 1;
+    }
+
+    daui(at, src.rm(), hi);
+    daddiu(at, at, src.offset_ & kImm16Mask);
+  } else {
+    lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
+    ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
+    daddu(at, at, src.rm());                // Add base register.
+  }
 }
 
 // Helper for base-reg + upper part of offset, when offset is larger than int16.
@@ -1964,8 +1982,12 @@ int32_t Assembler::LoadRegPlusUpperOffsetPartToAt(const MemOperand& src) {
     hi += 1;
   }
 
-  lui(at, hi);
-  daddu(at, at, src.rm());
+  if (kArchVariant == kMips64r6) {
+    daui(at, src.rm(), hi);
+  } else {
+    lui(at, hi);
+    daddu(at, at, src.rm());
+  }
   return (src.offset_ & kImm16Mask);
 }
 
