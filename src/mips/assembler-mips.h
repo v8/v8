@@ -1452,6 +1452,10 @@ class Assembler : public AssemblerBase {
   // Internal reference positions, required for unbounded internal reference
   // labels.
   std::set<int> internal_reference_positions_;
+  bool is_internal_reference(Label* L) {
+    return internal_reference_positions_.find(L->pos()) !=
+           internal_reference_positions_.end();
+  }
 
   void EmittedCompactBranchInstruction() { prev_instr_compact_branch_ = true; }
   void ClearCompactBranchState() { prev_instr_compact_branch_ = false; }

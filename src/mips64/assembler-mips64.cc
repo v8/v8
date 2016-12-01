@@ -859,8 +859,7 @@ void Assembler::print(Label* L) {
       } else {
         PrintF("%d\n", instr);
       }
-      next(&l, internal_reference_positions_.find(l.pos()) !=
-                   internal_reference_positions_.end());
+      next(&l, is_internal_reference(&l));
     }
   } else {
     PrintF("label in inconsistent state (pos = %d)\n", L->pos_);
@@ -874,14 +873,15 @@ void Assembler::bind_to(Label* L, int pos) {
   bool is_internal = false;
   if (L->is_linked() && !trampoline_emitted_) {
     unbound_labels_count_--;
-    next_buffer_check_ += kTrampolineSlotsSize;
+    if (!is_internal_reference(L)) {
+      next_buffer_check_ += kTrampolineSlotsSize;
+    }
   }
 
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int dist = pos - fixup_pos;
-    is_internal = internal_reference_positions_.find(fixup_pos) !=
-                  internal_reference_positions_.end();
+    is_internal = is_internal_reference(L);
     next(L, is_internal);  // Call next before overwriting link with target at
                            // fixup_pos.
     Instr instr = instr_at(fixup_pos);
@@ -898,7 +898,6 @@ void Assembler::bind_to(Label* L, int pos) {
           CHECK((trampoline_pos - fixup_pos) <= branch_offset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
-          dist = pos - fixup_pos;
         }
         target_at_put(fixup_pos, pos, false);
       } else {

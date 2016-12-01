@@ -282,6 +282,90 @@ TEST(jump_tables5) {
   }
 }
 
+TEST(jump_tables6) {
+  // Similar to test-assembler-mips jump_tables1, with extra test for branch
+  // trampoline required after emission of the dd table (where trampolines are
+  // blocked). This test checks if number of really generated instructions is
+  // greater than number of counted instructions from code, as we are expecting
+  // generation of trampoline in this case (when number of kFillInstr
+  // instructions is close to 32K)
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assembler(isolate, nullptr, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  const int kNumCases = 40;
+  const int kFillInstr = 32551;
+  const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+  const int kTrampolineSlotsSize = 4 * Instruction::kInstrSize;
+  const int kMaxOffsetForTrampolineStart =
+      kMaxBranchOffset - 16 * kTrampolineSlotsSize;
+
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+  Label near_start, end, done;
+
+  __ Push(ra);
+  __ mov(v0, zero_reg);
+
+  int offs1 = masm->pc_offset();
+  int gen_insn = 0;
+
+  __ Branch(&end);
+  gen_insn += 2;
+  __ bind(&near_start);
+
+  // Generate slightly less than 32K instructions, which will soon require
+  // trampoline for branch distance fixup.
+  for (int i = 0; i < kFillInstr; ++i) {
+    __ addiu(v0, v0, 1);
+  }
+  gen_insn += kFillInstr;
+
+  __ GenerateSwitchTable(a0, kNumCases,
+                         [&labels](size_t i) { return labels + i; });
+  gen_insn += (10 + kNumCases);
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ li(v0, values[i]);
+    __ Branch(&done);
+  }
+  gen_insn += (4 * kNumCases);
+
+  // If offset from here to first branch instr is greater than max allowed
+  // offset for trampoline ...
+  CHECK_LT(kMaxOffsetForTrampolineStart, masm->pc_offset() - offs1);
+  // ... number of generated instructions must be greater then "gen_insn",
+  // as we are expecting trampoline generation
+  CHECK_LT(gen_insn, (masm->pc_offset() - offs1) / Instruction::kInstrSize);
+
+  __ bind(&done);
+  __ Pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&end);
+  __ Branch(&near_start);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
 
 static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   Isolate* isolate = CcTest::i_isolate();
