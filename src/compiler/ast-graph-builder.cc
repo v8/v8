@@ -1509,17 +1509,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::COMPUTED:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL: {
-        if (!property->emit_store()) continue;
-        Node* attr = jsgraph()->Constant(NONE);
-        Node* set_function_name =
-            jsgraph()->Constant(property->NeedsSetFunctionName());
-        const Operator* op =
-            javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
-        Node* call = NewNode(op, receiver, key, value, attr, set_function_name);
-        PrepareFrameState(call, expr->GetIdForPropertySet(property_index));
-        break;
-      }
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
       case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();  // Handled specially above.
         break;

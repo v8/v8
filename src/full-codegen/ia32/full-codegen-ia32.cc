@@ -1285,17 +1285,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         case ObjectLiteral::Property::CONSTANT:
         case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         case ObjectLiteral::Property::COMPUTED:
-          if (property->emit_store()) {
-            PushOperand(Smi::FromInt(NONE));
-            PushOperand(Smi::FromInt(property->NeedsSetFunctionName()));
-            CallRuntimeWithOperands(Runtime::kDefineDataPropertyInLiteral);
-            PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
-                                   BailoutState::NO_REGISTERS);
-          } else {
-            DropOperands(3);
-          }
-          break;
-
         case ObjectLiteral::Property::PROTOTYPE:
           UNREACHABLE();
           break;
