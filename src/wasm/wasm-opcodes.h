@@ -296,9 +296,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32x4Le, 0xe513, s_ss)               \
   V(F32x4Gt, 0xe514, s_ss)               \
   V(F32x4Ge, 0xe515, s_ss)               \
-  V(F32x4Select, 0xe516, s_sss)          \
-  V(F32x4Swizzle, 0xe517, s_s)           \
-  V(F32x4Shuffle, 0xe518, s_ss)          \
   V(F32x4FromInt32x4, 0xe519, s_s)       \
   V(F32x4FromUint32x4, 0xe51a, s_s)      \
   V(I32x4Splat, 0xe51b, s_i)             \
@@ -392,7 +389,10 @@ const WasmCodePosition kNoCodePosition = -1;
   V(S128And, 0xe576, s_ss)               \
   V(S128Ior, 0xe577, s_ss)               \
   V(S128Xor, 0xe578, s_ss)               \
-  V(S128Not, 0xe579, s_s)
+  V(S128Not, 0xe579, s_s)                \
+  V(S32x4Select, 0xe580, s_sss)          \
+  V(S32x4Swizzle, 0xe581, s_s)           \
+  V(S32x4Shuffle, 0xe582, s_ss)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
   V(F32x4ExtractLane, 0xe501, _)         \

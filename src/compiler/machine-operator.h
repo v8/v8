@@ -447,9 +447,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float32x4LessThanOrEqual();
   const Operator* Float32x4GreaterThan();
   const Operator* Float32x4GreaterThanOrEqual();
-  const Operator* Float32x4Select();
-  const Operator* Float32x4Swizzle();
-  const Operator* Float32x4Shuffle();
   const Operator* Float32x4FromInt32x4();
   const Operator* Float32x4FromUint32x4();
 
@@ -470,9 +467,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int32x4LessThanOrEqual();
   const Operator* Int32x4GreaterThan();
   const Operator* Int32x4GreaterThanOrEqual();
-  const Operator* Int32x4Select();
-  const Operator* Int32x4Swizzle();
-  const Operator* Int32x4Shuffle();
   const Operator* Int32x4FromFloat32x4();
 
   const Operator* Uint32x4Min();
@@ -607,6 +601,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd128Or();
   const Operator* Simd128Xor();
   const Operator* Simd128Not();
+  const Operator* Simd32x4Select();
+  const Operator* Simd32x4Swizzle();
+  const Operator* Simd32x4Shuffle();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

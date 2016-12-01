@@ -555,9 +555,6 @@
   V(Float32x4LessThanOrEqual)               \
   V(Float32x4GreaterThan)                   \
   V(Float32x4GreaterThanOrEqual)            \
-  V(Float32x4Select)                        \
-  V(Float32x4Swizzle)                       \
-  V(Float32x4Shuffle)                       \
   V(Float32x4FromInt32x4)                   \
   V(Float32x4FromUint32x4)                  \
   V(CreateInt32x4)                          \
@@ -576,9 +573,6 @@
   V(Int32x4LessThanOrEqual)                 \
   V(Int32x4GreaterThan)                     \
   V(Int32x4GreaterThanOrEqual)              \
-  V(Int32x4Select)                          \
-  V(Int32x4Swizzle)                         \
-  V(Int32x4Shuffle)                         \
   V(Int32x4FromFloat32x4)                   \
   V(Uint32x4Min)                            \
   V(Uint32x4Max)                            \
@@ -711,7 +705,10 @@
   V(Simd128And)                         \
   V(Simd128Or)                          \
   V(Simd128Xor)                         \
-  V(Simd128Not)
+  V(Simd128Not)                         \
+  V(Simd32x4Select)                     \
+  V(Simd32x4Swizzle)                    \
+  V(Simd32x4Shuffle)
 
 #define MACHINE_SIMD_OP_LIST(V)       \
   MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \

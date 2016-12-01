@@ -242,9 +242,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)            \
   V(Float32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                \
   V(Float32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)         \
-  V(Float32x4Select, Operator::kNoProperties, 3, 0, 1)                     \
-  V(Float32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                    \
-  V(Float32x4Shuffle, Operator::kNoProperties, 6, 0, 1)                    \
   V(Float32x4FromInt32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Float32x4FromUint32x4, Operator::kNoProperties, 1, 0, 1)               \
   V(CreateInt32x4, Operator::kNoProperties, 4, 0, 1)                       \
@@ -264,9 +261,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
   V(Int32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Int32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
-  V(Int32x4Select, Operator::kNoProperties, 3, 0, 1)                       \
-  V(Int32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                      \
-  V(Int32x4Shuffle, Operator::kNoProperties, 6, 0, 1)                      \
   V(Int32x4FromFloat32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Uint32x4Min, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint32x4Max, Operator::kCommutative, 2, 0, 1)                          \
@@ -391,7 +385,10 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Simd128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Simd128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
   V(Simd128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
-  V(Simd128Not, Operator::kNoProperties, 1, 0, 1)
+  V(Simd128Not, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Simd32x4Select, Operator::kNoProperties, 3, 0, 1)                      \
+  V(Simd32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                     \
+  V(Simd32x4Shuffle, Operator::kNoProperties, 6, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
