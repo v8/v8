@@ -777,13 +777,7 @@ class MetaBuildWrapper(object):
       self.WriteFile(gn_runtime_deps_path, '\n'.join(gn_labels) + '\n')
       cmd.append('--runtime-deps-list-file=%s' % gn_runtime_deps_path)
 
-    # Override msvs infra environment variables.
-    # TODO(machenbach): Remove after GYP_MSVS_VERSION is removed on infra side.
-    env = {}
-    env.update(os.environ)
-    env['GYP_MSVS_VERSION'] = '2015'
-
-    ret, _, _ = self.Run(cmd, env=env)
+    ret, _, _ = self.Run(cmd)
     if ret:
         # If `gn gen` failed, we should exit early rather than trying to
         # generate isolates. Run() will have already logged any error output.
