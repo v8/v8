@@ -500,5 +500,11 @@ Callable CodeFactory::ArrayPush(Isolate* isolate) {
   return Callable(isolate->builtins()->ArrayPush(), BuiltinDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::FunctionPrototypeBind(Isolate* isolate) {
+  return Callable(isolate->builtins()->FunctionPrototypeBind(),
+                  BuiltinDescriptor(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8

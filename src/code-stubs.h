@@ -59,10 +59,6 @@ class ObjectLiteral;
   /* used universally */                      \
   V(CallICTrampoline)                         \
   /* --- HydrogenCodeStubs --- */             \
-  /* These builtins w/ JS linkage are */      \
-  /* just fast-cases of C++ builtins. They */ \
-  /* require varg support from TF */          \
-  V(FastFunctionBind)                         \
   /* These will be ported/eliminated */       \
   /* as part of the new IC system, ask */     \
   /* ishell before doing anything  */         \
@@ -1008,15 +1004,6 @@ class GrowArrayElementsStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(GrowArrayElements);
   DEFINE_TURBOFAN_CODE_STUB(GrowArrayElements, TurboFanCodeStub);
-};
-
-class FastFunctionBindStub : public HydrogenCodeStub {
- public:
-  explicit FastFunctionBindStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VarArgFunction);
-  DEFINE_HYDROGEN_CODE_STUB(FastFunctionBind, HydrogenCodeStub);
 };
 
 enum AllocationSiteOverrideMode {

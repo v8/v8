@@ -168,6 +168,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 
   static Callable ArrayPush(Isolate* isolate);
+  static Callable FunctionPrototypeBind(Isolate* isolate);
 };
 
 }  // namespace internal

@@ -190,9 +190,9 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
   Label double_transition(&assembler);
   Label runtime(&assembler, Label::kDeferred);
 
-  Node* argc = assembler.Parameter(1);
-  Node* context = assembler.Parameter(2);
-  Node* new_target = assembler.Parameter(0);
+  Node* argc = assembler.Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = assembler.Parameter(BuiltinDescriptor::kContext);
+  Node* new_target = assembler.Parameter(BuiltinDescriptor::kNewTarget);
 
   CodeStubArguments args(&assembler, argc);
   Node* receiver = args.GetReceiver();

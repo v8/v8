@@ -1232,20 +1232,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup the methods on the %FunctionPrototype%.
     SimpleInstallFunction(prototype, factory->apply_string(),
                           Builtins::kFunctionPrototypeApply, 2, false);
-
-    if (FLAG_minimal) {
-      SimpleInstallFunction(prototype, factory->bind_string(),
-                            Builtins::kFunctionPrototypeBind, 1, false);
-    } else {
-      FastFunctionBindStub bind_stub(isolate);
-      Handle<JSFunction> bind_function = factory->NewFunctionWithoutPrototype(
-          factory->bind_string(), bind_stub.GetCode(), false);
-      bind_function->shared()->DontAdaptArguments();
-      bind_function->shared()->set_length(1);
-      InstallFunction(prototype, bind_function, factory->bind_string(),
-                      DONT_ENUM);
-    }
-
+    SimpleInstallFunction(prototype, factory->bind_string(),
+                          Builtins::kFastFunctionPrototypeBind, 1, false);
     SimpleInstallFunction(prototype, factory->call_string(),
                           Builtins::kFunctionPrototypeCall, 1, false);
     SimpleInstallFunction(prototype, factory->toString_string(),

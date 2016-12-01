@@ -390,8 +390,9 @@ void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformIndependent(
 
 void BuiltinDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  MachineType machine_types[] = {
-      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32()};
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(),
+                                 MachineType::Pointer()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

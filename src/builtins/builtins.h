@@ -369,6 +369,8 @@ namespace internal {
   CPP(FunctionConstructor)                                                    \
   ASM(FunctionPrototypeApply)                                                 \
   CPP(FunctionPrototypeBind)                                                  \
+  TFJ(FastFunctionPrototypeBind,                                              \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                        \
   ASM(FunctionPrototypeCall)                                                  \
   /* ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V ) */       \
   TFJ(FunctionPrototypeHasInstance, 1)                                        \
