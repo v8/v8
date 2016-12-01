@@ -1887,10 +1887,8 @@ void LoadApiGetterStub::GenerateAssembly(
   Node* holder = receiver;
   Node* map = assembler.LoadMap(receiver);
   Node* descriptors = assembler.LoadMapDescriptors(map);
-  Node* value_index =
-      assembler.IntPtrConstant(DescriptorArray::ToValueIndex(index()));
   Node* callback = assembler.LoadFixedArrayElement(
-      descriptors, value_index, 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      descriptors, DescriptorArray::ToValueIndex(index()));
   assembler.TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
                          holder, callback);
 }
@@ -2091,9 +2089,7 @@ void LoadScriptContextFieldStub::GenerateAssembly(
   Node* context = assembler.Parameter(Descriptor::kContext);
 
   Node* script_context = assembler.LoadScriptContext(context, context_index());
-  Node* result = assembler.LoadFixedArrayElement(
-      script_context, assembler.IntPtrConstant(slot_index()), 0,
-      CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* result = assembler.LoadFixedArrayElement(script_context, slot_index());
   assembler.Return(result);
 }
 

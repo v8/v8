@@ -591,9 +591,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     GotoUnless(is_allocation_site, &check_initialized);
 
     // If it is not the Array() function, mark megamorphic.
-    Node* context_slot =
-        LoadFixedArrayElement(LoadNativeContext(context),
-                              Int32Constant(Context::ARRAY_FUNCTION_INDEX));
+    Node* context_slot = LoadContextElement(LoadNativeContext(context),
+                                            Context::ARRAY_FUNCTION_INDEX);
     Node* is_array_function = WordEqual(context_slot, function);
     GotoUnless(is_array_function, &mark_megamorphic);
 
@@ -631,9 +630,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       GotoUnless(is_js_function, &mark_megamorphic);
 
       // Check if it is the Array() function.
-      Node* context_slot =
-          LoadFixedArrayElement(LoadNativeContext(context),
-                                Int32Constant(Context::ARRAY_FUNCTION_INDEX));
+      Node* context_slot = LoadContextElement(LoadNativeContext(context),
+                                              Context::ARRAY_FUNCTION_INDEX);
       Node* is_array_function = WordEqual(context_slot, function);
       GotoIf(is_array_function, &create_allocation_site);
 
@@ -782,9 +780,8 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
       GotoUnless(is_allocation_site, &check_initialized);
 
       // Make sure the function is the Array() function.
-      Node* context_slot =
-          LoadFixedArrayElement(LoadNativeContext(context),
-                                Int32Constant(Context::ARRAY_FUNCTION_INDEX));
+      Node* context_slot = LoadContextElement(LoadNativeContext(context),
+                                              Context::ARRAY_FUNCTION_INDEX);
       Node* is_array_function = WordEqual(context_slot, constructor);
       GotoUnless(is_array_function, &mark_megamorphic);
 
@@ -807,9 +804,8 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
       Comment("initialize the feedback element");
       // Create an allocation site if the function is an array function,
       // otherwise create a weak cell.
-      Node* context_slot =
-          LoadFixedArrayElement(LoadNativeContext(context),
-                                Int32Constant(Context::ARRAY_FUNCTION_INDEX));
+      Node* context_slot = LoadContextElement(LoadNativeContext(context),
+                                              Context::ARRAY_FUNCTION_INDEX);
       Node* is_array_function = WordEqual(context_slot, constructor);
       Branch(is_array_function, &create_allocation_site, &create_weak_cell);
 

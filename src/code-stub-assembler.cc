@@ -1314,8 +1314,7 @@ Node* CodeStubAssembler::LoadNativeContext(Node* context) {
 Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
                                                 Node* native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
-  return LoadFixedArrayElement(native_context,
-                               IntPtrConstant(Context::ArrayMapIndex(kind)));
+  return LoadContextElement(native_context, Context::ArrayMapIndex(kind));
 }
 
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
@@ -4273,9 +4272,7 @@ Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
 
 template <class Dictionary>
 Node* CodeStubAssembler::GetNumberOfElements(Node* dictionary) {
-  return LoadFixedArrayElement(
-      dictionary, IntPtrConstant(Dictionary::kNumberOfElementsIndex), 0,
-      INTPTR_PARAMETERS);
+  return LoadFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex);
 }
 
 template <class Dictionary>
@@ -4287,23 +4284,19 @@ void CodeStubAssembler::SetNumberOfElements(Node* dictionary,
 
 template <class Dictionary>
 Node* CodeStubAssembler::GetNumberOfDeletedElements(Node* dictionary) {
-  return LoadFixedArrayElement(
-      dictionary, IntPtrConstant(Dictionary::kNumberOfDeletedElementsIndex), 0,
-      INTPTR_PARAMETERS);
+  return LoadFixedArrayElement(dictionary,
+                               Dictionary::kNumberOfDeletedElementsIndex);
 }
 
 template <class Dictionary>
 Node* CodeStubAssembler::GetCapacity(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary,
-                               IntPtrConstant(Dictionary::kCapacityIndex), 0,
-                               INTPTR_PARAMETERS);
+  return LoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex);
 }
 
 template <class Dictionary>
 Node* CodeStubAssembler::GetNextEnumerationIndex(Node* dictionary) {
-  return LoadFixedArrayElement(
-      dictionary, IntPtrConstant(Dictionary::kNextEnumerationIndexIndex), 0,
-      INTPTR_PARAMETERS);
+  return LoadFixedArrayElement(dictionary,
+                               Dictionary::kNextEnumerationIndexIndex);
 }
 
 template <class Dictionary>
@@ -5576,8 +5569,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   {
     CSA_ASSERT(this, TaggedIsSmi(mapped_index));
     mapped_index = SmiUntag(mapped_index);
-    Node* the_context = LoadFixedArrayElement(elements, IntPtrConstant(0), 0,
-                                              INTPTR_PARAMETERS);
+    Node* the_context = LoadFixedArrayElement(elements, 0);
     // Assert that we can use LoadFixedArrayElement/StoreFixedArrayElement
     // methods for accessing Context.
     STATIC_ASSERT(Context::kHeaderSize == FixedArray::kHeaderSize);
@@ -5597,8 +5589,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   Bind(&if_unmapped);
   {
-    Node* backing_store = LoadFixedArrayElement(elements, IntPtrConstant(1), 0,
-                                                INTPTR_PARAMETERS);
+    Node* backing_store = LoadFixedArrayElement(elements, 1);
     GotoIf(WordNotEqual(LoadMap(backing_store), FixedArrayMapConstant()),
            bailout);
 

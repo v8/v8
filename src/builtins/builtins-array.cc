@@ -233,8 +233,7 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     // guaranteed to stay the first property.
     Node* descriptors = assembler.LoadMapDescriptors(map);
     Node* details = assembler.LoadFixedArrayElement(
-        descriptors,
-        assembler.Int32Constant(DescriptorArray::ToDetailsIndex(0)));
+        descriptors, DescriptorArray::ToDetailsIndex(0));
     mask = READ_ONLY << PropertyDetails::AttributesField::kShift;
     Node* mask_node = assembler.SmiConstant(mask);
     test = assembler.WordAnd(details, mask_node);

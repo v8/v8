@@ -300,6 +300,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFixedArrayElement(
       Node* object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
+  Node* LoadFixedArrayElement(Node* object, int index,
+                              int additional_offset = 0) {
+    return LoadFixedArrayElement(object, IntPtrConstant(index),
+                                 additional_offset, INTPTR_PARAMETERS);
+  }
   // Load an array element from a FixedArray, untag it and return it as Word32.
   Node* LoadAndUntagToWord32FixedArrayElement(
       Node* object, Node* index, int additional_offset = 0,

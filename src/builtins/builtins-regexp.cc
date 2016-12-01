@@ -226,26 +226,18 @@ void StoreLastIndex(CodeStubAssembler* a, Node* context, Node* regexp,
   }
 }
 
-Node* LoadMatchInfoField(CodeStubAssembler* a, Node* const match_info,
-                         const int index) {
-  const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-  Node* const result =
-      a->LoadFixedArrayElement(match_info, a->IntPtrConstant(index), 0, mode);
-  return result;
-}
-
 Node* ConstructNewResultFromMatchInfo(Isolate* isolate, CodeStubAssembler* a,
                                       Node* context, Node* match_info,
                                       Node* string) {
   CLabel out(a);
 
-  Node* const num_indices = a->SmiUntag(LoadMatchInfoField(
-      a, match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
+  Node* const num_indices = a->SmiUntag(a->LoadFixedArrayElement(
+      match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
   Node* const num_results = a->SmiTag(a->WordShr(num_indices, 1));
   Node* const start =
-      LoadMatchInfoField(a, match_info, RegExpMatchInfo::kFirstCaptureIndex);
-  Node* const end = LoadMatchInfoField(a, match_info,
-                                       RegExpMatchInfo::kFirstCaptureIndex + 1);
+      a->LoadFixedArrayElement(match_info, RegExpMatchInfo::kFirstCaptureIndex);
+  Node* const end = a->LoadFixedArrayElement(
+      match_info, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
   // Calculate the substring of the first match before creating the result array
   // to avoid an unnecessary write barrier storing the first result.
@@ -420,8 +412,8 @@ Node* RegExpPrototypeExecBodyWithoutResult(
     a->GotoUnless(should_update_last_index, &out);
 
     // Update the new last index from {match_indices}.
-    Node* const new_lastindex = LoadMatchInfoField(
-        a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+    Node* const new_lastindex = a->LoadFixedArrayElement(
+        match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
     StoreLastIndex(a, context, regexp, new_lastindex, is_fastpath);
     a->Goto(&out);
@@ -1389,10 +1381,10 @@ void RegExpPrototypeMatchBody(CodeStubAssembler* a, Node* const receiver,
         Node* const match_indices = RegExpPrototypeExecBodyWithoutResult(
             a, context, regexp, string, &if_didnotmatch, true);
 
-        Node* const match_from = LoadMatchInfoField(
-            a, match_indices, RegExpMatchInfo::kFirstCaptureIndex);
-        Node* const match_to = LoadMatchInfoField(
-            a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+        Node* const match_from = a->LoadFixedArrayElement(
+            match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+        Node* const match_to = a->LoadFixedArrayElement(
+            match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
         Node* match = a->SubString(context, string, match_from, match_to);
         var_match.Bind(match);
@@ -1414,9 +1406,7 @@ void RegExpPrototypeMatchBody(CodeStubAssembler* a, Node* const receiver,
           a->Bind(&fast_result);
           {
             Node* const result_fixed_array = a->LoadElements(result);
-            const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-            Node* const match =
-                a->LoadFixedArrayElement(result_fixed_array, int_zero, 0, mode);
+            Node* const match = a->LoadFixedArrayElement(result_fixed_array, 0);
 
             // The match is guaranteed to be a string on the fast path.
             CSA_ASSERT(a, a->IsStringInstanceType(a->LoadInstanceType(match)));
@@ -1534,8 +1524,8 @@ void RegExpPrototypeSearchBodyFast(CodeStubAssembler* a, Node* const receiver,
     FastStoreLastIndex(a, receiver, previous_last_index);
 
     // Return the index of the match.
-    Node* const index = LoadMatchInfoField(a, match_indices,
-                                           RegExpMatchInfo::kFirstCaptureIndex);
+    Node* const index = a->LoadFixedArrayElement(
+        match_indices, RegExpMatchInfo::kFirstCaptureIndex);
     a->Return(index);
   }
 
@@ -1763,8 +1753,8 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
       a->Bind(&next);
     }
 
-    Node* const match_from = LoadMatchInfoField(
-        a, match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+    Node* const match_from = a->LoadFixedArrayElement(
+        match_indices, RegExpMatchInfo::kFirstCaptureIndex);
 
     // We're done if the match starts beyond the string.
     {
@@ -1774,8 +1764,8 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
       a->Bind(&next);
     }
 
-    Node* const match_to = LoadMatchInfoField(
-        a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+    Node* const match_to = a->LoadFixedArrayElement(
+        match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
     // Advance index and continue if the match is empty.
     {
@@ -1806,8 +1796,8 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
 
     // Add all captures to the array.
     {
-      Node* const num_registers = LoadMatchInfoField(
-          a, match_indices, RegExpMatchInfo::kNumberOfCapturesIndex);
+      Node* const num_registers = a->LoadFixedArrayElement(
+          match_indices, RegExpMatchInfo::kNumberOfCapturesIndex);
       Node* const int_num_registers = a->SmiUntag(num_registers);
 
       CVariable var_reg(a, MachineType::PointerRepresentation());
@@ -2025,8 +2015,8 @@ Node* ReplaceGlobalCallableFastPath(CodeStubAssembler* a, Node* context,
   Node* const res_elems = a->LoadElements(res);
   CSA_ASSERT(a, a->HasInstanceType(res_elems, FIXED_ARRAY_TYPE));
 
-  Node* const num_capture_registers = LoadMatchInfoField(
-      a, last_match_info, RegExpMatchInfo::kNumberOfCapturesIndex);
+  Node* const num_capture_registers = a->LoadFixedArrayElement(
+      last_match_info, RegExpMatchInfo::kNumberOfCapturesIndex);
 
   CLabel if_hasexplicitcaptures(a), if_noexplicitcaptures(a), create_result(a);
   a->Branch(a->SmiEqual(num_capture_registers, a->SmiConstant(Smi::FromInt(2))),
@@ -2241,10 +2231,10 @@ Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a, Node* context,
     a->Bind(&if_matched);
     {
       Node* const subject_start = smi_zero;
-      Node* const match_start = LoadMatchInfoField(
-          a, match_indices, RegExpMatchInfo::kFirstCaptureIndex);
-      Node* const match_end = LoadMatchInfoField(
-          a, match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+      Node* const match_start = a->LoadFixedArrayElement(
+          match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+      Node* const match_end = a->LoadFixedArrayElement(
+          match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
       Node* const subject_end = a->LoadStringLength(subject_string);
 
       CLabel if_replaceisempty(a), if_replaceisnotempty(a);

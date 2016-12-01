@@ -1281,10 +1281,8 @@ void Builtins::Generate_StringPrototypeIterator(
                                         "String.prototype[Symbol.iterator]");
 
   Node* native_context = assembler.LoadNativeContext(context);
-  Node* map = assembler.LoadFixedArrayElement(
-      native_context,
-      assembler.IntPtrConstant(Context::STRING_ITERATOR_MAP_INDEX), 0,
-      CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* map = assembler.LoadContextElement(native_context,
+                                           Context::STRING_ITERATOR_MAP_INDEX);
   Node* iterator = assembler.Allocate(JSStringIterator::kSize);
   assembler.StoreMapNoWriteBarrier(iterator, map);
   assembler.StoreObjectFieldRoot(iterator, JSValue::kPropertiesOffset,
@@ -1440,10 +1438,8 @@ void Builtins::Generate_StringIteratorPrototypeNext(
   assembler.Bind(&return_result);
   {
     Node* native_context = assembler.LoadNativeContext(context);
-    Node* map = assembler.LoadFixedArrayElement(
-        native_context,
-        assembler.IntPtrConstant(Context::ITERATOR_RESULT_MAP_INDEX), 0,
-        CodeStubAssembler::INTPTR_PARAMETERS);
+    Node* map = assembler.LoadContextElement(
+        native_context, Context::ITERATOR_RESULT_MAP_INDEX);
     Node* result = assembler.Allocate(JSIteratorResult::kSize);
     assembler.StoreMapNoWriteBarrier(result, map);
     assembler.StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,

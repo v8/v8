@@ -62,13 +62,12 @@ void AccessorAssemblerImpl::HandlePolymorphicCase(
 
   for (int i = 0; i < unroll_count; i++) {
     Label next_entry(this);
-    Node* cached_map = LoadWeakCellValue(LoadFixedArrayElement(
-        feedback, IntPtrConstant(i * kEntrySize), 0, INTPTR_PARAMETERS));
+    Node* cached_map =
+        LoadWeakCellValue(LoadFixedArrayElement(feedback, i * kEntrySize));
     GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
 
     // Found, now call handler.
-    Node* handler = LoadFixedArrayElement(
-        feedback, IntPtrConstant(i * kEntrySize + 1), 0, INTPTR_PARAMETERS);
+    Node* handler = LoadFixedArrayElement(feedback, i * kEntrySize + 1);
     var_handler->Bind(handler);
     Goto(if_handler);
 
@@ -432,9 +431,8 @@ Node* AccessorAssemblerImpl::EmitLoadICProtoArrayCheck(
       },
       1, IndexAdvanceMode::kPost);
 
-  Node* maybe_holder_cell = LoadFixedArrayElement(
-      handler, IntPtrConstant(LoadHandler::kHolderCellIndex), 0,
-      INTPTR_PARAMETERS);
+  Node* maybe_holder_cell =
+      LoadFixedArrayElement(handler, LoadHandler::kHolderCellIndex);
   Label load_existent(this);
   GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
   // This is a handler for a load of a non-existent value.
@@ -558,9 +556,8 @@ void AccessorAssemblerImpl::HandleStoreICProtoHandler(
                   },
                   1, IndexAdvanceMode::kPost);
 
-    Node* maybe_transition_cell = LoadFixedArrayElement(
-        handler, IntPtrConstant(StoreHandler::kTransitionCellIndex), 0,
-        INTPTR_PARAMETERS);
+    Node* maybe_transition_cell =
+        LoadFixedArrayElement(handler, StoreHandler::kTransitionCellIndex);
     Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
     var_transition.Bind(transition);
     Goto(&if_transition);
