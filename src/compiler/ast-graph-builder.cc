@@ -1376,7 +1376,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   AccessorTable accessor_table(local_zone());
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
-    if (property->is_computed_name()) break;
+    DCHECK(!property->is_computed_name());
     if (property->IsCompileTimeValue()) continue;
 
     Literal* key = property->key()->AsLiteral();
@@ -1471,67 +1471,6 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* call = NewNode(op, literal, name, getter, setter, attr);
     PrepareFrameState(call, it->second->bailout_id);
   }
-
-  // Object literals have two parts. The "static" part on the left contains no
-  // computed property names, and so we can compute its map ahead of time; see
-  // Runtime_CreateObjectLiteralBoilerplate. The second "dynamic" part starts
-  // with the first computed property name and continues with all properties to
-  // its right. All the code from above initializes the static component of the
-  // object literal, and arranges for the map of the result to reflect the
-  // static order in which the keys appear. For the dynamic properties, we
-  // compile them into a series of "SetOwnProperty" runtime calls. This will
-  // preserve insertion order.
-  for (; property_index < expr->properties()->length(); property_index++) {
-    ObjectLiteral::Property* property = expr->properties()->at(property_index);
-
-    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
-      environment()->Push(environment()->Top());  // Duplicate receiver.
-      VisitForValue(property->value());
-      Node* value = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      const Operator* op =
-          javascript()->CallRuntime(Runtime::kInternalSetPrototype);
-      Node* call = NewNode(op, receiver, value);
-      PrepareFrameState(call, expr->GetIdForPropertySet(property_index));
-      continue;
-    }
-
-    environment()->Push(environment()->Top());  // Duplicate receiver.
-    VisitForValue(property->key());
-    Node* name = BuildToName(environment()->Pop(),
-                             expr->GetIdForPropertyName(property_index));
-    environment()->Push(name);
-    VisitForValue(property->value());
-    Node* value = environment()->Pop();
-    Node* key = environment()->Pop();
-    Node* receiver = environment()->Pop();
-    BuildSetHomeObject(value, receiver, property);
-    switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::COMPUTED:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        UNREACHABLE();  // Handled specially above.
-        break;
-      case ObjectLiteral::Property::GETTER: {
-        Node* attr = jsgraph()->Constant(NONE);
-        const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineGetterPropertyUnchecked, 4);
-        Node* call = NewNode(op, receiver, key, value, attr);
-        PrepareFrameState(call, BailoutId::None());
-        break;
-      }
-      case ObjectLiteral::Property::SETTER: {
-        Node* attr = jsgraph()->Constant(NONE);
-        const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineSetterPropertyUnchecked, 4);
-        Node* call = NewNode(op, receiver, key, value, attr);
-        PrepareFrameState(call, BailoutId::None());
-        break;
-      }
-    }
-  }
-
   ast_context()->ProduceValue(expr, environment()->Pop());
 }
 
@@ -3069,14 +3008,6 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input, TypeFeedbackId feedback_id) {
 }
 
 
-Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
-  if (Node* node = TryFastToName(input)) return node;
-  Node* name = NewNode(javascript()->ToName(), input);
-  PrepareFrameState(name, bailout_id, OutputFrameStateCombine::Push());
-  return name;
-}
-
-
 Node* AstGraphBuilder::BuildToObject(Node* input, BailoutId bailout_id) {
   Node* object = NewNode(javascript()->ToObject(), input);
   PrepareFrameState(object, bailout_id, OutputFrameStateCombine::Push());
@@ -3237,24 +3168,6 @@ Node* AstGraphBuilder::TryFastToBoolean(Node* input) {
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
-      return input;
-    default:
-      break;
-  }
-  return nullptr;
-}
-
-
-Node* AstGraphBuilder::TryFastToName(Node* input) {
-  switch (input->opcode()) {
-    case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> object = HeapObjectMatcher(input).Value();
-      if (object->IsName()) return input;
-      break;
-    }
-    case IrOpcode::kJSToString:
-    case IrOpcode::kJSToName:
-    case IrOpcode::kJSTypeOf:
       return input;
     default:
       break;

@@ -310,7 +310,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);
-  Node* BuildToName(Node* input, BailoutId bailout_id);
   Node* BuildToObject(Node* input, BailoutId bailout_id);
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
@@ -353,7 +352,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Optimizations for automatic type conversion.
   Node* TryFastToBoolean(Node* input);
-  Node* TryFastToName(Node* input);
 
   // ===========================================================================
   // The following visitation methods all recursively visit a subtree of the
