@@ -163,23 +163,14 @@ InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
     : CompilationJob(info->isolate(), info, "Ignition"), generator_(info) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
-  if (FLAG_print_bytecode || FLAG_print_ast) {
+  CodeGenerator::MakeCodePrologue(info(), "interpreter");
+  if (FLAG_print_bytecode) {
     OFStream os(stdout);
     std::unique_ptr<char[]> name = info()->GetDebugName();
     os << "[generating bytecode for function: " << info()->GetDebugName().get()
        << "]" << std::endl
        << std::flush;
   }
-
-#ifdef DEBUG
-  if (info()->parse_info() && FLAG_print_ast) {
-    OFStream os(stdout);
-    os << "--- AST ---" << std::endl
-       << AstPrinter(info()->isolate()).PrintProgram(info()->literal())
-       << std::endl
-       << std::flush;
-  }
-#endif  // DEBUG
 
   return SUCCEEDED;
 }
@@ -205,8 +196,6 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
   if (generator()->HasStackOverflow()) {
     return FAILED;
   }
-
-  CodeGenerator::MakeCodePrologue(info(), "interpreter");
 
   if (FLAG_print_bytecode) {
     OFStream os(stdout);
