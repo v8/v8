@@ -2550,7 +2550,7 @@ class FunctionLiteral final : public Expression {
     kAccessorOrMethod
   };
 
-  enum IdType { kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
+  enum IdType { kIdTypeEval = -2, kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
 
   enum ParameterFlag { kNoDuplicateParameters, kHasDuplicateParameters };
 
@@ -3452,14 +3452,14 @@ class AstNodeFactory final BASE_EMBEDDED {
   FunctionLiteral* NewScriptOrEvalFunctionLiteral(
       DeclarationScope* scope, ZoneList<Statement*>* body,
       int materialized_literal_count, int expected_property_count,
-      int parameter_count) {
+      int parameter_count, int function_literal_id) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, materialized_literal_count, expected_property_count,
         parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, false, true,
-        FunctionLiteral::kIdTypeTopLevel);
+        function_literal_id);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(
