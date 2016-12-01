@@ -219,7 +219,6 @@ void Builtins::Generate_PromiseInternalConstructor(
   a.Return(instance);
 }
 
-// TODO(gsathya): Refactor promise.js::IsPromise to use this.
 void Builtins::Generate_IsPromise(compiler::CodeAssemblerState* state) {
   CodeStubAssembler a(state);
   typedef compiler::Node Node;

@@ -13,7 +13,6 @@
 
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
-var IsPromise;
 var CreateInternalPromiseCapability;
 var PerformPromiseThen;
 var PromiseCreate;
@@ -24,7 +23,6 @@ var ResolvePromise;
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  IsPromise = from.IsPromise;
   CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
   PerformPromiseThen = from.PerformPromiseThen;
   PromiseCreate = from.PromiseCreate;
@@ -46,7 +44,7 @@ var promiseHasHandlerSymbol =
 // -------------------------------------------------------------------
 
 function PromiseCastResolved(value) {
-  if (IsPromise(value)) {
+  if (%is_promise(value)) {
     return value;
   } else {
     var promise = PromiseCreate();
@@ -96,7 +94,7 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
   SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
 
   if (DEBUG_IS_ACTIVE) {
-    if (IsPromise(awaited)) {
+    if (%is_promise(awaited)) {
       // Mark the reject handler callback to be a forwarding edge, rather
       // than a meaningful catch handler
       SET_PRIVATE(onRejected, promiseForwardingHandlerSymbol, true);
@@ -120,7 +118,7 @@ function AsyncFunctionAwaitUncaught(generator, awaited, outerPromise) {
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block
 function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
-  if (DEBUG_IS_ACTIVE && IsPromise(awaited)) {
+  if (DEBUG_IS_ACTIVE && %is_promise(awaited)) {
     SET_PRIVATE(awaited, promiseHandledHintSymbol, true);
   }
   AsyncFunctionAwait(generator, awaited, outerPromise);

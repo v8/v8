@@ -180,12 +180,6 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 
 // For bootstrapper.
 
-// Only used by utils
-// ES#sec-ispromise IsPromise ( x )
-function IsPromise(x) {
-  return IS_RECEIVER(x) && HAS_DEFINED_PRIVATE(x, promiseStateSymbol);
-}
-
 function PromiseCreate() {
   return PromiseInit(%promise_internal_constructor());
 }
@@ -212,7 +206,7 @@ function ResolvePromise(promise, resolution) {
     // Resolution is a native promise and if it's already resolved or
     // rejected, shortcircuit the resolution procedure by directly
     // reusing the value from the promise.
-    if (IsPromise(resolution) && then === PromiseThen) {
+    if (%is_promise(resolution) && then === PromiseThen) {
       var thenableState = GET_PRIVATE(resolution, promiseStateSymbol);
       if (thenableState === kFulfilled) {
         // This goes inside the if-else to save one symbol lookup in
@@ -239,7 +233,7 @@ function ResolvePromise(promise, resolution) {
     }
 
     if (IS_CALLABLE(then)) {
-      if (DEBUG_IS_ACTIVE && IsPromise(resolution)) {
+      if (DEBUG_IS_ACTIVE && %is_promise(resolution)) {
           // Mark the dependency of the new promise on the resolution
         SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
       }
@@ -358,7 +352,7 @@ function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
 // Promise.prototype.then ( onFulfilled, onRejected )
 // Multi-unwrapped chaining with thenable coercion.
 function PromiseThen(onResolve, onReject) {
-  if (!IsPromise(this)) {
+  if (!%is_promise(this)) {
     throw %make_type_error(kNotAPromise, this);
   }
 
@@ -388,7 +382,7 @@ function PromiseResolve(x) {
   if (!IS_RECEIVER(this)) {
     throw %make_type_error(kCalledOnNonObject, PromiseResolve);
   }
-  if (IsPromise(x) && x.constructor === this) return x;
+  if (%is_promise(x) && x.constructor === this) return x;
 
   // Avoid creating resolving functions.
   if (this === GlobalPromise) {
@@ -448,7 +442,7 @@ function PromiseAll(iterable) {
           deferred.reject);
       // For catch prediction, mark that rejections here are semantically
       // handled by the combined Promise.
-      if (instrumenting && IsPromise(throwawayPromise)) {
+      if (instrumenting && %is_promise(throwawayPromise)) {
         SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
       }
       ++i;
@@ -491,7 +485,7 @@ function PromiseRace(iterable) {
                                                       deferred.reject);
       // For catch prediction, mark that rejections here are semantically
       // handled by the combined Promise.
-      if (instrumenting && IsPromise(throwawayPromise)) {
+      if (instrumenting && %is_promise(throwawayPromise)) {
         SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
       }
     }
@@ -611,7 +605,6 @@ utils.InstallFunctions(extrasUtils, 0, [
 ]);
 
 utils.Export(function(to) {
-  to.IsPromise = IsPromise;
   to.PromiseCreate = PromiseCreate;
   to.PromiseThen = PromiseThen;
 

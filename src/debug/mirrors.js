@@ -106,12 +106,6 @@ function ClearMirrorCache(value) {
 }
 
 
-function ObjectIsPromise(value) {
-  return IS_RECEIVER(value) &&
-         !IS_UNDEFINED(%DebugGetProperty(value, promiseStateSymbol));
-}
-
-
 /**
  * Returns the mirror for a specified value or object.
  *
@@ -168,7 +162,7 @@ function MakeMirror(value, opt_transient) {
     mirror = new SetMirror(value);
   } else if (IS_MAP_ITERATOR(value) || IS_SET_ITERATOR(value)) {
     mirror = new IteratorMirror(value);
-  } else if (ObjectIsPromise(value)) {
+  } else if (%is_promise(value)) {
     mirror = new PromiseMirror(value);
   } else if (IS_GENERATOR(value)) {
     mirror = new GeneratorMirror(value);
