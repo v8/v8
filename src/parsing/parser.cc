@@ -2728,12 +2728,20 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
     }
-    if (is_lazy_top_level_function) {
-      CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
-                                     PreParseNoVariableResolution);
-    } else if (temp_zoned_) {
-      CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
-                                     PreParseWithVariableResolution);
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {
+      if (is_lazy_top_level_function) {
+        RuntimeCallStats::CorrectCurrentCounterId(
+            runtime_call_stats_,
+            parsing_on_main_thread_
+                ? &RuntimeCallStats::PreParseNoVariableResolution
+                : &RuntimeCallStats::PreParseBackgroundNoVariableResolution);
+      } else if (temp_zoned_) {
+        RuntimeCallStats::CorrectCurrentCounterId(
+            runtime_call_stats_,
+            parsing_on_main_thread_
+                ? &RuntimeCallStats::PreParseWithVariableResolution
+                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution);
+      }
     }
 
     // Validate function name. We can do this only after parsing the function,
