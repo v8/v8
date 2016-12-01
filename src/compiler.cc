@@ -962,6 +962,8 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   FixedArray* array = isolate->native_context()->embedder_data();
   script->set_context_data(array->get(v8::Context::kDebugIdIndex));
 
+  isolate->debug()->OnBeforeCompile(script);
+
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());

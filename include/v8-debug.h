@@ -16,9 +16,11 @@ namespace v8 {
 enum DebugEvent {
   Break = 1,
   Exception = 2,
-  AfterCompile = 3,
-  CompileError = 4,
-  AsyncTaskEvent = 5,
+  NewFunction = 3,
+  BeforeCompile = 4,
+  AfterCompile = 5,
+  CompileError = 6,
+  AsyncTaskEvent = 7,
 };
 
 class V8_EXPORT Debug {
@@ -142,7 +144,7 @@ class V8_EXPORT Debug {
    *
    * \param message the debug message handler message object
    *
-   * A MessageHandler does not take possession of the message data,
+   * A MessageHandler2 does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*MessageHandler)(const Message& message);
@@ -164,8 +166,7 @@ class V8_EXPORT Debug {
   static void CancelDebugBreak(Isolate* isolate);
 
   // Check if a debugger break is scheduled in the given isolate.
-  V8_DEPRECATED("No longer supported",
-                static bool CheckDebugBreak(Isolate* isolate));
+  static bool CheckDebugBreak(Isolate* isolate);
 
   // Message based interface. The message protocol is JSON.
   V8_DEPRECATED("No longer supported",
@@ -203,9 +204,8 @@ class V8_EXPORT Debug {
   /**
    * Returns a mirror object for the given object.
    */
-  V8_DEPRECATED("No longer supported",
-                static MaybeLocal<Value> GetMirror(Local<Context> context,
-                                                   v8::Local<v8::Value> obj));
+  static MaybeLocal<Value> GetMirror(Local<Context> context,
+                                     v8::Local<v8::Value> obj);
 
   /**
    * Makes V8 process all pending debug messages.
@@ -254,9 +254,7 @@ class V8_EXPORT Debug {
    * While in the debug context, this method returns the top-most non-debug
    * context, if it exists.
    */
-  V8_DEPRECATED(
-      "No longer supported",
-      static MaybeLocal<Context> GetDebuggedContext(Isolate* isolate));
+  static MaybeLocal<Context> GetDebuggedContext(Isolate* isolate);
 
   /**
    * Enable/disable LiveEdit functionality for the given Isolate
