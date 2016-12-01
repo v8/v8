@@ -608,8 +608,8 @@ namespace internal {
   TFJ(RegExpPrototypeMultilineGetter, 0)                                      \
   TFJ(RegExpPrototypeReplace, 2)                                              \
   TFJ(RegExpPrototypeSearch, 1)                                               \
-  CPP(RegExpPrototypeSourceGetter)                                            \
-  CPP(RegExpPrototypeSpeciesGetter)                                           \
+  TFJ(RegExpPrototypeSourceGetter, 0)                                         \
+  TFJ(RegExpPrototypeSpeciesGetter, 0)                                        \
   TFJ(RegExpPrototypeSplit, 2)                                                \
   TFJ(RegExpPrototypeStickyGetter, 0)                                         \
   TFJ(RegExpPrototypeTest, 1)                                                 \

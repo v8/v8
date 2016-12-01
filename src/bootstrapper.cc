@@ -1839,7 +1839,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallGetter(prototype, factory->multiline_string(),
                           Builtins::kRegExpPrototypeMultilineGetter, true);
       SimpleInstallGetter(prototype, factory->source_string(),
-                          Builtins::kRegExpPrototypeSourceGetter, false);
+                          Builtins::kRegExpPrototypeSourceGetter, true);
       SimpleInstallGetter(prototype, factory->sticky_string(),
                           Builtins::kRegExpPrototypeStickyGetter, true);
       SimpleInstallGetter(prototype, factory->unicode_string(),
@@ -1896,7 +1896,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallGetter(regexp_fun,
                           factory->InternalizeUtf8String("[Symbol.species]"),
                           factory->species_symbol(),
-                          Builtins::kRegExpPrototypeSpeciesGetter, false);
+                          Builtins::kRegExpPrototypeSpeciesGetter, true);
 
       // Static properties set by a successful match.
 

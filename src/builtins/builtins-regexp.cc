@@ -715,24 +715,60 @@ void Builtins::Generate_RegExpPrototypeFlagsGetter(CodeAssemblerState* state) {
 }
 
 // ES6 21.2.5.10.
-BUILTIN(RegExpPrototypeSourceGetter) {
-  HandleScope scope(isolate);
+void Builtins::Generate_RegExpPrototypeSourceGetter(CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+  Node* const receiver = a.Parameter(0);
+  Node* const context = a.Parameter(3);
 
-  Handle<Object> recv = args.receiver();
-  if (!recv->IsJSRegExp()) {
-    Handle<JSFunction> regexp_fun = isolate->regexp_function();
-    if (*recv == regexp_fun->prototype()) {
-      isolate->CountUsage(v8::Isolate::kRegExpPrototypeSourceGetter);
-      return *isolate->factory()->NewStringFromAsciiChecked("(?:)");
-    }
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kRegExpNonRegExp,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "RegExp.prototype.source")));
+  // Check whether we have an unmodified regexp instance.
+  CLabel if_isjsregexp(&a), if_isnotjsregexp(&a, CLabel::kDeferred);
+
+  a.GotoIf(a.TaggedIsSmi(receiver), &if_isnotjsregexp);
+  a.Branch(a.HasInstanceType(receiver, JS_REGEXP_TYPE), &if_isjsregexp,
+           &if_isnotjsregexp);
+
+  a.Bind(&if_isjsregexp);
+  {
+    Node* const source = a.LoadObjectField(receiver, JSRegExp::kSourceOffset);
+    a.Return(source);
   }
 
-  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(recv);
-  return regexp->source();
+  a.Bind(&if_isnotjsregexp);
+  {
+    Isolate* isolate = a.isolate();
+    Node* const native_context = a.LoadNativeContext(context);
+    Node* const regexp_fun =
+        a.LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+    Node* const initial_map =
+        a.LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* const initial_prototype = a.LoadMapPrototype(initial_map);
+
+    CLabel if_isprototype(&a), if_isnotprototype(&a);
+    a.Branch(a.WordEqual(receiver, initial_prototype), &if_isprototype,
+             &if_isnotprototype);
+
+    a.Bind(&if_isprototype);
+    {
+      const int counter = v8::Isolate::kRegExpPrototypeSourceGetter;
+      Node* const counter_smi = a.SmiConstant(counter);
+      a.CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
+
+      Node* const result =
+          a.HeapConstant(isolate->factory()->NewStringFromAsciiChecked("(?:)"));
+      a.Return(result);
+    }
+
+    a.Bind(&if_isnotprototype);
+    {
+      Node* const message_id =
+          a.SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonRegExp));
+      Node* const method_name_str =
+          a.HeapConstant(isolate->factory()->NewStringFromAsciiChecked(
+              "RegExp.prototype.source"));
+      a.TailCallRuntime(Runtime::kThrowTypeError, context, message_id,
+                        method_name_str);
+    }
+  }
 }
 
 BUILTIN(RegExpPrototypeToString) {
@@ -773,9 +809,11 @@ BUILTIN(RegExpPrototypeToString) {
 }
 
 // ES6 21.2.4.2.
-BUILTIN(RegExpPrototypeSpeciesGetter) {
-  HandleScope scope(isolate);
-  return *args.receiver();
+void Builtins::Generate_RegExpPrototypeSpeciesGetter(
+    CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+  Node* const receiver = a.Parameter(0);
+  a.Return(receiver);
 }
 
 namespace {
