@@ -355,6 +355,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {% endif %}
     return response.status();
     {% else %}
+    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
     std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId, nextCallbackId()));
     m_backend->{{command.name | to_method_case}}(
       {%- for property in command.parameters -%}
@@ -367,7 +368,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {%- endfor -%}
         {%- if command.parameters -%}, {% endif -%}
         std::move(callback));
-    return DispatchResponse::kAsync;
+    return (weak->get() && weak->get()->lastCallbackFallThrough()) ? DispatchResponse::kFallThrough : DispatchResponse::kAsync;
     {% endif %}
 }
   {% endfor %}
