@@ -620,6 +620,13 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
+    if (FLAG_use_ic && state() != UNINITIALIZED && state() != PREMONOMORPHIC) {
+      // Ensure the IC state progresses.
+      TRACE_HANDLER_STATS(isolate(), LoadIC_NonReceiver);
+      update_receiver_map(object);
+      PatchCache(name, slow_stub());
+      TRACE_IC("LoadIC", name);
+    }
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
@@ -1820,6 +1827,13 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
+    if (FLAG_use_ic && state() != UNINITIALIZED && state() != PREMONOMORPHIC) {
+      // Ensure the IC state progresses.
+      TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
+      update_receiver_map(object);
+      PatchCache(name, slow_stub());
+      TRACE_IC("StoreIC", name);
+    }
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 

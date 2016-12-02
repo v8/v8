@@ -783,6 +783,7 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadNormal)                           \
   V(LoadIC_LoadScriptContextFieldStub)           \
   V(LoadIC_LoadViaGetter)                        \
+  V(LoadIC_NonReceiver)                          \
   V(LoadIC_Premonomorphic)                       \
   V(LoadIC_SlowStub)                             \
   V(LoadIC_StringLengthStub)                     \
@@ -794,6 +795,7 @@ class RuntimeCallTimer final {
   V(StoreIC_HandlerCacheHit_Accessor)            \
   V(StoreIC_HandlerCacheHit_Data)                \
   V(StoreIC_HandlerCacheHit_Transition)          \
+  V(StoreIC_NonReceiver)                         \
   V(StoreIC_Premonomorphic)                      \
   V(StoreIC_SlowStub)                            \
   V(StoreIC_StoreCallback)                       \
