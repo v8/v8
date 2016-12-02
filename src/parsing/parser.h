@@ -688,10 +688,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return identifier == ast_value_factory()->undefined_string();
   }
 
-  V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const {
-    return scanner()->IdentifierIsFutureStrictReserved(identifier);
-  }
-
   // Returns true if the expression is of type "this.foo".
   V8_INLINE static bool IsThisProperty(Expression* expression) {
     DCHECK(expression != NULL);

@@ -328,8 +328,6 @@ class Scanner {
     return tmp;
   }
 
-  bool IdentifierIsFutureStrictReserved(const AstRawString* string) const;
-
   bool FoundHtmlComment() const { return found_html_comment_; }
 
  private:

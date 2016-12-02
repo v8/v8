@@ -1627,6 +1627,7 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {
 
 ZoneList<const AstRawString*>* Parser::DeclareLabel(
     ZoneList<const AstRawString*>* labels, VariableProxy* var, bool* ok) {
+  DCHECK(IsIdentifier(var));
   const AstRawString* label = var->raw_name();
   // TODO(1240780): We don't check for redeclaration of labels
   // during preparsing since keeping track of the set of active

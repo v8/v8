@@ -80,11 +80,6 @@ class PreParserIdentifier {
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsEnum() const { return type_ == kEnumIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
-  bool IsFutureStrictReserved() const {
-    return type_ == kFutureStrictReservedIdentifier ||
-           type_ == kLetIdentifier || type_ == kStaticIdentifier ||
-           type_ == kYieldIdentifier;
-  }
 
   // Allow identifier->name()[->length()] to work. The preparser
   // does not need the actual positions/lengths of the identifiers.
@@ -1005,8 +1000,7 @@ class PreParser : public ParserBase<PreParser> {
       bool* ok) {
     DCHECK(!expr.AsIdentifier().IsEnum());
     DCHECK(!parsing_module_ || !expr.AsIdentifier().IsAwait());
-    DCHECK(is_sloppy(language_mode()) ||
-           !IsFutureStrictReserved(expr.AsIdentifier()));
+    DCHECK(IsIdentifier(expr));
     return labels;
   }
 
@@ -1119,10 +1113,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool IsAwait(PreParserIdentifier identifier) const {
     return identifier.IsAwait();
-  }
-
-  V8_INLINE bool IsFutureStrictReserved(PreParserIdentifier identifier) const {
-    return identifier.IsFutureStrictReserved();
   }
 
   // Returns true if the expression is of type "this.foo".
