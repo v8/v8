@@ -158,6 +158,9 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
     default:
       break;
   }
+  if (IsLexicalVariableMode(node->var()->mode())) {
+    DisableFullCodegenAndCrankshaft(kReferenceToLetOrConstVariable);
+  }
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
 
