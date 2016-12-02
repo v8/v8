@@ -618,7 +618,13 @@ InjectedScript.prototype = {
         var className = InjectedScriptHost.internalConstructorName(obj);
         if (subtype === "array" || subtype === "typedarray") {
             if (typeof obj.length === "number")
-                className += "[" + obj.length + "]";
+                return className + "(" + obj.length + ")";
+            return className;
+        }
+
+        if (subtype === "map" || subtype === "set") {
+            if (typeof obj.size === "number")
+                return className + "(" + obj.size + ")";
             return className;
         }
 
