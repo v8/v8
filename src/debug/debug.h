@@ -406,7 +406,6 @@ class Debug {
   void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
-  void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
   void OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
                         Handle<String> name);

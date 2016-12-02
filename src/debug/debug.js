@@ -43,11 +43,9 @@ var sourceLineBeginningSkip = /^(?:\s*(?:\/\*.*?\*\/)*)*/;
 // from the API include file debug.h.
 Debug.DebugEvent = { Break: 1,
                      Exception: 2,
-                     NewFunction: 3,
-                     BeforeCompile: 4,
-                     AfterCompile: 5,
-                     CompileError: 6,
-                     AsyncTaskEvent: 7 };
+                     AfterCompile: 3,
+                     CompileError: 4,
+                     AsyncTaskEvent: 5 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,

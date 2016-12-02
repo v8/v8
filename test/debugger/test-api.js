@@ -30,11 +30,8 @@ class DebugWrapper {
     // Debug events which can occur in the V8 JavaScript engine.
     this.DebugEvent = { Break: 1,
                         Exception: 2,
-                        NewFunction: 3,
-                        BeforeCompile: 4,
-                        AfterCompile: 5,
-                        CompileError: 6,
-                        AsyncTaskEvent: 7
+                        AfterCompile: 3,
+                        CompileError: 4,
                       };
 
     // The different types of steps.

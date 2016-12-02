@@ -559,7 +559,7 @@ void V8Debugger::handleV8DebugEvent(
   v8::DebugEvent event = eventDetails.GetEvent();
   if (event != v8::AsyncTaskEvent && event != v8::Break &&
       event != v8::Exception && event != v8::AfterCompile &&
-      event != v8::BeforeCompile && event != v8::CompileError)
+      event != v8::CompileError)
     return;
 
   v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();

@@ -1777,9 +1777,6 @@ void Debug::OnCompileError(Handle<Script> script) {
   ProcessCompileEvent(v8::CompileError, script);
 }
 
-void Debug::OnBeforeCompile(Handle<Script> script) {
-  ProcessCompileEvent(v8::BeforeCompile, script);
-}
 
 // Handle debugger actions when a new script is compiled.
 void Debug::OnAfterCompile(Handle<Script> script) {
@@ -1934,8 +1931,6 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     case v8::Break:
       sendEventMessage = !auto_continue;
       break;
-    case v8::NewFunction:
-    case v8::BeforeCompile:
     case v8::CompileError:
     case v8::AsyncTaskEvent:
       break;
