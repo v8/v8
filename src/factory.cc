@@ -2311,6 +2311,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
   // Set pointer fields.
   share->set_name(*name);
+  share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     code = isolate()->builtins()->Illegal();
@@ -2324,7 +2325,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
                      : isolate()->builtins()->ConstructedNonConstructable();
   share->SetConstructStub(*construct_stub);
   share->set_instance_class_name(*Object_string());
-  share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(DebugInfo::uninitialized(), SKIP_WRITE_BARRIER);
   share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
