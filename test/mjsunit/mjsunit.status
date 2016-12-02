@@ -364,6 +364,9 @@
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
+
+  # Flaky with baseline?
+  'regress/regress-2185-2': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
