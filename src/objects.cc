@@ -2203,9 +2203,6 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
   return os;
 }
 
-// Declaration of the static Smi::kZero constant.
-Smi* const Smi::kZero(nullptr);
-
 void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
   os << value();
 }

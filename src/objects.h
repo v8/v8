@@ -1612,7 +1612,7 @@ class Smi: public Object {
   V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
   DECLARE_VERIFIER(Smi)
 
-  V8_EXPORT_PRIVATE static Smi* const kZero;
+  static constexpr Smi* const kZero = nullptr;
   static const int kMinValue =
       (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
   static const int kMaxValue = -(kMinValue + 1);
