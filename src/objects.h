@@ -389,6 +389,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(PROTOTYPE_INFO_TYPE)                                        \
+  V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
@@ -556,6 +557,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
+  V(TUPLE2, Tuple2, tuple2)                                                  \
   V(TUPLE3, Tuple3, tuple3)                                                  \
   V(MODULE, Module, module)                                                  \
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
@@ -735,6 +737,7 @@ enum InstanceType {
   TRANSITION_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
+  TUPLE2_TYPE,
   TUPLE3_TYPE,
   CONTEXT_EXTENSION_TYPE,
   MODULE_TYPE,
@@ -4012,18 +4015,20 @@ class SeededNumberDictionary
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT static Handle<SeededNumberDictionary> AtNumberPut(
       Handle<SeededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value, bool used_as_prototype);
+      Handle<Object> value, Handle<JSObject> dictionary_holder);
   MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
       Handle<SeededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value, PropertyDetails details, bool used_as_prototype);
+      Handle<Object> value, PropertyDetails details,
+      Handle<JSObject> dictionary_holder);
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
   MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
       Handle<SeededNumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value, PropertyDetails details, bool used_as_prototype);
+      Handle<Object> value, PropertyDetails details,
+      Handle<JSObject> dictionary_holder);
 
-  void UpdateMaxNumberKey(uint32_t key, bool used_as_prototype);
+  void UpdateMaxNumberKey(uint32_t key, Handle<JSObject> dictionary_holder);
 
   // Returns true if the dictionary contains any elements that are non-writable,
   // non-configurable, non-enumerable, or have getters/setters.
@@ -6989,10 +6994,27 @@ class PrototypeInfo : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
 };
 
-class Tuple3 : public Struct {
+class Tuple2 : public Struct {
  public:
   DECL_ACCESSORS(value1, Object)
   DECL_ACCESSORS(value2, Object)
+
+  DECLARE_CAST(Tuple2)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(Tuple2)
+  DECLARE_VERIFIER(Tuple2)
+
+  static const int kValue1Offset = HeapObject::kHeaderSize;
+  static const int kValue2Offset = kValue1Offset + kPointerSize;
+  static const int kSize = kValue2Offset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple2);
+};
+
+class Tuple3 : public Tuple2 {
+ public:
   DECL_ACCESSORS(value3, Object)
 
   DECLARE_CAST(Tuple3)
@@ -7001,9 +7023,7 @@ class Tuple3 : public Struct {
   DECLARE_PRINTER(Tuple3)
   DECLARE_VERIFIER(Tuple3)
 
-  static const int kValue1Offset = HeapObject::kHeaderSize;
-  static const int kValue2Offset = kValue1Offset + kPointerSize;
-  static const int kValue3Offset = kValue2Offset + kPointerSize;
+  static const int kValue3Offset = Tuple2::kSize;
   static const int kSize = kValue3Offset + kPointerSize;
 
  private:

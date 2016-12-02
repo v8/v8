@@ -324,6 +324,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
       UNREACHABLE();
