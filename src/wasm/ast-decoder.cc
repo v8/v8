@@ -1338,6 +1338,18 @@ class WasmFullDecoder : public WasmDecoder {
     return operand.length;
   }
 
+  unsigned ReplaceLane(WasmOpcode opcode, LocalType type) {
+    LaneOperand operand(this, pc_);
+    if (Validate(pc_, operand)) {
+      TFNode* input = Pop(0, LocalType::kSimd128).node;
+      TFNode* replacement = Pop(1, type).node;
+      TFNode* node =
+          BUILD(SimdReplaceLane, opcode, operand.lane, input, replacement);
+      Push(LocalType::kSimd128, node);
+    }
+    return operand.length;
+  }
+
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
     unsigned len = 0;
     switch (opcode) {
@@ -1347,6 +1359,14 @@ class WasmFullDecoder : public WasmDecoder {
       }
       case kExprF32x4ExtractLane: {
         len = ExtractLane(opcode, LocalType::kFloat32);
+        break;
+      }
+      case kExprI32x4ReplaceLane: {
+        len = ReplaceLane(opcode, LocalType::kWord32);
+        break;
+      }
+      case kExprF32x4ReplaceLane: {
+        len = ReplaceLane(opcode, LocalType::kFloat32);
         break;
       }
       default: {

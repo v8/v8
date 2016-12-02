@@ -276,7 +276,6 @@ const WasmCodePosition kNoCodePosition = -1;
 
 #define FOREACH_SIMD_0_OPERAND_OPCODE(V) \
   V(F32x4Splat, 0xe500, s_f)             \
-  V(F32x4ReplaceLane, 0xe502, s_sif)     \
   V(F32x4Abs, 0xe503, s_s)               \
   V(F32x4Neg, 0xe504, s_s)               \
   V(F32x4Sqrt, 0xe505, s_s)              \
@@ -299,7 +298,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32x4FromInt32x4, 0xe519, s_s)       \
   V(F32x4FromUint32x4, 0xe51a, s_s)      \
   V(I32x4Splat, 0xe51b, s_i)             \
-  V(I32x4ReplaceLane, 0xe51d, s_sii)     \
   V(I32x4Neg, 0xe51e, s_s)               \
   V(I32x4Add, 0xe51f, s_ss)              \
   V(I32x4Sub, 0xe520, s_ss)              \
@@ -327,7 +325,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32x4Ge_u, 0xe536, s_ss)             \
   V(Ui32x4FromFloat32x4, 0xe537, s_s)    \
   V(I16x8Splat, 0xe538, s_i)             \
-  V(I16x8ReplaceLane, 0xe53a, s_sii)     \
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
   V(I16x8AddSaturate_s, 0xe53d, s_ss)    \
@@ -357,7 +354,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I16x8Gt_u, 0xe555, s_ss)             \
   V(I16x8Ge_u, 0xe556, s_ss)             \
   V(I8x16Splat, 0xe557, s_i)             \
-  V(I8x16ReplaceLane, 0xe559, s_sii)     \
   V(I8x16Neg, 0xe55a, s_s)               \
   V(I8x16Add, 0xe55b, s_ss)              \
   V(I8x16AddSaturate_s, 0xe55c, s_ss)    \
@@ -398,7 +394,11 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32x4ExtractLane, 0xe501, _)         \
   V(I32x4ExtractLane, 0xe51c, _)         \
   V(I16x8ExtractLane, 0xe539, _)         \
-  V(I8x16ExtractLane, 0xe558, _)
+  V(I8x16ExtractLane, 0xe558, _)         \
+  V(F32x4ReplaceLane, 0xe502, _)         \
+  V(I32x4ReplaceLane, 0xe51d, _)         \
+  V(I16x8ReplaceLane, 0xe53a, _)         \
+  V(I8x16ReplaceLane, 0xe559, _)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicAdd8S, 0xe601, i_ii)              \

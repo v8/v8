@@ -218,6 +218,8 @@ class WasmGraphBuilder {
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
   Node* SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input);
+  Node* SimdReplaceLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input,
+                        Node* replacement);
 
  private:
   static const int kDefaultBufferSize = 16;

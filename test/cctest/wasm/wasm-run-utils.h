@@ -791,13 +791,15 @@ class WasmRunner {
 };
 
 // A macro to define tests that run in different engine configurations.
-// Currently only supports compiled tests, but a future
-// RunWasmInterpreted_##name version will allow each test to also run in the
-// interpreter.
 #define WASM_EXEC_TEST(name)                                               \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
   TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
+
+#define WASM_EXEC_COMPILED_TEST(name)                                \
+  void RunWasm_##name(WasmExecutionMode execution_mode);             \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 }  // namespace
