@@ -80,9 +80,6 @@ Heap::Heap()
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(MB),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
-      initial_old_generation_size_(max_old_generation_size_ /
-                                   kInitalOldGenerationLimitFactor),
-      old_generation_size_configured_(false),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
       // Variables set based on semispace_size_ and old_generation_size_ in
       // ConfigureHeap.
@@ -111,7 +108,7 @@ Heap::Heap()
 #ifdef DEBUG
       allocation_timeout_(0),
 #endif  // DEBUG
-      old_generation_allocation_limit_(initial_old_generation_size_),
+      old_generation_allocation_limit_(0),
       inline_allocation_disabled_(false),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
@@ -1049,7 +1046,6 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 int Heap::NotifyContextDisposed(bool dependant_context) {
   if (!dependant_context) {
     tracer()->ResetSurvivalEvents();
-    old_generation_size_configured_ = false;
     MemoryReducer::Event event;
     event.type = MemoryReducer::kPossibleGarbage;
     event.time_ms = MonotonicallyIncreasingTimeInMs();
@@ -1313,7 +1309,6 @@ bool Heap::PerformGarbageCollection(
         UpdateOldGenerationAllocationCounter();
         // Perform mark-sweep with optional compaction.
         MarkCompact();
-        old_generation_size_configured_ = true;
         // This should be updated before PostGarbageCollectionProcessing, which
         // can cause another GC. Take into account the objects promoted during
         // GC.
@@ -1333,7 +1328,6 @@ bool Heap::PerformGarbageCollection(
   }
 
   UpdateSurvivalStatistics(start_new_space_size);
-  ConfigureInitialOldGenerationSize();
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
@@ -1361,8 +1355,7 @@ bool Heap::PerformGarbageCollection(
     external_memory_at_last_mark_compact_ = external_memory_;
     external_memory_limit_ = external_memory_ + kExternalAllocationSoftLimit;
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
-  } else if (HasLowYoungGenerationAllocationRate() &&
-             old_generation_size_configured_) {
+  } else if (HasLowYoungGenerationAllocationRate()) {
     DampenOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   }
 
@@ -1989,17 +1982,6 @@ void Heap::RegisterNewArrayBuffer(JSArrayBuffer* buffer) {
 
 void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
   ArrayBufferTracker::Unregister(this, buffer);
-}
-
-
-void Heap::ConfigureInitialOldGenerationSize() {
-  if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
-    old_generation_allocation_limit_ =
-        Max(MinimumAllocationLimitGrowingStep(),
-            static_cast<size_t>(
-                static_cast<double>(old_generation_allocation_limit_) *
-                (tracer()->AverageSurvivalRatio() / 100)));
-  }
 }
 
 
@@ -4257,7 +4239,8 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
           incremental_marking()->AdvanceIncrementalMarking(
               deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
               IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
-      if (remaining_idle_time_in_ms > 0.0) {
+      if (remaining_idle_time_in_ms > 0.0 &&
+          incremental_marking()->IsMarking()) {
         TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms,
             GarbageCollectionReason::kFinalizeMarkingViaTask);
@@ -5049,14 +5032,6 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
     max_executable_size_ = max_old_generation_size_;
   }
 
-  if (FLAG_initial_old_space_size > 0) {
-    initial_old_generation_size_ = FLAG_initial_old_space_size * MB;
-  } else {
-    initial_old_generation_size_ =
-        max_old_generation_size_ / kInitalOldGenerationLimitFactor;
-  }
-  old_generation_allocation_limit_ = initial_old_generation_size_;
-
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(kMaxRegularHeapObjectSize >=
          (JSArray::kSize +
@@ -5294,6 +5269,25 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
   }
 }
 
+size_t Heap::OldGenerationSpaceAvailable() {
+  if (old_generation_allocation_limit_ == 0) {
+    // Lazy initialization of allocation limit.
+    old_generation_allocation_limit_ = CalculateOldGenerationAllocationLimit(
+        kConservativeHeapGrowingFactor, PromotedSpaceSizeOfObjects());
+  }
+  if (old_generation_allocation_limit_ <= PromotedTotalSize()) return 0;
+  return old_generation_allocation_limit_ -
+         static_cast<size_t>(PromotedTotalSize());
+}
+
+bool Heap::ShouldOptimizeForLoadTime() {
+  return isolate()->rail_mode() == PERFORMANCE_LOAD &&
+         PromotedTotalSize() <
+             max_old_generation_size_ / kInitalOldGenerationLimitFactor &&
+         MonotonicallyIncreasingTimeInMs() <
+             isolate()->LoadStartTimeMs() + kMaxLoadTimeMs;
+}
+
 // This predicate is called when an old generation space cannot allocated from
 // the free list and is about to add a new page. Returning false will cause a
 // major GC. It happens when the old generation allocation limit is reached and
@@ -5304,6 +5298,8 @@ bool Heap::ShouldExpandOldGenerationOnAllocationFailure() {
   // We reached the old generation allocation limit.
 
   if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (ShouldOptimizeForLoadTime()) return true;
 
   if (incremental_marking()->IsStopped() &&
       IncrementalMarkingLimitReached() == IncrementalMarkingLimit::kNoLimit) {
@@ -5335,6 +5331,9 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available > new_space_->Capacity()) {
     return IncrementalMarkingLimit::kNoLimit;
   }
+
+  if (ShouldOptimizeForLoadTime()) return IncrementalMarkingLimit::kNoLimit;
+
   // We are close to the allocation limit.
   // Choose between the hard and the soft limits.
   if (old_generation_space_available == 0 || ShouldOptimizeForMemoryUsage()) {

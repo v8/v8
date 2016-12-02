@@ -6600,7 +6600,7 @@ TEST(Regress598319) {
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state
-  CcTest::CollectGarbage(OLD_SPACE);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();

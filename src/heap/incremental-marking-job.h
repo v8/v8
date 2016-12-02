@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 #define V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 
+#include "src/base/atomic-utils.h"
 #include "src/cancelable-task.h"
 
 namespace v8 {
@@ -32,8 +33,6 @@ class IncrementalMarkingJob {
 
   IncrementalMarkingJob() : task_pending_(false) {}
 
-  bool TaskPending() { return task_pending_; }
-
   void Start(Heap* heap);
 
   void NotifyTask();
@@ -41,7 +40,7 @@ class IncrementalMarkingJob {
   void ScheduleTask(Heap* heap);
 
  private:
-  bool task_pending_;
+  base::AtomicValue<bool> task_pending_;
 };
 }  // namespace internal
 }  // namespace v8

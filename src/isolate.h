@@ -1166,6 +1166,10 @@ class Isolate {
 
   void SetRAILMode(RAILMode rail_mode);
 
+  RAILMode rail_mode() { return rail_mode_.Value(); }
+
+  double LoadStartTimeMs();
+
   void IsolateInForegroundNotification();
 
   void IsolateInBackgroundNotification();
@@ -1354,6 +1358,8 @@ class Isolate {
   AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::AtomicValue<RAILMode> rail_mode_;
+  base::Mutex rail_mutex_;
+  double load_start_time_ms_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
