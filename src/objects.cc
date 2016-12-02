@@ -3522,7 +3522,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
       object->RawFastPropertyAtPut(index, Smi::FromInt(0));
     }
-   }
+  }
 
   isolate->counters()->props_to_dictionary()->Increment();
 
