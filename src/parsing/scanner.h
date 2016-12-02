@@ -268,7 +268,7 @@ class Scanner {
     return false;
   }
 
-  int FindSymbol(DuplicateFinder* finder, int value);
+  bool FindSymbol(DuplicateFinder* finder);
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
 

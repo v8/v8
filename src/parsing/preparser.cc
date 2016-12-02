@@ -108,7 +108,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   PreParserFormalParameters formals(function_scope);
   bool has_duplicate_parameters = false;
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  DuplicateFinder duplicate_finder;
   std::unique_ptr<ExpressionClassifier> formals_classifier;
 
   // Parse non-arrow function parameters. For arrow functions, the parameters
@@ -198,7 +198,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
   GetNextFunctionLiteralId();
 

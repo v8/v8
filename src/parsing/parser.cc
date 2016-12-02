@@ -3159,7 +3159,7 @@ ZoneList<Statement*>* Parser::ParseFunction(
 
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
 
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
   if (IsGeneratorFunction(kind)) PrepareGeneratorVariables(&function_state);

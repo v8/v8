@@ -1600,14 +1600,13 @@ bool Scanner::ContainsDot() {
   return std::find(str.begin(), str.end(), '.') != str.end();
 }
 
-
-int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
+bool Scanner::FindSymbol(DuplicateFinder* finder) {
   // TODO(vogelheim): Move this logic into the calling class; this can be fully
   //                  implemented using the public interface.
   if (is_literal_one_byte()) {
-    return finder->AddOneByteSymbol(literal_one_byte_string(), value);
+    return finder->AddOneByteSymbol(literal_one_byte_string());
   }
-  return finder->AddTwoByteSymbol(literal_two_byte_string(), value);
+  return finder->AddTwoByteSymbol(literal_two_byte_string());
 }
 
 void Scanner::SeekNext(size_t position) {
