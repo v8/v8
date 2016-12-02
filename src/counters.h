@@ -837,6 +837,7 @@ class RuntimeCallStats final : public ZoneObject {
 #undef CALL_BUILTIN_COUNTER
 
   static const CounterId counters[];
+  static const int counters_count;
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.

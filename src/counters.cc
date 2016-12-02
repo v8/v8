@@ -324,6 +324,10 @@ const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
 };
 
 // static
+const int RuntimeCallStats::counters_count =
+    arraysize(RuntimeCallStats::counters);
+
+// static
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   RuntimeCallCounter* counter = &(stats->*counter_id);
