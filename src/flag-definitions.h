@@ -552,7 +552,8 @@ DEFINE_BOOL(trace_opt_verbose, false, "extra verbose compilation tracing")
 DEFINE_IMPLICATION(trace_opt_verbose, trace_opt)
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
-DEFINE_BOOL(debug_code, false, "generate extra code (assertions) for debugging")
+DEFINE_BOOL(debug_code, DEBUG_BOOL,
+            "generate extra code (assertions) for debugging")
 DEFINE_BOOL(code_comments, false, "emit comments in code disassembly")
 DEFINE_BOOL(enable_sse3, true, "enable use of SSE3 instructions if available")
 DEFINE_BOOL(enable_ssse3, true, "enable use of SSSE3 instructions if available")

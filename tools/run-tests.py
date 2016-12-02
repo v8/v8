@@ -127,7 +127,7 @@ VARIANT_ALIASES = {
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
                "--nofold-constants", "--enable-slow-asserts",
-               "--debug-code", "--verify-heap"]
+               "--verify-heap"]
 RELEASE_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants"]
 
