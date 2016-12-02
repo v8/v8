@@ -729,7 +729,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetFunctionLiteralId();
   DCHECK(info->function_literal_id() == FunctionLiteral::kIdTypeTopLevel ||
-         info->function_literal_id() == FunctionLiteral::kIdTypeEval ||
          info->function_literal_id() == FunctionLiteral::kIdTypeInvalid);
 
   FunctionLiteral* result = NULL;
@@ -817,9 +816,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       int parameter_count = parsing_module_ ? 1 : 0;
       result = factory()->NewScriptOrEvalFunctionLiteral(
           scope, body, function_state.materialized_literal_count(),
-          function_state.expected_property_count(), parameter_count,
-          info->is_eval() ? FunctionLiteral::kIdTypeEval
-                          : FunctionLiteral::kIdTypeTopLevel);
+          function_state.expected_property_count(), parameter_count);
     }
   }
 
