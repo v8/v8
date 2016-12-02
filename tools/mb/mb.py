@@ -1014,7 +1014,6 @@ class MetaBuildWrapper(object):
                  + logdog_command + test_cmdline)
     elif use_x11 and test_type == 'windowed_test_launcher':
       extra_files = [
-          'xdisplaycheck',
           '../../testing/test_env.py',
           '../../testing/xvfb.py',
       ]
