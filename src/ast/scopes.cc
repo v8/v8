@@ -1342,8 +1342,10 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
 }
 
 #ifdef DEBUG
-static const char* Header(ScopeType scope_type, FunctionKind function_kind,
-                          bool is_declaration_scope) {
+namespace {
+
+const char* Header(ScopeType scope_type, FunctionKind function_kind,
+                   bool is_declaration_scope) {
   switch (scope_type) {
     case EVAL_SCOPE: return "eval";
     // TODO(adamk): Should we print concise method scopes specially?
@@ -1362,18 +1364,13 @@ static const char* Header(ScopeType scope_type, FunctionKind function_kind,
   return NULL;
 }
 
+void Indent(int n, const char* str) { PrintF("%*s%s", n, "", str); }
 
-static void Indent(int n, const char* str) {
-  PrintF("%*s%s", n, "", str);
-}
-
-
-static void PrintName(const AstRawString* name) {
+void PrintName(const AstRawString* name) {
   PrintF("%.*s", name->length(), name->raw_data());
 }
 
-
-static void PrintLocation(Variable* var) {
+void PrintLocation(Variable* var) {
   switch (var->location()) {
     case VariableLocation::UNALLOCATED:
       break;
@@ -1395,44 +1392,47 @@ static void PrintLocation(Variable* var) {
   }
 }
 
-
-static void PrintVar(int indent, Variable* var) {
-  if (var->is_used() || !var->IsUnallocated()) {
-    Indent(indent, VariableMode2String(var->mode()));
-    PrintF(" ");
-    if (var->raw_name()->IsEmpty())
-      PrintF(".%p", reinterpret_cast<void*>(var));
-    else
-      PrintName(var->raw_name());
-    PrintF(";  // ");
-    PrintLocation(var);
-    bool comma = !var->IsUnallocated();
-    if (var->has_forced_context_allocation()) {
-      if (comma) PrintF(", ");
-      PrintF("forced context allocation");
-      comma = true;
-    }
-    if (var->maybe_assigned() == kNotAssigned) {
-      if (comma) PrintF(", ");
-      PrintF("never assigned");
-    }
-    PrintF("\n");
+void PrintVar(int indent, Variable* var) {
+  Indent(indent, VariableMode2String(var->mode()));
+  PrintF(" ");
+  if (var->raw_name()->IsEmpty())
+    PrintF(".%p", reinterpret_cast<void*>(var));
+  else
+    PrintName(var->raw_name());
+  PrintF(";  // ");
+  PrintLocation(var);
+  bool comma = !var->IsUnallocated();
+  if (var->has_forced_context_allocation()) {
+    if (comma) PrintF(", ");
+    PrintF("forced context allocation");
+    comma = true;
   }
+  if (var->maybe_assigned() == kNotAssigned) {
+    if (comma) PrintF(", ");
+    PrintF("never assigned");
+  }
+  PrintF("\n");
 }
 
-static void PrintMap(int indent, VariableMap* map, bool locals) {
+void PrintMap(int indent, const char* label, VariableMap* map, bool locals,
+              Variable* function_var) {
+  bool printed_label = false;
   for (VariableMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
+    if (var == function_var) continue;
     bool local = !IsDynamicVariableMode(var->mode());
-    if (locals ? local : !local) {
-      if (var == nullptr) {
-        Indent(indent, "<?>\n");
-      } else {
-        PrintVar(indent, var);
+    if ((locals ? local : !local) &&
+        (var->is_used() || !var->IsUnallocated())) {
+      if (!printed_label) {
+        Indent(indent, label);
+        printed_label = true;
       }
+      PrintVar(indent, var);
     }
   }
 }
+
+}  // anonymous namespace
 
 void DeclarationScope::PrintParameters() {
   PrintF(" (");
@@ -1508,13 +1508,8 @@ void Scope::Print(int n) {
     PrintVar(n1, function);
   }
 
-  if (variables_.occupancy() != 0) {
-    Indent(n1, "// local vars:\n");
-    PrintMap(n1, &variables_, true);
-
-    Indent(n1, "// dynamic vars:\n");
-    PrintMap(n1, &variables_, false);
-  }
+  PrintMap(n1, "// local vars:\n", &variables_, true, function);
+  PrintMap(n1, "// dynamic vars:\n", &variables_, false, function);
 
   // Print inner scopes (disable by providing negative n).
   if (n >= 0) {
