@@ -207,19 +207,16 @@ WasmMemoryObject* WasmMemoryObject::cast(Object* object) {
 
 void WasmMemoryObject::AddInstance(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance) {
-  Handle<WasmInstanceWrapper> instance_wrapper;
+  Handle<WasmInstanceWrapper> instance_wrapper =
+      handle(instance->get_instance_wrapper());
   if (has_instances_link()) {
     Handle<WasmInstanceWrapper> current_wrapper(get_instances_link());
     DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*current_wrapper));
     DCHECK(!current_wrapper->has_previous());
-    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
     instance_wrapper->set_next_wrapper(*current_wrapper);
     current_wrapper->set_previous_wrapper(*instance_wrapper);
-  } else {
-    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
   }
   set_instances_link(*instance_wrapper);
-  instance->set_instance_wrapper(*instance_wrapper);
 }
 
 void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
@@ -287,6 +284,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   instance->SetInternalField(kCompiledModule, *compiled_module);
   instance->SetInternalField(kMemoryObject, isolate->heap()->undefined_value());
+  Handle<WasmInstanceWrapper> instance_wrapper =
+      WasmInstanceWrapper::New(isolate, instance);
+  instance->SetInternalField(kWasmMemInstanceWrapper, *instance_wrapper);
   return instance;
 }
 
