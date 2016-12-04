@@ -44,15 +44,6 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
-// [[PromiseState]] values:
-// These values should be kept in sync with PromiseStatus in globals.h
-const kPending = 0;
-const kFulfilled = +1;
-const kRejected = +2;
-
-const kResolveCallback = 0;
-const kRejectCallback = 1;
-
 // Core functionality.
 
 function PromiseSet(promise, status, value) {
