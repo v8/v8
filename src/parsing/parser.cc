@@ -3847,7 +3847,8 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   } else {
     DCHECK(info->character_stream() == nullptr);
     stream.reset(ScannerStream::For(info->source_stream(),
-                                    info->source_stream_encoding()));
+                                    info->source_stream_encoding(),
+                                    runtime_call_stats_));
     stream_ptr = stream.get();
   }
   DCHECK(info->maybe_outer_scope_info().is_null());
