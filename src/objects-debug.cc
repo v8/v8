@@ -104,7 +104,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -204,6 +203,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_WEAK_SET_TYPE:
       JSWeakSet::cast(this)->JSWeakSetVerify();
+      break;
+    case JS_PROMISE_TYPE:
+      JSPromise::cast(this)->JSPromiseVerify();
       break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
@@ -884,6 +886,19 @@ void JSWeakSet::JSWeakSetVerify() {
   CHECK(table()->IsHashTable() || table()->IsUndefined(GetIsolate()));
 }
 
+void JSPromise::JSPromiseVerify() {
+  CHECK(IsJSPromise());
+  JSObjectVerify();
+  Isolate* isolate = GetIsolate();
+  CHECK(result()->IsUndefined(isolate) || result()->IsObject());
+  CHECK(deferred()->IsUndefined(isolate) || deferred()->IsJSObject() ||
+        deferred()->IsFixedArray());
+  CHECK(fulfill_reactions()->IsUndefined(isolate) ||
+        fulfill_reactions()->IsCallable() ||
+        fulfill_reactions()->IsFixedArray());
+  CHECK(reject_reactions()->IsUndefined(isolate) ||
+        reject_reactions()->IsCallable() || reject_reactions()->IsFixedArray());
+}
 
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
@@ -1011,8 +1026,8 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(IsPromiseReactionJobInfo());
   CHECK(value()->IsObject());
-  CHECK(tasks()->IsJSArray() || tasks()->IsCallable());
-  CHECK(deferred()->IsJSObject() || deferred()->IsUndefined(isolate));
+  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
+  CHECK(deferred()->IsFixedArray() || deferred()->IsJSObject());
   CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
   CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
   CHECK(context()->IsContext());

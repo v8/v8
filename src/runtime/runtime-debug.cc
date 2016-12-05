@@ -136,14 +136,6 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
   return it->isolate()->factory()->undefined_value();
 }
 
-
-static Handle<Object> DebugGetProperty(Handle<Object> object,
-                                       Handle<Name> name) {
-  LookupIterator it(object, name);
-  return DebugGetProperty(&it);
-}
-
-
 template <class IteratorType>
 static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
@@ -248,24 +240,8 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(5, generator->receiver());
     return factory->NewJSArrayWithElements(result);
   } else if (object->IsJSPromise()) {
-    Handle<JSObject> promise = Handle<JSObject>::cast(object);
-
-    Handle<Object> status_obj =
-        DebugGetProperty(promise, isolate->factory()->promise_state_symbol());
-    CHECK(status_obj->IsSmi());
-    const char* status = "rejected";
-    int status_val = Handle<Smi>::cast(status_obj)->value();
-    switch (status_val) {
-      case kPromiseFulfilled:
-        status = "resolved";
-        break;
-      case kPromisePending:
-        status = "pending";
-        break;
-      default:
-        DCHECK_EQ(kPromiseRejected, status_val);
-    }
-
+    Handle<JSPromise> promise = Handle<JSPromise>::cast(object);
+    const char* status = JSPromise::Status(promise->status());
     Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
     Handle<String> promise_status =
         factory->NewStringFromAsciiChecked("[[PromiseStatus]]");
@@ -273,8 +249,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
 
-    Handle<Object> value_obj =
-        DebugGetProperty(promise, isolate->factory()->promise_result_symbol());
+    Handle<Object> value_obj(promise->result(), isolate);
     Handle<String> promise_value =
         factory->NewStringFromAsciiChecked("[[PromiseValue]]");
     result->set(2, *promise_value);

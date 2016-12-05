@@ -16447,6 +16447,19 @@ class StringSharedKey : public HashTableKey {
   int scope_position_;
 };
 
+// static
+const char* JSPromise::Status(int status) {
+  switch (status) {
+    case kPromiseFulfilled:
+      return "resolved";
+    case kPromisePending:
+      return "pending";
+    case kPromiseRejected:
+      return "rejected";
+  }
+  UNREACHABLE();
+  return NULL;
+}
 
 namespace {
 

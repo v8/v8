@@ -3176,23 +3176,15 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
   Handle<Object> undefined = factory()->undefined_value();
+  Handle<Object> deferred(info->deferred(), this);
 
-  // If tasks is an array we have multiple onFulfilled/onRejected callbacks
-  // associated with the promise. The deferred object for each callback
-  // is attached to this array as well.
-  // Otherwise, there is a single callback and the deferred object is attached
-  // directly to PromiseReactionJobInfo.
-  if (tasks->IsJSArray()) {
-    Handle<JSArray> array = Handle<JSArray>::cast(tasks);
-    DCHECK(array->length()->IsSmi());
-    int length = Smi::cast(array->length())->value();
-    ElementsAccessor* accessor = array->GetElementsAccessor();
-    DCHECK(length % 2 == 0);
-    for (int i = 0; i < length; i += 2) {
-      DCHECK(accessor->HasElement(array, i));
-      DCHECK(accessor->HasElement(array, i + 1));
-      Handle<Object> argv[] = {value, accessor->Get(array, i),
-                               accessor->Get(array, i + 1)};
+  if (deferred->IsFixedArray()) {
+    DCHECK(tasks->IsFixedArray());
+    Handle<FixedArray> deferred_arr = Handle<FixedArray>::cast(deferred);
+    Handle<FixedArray> tasks_arr = Handle<FixedArray>::cast(tasks);
+    for (int i = 0; i < deferred_arr->length(); i++) {
+      Handle<Object> argv[] = {value, handle(tasks_arr->get(i), this),
+                               handle(deferred_arr->get(i), this)};
       *result = Execution::TryCall(this, promise_handle_fn, undefined,
                                    arraysize(argv), argv, maybe_exception);
       // If execution is terminating, just bail out.
@@ -3201,7 +3193,6 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
       }
     }
   } else {
-    Handle<Object> deferred(info->deferred(), this);
     Handle<Object> argv[] = {value, tasks, deferred};
     *result = Execution::TryCall(this, promise_handle_fn, undefined,
                                  arraysize(argv), argv, maybe_exception);
