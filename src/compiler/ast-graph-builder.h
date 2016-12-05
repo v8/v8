@@ -288,16 +288,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
                         const VectorSlotPair& feedback);
 
-  // Builders for super property loads and stores.
-  Node* BuildKeyedSuperStore(Node* receiver, Node* home_object, Node* key,
-                             Node* value);
-  Node* BuildNamedSuperStore(Node* receiver, Node* home_object,
-                             Handle<Name> name, Node* value);
-  Node* BuildNamedSuperLoad(Node* receiver, Node* home_object,
-                            Handle<Name> name, const VectorSlotPair& feedback);
-  Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
-                            const VectorSlotPair& feedback);
-
   // Builders for global variable loads and stores.
   Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,
                         TypeofMode typeof_mode);
@@ -321,7 +311,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
-  Node* BuildThrowUnsupportedSuperError(BailoutId bailout_id);
 
   // Builders for dynamic hole-checks at runtime.
   Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,

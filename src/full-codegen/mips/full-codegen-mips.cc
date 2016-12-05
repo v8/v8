@@ -1418,34 +1418,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
         VisitForStackValue(property->obj());
       }
       break;
-    case NAMED_SUPER_PROPERTY:
-      VisitForStackValue(
-          property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForAccumulatorValue(
-          property->obj()->AsSuperPropertyReference()->home_object());
-      PushOperand(result_register());
-      if (expr->is_compound()) {
-        const Register scratch = a1;
-        __ lw(scratch, MemOperand(sp, kPointerSize));
-        PushOperands(scratch, result_register());
-      }
-      break;
-    case KEYED_SUPER_PROPERTY: {
-      VisitForStackValue(
-          property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          property->obj()->AsSuperPropertyReference()->home_object());
-      VisitForAccumulatorValue(property->key());
-      PushOperand(result_register());
-      if (expr->is_compound()) {
-        const Register scratch1 = t0;
-        const Register scratch2 = a1;
-        __ lw(scratch1, MemOperand(sp, 2 * kPointerSize));
-        __ lw(scratch2, MemOperand(sp, 1 * kPointerSize));
-        PushOperands(scratch1, scratch2, result_register());
-      }
-      break;
-    }
     case KEYED_PROPERTY:
       // We need the key and receiver on both the stack and in v0 and a1.
       if (expr->is_compound()) {
@@ -1458,6 +1430,10 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
       }
+      break;
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
   }
 
@@ -1475,20 +1451,14 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
           PrepareForBailoutForId(property->LoadId(),
                                  BailoutState::TOS_REGISTER);
           break;
-        case NAMED_SUPER_PROPERTY:
-          EmitNamedSuperPropertyLoad(property);
-          PrepareForBailoutForId(property->LoadId(),
-                                 BailoutState::TOS_REGISTER);
-          break;
-        case KEYED_SUPER_PROPERTY:
-          EmitKeyedSuperPropertyLoad(property);
-          PrepareForBailoutForId(property->LoadId(),
-                                 BailoutState::TOS_REGISTER);
-          break;
         case KEYED_PROPERTY:
           EmitKeyedPropertyLoad(property);
           PrepareForBailoutForId(property->LoadId(),
                                  BailoutState::TOS_REGISTER);
+          break;
+        case NAMED_SUPER_PROPERTY:
+        case KEYED_SUPER_PROPERTY:
+          UNREACHABLE();
           break;
       }
     }
@@ -1528,16 +1498,12 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
       break;
-    case NAMED_SUPER_PROPERTY:
-      EmitNamedSuperPropertyStore(property);
-      context()->Plug(v0);
-      break;
-    case KEYED_SUPER_PROPERTY:
-      EmitKeyedSuperPropertyStore(property);
-      context()->Plug(v0);
-      break;
     case KEYED_PROPERTY:
       EmitKeyedPropertyAssignment(expr);
+      break;
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
   }
 }
@@ -1728,43 +1694,6 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       CallStoreIC(slot, prop->key()->AsLiteral()->value());
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      PushOperand(v0);
-      VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
-      VisitForAccumulatorValue(
-          prop->obj()->AsSuperPropertyReference()->home_object());
-      // stack: value, this; v0: home_object
-      Register scratch = a2;
-      Register scratch2 = a3;
-      __ mov(scratch, result_register());             // home_object
-      __ lw(v0, MemOperand(sp, kPointerSize));        // value
-      __ lw(scratch2, MemOperand(sp, 0));             // this
-      __ sw(scratch2, MemOperand(sp, kPointerSize));  // this
-      __ sw(scratch, MemOperand(sp, 0));              // home_object
-      // stack: this, home_object; v0: value
-      EmitNamedSuperPropertyStore(prop);
-      break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      PushOperand(v0);
-      VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          prop->obj()->AsSuperPropertyReference()->home_object());
-      VisitForAccumulatorValue(prop->key());
-      Register scratch = a2;
-      Register scratch2 = a3;
-      __ lw(scratch2, MemOperand(sp, 2 * kPointerSize));  // value
-      // stack: value, this, home_object; v0: key, a3: value
-      __ lw(scratch, MemOperand(sp, kPointerSize));  // this
-      __ sw(scratch, MemOperand(sp, 2 * kPointerSize));
-      __ lw(scratch, MemOperand(sp, 0));  // home_object
-      __ sw(scratch, MemOperand(sp, kPointerSize));
-      __ sw(v0, MemOperand(sp, 0));
-      __ Move(v0, scratch2);
-      // stack: this, home_object, key; v0: value.
-      EmitKeyedSuperPropertyStore(prop);
-      break;
-    }
     case KEYED_PROPERTY: {
       PushOperand(result_register());  // Preserve value.
       VisitForStackValue(prop->obj());
@@ -1775,6 +1704,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       CallKeyedStoreIC(slot);
       break;
     }
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
+      break;
   }
   context()->Plug(v0);
 }
@@ -1868,35 +1801,6 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::EmitNamedSuperPropertyStore(Property* prop) {
-  // Assignment to named property of super.
-  // v0 : value
-  // stack : receiver ('this'), home_object
-  DCHECK(prop != NULL);
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(key != NULL);
-
-  PushOperand(key->value());
-  PushOperand(v0);
-  CallRuntimeWithOperands(is_strict(language_mode())
-                              ? Runtime::kStoreToSuper_Strict
-                              : Runtime::kStoreToSuper_Sloppy);
-}
-
-
-void FullCodeGenerator::EmitKeyedSuperPropertyStore(Property* prop) {
-  // Assignment to named property of super.
-  // v0 : value
-  // stack : receiver ('this'), home_object, key
-  DCHECK(prop != NULL);
-
-  PushOperand(v0);
-  CallRuntimeWithOperands(is_strict(language_mode())
-                              ? Runtime::kStoreKeyedToSuper_Strict
-                              : Runtime::kStoreKeyedToSuper_Sloppy);
-}
-
-
 void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a keyed store IC.
   // Call keyed store IC.
@@ -1950,43 +1854,6 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
 }
 
 
-void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
-  SetExpressionPosition(expr);
-  Expression* callee = expr->expression();
-  DCHECK(callee->IsProperty());
-  Property* prop = callee->AsProperty();
-  DCHECK(prop->IsSuperAccess());
-
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(!key->value()->IsSmi());
-  // Load the function from the receiver.
-  const Register scratch = a1;
-  SuperPropertyReference* super_ref = prop->obj()->AsSuperPropertyReference();
-  VisitForAccumulatorValue(super_ref->home_object());
-  __ mov(scratch, v0);
-  VisitForAccumulatorValue(super_ref->this_var());
-  PushOperands(scratch, v0, v0, scratch);
-  PushOperand(key->value());
-
-  // Stack here:
-  //  - home_object
-  //  - this (receiver)
-  //  - this (receiver) <-- LoadFromSuper will pop here and below.
-  //  - home_object
-  //  - key
-  CallRuntimeWithOperands(Runtime::kLoadFromSuper);
-  PrepareForBailoutForId(prop->LoadId(), BailoutState::TOS_REGISTER);
-
-  // Replace home_object with target function.
-  __ sw(v0, MemOperand(sp, kPointerSize));
-
-  // Stack here:
-  // - target function
-  // - this (receiver)
-  EmitCall(expr);
-}
-
-
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
                                                 Expression* key) {
@@ -2009,41 +1876,6 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
   __ sw(v0, MemOperand(sp, kPointerSize));
 
   EmitCall(expr, ConvertReceiverMode::kNotNullOrUndefined);
-}
-
-
-void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
-  Expression* callee = expr->expression();
-  DCHECK(callee->IsProperty());
-  Property* prop = callee->AsProperty();
-  DCHECK(prop->IsSuperAccess());
-
-  SetExpressionPosition(prop);
-  // Load the function from the receiver.
-  const Register scratch = a1;
-  SuperPropertyReference* super_ref = prop->obj()->AsSuperPropertyReference();
-  VisitForAccumulatorValue(super_ref->home_object());
-  __ Move(scratch, v0);
-  VisitForAccumulatorValue(super_ref->this_var());
-  PushOperands(scratch, v0, v0, scratch);
-  VisitForStackValue(prop->key());
-
-  // Stack here:
-  //  - home_object
-  //  - this (receiver)
-  //  - this (receiver) <-- LoadKeyedFromSuper will pop here and below.
-  //  - home_object
-  //  - key
-  CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
-  PrepareForBailoutForId(prop->LoadId(), BailoutState::TOS_REGISTER);
-
-  // Replace home_object with target function.
-  __ sw(v0, MemOperand(sp, kPointerSize));
-
-  // Stack here:
-  // - target function
-  // - this (receiver)
-  EmitCall(expr);
 }
 
 
@@ -2576,31 +2408,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         break;
       }
 
-      case NAMED_SUPER_PROPERTY: {
-        VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
-        VisitForAccumulatorValue(
-            prop->obj()->AsSuperPropertyReference()->home_object());
-        const Register scratch = a1;
-        __ lw(scratch, MemOperand(sp, 0));  // this
-        PushOperands(result_register(), scratch, result_register());
-        EmitNamedSuperPropertyLoad(prop);
-        break;
-      }
-
-      case KEYED_SUPER_PROPERTY: {
-        VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
-        VisitForStackValue(
-            prop->obj()->AsSuperPropertyReference()->home_object());
-        VisitForAccumulatorValue(prop->key());
-        const Register scratch1 = a1;
-        const Register scratch2 = t0;
-        __ lw(scratch1, MemOperand(sp, 1 * kPointerSize));  // this
-        __ lw(scratch2, MemOperand(sp, 0 * kPointerSize));  // home object
-        PushOperands(result_register(), scratch1, scratch2, result_register());
-        EmitKeyedSuperPropertyLoad(prop);
-        break;
-      }
-
       case KEYED_PROPERTY: {
         VisitForStackValue(prop->obj());
         VisitForStackValue(prop->key());
@@ -2611,6 +2418,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         break;
       }
 
+      case NAMED_SUPER_PROPERTY:
+      case KEYED_SUPER_PROPERTY:
       case VARIABLE:
         UNREACHABLE();
     }
@@ -2647,14 +2456,12 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
           case NAMED_PROPERTY:
             __ sw(v0, MemOperand(sp, kPointerSize));
             break;
-          case NAMED_SUPER_PROPERTY:
-            __ sw(v0, MemOperand(sp, 2 * kPointerSize));
-            break;
           case KEYED_PROPERTY:
             __ sw(v0, MemOperand(sp, 2 * kPointerSize));
             break;
+          case NAMED_SUPER_PROPERTY:
           case KEYED_SUPER_PROPERTY:
-            __ sw(v0, MemOperand(sp, 3 * kPointerSize));
+            UNREACHABLE();
             break;
         }
       }
@@ -2687,14 +2494,12 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         case NAMED_PROPERTY:
           __ sw(v0, MemOperand(sp, kPointerSize));
           break;
-        case NAMED_SUPER_PROPERTY:
-          __ sw(v0, MemOperand(sp, 2 * kPointerSize));
-          break;
         case KEYED_PROPERTY:
           __ sw(v0, MemOperand(sp, 2 * kPointerSize));
           break;
+        case NAMED_SUPER_PROPERTY:
         case KEYED_SUPER_PROPERTY:
-          __ sw(v0, MemOperand(sp, 3 * kPointerSize));
+          UNREACHABLE();
           break;
       }
     }
@@ -2751,30 +2556,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      EmitNamedSuperPropertyStore(prop);
-      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
-      if (expr->is_postfix()) {
-        if (!context()->IsEffect()) {
-          context()->PlugTOS();
-        }
-      } else {
-        context()->Plug(v0);
-      }
-      break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      EmitKeyedSuperPropertyStore(prop);
-      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
-      if (expr->is_postfix()) {
-        if (!context()->IsEffect()) {
-          context()->PlugTOS();
-        }
-      } else {
-        context()->Plug(v0);
-      }
-      break;
-    }
     case KEYED_PROPERTY: {
       __ mov(StoreDescriptor::ValueRegister(), result_register());
       PopOperands(StoreDescriptor::ReceiverRegister(),
@@ -2790,6 +2571,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     }
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
+      break;
   }
 }
 

@@ -853,30 +853,17 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Expression* key = expr->key();
 
   if (key->IsPropertyName()) {
-    if (!expr->IsSuperAccess()) {
-      VisitForAccumulatorValue(expr->obj());
-      __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-      EmitNamedPropertyLoad(expr);
-    } else {
-      VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object());
-      EmitNamedSuperPropertyLoad(expr);
-    }
+    DCHECK(!expr->IsSuperAccess());
+    VisitForAccumulatorValue(expr->obj());
+    __ Move(LoadDescriptor::ReceiverRegister(), result_register());
+    EmitNamedPropertyLoad(expr);
   } else {
-    if (!expr->IsSuperAccess()) {
-      VisitForStackValue(expr->obj());
-      VisitForAccumulatorValue(expr->key());
-      __ Move(LoadDescriptor::NameRegister(), result_register());
-      PopOperand(LoadDescriptor::ReceiverRegister());
-      EmitKeyedPropertyLoad(expr);
-    } else {
-      VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object());
-      VisitForStackValue(expr->key());
-      EmitKeyedSuperPropertyLoad(expr);
-    }
+    DCHECK(!expr->IsSuperAccess());
+    VisitForStackValue(expr->obj());
+    VisitForAccumulatorValue(expr->key());
+    __ Move(LoadDescriptor::NameRegister(), result_register());
+    PopOperand(LoadDescriptor::ReceiverRegister());
+    EmitKeyedPropertyLoad(expr);
   }
   PrepareForBailoutForId(expr->LoadId(), BailoutState::TOS_REGISTER);
   context()->Plug(result_register());
@@ -1059,17 +1046,6 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   CallLoadIC(prop->PropertyFeedbackSlot(), key->value());
 }
 
-void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
-  // Stack: receiver, home_object
-  SetExpressionPosition(prop);
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(!key->value()->IsSmi());
-  DCHECK(prop->IsSuperAccess());
-
-  PushOperand(key->value());
-  CallRuntimeWithOperands(Runtime::kLoadFromSuper);
-}
-
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetExpressionPosition(prop);
 
@@ -1078,12 +1054,6 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
-}
-
-void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
-  // Stack: receiver, home_object, key.
-  SetExpressionPosition(prop);
-  CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
 }
 
 void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
@@ -1404,12 +1374,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       EmitKeyedCallWithLoadIC(expr, property->key());
       break;
     }
-    case Call::NAMED_SUPER_PROPERTY_CALL:
-      EmitSuperCallWithLoadIC(expr);
-      break;
-    case Call::KEYED_SUPER_PROPERTY_CALL:
-      EmitKeyedSuperCallWithLoadIC(expr);
-      break;
     case Call::OTHER_CALL:
       // Call to an arbitrary expression not handled specially above.
       VisitForStackValue(callee);
@@ -1418,6 +1382,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Emit function call.
       EmitCall(expr);
       break;
+    case Call::NAMED_SUPER_PROPERTY_CALL:
+    case Call::KEYED_SUPER_PROPERTY_CALL:
     case Call::SUPER_CALL:
     case Call::WITH_CALL:
       UNREACHABLE();

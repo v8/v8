@@ -1557,31 +1557,10 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      environment()->Push(value);
-      VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(property->obj()->AsSuperPropertyReference()->home_object());
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      value = environment()->Pop();
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedSuperStore(receiver, home_object, name, value);
-      PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      environment()->Push(value);
-      VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(property->obj()->AsSuperPropertyReference()->home_object());
-      VisitForValue(property->key());
-      Node* key = environment()->Pop();
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      value = environment()->Pop();
-      Node* store = BuildKeyedSuperStore(receiver, home_object, key, value);
-      PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
-      break;
-    }
   }
 }
 
@@ -1613,13 +1592,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       VisitForValue(property->key());
       break;
     case NAMED_SUPER_PROPERTY:
-      VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(property->obj()->AsSuperPropertyReference()->home_object());
-      break;
     case KEYED_SUPER_PROPERTY:
-      VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(property->obj()->AsSuperPropertyReference()->home_object());
-      VisitForValue(property->key());
+      UNREACHABLE();
       break;
   }
 
@@ -1657,28 +1631,10 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
                           OutputFrameStateCombine::Push());
         break;
       }
-      case NAMED_SUPER_PROPERTY: {
-        Node* home_object = environment()->Top();
-        Node* receiver = environment()->Peek(1);
-        Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-        VectorSlotPair pair =
-            CreateVectorSlotPair(property->PropertyFeedbackSlot());
-        old_value = BuildNamedSuperLoad(receiver, home_object, name, pair);
-        PrepareFrameState(old_value, property->LoadId(),
-                          OutputFrameStateCombine::Push());
+      case NAMED_SUPER_PROPERTY:
+      case KEYED_SUPER_PROPERTY:
+        UNREACHABLE();
         break;
-      }
-      case KEYED_SUPER_PROPERTY: {
-        Node* key = environment()->Top();
-        Node* home_object = environment()->Peek(1);
-        Node* receiver = environment()->Peek(2);
-        VectorSlotPair pair =
-            CreateVectorSlotPair(property->PropertyFeedbackSlot());
-        old_value = BuildKeyedSuperLoad(receiver, home_object, key, pair);
-        PrepareFrameState(old_value, property->LoadId(),
-                          OutputFrameStateCombine::Push());
-        break;
-      }
     }
     environment()->Push(old_value);
     VisitForValue(expr->value());
@@ -1723,22 +1679,10 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
                         OutputFrameStateCombine::Push());
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedSuperStore(receiver, home_object, name, value);
-      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      Node* key = environment()->Pop();
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      Node* store = BuildKeyedSuperStore(receiver, home_object, key, value);
-      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
-      break;
-    }
   }
 
   ast_context()->ProduceValue(expr, value);
@@ -1784,27 +1728,10 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
       PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      VisitForValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(expr->obj()->AsSuperPropertyReference()->home_object());
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      Handle<Name> name = expr->key()->AsLiteral()->AsPropertyName();
-      value = BuildNamedSuperLoad(receiver, home_object, name, pair);
-      PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      VisitForValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(expr->obj()->AsSuperPropertyReference()->home_object());
-      VisitForValue(expr->key());
-      Node* key = environment()->Pop();
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      value = BuildKeyedSuperLoad(receiver, home_object, key, pair);
-      PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
-      break;
-    }
   }
   ast_context()->ProduceValue(expr, value);
 }
@@ -1866,53 +1793,14 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       receiver_value = environment()->Pop();
       break;
     }
-    case Call::NAMED_SUPER_PROPERTY_CALL: {
-      Property* property = callee->AsProperty();
-      SuperPropertyReference* super_ref =
-          property->obj()->AsSuperPropertyReference();
-      VisitForValue(super_ref->home_object());
-      VisitForValue(super_ref->this_var());
-      Node* home = environment()->Peek(1);
-      Node* object = environment()->Top();
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      callee_value = BuildNamedSuperLoad(object, home, name, VectorSlotPair());
-      PrepareFrameState(callee_value, property->LoadId(),
-                        OutputFrameStateCombine::Push());
-      // Note that a property call requires the receiver to be wrapped into
-      // an object for sloppy callees. Since the receiver is not the target of
-      // the load, it could very well be null or undefined at this point.
-      receiver_value = environment()->Pop();
-      environment()->Drop(1);
-      break;
-    }
-    case Call::KEYED_SUPER_PROPERTY_CALL: {
-      Property* property = callee->AsProperty();
-      SuperPropertyReference* super_ref =
-          property->obj()->AsSuperPropertyReference();
-      VisitForValue(super_ref->home_object());
-      VisitForValue(super_ref->this_var());
-      environment()->Push(environment()->Top());    // Duplicate this_var.
-      environment()->Push(environment()->Peek(2));  // Duplicate home_obj.
-      VisitForValue(property->key());
-      Node* key = environment()->Pop();
-      Node* home = environment()->Pop();
-      Node* object = environment()->Pop();
-      callee_value = BuildKeyedSuperLoad(object, home, key, VectorSlotPair());
-      PrepareFrameState(callee_value, property->LoadId(),
-                        OutputFrameStateCombine::Push());
-      // Note that a property call requires the receiver to be wrapped into
-      // an object for sloppy callees. Since the receiver is not the target of
-      // the load, it could very well be null or undefined at this point.
-      receiver_value = environment()->Pop();
-      environment()->Drop(1);
-      break;
-    }
     case Call::OTHER_CALL:
       VisitForValue(callee);
       callee_value = environment()->Pop();
       receiver_hint = ConvertReceiverMode::kNullOrUndefined;
       receiver_value = jsgraph()->UndefinedConstant();
       break;
+    case Call::NAMED_SUPER_PROPERTY_CALL:
+    case Call::KEYED_SUPER_PROPERTY_CALL:
     case Call::SUPER_CALL:
     case Call::WITH_CALL:
       UNREACHABLE();
@@ -2107,35 +1995,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       stack_depth = 2;
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(property->obj()->AsSuperPropertyReference()->home_object());
-      Node* home_object = environment()->Top();
-      Node* receiver = environment()->Peek(1);
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      VectorSlotPair pair =
-          CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      old_value = BuildNamedSuperLoad(receiver, home_object, name, pair);
-      PrepareFrameState(old_value, property->LoadId(),
-                        OutputFrameStateCombine::Push());
-      stack_depth = 2;
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-      VisitForValue(property->obj()->AsSuperPropertyReference()->home_object());
-      VisitForValue(property->key());
-      Node* key = environment()->Top();
-      Node* home_object = environment()->Peek(1);
-      Node* receiver = environment()->Peek(2);
-      VectorSlotPair pair =
-          CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      old_value = BuildKeyedSuperLoad(receiver, home_object, key, pair);
-      PrepareFrameState(old_value, property->LoadId(),
-                        OutputFrameStateCombine::Push());
-      stack_depth = 3;
-      break;
-    }
   }
 
   // Convert old value into a number.
@@ -2190,24 +2053,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
                         OutputFrameStateCombine::Push());
       break;
     }
-    case NAMED_SUPER_PROPERTY: {
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedSuperStore(receiver, home_object, name, value);
-      PrepareFrameState(store, expr->AssignmentId(),
-                        OutputFrameStateCombine::Push());
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNREACHABLE();
       break;
-    }
-    case KEYED_SUPER_PROPERTY: {
-      Node* key = environment()->Pop();
-      Node* home_object = environment()->Pop();
-      Node* receiver = environment()->Pop();
-      Node* store = BuildKeyedSuperStore(receiver, home_object, key, value);
-      PrepareFrameState(store, expr->AssignmentId(),
-                        OutputFrameStateCombine::Push());
-      break;
-    }
   }
 
   // Restore old value for postfix expressions.
@@ -2353,8 +2202,7 @@ void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 void AstGraphBuilder::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {
-  Node* value = BuildThrowUnsupportedSuperError(expr->id());
-  ast_context()->ProduceValue(expr, value);
+  UNREACHABLE();
 }
 
 
@@ -2925,48 +2773,6 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
 }
 
 
-Node* AstGraphBuilder::BuildNamedSuperLoad(Node* receiver, Node* home_object,
-                                           Handle<Name> name,
-                                           const VectorSlotPair& feedback) {
-  Node* name_node = jsgraph()->Constant(name);
-  const Operator* op = javascript()->CallRuntime(Runtime::kLoadFromSuper);
-  Node* node = NewNode(op, receiver, home_object, name_node);
-  return node;
-}
-
-
-Node* AstGraphBuilder::BuildKeyedSuperLoad(Node* receiver, Node* home_object,
-                                           Node* key,
-                                           const VectorSlotPair& feedback) {
-  const Operator* op = javascript()->CallRuntime(Runtime::kLoadKeyedFromSuper);
-  Node* node = NewNode(op, receiver, home_object, key);
-  return node;
-}
-
-
-Node* AstGraphBuilder::BuildKeyedSuperStore(Node* receiver, Node* home_object,
-                                            Node* key, Node* value) {
-  Runtime::FunctionId function_id = is_strict(language_mode())
-                                        ? Runtime::kStoreKeyedToSuper_Strict
-                                        : Runtime::kStoreKeyedToSuper_Sloppy;
-  const Operator* op = javascript()->CallRuntime(function_id, 4);
-  Node* node = NewNode(op, receiver, home_object, key, value);
-  return node;
-}
-
-
-Node* AstGraphBuilder::BuildNamedSuperStore(Node* receiver, Node* home_object,
-                                            Handle<Name> name, Node* value) {
-  Node* name_node = jsgraph()->Constant(name);
-  Runtime::FunctionId function_id = is_strict(language_mode())
-                                        ? Runtime::kStoreToSuper_Strict
-                                        : Runtime::kStoreToSuper_Sloppy;
-  const Operator* op = javascript()->CallRuntime(function_id, 4);
-  Node* node = NewNode(op, receiver, home_object, name_node, value);
-  return node;
-}
-
-
 Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,
                                        TypeofMode typeof_mode) {
@@ -3052,16 +2858,6 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
 Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
   const Operator* op =
       javascript()->CallRuntime(Runtime::kThrowConstAssignError);
-  Node* call = NewNode(op);
-  PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
-  UpdateControlDependencyToLeaveFunction(control);
-  return call;
-}
-
-Node* AstGraphBuilder::BuildThrowUnsupportedSuperError(BailoutId bailout_id) {
-  const Operator* op =
-      javascript()->CallRuntime(Runtime::kThrowUnsupportedSuperError);
   Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
   Node* control = NewNode(common()->Throw(), call);
