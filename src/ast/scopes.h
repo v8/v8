@@ -112,6 +112,11 @@ class Scope: public ZoneObject {
   // tree and its children are reparented.
   Scope* FinalizeBlockScope();
 
+  bool HasBeenRemoved() const;
+
+  // Find the first scope that hasn't been removed.
+  Scope* GetUnremovedScope();
+
   // Inserts outer_scope into this scope's scope chain (and removes this
   // from the current outer_scope_'s inner scope list).
   // Assumes outer_scope_ is non-null.
