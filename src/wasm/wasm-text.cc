@@ -93,6 +93,7 @@ const char *GetOpName(WasmOpcode opcode) {
     CASE_OP(Throw, "throw")
     CASE_OP(Catch, "catch")
     CASE_OP(Drop, "drop")
+    CASE_OP(Select, "select")
     CASE_ALL_OP(LoadMem, "load")
     CASE_SIGN_OP(INT, LoadMem8, "load8")
     CASE_SIGN_OP(INT, LoadMem16, "load16")
@@ -283,6 +284,7 @@ void wasm::PrintWasmText(
       case kExprMemorySize:
       case kExprGrowMemory:
       case kExprDrop:
+      case kExprSelect:
       case kExprThrow:
         os << GetOpName(opcode);
         break;
