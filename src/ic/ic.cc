@@ -854,8 +854,8 @@ namespace {
 
 template <bool fill_array = true>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
-                        Handle<JSObject> holder, Handle<FixedArray> array,
-                        Handle<Name> name, int first_index) {
+                        Handle<JSObject> holder, Handle<Name> name,
+                        Handle<FixedArray> array, int first_index) {
   DCHECK(holder.is_null() || holder->HasFastProperties());
 
   // The following kinds of receiver maps require custom handler compilation.
@@ -886,7 +886,11 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
 
   // Create/count entries for each global or dictionary prototype appeared in
   // the prototype chain contains from receiver till holder.
-  for (PrototypeIterator iter(receiver_map); !iter.IsAtEnd(); iter.Advance()) {
+  PrototypeIterator::WhereToEnd end = name->IsPrivate()
+                                          ? PrototypeIterator::END_AT_NON_HIDDEN
+                                          : PrototypeIterator::END_AT_NULL;
+  for (PrototypeIterator iter(receiver_map, end); !iter.IsAtEnd();
+       iter.Advance()) {
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
     if (holder.is_identical_to(current)) break;
     Handle<Map> current_map(current->map(), isolate);
@@ -924,9 +928,9 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
 // Returns -1 if the handler has to be compiled or the number of prototype
 // checks otherwise.
 int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
-                           Handle<JSObject> holder) {
-  return InitPrototypeChecks<false>(isolate, receiver_map, holder,
-                                    Handle<FixedArray>(), Handle<Name>(), 0);
+                           Handle<JSObject> holder, Handle<Name> name) {
+  return InitPrototypeChecks<false>(isolate, receiver_map, holder, name,
+                                    Handle<FixedArray>(), 0);
 }
 
 }  // namespace
@@ -935,7 +939,8 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
                                          Handle<Object> smi_handler) {
-  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, holder);
+  int checks_count =
+      GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
   DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
@@ -965,7 +970,7 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
   handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
   handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
   handler_array->set(LoadHandler::kHolderCellIndex, *holder_cell);
-  InitPrototypeChecks(isolate(), receiver_map, holder, handler_array, name,
+  InitPrototypeChecks(isolate(), receiver_map, holder, name, handler_array,
                       LoadHandler::kFirstPrototypeIndex);
   return handler_array;
 }
@@ -973,7 +978,8 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
 Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
                                        Handle<Name> name) {
   Handle<JSObject> holder;  // null handle
-  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, holder);
+  int checks_count =
+      GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
   DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
@@ -990,9 +996,6 @@ Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) {
-    // This must be a case when receiver's prototype is null.
-    DCHECK_EQ(*isolate()->factory()->null_value(),
-              receiver_map->GetPrototypeChainRootMap(isolate())->prototype());
     DCHECK_EQ(0, checks_count);
     validity_cell = handle(Smi::FromInt(0), isolate());
   }
@@ -1007,7 +1010,7 @@ Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
   handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
   handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
   handler_array->set(LoadHandler::kHolderCellIndex, *factory->null_value());
-  InitPrototypeChecks(isolate(), receiver_map, holder, handler_array, name,
+  InitPrototypeChecks(isolate(), receiver_map, holder, name, handler_array,
                       LoadHandler::kFirstPrototypeIndex);
   return handler_array;
 }
@@ -1891,17 +1894,20 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
     smi_handler = StoreHandler::TransitionToField(
         isolate(), descriptor, index, representation, extend_storage);
   }
+  // |holder| is either a receiver if the property is non-existent or
+  // one of the prototypes.
+  DCHECK(!holder.is_null());
+  bool is_nonexistent = holder->map() == transition->GetBackPointer();
+  if (is_nonexistent) holder = Handle<JSObject>::null();
 
-  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, holder);
+  int checks_count =
+      GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
   DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) {
-    // This must be a case when receiver's prototype is null.
-    DCHECK_EQ(*isolate()->factory()->null_value(),
-              receiver_map->GetPrototypeChainRootMap(isolate())->prototype());
     DCHECK_EQ(0, checks_count);
     validity_cell = handle(Smi::FromInt(0), isolate());
   }
@@ -1917,7 +1923,7 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
   handler_array->set(StoreHandler::kSmiHandlerIndex, *smi_handler);
   handler_array->set(StoreHandler::kValidityCellIndex, *validity_cell);
   handler_array->set(StoreHandler::kTransitionCellIndex, *transition_cell);
-  InitPrototypeChecks(isolate(), receiver_map, holder, handler_array, name,
+  InitPrototypeChecks(isolate(), receiver_map, holder, name, handler_array,
                       StoreHandler::kFirstPrototypeIndex);
   return handler_array;
 }
