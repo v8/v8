@@ -2131,7 +2131,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(a0, &create_runtime);
 
     // Load the map of argumentsList into a2.
@@ -2174,6 +2175,21 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ mov(a0, t0);
     __ Branch(&done_create);
 
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ bind(&create_holey_array);
+    __ lw(a2, FieldMemOperand(a2, Map::kPrototypeOffset));
+    __ lw(at, ContextMemOperand(t0, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ Branch(&create_runtime, ne, a2, Operand(at));
+    __ LoadRoot(at, Heap::kArrayProtectorRootIndex);
+    __ lw(a2, FieldMemOperand(at, PropertyCell::kValueOffset));
+    __ Branch(&create_runtime, ne, a2,
+              Operand(Smi::FromInt(Isolate::kProtectorValid)));
+    __ lw(a2, FieldMemOperand(a0, JSArray::kLengthOffset));
+    __ lw(a0, FieldMemOperand(a0, JSArray::kElementsOffset));
+    __ SmiUntag(a2);
+    __ Branch(&done_create);
+
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
     __ lw(a2, FieldMemOperand(a2, Map::kBitField2Offset));
@@ -2181,8 +2197,10 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+    __ Branch(&create_holey_array, eq, a2, Operand(FAST_HOLEY_SMI_ELEMENTS));
+    __ Branch(&create_holey_array, eq, a2, Operand(FAST_HOLEY_ELEMENTS));
     __ Branch(&create_runtime, hi, a2, Operand(FAST_ELEMENTS));
-    __ Branch(&create_runtime, eq, a2, Operand(FAST_HOLEY_SMI_ELEMENTS));
     __ lw(a2, FieldMemOperand(a0, JSArray::kLengthOffset));
     __ lw(a0, FieldMemOperand(a0, JSArray::kElementsOffset));
     __ SmiUntag(a2);
@@ -2217,11 +2235,15 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
     __ mov(t0, zero_reg);
-    Label done, loop;
+    Label done, push, loop;
+    __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
     __ bind(&loop);
     __ Branch(&done, eq, t0, Operand(a2));
     __ Lsa(at, a0, t0, kPointerSizeLog2);
     __ lw(at, FieldMemOperand(at, FixedArray::kHeaderSize));
+    __ Branch(&push, ne, t1, Operand(at));
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(at);
     __ Addu(t0, t0, Operand(1));
     __ Branch(&loop);
