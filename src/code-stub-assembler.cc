@@ -45,6 +45,60 @@ void CodeStubAssembler::Assert(const NodeGenerator& codition_body,
 #endif
 }
 
+Node* CodeStubAssembler::Select(Node* condition, const NodeGenerator& true_body,
+                                const NodeGenerator& false_body,
+                                MachineRepresentation rep) {
+  Variable value(this, rep);
+  Label vtrue(this), vfalse(this), end(this);
+  Branch(condition, &vtrue, &vfalse);
+
+  Bind(&vtrue);
+  {
+    value.Bind(true_body());
+    Goto(&end);
+  }
+  Bind(&vfalse);
+  {
+    value.Bind(false_body());
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return value.value();
+}
+
+Node* CodeStubAssembler::SelectConstant(Node* condition, Node* true_value,
+                                        Node* false_value,
+                                        MachineRepresentation rep) {
+  return Select(condition, [=] { return true_value; },
+                [=] { return false_value; }, rep);
+}
+
+Node* CodeStubAssembler::SelectInt32Constant(Node* condition, int true_value,
+                                             int false_value) {
+  return SelectConstant(condition, Int32Constant(true_value),
+                        Int32Constant(false_value),
+                        MachineRepresentation::kWord32);
+}
+
+Node* CodeStubAssembler::SelectIntPtrConstant(Node* condition, int true_value,
+                                              int false_value) {
+  return SelectConstant(condition, IntPtrConstant(true_value),
+                        IntPtrConstant(false_value),
+                        MachineType::PointerRepresentation());
+}
+
+Node* CodeStubAssembler::SelectBooleanConstant(Node* condition) {
+  return SelectConstant(condition, TrueConstant(), FalseConstant(),
+                        MachineRepresentation::kTagged);
+}
+
+Node* CodeStubAssembler::SelectTaggedConstant(Node* condition, Node* true_value,
+                                              Node* false_value) {
+  return SelectConstant(condition, true_value, false_value,
+                        MachineRepresentation::kTagged);
+}
+
 Node* CodeStubAssembler::NoContextConstant() { return NumberConstant(0); }
 
 #define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
@@ -128,9 +182,11 @@ Node* CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(Node* value) {
 Node* CodeStubAssembler::WordIsPowerOfTwo(Node* value) {
   // value && !(value & (value - 1))
   return WordEqual(
-      Select(WordEqual(value, IntPtrConstant(0)), IntPtrConstant(1),
-             WordAnd(value, IntPtrSub(value, IntPtrConstant(1))),
-             MachineType::PointerRepresentation()),
+      Select(
+          WordEqual(value, IntPtrConstant(0)),
+          [=] { return IntPtrConstant(1); },
+          [=] { return WordAnd(value, IntPtrSub(value, IntPtrConstant(1))); },
+          MachineType::PointerRepresentation()),
       IntPtrConstant(0));
 }
 
@@ -421,11 +477,11 @@ Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
 }
 
 Node* CodeStubAssembler::SmiMax(Node* a, Node* b) {
-  return Select(SmiLessThan(a, b), b, a);
+  return SelectTaggedConstant(SmiLessThan(a, b), b, a);
 }
 
 Node* CodeStubAssembler::SmiMin(Node* a, Node* b) {
-  return Select(SmiLessThan(a, b), a, b);
+  return SelectTaggedConstant(SmiLessThan(a, b), a, b);
 }
 
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
@@ -2788,8 +2844,9 @@ Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
       1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
   USE(mask);
   // Interceptors or access checks imply special receiver.
-  CSA_ASSERT(this, Select(IsSetWord32(LoadMapBitField(map), mask), is_special,
-                          Int32Constant(1), MachineRepresentation::kWord32));
+  CSA_ASSERT(this,
+             SelectConstant(IsSetWord32(LoadMapBitField(map), mask), is_special,
+                            Int32Constant(1), MachineRepresentation::kWord32));
   return is_special;
 }
 
@@ -4267,8 +4324,8 @@ Node* CodeStubAssembler::HashTableComputeCapacity(Node* at_least_space_for) {
 }
 
 Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
-  return Select(IntPtrGreaterThanOrEqual(left, right), left, right,
-                MachineType::PointerRepresentation());
+  return SelectConstant(IntPtrGreaterThanOrEqual(left, right), left, right,
+                        MachineType::PointerRepresentation());
 }
 
 template <class Dictionary>
@@ -7525,8 +7582,8 @@ Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs, Node* context) {
       // Return true iff {rhs} is NaN.
 
       Node* const result =
-          Select(Float64Equal(rhs_float, rhs_float), int_false, int_true,
-                 MachineType::PointerRepresentation());
+          SelectConstant(Float64Equal(rhs_float, rhs_float), int_false,
+                         int_true, MachineType::PointerRepresentation());
       var_result.Bind(result);
       Goto(&out);
     }

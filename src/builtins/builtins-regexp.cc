@@ -914,7 +914,7 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
   {
     // Refer to JSRegExp's flag property on the fast-path.
     Node* const is_flag_set = FastFlagGetter(a, receiver, flag);
-    a->Return(a->Select(is_flag_set, a->TrueConstant(), a->FalseConstant()));
+    a->Return(a->SelectBooleanConstant(is_flag_set));
   }
 
   a->Bind(&if_isnotunmodifiedjsregexp);
@@ -1192,8 +1192,8 @@ void Builtins::Generate_RegExpPrototypeTest(CodeAssemblerState* state) {
     Node* const match_indices = RegExpExec(&a, context, receiver, string);
 
     // Return true iff exec matched successfully.
-    Node* const result = a.Select(a.WordEqual(match_indices, a.NullConstant()),
-                                  a.FalseConstant(), a.TrueConstant());
+    Node* const result = a.SelectBooleanConstant(
+        a.WordNotEqual(match_indices, a.NullConstant()));
     a.Return(result);
   }
 }

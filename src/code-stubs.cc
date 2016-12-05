@@ -1061,11 +1061,10 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
       // in case of overflow.
       var_result.Bind(assembler->SmiMul(lhs, rhs));
-      var_type_feedback.Bind(assembler->Select(
+      var_type_feedback.Bind(assembler->SelectInt32Constant(
           assembler->TaggedIsSmi(var_result.value()),
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall),
-          assembler->Int32Constant(BinaryOperationFeedback::kNumber),
-          MachineRepresentation::kWord32));
+          BinaryOperationFeedback::kSignedSmall,
+          BinaryOperationFeedback::kNumber));
       assembler->Goto(&end);
     }
 
@@ -1442,10 +1441,10 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
     assembler->Bind(&divisor_is_smi);
     {
       var_result.Bind(assembler->SmiMod(dividend, divisor));
-      var_type_feedback.Bind(assembler->Select(
+      var_type_feedback.Bind(assembler->SelectInt32Constant(
           assembler->TaggedIsSmi(var_result.value()),
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall),
-          assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
+          BinaryOperationFeedback::kSignedSmall,
+          BinaryOperationFeedback::kNumber));
       assembler->Goto(&end);
     }
 
@@ -2495,29 +2494,25 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&if_normal);
   {
-    map_index.Bind(assembler->Select(
-        is_strict,
-        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX),
-        assembler->IntPtrConstant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
+    map_index.Bind(assembler->SelectIntPtrConstant(
+        is_strict, Context::STRICT_FUNCTION_MAP_INDEX,
+        Context::SLOPPY_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_generator);
   {
-    map_index.Bind(assembler->Select(
-        is_strict,
-        assembler->IntPtrConstant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
-        assembler->IntPtrConstant(
-            Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX)));
+    map_index.Bind(assembler->SelectIntPtrConstant(
+        is_strict, Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX,
+        Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_async);
   {
-    map_index.Bind(assembler->Select(
-        is_strict,
-        assembler->IntPtrConstant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
-        assembler->IntPtrConstant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
+    map_index.Bind(assembler->SelectIntPtrConstant(
+        is_strict, Context::STRICT_ASYNC_FUNCTION_MAP_INDEX,
+        Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 

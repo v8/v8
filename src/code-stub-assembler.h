@@ -169,6 +169,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void Assert(const NodeGenerator& condition_body, const char* string = nullptr,
               const char* file = nullptr, int line = 0);
 
+  Node* Select(Node* condition, const NodeGenerator& true_body,
+               const NodeGenerator& false_body, MachineRepresentation rep);
+
+  Node* SelectConstant(Node* condition, Node* true_value, Node* false_value,
+                       MachineRepresentation rep);
+
+  Node* SelectInt32Constant(Node* condition, int true_value, int false_value);
+  Node* SelectIntPtrConstant(Node* condition, int true_value, int false_value);
+  Node* SelectBooleanConstant(Node* condition);
+  Node* SelectTaggedConstant(Node* condition, Node* true_value,
+                             Node* false_value);
+
   // Check a value for smi-ness
   Node* TaggedIsSmi(Node* a);
   Node* TaggedIsNotSmi(Node* a);

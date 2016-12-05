@@ -971,7 +971,9 @@ void Builtins::Generate_StringPrototypeSubstr(
     {
       Node* const length_plus_start = a.SmiAdd(string_length, start_int);
       var_start.Bind(a.Select(a.SmiLessThan(start_int, zero),
-                              a.SmiMax(length_plus_start, zero), start_int));
+                              [&] { return a.SmiMax(length_plus_start, zero); },
+                              [&] { return start_int; },
+                              MachineRepresentation::kTagged));
       a.Goto(&handle_length);
     }
 
@@ -983,8 +985,8 @@ void Builtins::Generate_StringPrototypeSubstr(
       // returning an empty string.
       Node* const float_zero = a.Float64Constant(0.);
       Node* const start_float = a.LoadHeapNumberValue(start_int);
-      var_start.Bind(a.Select(a.Float64LessThan(start_float, float_zero), zero,
-                              string_length));
+      var_start.Bind(a.SelectTaggedConstant(
+          a.Float64LessThan(start_float, float_zero), zero, string_length));
       a.Goto(&handle_length);
     }
   }
@@ -1090,7 +1092,8 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
     a->Bind(&if_isoutofbounds);
     {
       Node* const zero = a->SmiConstant(Smi::kZero);
-      var_result.Bind(a->Select(a->SmiLessThan(value_int, zero), zero, limit));
+      var_result.Bind(a->SelectTaggedConstant(a->SmiLessThan(value_int, zero),
+                                              zero, limit));
       a->Goto(&out);
     }
   }
@@ -1103,8 +1106,8 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
     Node* const float_zero = a->Float64Constant(0.);
     Node* const smi_zero = a->SmiConstant(Smi::kZero);
     Node* const value_float = a->LoadHeapNumberValue(value_int);
-    var_result.Bind(a->Select(a->Float64LessThan(value_float, float_zero),
-                              smi_zero, limit));
+    var_result.Bind(a->SelectTaggedConstant(
+        a->Float64LessThan(value_float, float_zero), smi_zero, limit));
     a->Goto(&out);
   }
 

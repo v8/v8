@@ -1058,10 +1058,9 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           __ Bind(&lhs_is_not_oddball);
         }
 
-        var_type_feedback.Bind(
-            __ Select(__ IsStringInstanceType(lhs_instance_type),
-                      __ Int32Constant(CompareOperationFeedback::kString),
-                      __ Int32Constant(CompareOperationFeedback::kAny)));
+        var_type_feedback.Bind(__ SelectInt32Constant(
+            __ IsStringInstanceType(lhs_instance_type),
+            CompareOperationFeedback::kString, CompareOperationFeedback::kAny));
         __ Goto(&gather_rhs_type);
       }
     }
@@ -1106,9 +1105,9 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
 
           var_type_feedback.Bind(__ Word32Or(
               var_type_feedback.value(),
-              __ Select(__ IsStringInstanceType(rhs_instance_type),
-                        __ Int32Constant(CompareOperationFeedback::kString),
-                        __ Int32Constant(CompareOperationFeedback::kAny))));
+              __ SelectInt32Constant(__ IsStringInstanceType(rhs_instance_type),
+                                     CompareOperationFeedback::kString,
+                                     CompareOperationFeedback::kAny)));
           __ Goto(&update_feedback);
         }
       }
@@ -1244,10 +1243,9 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
       UNREACHABLE();
   }
 
-  Node* result_type =
-      __ Select(__ TaggedIsSmi(result),
-                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
-                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  Node* result_type = __ SelectInt32Constant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
 
   if (FLAG_debug_code) {
     Label ok(assembler);
@@ -1444,10 +1442,9 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   Node* rhs_value = __ SmiToWord32(right);
   Node* value = __ Word32Or(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type =
-      __ Select(__ TaggedIsSmi(result),
-                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
-                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  Node* result_type = __ SelectInt32Constant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
@@ -1472,10 +1469,9 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   Node* rhs_value = __ SmiToWord32(right);
   Node* value = __ Word32And(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type =
-      __ Select(__ TaggedIsSmi(result),
-                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
-                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  Node* result_type = __ SelectInt32Constant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
@@ -1502,10 +1498,9 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Shl(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type =
-      __ Select(__ TaggedIsSmi(result),
-                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
-                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  Node* result_type = __ SelectInt32Constant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
@@ -1532,10 +1527,9 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Sar(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type =
-      __ Select(__ TaggedIsSmi(result),
-                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
-                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  Node* result_type = __ SelectInt32Constant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
