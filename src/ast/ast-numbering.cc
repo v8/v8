@@ -19,6 +19,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         yield_count_(0),
         properties_(zone),
         slot_cache_(zone),
+        disable_crankshaft_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
         catch_prediction_(HandlerTable::UNCAUGHT) {
     InitializeAstVisitor(isolate);
@@ -56,6 +57,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
     DisableSelfOptimization();
   }
   void DisableFullCodegenAndCrankshaft(BailoutReason reason) {
+    disable_crankshaft_reason_ = reason;
     properties_.flags() |= AstProperties::kMustUseIgnitionTurbo;
   }
 
@@ -74,6 +76,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   AstProperties properties_;
   // The slot cache allows us to reuse certain feedback vector slots.
   FeedbackVectorSlotCache slot_cache_;
+  BailoutReason disable_crankshaft_reason_;
   BailoutReason dont_optimize_reason_;
   HandlerTable::CatchPrediction catch_prediction_;
 
@@ -623,6 +626,15 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   node->set_ast_properties(&properties_);
   node->set_dont_optimize_reason(dont_optimize_reason());
   node->set_yield_count(yield_count_);
+
+  if (FLAG_trace_opt) {
+    if (disable_crankshaft_reason_ != kNoReason) {
+      PrintF("[enforcing Ignition and TurboFan for %s because: %s\n",
+             node->debug_name()->ToCString().get(),
+             GetBailoutReason(disable_crankshaft_reason_));
+    }
+  }
+
   return !HasStackOverflow();
 }
 
