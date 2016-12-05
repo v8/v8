@@ -376,15 +376,14 @@ void Builtins::Generate_FastFunctionPrototypeBind(
   Variable index(&assembler, MachineType::PointerRepresentation());
   index.Bind(assembler.IntPtrConstant(0));
   CodeStubAssembler::VariableList foreach_vars({&index}, assembler.zone());
-  args.ForEach(
-      foreach_vars,
-      [elements, &index](CodeStubAssembler* assembler, compiler::Node* arg) {
-        assembler->StoreFixedArrayElement(elements, index.value(), arg,
-                                          UPDATE_WRITE_BARRIER, 0,
-                                          CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->Increment(index);
-      },
-      assembler.IntPtrConstant(1));
+  args.ForEach(foreach_vars,
+               [&assembler, elements, &index](compiler::Node* arg) {
+                 assembler.StoreFixedArrayElement(
+                     elements, index.value(), arg, UPDATE_WRITE_BARRIER, 0,
+                     CodeStubAssembler::INTPTR_PARAMETERS);
+                 assembler.Increment(index);
+               },
+               assembler.IntPtrConstant(1));
   argument_array.Bind(elements);
   assembler.Goto(&arguments_done);
 

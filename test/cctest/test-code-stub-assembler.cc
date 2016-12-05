@@ -1742,9 +1742,8 @@ TEST(ArgumentsForEach) {
 
   sum.Bind(m.IntPtrConstant(0));
 
-  arguments.ForEach(list, [&m, &sum](CodeStubAssembler* assembler, Node* arg) {
-    sum.Bind(assembler->IntPtrAdd(sum.value(), arg));
-  });
+  arguments.ForEach(
+      list, [&m, &sum](Node* arg) { sum.Bind(m.IntPtrAdd(sum.value(), arg)); });
 
   m.Return(sum.value());
 

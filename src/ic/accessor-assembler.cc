@@ -79,21 +79,20 @@ void AccessorAssemblerImpl::HandlePolymorphicCase(
   Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
   BuildFastLoop(
       MachineType::PointerRepresentation(), init, length,
-      [receiver_map, feedback, if_handler, var_handler](CodeStubAssembler* csa,
-                                                        Node* index) {
-        Node* cached_map = csa->LoadWeakCellValue(
-            csa->LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
+      [this, receiver_map, feedback, if_handler, var_handler](Node* index) {
+        Node* cached_map = LoadWeakCellValue(
+            LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
 
-        Label next_entry(csa);
-        csa->GotoIf(csa->WordNotEqual(receiver_map, cached_map), &next_entry);
+        Label next_entry(this);
+        GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
 
         // Found, now call handler.
-        Node* handler = csa->LoadFixedArrayElement(
-            feedback, index, kPointerSize, INTPTR_PARAMETERS);
+        Node* handler = LoadFixedArrayElement(feedback, index, kPointerSize,
+                                              INTPTR_PARAMETERS);
         var_handler->Bind(handler);
-        csa->Goto(if_handler);
+        Goto(if_handler);
 
-        csa->Bind(&next_entry);
+        Bind(&next_entry);
       },
       kEntrySize, IndexAdvanceMode::kPost);
   // The loop falls through if no handler was found.
@@ -111,30 +110,28 @@ void AccessorAssemblerImpl::HandleKeyedStorePolymorphicCase(
 
   Node* init = IntPtrConstant(0);
   Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
-  BuildFastLoop(
-      MachineType::PointerRepresentation(), init, length,
-      [receiver_map, feedback, if_handler, var_handler, if_transition_handler,
-       var_transition_map_cell](CodeStubAssembler* csa, Node* index) {
-        Node* cached_map = csa->LoadWeakCellValue(
-            csa->LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
-        Label next_entry(csa);
-        csa->GotoIf(csa->WordNotEqual(receiver_map, cached_map), &next_entry);
+  BuildFastLoop(MachineType::PointerRepresentation(), init, length,
+                [this, receiver_map, feedback, if_handler, var_handler,
+                 if_transition_handler, var_transition_map_cell](Node* index) {
+                  Node* cached_map = LoadWeakCellValue(LoadFixedArrayElement(
+                      feedback, index, 0, INTPTR_PARAMETERS));
+                  Label next_entry(this);
+                  GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
 
-        Node* maybe_transition_map_cell = csa->LoadFixedArrayElement(
-            feedback, index, kPointerSize, INTPTR_PARAMETERS);
+                  Node* maybe_transition_map_cell = LoadFixedArrayElement(
+                      feedback, index, kPointerSize, INTPTR_PARAMETERS);
 
-        var_handler->Bind(csa->LoadFixedArrayElement(
-            feedback, index, 2 * kPointerSize, INTPTR_PARAMETERS));
-        csa->GotoIf(
-            csa->WordEqual(maybe_transition_map_cell,
-                           csa->LoadRoot(Heap::kUndefinedValueRootIndex)),
-            if_handler);
-        var_transition_map_cell->Bind(maybe_transition_map_cell);
-        csa->Goto(if_transition_handler);
+                  var_handler->Bind(LoadFixedArrayElement(
+                      feedback, index, 2 * kPointerSize, INTPTR_PARAMETERS));
+                  GotoIf(WordEqual(maybe_transition_map_cell,
+                                   LoadRoot(Heap::kUndefinedValueRootIndex)),
+                         if_handler);
+                  var_transition_map_cell->Bind(maybe_transition_map_cell);
+                  Goto(if_transition_handler);
 
-        csa->Bind(&next_entry);
-      },
-      kEntrySize, IndexAdvanceMode::kPost);
+                  Bind(&next_entry);
+                },
+                kEntrySize, IndexAdvanceMode::kPost);
   // The loop falls through if no handler was found.
   Goto(if_miss);
 }
@@ -424,7 +421,7 @@ Node* AccessorAssemblerImpl::EmitLoadICProtoArrayCheck(
 
   BuildFastLoop(
       MachineType::PointerRepresentation(), start_index.value(), handler_length,
-      [this, p, handler, miss](CodeStubAssembler*, Node* current) {
+      [this, p, handler, miss](Node* current) {
         Node* prototype_cell =
             LoadFixedArrayElement(handler, current, 0, INTPTR_PARAMETERS);
         CheckPrototype(prototype_cell, p->name, miss);
@@ -579,7 +576,7 @@ void AccessorAssemblerImpl::HandleStoreICProtoHandler(
     Node* length = SmiUntag(maybe_transition_cell);
     BuildFastLoop(MachineType::PointerRepresentation(),
                   IntPtrConstant(StoreHandler::kFirstPrototypeIndex), length,
-                  [this, p, handler, miss](CodeStubAssembler*, Node* current) {
+                  [this, p, handler, miss](Node* current) {
                     Node* prototype_cell = LoadFixedArrayElement(
                         handler, current, 0, INTPTR_PARAMETERS);
                     CheckPrototype(prototype_cell, p->name, miss);

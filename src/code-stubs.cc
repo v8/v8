@@ -2626,7 +2626,7 @@ compiler::Node* FastNewFunctionContextStub::Generate(
   Node* undefined = assembler->UndefinedConstant();
   assembler->BuildFastFixedArrayForEach(
       function_context, FAST_ELEMENTS, min_context_slots, length,
-      [undefined](CodeStubAssembler* assembler, Node* context, Node* offset) {
+      [assembler, undefined](Node* context, Node* offset) {
         assembler->StoreNoWriteBarrier(MachineType::PointerRepresentation(),
                                        context, offset, undefined);
       });

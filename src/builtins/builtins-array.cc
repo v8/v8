@@ -314,11 +314,10 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
   assembler.Bind(&default_label);
   {
     args.ForEach(
-        [receiver, context, &arg_index](CodeStubAssembler* assembler,
-                                        Node* arg) {
-          Node* length = assembler->LoadJSArrayLength(receiver);
-          assembler->CallRuntime(Runtime::kSetProperty, context, receiver,
-                                 length, arg, assembler->SmiConstant(STRICT));
+        [&assembler, receiver, context, &arg_index](Node* arg) {
+          Node* length = assembler.LoadJSArrayLength(receiver);
+          assembler.CallRuntime(Runtime::kSetProperty, context, receiver,
+                                length, arg, assembler.SmiConstant(STRICT));
         },
         arg_index.value());
     args.PopAndReturn(assembler.LoadJSArrayLength(receiver));

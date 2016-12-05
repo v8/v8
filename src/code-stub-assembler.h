@@ -164,8 +164,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* InnerAllocate(Node* previous, Node* offset);
   Node* IsRegularHeapObjectSize(Node* size);
 
-  typedef std::function<Node*()> ConditionBody;
-  void Assert(ConditionBody condition_body, const char* string = nullptr,
+  typedef std::function<Node*()> NodeGenerator;
+
+  void Assert(const NodeGenerator& condition_body, const char* string = nullptr,
               const char* file = nullptr, int line = 0);
 
   // Check a value for smi-ness
@@ -830,8 +831,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // If it can't handle the case {receiver}/{key} case then the control goes
   // to {if_bailout}.
   void TryPrototypeChainLookup(Node* receiver, Node* key,
-                               LookupInHolder& lookup_property_in_holder,
-                               LookupInHolder& lookup_element_in_holder,
+                               const LookupInHolder& lookup_property_in_holder,
+                               const LookupInHolder& lookup_element_in_holder,
                                Label* if_end, Label* if_bailout);
 
   // Instanceof helpers.
@@ -923,28 +924,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   enum class IndexAdvanceMode { kPre, kPost };
 
-  void BuildFastLoop(
-      const VariableList& var_list, MachineRepresentation index_rep,
-      Node* start_index, Node* end_index,
-      std::function<void(CodeStubAssembler* assembler, Node* index)> body,
-      int increment, IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+  typedef std::function<void(Node* index)> FastLoopBody;
 
-  void BuildFastLoop(
-      MachineRepresentation index_rep, Node* start_index, Node* end_index,
-      std::function<void(CodeStubAssembler* assembler, Node* index)> body,
-      int increment, IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
+  void BuildFastLoop(const VariableList& var_list,
+                     MachineRepresentation index_rep, Node* start_index,
+                     Node* end_index, const FastLoopBody& body, int increment,
+                     IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+
+  void BuildFastLoop(MachineRepresentation index_rep, Node* start_index,
+                     Node* end_index, const FastLoopBody& body, int increment,
+                     IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
     BuildFastLoop(VariableList(0, zone()), index_rep, start_index, end_index,
                   body, increment, mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };
 
+  typedef std::function<void(Node* fixed_array, Node* offset)>
+      FastFixedArrayForEachBody;
+
   void BuildFastFixedArrayForEach(
       Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
-      Node* last_element_exclusive,
-      std::function<void(CodeStubAssembler* assembler, Node* fixed_array,
-                         Node* offset)>
-          body,
+      Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
       ParameterMode mode = INTPTR_PARAMETERS,
       ForEachDirection direction = ForEachDirection::kReverse);
 
@@ -1069,11 +1070,10 @@ class CodeStubArguments {
 
   Node* GetLength() const { return argc_; }
 
-  typedef std::function<void(CodeStubAssembler* assembler, Node* arg)>
-      ForEachBodyFunction;
+  typedef std::function<void(Node* arg)> ForEachBodyFunction;
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
-  void ForEach(ForEachBodyFunction body, Node* first = nullptr,
+  void ForEach(const ForEachBodyFunction& body, Node* first = nullptr,
                Node* last = nullptr, CodeStubAssembler::ParameterMode mode =
                                          CodeStubAssembler::INTPTR_PARAMETERS) {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
@@ -1082,7 +1082,7 @@ class CodeStubArguments {
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const CodeStubAssembler::VariableList& vars,
-               ForEachBodyFunction body, Node* first = nullptr,
+               const ForEachBodyFunction& body, Node* first = nullptr,
                Node* last = nullptr, CodeStubAssembler::ParameterMode mode =
                                          CodeStubAssembler::INTPTR_PARAMETERS);
 

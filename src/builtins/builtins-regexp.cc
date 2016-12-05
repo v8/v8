@@ -2159,8 +2159,8 @@ Node* ReplaceGlobalCallableFastPath(CodeStubAssembler* a, Node* context,
 
     a->BuildFastLoop(
         MachineType::PointerRepresentation(), from, to,
-        [res_elems, isolate, native_context, context, undefined,
-         replace_callable, mode](CodeStubAssembler* a, Node* index) {
+        [a, res_elems, isolate, native_context, context, undefined,
+         replace_callable, mode](Node* index) {
           Node* const elem =
               a->LoadFixedArrayElement(res_elems, index, 0, mode);
 

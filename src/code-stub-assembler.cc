@@ -11,8 +11,9 @@ namespace internal {
 
 using compiler::Node;
 
-void CodeStubAssembler::Assert(ConditionBody codition_body, const char* message,
-                               const char* file, int line) {
+void CodeStubAssembler::Assert(const NodeGenerator& codition_body,
+                               const char* message, const char* file,
+                               int line) {
 #if defined(DEBUG)
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
@@ -1446,26 +1447,24 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   CodeStubAssembler::VariableList push_vars({&length, &elements}, zone());
   args.ForEach(
       push_vars,
-      [kind, mode, &length, &elements, &pre_bailout](
-          CodeStubAssembler* assembler, Node* arg) {
+      [this, kind, mode, &length, &elements, &pre_bailout](Node* arg) {
         if (IsFastSmiElementsKind(kind)) {
-          assembler->GotoIf(assembler->TaggedIsNotSmi(arg), &pre_bailout);
+          GotoIf(TaggedIsNotSmi(arg), &pre_bailout);
         } else if (IsFastDoubleElementsKind(kind)) {
-          assembler->GotoIfNotNumber(arg, &pre_bailout);
+          GotoIfNotNumber(arg, &pre_bailout);
         }
         if (IsFastDoubleElementsKind(kind)) {
-          Node* double_value = assembler->ChangeNumberToFloat64(arg);
-          assembler->StoreFixedDoubleArrayElement(
-              elements.value(), length.value(),
-              assembler->Float64SilenceNaN(double_value), mode);
+          Node* double_value = ChangeNumberToFloat64(arg);
+          StoreFixedDoubleArrayElement(elements.value(), length.value(),
+                                       Float64SilenceNaN(double_value), mode);
         } else {
           WriteBarrierMode barrier_mode = IsFastSmiElementsKind(kind)
                                               ? SKIP_WRITE_BARRIER
                                               : UPDATE_WRITE_BARRIER;
-          assembler->StoreFixedArrayElement(elements.value(), length.value(),
-                                            arg, barrier_mode, 0, mode);
+          StoreFixedArrayElement(elements.value(), length.value(), arg,
+                                 barrier_mode, 0, mode);
         }
-        assembler->Increment(length, 1, mode);
+        Increment(length, 1, mode);
       },
       first, nullptr);
   length.Bind(TagParameter(length.value(), mode));
@@ -1896,8 +1895,8 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
   CSA_ASSERT(this, WordIsWordAligned(end_address));
   BuildFastLoop(
       MachineType::PointerRepresentation(), start_address, end_address,
-      [value](CodeStubAssembler* a, Node* current) {
-        a->StoreNoWriteBarrier(MachineRepresentation::kTagged, current, value);
+      [this, value](Node* current) {
+        StoreNoWriteBarrier(MachineRepresentation::kTagged, current, value);
       },
       kPointerSize, IndexAdvanceMode::kPost);
 }
@@ -2024,8 +2023,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(
 
   BuildFastFixedArrayForEach(
       array, kind, from_node, to_node,
-      [value, is_double, double_hole](CodeStubAssembler* assembler, Node* array,
-                                      Node* offset) {
+      [this, value, is_double, double_hole](Node* array, Node* offset) {
         if (is_double) {
           // Don't use doubles to store the hole double, since manipulating the
           // signaling NaN used for the hole in C++, e.g. with bit_cast, will
@@ -2035,21 +2033,19 @@ void CodeStubAssembler::FillFixedArrayWithValue(
           // TODO(danno): When we have a Float32/Float64 wrapper class that
           // preserves double bits during manipulation, remove this code/change
           // this to an indexed Float64 store.
-          if (assembler->Is64()) {
-            assembler->StoreNoWriteBarrier(MachineRepresentation::kWord64,
-                                           array, offset, double_hole);
+          if (Is64()) {
+            StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
+                                double_hole);
           } else {
-            assembler->StoreNoWriteBarrier(MachineRepresentation::kWord32,
-                                           array, offset, double_hole);
-            assembler->StoreNoWriteBarrier(
-                MachineRepresentation::kWord32, array,
-                assembler->IntPtrAdd(offset,
-                                     assembler->IntPtrConstant(kPointerSize)),
-                double_hole);
+            StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
+                                double_hole);
+            StoreNoWriteBarrier(MachineRepresentation::kWord32, array,
+                                IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
+                                double_hole);
           }
         } else {
-          assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, array,
-                                         offset, value);
+          StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
+                              value);
         }
       },
       mode);
@@ -2237,14 +2233,14 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                       to_index_smi == from_index_smi));
   BuildFastLoop(vars, MachineType::PointerRepresentation(), from_offset,
                 limit_offset,
-                [from_string, to_string, &current_to_offset, to_increment, type,
-                 rep, index_same](CodeStubAssembler* assembler, Node* offset) {
-                  Node* value = assembler->Load(type, from_string, offset);
-                  assembler->StoreNoWriteBarrier(
+                [this, from_string, to_string, &current_to_offset, to_increment,
+                 type, rep, index_same](Node* offset) {
+                  Node* value = Load(type, from_string, offset);
+                  StoreNoWriteBarrier(
                       rep, to_string,
                       index_same ? offset : current_to_offset.value(), value);
                   if (!index_same) {
-                    assembler->Increment(current_to_offset, to_increment);
+                    Increment(current_to_offset, to_increment);
                   }
                 },
                 from_increment, IndexAdvanceMode::kPost);
@@ -3543,21 +3539,21 @@ Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
 
   var_result.Bind(SmiConstant(Smi::FromInt(-1)));
 
-  BuildFastLoop(MachineType::PointerRepresentation(), cursor, end,
-                [string, needle_char, begin, &var_result, &out](
-                    CodeStubAssembler* csa, Node* cursor) {
-                  Label next(csa);
-                  Node* value = csa->Load(MachineType::Uint8(), string, cursor);
-                  csa->GotoUnless(csa->WordEqual(value, needle_char), &next);
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), cursor, end,
+      [this, string, needle_char, begin, &var_result, &out](Node* cursor) {
+        Label next(this);
+        Node* value = Load(MachineType::Uint8(), string, cursor);
+        GotoUnless(WordEqual(value, needle_char), &next);
 
-                  // Found a match.
-                  Node* index = csa->SmiTag(csa->IntPtrSub(cursor, begin));
-                  var_result.Bind(index);
-                  csa->Goto(&out);
+        // Found a match.
+        Node* index = SmiTag(IntPtrSub(cursor, begin));
+        var_result.Bind(index);
+        Goto(&out);
 
-                  csa->Bind(&next);
-                },
-                1, IndexAdvanceMode::kPost);
+        Bind(&next);
+      },
+      1, IndexAdvanceMode::kPost);
   Goto(&out);
 
   Bind(&runtime);
@@ -4601,17 +4597,16 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
   Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
   Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
 
-  BuildFastLoop(
-      MachineType::PointerRepresentation(), last_exclusive, first_inclusive,
-      [descriptors, unique_name, if_found, var_name_index](
-          CodeStubAssembler* assembler, Node* name_index) {
-        Node* candidate_name = assembler->LoadFixedArrayElement(
-            descriptors, name_index, 0, INTPTR_PARAMETERS);
-        var_name_index->Bind(name_index);
-        assembler->GotoIf(assembler->WordEqual(candidate_name, unique_name),
-                          if_found);
-      },
-      -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
+  BuildFastLoop(MachineType::PointerRepresentation(), last_exclusive,
+                first_inclusive,
+                [this, descriptors, unique_name, if_found,
+                 var_name_index](Node* name_index) {
+                  Node* candidate_name = LoadFixedArrayElement(
+                      descriptors, name_index, 0, INTPTR_PARAMETERS);
+                  var_name_index->Bind(name_index);
+                  GotoIf(WordEqual(candidate_name, unique_name), if_found);
+                },
+                -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -5075,8 +5070,8 @@ template void CodeStubAssembler::NumberDictionaryLookup<
     UnseededNumberDictionary>(Node*, Node*, Label*, Variable*, Label*);
 
 void CodeStubAssembler::TryPrototypeChainLookup(
-    Node* receiver, Node* key, LookupInHolder& lookup_property_in_holder,
-    LookupInHolder& lookup_element_in_holder, Label* if_end,
+    Node* receiver, Node* key, const LookupInHolder& lookup_property_in_holder,
+    const LookupInHolder& lookup_element_in_holder, Label* if_end,
     Label* if_bailout) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   Label if_objectisnotsmi(this);
@@ -6188,8 +6183,7 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
 void CodeStubAssembler::BuildFastLoop(
     const CodeStubAssembler::VariableList& vars,
     MachineRepresentation index_rep, Node* start_index, Node* end_index,
-    std::function<void(CodeStubAssembler* assembler, Node* index)> body,
-    int increment, IndexAdvanceMode mode) {
+    const FastLoopBody& body, int increment, IndexAdvanceMode mode) {
   Variable var(this, index_rep);
   VariableList vars_copy(vars, zone());
   vars_copy.Add(&var, zone());
@@ -6209,7 +6203,7 @@ void CodeStubAssembler::BuildFastLoop(
     if (mode == IndexAdvanceMode::kPre) {
       Increment(var, increment);
     }
-    body(this, var.value());
+    body(var.value());
     if (mode == IndexAdvanceMode::kPost) {
       Increment(var, increment);
     }
@@ -6220,10 +6214,7 @@ void CodeStubAssembler::BuildFastLoop(
 
 void CodeStubAssembler::BuildFastFixedArrayForEach(
     Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
-    Node* last_element_exclusive,
-    std::function<void(CodeStubAssembler* assembler, Node* fixed_array,
-                       Node* offset)>
-        body,
+    Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
     ParameterMode mode, ForEachDirection direction) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   int32_t first_val;
@@ -6240,7 +6231,7 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
           Node* offset =
               ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
                                      FixedArray::kHeaderSize - kHeapObjectTag);
-          body(this, fixed_array, offset);
+          body(fixed_array, offset);
         }
       } else {
         for (int i = last_val - 1; i >= first_val; --i) {
@@ -6248,7 +6239,7 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
           Node* offset =
               ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
                                      FixedArray::kHeaderSize - kHeapObjectTag);
-          body(this, fixed_array, offset);
+          body(fixed_array, offset);
         }
       }
       return;
@@ -6266,9 +6257,7 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
   int increment = IsFastDoubleElementsKind(kind) ? kDoubleSize : kPointerSize;
   BuildFastLoop(
       MachineType::PointerRepresentation(), start, limit,
-      [fixed_array, body](CodeStubAssembler* assembler, Node* offset) {
-        body(assembler, fixed_array, offset);
-      },
+      [fixed_array, &body](Node* offset) { body(fixed_array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
@@ -8107,10 +8096,10 @@ Node* CodeStubArguments::AtIndex(int index) const {
   return AtIndex(assembler_->IntPtrConstant(index));
 }
 
-void CodeStubArguments::ForEach(const CodeStubAssembler::VariableList& vars,
-                                CodeStubArguments::ForEachBodyFunction body,
-                                Node* first, Node* last,
-                                CodeStubAssembler::ParameterMode mode) {
+void CodeStubArguments::ForEach(
+    const CodeStubAssembler::VariableList& vars,
+    const CodeStubArguments::ForEachBodyFunction& body, Node* first, Node* last,
+    CodeStubAssembler::ParameterMode mode) {
   assembler_->Comment("CodeStubArguments::ForEach");
   DCHECK_IMPLIES(first == nullptr || last == nullptr,
                  mode == CodeStubAssembler::INTPTR_PARAMETERS);
@@ -8128,9 +8117,9 @@ void CodeStubArguments::ForEach(const CodeStubAssembler::VariableList& vars,
       assembler_->ElementOffsetFromIndex(last, FAST_ELEMENTS, mode));
   assembler_->BuildFastLoop(
       vars, MachineType::PointerRepresentation(), start, end,
-      [body](CodeStubAssembler* assembler, Node* current) {
-        Node* arg = assembler->Load(MachineType::AnyTagged(), current);
-        body(assembler, arg);
+      [this, &body](Node* current) {
+        Node* arg = assembler_->Load(MachineType::AnyTagged(), current);
+        body(arg);
       },
       -kPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
 }

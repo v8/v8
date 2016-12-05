@@ -473,27 +473,26 @@ void Builtins::Generate_StringFromCharCode(
     // codes. Stop if any of the conversions generates a code that doesn't fit
     // in 8 bits.
     CodeStubAssembler::VariableList vars({&max_index}, assembler.zone());
-    arguments.ForEach(vars, [context, &two_byte, &max_index, &code16,
-                             one_byte_result](CodeStubAssembler* assembler,
-                                              Node* arg) {
-      Node* code32 = assembler->TruncateTaggedToWord32(context, arg);
-      code16 = assembler->Word32And(
-          code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
+    arguments.ForEach(vars, [&assembler, context, &two_byte, &max_index,
+                             &code16, one_byte_result](Node* arg) {
+      Node* code32 = assembler.TruncateTaggedToWord32(context, arg);
+      code16 = assembler.Word32And(
+          code32, assembler.Int32Constant(String::kMaxUtf16CodeUnit));
 
-      assembler->GotoIf(
-          assembler->Int32GreaterThan(
-              code16, assembler->Int32Constant(String::kMaxOneByteCharCode)),
+      assembler.GotoIf(
+          assembler.Int32GreaterThan(
+              code16, assembler.Int32Constant(String::kMaxOneByteCharCode)),
           &two_byte);
 
       // The {code16} fits into the SeqOneByteString {one_byte_result}.
-      Node* offset = assembler->ElementOffsetFromIndex(
+      Node* offset = assembler.ElementOffsetFromIndex(
           max_index.value(), UINT8_ELEMENTS,
           CodeStubAssembler::INTPTR_PARAMETERS,
           SeqOneByteString::kHeaderSize - kHeapObjectTag);
-      assembler->StoreNoWriteBarrier(MachineRepresentation::kWord8,
-                                     one_byte_result, offset, code16);
-      max_index.Bind(assembler->IntPtrAdd(max_index.value(),
-                                          assembler->IntPtrConstant(1)));
+      assembler.StoreNoWriteBarrier(MachineRepresentation::kWord8,
+                                    one_byte_result, offset, code16);
+      max_index.Bind(
+          assembler.IntPtrAdd(max_index.value(), assembler.IntPtrConstant(1)));
     });
     arguments.PopAndReturn(one_byte_result);
 
@@ -527,20 +526,19 @@ void Builtins::Generate_StringFromCharCode(
     // using a 16-bit representation.
     arguments.ForEach(
         vars,
-        [context, two_byte_result, &max_index](CodeStubAssembler* assembler,
-                                               Node* arg) {
-          Node* code32 = assembler->TruncateTaggedToWord32(context, arg);
-          Node* code16 = assembler->Word32And(
-              code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
+        [&assembler, context, two_byte_result, &max_index](Node* arg) {
+          Node* code32 = assembler.TruncateTaggedToWord32(context, arg);
+          Node* code16 = assembler.Word32And(
+              code32, assembler.Int32Constant(String::kMaxUtf16CodeUnit));
 
-          Node* offset = assembler->ElementOffsetFromIndex(
+          Node* offset = assembler.ElementOffsetFromIndex(
               max_index.value(), UINT16_ELEMENTS,
               CodeStubAssembler::INTPTR_PARAMETERS,
               SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-          assembler->StoreNoWriteBarrier(MachineRepresentation::kWord16,
-                                         two_byte_result, offset, code16);
-          max_index.Bind(assembler->IntPtrAdd(max_index.value(),
-                                              assembler->IntPtrConstant(1)));
+          assembler.StoreNoWriteBarrier(MachineRepresentation::kWord16,
+                                        two_byte_result, offset, code16);
+          max_index.Bind(assembler.IntPtrAdd(max_index.value(),
+                                             assembler.IntPtrConstant(1)));
         },
         max_index.value());
 
