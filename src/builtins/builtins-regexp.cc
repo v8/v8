@@ -19,6 +19,14 @@ typedef CodeStubAssembler::Variable CVariable;
 typedef CodeStubAssembler::ParameterMode ParameterMode;
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
+class RegExpBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+};
+
 // -----------------------------------------------------------------------------
 // ES6 section 21.2 RegExp Objects
 
@@ -393,37 +401,35 @@ void BranchIfFastRegExpResult(CodeStubAssembler* a, Node* context, Node* map,
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-void Builtins::Generate_RegExpPrototypeExec(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_string = a.Parameter(1);
-  Node* const context = a.Parameter(4);
+TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_string = Parameter(1);
+  Node* const context = Parameter(4);
 
   // Ensure {maybe_receiver} is a JSRegExp.
-  Node* const regexp_map = a.ThrowIfNotInstanceType(
+  Node* const regexp_map = ThrowIfNotInstanceType(
       context, maybe_receiver, JS_REGEXP_TYPE, "RegExp.prototype.exec");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = a.ToString(context, maybe_string);
+  Node* const string = ToString(context, maybe_string);
 
-  CLabel if_isfastpath(&a), if_isslowpath(&a);
-  a.Branch(IsInitialRegExpMap(&a, context, regexp_map), &if_isfastpath,
-           &if_isslowpath);
+  CLabel if_isfastpath(this), if_isslowpath(this);
+  Branch(IsInitialRegExpMap(this, context, regexp_map), &if_isfastpath,
+         &if_isslowpath);
 
-  a.Bind(&if_isfastpath);
+  Bind(&if_isfastpath);
   {
     Node* const result =
-        RegExpPrototypeExecBody(&a, context, receiver, string, true);
-    a.Return(result);
+        RegExpPrototypeExecBody(this, context, receiver, string, true);
+    Return(result);
   }
 
-  a.Bind(&if_isslowpath);
+  Bind(&if_isslowpath);
   {
     Node* const result =
-        RegExpPrototypeExecBody(&a, context, receiver, string, false);
-    a.Return(result);
+        RegExpPrototypeExecBody(this, context, receiver, string, false);
+    Return(result);
   }
 }
 
@@ -595,282 +601,273 @@ Node* RegExpInitialize(CodeStubAssembler* a, Node* const context,
 
 }  // namespace
 
-void Builtins::Generate_RegExpPrototypeFlagsGetter(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
+  Isolate* isolate = this->isolate();
 
-  Isolate* isolate = a.isolate();
+  Node* const maybe_receiver = Parameter(0);
+  Node* const context = Parameter(3);
 
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const context = a.Parameter(3);
-
-  Node* const map = ThrowIfNotJSReceiver(&a, isolate, context, maybe_receiver,
+  Node* const map = ThrowIfNotJSReceiver(this, isolate, context, maybe_receiver,
                                          MessageTemplate::kRegExpNonObject,
                                          "RegExp.prototype.flags");
   Node* const receiver = maybe_receiver;
 
-  CLabel if_isfastpath(&a), if_isslowpath(&a, CLabel::kDeferred);
-  a.Branch(IsInitialRegExpMap(&a, context, map), &if_isfastpath,
-           &if_isslowpath);
+  CLabel if_isfastpath(this), if_isslowpath(this, CLabel::kDeferred);
+  Branch(IsInitialRegExpMap(this, context, map), &if_isfastpath,
+         &if_isslowpath);
 
-  a.Bind(&if_isfastpath);
-  a.Return(FlagsGetter(&a, receiver, context, true));
+  Bind(&if_isfastpath);
+  Return(FlagsGetter(this, receiver, context, true));
 
-  a.Bind(&if_isslowpath);
-  a.Return(FlagsGetter(&a, receiver, context, false));
+  Bind(&if_isslowpath);
+  Return(FlagsGetter(this, receiver, context, false));
 }
 
 // ES#sec-regexp-pattern-flags
 // RegExp ( pattern, flags )
-void Builtins::Generate_RegExpConstructor(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
+  Node* const pattern = Parameter(1);
+  Node* const flags = Parameter(2);
+  Node* const new_target = Parameter(3);
+  Node* const context = Parameter(5);
 
-  Node* const pattern = a.Parameter(1);
-  Node* const flags = a.Parameter(2);
-  Node* const new_target = a.Parameter(3);
-  Node* const context = a.Parameter(5);
+  Isolate* isolate = this->isolate();
 
-  Isolate* isolate = a.isolate();
-
-  CVariable var_flags(&a, MachineRepresentation::kTagged);
-  CVariable var_pattern(&a, MachineRepresentation::kTagged);
-  CVariable var_new_target(&a, MachineRepresentation::kTagged);
+  CVariable var_flags(this, MachineRepresentation::kTagged);
+  CVariable var_pattern(this, MachineRepresentation::kTagged);
+  CVariable var_new_target(this, MachineRepresentation::kTagged);
 
   var_flags.Bind(flags);
   var_pattern.Bind(pattern);
   var_new_target.Bind(new_target);
 
-  Node* const native_context = a.LoadNativeContext(context);
+  Node* const native_context = LoadNativeContext(context);
   Node* const regexp_function =
-      a.LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+      LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
 
-  Node* const pattern_is_regexp = IsRegExp(&a, context, pattern);
+  Node* const pattern_is_regexp = IsRegExp(this, context, pattern);
 
   {
-    CLabel next(&a);
+    CLabel next(this);
 
-    a.GotoUnless(a.IsUndefined(new_target), &next);
+    GotoUnless(IsUndefined(new_target), &next);
     var_new_target.Bind(regexp_function);
 
-    a.GotoUnless(pattern_is_regexp, &next);
-    a.GotoUnless(a.IsUndefined(flags), &next);
+    GotoUnless(pattern_is_regexp, &next);
+    GotoUnless(IsUndefined(flags), &next);
 
     Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-    Node* const name = a.HeapConstant(isolate->factory()->constructor_string());
-    Node* const value =
-        a.CallStub(getproperty_callable, context, pattern, name);
+    Node* const name = HeapConstant(isolate->factory()->constructor_string());
+    Node* const value = CallStub(getproperty_callable, context, pattern, name);
 
-    a.GotoUnless(a.WordEqual(value, regexp_function), &next);
-    a.Return(pattern);
+    GotoUnless(WordEqual(value, regexp_function), &next);
+    Return(pattern);
 
-    a.Bind(&next);
+    Bind(&next);
   }
 
   {
-    CLabel next(&a), if_patternisfastregexp(&a), if_patternisslowregexp(&a);
-    a.GotoIf(a.TaggedIsSmi(pattern), &next);
+    CLabel next(this), if_patternisfastregexp(this),
+        if_patternisslowregexp(this);
+    GotoIf(TaggedIsSmi(pattern), &next);
 
-    a.GotoIf(a.HasInstanceType(pattern, JS_REGEXP_TYPE),
-             &if_patternisfastregexp);
+    GotoIf(HasInstanceType(pattern, JS_REGEXP_TYPE), &if_patternisfastregexp);
 
-    a.Branch(pattern_is_regexp, &if_patternisslowregexp, &next);
+    Branch(pattern_is_regexp, &if_patternisslowregexp, &next);
 
-    a.Bind(&if_patternisfastregexp);
+    Bind(&if_patternisfastregexp);
     {
-      Node* const source = a.LoadObjectField(pattern, JSRegExp::kSourceOffset);
+      Node* const source = LoadObjectField(pattern, JSRegExp::kSourceOffset);
       var_pattern.Bind(source);
 
       {
-        CLabel inner_next(&a);
-        a.GotoUnless(a.IsUndefined(flags), &inner_next);
+        CLabel inner_next(this);
+        GotoUnless(IsUndefined(flags), &inner_next);
 
-        Node* const value = FlagsGetter(&a, pattern, context, true);
+        Node* const value = FlagsGetter(this, pattern, context, true);
         var_flags.Bind(value);
-        a.Goto(&inner_next);
+        Goto(&inner_next);
 
-        a.Bind(&inner_next);
+        Bind(&inner_next);
       }
 
-      a.Goto(&next);
+      Goto(&next);
     }
 
-    a.Bind(&if_patternisslowregexp);
+    Bind(&if_patternisslowregexp);
     {
       Callable getproperty_callable = CodeFactory::GetProperty(isolate);
 
       {
-        Node* const name = a.HeapConstant(isolate->factory()->source_string());
+        Node* const name = HeapConstant(isolate->factory()->source_string());
         Node* const value =
-            a.CallStub(getproperty_callable, context, pattern, name);
+            CallStub(getproperty_callable, context, pattern, name);
         var_pattern.Bind(value);
       }
 
       {
-        CLabel inner_next(&a);
-        a.GotoUnless(a.IsUndefined(flags), &inner_next);
+        CLabel inner_next(this);
+        GotoUnless(IsUndefined(flags), &inner_next);
 
-        Node* const name = a.HeapConstant(isolate->factory()->flags_string());
+        Node* const name = HeapConstant(isolate->factory()->flags_string());
         Node* const value =
-            a.CallStub(getproperty_callable, context, pattern, name);
+            CallStub(getproperty_callable, context, pattern, name);
         var_flags.Bind(value);
-        a.Goto(&inner_next);
+        Goto(&inner_next);
 
-        a.Bind(&inner_next);
+        Bind(&inner_next);
       }
 
-      a.Goto(&next);
+      Goto(&next);
     }
 
-    a.Bind(&next);
+    Bind(&next);
   }
 
   // Allocate.
 
-  CVariable var_regexp(&a, MachineRepresentation::kTagged);
+  CVariable var_regexp(this, MachineRepresentation::kTagged);
   {
-    CLabel allocate_jsregexp(&a), allocate_generic(&a, CLabel::kDeferred),
-        next(&a);
-    a.Branch(a.WordEqual(var_new_target.value(), regexp_function),
-             &allocate_jsregexp, &allocate_generic);
+    CLabel allocate_jsregexp(this), allocate_generic(this, CLabel::kDeferred),
+        next(this);
+    Branch(WordEqual(var_new_target.value(), regexp_function),
+           &allocate_jsregexp, &allocate_generic);
 
-    a.Bind(&allocate_jsregexp);
+    Bind(&allocate_jsregexp);
     {
-      Node* const initial_map = a.LoadObjectField(
+      Node* const initial_map = LoadObjectField(
           regexp_function, JSFunction::kPrototypeOrInitialMapOffset);
-      Node* const regexp = a.AllocateJSObjectFromMap(initial_map);
+      Node* const regexp = AllocateJSObjectFromMap(initial_map);
       var_regexp.Bind(regexp);
-      a.Goto(&next);
+      Goto(&next);
     }
 
-    a.Bind(&allocate_generic);
+    Bind(&allocate_generic);
     {
       Callable fastnewobject_callable = CodeFactory::FastNewObject(isolate);
-      Node* const regexp = a.CallStub(fastnewobject_callable, context,
-                                      regexp_function, var_new_target.value());
+      Node* const regexp = CallStub(fastnewobject_callable, context,
+                                    regexp_function, var_new_target.value());
       var_regexp.Bind(regexp);
-      a.Goto(&next);
+      Goto(&next);
     }
 
-    a.Bind(&next);
+    Bind(&next);
   }
 
-  Node* const result = RegExpInitialize(&a, context, var_regexp.value(),
+  Node* const result = RegExpInitialize(this, context, var_regexp.value(),
                                         var_pattern.value(), var_flags.value());
-  a.Return(result);
+  Return(result);
 }
 
 // ES#sec-regexp.prototype.compile
 // RegExp.prototype.compile ( pattern, flags )
-void Builtins::Generate_RegExpPrototypeCompile(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_pattern = Parameter(1);
+  Node* const maybe_flags = Parameter(2);
+  Node* const context = Parameter(5);
 
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_pattern = a.Parameter(1);
-  Node* const maybe_flags = a.Parameter(2);
-  Node* const context = a.Parameter(5);
-
-  a.ThrowIfNotInstanceType(context, maybe_receiver, JS_REGEXP_TYPE,
-                           "RegExp.prototype.compile");
+  ThrowIfNotInstanceType(context, maybe_receiver, JS_REGEXP_TYPE,
+                         "RegExp.prototype.compile");
   Node* const receiver = maybe_receiver;
 
-  CVariable var_flags(&a, MachineRepresentation::kTagged);
-  CVariable var_pattern(&a, MachineRepresentation::kTagged);
+  CVariable var_flags(this, MachineRepresentation::kTagged);
+  CVariable var_pattern(this, MachineRepresentation::kTagged);
 
   var_flags.Bind(maybe_flags);
   var_pattern.Bind(maybe_pattern);
 
   // Handle a JSRegExp pattern.
   {
-    CLabel next(&a);
+    CLabel next(this);
 
-    a.GotoIf(a.TaggedIsSmi(maybe_pattern), &next);
-    a.GotoUnless(a.HasInstanceType(maybe_pattern, JS_REGEXP_TYPE), &next);
+    GotoIf(TaggedIsSmi(maybe_pattern), &next);
+    GotoUnless(HasInstanceType(maybe_pattern, JS_REGEXP_TYPE), &next);
 
     Node* const pattern = maybe_pattern;
 
     // {maybe_flags} must be undefined in this case, otherwise throw.
     {
-      CLabel next(&a);
-      a.GotoIf(a.IsUndefined(maybe_flags), &next);
+      CLabel next(this);
+      GotoIf(IsUndefined(maybe_flags), &next);
 
-      Node* const message_id = a.SmiConstant(MessageTemplate::kRegExpFlags);
-      a.TailCallRuntime(Runtime::kThrowTypeError, context, message_id);
+      Node* const message_id = SmiConstant(MessageTemplate::kRegExpFlags);
+      TailCallRuntime(Runtime::kThrowTypeError, context, message_id);
 
-      a.Bind(&next);
+      Bind(&next);
     }
 
-    Node* const new_flags = FlagsGetter(&a, pattern, context, true);
-    Node* const new_pattern =
-        a.LoadObjectField(pattern, JSRegExp::kSourceOffset);
+    Node* const new_flags = FlagsGetter(this, pattern, context, true);
+    Node* const new_pattern = LoadObjectField(pattern, JSRegExp::kSourceOffset);
 
     var_flags.Bind(new_flags);
     var_pattern.Bind(new_pattern);
 
-    a.Goto(&next);
-    a.Bind(&next);
+    Goto(&next);
+    Bind(&next);
   }
 
-  RegExpInitialize(&a, context, receiver, var_pattern.value(),
+  RegExpInitialize(this, context, receiver, var_pattern.value(),
                    var_flags.value());
 
   // Return undefined for compatibility with JSC.
   // See http://crbug.com/585775 for web compat details.
 
-  a.Return(a.UndefinedConstant());
+  Return(UndefinedConstant());
 }
 
 // ES6 21.2.5.10.
-void Builtins::Generate_RegExpPrototypeSourceGetter(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Node* const receiver = a.Parameter(0);
-  Node* const context = a.Parameter(3);
+TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
+  Node* const receiver = Parameter(0);
+  Node* const context = Parameter(3);
 
   // Check whether we have an unmodified regexp instance.
-  CLabel if_isjsregexp(&a), if_isnotjsregexp(&a, CLabel::kDeferred);
+  CLabel if_isjsregexp(this), if_isnotjsregexp(this, CLabel::kDeferred);
 
-  a.GotoIf(a.TaggedIsSmi(receiver), &if_isnotjsregexp);
-  a.Branch(a.HasInstanceType(receiver, JS_REGEXP_TYPE), &if_isjsregexp,
-           &if_isnotjsregexp);
+  GotoIf(TaggedIsSmi(receiver), &if_isnotjsregexp);
+  Branch(HasInstanceType(receiver, JS_REGEXP_TYPE), &if_isjsregexp,
+         &if_isnotjsregexp);
 
-  a.Bind(&if_isjsregexp);
+  Bind(&if_isjsregexp);
   {
-    Node* const source = a.LoadObjectField(receiver, JSRegExp::kSourceOffset);
-    a.Return(source);
+    Node* const source = LoadObjectField(receiver, JSRegExp::kSourceOffset);
+    Return(source);
   }
 
-  a.Bind(&if_isnotjsregexp);
+  Bind(&if_isnotjsregexp);
   {
-    Isolate* isolate = a.isolate();
-    Node* const native_context = a.LoadNativeContext(context);
+    Isolate* isolate = this->isolate();
+    Node* const native_context = LoadNativeContext(context);
     Node* const regexp_fun =
-        a.LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
     Node* const initial_map =
-        a.LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const initial_prototype = a.LoadMapPrototype(initial_map);
+        LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* const initial_prototype = LoadMapPrototype(initial_map);
 
-    CLabel if_isprototype(&a), if_isnotprototype(&a);
-    a.Branch(a.WordEqual(receiver, initial_prototype), &if_isprototype,
-             &if_isnotprototype);
+    CLabel if_isprototype(this), if_isnotprototype(this);
+    Branch(WordEqual(receiver, initial_prototype), &if_isprototype,
+           &if_isnotprototype);
 
-    a.Bind(&if_isprototype);
+    Bind(&if_isprototype);
     {
       const int counter = v8::Isolate::kRegExpPrototypeSourceGetter;
-      Node* const counter_smi = a.SmiConstant(counter);
-      a.CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
+      Node* const counter_smi = SmiConstant(counter);
+      CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
 
       Node* const result =
-          a.HeapConstant(isolate->factory()->NewStringFromAsciiChecked("(?:)"));
-      a.Return(result);
+          HeapConstant(isolate->factory()->NewStringFromAsciiChecked("(?:)"));
+      Return(result);
     }
 
-    a.Bind(&if_isnotprototype);
+    Bind(&if_isnotprototype);
     {
       Node* const message_id =
-          a.SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonRegExp));
+          SmiConstant(Smi::FromInt(MessageTemplate::kRegExpNonRegExp));
       Node* const method_name_str =
-          a.HeapConstant(isolate->factory()->NewStringFromAsciiChecked(
+          HeapConstant(isolate->factory()->NewStringFromAsciiChecked(
               "RegExp.prototype.source"));
-      a.TailCallRuntime(Runtime::kThrowTypeError, context, message_id,
-                        method_name_str);
+      TailCallRuntime(Runtime::kThrowTypeError, context, message_id,
+                      method_name_str);
     }
   }
 }
@@ -913,11 +910,9 @@ BUILTIN(RegExpPrototypeToString) {
 }
 
 // ES6 21.2.4.2.
-void Builtins::Generate_RegExpPrototypeSpeciesGetter(
-    CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Node* const receiver = a.Parameter(0);
-  a.Return(receiver);
+TF_BUILTIN(RegExpPrototypeSpeciesGetter, RegExpBuiltinsAssembler) {
+  Node* const receiver = Parameter(0);
+  Return(receiver);
 }
 
 namespace {
@@ -1057,44 +1052,36 @@ void Generate_FlagGetter(CodeStubAssembler* a, JSRegExp::Flag flag,
 }  // namespace
 
 // ES6 21.2.5.4.
-void Builtins::Generate_RegExpPrototypeGlobalGetter(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Generate_FlagGetter(&a, JSRegExp::kGlobal,
+TF_BUILTIN(RegExpPrototypeGlobalGetter, RegExpBuiltinsAssembler) {
+  Generate_FlagGetter(this, JSRegExp::kGlobal,
                       v8::Isolate::kRegExpPrototypeOldFlagGetter,
                       "RegExp.prototype.global");
 }
 
 // ES6 21.2.5.5.
-void Builtins::Generate_RegExpPrototypeIgnoreCaseGetter(
-    CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Generate_FlagGetter(&a, JSRegExp::kIgnoreCase,
+TF_BUILTIN(RegExpPrototypeIgnoreCaseGetter, RegExpBuiltinsAssembler) {
+  Generate_FlagGetter(this, JSRegExp::kIgnoreCase,
                       v8::Isolate::kRegExpPrototypeOldFlagGetter,
                       "RegExp.prototype.ignoreCase");
 }
 
 // ES6 21.2.5.7.
-void Builtins::Generate_RegExpPrototypeMultilineGetter(
-    CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Generate_FlagGetter(&a, JSRegExp::kMultiline,
+TF_BUILTIN(RegExpPrototypeMultilineGetter, RegExpBuiltinsAssembler) {
+  Generate_FlagGetter(this, JSRegExp::kMultiline,
                       v8::Isolate::kRegExpPrototypeOldFlagGetter,
                       "RegExp.prototype.multiline");
 }
 
 // ES6 21.2.5.12.
-void Builtins::Generate_RegExpPrototypeStickyGetter(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Generate_FlagGetter(&a, JSRegExp::kSticky,
+TF_BUILTIN(RegExpPrototypeStickyGetter, RegExpBuiltinsAssembler) {
+  Generate_FlagGetter(this, JSRegExp::kSticky,
                       v8::Isolate::kRegExpPrototypeStickyGetter,
                       "RegExp.prototype.sticky");
 }
 
 // ES6 21.2.5.15.
-void Builtins::Generate_RegExpPrototypeUnicodeGetter(
-    CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-  Generate_FlagGetter(&a, JSRegExp::kUnicode,
+TF_BUILTIN(RegExpPrototypeUnicodeGetter, RegExpBuiltinsAssembler) {
+  Generate_FlagGetter(this, JSRegExp::kUnicode,
                       v8::Isolate::kRegExpPrototypeUnicodeGetter,
                       "RegExp.prototype.unicode");
 }
@@ -1258,47 +1245,45 @@ Node* RegExpExec(CodeStubAssembler* a, Node* context, Node* recv,
 
 // ES#sec-regexp.prototype.test
 // RegExp.prototype.test ( S )
-void Builtins::Generate_RegExpPrototypeTest(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
+  Isolate* const isolate = this->isolate();
 
-  Isolate* const isolate = a.isolate();
-
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_string = a.Parameter(1);
-  Node* const context = a.Parameter(4);
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_string = Parameter(1);
+  Node* const context = Parameter(4);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
-      &a, isolate, context, maybe_receiver,
+      this, isolate, context, maybe_receiver,
       MessageTemplate::kIncompatibleMethodReceiver, "RegExp.prototype.test");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = a.ToString(context, maybe_string);
+  Node* const string = ToString(context, maybe_string);
 
-  CLabel fast_path(&a), slow_path(&a);
-  BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
+  CLabel fast_path(this), slow_path(this);
+  BranchIfFastPath(this, context, map, &fast_path, &slow_path);
 
-  a.Bind(&fast_path);
+  Bind(&fast_path);
   {
-    CLabel if_didnotmatch(&a);
-    RegExpPrototypeExecBodyWithoutResult(&a, context, receiver, string,
+    CLabel if_didnotmatch(this);
+    RegExpPrototypeExecBodyWithoutResult(this, context, receiver, string,
                                          &if_didnotmatch, true);
-    a.Return(a.TrueConstant());
+    Return(TrueConstant());
 
-    a.Bind(&if_didnotmatch);
-    a.Return(a.FalseConstant());
+    Bind(&if_didnotmatch);
+    Return(FalseConstant());
   }
 
-  a.Bind(&slow_path);
+  Bind(&slow_path);
   {
     // Call exec.
-    Node* const match_indices = RegExpExec(&a, context, receiver, string);
+    Node* const match_indices = RegExpExec(this, context, receiver, string);
 
     // Return true iff exec matched successfully.
-    Node* const result = a.SelectBooleanConstant(
-        a.WordNotEqual(match_indices, a.NullConstant()));
-    a.Return(result);
+    Node* const result =
+        SelectBooleanConstant(WordNotEqual(match_indices, NullConstant()));
+    Return(result);
   }
 }
 
@@ -1619,30 +1604,28 @@ void RegExpPrototypeMatchBody(CodeStubAssembler* a, Node* const receiver,
 
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
-void Builtins::Generate_RegExpPrototypeMatch(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
-
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_string = a.Parameter(1);
-  Node* const context = a.Parameter(4);
+TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_string = Parameter(1);
+  Node* const context = Parameter(4);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
-      &a, a.isolate(), context, maybe_receiver,
+      this, isolate(), context, maybe_receiver,
       MessageTemplate::kIncompatibleMethodReceiver, "RegExp.prototype.@@match");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = a.ToString(context, maybe_string);
+  Node* const string = ToString(context, maybe_string);
 
-  CLabel fast_path(&a), slow_path(&a);
-  BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
+  CLabel fast_path(this), slow_path(this);
+  BranchIfFastPath(this, context, map, &fast_path, &slow_path);
 
-  a.Bind(&fast_path);
-  RegExpPrototypeMatchBody(&a, receiver, string, context, true);
+  Bind(&fast_path);
+  RegExpPrototypeMatchBody(this, receiver, string, context, true);
 
-  a.Bind(&slow_path);
-  RegExpPrototypeMatchBody(&a, receiver, string, context, false);
+  Bind(&slow_path);
+  RegExpPrototypeMatchBody(this, receiver, string, context, false);
 }
 
 namespace {
@@ -1751,33 +1734,31 @@ void RegExpPrototypeSearchBodySlow(CodeStubAssembler* a, Node* const receiver,
 
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
-void Builtins::Generate_RegExpPrototypeSearch(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
+  Isolate* const isolate = this->isolate();
 
-  Isolate* const isolate = a.isolate();
-
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_string = a.Parameter(1);
-  Node* const context = a.Parameter(4);
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_string = Parameter(1);
+  Node* const context = Parameter(4);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map =
-      ThrowIfNotJSReceiver(&a, isolate, context, maybe_receiver,
+      ThrowIfNotJSReceiver(this, isolate, context, maybe_receiver,
                            MessageTemplate::kIncompatibleMethodReceiver,
                            "RegExp.prototype.@@search");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = a.ToString(context, maybe_string);
+  Node* const string = ToString(context, maybe_string);
 
-  CLabel fast_path(&a), slow_path(&a);
-  BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
+  CLabel fast_path(this), slow_path(this);
+  BranchIfFastPath(this, context, map, &fast_path, &slow_path);
 
-  a.Bind(&fast_path);
-  RegExpPrototypeSearchBodyFast(&a, receiver, string, context);
+  Bind(&fast_path);
+  RegExpPrototypeSearchBodyFast(this, receiver, string, context);
 
-  a.Bind(&slow_path);
-  RegExpPrototypeSearchBodySlow(&a, receiver, string, context);
+  Bind(&slow_path);
+  RegExpPrototypeSearchBodySlow(this, receiver, string, context);
 }
 
 namespace {
@@ -2033,67 +2014,65 @@ void Generate_RegExpPrototypeSplitBody(CodeStubAssembler* a, Node* const regexp,
 
 // ES#sec-regexp.prototype-@@split
 // RegExp.prototype [ @@split ] ( string, limit )
-void Builtins::Generate_RegExpPrototypeSplit(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
+  Isolate* const isolate = this->isolate();
 
-  Isolate* const isolate = a.isolate();
+  Node* const undefined = UndefinedConstant();
 
-  Node* const undefined = a.UndefinedConstant();
-
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_string = a.Parameter(1);
-  Node* const maybe_limit = a.Parameter(2);
-  Node* const context = a.Parameter(5);
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_string = Parameter(1);
+  Node* const maybe_limit = Parameter(2);
+  Node* const context = Parameter(5);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
-      &a, isolate, context, maybe_receiver,
+      this, isolate, context, maybe_receiver,
       MessageTemplate::kIncompatibleMethodReceiver, "RegExp.prototype.@@split");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = a.ToString(context, maybe_string);
+  Node* const string = ToString(context, maybe_string);
 
-  CLabel fast_path(&a), slow_path(&a);
-  BranchIfFastPath(&a, context, map, &fast_path, &slow_path);
+  CLabel fast_path(this), slow_path(this);
+  BranchIfFastPath(this, context, map, &fast_path, &slow_path);
 
-  a.Bind(&fast_path);
+  Bind(&fast_path);
   {
     // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
-    CVariable var_limit(&a, MachineRepresentation::kTagged);
-    CLabel if_limitissmimax(&a), limit_done(&a);
+    CVariable var_limit(this, MachineRepresentation::kTagged);
+    CLabel if_limitissmimax(this), limit_done(this);
 
-    a.GotoIf(a.WordEqual(maybe_limit, undefined), &if_limitissmimax);
+    GotoIf(WordEqual(maybe_limit, undefined), &if_limitissmimax);
 
     {
-      Node* const limit = a.ToUint32(context, maybe_limit);
-      a.GotoUnless(a.TaggedIsSmi(limit), &if_limitissmimax);
+      Node* const limit = ToUint32(context, maybe_limit);
+      GotoUnless(TaggedIsSmi(limit), &if_limitissmimax);
 
       var_limit.Bind(limit);
-      a.Goto(&limit_done);
+      Goto(&limit_done);
     }
 
-    a.Bind(&if_limitissmimax);
+    Bind(&if_limitissmimax);
     {
       // TODO(jgruber): In this case, we can probably generation of limit checks
       // in Generate_RegExpPrototypeSplitBody.
-      Node* const smi_max = a.SmiConstant(Smi::kMaxValue);
+      Node* const smi_max = SmiConstant(Smi::kMaxValue);
       var_limit.Bind(smi_max);
-      a.Goto(&limit_done);
+      Goto(&limit_done);
     }
 
-    a.Bind(&limit_done);
+    Bind(&limit_done);
     {
       Node* const limit = var_limit.value();
-      Generate_RegExpPrototypeSplitBody(&a, receiver, string, limit, context);
+      Generate_RegExpPrototypeSplitBody(this, receiver, string, limit, context);
     }
   }
 
-  a.Bind(&slow_path);
+  Bind(&slow_path);
   {
-    Node* const result = a.CallRuntime(Runtime::kRegExpSplit, context, receiver,
-                                       string, maybe_limit);
-    a.Return(result);
+    Node* const result = CallRuntime(Runtime::kRegExpSplit, context, receiver,
+                                     string, maybe_limit);
+    Return(result);
   }
 }
 
@@ -2424,128 +2403,124 @@ Node* ReplaceSimpleStringFastPath(CodeStubAssembler* a, Node* context,
 
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
-void Builtins::Generate_RegExpPrototypeReplace(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
+  Isolate* const isolate = this->isolate();
 
-  Isolate* const isolate = a.isolate();
+  Node* const maybe_receiver = Parameter(0);
+  Node* const maybe_string = Parameter(1);
+  Node* const replace_value = Parameter(2);
+  Node* const context = Parameter(5);
 
-  Node* const maybe_receiver = a.Parameter(0);
-  Node* const maybe_string = a.Parameter(1);
-  Node* const replace_value = a.Parameter(2);
-  Node* const context = a.Parameter(5);
-
-  Node* const int_zero = a.IntPtrConstant(0);
+  Node* const int_zero = IntPtrConstant(0);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map =
-      ThrowIfNotJSReceiver(&a, isolate, context, maybe_receiver,
+      ThrowIfNotJSReceiver(this, isolate, context, maybe_receiver,
                            MessageTemplate::kIncompatibleMethodReceiver,
                            "RegExp.prototype.@@replace");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Callable tostring_callable = CodeFactory::ToString(isolate);
-  Node* const string = a.CallStub(tostring_callable, context, maybe_string);
+  Node* const string = CallStub(tostring_callable, context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
-  CLabel checkreplacecallable(&a), runtime(&a, CLabel::kDeferred), fastpath(&a);
-  BranchIfFastPath(&a, context, map, &checkreplacecallable, &runtime);
+  CLabel checkreplacecallable(this), runtime(this, CLabel::kDeferred),
+      fastpath(this);
+  BranchIfFastPath(this, context, map, &checkreplacecallable, &runtime);
 
-  a.Bind(&checkreplacecallable);
+  Bind(&checkreplacecallable);
   Node* const regexp = receiver;
 
   // 2. Is {replace_value} callable?
-  CLabel checkreplacestring(&a), if_iscallable(&a);
-  a.GotoIf(a.TaggedIsSmi(replace_value), &checkreplacestring);
+  CLabel checkreplacestring(this), if_iscallable(this);
+  GotoIf(TaggedIsSmi(replace_value), &checkreplacestring);
 
-  Node* const replace_value_map = a.LoadMap(replace_value);
-  a.Branch(a.IsCallableMap(replace_value_map), &if_iscallable,
-           &checkreplacestring);
+  Node* const replace_value_map = LoadMap(replace_value);
+  Branch(IsCallableMap(replace_value_map), &if_iscallable, &checkreplacestring);
 
   // 3. Does ToString({replace_value}) contain '$'?
-  a.Bind(&checkreplacestring);
+  Bind(&checkreplacestring);
   {
     Node* const replace_string =
-        a.CallStub(tostring_callable, context, replace_value);
+        CallStub(tostring_callable, context, replace_value);
 
-    Node* const dollar_char = a.IntPtrConstant('$');
-    Node* const smi_minusone = a.SmiConstant(Smi::FromInt(-1));
-    a.GotoUnless(a.SmiEqual(a.StringIndexOfChar(context, replace_string,
-                                                dollar_char, int_zero),
-                            smi_minusone),
-                 &runtime);
+    Node* const dollar_char = IntPtrConstant('$');
+    Node* const smi_minusone = SmiConstant(Smi::FromInt(-1));
+    GotoUnless(SmiEqual(StringIndexOfChar(context, replace_string, dollar_char,
+                                          int_zero),
+                        smi_minusone),
+               &runtime);
 
-    a.Return(ReplaceSimpleStringFastPath(&a, context, regexp, string,
-                                         replace_string));
+    Return(ReplaceSimpleStringFastPath(this, context, regexp, string,
+                                       replace_string));
   }
 
   // {regexp} is unmodified and {replace_value} is callable.
-  a.Bind(&if_iscallable);
+  Bind(&if_iscallable);
   {
     Node* const replace_callable = replace_value;
 
     // Check if the {regexp} is global.
-    CLabel if_isglobal(&a), if_isnotglobal(&a);
-    Node* const is_global = FastFlagGetter(&a, regexp, JSRegExp::kGlobal);
-    a.Branch(is_global, &if_isglobal, &if_isnotglobal);
+    CLabel if_isglobal(this), if_isnotglobal(this);
+    Node* const is_global = FastFlagGetter(this, regexp, JSRegExp::kGlobal);
+    Branch(is_global, &if_isglobal, &if_isnotglobal);
 
-    a.Bind(&if_isglobal);
+    Bind(&if_isglobal);
     {
       Node* const result = ReplaceGlobalCallableFastPath(
-          &a, context, regexp, string, replace_callable);
-      a.Return(result);
+          this, context, regexp, string, replace_callable);
+      Return(result);
     }
 
-    a.Bind(&if_isnotglobal);
+    Bind(&if_isnotglobal);
     {
       Node* const result =
-          a.CallRuntime(Runtime::kStringReplaceNonGlobalRegExpWithFunction,
-                        context, string, regexp, replace_callable);
-      a.Return(result);
+          CallRuntime(Runtime::kStringReplaceNonGlobalRegExpWithFunction,
+                      context, string, regexp, replace_callable);
+      Return(result);
     }
   }
 
-  a.Bind(&runtime);
+  Bind(&runtime);
   {
-    Node* const result = a.CallRuntime(Runtime::kRegExpReplace, context,
-                                       receiver, string, replace_value);
-    a.Return(result);
+    Node* const result = CallRuntime(Runtime::kRegExpReplace, context, receiver,
+                                     string, replace_value);
+    Return(result);
   }
 }
 
 // Simple string matching functionality for internal use which does not modify
 // the last match info.
-void Builtins::Generate_RegExpInternalMatch(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
+  Isolate* const isolate = this->isolate();
 
-  Isolate* const isolate = a.isolate();
+  Node* const regexp = Parameter(1);
+  Node* const string = Parameter(2);
+  Node* const context = Parameter(5);
 
-  Node* const regexp = a.Parameter(1);
-  Node* const string = a.Parameter(2);
-  Node* const context = a.Parameter(5);
+  Node* const null = NullConstant();
+  Node* const smi_zero = SmiConstant(Smi::FromInt(0));
 
-  Node* const null = a.NullConstant();
-  Node* const smi_zero = a.SmiConstant(Smi::FromInt(0));
-
-  Node* const native_context = a.LoadNativeContext(context);
-  Node* const internal_match_info = a.LoadContextElement(
+  Node* const native_context = LoadNativeContext(context);
+  Node* const internal_match_info = LoadContextElement(
       native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX);
 
   Callable exec_callable = CodeFactory::RegExpExec(isolate);
-  Node* const match_indices = a.CallStub(exec_callable, context, regexp, string,
-                                         smi_zero, internal_match_info);
+  Node* const match_indices = CallStub(exec_callable, context, regexp, string,
+                                       smi_zero, internal_match_info);
 
-  CLabel if_matched(&a), if_didnotmatch(&a);
-  a.Branch(a.WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
+  CLabel if_matched(this), if_didnotmatch(this);
+  Branch(WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
 
-  a.Bind(&if_didnotmatch);
-  a.Return(null);
+  Bind(&if_didnotmatch);
+  Return(null);
 
-  a.Bind(&if_matched);
+  Bind(&if_matched);
   {
-    Node* result = ConstructNewResultFromMatchInfo(isolate, &a, context,
+    Node* result = ConstructNewResultFromMatchInfo(isolate, this, context,
                                                    match_indices, string);
-    a.Return(result);
+    Return(result);
   }
 }
 
