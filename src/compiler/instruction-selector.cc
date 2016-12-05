@@ -414,10 +414,7 @@ void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
   sequence()->MarkAsRepresentation(rep, GetVirtualRegister(node));
 }
 
-
 namespace {
-
-enum class FrameStateInputKind { kAny, kStackSlot };
 
 InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
                                    FrameStateInputKind kind,
@@ -452,6 +449,7 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
   return InstructionOperand();
 }
 
+}  // namespace
 
 class StateObjectDeduplicator {
  public:
@@ -477,14 +475,11 @@ class StateObjectDeduplicator {
   ZoneVector<Node*> objects_;
 };
 
-
 // Returns the number of instruction operands added to inputs.
-size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
-                                        InstructionOperandVector* inputs,
-                                        OperandGenerator* g,
-                                        StateObjectDeduplicator* deduplicator,
-                                        Node* input, MachineType type,
-                                        FrameStateInputKind kind, Zone* zone) {
+size_t InstructionSelector::AddOperandToStateValueDescriptor(
+    StateValueList* values, InstructionOperandVector* inputs,
+    OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* input,
+    MachineType type, FrameStateInputKind kind, Zone* zone) {
   switch (input->opcode()) {
     case IrOpcode::kObjectState: {
       UNREACHABLE();
@@ -495,29 +490,36 @@ size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
       if (id == StateObjectDeduplicator::kNotDuplicated) {
         size_t entries = 0;
         id = deduplicator->InsertObject(input);
-        descriptor->fields().push_back(
-            StateValueDescriptor::Recursive(zone, id));
-        StateValueDescriptor* new_desc = &descriptor->fields().back();
+        StateValueList* nested = values->PushRecursiveField(zone, id);
         int const input_count = input->op()->ValueInputCount();
         ZoneVector<MachineType> const* types = MachineTypesOf(input->op());
         for (int i = 0; i < input_count; ++i) {
           entries += AddOperandToStateValueDescriptor(
-              new_desc, inputs, g, deduplicator, input->InputAt(i),
-              types->at(i), kind, zone);
+              nested, inputs, g, deduplicator, input->InputAt(i), types->at(i),
+              kind, zone);
         }
         return entries;
       } else {
         // Crankshaft counts duplicate objects for the running id, so we have
         // to push the input again.
         deduplicator->InsertObject(input);
-        descriptor->fields().push_back(
-            StateValueDescriptor::Duplicate(zone, id));
+        values->PushDuplicate(id);
         return 0;
       }
     }
     default: {
+      Heap* const heap = isolate()->heap();
+      if (input->opcode() == IrOpcode::kHeapConstant) {
+        Handle<HeapObject> constant = OpParameter<Handle<HeapObject>>(input);
+        Heap::RootListIndex root_index;
+        if (heap->IsRootHandle(constant, &root_index) &&
+            root_index == Heap::kOptimizedOutRootIndex) {
+          values->PushOptimizedOut();
+          return 0;
+        }
+      }
       inputs->push_back(OperandForDeopt(g, input, kind, type.representation()));
-      descriptor->fields().push_back(StateValueDescriptor::Plain(zone, type));
+      values->PushPlain(type);
       return 1;
     }
   }
@@ -525,11 +527,10 @@ size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
 
 
 // Returns the number of instruction operands added to inputs.
-size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
-                                       Node* state, OperandGenerator* g,
-                                       StateObjectDeduplicator* deduplicator,
-                                       InstructionOperandVector* inputs,
-                                       FrameStateInputKind kind, Zone* zone) {
+size_t InstructionSelector::AddInputsToFrameStateDescriptor(
+    FrameStateDescriptor* descriptor, Node* state, OperandGenerator* g,
+    StateObjectDeduplicator* deduplicator, InstructionOperandVector* inputs,
+    FrameStateInputKind kind, Zone* zone) {
   DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
 
   size_t entries = 0;
@@ -553,8 +554,7 @@ size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
   DCHECK_EQ(descriptor->locals_count(), StateValuesAccess(locals).size());
   DCHECK_EQ(descriptor->stack_count(), StateValuesAccess(stack).size());
 
-  StateValueDescriptor* values_descriptor =
-      descriptor->GetStateValueDescriptor();
+  StateValueList* values_descriptor = descriptor->GetStateValueDescriptors();
   entries += AddOperandToStateValueDescriptor(
       values_descriptor, inputs, g, deduplicator, function,
       MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
@@ -582,8 +582,6 @@ size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
   DCHECK_EQ(initial_size + entries, inputs->size());
   return entries;
 }
-
-}  // namespace
 
 
 // An internal helper class for generating the operands to calls.

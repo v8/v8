@@ -218,6 +218,7 @@ class CodeGenerator final : public GapResolver::Assembler {
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
       Translation* translation, OutputFrameStateCombine state_combine);
   void TranslateStateValueDescriptor(StateValueDescriptor* desc,
+                                     StateValueList* nested,
                                      Translation* translation,
                                      InstructionOperandIterator* iter);
   void TranslateFrameStateDescriptorOperands(FrameStateDescriptor* desc,
@@ -284,6 +285,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   int osr_pc_offset_;
+  int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
   ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions_;
 };

@@ -58,6 +58,7 @@ CodeGenerator::CodeGenerator(
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1),
+      optimized_out_literal_id_(-1),
       source_position_table_builder_(code->zone(),
                                      info->SourcePositionRecordingMode()),
       protected_instructions_(protected_instructions) {
@@ -640,15 +641,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
       deopt_state_id = BuildTranslation(instr, -1, frame_state_offset,
                                         OutputFrameStateCombine::Ignore());
     }
-#if DEBUG
-    // Make sure all the values live in stack slots or they are immediates.
-    // (The values should not live in register because registers are clobbered
-    // by calls.)
-    for (size_t i = 0; i < descriptor->GetSize(); i++) {
-      InstructionOperand* op = instr->InputAt(frame_state_offset + 1 + i);
-      CHECK(op->IsStackSlot() || op->IsFPStackSlot() || op->IsImmediate());
-    }
-#endif
     safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
   }
 }
@@ -678,19 +670,26 @@ DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
 }
 
 void CodeGenerator::TranslateStateValueDescriptor(
-    StateValueDescriptor* desc, Translation* translation,
-    InstructionOperandIterator* iter) {
+    StateValueDescriptor* desc, StateValueList* nested,
+    Translation* translation, InstructionOperandIterator* iter) {
   if (desc->IsNested()) {
-    translation->BeginCapturedObject(static_cast<int>(desc->size()));
-    for (size_t index = 0; index < desc->fields().size(); index++) {
-      TranslateStateValueDescriptor(&desc->fields()[index], translation, iter);
+    translation->BeginCapturedObject(static_cast<int>(nested->size()));
+    for (auto field : *nested) {
+      TranslateStateValueDescriptor(field.desc, field.nested, translation,
+                                    iter);
     }
   } else if (desc->IsDuplicate()) {
     translation->DuplicateObject(static_cast<int>(desc->id()));
-  } else {
-    DCHECK(desc->IsPlain());
+  } else if (desc->IsPlain()) {
     AddTranslationForOperand(translation, iter->instruction(), iter->Advance(),
                              desc->type());
+  } else {
+    DCHECK(desc->IsOptimizedOut());
+    if (optimized_out_literal_id_ == -1) {
+      optimized_out_literal_id_ =
+          DefineDeoptimizationLiteral(isolate()->factory()->optimized_out());
+    }
+    translation->StoreLiteral(optimized_out_literal_id_);
   }
 }
 
@@ -698,44 +697,39 @@ void CodeGenerator::TranslateStateValueDescriptor(
 void CodeGenerator::TranslateFrameStateDescriptorOperands(
     FrameStateDescriptor* desc, InstructionOperandIterator* iter,
     OutputFrameStateCombine combine, Translation* translation) {
-  for (size_t index = 0; index < desc->GetSize(combine); index++) {
-    switch (combine.kind()) {
-      case OutputFrameStateCombine::kPushOutput: {
-        DCHECK(combine.GetPushCount() <= iter->instruction()->OutputCount());
-        size_t size_without_output =
-            desc->GetSize(OutputFrameStateCombine::Ignore());
-        // If the index is past the existing stack items in values_.
-        if (index >= size_without_output) {
-          // Materialize the result of the call instruction in this slot.
-          AddTranslationForOperand(
-              translation, iter->instruction(),
-              iter->instruction()->OutputAt(index - size_without_output),
-              MachineType::AnyTagged());
-          continue;
-        }
-        break;
+  size_t index = 0;
+  StateValueList* values = desc->GetStateValueDescriptors();
+  for (StateValueList::iterator it = values->begin(); it != values->end();
+       ++it, ++index) {
+    if (combine.kind() == OutputFrameStateCombine::kPokeAt) {
+      // The result of the call should be placed at position
+      // [index_from_top] in the stack (overwriting whatever was
+      // previously there).
+      size_t index_from_top =
+          desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
+      if (index >= index_from_top &&
+          index < index_from_top + iter->instruction()->OutputCount()) {
+        AddTranslationForOperand(
+            translation, iter->instruction(),
+            iter->instruction()->OutputAt(index - index_from_top),
+            MachineType::AnyTagged());
+        iter->Advance();  // We do not use this input, but we need to
+                          // advace, as the input got replaced.
+        continue;
       }
-      case OutputFrameStateCombine::kPokeAt:
-        // The result of the call should be placed at position
-        // [index_from_top] in the stack (overwriting whatever was
-        // previously there).
-        size_t index_from_top =
-            desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
-        if (index >= index_from_top &&
-            index < index_from_top + iter->instruction()->OutputCount()) {
-          AddTranslationForOperand(
-              translation, iter->instruction(),
-              iter->instruction()->OutputAt(index - index_from_top),
-              MachineType::AnyTagged());
-          iter->Advance();  // We do not use this input, but we need to
-                            // advace, as the input got replaced.
-          continue;
-        }
-        break;
     }
-    StateValueDescriptor* value_desc = desc->GetStateValueDescriptor();
-    TranslateStateValueDescriptor(&value_desc->fields()[index], translation,
-                                  iter);
+    TranslateStateValueDescriptor((*it).desc, (*it).nested, translation, iter);
+  }
+  DCHECK_EQ(desc->GetSize(OutputFrameStateCombine::Ignore()), index);
+
+  if (combine.kind() == OutputFrameStateCombine::kPushOutput) {
+    DCHECK(combine.GetPushCount() <= iter->instruction()->OutputCount());
+    for (size_t output = 0; output < combine.GetPushCount(); output++) {
+      // Materialize the result of the call instruction in this slot.
+      AddTranslationForOperand(translation, iter->instruction(),
+                               iter->instruction()->OutputAt(output),
+                               MachineType::AnyTagged());
+    }
   }
 }
 
