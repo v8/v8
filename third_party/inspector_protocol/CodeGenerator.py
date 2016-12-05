@@ -88,6 +88,7 @@ def read_config():
             ".imported.export_header": False,
             ".imported.header": False,
             ".imported.package": False,
+            ".imported.options": False,
             ".protocol.export_macro": "",
             ".protocol.export_header": False,
             ".protocol.options": False,
@@ -108,6 +109,9 @@ def read_config():
         exc = sys.exc_info()[1]
         sys.stderr.write("Failed to parse config file: %s\n\n" % exc)
         exit(1)
+
+
+# ---- Begin of utilities exposed to generator ----
 
 
 def to_title_case(name):
@@ -132,6 +136,32 @@ def to_method_case(config, name):
     return name
 
 
+def join_arrays(dict, keys):
+    result = []
+    for key in keys:
+        if key in dict:
+            result += dict[key]
+    return result
+
+
+def format_include(config, header, file_name=None):
+    if file_name is not None:
+        header = header + "/" + file_name + ".h"
+    header = "\"" + header + "\"" if header[0] not in "<\"" else header
+    if config.use_snake_file_names:
+        header = to_snake_case(header)
+    return header
+
+
+def to_file_name(config, file_name):
+    if config.use_snake_file_names:
+        return to_snake_case(file_name).replace(".cpp", ".cc")
+    return file_name
+
+
+# ---- End of utilities exposed to generator ----
+
+
 def initialize_jinja_env(jinja_dir, cache_dir, config):
     # pylint: disable=F0401
     sys.path.insert(1, os.path.abspath(jinja_dir))
@@ -148,63 +178,6 @@ def initialize_jinja_env(jinja_dir, cache_dir, config):
     jinja_env.filters.update({"to_title_case": to_title_case, "dash_to_camelcase": dash_to_camelcase, "to_method_case": functools.partial(to_method_case, config)})
     jinja_env.add_extension("jinja2.ext.loopcontrols")
     return jinja_env
-
-
-def patch_full_qualified_refs(protocol):
-    def patch_full_qualified_refs_in_domain(json, domain_name):
-        if isinstance(json, list):
-            for item in json:
-                patch_full_qualified_refs_in_domain(item, domain_name)
-
-        if not isinstance(json, dict):
-            return
-        for key in json:
-            if key == "type" and json[key] == "string":
-                json[key] = domain_name + ".string"
-            if key != "$ref":
-                patch_full_qualified_refs_in_domain(json[key], domain_name)
-                continue
-            if json["$ref"].find(".") == -1:
-                json["$ref"] = domain_name + "." + json["$ref"]
-        return
-
-    for domain in protocol.json_api["domains"]:
-        patch_full_qualified_refs_in_domain(domain, domain["domain"])
-
-
-def calculate_imports_and_exports(config, protocol):
-    def has_exports(json_value, clear):
-        result = False
-        if isinstance(json_value, list):
-            for item in json_value:
-                result = has_exports(item, clear) or result
-        if isinstance(json_value, dict):
-            if "exported" in json_value and json_value["exported"]:
-                result = True
-            if "exported" in json_value and clear:
-                del json_value["exported"]
-            for key in json_value:
-                result = has_exports(json_value[key], clear) or result
-        return result
-
-    imported_domains = protocol.imported_domains
-    if config.protocol.options:
-        protocol.generate_domains = [rule.domain for rule in config.protocol.options]
-        imported_domains = list(set(protocol.imported_domains) - set(protocol.generate_domains))
-    exported_domains = protocol.generate_domains
-
-    protocol.imported_domains = []
-    protocol.exported_domains = []
-    for domain_json in protocol.json_api["domains"]:
-        domain = domain_json["domain"]
-        clear = domain not in exported_domains and domain not in imported_domains
-        if not has_exports(domain_json, clear):
-            continue
-        if domain in exported_domains:
-            domain_json["has_exports"] = True
-            protocol.exported_domains.append(domain)
-        if domain in imported_domains:
-            protocol.imported_domains.append(domain)
 
 
 def create_imported_type_definition(domain_name, type, imported_namespace):
@@ -329,162 +302,181 @@ def wrap_array_definition(type):
     }
 
 
-def create_type_definitions(protocol, imported_namespace):
-    protocol.type_definitions = {}
-    protocol.type_definitions["number"] = create_primitive_type_definition("number")
-    protocol.type_definitions["integer"] = create_primitive_type_definition("integer")
-    protocol.type_definitions["boolean"] = create_primitive_type_definition("boolean")
-    protocol.type_definitions["object"] = create_object_type_definition()
-    protocol.type_definitions["any"] = create_any_type_definition()
-    for domain in protocol.json_api["domains"]:
-        protocol.type_definitions[domain["domain"] + ".string"] = create_string_type_definition()
-        if not ("types" in domain):
-            continue
-        for type in domain["types"]:
-            type_name = domain["domain"] + "." + type["id"]
-            if type["type"] == "object" and domain["domain"] in protocol.imported_domains:
-                protocol.type_definitions[type_name] = create_imported_type_definition(domain["domain"], type, imported_namespace)
-            elif type["type"] == "object":
-                protocol.type_definitions[type_name] = create_user_type_definition(domain["domain"], type)
-            elif type["type"] == "array":
-                items_type = type["items"]["type"]
-                protocol.type_definitions[type_name] = wrap_array_definition(protocol.type_definitions[items_type])
-            elif type["type"] == domain["domain"] + ".string":
-                protocol.type_definitions[type_name] = create_string_type_definition()
-            else:
-                protocol.type_definitions[type_name] = create_primitive_type_definition(type["type"])
-
-
-def type_definition(protocol, name):
-    return protocol.type_definitions[name]
-
-
-def resolve_type(protocol, prop):
-    if "$ref" in prop:
-        return protocol.type_definitions[prop["$ref"]]
-    if prop["type"] == "array":
-        return wrap_array_definition(resolve_type(protocol, prop["items"]))
-    return protocol.type_definitions[prop["type"]]
-
-
-def join_arrays(dict, keys):
-    result = []
-    for key in keys:
-        if key in dict:
-            result += dict[key]
-    return result
-
-
-def generate_command(protocol, config, domain, command):
-    if not config.protocol.options:
-        return domain in protocol.generate_domains
-    for rule in config.protocol.options:
-        if rule.domain != domain:
-            continue
-        if hasattr(rule, "include"):
-            return command in rule.include
-        if hasattr(rule, "exclude"):
-            return command not in rule.exclude
-        return True
-    return False
-
-
-def generate_event(protocol, config, domain, event):
-    if not config.protocol.options:
-        return domain in protocol.generate_domains
-    for rule in config.protocol.options:
-        if rule.domain != domain:
-            continue
-        if hasattr(rule, "include_events"):
-            return event in rule.include_events
-        if hasattr(rule, "exclude_events"):
-            return event not in rule.exclude_events
-        return True
-    return False
-
-
-def is_async_command(protocol, config, domain, command):
-    if not config.protocol.options:
-        return False
-    for rule in config.protocol.options:
-        if rule.domain != domain:
-            continue
-        if hasattr(rule, "async"):
-            return command in rule.async
-        return False
-    return False
-
-
-def generate_disable(protocol, config, domain):
-    if "commands" not in domain:
-        return True
-    for command in domain["commands"]:
-        if command["name"] == "disable" and generate_command(protocol, config, domain["domain"], "disable"):
-            return False
-    return True
-
-
-def format_include(config, header, file_name=None):
-    if file_name is not None:
-        header = header + "/" + file_name + ".h"
-    header = "\"" + header + "\"" if header[0] not in "<\"" else header
-    if config.use_snake_file_names:
-        header = to_snake_case(header)
-    return header
-
-
-def to_file_name(config, file_name):
-    if config.use_snake_file_names:
-        return to_snake_case(file_name).replace(".cpp", ".cc")
-    return file_name
-
-
-def read_protocol_file(file_name, json_api):
-    input_file = open(file_name, "r")
-    json_string = input_file.read()
-    input_file.close()
-    parsed_json = json.loads(json_string)
-    version = parsed_json["version"]["major"] + "." + parsed_json["version"]["minor"]
-    domains = []
-    for domain in parsed_json["domains"]:
-        domains.append(domain["domain"])
-        domain["version"] = version
-    json_api["domains"] += parsed_json["domains"]
-    return domains
-
-
 class Protocol(object):
-    def __init__(self):
-        self.json_api = {}
-        self.generate_domains = []
+    def __init__(self, config):
+        self.config = config
+        self.json_api = {"domains": []}
         self.imported_domains = []
         self.exported_domains = []
+        self.generate_domains = self.read_protocol_file(config.protocol.path)
+
+        if config.protocol.options:
+            self.generate_domains = [rule.domain for rule in config.protocol.options]
+            self.exported_domains = [rule.domain for rule in config.protocol.options if hasattr(rule, "exported")]
+
+        if config.imported:
+            self.imported_domains = self.read_protocol_file(config.imported.path)
+            if config.imported.options:
+                self.imported_domains = [rule.domain for rule in config.imported.options]
+
+        self.patch_full_qualified_refs()
+        self.create_notification_types()
+        self.create_type_definitions()
+
+
+    def read_protocol_file(self, file_name):
+        input_file = open(file_name, "r")
+        json_string = input_file.read()
+        input_file.close()
+        parsed_json = json.loads(json_string)
+        version = parsed_json["version"]["major"] + "." + parsed_json["version"]["minor"]
+        domains = []
+        for domain in parsed_json["domains"]:
+            domains.append(domain["domain"])
+            domain["version"] = version
+        self.json_api["domains"] += parsed_json["domains"]
+        return domains
+
+
+    def patch_full_qualified_refs(self):
+        def patch_full_qualified_refs_in_domain(json, domain_name):
+            if isinstance(json, list):
+                for item in json:
+                    patch_full_qualified_refs_in_domain(item, domain_name)
+            if not isinstance(json, dict):
+                return
+            for key in json:
+                if key == "type" and json[key] == "string":
+                    json[key] = domain_name + ".string"
+                if key != "$ref":
+                    patch_full_qualified_refs_in_domain(json[key], domain_name)
+                    continue
+                if json["$ref"].find(".") == -1:
+                    json["$ref"] = domain_name + "." + json["$ref"]
+            return
+
+        for domain in self.json_api["domains"]:
+            patch_full_qualified_refs_in_domain(domain, domain["domain"])
+
+
+    def create_notification_types(self):
+        for domain in self.json_api["domains"]:
+            if "events" in domain:
+                for event in domain["events"]:
+                    event_type = dict()
+                    event_type["description"] = "Wrapper for notification params"
+                    event_type["type"] = "object"
+                    event_type["id"] = to_title_case(event["name"]) + "Notification"
+                    if "parameters" in event:
+                        event_type["properties"] = copy.deepcopy(event["parameters"])
+                    if "types" not in domain:
+                        domain["types"] = list()
+                    domain["types"].append(event_type)
+
+
+    def create_type_definitions(self):
+        imported_namespace = "::".join(self.config.imported.namespace) if self.config.imported else ""
+        self.type_definitions = {}
+        self.type_definitions["number"] = create_primitive_type_definition("number")
+        self.type_definitions["integer"] = create_primitive_type_definition("integer")
+        self.type_definitions["boolean"] = create_primitive_type_definition("boolean")
+        self.type_definitions["object"] = create_object_type_definition()
+        self.type_definitions["any"] = create_any_type_definition()
+        for domain in self.json_api["domains"]:
+            self.type_definitions[domain["domain"] + ".string"] = create_string_type_definition()
+            if not ("types" in domain):
+                continue
+            for type in domain["types"]:
+                type_name = domain["domain"] + "." + type["id"]
+                if type["type"] == "object" and domain["domain"] in self.imported_domains:
+                    self.type_definitions[type_name] = create_imported_type_definition(domain["domain"], type, imported_namespace)
+                elif type["type"] == "object":
+                    self.type_definitions[type_name] = create_user_type_definition(domain["domain"], type)
+                elif type["type"] == "array":
+                    items_type = type["items"]["type"]
+                    self.type_definitions[type_name] = wrap_array_definition(self.type_definitions[items_type])
+                elif type["type"] == domain["domain"] + ".string":
+                    self.type_definitions[type_name] = create_string_type_definition()
+                else:
+                    self.type_definitions[type_name] = create_primitive_type_definition(type["type"])
+
+
+    def check_options(self, options, domain, name, include_attr, exclude_attr, default):
+        for rule in options:
+            if rule.domain != domain:
+                continue
+            if include_attr and hasattr(rule, include_attr):
+                return name in getattr(rule, include_attr)
+            if exclude_attr and hasattr(rule, exclude_attr):
+                return name not in getattr(rule, exclude_attr)
+            return default
+        return False
+
+
+    # ---- Begin of methods exposed to generator
+
+
+    def type_definition(self, name):
+        return self.type_definitions[name]
+
+
+    def resolve_type(self, prop):
+        if "$ref" in prop:
+            return self.type_definitions[prop["$ref"]]
+        if prop["type"] == "array":
+            return wrap_array_definition(self.resolve_type(prop["items"]))
+        return self.type_definitions[prop["type"]]
+
+
+    def generate_command(self, domain, command):
+        if not self.config.protocol.options:
+            return domain in self.generate_domains
+        return self.check_options(self.config.protocol.options, domain, command, "include", "exclude", True)
+
+
+    def generate_event(self, domain, event):
+        if not self.config.protocol.options:
+            return domain in self.generate_domains
+        return self.check_options(self.config.protocol.options, domain, event, "include_events", "exclude_events", True)
+
+
+    def is_async_command(self, domain, command):
+        if not self.config.protocol.options:
+            return False
+        return self.check_options(self.config.protocol.options, domain, command, "async", None, False)
+
+
+    def is_exported(self, domain, name):
+        if not self.config.protocol.options:
+            return False
+        return self.check_options(self.config.protocol.options, domain, name, "exported", None, False)
+
+
+    def is_imported(self, domain, name):
+        if not self.config.imported:
+            return False
+        if not self.config.imported.options:
+            return domain in self.imported_domains
+        return self.check_options(self.config.imported.options, domain, name, "imported", None, False)
+
+
+    def is_exported_domain(self, domain):
+        return domain in self.exported_domains
+
+
+    def generate_disable(self, domain):
+        if "commands" not in domain:
+            return True
+        for command in domain["commands"]:
+            if command["name"] == "disable" and self.generate_command(domain["domain"], "disable"):
+                return False
+        return True
 
 
 def main():
     jinja_dir, config_file, config = read_config()
 
-    protocol = Protocol()
-    protocol.json_api = {"domains": []}
-    protocol.generate_domains = read_protocol_file(config.protocol.path, protocol.json_api)
-    protocol.imported_domains = read_protocol_file(config.imported.path, protocol.json_api) if config.imported else []
-    patch_full_qualified_refs(protocol)
-    calculate_imports_and_exports(config, protocol)
-
-    for domain in protocol.json_api["domains"]:
-        if "events" in domain:
-            for event in domain["events"]:
-                event_type = dict()
-                event_type["description"] = "Wrapper for notification params"
-                event_type["type"] = "object"
-                event_type["id"] = to_title_case(event["name"]) + "Notification"
-                if "parameters" in event:
-                    event_type["properties"] = copy.deepcopy(event["parameters"])
-                if "types" not in domain:
-                    domain["types"] = list()
-                domain["types"].append(event_type)
-
-    create_type_definitions(protocol, "::".join(config.imported.namespace) if config.imported else "")
+    protocol = Protocol(config)
 
     if not config.exported and len(protocol.exported_domains):
         sys.stderr.write("Domains [%s] are exported, but config is missing export entry\n\n" % ", ".join(protocol.exported_domains))
@@ -518,15 +510,10 @@ def main():
     for domain in protocol.json_api["domains"]:
         class_name = domain["domain"]
         template_context = {
+            "protocol": protocol,
             "config": config,
             "domain": domain,
             "join_arrays": join_arrays,
-            "resolve_type": functools.partial(resolve_type, protocol),
-            "type_definition": functools.partial(type_definition, protocol),
-            "generate_command": functools.partial(generate_command, protocol, config),
-            "generate_event": functools.partial(generate_event, protocol, config),
-            "is_async_command": functools.partial(is_async_command, protocol, config),
-            "generate_disable": functools.partial(generate_disable, protocol, config),
             "format_include": functools.partial(format_include, config),
         }
 
