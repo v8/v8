@@ -6016,7 +6016,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     iteration_order =
         NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
   } else {
-    iteration_order = NameDictionary::BuildIterationIndicesArray(dictionary);
+    iteration_order = NameDictionary::IterationIndices(dictionary);
   }
 
   int instance_descriptor_length = iteration_order->length();
@@ -16227,118 +16227,6 @@ int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
           ElementsKindToShiftSize(kind));
 }
 
-void FixedArray::SwapPairs(FixedArray* numbers, int i, int j) {
-  Object* temp = get(i);
-  set(i, get(j));
-  set(j, temp);
-  if (this != numbers) {
-    temp = numbers->get(i);
-    numbers->set(i, Smi::cast(numbers->get(j)));
-    numbers->set(j, Smi::cast(temp));
-  }
-}
-
-
-static void InsertionSortPairs(FixedArray* content,
-                               FixedArray* numbers,
-                               int len) {
-  for (int i = 1; i < len; i++) {
-    int j = i;
-    while (j > 0 &&
-           (NumberToUint32(numbers->get(j - 1)) >
-            NumberToUint32(numbers->get(j)))) {
-      content->SwapPairs(numbers, j - 1, j);
-      j--;
-    }
-  }
-}
-
-
-void HeapSortPairs(FixedArray* content, FixedArray* numbers, int len) {
-  // In-place heap sort.
-  DCHECK(content->length() == numbers->length());
-
-  // Bottom-up max-heap construction.
-  for (int i = 1; i < len; ++i) {
-    int child_index = i;
-    while (child_index > 0) {
-      int parent_index = ((child_index + 1) >> 1) - 1;
-      uint32_t parent_value = NumberToUint32(numbers->get(parent_index));
-      uint32_t child_value = NumberToUint32(numbers->get(child_index));
-      if (parent_value < child_value) {
-        content->SwapPairs(numbers, parent_index, child_index);
-      } else {
-        break;
-      }
-      child_index = parent_index;
-    }
-  }
-
-  // Extract elements and create sorted array.
-  for (int i = len - 1; i > 0; --i) {
-    // Put max element at the back of the array.
-    content->SwapPairs(numbers, 0, i);
-    // Sift down the new top element.
-    int parent_index = 0;
-    while (true) {
-      int child_index = ((parent_index + 1) << 1) - 1;
-      if (child_index >= i) break;
-      uint32_t child1_value = NumberToUint32(numbers->get(child_index));
-      uint32_t child2_value = NumberToUint32(numbers->get(child_index + 1));
-      uint32_t parent_value = NumberToUint32(numbers->get(parent_index));
-      if (child_index + 1 >= i || child1_value > child2_value) {
-        if (parent_value > child1_value) break;
-        content->SwapPairs(numbers, parent_index, child_index);
-        parent_index = child_index;
-      } else {
-        if (parent_value > child2_value) break;
-        content->SwapPairs(numbers, parent_index, child_index + 1);
-        parent_index = child_index + 1;
-      }
-    }
-  }
-}
-
-
-// Sort this array and the numbers as pairs wrt. the (distinct) numbers.
-void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
-  DCHECK(this->length() == numbers->length());
-  // For small arrays, simply use insertion sort.
-  if (len <= 10) {
-    InsertionSortPairs(this, numbers, len);
-    return;
-  }
-  // Check the range of indices.
-  uint32_t min_index = NumberToUint32(numbers->get(0));
-  uint32_t max_index = min_index;
-  uint32_t i;
-  for (i = 1; i < len; i++) {
-    if (NumberToUint32(numbers->get(i)) < min_index) {
-      min_index = NumberToUint32(numbers->get(i));
-    } else if (NumberToUint32(numbers->get(i)) > max_index) {
-      max_index = NumberToUint32(numbers->get(i));
-    }
-  }
-  if (max_index - min_index + 1 == len) {
-    // Indices form a contiguous range, unless there are duplicates.
-    // Do an in-place linear time sort assuming distinct numbers, but
-    // avoid hanging in case they are not.
-    for (i = 0; i < len; i++) {
-      uint32_t p;
-      uint32_t j = 0;
-      // While the current element at i is not at its correct position p,
-      // swap the elements at these two positions.
-      while ((p = NumberToUint32(numbers->get(i)) - min_index) != i &&
-             j++ < len) {
-        SwapPairs(numbers, i, p);
-      }
-    }
-  } else {
-    HeapSortPairs(this, numbers, len);
-    return;
-  }
-}
-
 bool JSObject::WasConstructedFromApiFunction() {
   auto instance_type = map()->instance_type();
   bool is_api_object = instance_type == JS_API_OBJECT_TYPE ||
@@ -17234,10 +17122,6 @@ Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::Add(
 
 template Handle<FixedArray> Dictionary<
     NameDictionary, NameDictionaryShape,
-    Handle<Name> >::BuildIterationIndicesArray(Handle<NameDictionary>);
-
-template Handle<FixedArray> Dictionary<
-    NameDictionary, NameDictionaryShape,
     Handle<Name> >::GenerateNewEnumerationIndices(Handle<NameDictionary>);
 
 template Handle<SeededNumberDictionary>
@@ -17292,6 +17176,12 @@ Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>::CopyEnumKeysTo(
     Handle<FixedArray> storage, KeyCollectionMode mode,
     KeyAccumulator* accumulator);
 
+template Handle<FixedArray>
+Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::
+    IterationIndices(
+        Handle<
+            Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>>
+            dictionary);
 template void
 Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::
     CollectKeysTo(Handle<Dictionary<GlobalDictionary, GlobalDictionaryShape,
@@ -17299,6 +17189,10 @@ Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::
                       dictionary,
                   KeyAccumulator* keys);
 
+template Handle<FixedArray>
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>::IterationIndices(
+    Handle<Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>>
+        dictionary);
 template void
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>::CollectKeysTo(
     Handle<Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>>
@@ -18072,44 +17966,13 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::New(
   return dict;
 }
 
-
-template <typename Derived, typename Shape, typename Key>
-Handle<FixedArray> Dictionary<Derived, Shape, Key>::BuildIterationIndicesArray(
-    Handle<Derived> dictionary) {
-  Isolate* isolate = dictionary->GetIsolate();
-  Factory* factory = isolate->factory();
-  int length = dictionary->NumberOfElements();
-
-  Handle<FixedArray> iteration_order = factory->NewFixedArray(length);
-  Handle<FixedArray> enumeration_order = factory->NewFixedArray(length);
-
-  // Fill both the iteration order array and the enumeration order array
-  // with property details.
-  int capacity = dictionary->Capacity();
-  int pos = 0;
-  for (int i = 0; i < capacity; i++) {
-    if (dictionary->IsKey(isolate, dictionary->KeyAt(i))) {
-      int index = dictionary->DetailsAt(i).dictionary_index();
-      iteration_order->set(pos, Smi::FromInt(i));
-      enumeration_order->set(pos, Smi::FromInt(index));
-      pos++;
-    }
-  }
-  DCHECK(pos == length);
-
-  // Sort the arrays wrt. enumeration order.
-  iteration_order->SortPairs(*enumeration_order, enumeration_order->length());
-  return iteration_order;
-}
-
-
 template <typename Derived, typename Shape, typename Key>
 Handle<FixedArray>
 Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices(
     Handle<Derived> dictionary) {
   int length = dictionary->NumberOfElements();
 
-  Handle<FixedArray> iteration_order = BuildIterationIndicesArray(dictionary);
+  Handle<FixedArray> iteration_order = IterationIndices(dictionary);
   DCHECK(iteration_order->length() == length);
 
   // Iterate over the dictionary using the enumeration order and update
@@ -18419,6 +18282,34 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(
     int index = Smi::cast(raw_storage->get(i))->value();
     raw_storage->set(i, raw_dictionary->KeyAt(index));
   }
+}
+
+template <typename Derived, typename Shape, typename Key>
+Handle<FixedArray> Dictionary<Derived, Shape, Key>::IterationIndices(
+    Handle<Dictionary<Derived, Shape, Key>> dictionary) {
+  Isolate* isolate = dictionary->GetIsolate();
+  int capacity = dictionary->Capacity();
+  int length = dictionary->NumberOfElements();
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+  int array_size = 0;
+  {
+    DisallowHeapAllocation no_gc;
+    Dictionary<Derived, Shape, Key>* raw_dict = *dictionary;
+    for (int i = 0; i < capacity; i++) {
+      Object* k = raw_dict->KeyAt(i);
+      if (!raw_dict->IsKey(isolate, k)) continue;
+      if (raw_dict->IsDeleted(i)) continue;
+      array->set(array_size++, Smi::FromInt(i));
+    }
+
+    DCHECK_EQ(array_size, length);
+
+    EnumIndexComparator<Derived> cmp(static_cast<Derived*>(raw_dict));
+    Smi** start = reinterpret_cast<Smi**>(array->GetFirstElementAddress());
+    std::sort(start, start + array_size, cmp);
+  }
+  array->Shrink(array_size);
+  return array;
 }
 
 template <typename Derived, typename Shape, typename Key>

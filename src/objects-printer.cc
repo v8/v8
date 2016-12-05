@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/interpreter/bytecodes.h"
@@ -1095,7 +1096,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
 
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSGlobalProxy");
-  os << "\n - native context = " << Brief(native_context());
+  if (!GetIsolate()->bootstrapper()->IsActive()) {
+    os << "\n - native context = " << Brief(native_context());
+  }
   os << "\n - hash = " << Brief(hash());
   JSObjectPrintBody(os, this);
 }
@@ -1103,7 +1106,9 @@ void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {  // NOLINT
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSGlobalObject");
-  os << "\n - native context = " << Brief(native_context());
+  if (!GetIsolate()->bootstrapper()->IsActive()) {
+    os << "\n - native context = " << Brief(native_context());
+  }
   os << "\n - global proxy = " << Brief(global_proxy());
   JSObjectPrintBody(os, this);
 }

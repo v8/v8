@@ -4257,50 +4257,55 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       }
     }
   } else if (from->IsJSGlobalObject()) {
+    // Copy all keys and values in enumeration order.
     Handle<GlobalDictionary> properties =
         Handle<GlobalDictionary>(from->global_dictionary());
-    int capacity = properties->Capacity();
-    for (int i = 0; i < capacity; i++) {
-      Object* raw_key(properties->KeyAt(i));
-      if (properties->IsKey(isolate(), raw_key)) {
-        DCHECK(raw_key->IsName());
-        // If the property is already there we skip it.
-        Handle<Name> key(Name::cast(raw_key));
-        LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
-        CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-        if (it.IsFound()) continue;
-        // Set the property.
-        DCHECK(properties->ValueAt(i)->IsPropertyCell());
-        Handle<PropertyCell> cell(PropertyCell::cast(properties->ValueAt(i)));
-        Handle<Object> value(cell->value(), isolate());
-        if (value->IsTheHole(isolate())) continue;
-        PropertyDetails details = cell->property_details();
-        DCHECK_EQ(kData, details.kind());
-        JSObject::AddProperty(to, key, value, details.attributes());
-      }
+    Handle<FixedArray> key_indices =
+        GlobalDictionary::IterationIndices(properties);
+    for (int i = 0; i < key_indices->length(); i++) {
+      int key_index = Smi::cast(key_indices->get(i))->value();
+      Object* raw_key = properties->KeyAt(key_index);
+      DCHECK(properties->IsKey(isolate(), raw_key));
+      DCHECK(raw_key->IsName());
+      // If the property is already there we skip it.
+      Handle<Name> key(Name::cast(raw_key), isolate());
+      LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+      if (it.IsFound()) continue;
+      // Set the property.
+      DCHECK(properties->ValueAt(key_index)->IsPropertyCell());
+      Handle<PropertyCell> cell(
+          PropertyCell::cast(properties->ValueAt(key_index)), isolate());
+      Handle<Object> value(cell->value(), isolate());
+      if (value->IsTheHole(isolate())) continue;
+      PropertyDetails details = cell->property_details();
+      DCHECK_EQ(kData, details.kind());
+      JSObject::AddProperty(to, key, value, details.attributes());
     }
   } else {
+    // Copy all keys and values in enumeration order.
     Handle<NameDictionary> properties =
         Handle<NameDictionary>(from->property_dictionary());
-    int capacity = properties->Capacity();
-    for (int i = 0; i < capacity; i++) {
-      Object* raw_key(properties->KeyAt(i));
-      if (properties->IsKey(isolate(), raw_key)) {
-        DCHECK(raw_key->IsName());
-        // If the property is already there we skip it.
-        Handle<Name> key(Name::cast(raw_key));
-        LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
-        CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-        if (it.IsFound()) continue;
-        // Set the property.
-        Handle<Object> value = Handle<Object>(properties->ValueAt(i),
-                                              isolate());
-        DCHECK(!value->IsCell());
-        DCHECK(!value->IsTheHole(isolate()));
-        PropertyDetails details = properties->DetailsAt(i);
-        DCHECK_EQ(kData, details.kind());
-        JSObject::AddProperty(to, key, value, details.attributes());
-      }
+    Handle<FixedArray> key_indices =
+        NameDictionary::IterationIndices(properties);
+    for (int i = 0; i < key_indices->length(); i++) {
+      int key_index = Smi::cast(key_indices->get(i))->value();
+      Object* raw_key = properties->KeyAt(key_index);
+      DCHECK(properties->IsKey(isolate(), raw_key));
+      DCHECK(raw_key->IsName());
+      // If the property is already there we skip it.
+      Handle<Name> key(Name::cast(raw_key), isolate());
+      LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+      if (it.IsFound()) continue;
+      // Set the property.
+      Handle<Object> value =
+          Handle<Object>(properties->ValueAt(key_index), isolate());
+      DCHECK(!value->IsCell());
+      DCHECK(!value->IsTheHole(isolate()));
+      PropertyDetails details = properties->DetailsAt(key_index);
+      DCHECK_EQ(kData, details.kind());
+      JSObject::AddProperty(to, key, value, details.attributes());
     }
   }
 }

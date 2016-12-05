@@ -2887,16 +2887,6 @@ class FixedArray: public FixedArrayBase {
   bool IsEqualTo(FixedArray* other);
 #endif
 
-  // Swap two elements in a pair of arrays.  If this array and the
-  // numbers array are the same object, the elements are only swapped
-  // once.
-  void SwapPairs(FixedArray* numbers, int i, int j);
-
-  // Sort prefix of this array and the numbers array as pairs wrt. the
-  // numbers.  If the numbers array and the this array are the same
-  // object, the prefix of this array is sorted.
-  void SortPairs(FixedArray* numbers, uint32_t len);
-
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
 
  protected:
@@ -3778,6 +3768,10 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   enum SortMode { UNSORTED, SORTED };
 
+  // Return the key indices sorted by its enumeration index.
+  static Handle<FixedArray> IterationIndices(
+      Handle<Dictionary<Derived, Shape, Key>> dictionary);
+
   // Collect the keys into the given KeyAccumulator, in ascending chronological
   // order of property creation.
   static void CollectKeysTo(Handle<Dictionary<Derived, Shape, Key>> dictionary,
@@ -3832,11 +3826,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
                                              Key key, Handle<Object> value,
                                              PropertyDetails details,
                                              int* entry_out = nullptr);
-
-  // Returns iteration indices array for the |dictionary|.
-  // Values are direct indices in the |HashTable| array.
-  static Handle<FixedArray> BuildIterationIndicesArray(
-      Handle<Derived> dictionary);
 
   static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;

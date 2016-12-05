@@ -6282,7 +6282,6 @@ v8::Isolate* Context::GetIsolate() {
   return reinterpret_cast<Isolate*>(env->GetIsolate());
 }
 
-
 v8::Local<v8::Object> Context::Global() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();
