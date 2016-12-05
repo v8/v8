@@ -12,6 +12,7 @@
 #include "src/v8.h"
 
 #include "src/wasm/decoder.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
@@ -312,18 +313,18 @@ class ModuleDecoder : public Decoder {
                                                false, SignatureMap()});
             expect_u8("element type", kWasmAnyFunctionTypeForm);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
-            consume_resizable_limits(
-                "element count", "elements", WasmModule::kV8MaxTableSize,
-                &table->min_size, &table->has_max, WasmModule::kV8MaxTableSize,
-                &table->max_size);
+            consume_resizable_limits("element count", "elements",
+                                     kV8MaxWasmTableSize, &table->min_size,
+                                     &table->has_max, kV8MaxWasmTableSize,
+                                     &table->max_size);
             break;
           }
           case kExternalMemory: {
             // ===== Imported memory =========================================
             bool has_max = false;
-            consume_resizable_limits("memory", "pages", WasmModule::kV8MaxPages,
+            consume_resizable_limits("memory", "pages", kV8MaxWasmMemoryPages,
                                      &module->min_mem_pages, &has_max,
-                                     WasmModule::kSpecMaxPages,
+                                     kSpecMaxWasmMemoryPages,
                                      &module->max_mem_pages);
             module->has_memory = true;
             break;
@@ -387,10 +388,9 @@ class ModuleDecoder : public Decoder {
       for (uint32_t i = 0; ok() && i < table_count; i++) {
         WasmIndirectFunctionTable* table = &module->function_tables.back();
         expect_u8("table type", kWasmAnyFunctionTypeForm);
-        consume_resizable_limits("table elements", "elements",
-                                 WasmModule::kV8MaxTableSize, &table->min_size,
-                                 &table->has_max, WasmModule::kV8MaxTableSize,
-                                 &table->max_size);
+        consume_resizable_limits(
+            "table elements", "elements", kV8MaxWasmTableSize, &table->min_size,
+            &table->has_max, kV8MaxWasmTableSize, &table->max_size);
       }
       section_iter.advance();
     }
@@ -407,8 +407,8 @@ class ModuleDecoder : public Decoder {
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
         bool has_max = false;
         consume_resizable_limits(
-            "memory", "pages", WasmModule::kV8MaxPages, &module->min_mem_pages,
-            &has_max, WasmModule::kSpecMaxPages, &module->max_mem_pages);
+            "memory", "pages", kV8MaxWasmMemoryPages, &module->min_mem_pages,
+            &has_max, kSpecMaxWasmMemoryPages, &module->max_mem_pages);
       }
       module->has_memory = true;
       section_iter.advance();
@@ -1109,7 +1109,8 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
       isolate->counters()->wasm_decode_module_time());
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleError("start > end");
-  if (size >= kMaxModuleSize) return ModuleError("size > maximum module size");
+  if (size >= kV8MaxWasmModuleSize)
+    return ModuleError("size > maximum module size");
   // TODO(bradnelson): Improve histogram handling of size_t.
   isolate->counters()->wasm_module_size_bytes()->AddSample(
       static_cast<int>(size));
@@ -1148,7 +1149,7 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
       isolate->counters()->wasm_decode_function_time());
   size_t size = function_end - function_start;
   if (function_start > function_end) return FunctionError("start > end");
-  if (size > kMaxFunctionSize)
+  if (size > kV8MaxWasmFunctionSize)
     return FunctionError("size > maximum function size");
   isolate->counters()->wasm_function_size_bytes()->AddSample(
       static_cast<int>(size));

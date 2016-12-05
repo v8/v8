@@ -1284,6 +1284,7 @@
         'wasm/wasm-external-refs.h',
         'wasm/wasm-js.cc',
         'wasm/wasm-js.h',
+        'wasm/wasm-limits.h',
         'wasm/wasm-macro-gen.h',
         'wasm/wasm-module.cc',
         'wasm/wasm-module.h',

@@ -32,19 +32,11 @@ class WasmCompilationUnit;
 namespace wasm {
 class ErrorThrower;
 
-const size_t kMaxModuleSize = 1024 * 1024 * 1024;
-const size_t kMaxFunctionSize = 128 * 1024;
-const size_t kMaxStringSize = 256;
 const uint32_t kWasmMagic = 0x6d736100;
 const uint32_t kWasmVersion = 0x0d;
 
 const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
-
-const uint64_t kWasmMaxHeapOffset =
-    static_cast<uint64_t>(
-        std::numeric_limits<uint32_t>::max())  // maximum base value
-    + std::numeric_limits<uint32_t>::max();    // maximum index value
 
 enum WasmSectionCode {
   kUnknownSectionCode = 0,   // code for unknown sections
@@ -183,9 +175,6 @@ struct ModuleWireBytes;
 struct V8_EXPORT_PRIVATE WasmModule {
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
-  static const size_t kV8MaxPages = 16384;      // Maximum memory size = 1gb
-  static const size_t kSpecMaxPages = 65536;    // Maximum according to the spec
-  static const size_t kV8MaxTableSize = 16 * 1024 * 1024;
 
   Zone* owned_zone;
   uint32_t min_mem_pages = 0;  // minimum size of the memory in 64k pages

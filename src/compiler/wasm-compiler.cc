@@ -34,6 +34,7 @@
 #include "src/log-inl.h"
 
 #include "src/wasm/ast-decoder.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-text.h"
@@ -1723,9 +1724,8 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
 Node* WasmGraphBuilder::GrowMemory(Node* input) {
   Diamond check_input_range(
       graph(), jsgraph()->common(),
-      graph()->NewNode(
-          jsgraph()->machine()->Uint32LessThanOrEqual(), input,
-          jsgraph()->Uint32Constant(wasm::WasmModule::kV8MaxPages)),
+      graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(), input,
+                       jsgraph()->Uint32Constant(wasm::kV8MaxWasmMemoryPages)),
       BranchHint::kTrue);
 
   check_input_range.Chain(*control_);

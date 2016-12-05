@@ -17,6 +17,7 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
@@ -687,7 +688,7 @@ std::pair<int, int> GetFunctionOffsetAndLength(
 
 Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
                                            bool enable_guard_regions) {
-  if (size > (WasmModule::kV8MaxPages * WasmModule::kPageSize)) {
+  if (size > (kV8MaxWasmMemoryPages * WasmModule::kPageSize)) {
     // TODO(titzer): lift restriction on maximum memory allocated here.
     return Handle<JSArrayBuffer>::null();
   }
@@ -1690,7 +1691,7 @@ class WasmInstanceBuilder {
 
   // Allocate memory for a module instance as a new JSArrayBuffer.
   Handle<JSArrayBuffer> AllocateMemory(uint32_t min_mem_pages) {
-    if (min_mem_pages > WasmModule::kV8MaxPages) {
+    if (min_mem_pages > kV8MaxWasmMemoryPages) {
       thrower_->RangeError("Out of memory: wasm memory too large");
       return Handle<JSArrayBuffer>::null();
     }
@@ -1777,7 +1778,7 @@ class WasmInstanceBuilder {
               module_->function_tables[exp.index];
           if (table_instance.table_object.is_null()) {
             uint32_t maximum =
-                table.has_max ? table.max_size : WasmModule::kV8MaxTableSize;
+                table.has_max ? table.max_size : kV8MaxWasmTableSize;
             table_instance.table_object = WasmTableObject::New(
                 isolate_, table.min_size, maximum, &table_instance.js_wrappers);
           }
@@ -2145,7 +2146,7 @@ uint32_t GetMaxInstanceMemorySize(Isolate* isolate,
   isolate->counters()->wasm_max_mem_pages_count()->AddSample(
       compiled_max_pages);
   if (compiled_max_pages != 0) return compiled_max_pages;
-  return WasmModule::kV8MaxPages;
+  return kV8MaxWasmMemoryPages;
 }
 
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
@@ -2163,7 +2164,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
          std::numeric_limits<uint32_t>::max());
   uint32_t new_size = old_size + pages * WasmModule::kPageSize;
   if (new_size <= old_size || max_pages * WasmModule::kPageSize < new_size ||
-      WasmModule::kV8MaxPages * WasmModule::kPageSize < new_size) {
+      kV8MaxWasmMemoryPages * WasmModule::kPageSize < new_size) {
     return Handle<JSArrayBuffer>::null();
   }
 

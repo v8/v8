@@ -8,6 +8,7 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-external-refs.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 
 #include "src/zone/accounting-allocator.h"
@@ -663,7 +664,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
                                         WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
-  if (delta_pages > wasm::WasmModule::kV8MaxPages) {
+  if (delta_pages > wasm::kV8MaxWasmMemoryPages) {
     return -1;
   }
   uint32_t old_size = instance->mem_size;
@@ -679,8 +680,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   } else {
     DCHECK_NOT_NULL(instance->mem_start);
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
-    if (new_size >
-        wasm::WasmModule::kV8MaxPages * wasm::WasmModule::kPageSize) {
+    if (new_size > wasm::kV8MaxWasmMemoryPages * wasm::WasmModule::kPageSize) {
       return -1;
     }
     new_mem_start = static_cast<byte*>(realloc(instance->mem_start, new_size));
