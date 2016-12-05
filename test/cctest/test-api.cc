@@ -18172,15 +18172,9 @@ TEST(RecursionWithSourceURLInMessageScriptResourceNameOrSourceURL) {
 static void CreateGarbageInOldSpace() {
   i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
-  {
-    i::AlwaysAllocateScope always_allocate(CcTest::i_isolate());
-    for (int i = 0; i < 1000; i++) {
-      factory->NewFixedArray(1000, i::TENURED);
-    }
-  }
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {
-    CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted();
+  i::AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+  for (int i = 0; i < 1000; i++) {
+    factory->NewFixedArray(1000, i::TENURED);
   }
 }
 

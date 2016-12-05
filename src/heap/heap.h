@@ -581,6 +581,8 @@ class Heap {
   };
   typedef List<Chunk> Reservation;
 
+  static const int kInitalOldGenerationLimitFactor = 2;
+
 #if V8_OS_ANDROID
   // Don't apply pointer multiplier on Android since it has no swap space and
   // should instead adapt it's heap size based on available physical memory.
@@ -1719,6 +1721,8 @@ class Heap {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
+  void ConfigureInitialOldGenerationSize();
+
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
   double YoungGenerationMutatorUtilization();
@@ -1809,7 +1813,11 @@ class Heap {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  size_t OldGenerationSpaceAvailable();
+  inline size_t OldGenerationSpaceAvailable() {
+    if (old_generation_allocation_limit_ <= PromotedTotalSize()) return 0;
+    return old_generation_allocation_limit_ -
+           static_cast<size_t>(PromotedTotalSize());
+  }
 
   void UpdateTotalGCTime(double duration);
 
@@ -1818,16 +1826,6 @@ class Heap {
   // ===========================================================================
   // Growing strategy. =========================================================
   // ===========================================================================
-
-  static const int kInitalOldGenerationLimitFactor = 2;
-
-  // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
-  // This constant limits the effect of load RAIL mode on GC.
-  // The value is arbitrary and chosen as the largest load time observed in
-  // v8 browsing benchmarks.
-  static const int kMaxLoadTimeMs = 3000;
-
-  bool ShouldOptimizeForLoadTime();
 
   // Decrease the allocation limit if the new limit based on the given
   // parameters is lower than the current limit.
@@ -2118,6 +2116,7 @@ class Heap {
   size_t initial_semispace_size_;
   size_t max_old_generation_size_;
   size_t initial_old_generation_size_;
+  bool old_generation_size_configured_;
   size_t max_executable_size_;
   size_t maximum_committed_;
 

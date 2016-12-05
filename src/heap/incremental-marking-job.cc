@@ -19,11 +19,12 @@ void IncrementalMarkingJob::Start(Heap* heap) {
   ScheduleTask(heap);
 }
 
-void IncrementalMarkingJob::NotifyTask() { task_pending_.SetValue(false); }
+void IncrementalMarkingJob::NotifyTask() { task_pending_ = false; }
 
 void IncrementalMarkingJob::ScheduleTask(Heap* heap) {
-  if (task_pending_.TrySetValue(false, true)) {
+  if (!task_pending_) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
+    task_pending_ = true;
     auto task = new Task(heap->isolate(), this);
     V8::GetCurrentPlatform()->CallOnForegroundThread(isolate, task);
   }
