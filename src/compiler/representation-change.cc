@@ -634,10 +634,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (use_info.type_check() != TypeCheckKind::kNone) {
-        op = simplified()->CheckedTruncateTaggedToWord32();
-      } else {
+      if (output_type->Is(Type::NumberOrOddball())) {
         op = simplified()->TruncateTaggedToWord32();
+      } else if (use_info.type_check() != TypeCheckKind::kNone) {
+        op = simplified()->CheckedTruncateTaggedToWord32();
       }
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
