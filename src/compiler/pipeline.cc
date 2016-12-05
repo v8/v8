@@ -829,21 +829,6 @@ struct TyperPhase {
   }
 };
 
-struct OsrTyperPhase {
-  static const char* phase_name() { return "osr typer"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    // Dummy induction variable optimizer: at the moment, we do not try
-    // to compute loop variable bounds on OSR.
-    LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
-                                         data->common(), temp_zone);
-    Typer typer(data->isolate(), Typer::kNoFlags, data->graph());
-    typer.Run(roots, &induction_vars);
-  }
-};
-
 struct UntyperPhase {
   static const char* phase_name() { return "untyper"; }
 
@@ -1496,8 +1481,6 @@ bool PipelineImpl::CreateGraph() {
 
   // Perform OSR deconstruction.
   if (info()->is_osr()) {
-    Run<OsrTyperPhase>();
-
     Run<OsrDeconstructionPhase>();
 
     Run<UntyperPhase>();
