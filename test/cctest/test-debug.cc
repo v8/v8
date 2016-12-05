@@ -312,8 +312,8 @@ static void ChangeBreakOnExceptionFromJS(v8::Isolate* isolate, bool caught,
 
 // Change break on exception using the native API call.
 static void ChangeBreakOnExceptionFromAPI(
-    v8::Isolate* isolate, v8::DebugInterface::ExceptionBreakState state) {
-  v8::DebugInterface::ChangeBreakOnException(isolate, state);
+    v8::Isolate* isolate, v8::debug::ExceptionBreakState state) {
+  v8::debug::ChangeBreakOnException(isolate, state);
 }
 
 // Prepare to step to next break location.
@@ -3818,7 +3818,7 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::DebugInterface::NoBreakOnException);
+                                v8::debug::NoBreakOnException);
   caught->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   DebugEventCounterCheck(0, 0, 0);
   CHECK(notCaught->Call(context, env->Global(), 0, NULL).IsEmpty());
@@ -3832,7 +3832,7 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::DebugInterface::BreakOnUncaughtException);
+                                v8::debug::BreakOnUncaughtException);
   caught->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   DebugEventCounterCheck(0, 0, 0);
   CHECK(notCaught->Call(context, env->Global(), 0, NULL).IsEmpty());
@@ -3846,7 +3846,7 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::DebugInterface::BreakOnAnyException);
+                                v8::debug::BreakOnAnyException);
   caught->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   DebugEventCounterCheck(1, 0, 0);
   CHECK(notCaught->Call(context, env->Global(), 0, NULL).IsEmpty());

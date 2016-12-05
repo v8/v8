@@ -67,7 +67,7 @@ static String16 calculateHash(const String16& str) {
 }
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
-                                   v8::Local<v8::DebugInterface::Script> script,
+                                   v8::Local<v8::debug::Script> script,
                                    bool isLiveEdit) {
   m_isolate = script->GetIsolate();
   m_id = String16::fromInteger(script->Id());
@@ -176,7 +176,7 @@ bool V8DebuggerScript::getPossibleBreakpoints(
     const v8::debug::Location& start, const v8::debug::Location& end,
     std::vector<v8::debug::Location>* locations) {
   v8::HandleScope scope(m_isolate);
-  v8::Local<v8::DebugInterface::Script> script = m_script.Get(m_isolate);
+  v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
   return script->GetPossibleBreakpoints(start, end, locations);
 }
 

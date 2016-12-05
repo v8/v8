@@ -8836,9 +8836,8 @@ MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
-bool DebugInterface::SetDebugEventListener(Isolate* isolate,
-                                           DebugInterface::EventCallback that,
-                                           Local<Value> data) {
+bool debug::SetDebugEventListener(Isolate* isolate, debug::EventCallback that,
+                                  Local<Value> data) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8(i_isolate);
   i::HandleScope scope(i_isolate);
@@ -8850,35 +8849,32 @@ bool DebugInterface::SetDebugEventListener(Isolate* isolate,
   return true;
 }
 
-Local<Context> DebugInterface::GetDebugContext(Isolate* isolate) {
+Local<Context> debug::GetDebugContext(Isolate* isolate) {
   return Debug::GetDebugContext(isolate);
 }
 
-MaybeLocal<Value> DebugInterface::Call(Local<Context> context,
-                                       v8::Local<v8::Function> fun,
-                                       v8::Local<v8::Value> data) {
+MaybeLocal<Value> debug::Call(Local<Context> context,
+                              v8::Local<v8::Function> fun,
+                              v8::Local<v8::Value> data) {
   return Debug::Call(context, fun, data);
 }
 
-void DebugInterface::SetLiveEditEnabled(Isolate* isolate, bool enable) {
+void debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   Debug::SetLiveEditEnabled(isolate, enable);
 }
 
-void DebugInterface::DebugBreak(Isolate* isolate) {
-  Debug::DebugBreak(isolate);
-}
+void debug::DebugBreak(Isolate* isolate) { Debug::DebugBreak(isolate); }
 
-void DebugInterface::CancelDebugBreak(Isolate* isolate) {
+void debug::CancelDebugBreak(Isolate* isolate) {
   Debug::CancelDebugBreak(isolate);
 }
 
-MaybeLocal<Array> DebugInterface::GetInternalProperties(Isolate* isolate,
-                                                        Local<Value> value) {
+MaybeLocal<Array> debug::GetInternalProperties(Isolate* isolate,
+                                               Local<Value> value) {
   return Debug::GetInternalProperties(isolate, value);
 }
 
-void DebugInterface::ChangeBreakOnException(Isolate* isolate,
-                                            ExceptionBreakState type) {
+void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->ChangeBreakOnException(
       i::BreakException, type == BreakOnAnyException);
@@ -8886,7 +8882,7 @@ void DebugInterface::ChangeBreakOnException(Isolate* isolate,
                                                     type != NoBreakOnException);
 }
 
-void DebugInterface::PrepareStep(Isolate* v8_isolate, StepAction action) {
+void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
   CHECK(isolate->debug()->CheckExecutionState());
@@ -8896,37 +8892,37 @@ void DebugInterface::PrepareStep(Isolate* v8_isolate, StepAction action) {
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
-void DebugInterface::ClearStepping(Isolate* v8_isolate) {
+void debug::ClearStepping(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
 }
 
-v8::Isolate* DebugInterface::Script::GetIsolate() const {
+v8::Isolate* debug::Script::GetIsolate() const {
   return reinterpret_cast<v8::Isolate*>(Utils::OpenHandle(this)->GetIsolate());
 }
 
-ScriptOriginOptions DebugInterface::Script::OriginOptions() const {
+ScriptOriginOptions debug::Script::OriginOptions() const {
   return Utils::OpenHandle(this)->origin_options();
 }
 
-bool DebugInterface::Script::WasCompiled() const {
+bool debug::Script::WasCompiled() const {
   return Utils::OpenHandle(this)->compilation_state() ==
          i::Script::COMPILATION_STATE_COMPILED;
 }
 
-int DebugInterface::Script::Id() const { return Utils::OpenHandle(this)->id(); }
+int debug::Script::Id() const { return Utils::OpenHandle(this)->id(); }
 
-int DebugInterface::Script::LineOffset() const {
+int debug::Script::LineOffset() const {
   return Utils::OpenHandle(this)->line_offset();
 }
 
-int DebugInterface::Script::ColumnOffset() const {
+int debug::Script::ColumnOffset() const {
   return Utils::OpenHandle(this)->column_offset();
 }
 
-std::vector<int> DebugInterface::Script::LineEnds() const {
+std::vector<int> debug::Script::LineEnds() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) return std::vector<int>();
   i::Isolate* isolate = script->GetIsolate();
@@ -8942,7 +8938,7 @@ std::vector<int> DebugInterface::Script::LineEnds() const {
   return result;
 }
 
-MaybeLocal<String> DebugInterface::Script::Name() const {
+MaybeLocal<String> debug::Script::Name() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
@@ -8952,7 +8948,7 @@ MaybeLocal<String> DebugInterface::Script::Name() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-MaybeLocal<String> DebugInterface::Script::SourceURL() const {
+MaybeLocal<String> debug::Script::SourceURL() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
@@ -8962,7 +8958,7 @@ MaybeLocal<String> DebugInterface::Script::SourceURL() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-MaybeLocal<String> DebugInterface::Script::SourceMappingURL() const {
+MaybeLocal<String> debug::Script::SourceMappingURL() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
@@ -8972,7 +8968,7 @@ MaybeLocal<String> DebugInterface::Script::SourceMappingURL() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-MaybeLocal<String> DebugInterface::Script::ContextData() const {
+MaybeLocal<String> debug::Script::ContextData() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
@@ -8982,7 +8978,7 @@ MaybeLocal<String> DebugInterface::Script::ContextData() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-MaybeLocal<String> DebugInterface::Script::Source() const {
+MaybeLocal<String> debug::Script::Source() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
@@ -8992,7 +8988,7 @@ MaybeLocal<String> DebugInterface::Script::Source() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-bool DebugInterface::Script::IsWasm() const {
+bool debug::Script::IsWasm() const {
   return Utils::OpenHandle(this)->type() == i::Script::TYPE_WASM;
 }
 
@@ -9002,7 +8998,7 @@ int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
 }
 }  // namespace
 
-bool DebugInterface::Script::GetPossibleBreakpoints(
+bool debug::Script::GetPossibleBreakpoints(
     const debug::Location& start, const debug::Location& end,
     std::vector<debug::Location>* locations) const {
   CHECK(!start.IsEmpty());
@@ -9054,8 +9050,7 @@ bool DebugInterface::Script::GetPossibleBreakpoints(
   return true;
 }
 
-int DebugInterface::Script::GetSourcePosition(
-    const debug::Location& location) const {
+int debug::Script::GetSourcePosition(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     // TODO(clemensh): Return the proper thing for wasm.
@@ -9081,8 +9076,8 @@ int DebugInterface::Script::GetSourcePosition(
   return std::min(prev_line_offset + column + 1, line_offset);
 }
 
-MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
-    v8::Isolate* v8_isolate, v8::Local<v8::Object> script) {
+MaybeLocal<debug::Script> debug::Script::Wrap(v8::Isolate* v8_isolate,
+                                              v8::Local<v8::Object> script) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
   i::HandleScope handle_scope(isolate);
@@ -9098,8 +9093,7 @@ MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
       script_obj->type() != i::Script::TYPE_WASM) {
     return MaybeLocal<Script>();
   }
-  return ToApiHandle<DebugInterface::Script>(
-      handle_scope.CloseAndEscape(script_obj));
+  return ToApiHandle<debug::Script>(handle_scope.CloseAndEscape(script_obj));
 }
 
 debug::Location::Location(int line_number, int column_number)
@@ -9124,9 +9118,8 @@ bool debug::Location::IsEmpty() const {
   return line_number_ == -1 && column_number_ == -1;
 }
 
-void DebugInterface::GetLoadedScripts(
-    v8::Isolate* v8_isolate,
-    PersistentValueVector<DebugInterface::Script>& scripts) {
+void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
+                             PersistentValueVector<debug::Script>& scripts) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
   // TODO(kozyatinskiy): remove this GC once tests are dealt with.
@@ -9147,8 +9140,9 @@ void DebugInterface::GetLoadedScripts(
   }
 }
 
-debug::WasmDisassembly DebugInterface::DisassembleWasmFunction(
-    Isolate* v8_isolate, Local<Object> v8_script, int function_index) {
+debug::WasmDisassembly debug::DisassembleWasmFunction(Isolate* v8_isolate,
+                                                      Local<Object> v8_script,
+                                                      int function_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   if (v8_script.IsEmpty()) return {};
   i::Handle<i::Object> script_wrapper = Utils::OpenHandle(*v8_script);
@@ -9163,8 +9157,8 @@ debug::WasmDisassembly DebugInterface::DisassembleWasmFunction(
   return compiled_module->DisassembleFunction(function_index);
 }
 
-MaybeLocal<UnboundScript> DebugInterface::CompileInspectorScript(
-    Isolate* v8_isolate, Local<String> source) {
+MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
+                                                        Local<String> source) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, UnboundScript);
   i::ScriptData* script_data = NULL;

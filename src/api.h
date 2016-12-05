@@ -110,7 +110,7 @@ class RegisteredExtension {
   V(StackFrame, JSObject)                    \
   V(Proxy, JSProxy)                          \
   V(NativeWeakMap, JSWeakMap)                \
-  V(DebugInterface::Script, Script)
+  V(debug::Script, Script)
 
 class Utils {
  public:

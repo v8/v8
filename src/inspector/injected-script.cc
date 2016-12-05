@@ -419,7 +419,7 @@ InjectedScript::Scope::Scope(V8InspectorImpl* inspector, int contextGroupId)
       m_handleScope(inspector->isolate()),
       m_tryCatch(inspector->isolate()),
       m_ignoreExceptionsAndMuteConsole(false),
-      m_previousPauseOnExceptionsState(v8::DebugInterface::NoBreakOnException),
+      m_previousPauseOnExceptionsState(v8::debug::NoBreakOnException),
       m_userGesture(false) {}
 
 Response InjectedScript::Scope::initialize() {
@@ -449,14 +449,13 @@ void InjectedScript::Scope::ignoreExceptionsAndMuteConsole() {
   m_inspector->client()->muteMetrics(m_contextGroupId);
   m_inspector->muteExceptions(m_contextGroupId);
   m_previousPauseOnExceptionsState =
-      setPauseOnExceptionsState(v8::DebugInterface::NoBreakOnException);
+      setPauseOnExceptionsState(v8::debug::NoBreakOnException);
 }
 
-v8::DebugInterface::ExceptionBreakState
-InjectedScript::Scope::setPauseOnExceptionsState(
-    v8::DebugInterface::ExceptionBreakState newState) {
+v8::debug::ExceptionBreakState InjectedScript::Scope::setPauseOnExceptionsState(
+    v8::debug::ExceptionBreakState newState) {
   if (!m_inspector->debugger()->enabled()) return newState;
-  v8::DebugInterface::ExceptionBreakState presentState =
+  v8::debug::ExceptionBreakState presentState =
       m_inspector->debugger()->getPauseOnExceptionsState();
   if (presentState != newState)
     m_inspector->debugger()->setPauseOnExceptionsState(newState);

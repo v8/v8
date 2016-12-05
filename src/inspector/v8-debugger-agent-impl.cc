@@ -183,7 +183,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_state->setObject(DebuggerAgentState::javaScriptBreakpoints,
                      protocol::DictionaryValue::create());
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState,
-                      v8::DebugInterface::NoBreakOnException);
+                      v8::debug::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
   if (!m_pausedContext.IsEmpty()) m_debugger->continueProgram();
@@ -221,7 +221,7 @@ void V8DebuggerAgentImpl::restore() {
 
   enableImpl();
 
-  int pauseState = v8::DebugInterface::NoBreakOnException;
+  int pauseState = v8::debug::NoBreakOnException;
   m_state->getInteger(DebuggerAgentState::pauseOnExceptionsState, &pauseState);
   setPauseOnExceptionsImpl(pauseState);
 
@@ -726,13 +726,13 @@ Response V8DebuggerAgentImpl::stepOut() {
 Response V8DebuggerAgentImpl::setPauseOnExceptions(
     const String16& stringPauseState) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
-  v8::DebugInterface::ExceptionBreakState pauseState;
+  v8::debug::ExceptionBreakState pauseState;
   if (stringPauseState == "none") {
-    pauseState = v8::DebugInterface::NoBreakOnException;
+    pauseState = v8::debug::NoBreakOnException;
   } else if (stringPauseState == "all") {
-    pauseState = v8::DebugInterface::BreakOnAnyException;
+    pauseState = v8::debug::BreakOnAnyException;
   } else if (stringPauseState == "uncaught") {
-    pauseState = v8::DebugInterface::BreakOnUncaughtException;
+    pauseState = v8::debug::BreakOnUncaughtException;
   } else {
     return Response::Error("Unknown pause on exceptions mode: " +
                            stringPauseState);
@@ -743,7 +743,7 @@ Response V8DebuggerAgentImpl::setPauseOnExceptions(
 
 void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(int pauseState) {
   m_debugger->setPauseOnExceptionsState(
-      static_cast<v8::DebugInterface::ExceptionBreakState>(pauseState));
+      static_cast<v8::debug::ExceptionBreakState>(pauseState));
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState, pauseState);
 }
 
@@ -937,7 +937,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   }
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Context> debuggerContext =
-      v8::DebugInterface::GetDebugContext(m_isolate);
+      v8::debug::GetDebugContext(m_isolate);
   v8::Context::Scope contextScope(debuggerContext);
 
   v8::Local<v8::Array> objects = v8::Array::New(m_isolate);
@@ -1236,8 +1236,7 @@ void V8DebuggerAgentImpl::breakProgramOnException(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
   if (!enabled() ||
-      m_debugger->getPauseOnExceptionsState() ==
-          v8::DebugInterface::NoBreakOnException)
+      m_debugger->getPauseOnExceptionsState() == v8::debug::NoBreakOnException)
     return;
   breakProgram(breakReason, std::move(data));
 }

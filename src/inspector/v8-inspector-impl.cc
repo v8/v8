@@ -128,7 +128,7 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
     v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   v8::Local<v8::UnboundScript> unboundScript;
-  if (!v8::DebugInterface::CompileInspectorScript(m_isolate, source)
+  if (!v8::debug::CompileInspectorScript(m_isolate, source)
            .ToLocal(&unboundScript))
     return v8::MaybeLocal<v8::Value>();
   v8::MicrotasksScope microtasksScope(m_isolate,

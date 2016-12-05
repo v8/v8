@@ -283,7 +283,7 @@ class MessageImpl : public v8::Debug::Message {
 };
 
 // Details of the debug event delivered to the debug event listener.
-class EventDetailsImpl : public v8::DebugInterface::EventDetails {
+class EventDetailsImpl : public debug::EventDetails {
  public:
   EventDetailsImpl(DebugEvent event,
                    Handle<JSObject> exec_state,

@@ -129,10 +129,10 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::restart() {
   v8::Local<v8::Function> restartFunction = v8::Local<v8::Function>::Cast(
       callFrame->Get(context, toV8StringInternalized(m_isolate, "restart"))
           .ToLocalChecked());
-  v8::DebugInterface::SetLiveEditEnabled(m_isolate, true);
+  v8::debug::SetLiveEditEnabled(m_isolate, true);
   v8::MaybeLocal<v8::Value> result = restartFunction->Call(
       m_debuggerContext.Get(m_isolate), callFrame, 0, nullptr);
-  v8::DebugInterface::SetLiveEditEnabled(m_isolate, false);
+  v8::debug::SetLiveEditEnabled(m_isolate, false);
   return result;
 }
 

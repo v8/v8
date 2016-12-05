@@ -171,9 +171,8 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     if (it != offset_tables_.end()) return it->second;
 
     v8::Isolate *isolate = loc->translation->isolate_;
-    debug::WasmDisassembly disassembly_result =
-        DebugInterface::DisassembleWasmFunction(isolate, script_.Get(isolate),
-                                                func_index);
+    debug::WasmDisassembly disassembly_result = debug::DisassembleWasmFunction(
+        isolate, script_.Get(isolate), func_index);
 
     it = offset_tables_
              .insert(std::make_pair(func_index,

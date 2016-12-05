@@ -40,8 +40,7 @@ namespace v8_inspector {
 
 class V8DebuggerScript {
  public:
-  V8DebuggerScript(v8::Isolate* isolate,
-                   v8::Local<v8::DebugInterface::Script> script,
+  V8DebuggerScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
                    bool isLiveEdit);
   V8DebuggerScript(String16 id, String16 url, String16 source);
   ~V8DebuggerScript();
@@ -88,7 +87,7 @@ class V8DebuggerScript {
   bool m_isLiveEdit = false;
 
   v8::Isolate* m_isolate;
-  v8::Global<v8::DebugInterface::Script> m_script;
+  v8::Global<v8::debug::Script> m_script;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
 };
