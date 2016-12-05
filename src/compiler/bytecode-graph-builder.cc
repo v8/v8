@@ -1862,11 +1862,12 @@ void BytecodeGraphBuilder::VisitIllegal() {
 void BytecodeGraphBuilder::VisitNop() {}
 
 void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
-  if (merge_environments_[current_offset] != nullptr) {
+  auto it = merge_environments_.find(current_offset);
+  if (it != merge_environments_.end()) {
     if (environment() != nullptr) {
-      merge_environments_[current_offset]->Merge(environment());
+      it->second->Merge(environment());
     }
-    set_environment(merge_environments_[current_offset]);
+    set_environment(it->second);
   }
 }
 
@@ -1880,15 +1881,16 @@ void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
 
 void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
   BuildLoopExitsForBranch(target_offset);
-  if (merge_environments_[target_offset] == nullptr) {
+  Environment*& merge_environment = merge_environments_[target_offset];
+  if (merge_environment == nullptr) {
     // Append merge nodes to the environment. We may merge here with another
     // environment. So add a place holder for merge nodes. We may add redundant
     // but will be eliminated in a later pass.
     // TODO(mstarzinger): Be smarter about this!
     NewMerge();
-    merge_environments_[target_offset] = environment();
+    merge_environment = environment();
   } else {
-    merge_environments_[target_offset]->Merge(environment());
+    merge_environment->Merge(environment());
   }
   set_environment(nullptr);
 }
