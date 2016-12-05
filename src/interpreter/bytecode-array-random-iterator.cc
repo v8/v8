@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/interpreter/bytecode-array-reverse-iterator.h"
+#include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
-BytecodeArrayReverseIterator::BytecodeArrayReverseIterator(
+BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
     Handle<BytecodeArray> bytecode_array, Zone* zone)
     : BytecodeArrayAccessor(bytecode_array, 0), offsets_(zone) {
   // Run forwards through the bytecode array to determine the offset of each
@@ -18,26 +18,17 @@ BytecodeArrayReverseIterator::BytecodeArrayReverseIterator(
     offsets_.push_back(current_offset());
     SetOffset(current_offset() + current_bytecode_size());
   }
-  Reset();
+  GoToStart();
 }
 
-void BytecodeArrayReverseIterator::Advance() {
-  it_offsets_++;
-  UpdateOffsetFromIterator();
+bool BytecodeArrayRandomIterator::IsValid() const {
+  return current_index_ >= 0 &&
+         static_cast<size_t>(current_index_) < offsets_.size();
 }
 
-void BytecodeArrayReverseIterator::Reset() {
-  it_offsets_ = offsets_.rbegin();
-  UpdateOffsetFromIterator();
-}
-
-bool BytecodeArrayReverseIterator::done() const {
-  return it_offsets_ == offsets_.rend();
-}
-
-void BytecodeArrayReverseIterator::UpdateOffsetFromIterator() {
-  if (it_offsets_ != offsets_.rend()) {
-    SetOffset(*it_offsets_);
+void BytecodeArrayRandomIterator::UpdateOffsetFromIndex() {
+  if (IsValid()) {
+    SetOffset(offsets_[current_index_]);
   }
 }
 

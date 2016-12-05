@@ -66,6 +66,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis BASE_EMBEDDED {
   Zone* zone_;
 
   ZoneStack<int> loop_stack_;
+  ZoneVector<int> loop_end_index_queue_;
 
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, int> header_to_parent_;

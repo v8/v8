@@ -5,7 +5,7 @@
 #include "src/compiler/bytecode-analysis.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-array-reverse-iterator.h"
+#include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -20,6 +20,7 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
       do_liveness_analysis_(do_liveness_analysis),
       zone_(zone),
       loop_stack_(zone),
+      loop_end_index_queue_(zone),
       end_to_header_(zone),
       header_to_parent_(zone),
       liveness_map_(bytecode_array->length(), zone) {}
@@ -151,12 +152,8 @@ void BytecodeAnalysis::Analyze() {
 
   BitVector* next_bytecode_in_liveness = nullptr;
 
-  // The last JumpLoop that we haven't done a guaranteed valid liveness pass
-  // over. See the below wall of text for a more thorough explanation.
-  int last_invalid_jumploop_offset = -1;
-
-  BytecodeArrayReverseIterator iterator(bytecode_array(), zone());
-  for (; !iterator.done(); iterator.Advance()) {
+  BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
+  for (iterator.GoToEnd(); iterator.IsValid(); --iterator) {
     Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();
 
@@ -166,9 +163,9 @@ void BytecodeAnalysis::Analyze() {
       int loop_end = current_offset + iterator.current_bytecode_size();
       PushLoop(iterator.GetJumpTargetOffset(), loop_end);
 
-      // Save the last offset so that we can do another pass later.
-      if (last_invalid_jumploop_offset == -1) {
-        last_invalid_jumploop_offset = current_offset;
+      // Save the index so that we can do another pass later.
+      if (do_liveness_analysis_) {
+        loop_end_index_queue_.push_back(iterator.current_index());
       }
     } else if (current_offset == loop_stack_.top()) {
       loop_stack_.pop();
@@ -214,69 +211,48 @@ void BytecodeAnalysis::Analyze() {
   // This means that in a pass, we can iterate backwards over the bytecode
   // array, process any loops that we encounter, and on subsequent passes we can
   // skip processing those loops (though we still have to process inner loops).
+  //
+  // Equivalently, we can queue up loop ends from back to front, and pass over
+  // the loops in that order, as this preserves both the bottom-to-top and
+  // outer-to-inner requirements.
 
-  while (last_invalid_jumploop_offset != -1) {
-    // TODO(leszeks): We shouldn't need to iterate here, we should just have a
-    // random access iterator.
-    iterator.Reset();
-    while (last_invalid_jumploop_offset < iterator.current_offset()) {
-      iterator.Advance();
-    }
-    last_invalid_jumploop_offset = -1;
+  for (int loop_end_index : loop_end_index_queue_) {
+    iterator.GoToIndex(loop_end_index);
 
     DCHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
 
-    for (; !iterator.done(); iterator.Advance()) {
-      Bytecode bytecode = iterator.current_bytecode();
-      if (bytecode != Bytecode::kJumpLoop) {
-        // Skip bytecodes until we hit a JumpLoop. This check isn't needed for
-        // the first loop we see (thanks to saving its offset), but it is for
-        // subsequent ones we want to process on this pass.
-        continue;
-      }
+    int header_offset = iterator.GetJumpTargetOffset();
+    int end_offset = iterator.current_offset();
 
-      int header_offset = iterator.GetJumpTargetOffset();
-      int end_offset = iterator.current_offset();
+    Liveness& header_liveness = liveness_map_.GetLiveness(header_offset);
+    Liveness& end_liveness = liveness_map_.GetLiveness(end_offset);
 
-      Liveness& header_liveness = liveness_map_.GetLiveness(header_offset);
-      Liveness& end_liveness = liveness_map_.GetLiveness(end_offset);
-
-      if (end_liveness.out->UnionIsChanged(*header_liveness.in)) {
-        // Only update the loop body if the loop end liveness changed.
-        end_liveness.in->CopyFrom(*end_liveness.out);
-        next_bytecode_in_liveness = end_liveness.in;
-
-        // Advance into the loop body.
-        iterator.Advance();
-        for (; iterator.current_offset() > header_offset; iterator.Advance()) {
-          bytecode = iterator.current_bytecode();
-          if (bytecode == Bytecode::kJumpLoop) {
-            // We can't validate this loop at the moment because we can't
-            // guarantee that its header is valid yet. Save it for later.
-            if (last_invalid_jumploop_offset == -1) {
-              last_invalid_jumploop_offset = iterator.current_offset();
-            }
-          }
-
-          int current_offset = iterator.current_offset();
-          Liveness& liveness = liveness_map_.GetLiveness(current_offset);
-
-          UpdateOutLiveness(bytecode, *liveness.out, next_bytecode_in_liveness,
-                            iterator, liveness_map_);
-          liveness.in->CopyFrom(*liveness.out);
-          UpdateInLiveness(bytecode, *liveness.in, iterator);
-
-          next_bytecode_in_liveness = liveness.in;
-        }
-        // Now we are at the loop header. Since the in-liveness of the header
-        // can't change, we need only to update the out-liveness.
-        bytecode = iterator.current_bytecode();
-        UpdateOutLiveness(bytecode, *header_liveness.out,
-                          next_bytecode_in_liveness, iterator, liveness_map_);
-      }
-
-      // Keep the iterator going so that we can find other loops.
+    if (!end_liveness.out->UnionIsChanged(*header_liveness.in)) {
+      // Only update the loop body if the loop end liveness changed.
+      continue;
     }
+    end_liveness.in->CopyFrom(*end_liveness.out);
+    next_bytecode_in_liveness = end_liveness.in;
+
+    // Advance into the loop body.
+    --iterator;
+    for (; iterator.current_offset() > header_offset; --iterator) {
+      Bytecode bytecode = iterator.current_bytecode();
+
+      int current_offset = iterator.current_offset();
+      Liveness& liveness = liveness_map_.GetLiveness(current_offset);
+
+      UpdateOutLiveness(bytecode, *liveness.out, next_bytecode_in_liveness,
+                        iterator, liveness_map_);
+      liveness.in->CopyFrom(*liveness.out);
+      UpdateInLiveness(bytecode, *liveness.in, iterator);
+
+      next_bytecode_in_liveness = liveness.in;
+    }
+    // Now we are at the loop header. Since the in-liveness of the header
+    // can't change, we need only to update the out-liveness.
+    UpdateOutLiveness(iterator.current_bytecode(), *header_liveness.out,
+                      next_bytecode_in_liveness, iterator, liveness_map_);
   }
 
   DCHECK(LivenessIsValid());
@@ -376,7 +352,7 @@ std::ostream& BytecodeAnalysis::PrintLivenessTo(std::ostream& os) const {
 
 #if DEBUG
 bool BytecodeAnalysis::LivenessIsValid() {
-  BytecodeArrayReverseIterator iterator(bytecode_array(), zone());
+  BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
 
   BitVector previous_liveness(bytecode_array()->register_count() + 1, zone());
 
@@ -386,7 +362,7 @@ bool BytecodeAnalysis::LivenessIsValid() {
   BitVector* next_bytecode_in_liveness = nullptr;
 
   // Ensure that there are no liveness changes if we iterate one more time.
-  for (iterator.Reset(); !iterator.done(); iterator.Advance()) {
+  for (iterator.GoToEnd(); iterator.IsValid(); --iterator) {
     Bytecode bytecode = iterator.current_bytecode();
 
     int current_offset = iterator.current_offset();
