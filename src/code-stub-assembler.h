@@ -706,6 +706,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                         IntPtrConstant(0));
   }
 
+  // Returns true if any of the mask's bits in given |word| are set.
+  Node* IsSetWord(Node* word, uint32_t mask) {
+    return WordNotEqual(WordAnd(word, Int32Constant(mask)), Int32Constant(0));
+  }
+
   void SetCounter(StatsCounter* counter, int value);
   void IncrementCounter(StatsCounter* counter, int delta);
   void DecrementCounter(StatsCounter* counter, int delta);

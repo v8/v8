@@ -597,14 +597,14 @@ namespace internal {
   CPP(RegExpCapture7Getter)                                                   \
   CPP(RegExpCapture8Getter)                                                   \
   CPP(RegExpCapture9Getter)                                                   \
-  CPP(RegExpConstructor)                                                      \
+  TFJ(RegExpConstructor, 2)                                                   \
   TFJ(RegExpInternalMatch, 2)                                                 \
   CPP(RegExpInputGetter)                                                      \
   CPP(RegExpInputSetter)                                                      \
   CPP(RegExpLastMatchGetter)                                                  \
   CPP(RegExpLastParenGetter)                                                  \
   CPP(RegExpLeftContextGetter)                                                \
-  CPP(RegExpPrototypeCompile)                                                 \
+  TFJ(RegExpPrototypeCompile, 2)                                              \
   TFJ(RegExpPrototypeExec, 1)                                                 \
   TFJ(RegExpPrototypeFlagsGetter, 0)                                          \
   TFJ(RegExpPrototypeGlobalGetter, 0)                                         \

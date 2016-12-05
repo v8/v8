@@ -118,12 +118,6 @@ Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
 
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
 
-  if (isolate->regexp_function()->initial_map() == receiver->map()) {
-    // Fast-path for unmodified JSRegExp instances.
-    // TODO(ishell): Adapt for new fast-path logic.
-    return Just(true);
-  }
-
   Handle<Object> match;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, match,

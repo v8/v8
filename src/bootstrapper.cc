@@ -1869,9 +1869,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::REGEXP_FUNCTION_INDEX);
 
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate);
-    shared->SetConstructStub(*isolate->builtins()->RegExpConstructor());
+    shared->SetConstructStub(*isolate->builtins()->JSBuiltinsConstructStub());
     shared->set_instance_class_name(isolate->heap()->RegExp_string());
-    shared->DontAdaptArguments();
+    shared->set_internal_formal_parameter_count(2);
     shared->set_length(2);
 
     {
@@ -1904,7 +1904,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kRegExpPrototypeUnicodeGetter, true);
 
       SimpleInstallFunction(prototype, "compile",
-                            Builtins::kRegExpPrototypeCompile, 2, false,
+                            Builtins::kRegExpPrototypeCompile, 2, true,
                             DONT_ENUM);
       SimpleInstallFunction(prototype, factory->toString_string(),
                             Builtins::kRegExpPrototypeToString, 0, false,

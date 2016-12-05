@@ -1665,6 +1665,18 @@ RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
   return isolate->ReThrow(exception);
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
+
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              JSRegExp::Initialize(regexp, source, flags));
+
+  return *regexp;
+}
 
 RUNTIME_FUNCTION(Runtime_IsRegExp) {
   SealHandleScope shs(isolate);

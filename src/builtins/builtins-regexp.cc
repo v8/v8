@@ -24,158 +24,6 @@ typedef compiler::CodeAssemblerState CodeAssemblerState;
 
 namespace {
 
-Handle<String> PatternFlags(Isolate* isolate, Handle<JSRegExp> regexp) {
-  static const int kMaxFlagsLength = 5 + 1;  // 5 flags and '\0';
-  char flags_string[kMaxFlagsLength];
-  int i = 0;
-
-  const JSRegExp::Flags flags = regexp->GetFlags();
-
-  if ((flags & JSRegExp::kGlobal) != 0) flags_string[i++] = 'g';
-  if ((flags & JSRegExp::kIgnoreCase) != 0) flags_string[i++] = 'i';
-  if ((flags & JSRegExp::kMultiline) != 0) flags_string[i++] = 'm';
-  if ((flags & JSRegExp::kUnicode) != 0) flags_string[i++] = 'u';
-  if ((flags & JSRegExp::kSticky) != 0) flags_string[i++] = 'y';
-
-  DCHECK_LT(i, kMaxFlagsLength);
-  memset(&flags_string[i], '\0', kMaxFlagsLength - i);
-
-  return isolate->factory()->NewStringFromAsciiChecked(flags_string);
-}
-
-// ES#sec-regexpinitialize
-// Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
-MUST_USE_RESULT MaybeHandle<JSRegExp> RegExpInitialize(Isolate* isolate,
-                                                       Handle<JSRegExp> regexp,
-                                                       Handle<Object> pattern,
-                                                       Handle<Object> flags) {
-  Handle<String> pattern_string;
-  if (pattern->IsUndefined(isolate)) {
-    pattern_string = isolate->factory()->empty_string();
-  } else {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, pattern_string,
-                               Object::ToString(isolate, pattern), JSRegExp);
-  }
-
-  Handle<String> flags_string;
-  if (flags->IsUndefined(isolate)) {
-    flags_string = isolate->factory()->empty_string();
-  } else {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, flags_string,
-                               Object::ToString(isolate, flags), JSRegExp);
-  }
-
-  // TODO(jgruber): We could avoid the flags back and forth conversions.
-  return JSRegExp::Initialize(regexp, pattern_string, flags_string);
-}
-
-}  // namespace
-
-// ES#sec-regexp-pattern-flags
-// RegExp ( pattern, flags )
-BUILTIN(RegExpConstructor) {
-  HandleScope scope(isolate);
-
-  Handle<HeapObject> new_target = args.new_target();
-  Handle<Object> pattern = args.atOrUndefined(isolate, 1);
-  Handle<Object> flags = args.atOrUndefined(isolate, 2);
-
-  Handle<JSFunction> target = isolate->regexp_function();
-
-  bool pattern_is_regexp;
-  {
-    Maybe<bool> maybe_pattern_is_regexp =
-        RegExpUtils::IsRegExp(isolate, pattern);
-    if (maybe_pattern_is_regexp.IsNothing()) {
-      DCHECK(isolate->has_pending_exception());
-      return isolate->heap()->exception();
-    }
-    pattern_is_regexp = maybe_pattern_is_regexp.FromJust();
-  }
-
-  if (new_target->IsUndefined(isolate)) {
-    new_target = target;
-
-    // ES6 section 21.2.3.1 step 3.b
-    if (pattern_is_regexp && flags->IsUndefined(isolate)) {
-      Handle<Object> pattern_constructor;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, pattern_constructor,
-          Object::GetProperty(pattern,
-                              isolate->factory()->constructor_string()));
-
-      if (pattern_constructor.is_identical_to(new_target)) {
-        return *pattern;
-      }
-    }
-  }
-
-  if (pattern->IsJSRegExp()) {
-    Handle<JSRegExp> regexp_pattern = Handle<JSRegExp>::cast(pattern);
-
-    if (flags->IsUndefined(isolate)) {
-      flags = PatternFlags(isolate, regexp_pattern);
-    }
-    pattern = handle(regexp_pattern->source(), isolate);
-  } else if (pattern_is_regexp) {
-    Handle<Object> pattern_source;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, pattern_source,
-        Object::GetProperty(pattern, isolate->factory()->source_string()));
-
-    if (flags->IsUndefined(isolate)) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, flags,
-          Object::GetProperty(pattern, isolate->factory()->flags_string()));
-    }
-    pattern = pattern_source;
-  }
-
-  Handle<JSReceiver> new_target_receiver = Handle<JSReceiver>::cast(new_target);
-
-  // TODO(jgruber): Fast-path for target == new_target == unmodified JSRegExp.
-
-  Handle<JSObject> object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, object, JSObject::New(target, new_target_receiver));
-  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(object);
-
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           RegExpInitialize(isolate, regexp, pattern, flags));
-}
-
-BUILTIN(RegExpPrototypeCompile) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSRegExp, regexp, "RegExp.prototype.compile");
-
-  Handle<Object> pattern = args.atOrUndefined(isolate, 1);
-  Handle<Object> flags = args.atOrUndefined(isolate, 2);
-
-  if (pattern->IsJSRegExp()) {
-    Handle<JSRegExp> pattern_regexp = Handle<JSRegExp>::cast(pattern);
-
-    if (!flags->IsUndefined(isolate)) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kRegExpFlags));
-    }
-
-    flags = PatternFlags(isolate, pattern_regexp);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, pattern,
-        Object::GetProperty(pattern, isolate->factory()->source_string()));
-  }
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, regexp, RegExpInitialize(isolate, regexp, pattern, flags));
-
-  // Return undefined for compatibility with JSC.
-  // See http://crbug.com/585775 for web compat details.
-
-  return isolate->heap()->undefined_value();
-}
-
-namespace {
-
 Node* FastLoadLastIndex(CodeStubAssembler* a, Node* regexp) {
   // Load the in-object field.
   static const int field_offset =
@@ -579,139 +427,395 @@ void Builtins::Generate_RegExpPrototypeExec(CodeAssemblerState* state) {
   }
 }
 
-void Builtins::Generate_RegExpPrototypeFlagsGetter(CodeAssemblerState* state) {
-  CodeStubAssembler a(state);
+namespace {
 
-  Node* const receiver = a.Parameter(0);
-  Node* const context = a.Parameter(3);
+Node* FlagsGetter(CodeStubAssembler* a, Node* const receiver,
+                  Node* const context, bool is_fastpath) {
+  Isolate* isolate = a->isolate();
 
-  Isolate* isolate = a.isolate();
-  Node* const int_zero = a.IntPtrConstant(0);
-  Node* const int_one = a.IntPtrConstant(1);
-
-  Node* const map = ThrowIfNotJSReceiver(&a, isolate, context, receiver,
-                                         MessageTemplate::kRegExpNonObject,
-                                         "RegExp.prototype.flags");
-
-  CVariable var_length(&a, MachineType::PointerRepresentation());
-  CVariable var_flags(&a, MachineType::PointerRepresentation());
+  Node* const int_zero = a->IntPtrConstant(0);
+  Node* const int_one = a->IntPtrConstant(1);
+  CVariable var_length(a, MachineType::PointerRepresentation());
+  CVariable var_flags(a, MachineType::PointerRepresentation());
 
   // First, count the number of characters we will need and check which flags
   // are set.
 
   var_length.Bind(int_zero);
 
-  CLabel if_isunmodifiedjsregexp(&a),
-      if_isnotunmodifiedjsregexp(&a, CLabel::kDeferred);
-  a.Branch(IsInitialRegExpMap(&a, context, map), &if_isunmodifiedjsregexp,
-           &if_isnotunmodifiedjsregexp);
-
-  CLabel construct_string(&a);
-  a.Bind(&if_isunmodifiedjsregexp);
-  {
+  if (is_fastpath) {
     // Refer to JSRegExp's flag property on the fast-path.
-    Node* const flags_smi = a.LoadObjectField(receiver, JSRegExp::kFlagsOffset);
-    Node* const flags_intptr = a.SmiUntag(flags_smi);
+    Node* const flags_smi =
+        a->LoadObjectField(receiver, JSRegExp::kFlagsOffset);
+    Node* const flags_intptr = a->SmiUntag(flags_smi);
     var_flags.Bind(flags_intptr);
 
-    CLabel label_global(&a), label_ignorecase(&a), label_multiline(&a),
-        label_unicode(&a), label_sticky(&a);
-
-#define CASE_FOR_FLAG(FLAG, LABEL, NEXT_LABEL)                     \
-  do {                                                             \
-    a.Bind(&LABEL);                                                \
-    Node* const mask = a.IntPtrConstant(FLAG);                     \
-    a.GotoIf(a.WordEqual(a.WordAnd(flags_intptr, mask), int_zero), \
-             &NEXT_LABEL);                                         \
-    var_length.Bind(a.IntPtrAdd(var_length.value(), int_one));     \
-    a.Goto(&NEXT_LABEL);                                           \
+#define CASE_FOR_FLAG(FLAG)                                     \
+  do {                                                          \
+    CLabel next(a);                                             \
+    a->GotoUnless(a->IsSetWord(flags_intptr, FLAG), &next);     \
+    var_length.Bind(a->IntPtrAdd(var_length.value(), int_one)); \
+    a->Goto(&next);                                             \
+    a->Bind(&next);                                             \
   } while (false)
 
-    a.Goto(&label_global);
-    CASE_FOR_FLAG(JSRegExp::kGlobal, label_global, label_ignorecase);
-    CASE_FOR_FLAG(JSRegExp::kIgnoreCase, label_ignorecase, label_multiline);
-    CASE_FOR_FLAG(JSRegExp::kMultiline, label_multiline, label_unicode);
-    CASE_FOR_FLAG(JSRegExp::kUnicode, label_unicode, label_sticky);
-    CASE_FOR_FLAG(JSRegExp::kSticky, label_sticky, construct_string);
+    CASE_FOR_FLAG(JSRegExp::kGlobal);
+    CASE_FOR_FLAG(JSRegExp::kIgnoreCase);
+    CASE_FOR_FLAG(JSRegExp::kMultiline);
+    CASE_FOR_FLAG(JSRegExp::kUnicode);
+    CASE_FOR_FLAG(JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
-  }
+  } else {
+    DCHECK(!is_fastpath);
 
-  a.Bind(&if_isnotunmodifiedjsregexp);
-  {
     // Fall back to GetProperty stub on the slow-path.
     var_flags.Bind(int_zero);
 
-    Callable getproperty_callable = CodeFactory::GetProperty(a.isolate());
-    CLabel label_global(&a), label_ignorecase(&a), label_multiline(&a),
-        label_unicode(&a), label_sticky(&a);
+    Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
 
-#define CASE_FOR_FLAG(NAME, FLAG, LABEL, NEXT_LABEL)                         \
-  do {                                                                       \
-    a.Bind(&LABEL);                                                          \
-    Node* const name =                                                       \
-        a.HeapConstant(isolate->factory()->NewStringFromAsciiChecked(NAME)); \
-    Node* const flag =                                                       \
-        a.CallStub(getproperty_callable, context, receiver, name);           \
-    CLabel if_isflagset(&a);                                                 \
-    a.BranchIfToBooleanIsTrue(flag, &if_isflagset, &NEXT_LABEL);             \
-    a.Bind(&if_isflagset);                                                   \
-    var_length.Bind(a.IntPtrAdd(var_length.value(), int_one));               \
-    var_flags.Bind(a.WordOr(var_flags.value(), a.IntPtrConstant(FLAG)));     \
-    a.Goto(&NEXT_LABEL);                                                     \
+#define CASE_FOR_FLAG(NAME, FLAG)                                          \
+  do {                                                                     \
+    CLabel next(a);                                                        \
+    Node* const name =                                                     \
+        a->HeapConstant(isolate->factory()->InternalizeUtf8String(NAME));  \
+    Node* const flag =                                                     \
+        a->CallStub(getproperty_callable, context, receiver, name);        \
+    CLabel if_isflagset(a);                                                \
+    a->BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                \
+    a->Bind(&if_isflagset);                                                \
+    var_length.Bind(a->IntPtrAdd(var_length.value(), int_one));            \
+    var_flags.Bind(a->WordOr(var_flags.value(), a->IntPtrConstant(FLAG))); \
+    a->Goto(&next);                                                        \
+    a->Bind(&next);                                                        \
   } while (false)
 
-    a.Goto(&label_global);
-    CASE_FOR_FLAG("global", JSRegExp::kGlobal, label_global, label_ignorecase);
-    CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase, label_ignorecase,
-                  label_multiline);
-    CASE_FOR_FLAG("multiline", JSRegExp::kMultiline, label_multiline,
-                  label_unicode);
-    CASE_FOR_FLAG("unicode", JSRegExp::kUnicode, label_unicode, label_sticky);
-    CASE_FOR_FLAG("sticky", JSRegExp::kSticky, label_sticky, construct_string);
+    CASE_FOR_FLAG("global", JSRegExp::kGlobal);
+    CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase);
+    CASE_FOR_FLAG("multiline", JSRegExp::kMultiline);
+    CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
+    CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
   }
 
   // Allocate a string of the required length and fill it with the corresponding
   // char for each set flag.
 
-  a.Bind(&construct_string);
   {
     Node* const result =
-        a.AllocateSeqOneByteString(context, var_length.value());
+        a->AllocateSeqOneByteString(context, var_length.value());
     Node* const flags_intptr = var_flags.value();
 
-    CVariable var_offset(&a, MachineType::PointerRepresentation());
+    CVariable var_offset(a, MachineType::PointerRepresentation());
     var_offset.Bind(
-        a.IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+        a->IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
-    CLabel label_global(&a), label_ignorecase(&a), label_multiline(&a),
-        label_unicode(&a), label_sticky(&a), out(&a);
-
-#define CASE_FOR_FLAG(FLAG, CHAR, LABEL, NEXT_LABEL)               \
-  do {                                                             \
-    a.Bind(&LABEL);                                                \
-    Node* const mask = a.IntPtrConstant(FLAG);                     \
-    a.GotoIf(a.WordEqual(a.WordAnd(flags_intptr, mask), int_zero), \
-             &NEXT_LABEL);                                         \
-    Node* const value = a.IntPtrConstant(CHAR);                    \
-    a.StoreNoWriteBarrier(MachineRepresentation::kWord8, result,   \
-                          var_offset.value(), value);              \
-    var_offset.Bind(a.IntPtrAdd(var_offset.value(), int_one));     \
-    a.Goto(&NEXT_LABEL);                                           \
+#define CASE_FOR_FLAG(FLAG, CHAR)                                 \
+  do {                                                            \
+    CLabel next(a);                                               \
+    a->GotoUnless(a->IsSetWord(flags_intptr, FLAG), &next);       \
+    Node* const value = a->IntPtrConstant(CHAR);                  \
+    a->StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
+                           var_offset.value(), value);            \
+    var_offset.Bind(a->IntPtrAdd(var_offset.value(), int_one));   \
+    a->Goto(&next);                                               \
+    a->Bind(&next);                                               \
   } while (false)
 
-    a.Goto(&label_global);
-    CASE_FOR_FLAG(JSRegExp::kGlobal, 'g', label_global, label_ignorecase);
-    CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i', label_ignorecase,
-                  label_multiline);
-    CASE_FOR_FLAG(JSRegExp::kMultiline, 'm', label_multiline, label_unicode);
-    CASE_FOR_FLAG(JSRegExp::kUnicode, 'u', label_unicode, label_sticky);
-    CASE_FOR_FLAG(JSRegExp::kSticky, 'y', label_sticky, out);
+    CASE_FOR_FLAG(JSRegExp::kGlobal, 'g');
+    CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i');
+    CASE_FOR_FLAG(JSRegExp::kMultiline, 'm');
+    CASE_FOR_FLAG(JSRegExp::kUnicode, 'u');
+    CASE_FOR_FLAG(JSRegExp::kSticky, 'y');
 #undef CASE_FOR_FLAG
 
-    a.Bind(&out);
-    a.Return(result);
+    return result;
   }
+}
+
+// ES#sec-isregexp IsRegExp ( argument )
+Node* IsRegExp(CodeStubAssembler* a, Node* const context,
+               Node* const maybe_receiver) {
+  CLabel out(a), if_isregexp(a);
+
+  CVariable var_result(a, MachineType::PointerRepresentation());
+  var_result.Bind(a->IntPtrConstant(0));
+
+  a->GotoIf(a->TaggedIsSmi(maybe_receiver), &out);
+  a->GotoUnless(a->IsJSReceiver(maybe_receiver), &out);
+
+  Node* const receiver = maybe_receiver;
+
+  // Check @@match.
+  {
+    Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
+    Node* const name = a->HeapConstant(a->isolate()->factory()->match_symbol());
+    Node* const value =
+        a->CallStub(getproperty_callable, context, receiver, name);
+
+    CLabel match_isundefined(a), match_isnotundefined(a);
+    a->Branch(a->IsUndefined(value), &match_isundefined, &match_isnotundefined);
+
+    a->Bind(&match_isundefined);
+    a->Branch(a->HasInstanceType(receiver, JS_REGEXP_TYPE), &if_isregexp, &out);
+
+    a->Bind(&match_isnotundefined);
+    a->BranchIfToBooleanIsTrue(value, &if_isregexp, &out);
+  }
+
+  a->Bind(&if_isregexp);
+  var_result.Bind(a->IntPtrConstant(1));
+  a->Goto(&out);
+
+  a->Bind(&out);
+  return var_result.value();
+}
+
+// ES#sec-regexpinitialize
+// Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
+Node* RegExpInitialize(CodeStubAssembler* a, Node* const context,
+                       Node* const regexp, Node* const maybe_pattern,
+                       Node* const maybe_flags) {
+  // Normalize pattern.
+  Node* const pattern = a->Select(
+      a->IsUndefined(maybe_pattern), [=] { return a->EmptyStringConstant(); },
+      [=] { return a->ToString(context, maybe_pattern); },
+      MachineRepresentation::kTagged);
+
+  // Normalize flags.
+  Node* const flags = a->Select(
+      a->IsUndefined(maybe_flags), [=] { return a->EmptyStringConstant(); },
+      [=] { return a->ToString(context, maybe_flags); },
+      MachineRepresentation::kTagged);
+
+  // Initialize.
+
+  return a->CallRuntime(Runtime::kRegExpInitializeAndCompile, context, regexp,
+                        pattern, flags);
+}
+
+}  // namespace
+
+void Builtins::Generate_RegExpPrototypeFlagsGetter(CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+
+  Isolate* isolate = a.isolate();
+
+  Node* const maybe_receiver = a.Parameter(0);
+  Node* const context = a.Parameter(3);
+
+  Node* const map = ThrowIfNotJSReceiver(&a, isolate, context, maybe_receiver,
+                                         MessageTemplate::kRegExpNonObject,
+                                         "RegExp.prototype.flags");
+  Node* const receiver = maybe_receiver;
+
+  CLabel if_isfastpath(&a), if_isslowpath(&a, CLabel::kDeferred);
+  a.Branch(IsInitialRegExpMap(&a, context, map), &if_isfastpath,
+           &if_isslowpath);
+
+  a.Bind(&if_isfastpath);
+  a.Return(FlagsGetter(&a, receiver, context, true));
+
+  a.Bind(&if_isslowpath);
+  a.Return(FlagsGetter(&a, receiver, context, false));
+}
+
+// ES#sec-regexp-pattern-flags
+// RegExp ( pattern, flags )
+void Builtins::Generate_RegExpConstructor(CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+
+  Node* const pattern = a.Parameter(1);
+  Node* const flags = a.Parameter(2);
+  Node* const new_target = a.Parameter(3);
+  Node* const context = a.Parameter(5);
+
+  Isolate* isolate = a.isolate();
+
+  CVariable var_flags(&a, MachineRepresentation::kTagged);
+  CVariable var_pattern(&a, MachineRepresentation::kTagged);
+  CVariable var_new_target(&a, MachineRepresentation::kTagged);
+
+  var_flags.Bind(flags);
+  var_pattern.Bind(pattern);
+  var_new_target.Bind(new_target);
+
+  Node* const native_context = a.LoadNativeContext(context);
+  Node* const regexp_function =
+      a.LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+
+  Node* const pattern_is_regexp = IsRegExp(&a, context, pattern);
+
+  {
+    CLabel next(&a);
+
+    a.GotoUnless(a.IsUndefined(new_target), &next);
+    var_new_target.Bind(regexp_function);
+
+    a.GotoUnless(pattern_is_regexp, &next);
+    a.GotoUnless(a.IsUndefined(flags), &next);
+
+    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+    Node* const name = a.HeapConstant(isolate->factory()->constructor_string());
+    Node* const value =
+        a.CallStub(getproperty_callable, context, pattern, name);
+
+    a.GotoUnless(a.WordEqual(value, regexp_function), &next);
+    a.Return(pattern);
+
+    a.Bind(&next);
+  }
+
+  {
+    CLabel next(&a), if_patternisfastregexp(&a), if_patternisslowregexp(&a);
+    a.GotoIf(a.TaggedIsSmi(pattern), &next);
+
+    a.GotoIf(a.HasInstanceType(pattern, JS_REGEXP_TYPE),
+             &if_patternisfastregexp);
+
+    a.Branch(pattern_is_regexp, &if_patternisslowregexp, &next);
+
+    a.Bind(&if_patternisfastregexp);
+    {
+      Node* const source = a.LoadObjectField(pattern, JSRegExp::kSourceOffset);
+      var_pattern.Bind(source);
+
+      {
+        CLabel inner_next(&a);
+        a.GotoUnless(a.IsUndefined(flags), &inner_next);
+
+        Node* const value = FlagsGetter(&a, pattern, context, true);
+        var_flags.Bind(value);
+        a.Goto(&inner_next);
+
+        a.Bind(&inner_next);
+      }
+
+      a.Goto(&next);
+    }
+
+    a.Bind(&if_patternisslowregexp);
+    {
+      Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+
+      {
+        Node* const name = a.HeapConstant(isolate->factory()->source_string());
+        Node* const value =
+            a.CallStub(getproperty_callable, context, pattern, name);
+        var_pattern.Bind(value);
+      }
+
+      {
+        CLabel inner_next(&a);
+        a.GotoUnless(a.IsUndefined(flags), &inner_next);
+
+        Node* const name = a.HeapConstant(isolate->factory()->flags_string());
+        Node* const value =
+            a.CallStub(getproperty_callable, context, pattern, name);
+        var_flags.Bind(value);
+        a.Goto(&inner_next);
+
+        a.Bind(&inner_next);
+      }
+
+      a.Goto(&next);
+    }
+
+    a.Bind(&next);
+  }
+
+  // Allocate.
+
+  CVariable var_regexp(&a, MachineRepresentation::kTagged);
+  {
+    CLabel allocate_jsregexp(&a), allocate_generic(&a, CLabel::kDeferred),
+        next(&a);
+    a.Branch(a.WordEqual(var_new_target.value(), regexp_function),
+             &allocate_jsregexp, &allocate_generic);
+
+    a.Bind(&allocate_jsregexp);
+    {
+      Node* const initial_map = a.LoadObjectField(
+          regexp_function, JSFunction::kPrototypeOrInitialMapOffset);
+      Node* const regexp = a.AllocateJSObjectFromMap(initial_map);
+      var_regexp.Bind(regexp);
+      a.Goto(&next);
+    }
+
+    a.Bind(&allocate_generic);
+    {
+      Callable fastnewobject_callable = CodeFactory::FastNewObject(isolate);
+      Node* const regexp = a.CallStub(fastnewobject_callable, context,
+                                      regexp_function, var_new_target.value());
+      var_regexp.Bind(regexp);
+      a.Goto(&next);
+    }
+
+    a.Bind(&next);
+  }
+
+  Node* const result = RegExpInitialize(&a, context, var_regexp.value(),
+                                        var_pattern.value(), var_flags.value());
+  a.Return(result);
+}
+
+// ES#sec-regexp.prototype.compile
+// RegExp.prototype.compile ( pattern, flags )
+void Builtins::Generate_RegExpPrototypeCompile(CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+
+  Node* const maybe_receiver = a.Parameter(0);
+  Node* const maybe_pattern = a.Parameter(1);
+  Node* const maybe_flags = a.Parameter(2);
+  Node* const context = a.Parameter(5);
+
+  a.ThrowIfNotInstanceType(context, maybe_receiver, JS_REGEXP_TYPE,
+                           "RegExp.prototype.compile");
+  Node* const receiver = maybe_receiver;
+
+  CVariable var_flags(&a, MachineRepresentation::kTagged);
+  CVariable var_pattern(&a, MachineRepresentation::kTagged);
+
+  var_flags.Bind(maybe_flags);
+  var_pattern.Bind(maybe_pattern);
+
+  // Handle a JSRegExp pattern.
+  {
+    CLabel next(&a);
+
+    a.GotoIf(a.TaggedIsSmi(maybe_pattern), &next);
+    a.GotoUnless(a.HasInstanceType(maybe_pattern, JS_REGEXP_TYPE), &next);
+
+    Node* const pattern = maybe_pattern;
+
+    // {maybe_flags} must be undefined in this case, otherwise throw.
+    {
+      CLabel next(&a);
+      a.GotoIf(a.IsUndefined(maybe_flags), &next);
+
+      Node* const message_id = a.SmiConstant(MessageTemplate::kRegExpFlags);
+      a.TailCallRuntime(Runtime::kThrowTypeError, context, message_id);
+
+      a.Bind(&next);
+    }
+
+    Node* const new_flags = FlagsGetter(&a, pattern, context, true);
+    Node* const new_pattern =
+        a.LoadObjectField(pattern, JSRegExp::kSourceOffset);
+
+    var_flags.Bind(new_flags);
+    var_pattern.Bind(new_pattern);
+
+    a.Goto(&next);
+    a.Bind(&next);
+  }
+
+  RegExpInitialize(&a, context, receiver, var_pattern.value(),
+                   var_flags.value());
+
+  // Return undefined for compatibility with JSC.
+  // See http://crbug.com/585775 for web compat details.
+
+  a.Return(a.UndefinedConstant());
 }
 
 // ES6 21.2.5.10.
