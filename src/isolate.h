@@ -765,7 +765,9 @@ class Isolate {
   Object* PromoteScheduledException();
 
   // Attempts to compute the current source location, storing the
-  // result in the target out parameter.
+  // result in the target out parameter. The source location is attached to a
+  // Message object as the location which should be shown to the user. It's
+  // typically the top-most meaningful location on the stack.
   bool ComputeLocation(MessageLocation* target);
   bool ComputeLocationFromException(MessageLocation* target,
                                     Handle<Object> exception);

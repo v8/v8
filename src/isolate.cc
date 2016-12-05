@@ -47,6 +47,7 @@
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 
 namespace v8 {
@@ -1546,8 +1547,23 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {
     if (elements->IsWasmFrame(i)) {
-      // TODO(clemensh): handle wasm frames
-      return false;
+      // TODO(clemensh): Handle wasm frames if they ever need handling here.
+      continue;
+    }
+
+    if (elements->IsAsmJsWasmFrame(i)) {
+      Handle<WasmCompiledModule> compiled_module(
+          WasmInstanceObject::cast(elements->WasmInstance(i))
+              ->get_compiled_module());
+      int func_index = elements->WasmFunctionIndex(i)->value();
+      int code_offset = elements->Offset(i)->value();
+      int byte_pos = elements->Code(i)->SourcePosition(code_offset);
+      int source_pos = WasmCompiledModule::GetAsmJsSourcePosition(
+          compiled_module, func_index, byte_pos);
+      Handle<Script> script = compiled_module->script();
+
+      *target = MessageLocation(script, source_pos, source_pos + 1);
+      return true;
     }
 
     Handle<JSFunction> fun = handle(elements->Function(i), this);
