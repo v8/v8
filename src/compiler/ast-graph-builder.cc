@@ -1815,41 +1815,13 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
-  // Resolve callee for a potential direct eval call. This block will mutate the
-  // callee value pushed onto the environment.
-  if (expr->is_possibly_eval() && args->length() > 0) {
-    int arg_count = args->length();
-
-    // Extract callee and source string from the environment.
-    Node* callee = environment()->Peek(arg_count + 1);
-    Node* source = environment()->Peek(arg_count - 1);
-
-    // Create node to ask for help resolving potential eval call. This will
-    // provide a fully resolved callee to patch into the environment.
-    Node* function = GetFunctionClosure();
-    Node* language = jsgraph()->Constant(language_mode());
-    Node* eval_scope_position =
-        jsgraph()->Constant(current_scope()->start_position());
-    Node* eval_position = jsgraph()->Constant(expr->position());
-    const Operator* op =
-        javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval);
-    Node* new_callee = NewNode(op, callee, source, function, language,
-                               eval_scope_position, eval_position);
-    PrepareFrameState(new_callee, expr->EvalId(),
-                      OutputFrameStateCombine::PokeAt(arg_count + 1));
-
-    // Patch callee on the environment.
-    environment()->Poke(arg_count + 1, new_callee);
-  }
-
   // Create node to perform the function call.
   float const frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
   const Operator* call =
       javascript()->CallFunction(args->length() + 2, frequency, feedback,
                                  receiver_hint, expr->tail_call_mode());
-  PrepareEagerCheckpoint(expr->is_possibly_eval() ? expr->EvalId()
-                                                  : expr->CallId());
+  PrepareEagerCheckpoint(expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   // The callee passed to the call, we just need to push something here to
   // satisfy the bailout location contract. The fullcodegen code will not
