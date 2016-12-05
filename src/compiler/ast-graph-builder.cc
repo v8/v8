@@ -2318,6 +2318,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
         receiver_value = NewNode(common()->Projection(1), pair);
         PrepareFrameState(pair, expr->LookupId(),
                           OutputFrameStateCombine::Push(2));
+        break;
       }
       case Call::NAMED_PROPERTY_CALL: {
         Property* property = callee->AsProperty();
