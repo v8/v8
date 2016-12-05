@@ -4260,7 +4260,6 @@ TEST(Regress169928) {
 
 #ifdef DEBUG
 TEST(Regress513507) {
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_gc_global = true;
   CcTest::InitializeVM();
@@ -4317,7 +4316,6 @@ TEST(Regress513507) {
 
 TEST(Regress514122) {
   if (!i::FLAG_incremental_marking) return;
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4410,7 +4408,6 @@ TEST(Regress514122) {
 
 
 TEST(OptimizedCodeMapReuseEntries) {
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   // BUG(v8:4598): Since TurboFan doesn't treat maps in code weakly, we can't
   // run this test.
@@ -4518,7 +4515,6 @@ TEST(OptimizedCodeMapReuseEntries) {
 
 
 TEST(Regress513496) {
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

@@ -429,12 +429,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
   }
-  if (FLAG_flush_optimized_code_cache) {
-    if (!shared->OptimizedCodeMapIsCleared()) {
-      // Always flush the optimized code map if requested by flag.
-      shared->ClearOptimizedCodeMap();
-    }
-  }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
     if (IsFlushable(heap, shared)) {
