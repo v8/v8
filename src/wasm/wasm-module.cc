@@ -6,7 +6,8 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/code-stubs.h"
-
+#include "src/compiler/wasm-compiler.h"
+#include "src/debug/interface-types.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
@@ -21,8 +22,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
-
-#include "src/compiler/wasm-compiler.h"
 
 using namespace v8::internal;
 using namespace v8::internal::wasm;

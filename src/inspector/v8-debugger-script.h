@@ -67,10 +67,9 @@ class V8DebuggerScript {
   void setSourceMappingURL(const String16&);
   void setSource(v8::Local<v8::String>);
 
-  bool getPossibleBreakpoints(
-      const v8::DebugInterface::Location& start,
-      const v8::DebugInterface::Location& end,
-      std::vector<v8::DebugInterface::Location>* locations);
+  bool getPossibleBreakpoints(const v8::debug::Location& start,
+                              const v8::debug::Location& end,
+                              std::vector<v8::debug::Location>* locations);
 
  private:
   String16 m_id;

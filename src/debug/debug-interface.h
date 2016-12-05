@@ -9,6 +9,8 @@
 #include "include/v8-util.h"
 #include "include/v8.h"
 
+#include "src/debug/interface-types.h"
+
 namespace v8 {
 
 class DebugInterface {
@@ -141,27 +143,6 @@ class DebugInterface {
   static void ClearStepping(Isolate* isolate);
 
   /**
-   * Defines location inside script.
-   * Lines and columns are 0-based.
-   */
-  class Location {
-   public:
-    Location(int lineNumber, int columnNumber);
-    /**
-     * Create empty location.
-     */
-    Location();
-
-    int GetLineNumber() const;
-    int GetColumnNumber() const;
-    bool IsEmpty() const;
-
-   private:
-    int lineNumber_;
-    int columnNumber_;
-  };
-
-  /**
    * Native wrapper around v8::internal::Script object.
    */
   class Script {
@@ -180,8 +161,9 @@ class DebugInterface {
     MaybeLocal<String> ContextData() const;
     MaybeLocal<String> Source() const;
     bool IsWasm() const;
-    bool GetPossibleBreakpoints(const Location& start, const Location& end,
-                                std::vector<Location>* locations) const;
+    bool GetPossibleBreakpoints(const debug::Location& start,
+                                const debug::Location& end,
+                                std::vector<debug::Location>* locations) const;
 
     /**
      * script parameter is a wrapper v8::internal::JSObject for
@@ -195,7 +177,7 @@ class DebugInterface {
                                    v8::Local<v8::Object> script);
 
    private:
-    int GetSourcePosition(const Location& location) const;
+    int GetSourcePosition(const debug::Location& location) const;
   };
 
   static void GetLoadedScripts(Isolate* isolate,
@@ -203,13 +185,10 @@ class DebugInterface {
 
   /**
    * Compute the disassembly of a wasm function.
-   * Returns the disassembly string and a list of <byte_offset, line, column>
-   * entries, mapping wasm byte offsets to line and column in the disassembly.
-   * The list is guaranteed to be ordered by the byte_offset.
    */
-  static std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
-  DisassembleWasmFunction(Isolate* isolate, v8::Local<v8::Object> script,
-                          int function_index);
+  static debug::WasmDisassembly DisassembleWasmFunction(
+      Isolate* isolate, v8::Local<v8::Object> script, int function_index);
+
   static MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                           Local<String> source);
 };

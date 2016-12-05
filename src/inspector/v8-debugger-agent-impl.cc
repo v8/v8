@@ -385,9 +385,9 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     return Response::Error(
         "start.lineNumber and start.columnNumber should be >= 0");
 
-  v8::DebugInterface::Location v8Start(start->getLineNumber(),
-                                       start->getColumnNumber(0));
-  v8::DebugInterface::Location v8End;
+  v8::debug::Location v8Start(start->getLineNumber(),
+                              start->getColumnNumber(0));
+  v8::debug::Location v8End;
   if (end.isJust()) {
     if (end.fromJust()->getScriptId() != scriptId)
       return Response::Error("Locations should contain the same scriptId");
@@ -396,12 +396,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     if (line < 0 || column < 0)
       return Response::Error(
           "end.lineNumber and end.columnNumber should be >= 0");
-    v8End = v8::DebugInterface::Location(line, column);
+    v8End = v8::debug::Location(line, column);
   }
   auto it = m_scripts.find(scriptId);
   if (it == m_scripts.end()) return Response::Error("Script not found");
 
-  std::vector<v8::DebugInterface::Location> v8Locations;
+  std::vector<v8::debug::Location> v8Locations;
   if (!it->second->getPossibleBreakpoints(v8Start, v8End, &v8Locations))
     return Response::InternalError();
 

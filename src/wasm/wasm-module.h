@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/api.h"
+#include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparse-data.h"

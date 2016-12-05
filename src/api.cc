@@ -9003,8 +9003,8 @@ int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
 }  // namespace
 
 bool DebugInterface::Script::GetPossibleBreakpoints(
-    const Location& start, const Location& end,
-    std::vector<Location>* locations) const {
+    const debug::Location& start, const debug::Location& end,
+    std::vector<debug::Location>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
@@ -9046,7 +9046,7 @@ bool DebugInterface::Script::GetPossibleBreakpoints(
     if (current_line_end_index > 0) {
       line_offset = GetSmiValue(line_ends, current_line_end_index - 1) + 1;
     }
-    locations->push_back(Location(
+    locations->push_back(debug::Location(
         current_line_end_index + script->line_offset(),
         offset - line_offset +
             (current_line_end_index == 0 ? script->column_offset() : 0)));
@@ -9054,7 +9054,8 @@ bool DebugInterface::Script::GetPossibleBreakpoints(
   return true;
 }
 
-int DebugInterface::Script::GetSourcePosition(const Location& location) const {
+int DebugInterface::Script::GetSourcePosition(
+    const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     // TODO(clemensh): Return the proper thing for wasm.
@@ -9101,26 +9102,26 @@ MaybeLocal<DebugInterface::Script> DebugInterface::Script::Wrap(
       handle_scope.CloseAndEscape(script_obj));
 }
 
-DebugInterface::Location::Location(int lineNumber, int columnNumber)
-    : lineNumber_(lineNumber), columnNumber_(columnNumber) {
-  CHECK(lineNumber >= 0);
-  CHECK(columnNumber >= 0);
+debug::Location::Location(int line_number, int column_number)
+    : line_number_(line_number), column_number_(column_number) {
+  CHECK(line_number >= 0);
+  CHECK(column_number >= 0);
 }
 
-DebugInterface::Location::Location() : lineNumber_(-1), columnNumber_(-1) {}
+debug::Location::Location() : line_number_(-1), column_number_(-1) {}
 
-int DebugInterface::Location::GetLineNumber() const {
-  CHECK(lineNumber_ >= 0);
-  return lineNumber_;
+int debug::Location::GetLineNumber() const {
+  CHECK(line_number_ >= 0);
+  return line_number_;
 }
 
-int DebugInterface::Location::GetColumnNumber() const {
-  CHECK(columnNumber_ >= 0);
-  return columnNumber_;
+int debug::Location::GetColumnNumber() const {
+  CHECK(column_number_ >= 0);
+  return column_number_;
 }
 
-bool DebugInterface::Location::IsEmpty() const {
-  return lineNumber_ == -1 && columnNumber_ == -1;
+bool debug::Location::IsEmpty() const {
+  return line_number_ == -1 && column_number_ == -1;
 }
 
 void DebugInterface::GetLoadedScripts(
@@ -9146,10 +9147,8 @@ void DebugInterface::GetLoadedScripts(
   }
 }
 
-std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
-DebugInterface::DisassembleWasmFunction(Isolate* v8_isolate,
-                                        Local<Object> v8_script,
-                                        int function_index) {
+debug::WasmDisassembly DebugInterface::DisassembleWasmFunction(
+    Isolate* v8_isolate, Local<Object> v8_script, int function_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   if (v8_script.IsEmpty()) return {};
   i::Handle<i::Object> script_wrapper = Utils::OpenHandle(*v8_script);

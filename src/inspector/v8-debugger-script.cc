@@ -173,9 +173,8 @@ void V8DebuggerScript::setSource(v8::Local<v8::String> source) {
 }
 
 bool V8DebuggerScript::getPossibleBreakpoints(
-    const v8::DebugInterface::Location& start,
-    const v8::DebugInterface::Location& end,
-    std::vector<v8::DebugInterface::Location>* locations) {
+    const v8::debug::Location& start, const v8::debug::Location& end,
+    std::vector<v8::debug::Location>* locations) {
   v8::HandleScope scope(m_isolate);
   v8::Local<v8::DebugInterface::Script> script = m_script.Get(m_isolate);
   return script->GetPossibleBreakpoints(start, end, locations);

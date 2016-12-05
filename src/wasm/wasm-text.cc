@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-text.h"
 
+#include "src/debug/interface-types.h"
 #include "src/ostreams.h"
 #include "src/vector.h"
 #include "src/wasm/ast-decoder.h"
@@ -11,6 +12,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 
+using namespace v8;
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 
@@ -128,10 +130,10 @@ bool IsValidFunctionName(const Vector<const char> &name) {
 
 }  // namespace
 
-void wasm::PrintWasmText(
-    const WasmModule *module, const ModuleWireBytes &wire_bytes,
-    uint32_t func_index, std::ostream &os,
-    std::vector<std::tuple<uint32_t, int, int>> *offset_table) {
+void wasm::PrintWasmText(const WasmModule *module,
+                         const ModuleWireBytes &wire_bytes, uint32_t func_index,
+                         std::ostream &os,
+                         debug::WasmDisassembly::OffsetTable *offset_table) {
   DCHECK_NOT_NULL(module);
   DCHECK_GT(module->functions.size(), func_index);
   const WasmFunction *fun = &module->functions[func_index];
@@ -189,8 +191,8 @@ void wasm::PrintWasmText(
     const int kMaxIndentation = 64;
     int indentation = std::min(kMaxIndentation, 2 * control_depth);
     if (offset_table) {
-      offset_table->push_back(
-          std::make_tuple(i.pc_offset(), line_nr, indentation));
+      offset_table->push_back(debug::WasmDisassemblyOffsetTableEntry(
+          i.pc_offset(), line_nr, indentation));
     }
 
     // 64 whitespaces

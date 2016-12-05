@@ -836,6 +836,7 @@
         'debug/debug-scopes.h',
         'debug/debug.cc',
         'debug/debug.h',
+        'debug/interface-types.h',
         'debug/liveedit.cc',
         'debug/liveedit.h',
         'deoptimize-reason.cc',

@@ -540,8 +540,8 @@ int WasmCompiledModule::GetAsmJsSourcePosition(
   return offset_table->get_int(2 * left + 1);
 }
 
-std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
-WasmCompiledModule::DisassembleFunction(int func_index) {
+v8::debug::WasmDisassembly WasmCompiledModule::DisassembleFunction(
+    int func_index) {
   DisallowHeapAllocation no_gc;
 
   if (func_index < 0 ||
@@ -553,7 +553,7 @@ WasmCompiledModule::DisassembleFunction(int func_index) {
                                   module_bytes_str->length());
 
   std::ostringstream disassembly_os;
-  std::vector<std::tuple<uint32_t, int, int>> offset_table;
+  v8::debug::WasmDisassembly::OffsetTable offset_table;
 
   PrintWasmText(module(), module_bytes, static_cast<uint32_t>(func_index),
                 disassembly_os, &offset_table);

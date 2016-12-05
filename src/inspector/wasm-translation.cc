@@ -72,7 +72,7 @@ class WasmTranslation::TranslatorImpl::RawTranslator
 
 class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     : public WasmTranslation::TranslatorImpl {
-  using OffsetTable = std::vector<std::tuple<uint32_t, int, int>>;
+  using OffsetTable = debug::WasmDisassembly::OffsetTable;
 
  public:
   DisassemblingTranslator(Isolate *isolate, Local<Object> script)
@@ -88,7 +88,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     unsigned right = static_cast<unsigned>(offset_table.size());  // exclusive
     while (right - left > 1) {
       unsigned mid = (left + right) / 2;
-      if (std::get<0>(offset_table[mid]) <= byte_offset) {
+      if (offset_table[mid].byte_offset <= byte_offset) {
         left = mid;
       } else {
         right = mid;
@@ -96,9 +96,9 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     }
 
     loc->script_id = GetFakeScriptId(loc);
-    if (std::get<0>(offset_table[left]) == byte_offset) {
-      loc->line = std::get<1>(offset_table[left]);
-      loc->column = std::get<2>(offset_table[left]);
+    if (offset_table[left].byte_offset == byte_offset) {
+      loc->line = offset_table[left].line;
+      loc->column = offset_table[left].column;
     } else {
       loc->line = 0;
       loc->column = 0;
@@ -117,9 +117,8 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     while (right - left > 1) {
       unsigned mid = (left + right) / 2;
       auto &entry = (*reverse_table)[mid];
-      if (std::get<1>(entry) < loc->line ||
-          (std::get<1>(entry) == loc->line &&
-           std::get<2>(entry) <= loc->column)) {
+      if (entry.line < loc->line ||
+          (entry.line == loc->line && entry.column <= loc->column)) {
         left = mid;
       } else {
         right = mid;
@@ -129,12 +128,12 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     int found_byte_offset = 0;
     // If we found an exact match, use it. Otherwise check whether the next
     // bigger entry is still in the same line. Report that one then.
-    if (std::get<1>((*reverse_table)[left]) == loc->line &&
-        std::get<2>((*reverse_table)[left]) == loc->column) {
-      found_byte_offset = std::get<0>((*reverse_table)[left]);
+    if ((*reverse_table)[left].line == loc->line &&
+        (*reverse_table)[left].column == loc->column) {
+      found_byte_offset = (*reverse_table)[left].byte_offset;
     } else if (left + 1 < reverse_table->size() &&
-               std::get<1>((*reverse_table)[left + 1]) == loc->line) {
-      found_byte_offset = std::get<0>((*reverse_table)[left + 1]);
+               (*reverse_table)[left + 1].line == loc->line) {
+      found_byte_offset = (*reverse_table)[left + 1].byte_offset;
     }
 
     v8::Isolate *isolate = loc->translation->isolate_;
@@ -172,17 +171,19 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     if (it != offset_tables_.end()) return it->second;
 
     v8::Isolate *isolate = loc->translation->isolate_;
-    std::pair<std::string, OffsetTable> disassembly =
+    debug::WasmDisassembly disassembly_result =
         DebugInterface::DisassembleWasmFunction(isolate, script_.Get(isolate),
                                                 func_index);
 
     it = offset_tables_
-             .insert(std::make_pair(func_index, std::move(disassembly.second)))
+             .insert(std::make_pair(func_index,
+                                    std::move(disassembly_result.offset_table)))
              .first;
 
     String16 fake_script_id = GetFakeScriptId(loc);
     String16 fake_script_url = GetFakeScriptUrl(loc);
-    String16 source(disassembly.first.data(), disassembly.first.length());
+    String16 source(disassembly_result.disassembly.data(),
+                    disassembly_result.disassembly.length());
     std::unique_ptr<V8DebuggerScript> fake_script(new V8DebuggerScript(
         fake_script_id, std::move(fake_script_url), source));
 
@@ -202,13 +203,10 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
 
     OffsetTable reverse_table = it->second;
     // Order by line, column, then byte offset.
-    auto cmp = [](std::tuple<uint32_t, int, int> el1,
-                  std::tuple<uint32_t, int, int> el2) {
-      if (std::get<1>(el1) != std::get<1>(el2))
-        return std::get<1>(el1) < std::get<1>(el2);
-      if (std::get<2>(el1) != std::get<2>(el2))
-        return std::get<2>(el1) < std::get<2>(el2);
-      return std::get<0>(el1) < std::get<0>(el2);
+    auto cmp = [](OffsetTable::value_type el1, OffsetTable::value_type el2) {
+      if (el1.line != el2.line) return el1.line < el2.line;
+      if (el1.column != el2.column) return el1.column < el2.column;
+      return el1.byte_offset < el2.byte_offset;
     };
     std::sort(reverse_table.begin(), reverse_table.end(), cmp);
 

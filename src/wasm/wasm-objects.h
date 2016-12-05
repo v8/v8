@@ -5,6 +5,7 @@
 #ifndef V8_WASM_OBJECTS_H_
 #define V8_WASM_OBJECTS_H_
 
+#include "src/debug/interface-types.h"
 #include "src/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/managed.h"
@@ -302,8 +303,7 @@ class WasmCompiledModule : public FixedArray {
   // entries, mapping wasm byte offsets to line and column in the disassembly.
   // The list is guaranteed to be ordered by the byte_offset.
   // Returns an empty string and empty vector if the function index is invalid.
-  std::pair<std::string, std::vector<std::tuple<uint32_t, int, int>>>
-  DisassembleFunction(int func_index);
+  debug::WasmDisassembly DisassembleFunction(int func_index);
 
  private:
   void InitId();
