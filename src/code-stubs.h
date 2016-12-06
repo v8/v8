@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/code-stub-assembler.h"
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/ic/ic-state.h"
@@ -19,7 +18,14 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class CodeStubAssembler;
 class ObjectLiteral;
+namespace compiler {
+class CodeAssemblerLabel;
+class CodeAssemblerState;
+class Node;
+}
 
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)       \
@@ -925,7 +931,7 @@ class FastCloneShallowArrayStub : public TurboFanCodeStub {
                                   compiler::Node* closure,
                                   compiler::Node* literal_index,
                                   compiler::Node* context,
-                                  CodeStubAssembler::Label* call_runtime,
+                                  compiler::CodeAssemblerLabel* call_runtime,
                                   AllocationSiteMode allocation_site_mode);
 
   AllocationSiteMode allocation_site_mode() const {
@@ -952,9 +958,9 @@ class FastCloneShallowObjectStub : public TurboFanCodeStub {
   }
 
   static compiler::Node* GenerateFastPath(
-      CodeStubAssembler* assembler,
-      compiler::CodeAssembler::Label* call_runtime, compiler::Node* closure,
-      compiler::Node* literals_index, compiler::Node* properties_count);
+      CodeStubAssembler* assembler, compiler::CodeAssemblerLabel* call_runtime,
+      compiler::Node* closure, compiler::Node* literals_index,
+      compiler::Node* properties_count);
 
   static bool IsSupported(ObjectLiteral* expr);
   static int PropertiesCount(int literal_length);

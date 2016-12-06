@@ -217,7 +217,7 @@ void CodeAssembler::Comment(const char* format, ...) {
   raw_assembler()->Comment(copy);
 }
 
-void CodeAssembler::Bind(CodeAssembler::Label* label) { return label->Bind(); }
+void CodeAssembler::Bind(Label* label) { return label->Bind(); }
 
 Node* CodeAssembler::LoadFramePointer() {
   return raw_assembler()->LoadFramePointer();
@@ -993,7 +993,7 @@ Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                          function, arg0, arg1);
 }
 
-void CodeAssembler::Goto(CodeAssembler::Label* label) {
+void CodeAssembler::Goto(Label* label) {
   label->MergeVariables();
   raw_assembler()->Goto(label->label_);
 }
@@ -1010,8 +1010,8 @@ void CodeAssembler::GotoUnless(Node* condition, Label* false_label) {
   Bind(&true_label);
 }
 
-void CodeAssembler::Branch(Node* condition, CodeAssembler::Label* true_label,
-                           CodeAssembler::Label* false_label) {
+void CodeAssembler::Branch(Node* condition, Label* true_label,
+                           Label* false_label) {
   true_label->MergeVariables();
   false_label->MergeVariables();
   return raw_assembler()->Branch(condition, true_label->label_,
@@ -1048,41 +1048,41 @@ RawMachineAssembler* CodeAssembler::raw_assembler() const {
 // that it can outlive the often block-scoped Variable declarations. This is
 // needed to ensure that variable binding and merging through phis can
 // properly be verified.
-class CodeAssembler::Variable::Impl : public ZoneObject {
+class CodeAssemblerVariable::Impl : public ZoneObject {
  public:
   explicit Impl(MachineRepresentation rep) : value_(nullptr), rep_(rep) {}
   Node* value_;
   MachineRepresentation rep_;
 };
 
-CodeAssembler::Variable::Variable(CodeAssembler* assembler,
-                                  MachineRepresentation rep)
-    : impl_(new (assembler->zone()) Impl(rep)), state_(assembler->state_) {
+CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
+                                             MachineRepresentation rep)
+    : impl_(new (assembler->zone()) Impl(rep)), state_(assembler->state()) {
   state_->variables_.insert(impl_);
 }
 
-CodeAssembler::Variable::~Variable() { state_->variables_.erase(impl_); }
+CodeAssemblerVariable::~CodeAssemblerVariable() {
+  state_->variables_.erase(impl_);
+}
 
-void CodeAssembler::Variable::Bind(Node* value) { impl_->value_ = value; }
+void CodeAssemblerVariable::Bind(Node* value) { impl_->value_ = value; }
 
-Node* CodeAssembler::Variable::value() const {
+Node* CodeAssemblerVariable::value() const {
   DCHECK_NOT_NULL(impl_->value_);
   return impl_->value_;
 }
 
-MachineRepresentation CodeAssembler::Variable::rep() const {
-  return impl_->rep_;
-}
+MachineRepresentation CodeAssemblerVariable::rep() const { return impl_->rep_; }
 
-bool CodeAssembler::Variable::IsBound() const {
-  return impl_->value_ != nullptr;
-}
+bool CodeAssemblerVariable::IsBound() const { return impl_->value_ != nullptr; }
 
-CodeAssembler::Label::Label(CodeAssembler* assembler, size_t vars_count,
-                            Variable** vars, CodeAssembler::Label::Type type)
+CodeAssemblerLabel::CodeAssemblerLabel(CodeAssembler* assembler,
+                                       size_t vars_count,
+                                       CodeAssemblerVariable** vars,
+                                       CodeAssemblerLabel::Type type)
     : bound_(false),
       merge_count_(0),
-      state_(assembler->state_),
+      state_(assembler->state()),
       label_(nullptr) {
   void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
   label_ = new (buffer)
@@ -1093,7 +1093,7 @@ CodeAssembler::Label::Label(CodeAssembler* assembler, size_t vars_count,
   }
 }
 
-void CodeAssembler::Label::MergeVariables() {
+void CodeAssemblerLabel::MergeVariables() {
   ++merge_count_;
   for (auto var : state_->variables_) {
     size_t count = 0;
@@ -1139,7 +1139,7 @@ void CodeAssembler::Label::MergeVariables() {
   }
 }
 
-void CodeAssembler::Label::Bind() {
+void CodeAssemblerLabel::Bind() {
   DCHECK(!bound_);
   state_->raw_assembler_->Bind(label_);
 
@@ -1163,7 +1163,7 @@ void CodeAssembler::Label::Bind() {
   }
 
   for (auto var : variable_phis_) {
-    CodeAssembler::Variable::Impl* var_impl = var.first;
+    CodeAssemblerVariable::Impl* var_impl = var.first;
     auto i = variable_merges_.find(var_impl);
     // If the following assert fires, then a variable that has been marked as
     // being merged at the label--either by explicitly marking it so in the

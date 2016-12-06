@@ -8,6 +8,7 @@
 
 #include "src/bailout-reason.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/crankshaft/lithium.h"
 #include "src/field-index.h"

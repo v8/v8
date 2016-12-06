@@ -30,10 +30,14 @@ class Zone;
 namespace compiler {
 
 class CallDescriptor;
+class CodeAssemblerLabel;
+class CodeAssemblerVariable;
 class CodeAssemblerState;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
+
+typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
@@ -194,25 +198,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
 
-  class Label;
-  class Variable {
-   public:
-    explicit Variable(CodeAssembler* assembler, MachineRepresentation rep);
-    ~Variable();
-    void Bind(Node* value);
-    Node* value() const;
-    MachineRepresentation rep() const;
-    bool IsBound() const;
-
-   private:
-    friend class CodeAssembler;
-    friend class CodeAssemblerState;
-    class Impl;
-    Impl* impl_;
-    CodeAssemblerState* state_;
-  };
-
-  typedef ZoneList<Variable*> VariableList;
+  // Shortened aliases for use in CodeAssembler subclasses.
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
+  typedef CodeAssemblerVariableList VariableList;
 
   // ===========================================================================
   // Base Assembler
@@ -463,6 +452,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Isolate* isolate() const;
   Zone* zone() const;
 
+  CodeAssemblerState* state() { return state_; }
+
  protected:
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
@@ -479,24 +470,46 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
 
-class CodeAssembler::Label {
+class CodeAssemblerVariable {
+ public:
+  explicit CodeAssemblerVariable(CodeAssembler* assembler,
+                                 MachineRepresentation rep);
+  ~CodeAssemblerVariable();
+  void Bind(Node* value);
+  Node* value() const;
+  MachineRepresentation rep() const;
+  bool IsBound() const;
+
+ private:
+  friend class CodeAssemblerLabel;
+  friend class CodeAssemblerState;
+  class Impl;
+  Impl* impl_;
+  CodeAssemblerState* state_;
+};
+
+class CodeAssemblerLabel {
  public:
   enum Type { kDeferred, kNonDeferred };
 
-  explicit Label(
+  explicit CodeAssemblerLabel(
       CodeAssembler* assembler,
-      CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, 0, nullptr, type) {}
-  Label(CodeAssembler* assembler, const VariableList& merged_variables,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, merged_variables.length(),
-                             &(merged_variables[0]), type) {}
-  Label(CodeAssembler* assembler, size_t count, Variable** vars,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
-  Label(CodeAssembler* assembler, CodeAssembler::Variable* merged_variable,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : Label(assembler, 1, &merged_variable, type) {}
-  ~Label() {}
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, 0, nullptr, type) {}
+  CodeAssemblerLabel(
+      CodeAssembler* assembler,
+      const CodeAssemblerVariableList& merged_variables,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, merged_variables.length(),
+                           &(merged_variables[0]), type) {}
+  CodeAssemblerLabel(
+      CodeAssembler* assembler, size_t count, CodeAssemblerVariable** vars,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred);
+  CodeAssemblerLabel(
+      CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
+  ~CodeAssemblerLabel() {}
 
  private:
   friend class CodeAssembler;
@@ -510,10 +523,10 @@ class CodeAssembler::Label {
   RawMachineLabel* label_;
   // Map of variables that need to be merged to their phi nodes (or placeholders
   // for those phis).
-  std::map<Variable::Impl*, Node*> variable_phis_;
+  std::map<CodeAssemblerVariable::Impl*, Node*> variable_phis_;
   // Map of variables to the list of value nodes that have been added from each
   // merge path in their order of merging.
-  std::map<Variable::Impl*, std::vector<Node*>> variable_merges_;
+  std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>> variable_merges_;
 };
 
 class V8_EXPORT_PRIVATE CodeAssemblerState {
@@ -534,6 +547,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
  private:
   friend class CodeAssembler;
+  friend class CodeAssemblerLabel;
+  friend class CodeAssemblerVariable;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Flags flags,
@@ -543,7 +558,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   Code::Flags flags_;
   const char* name_;
   bool code_generated_;
-  ZoneSet<CodeAssembler::Variable::Impl*> variables_;
+  ZoneSet<CodeAssemblerVariable::Impl*> variables_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };

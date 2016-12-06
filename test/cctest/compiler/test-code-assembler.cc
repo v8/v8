@@ -215,8 +215,8 @@ TEST(VariableMerge1) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerVariable var1(&m, MachineRepresentation::kTagged);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -234,8 +234,8 @@ TEST(VariableMerge2) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerVariable var1(&m, MachineRepresentation::kTagged);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -255,9 +255,9 @@ TEST(VariableMerge3) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Variable var2(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerVariable var1(&m, MachineRepresentation::kTagged);
+  CodeAssemblerVariable var2(&m, MachineRepresentation::kTagged);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   var2.Bind(temp);
@@ -280,8 +280,8 @@ TEST(VariableMergeBindFirst) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
+  CodeAssemblerVariable var1(&m, MachineRepresentation::kTagged);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m, &var1), end(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -306,9 +306,9 @@ TEST(VariableMergeSwitch) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), default_label(&m);
-  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  CodeAssemblerVariable var1(&m, MachineRepresentation::kTagged);
+  CodeAssemblerLabel l1(&m), l2(&m), default_label(&m);
+  CodeAssemblerLabel* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
@@ -328,7 +328,7 @@ TEST(SplitEdgeBranchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Label l1(&m), merge(&m);
+  CodeAssemblerLabel l1(&m), merge(&m);
   m.Branch(m.Int32Constant(1), &l1, &merge);
   m.Bind(&l1);
   m.Goto(&merge);
@@ -340,8 +340,8 @@ TEST(SplitEdgeSwitchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
-  CodeStubAssembler::Label l1(&m), l2(&m), l3(&m), default_label(&m);
-  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  CodeAssemblerLabel l1(&m), l2(&m), l3(&m), default_label(&m);
+  CodeAssemblerLabel* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   m.Branch(m.Int32Constant(1), &l3, &l1);
   m.Bind(&l3);
@@ -383,8 +383,8 @@ TEST(TestToConstant) {
 
 TEST(DeferredCodePhiHints) {
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
@@ -407,8 +407,8 @@ TEST(DeferredCodePhiHints) {
 }
 
 TEST(TestOutOfScopeVariable) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate);
   CodeAssembler m(data.state());
