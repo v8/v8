@@ -8,10 +8,13 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
+
+namespace compiler {
+class CodeAssemblerState;
+}
 
 // Arguments object passed to C++ builtins.
 class BuiltinArguments : public Arguments {

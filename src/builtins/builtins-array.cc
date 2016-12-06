@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils.h"
 
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/elements.h"
 

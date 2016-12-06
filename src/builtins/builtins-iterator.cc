@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/code-stub-assembler.h"
 #include "src/frames-inl.h"
 
 namespace v8 {

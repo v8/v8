@@ -4,8 +4,8 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/string-builder.h"
