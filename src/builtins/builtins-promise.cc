@@ -378,14 +378,19 @@ void AppendPromiseCallback(CodeStubAssembler* a, int offset,
 
   Node* delta = a->IntPtrOrSmiConstant(1, mode);
   Node* new_capacity = a->IntPtrAdd(length, delta);
-  ElementsKind kind = FAST_ELEMENTS;
 
-  Node* new_elements = a->AllocateFixedArray(kind, new_capacity, mode);
+  const ElementsKind kind = FAST_ELEMENTS;
+  const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+  const CodeStubAssembler::AllocationFlags flags =
+      CodeStubAssembler::kAllowLargeObjectAllocation;
+  int additional_offset = 0;
 
-  a->CopyFixedArrayElements(kind, elements, new_elements, length,
-                            UPDATE_WRITE_BARRIER, mode);
-  a->StoreFixedArrayElement(new_elements, length, value, UPDATE_WRITE_BARRIER,
-                            0, mode);
+  Node* new_elements = a->AllocateFixedArray(kind, new_capacity, mode, flags);
+
+  a->CopyFixedArrayElements(kind, elements, new_elements, length, barrier_mode,
+                            mode);
+  a->StoreFixedArrayElement(new_elements, length, value, barrier_mode,
+                            additional_offset, mode);
 
   a->StoreObjectField(promise, offset, new_elements);
 }
