@@ -42,6 +42,7 @@ using namespace v8::internal;
 typedef void* (*F)(int64_t x, int64_t y, int p2, int p3, int p4);
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
+typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ masm->
 
@@ -1513,13 +1514,13 @@ TEST(min_max_nan) {
   __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
   __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
-  __ MinNaNCheck_d(f10, f4, f8, &handle_mind_nan);
+  __ Float64Min(f10, f4, f8, &handle_mind_nan);
   __ bind(&back_mind_nan);
-  __ MaxNaNCheck_d(f12, f4, f8, &handle_maxd_nan);
+  __ Float64Max(f12, f4, f8, &handle_maxd_nan);
   __ bind(&back_maxd_nan);
-  __ MinNaNCheck_s(f14, f2, f6, &handle_mins_nan);
+  __ Float32Min(f14, f2, f6, &handle_mins_nan);
   __ bind(&back_mins_nan);
-  __ MaxNaNCheck_s(f16, f2, f6, &handle_maxs_nan);
+  __ Float32Max(f16, f2, f6, &handle_maxs_nan);
   __ bind(&back_maxs_nan);
   __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
   __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
@@ -1965,6 +1966,292 @@ TEST(Sltu) {
       CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_2));
     }
   }
+}
+
+template <typename T, typename Inputs, typename Results>
+static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
+  T a = T::from_code(4);  // f4
+  T b = T::from_code(6);  // f6
+  T c = T::from_code(8);  // f8
+
+  Label ool_min_abc, ool_min_aab, ool_min_aba;
+  Label ool_max_abc, ool_max_aab, ool_max_aba;
+
+  Label done_min_abc, done_min_aab, done_min_aba;
+  Label done_max_abc, done_max_aab, done_max_aba;
+
+#define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
+  __ lwc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
+  __ lwc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
+  __ fminmax(res, x, y, &ool);                                  \
+  __ bind(&done);                                               \
+  __ swc1(a, MemOperand(a1, offsetof(Results, res_field)))
+
+  // a = min(b, c);
+  FLOAT_MIN_MAX(Float32Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);
+  // a = min(a, b);
+  FLOAT_MIN_MAX(Float32Min, a, a, b, done_min_aab, ool_min_aab, min_aab_);
+  // a = min(b, a);
+  FLOAT_MIN_MAX(Float32Min, a, b, a, done_min_aba, ool_min_aba, min_aba_);
+
+  // a = max(b, c);
+  FLOAT_MIN_MAX(Float32Max, a, b, c, done_max_abc, ool_max_abc, max_abc_);
+  // a = max(a, b);
+  FLOAT_MIN_MAX(Float32Max, a, a, b, done_max_aab, ool_max_aab, max_aab_);
+  // a = max(b, a);
+  FLOAT_MIN_MAX(Float32Max, a, b, a, done_max_aba, ool_max_aba, max_aba_);
+
+#undef FLOAT_MIN_MAX
+
+  __ jr(ra);
+  __ nop();
+
+  // Generate out-of-line cases.
+  __ bind(&ool_min_abc);
+  __ Float32MinOutOfLine(a, b, c);
+  __ b(&done_min_abc);
+
+  __ bind(&ool_min_aab);
+  __ Float32MinOutOfLine(a, a, b);
+  __ b(&done_min_aab);
+
+  __ bind(&ool_min_aba);
+  __ Float32MinOutOfLine(a, b, a);
+  __ b(&done_min_aba);
+
+  __ bind(&ool_max_abc);
+  __ Float32MaxOutOfLine(a, b, c);
+  __ b(&done_max_abc);
+
+  __ bind(&ool_max_aab);
+  __ Float32MaxOutOfLine(a, a, b);
+  __ b(&done_max_aab);
+
+  __ bind(&ool_max_aba);
+  __ Float32MaxOutOfLine(a, b, a);
+  __ b(&done_max_aba);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = masm->isolate()->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  return FUNCTION_CAST<::F4>(code->entry());
+}
+
+TEST(macro_float_minmax_f32) {
+  // Test the Float32Min and Float32Max macros.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  struct Inputs {
+    float src1_;
+    float src2_;
+  };
+
+  struct Results {
+    // Check all register aliasing possibilities in order to exercise all
+    // code-paths in the macro assembler.
+    float min_abc_;
+    float min_aab_;
+    float min_aba_;
+    float max_abc_;
+    float max_aab_;
+    float max_aba_;
+  };
+
+  ::F4 f = GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MINMAX(src1, src2, min, max)                                   \
+  do {                                                                       \
+    Inputs inputs = {src1, src2};                                            \
+    Results results;                                                         \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);     \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_)); \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_)); \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aba_)); \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+  } while (0)
+
+  float nan_a = std::numeric_limits<float>::quiet_NaN();
+  float nan_b = std::numeric_limits<float>::quiet_NaN();
+
+  CHECK_MINMAX(1.0f, -1.0f, -1.0f, 1.0f);
+  CHECK_MINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
+  CHECK_MINMAX(0.0f, -1.0f, -1.0f, 0.0f);
+  CHECK_MINMAX(-1.0f, 0.0f, -1.0f, 0.0f);
+  CHECK_MINMAX(-0.0f, -1.0f, -1.0f, -0.0f);
+  CHECK_MINMAX(-1.0f, -0.0f, -1.0f, -0.0f);
+  CHECK_MINMAX(0.0f, 1.0f, 0.0f, 1.0f);
+  CHECK_MINMAX(1.0f, 0.0f, 0.0f, 1.0f);
+
+  CHECK_MINMAX(0.0f, 0.0f, 0.0f, 0.0f);
+  CHECK_MINMAX(-0.0f, -0.0f, -0.0f, -0.0f);
+  CHECK_MINMAX(-0.0f, 0.0f, -0.0f, 0.0f);
+  CHECK_MINMAX(0.0f, -0.0f, -0.0f, 0.0f);
+
+  CHECK_MINMAX(0.0f, nan_a, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, 0.0f, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, nan_b, nan_a, nan_a);
+  CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_MINMAX
+}
+
+template <typename T, typename Inputs, typename Results>
+static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
+  T a = T::from_code(4);  // f4
+  T b = T::from_code(6);  // f6
+  T c = T::from_code(8);  // f8
+
+  Label ool_min_abc, ool_min_aab, ool_min_aba;
+  Label ool_max_abc, ool_max_aab, ool_max_aba;
+
+  Label done_min_abc, done_min_aab, done_min_aba;
+  Label done_max_abc, done_max_aab, done_max_aba;
+
+#define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
+  __ ldc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
+  __ ldc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
+  __ fminmax(res, x, y, &ool);                                  \
+  __ bind(&done);                                               \
+  __ sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
+
+  // a = min(b, c);
+  FLOAT_MIN_MAX(Float64Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);
+  // a = min(a, b);
+  FLOAT_MIN_MAX(Float64Min, a, a, b, done_min_aab, ool_min_aab, min_aab_);
+  // a = min(b, a);
+  FLOAT_MIN_MAX(Float64Min, a, b, a, done_min_aba, ool_min_aba, min_aba_);
+
+  // a = max(b, c);
+  FLOAT_MIN_MAX(Float64Max, a, b, c, done_max_abc, ool_max_abc, max_abc_);
+  // a = max(a, b);
+  FLOAT_MIN_MAX(Float64Max, a, a, b, done_max_aab, ool_max_aab, max_aab_);
+  // a = max(b, a);
+  FLOAT_MIN_MAX(Float64Max, a, b, a, done_max_aba, ool_max_aba, max_aba_);
+
+#undef FLOAT_MIN_MAX
+
+  __ jr(ra);
+  __ nop();
+
+  // Generate out-of-line cases.
+  __ bind(&ool_min_abc);
+  __ Float64MinOutOfLine(a, b, c);
+  __ b(&done_min_abc);
+
+  __ bind(&ool_min_aab);
+  __ Float64MinOutOfLine(a, a, b);
+  __ b(&done_min_aab);
+
+  __ bind(&ool_min_aba);
+  __ Float64MinOutOfLine(a, b, a);
+  __ b(&done_min_aba);
+
+  __ bind(&ool_max_abc);
+  __ Float64MaxOutOfLine(a, b, c);
+  __ b(&done_max_abc);
+
+  __ bind(&ool_max_aab);
+  __ Float64MaxOutOfLine(a, a, b);
+  __ b(&done_max_aab);
+
+  __ bind(&ool_max_aba);
+  __ Float64MaxOutOfLine(a, b, a);
+  __ b(&done_max_aba);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = masm->isolate()->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  return FUNCTION_CAST<::F4>(code->entry());
+}
+
+TEST(macro_float_minmax_f64) {
+  // Test the Float64Min and Float64Max macros.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  struct Inputs {
+    double src1_;
+    double src2_;
+  };
+
+  struct Results {
+    // Check all register aliasing possibilities in order to exercise all
+    // code-paths in the macro assembler.
+    double min_abc_;
+    double min_aab_;
+    double min_aba_;
+    double max_abc_;
+    double max_aab_;
+    double max_aba_;
+  };
+
+  ::F4 f = GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>(masm);
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MINMAX(src1, src2, min, max)                                   \
+  do {                                                                       \
+    Inputs inputs = {src1, src2};                                            \
+    Results results;                                                         \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);     \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_abc_)); \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aab_)); \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aba_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_abc_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aab_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aba_)); \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+  } while (0)
+
+  double nan_a = std::numeric_limits<double>::quiet_NaN();
+  double nan_b = std::numeric_limits<double>::quiet_NaN();
+
+  CHECK_MINMAX(1.0, -1.0, -1.0, 1.0);
+  CHECK_MINMAX(-1.0, 1.0, -1.0, 1.0);
+  CHECK_MINMAX(0.0, -1.0, -1.0, 0.0);
+  CHECK_MINMAX(-1.0, 0.0, -1.0, 0.0);
+  CHECK_MINMAX(-0.0, -1.0, -1.0, -0.0);
+  CHECK_MINMAX(-1.0, -0.0, -1.0, -0.0);
+  CHECK_MINMAX(0.0, 1.0, 0.0, 1.0);
+  CHECK_MINMAX(1.0, 0.0, 0.0, 1.0);
+
+  CHECK_MINMAX(0.0, 0.0, 0.0, 0.0);
+  CHECK_MINMAX(-0.0, -0.0, -0.0, -0.0);
+  CHECK_MINMAX(-0.0, 0.0, -0.0, 0.0);
+  CHECK_MINMAX(0.0, -0.0, -0.0, 0.0);
+
+  CHECK_MINMAX(0.0, nan_a, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, 0.0, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, nan_b, nan_a, nan_a);
+  CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_MINMAX
 }
 
 #undef __

@@ -139,7 +139,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ LoadRoot(t2, root_index);
   __ ldc1(f0, FieldMemOperand(t2, HeapNumber::kValueOffset));
 
-  Label done_loop, loop;
+  Label done_loop, loop, done;
   __ mov(a3, a0);
   __ bind(&loop);
   {
@@ -195,15 +195,25 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     // accumulator value on the left hand side (f0) and the next parameter value
     // on the right hand side (f2).
     // We need to work out which HeapNumber (or smi) the result came from.
-    Label compare_nan, set_value;
+    Label compare_nan, set_value, ool_min, ool_max;
     __ BranchF(nullptr, &compare_nan, eq, f0, f2);
     __ Move(t0, t1, f0);
     if (kind == MathMaxMinKind::kMin) {
-      __ MinNaNCheck_d(f0, f0, f2);
+      __ Float64Min(f0, f0, f2, &ool_min);
     } else {
       DCHECK(kind == MathMaxMinKind::kMax);
-      __ MaxNaNCheck_d(f0, f0, f2);
+      __ Float64Max(f0, f0, f2, &ool_max);
     }
+    __ jmp(&done);
+
+    __ bind(&ool_min);
+    __ Float64MinOutOfLine(f0, f0, f2);
+    __ jmp(&done);
+
+    __ bind(&ool_max);
+    __ Float64MaxOutOfLine(f0, f0, f2);
+
+    __ bind(&done);
     __ Move(at, t8, f0);
     __ Branch(&set_value, ne, t0, Operand(at));
     __ Branch(&set_value, ne, t1, Operand(t8));

@@ -305,17 +305,6 @@ class MacroAssembler: public Assembler {
   void Movt(Register rd, Register rs, uint16_t cc = 0);
   void Movf(Register rd, Register rs, uint16_t cc = 0);
 
-  // Min, Max macros.
-  // On pre-r6 these functions may modify at and t8 registers.
-  void MinNaNCheck_d(FPURegister dst, FPURegister src1, FPURegister src2,
-                     Label* nan = nullptr);
-  void MaxNaNCheck_d(FPURegister dst, FPURegister src1, FPURegister src2,
-                     Label* nan = nullptr);
-  void MinNaNCheck_s(FPURegister dst, FPURegister src1, FPURegister src2,
-                     Label* nan = nullptr);
-  void MaxNaNCheck_s(FPURegister dst, FPURegister src1, FPURegister src2,
-                     Label* nan = nullptr);
-
   void Clz(Register rd, Register rs);
 
   // Jump unconditionally to given label.
@@ -1295,6 +1284,31 @@ class MacroAssembler: public Assembler {
   void MulBranchOvf(Register dst, Register left, Register right,
                     Label* overflow_label, Label* no_overflow_label,
                     Register scratch = at);
+
+  // Perform a floating-point min or max operation with the
+  // (IEEE-754-compatible) semantics of MIPS32's Release 6 MIN.fmt/MAX.fmt.
+  // Some cases, typically NaNs or +/-0.0, are expected to be rare and are
+  // handled in out-of-line code. The specific behaviour depends on supported
+  // instructions.
+  //
+  // These functions assume (and assert) that !src1.is(src2). It is permitted
+  // for the result to alias either input register.
+  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2,
+                  Label* out_of_line);
+  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2,
+                  Label* out_of_line);
+  void Float64Max(DoubleRegister dst, DoubleRegister src1, DoubleRegister src2,
+                  Label* out_of_line);
+  void Float64Min(DoubleRegister dst, DoubleRegister src1, DoubleRegister src2,
+                  Label* out_of_line);
+
+  // Generate out-of-line cases for the macros above.
+  void Float32MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float32MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64MaxOutOfLine(DoubleRegister dst, DoubleRegister src1,
+                           DoubleRegister src2);
+  void Float64MinOutOfLine(DoubleRegister dst, DoubleRegister src1,
+                           DoubleRegister src2);
 
   // -------------------------------------------------------------------------
   // Runtime calls.
