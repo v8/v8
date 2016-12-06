@@ -134,17 +134,24 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
   }
 
  private:
-  String16 GetScriptName(v8::Isolate *isolate) {
-    return toProtocolString(script_.Get(isolate)->Name().ToLocalChecked());
-  }
-
   String16 GetFakeScriptUrl(v8::Isolate *isolate, int func_index) {
-    String16 script_name = GetScriptName(isolate);
-    return String16::concat("wasm://wasm/", script_name, '/', script_name, '-',
-                            String16::fromInteger(func_index));
-  }
-  String16 GetFakeScriptUrl(const TransLocation *loc) {
-    return GetFakeScriptUrl(loc->translation->isolate_, loc->line);
+    Local<debug::WasmScript> script = script_.Get(isolate);
+    String16 script_name = toProtocolString(script->Name().ToLocalChecked());
+    int numFunctions = script->NumFunctions();
+    int numImported = script->NumImportedFunctions();
+    String16Builder builder;
+    builder.appendAll("wasm://wasm/", script_name, '/');
+    if (numFunctions - numImported > 300) {
+      size_t digits = String16::fromInteger(numFunctions - 1).length();
+      String16 thisCategory = String16::fromInteger((func_index / 100) * 100);
+      DCHECK_LE(thisCategory.length(), digits);
+      for (size_t i = thisCategory.length(); i < digits; ++i)
+        builder.append('0');
+      builder.appendAll(thisCategory, '/');
+    }
+    builder.appendAll(script_name, '-');
+    builder.appendNumber(func_index);
+    return builder.toString();
   }
 
   String16 GetFakeScriptId(const String16 script_id, int func_index) {
