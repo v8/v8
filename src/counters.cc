@@ -280,8 +280,8 @@ void RuntimeCallCounter::Reset() {
 
 void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
   value->BeginArray(name_);
-  value->AppendLongInteger(count_);
-  value->AppendLongInteger(time_.InMicroseconds());
+  value->AppendDouble(count_);
+  value->AppendDouble(time_.InMicroseconds());
   value->EndArray();
 }
 
