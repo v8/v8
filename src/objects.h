@@ -9645,6 +9645,10 @@ class Symbol: public Name {
   // a load.
   DECL_BOOLEAN_ACCESSORS(is_well_known_symbol)
 
+  // [is_public]: Whether this is a symbol created by Symbol.for. Calling
+  // Symbol.keyFor on such a symbol simply needs to return the attached name.
+  DECL_BOOLEAN_ACCESSORS(is_public)
+
   DECLARE_CAST(Symbol)
 
   // Dispatched behavior.
@@ -9659,6 +9663,7 @@ class Symbol: public Name {
   // Flags layout.
   static const int kPrivateBit = 0;
   static const int kWellKnownSymbolBit = 1;
+  static const int kPublicBit = 2;
 
   typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
 

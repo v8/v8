@@ -7641,42 +7641,19 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
 }
 
 
-static i::Handle<i::Symbol> SymbolFor(i::Isolate* isolate,
-                                      i::Handle<i::String> name,
-                                      i::Handle<i::String> part,
-                                      bool private_symbol) {
-  i::Handle<i::JSObject> registry = isolate->GetSymbolRegistry();
-  i::Handle<i::JSObject> symbols =
-      i::Handle<i::JSObject>::cast(
-          i::Object::GetPropertyOrElement(registry, part).ToHandleChecked());
-  i::Handle<i::Object> symbol =
-      i::Object::GetPropertyOrElement(symbols, name).ToHandleChecked();
-  if (!symbol->IsSymbol()) {
-    DCHECK(symbol->IsUndefined(isolate));
-    if (private_symbol)
-      symbol = isolate->factory()->NewPrivateSymbol();
-    else
-      symbol = isolate->factory()->NewSymbol();
-    i::Handle<i::Symbol>::cast(symbol)->set_name(*name);
-    i::Object::SetPropertyOrElement(symbols, name, symbol, i::STRICT).Assert();
-  }
-  return i::Handle<i::Symbol>::cast(symbol);
-}
-
-
 Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::String> part = i_isolate->factory()->for_string();
-  return Utils::ToLocal(SymbolFor(i_isolate, i_name, part, false));
+  return Utils::ToLocal(i_isolate->SymbolFor(
+      i::Heap::kPublicSymbolTableRootIndex, i_name, false));
 }
 
 
 Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::String> part = i_isolate->factory()->for_api_string();
-  return Utils::ToLocal(SymbolFor(i_isolate, i_name, part, false));
+  return Utils::ToLocal(
+      i_isolate->SymbolFor(i::Heap::kApiSymbolTableRootIndex, i_name, false));
 }
 
 
@@ -7718,9 +7695,8 @@ Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
 Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::String> part = i_isolate->factory()->private_api_string();
-  Local<Symbol> result =
-      Utils::ToLocal(SymbolFor(i_isolate, i_name, part, true));
+  Local<Symbol> result = Utils::ToLocal(i_isolate->SymbolFor(
+      i::Heap::kApiPrivateSymbolTableRootIndex, i_name, true));
   return v8::Local<Private>(reinterpret_cast<Private*>(*result));
 }
 

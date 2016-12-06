@@ -507,6 +507,13 @@ Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
   return fun;
 }
 
+void InstallConstant(Isolate* isolate, Handle<JSObject> holder,
+                     const char* name, Handle<Object> value) {
+  JSObject::AddProperty(
+      holder, isolate->factory()->NewStringFromAsciiChecked(name), value,
+      static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+}
+
 }  // namespace
 
 Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
@@ -1624,6 +1631,30 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
 
+    // Install the Symbol.for and Symbol.keyFor functions.
+    SimpleInstallFunction(symbol_fun, "for", Builtins::kSymbolFor, 1, false);
+    SimpleInstallFunction(symbol_fun, "keyFor", Builtins::kSymbolKeyFor, 1,
+                          false);
+
+    // Install well-known symbols.
+    InstallConstant(isolate, symbol_fun, "hasInstance",
+                    factory->has_instance_symbol());
+    InstallConstant(isolate, symbol_fun, "isConcatSpreadable",
+                    factory->is_concat_spreadable_symbol());
+    InstallConstant(isolate, symbol_fun, "iterator",
+                    factory->iterator_symbol());
+    InstallConstant(isolate, symbol_fun, "match", factory->match_symbol());
+    InstallConstant(isolate, symbol_fun, "replace", factory->replace_symbol());
+    InstallConstant(isolate, symbol_fun, "search", factory->search_symbol());
+    InstallConstant(isolate, symbol_fun, "species", factory->species_symbol());
+    InstallConstant(isolate, symbol_fun, "split", factory->split_symbol());
+    InstallConstant(isolate, symbol_fun, "toPrimitive",
+                    factory->to_primitive_symbol());
+    InstallConstant(isolate, symbol_fun, "toStringTag",
+                    factory->to_string_tag_symbol());
+    InstallConstant(isolate, symbol_fun, "unscopables",
+                    factory->unscopables_symbol());
+
     // Install the @@toStringTag property on the {prototype}.
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),
@@ -2182,36 +2213,19 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install math constants.
     double const kE = base::ieee754::exp(1.0);
     double const kPI = 3.1415926535897932;
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("E"), factory->NewNumber(kE),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("LN10"),
-        factory->NewNumber(base::ieee754::log(10.0)),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("LN2"),
-        factory->NewNumber(base::ieee754::log(2.0)),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("LOG10E"),
-        factory->NewNumber(base::ieee754::log10(kE)),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("LOG2E"),
-        factory->NewNumber(base::ieee754::log2(kE)),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("PI"), factory->NewNumber(kPI),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("SQRT1_2"),
-        factory->NewNumber(std::sqrt(0.5)),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
-    JSObject::AddProperty(
-        math, factory->NewStringFromAsciiChecked("SQRT2"),
-        factory->NewNumber(std::sqrt(2.0)),
-        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    InstallConstant(isolate, math, "E", factory->NewNumber(kE));
+    InstallConstant(isolate, math, "LN10",
+                    factory->NewNumber(base::ieee754::log(10.0)));
+    InstallConstant(isolate, math, "LN2",
+                    factory->NewNumber(base::ieee754::log(2.0)));
+    InstallConstant(isolate, math, "LOG10E",
+                    factory->NewNumber(base::ieee754::log10(kE)));
+    InstallConstant(isolate, math, "LOG2E",
+                    factory->NewNumber(base::ieee754::log2(kE)));
+    InstallConstant(isolate, math, "PI", factory->NewNumber(kPI));
+    InstallConstant(isolate, math, "SQRT1_2",
+                    factory->NewNumber(std::sqrt(0.5)));
+    InstallConstant(isolate, math, "SQRT2", factory->NewNumber(std::sqrt(2.0)));
     JSObject::AddProperty(
         math, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("Math"),

@@ -1087,9 +1087,6 @@ class Isolate {
     return id;
   }
 
-  // Get (and lazily initialize) the registry for per-isolate symbols.
-  Handle<JSObject> GetSymbolRegistry();
-
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback();
@@ -1116,6 +1113,9 @@ class Isolate {
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
   int GetNextDebugMicrotaskId() { return debug_microtask_count_++; }
+
+  Handle<Symbol> SymbolFor(Heap::RootListIndex dictionary_index,
+                           Handle<String> name, bool private_symbol);
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
@@ -1187,8 +1187,6 @@ class Isolate {
  private:
   friend struct GlobalState;
   friend struct InitializeGlobalState;
-  Handle<JSObject> SetUpSubregistry(Handle<JSObject> registry, Handle<Map> map,
-                                    const char* name);
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8.h) constants. This is also

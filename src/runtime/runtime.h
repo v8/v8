@@ -836,7 +836,6 @@ namespace internal {
   F(CreatePrivateSymbol, 1, 1)       \
   F(SymbolDescription, 1, 1)         \
   F(SymbolDescriptiveString, 1, 1)   \
-  F(SymbolRegistry, 0, 1)            \
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \

@@ -2682,6 +2682,10 @@ void Heap::CreateInitialObjects() {
   empty_properties_dictionary->SetRequiresCopyOnCapacityChange();
   set_empty_properties_dictionary(*empty_properties_dictionary);
 
+  set_public_symbol_table(*empty_properties_dictionary);
+  set_api_symbol_table(*empty_properties_dictionary);
+  set_api_private_symbol_table(*empty_properties_dictionary);
+
   set_number_string_cache(
       *factory->NewFixedArray(kInitialNumberStringCacheSize * 2, TENURED));
 
@@ -2709,9 +2713,6 @@ void Heap::CreateInitialObjects() {
       *factory->NewFixedArray(ExperimentalExtraNatives::GetBuiltinsCount()));
 
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
-
-  // The symbol registry is initialized lazily.
-  set_symbol_registry(Smi::kZero);
 
   // Microtask queue uses the empty fixed array as a sentinel for "empty".
   // Number of queued microtasks stored in Isolate::pending_microtask_count().
@@ -2873,7 +2874,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kInstanceofCacheAnswerRootIndex:
     case kCodeStubsRootIndex:
     case kEmptyScriptRootIndex:
-    case kSymbolRegistryRootIndex:
     case kScriptListRootIndex:
     case kMaterializedObjectsRootIndex:
     case kMicrotaskQueueRootIndex:
@@ -2884,6 +2884,9 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:
+    case kPublicSymbolTableRootIndex:
+    case kApiSymbolTableRootIndex:
+    case kApiPrivateSymbolTableRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
       SMI_ROOT_LIST(SMI_ENTRY)

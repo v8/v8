@@ -2227,7 +2227,6 @@
           'js/prologue.js',
           'js/runtime.js',
           'js/v8natives.js',
-          'js/symbol.js',
           'js/array.js',
           'js/string.js',
           'js/arraybuffer.js',

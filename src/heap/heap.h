@@ -192,7 +192,9 @@ using v8::MemoryPressureLevel;
     ExperimentalExtraNativesSourceCache)                                       \
   /* Lists and dictionaries */                                                 \
   V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
-  V(Object, symbol_registry, SymbolRegistry)                                   \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                    \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
   V(Object, script_list, ScriptList)                                           \
   V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \

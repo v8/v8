@@ -71,8 +71,6 @@
   V(flags_string, "flags")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
-  V(for_api_string, "for_api")                                     \
-  V(for_string, "for")                                             \
   V(function_string, "function")                                   \
   V(Function_string, "Function")                                   \
   V(Generator_string, "Generator")                                 \
@@ -125,7 +123,6 @@
   V(ownKeys_string, "ownKeys")                                     \
   V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
-  V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
   V(PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
   V(proto_string, "__proto__")                                     \

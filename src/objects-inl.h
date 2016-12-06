@@ -3701,7 +3701,7 @@ ACCESSORS(Symbol, name, Object, kNameOffset)
 SMI_ACCESSORS(Symbol, flags, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
 BOOL_ACCESSORS(Symbol, flags, is_well_known_symbol, kWellKnownSymbolBit)
-
+BOOL_ACCESSORS(Symbol, flags, is_public, kPublicBit)
 
 bool String::Equals(String* other) {
   if (other == this) return true;

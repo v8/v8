@@ -406,7 +406,6 @@ action("js2c") {
     "src/js/prologue.js",
     "src/js/runtime.js",
     "src/js/v8natives.js",
-    "src/js/symbol.js",
     "src/js/array.js",
     "src/js/string.js",
     "src/js/arraybuffer.js",

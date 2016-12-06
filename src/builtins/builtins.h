@@ -676,6 +676,10 @@ namespace internal {
   /* Symbol */                                                                \
   CPP(SymbolConstructor)                                                      \
   CPP(SymbolConstructor_ConstructStub)                                        \
+  /* ES6 section 19.4.2.1 Symbol.for */                                       \
+  CPP(SymbolFor)                                                              \
+  /* ES6 section 19.4.2.5 Symbol.keyFor */                                    \
+  CPP(SymbolKeyFor)                                                           \
   /* ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint ) */      \
   TFJ(SymbolPrototypeToPrimitive, 1)                                          \
   /* ES6 section 19.4.3.2 Symbol.prototype.toString ( ) */                    \

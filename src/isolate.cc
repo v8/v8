@@ -3032,32 +3032,38 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-
-Handle<JSObject> Isolate::SetUpSubregistry(Handle<JSObject> registry,
-                                           Handle<Map> map, const char* cname) {
-  Handle<String> name = factory()->InternalizeUtf8String(cname);
-  Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
-  JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
-                                "SetupSymbolRegistry");
-  JSObject::AddProperty(registry, name, obj, NONE);
-  return obj;
-}
-
-
-Handle<JSObject> Isolate::GetSymbolRegistry() {
-  if (heap()->symbol_registry()->IsSmi()) {
-    Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    Handle<JSObject> registry = factory()->NewJSObjectFromMap(map);
-    heap()->set_symbol_registry(*registry);
-
-    SetUpSubregistry(registry, map, "for");
-    SetUpSubregistry(registry, map, "for_api");
-    SetUpSubregistry(registry, map, "keyFor");
-    SetUpSubregistry(registry, map, "private_api");
+Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
+                                  Handle<String> name, bool private_symbol) {
+  Handle<String> key = factory()->InternalizeString(name);
+  Handle<NameDictionary> dictionary =
+      Handle<NameDictionary>::cast(heap()->root_handle(dictionary_index));
+  int entry = dictionary->FindEntry(key);
+  Handle<Symbol> symbol;
+  if (entry == NameDictionary::kNotFound) {
+    symbol =
+        private_symbol ? factory()->NewPrivateSymbol() : factory()->NewSymbol();
+    symbol->set_name(*key);
+    dictionary = NameDictionary::Add(dictionary, key, symbol,
+                                     PropertyDetails::Empty(), &entry);
+    switch (dictionary_index) {
+      case Heap::kPublicSymbolTableRootIndex:
+        symbol->set_is_public(true);
+        heap()->set_public_symbol_table(*dictionary);
+        break;
+      case Heap::kApiSymbolTableRootIndex:
+        heap()->set_api_symbol_table(*dictionary);
+        break;
+      case Heap::kApiPrivateSymbolTableRootIndex:
+        heap()->set_api_private_symbol_table(*dictionary);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    symbol = Handle<Symbol>(Symbol::cast(dictionary->ValueAt(entry)));
   }
-  return Handle<JSObject>::cast(factory()->symbol_registry());
+  return symbol;
 }
-
 
 void Isolate::AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback) {
   for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
