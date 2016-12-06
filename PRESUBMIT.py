@@ -67,7 +67,7 @@ def _V8PresubmitChecks(input_api, output_api):
         input_api.PresubmitLocalPath(), 'tools'))
   from presubmit import CppLintProcessor
   from presubmit import SourceProcessor
-  from presubmit import CheckStatusFiles
+  from presubmit import StatusFilesProcessor
 
   results = []
   if not CppLintProcessor().RunOnFiles(
@@ -78,7 +78,8 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
-  if not CheckStatusFiles(input_api.PresubmitLocalPath()):
+  if not StatusFilesProcessor().RunOnFiles(
+      input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError("Status file check failed"))
   results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
       input_api, output_api))

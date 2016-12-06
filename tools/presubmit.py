@@ -461,17 +461,23 @@ def _CheckStatusFileForDuplicateKeys(filepath):
   json.loads(contents, object_pairs_hook=check_pairs)
   return status["success"]
 
-def CheckStatusFiles(workspace):
-  success = True
-  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
-  for root in suite_paths:
-    suite_path = join(workspace, "test", root)
-    status_file_path = join(suite_path, root + ".status")
-    suite = testsuite.TestSuite.LoadTestSuite(suite_path)
-    if suite and exists(status_file_path):
+
+class StatusFilesProcessor(SourceFileProcessor):
+  """Checks status files for incorrect syntax and duplicate keys."""
+
+  def IsRelevant(self, name):
+    return name.endswith('.status')
+
+  def GetPathsToSearch(self):
+    return ['test']
+
+  def ProcessFiles(self, files):
+    success = True
+    for status_file_path in files:
       success &= statusfile.PresubmitCheck(status_file_path)
       success &= _CheckStatusFileForDuplicateKeys(status_file_path)
-  return success
+    return success
+
 
 def GetOptions():
   result = optparse.OptionParser()
@@ -491,7 +497,8 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success &= SourceProcessor().RunOnPath(workspace)
-  success &= CheckStatusFiles(workspace)
+  print "Running status-files check..."
+  success &= StatusFilesProcessor().RunOnPath(workspace)
   if success:
     return 0
   else:
