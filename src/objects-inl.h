@@ -858,6 +858,7 @@ bool HeapObject::IsJSArrayBufferView() const {
 
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
+
 template <> inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
 }
@@ -2093,7 +2094,7 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_WEAK_SET_TYPE:
       return JSWeakSet::kSize;
     case JS_PROMISE_TYPE:
-      return JSPromise::kSize;
+      return JSObject::kHeaderSize;
     case JS_REGEXP_TYPE:
       return JSRegExp::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -3322,7 +3323,6 @@ CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
-CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSStringIterator)
@@ -7095,11 +7095,6 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 #endif
 
-SMI_ACCESSORS(JSPromise, status, kStatusOffset)
-ACCESSORS(JSPromise, result, Object, kResultOffset)
-ACCESSORS(JSPromise, deferred, Object, kDeferredOffset)
-ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
-ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)

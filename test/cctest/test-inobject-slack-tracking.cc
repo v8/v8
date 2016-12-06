@@ -1099,8 +1099,10 @@ TEST(SubclassPromiseBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
+  const int first_field = 5;
   TestSubclassBuiltin("A1", JS_PROMISE_TYPE, "Promise",
-                      "function(resolve, reject) { resolve('ok'); }");
+                      "function(resolve, reject) { resolve('ok'); }",
+                      first_field);
 }
 
 

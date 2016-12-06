@@ -13,6 +13,8 @@ var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
 var MapEntries;
 var MapIteratorNext;
+var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
+var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
 var SetValues;
 
@@ -1265,7 +1267,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %PromiseStatus(value);
+  var status = %DebugGetProperty(value, promiseStateSymbol);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1273,7 +1275,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %PromiseResult(value);
+  return %DebugGetProperty(value, promiseResultSymbol);
 }
 
 

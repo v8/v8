@@ -150,12 +150,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_PROMISE_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
-      break;
-    case JS_PROMISE_TYPE:
-      JSPromise::cast(this)->JSPromisePrint(os);
       break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayPrint(os);
@@ -544,14 +542,6 @@ void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this);
 }
 
-void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "JSPromise");
-  os << "\n - status = " << JSPromise::Status(status());
-  os << "\n - result = " << Brief(result());
-  os << "\n - deferreds = " << Brief(deferred());
-  os << "\n - fulfill_reactions = " << Brief(fulfill_reactions());
-  os << "\n - reject_reactions = " << Brief(reject_reactions());
-}
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSRegExp");
