@@ -127,8 +127,7 @@ void V8Debugger::getCompiledScripts(
     if (!script->ContextData().ToLocal(&v8ContextData)) continue;
     String16 contextData = toProtocolString(v8ContextData);
     if (contextData.find(contextPrefix) != 0) continue;
-    result.push_back(std::unique_ptr<V8DebuggerScript>(
-        new V8DebuggerScript(m_isolate, script, false)));
+    result.push_back(V8DebuggerScript::Create(m_isolate, script, false));
   }
 }
 
@@ -590,8 +589,7 @@ void V8Debugger::handleV8DebugEvent(
       m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
     } else if (m_ignoreScriptParsedEventsCounter == 0) {
       agent->didParseSource(
-          std::unique_ptr<V8DebuggerScript>(
-              new V8DebuggerScript(m_isolate, script, inLiveEditScope)),
+          V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
           event == v8::AfterCompile);
     }
   } else if (event == v8::Exception) {

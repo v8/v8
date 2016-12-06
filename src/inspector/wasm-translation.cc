@@ -167,17 +167,18 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     String16 fake_script_id = GetFakeScriptId(underlyingScriptId, func_idx);
     String16 fake_script_url = GetFakeScriptUrl(isolate, func_idx);
 
+    v8::Local<debug::WasmScript> script = script_.Get(isolate);
     // TODO(clemensh): Generate disassembly lazily when queried by the frontend.
-    debug::WasmDisassembly disassembly =
-        script_.Get(isolate)->DisassembleFunction(func_idx);
+    debug::WasmDisassembly disassembly = script->DisassembleFunction(func_idx);
 
     DCHECK_EQ(0, offset_tables_.count(func_idx));
     offset_tables_.insert(
         std::make_pair(func_idx, std::move(disassembly.offset_table)));
     String16 source(disassembly.disassembly.data(),
                     disassembly.disassembly.length());
-    std::unique_ptr<V8DebuggerScript> fake_script(new V8DebuggerScript(
-        fake_script_id, std::move(fake_script_url), source));
+    std::unique_ptr<V8DebuggerScript> fake_script =
+        V8DebuggerScript::CreateWasm(isolate, script, fake_script_id,
+                                     std::move(fake_script_url), source);
 
     translation->AddFakeScript(fake_script->scriptId(), this);
     agent->didParseSource(std::move(fake_script), true);
