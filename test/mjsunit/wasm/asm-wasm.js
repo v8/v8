@@ -1649,6 +1649,19 @@ function TestDotfulFloat(stdlib) {
 assertWasm(55, TestDotfulFloat);
 
 
+function TestDotfulLocalFloat(stdlib) {
+  "use asm";
+  var fround = stdlib.Math.fround;
+  function caller() {
+    var foo = fround(55.0);
+    return +foo;
+  }
+  return {caller: caller};
+}
+
+assertWasm(55, TestDotfulLocalFloat);
+
+
 function TestDotlessFloat(stdlib) {
   "use asm";
   var fround = stdlib.Math.fround;
@@ -1660,6 +1673,19 @@ function TestDotlessFloat(stdlib) {
 }
 
 assertWasm(55, TestDotlessFloat);
+
+
+function TestDotlessLocalFloat(stdlib) {
+  "use asm";
+  var fround = stdlib.Math.fround;
+  function caller() {
+    var foo = fround(55);
+    return +foo;
+  }
+  return {caller: caller};
+}
+
+assertWasm(55, TestDotlessLocalFloat);
 
 
 function TestFloatGlobals(stdlib) {

@@ -2814,14 +2814,12 @@ AsmType* AsmTyper::VariableTypeAnnotations(
          "to fround.");
   }
 
-  // Float constants must contain dots in local, but not in globals.
-  if (mutability_type == VariableInfo::kLocal) {
-    if (!src_expr->raw_value()->ContainsDot()) {
-      FAIL(initializer,
-           "Invalid float type annotation - expected literal argument to be a "
-           "floating point literal.");
-    }
-  }
+  // ERRATA: 5.4
+  // According to the spec: float constants must contain dots in local,
+  // but not in globals.
+  // However, the errata doc (and actual programs), use integer values
+  // with fround(..).
+  // Skipping the check that would go here to enforce this.
 
   return AsmType::Float();
 }
