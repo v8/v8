@@ -783,6 +783,22 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
   Label runtime_call(this, Label::kDeferred), no_runtime_call(this);
   Label merge_runtime(this, &result);
 
+  if (flags & kAllowLargeObjectAllocation) {
+    Label next(this);
+    GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
+
+    Node* runtime_flags = SmiConstant(
+        Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
+                     AllocateTargetSpace::encode(AllocationSpace::LO_SPACE)));
+    Node* const runtime_result =
+        CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                    SmiTag(size_in_bytes), runtime_flags);
+    result.Bind(runtime_result);
+    Goto(&merge_runtime);
+
+    Bind(&next);
+  }
+
   Node* new_top = IntPtrAdd(top, size_in_bytes);
   Branch(UintPtrGreaterThanOrEqual(new_top, limit), &runtime_call,
          &no_runtime_call);

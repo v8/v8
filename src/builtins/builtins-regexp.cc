@@ -1465,9 +1465,12 @@ class GrowableFixedArray {
 
     const ElementsKind kind = FAST_ELEMENTS;
     const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+    const CodeStubAssembler::AllocationFlags flags =
+        CodeStubAssembler::kAllowLargeObjectAllocation;
 
     Node* const from_array = var_array_.value();
-    Node* const to_array = a->AllocateFixedArray(kind, new_capacity, mode);
+    Node* const to_array =
+        a->AllocateFixedArray(kind, new_capacity, mode, flags);
     a->CopyFixedArrayElements(kind, from_array, kind, to_array,
                               current_capacity, new_capacity, barrier_mode,
                               mode);

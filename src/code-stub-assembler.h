@@ -58,7 +58,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   enum AllocationFlag : uint8_t {
     kNone = 0,
     kDoubleAlignment = 1,
-    kPretenured = 1 << 1
+    kPretenured = 1 << 1,
+    kAllowLargeObjectAllocation = 1 << 2,
   };
 
   typedef base::Flags<AllocationFlag> AllocationFlags;

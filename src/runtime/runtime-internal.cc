@@ -273,9 +273,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
-  CHECK(size <= kMaxRegularHeapObjectSize);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
+  CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);
   return *isolate->factory()->NewFillerObject(size, double_align, space);
 }
 
