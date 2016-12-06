@@ -94,10 +94,13 @@ void EnqueuePromiseReactionJob(Isolate* isolate, Handle<Object> value,
   isolate->EnqueueMicrotask(info);
 }
 
-void PromiseSet(Handle<JSPromise> promise, int status, Handle<Object> result) {
+void PromiseSet(Isolate* isolate, Handle<JSPromise> promise, int status,
+                Handle<Object> result) {
   promise->set_status(status);
   promise->set_result(*result);
-  // TODO(gsathya): reset reactions?
+  promise->set_deferred(isolate->heap()->undefined_value());
+  promise->set_fulfill_reactions(isolate->heap()->undefined_value());
+  promise->set_reject_reactions(isolate->heap()->undefined_value());
 }
 
 void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
@@ -112,7 +115,7 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
     EnqueuePromiseReactionJob(isolate, value, tasks, deferred, status);
   }
 
-  PromiseSet(promise, status->value(), value);
+  PromiseSet(isolate, promise, status->value(), value);
 }
 
 }  // namespace
