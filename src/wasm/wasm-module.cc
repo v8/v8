@@ -1760,8 +1760,16 @@ class WasmInstanceBuilder {
             // Wrap the exported code as a JSFunction.
             Handle<Code> export_code =
                 code_table->GetValueChecked<Code>(isolate_, func_index);
+            Handle<String> func_name = name;
+            if (module_->origin == kAsmJsOrigin) {
+              // For modules arising from asm.js, honor the names section.
+              func_name = ExtractStringFromModuleBytes(
+                              isolate_, compiled_module_, function.name_offset,
+                              function.name_length)
+                              .ToHandleChecked();
+            }
             js_function = WasmExportedFunction::New(
-                isolate_, instance, name, export_code,
+                isolate_, instance, func_name, export_code,
                 static_cast<int>(function.sig->parameter_count()),
                 function.func_index);
             js_wrappers_[exp.index] = js_function;
@@ -1913,10 +1921,17 @@ class WasmInstanceBuilder {
 
               Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
                   isolate_, module_, wasm_code, func_index);
+              Handle<String> func_name = isolate_->factory()->empty_string();
+              if (module_->origin == kAsmJsOrigin) {
+                // For modules arising from asm.js, honor the names section.
+                func_name = ExtractStringFromModuleBytes(
+                                isolate_, compiled_module_,
+                                function->name_offset, function->name_length)
+                                .ToHandleChecked();
+              }
               Handle<WasmExportedFunction> js_function =
                   WasmExportedFunction::New(
-                      isolate_, instance, isolate_->factory()->empty_string(),
-                      wrapper_code,
+                      isolate_, instance, func_name, wrapper_code,
                       static_cast<int>(function->sig->parameter_count()),
                       func_index);
               js_wrappers_[func_index] = js_function;
