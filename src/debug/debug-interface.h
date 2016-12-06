@@ -176,14 +176,18 @@ class Script {
   int GetSourcePosition(const debug::Location& location) const;
 };
 
-void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
+// Specialization for wasm Scripts.
+class WasmScript : public Script {
+ public:
+  static WasmScript* Cast(Script* script);
 
-/**
- * Compute the disassembly of a wasm function.
- */
-debug::WasmDisassembly DisassembleWasmFunction(Isolate* isolate,
-                                               v8::Local<v8::Object> script,
-                                               int function_index);
+  int NumFunctions() const;
+  int NumImportedFunctions() const;
+
+  debug::WasmDisassembly DisassembleFunction(int function_index) const;
+};
+
+void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);

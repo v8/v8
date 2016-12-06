@@ -57,7 +57,7 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_ignoreScriptParsedEventsCounter(0),
       m_maxAsyncCallStackDepth(0),
       m_pauseOnExceptionsState(v8::debug::NoBreakOnException),
-      m_wasmTranslation(isolate, this) {}
+      m_wasmTranslation(isolate) {}
 
 V8Debugger::~V8Debugger() {}
 
@@ -587,7 +587,7 @@ void V8Debugger::handleV8DebugEvent(
       return;
     }
     if (script->IsWasm()) {
-      m_wasmTranslation.AddScript(scriptWrapper.As<v8::Object>());
+      m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
     } else if (m_ignoreScriptParsedEventsCounter == 0) {
       agent->didParseSource(
           std::unique_ptr<V8DebuggerScript>(

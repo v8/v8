@@ -9095,6 +9095,40 @@ MaybeLocal<debug::Script> debug::Script::Wrap(v8::Isolate* v8_isolate,
   return ToApiHandle<debug::Script>(handle_scope.CloseAndEscape(script_obj));
 }
 
+debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
+  CHECK(script->IsWasm());
+  return static_cast<WasmScript*>(script);
+}
+
+int debug::WasmScript::NumFunctions() const {
+  i::DisallowHeapAllocation no_gc;
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  i::WasmCompiledModule* compiled_module =
+      i::WasmCompiledModule::cast(script->wasm_compiled_module());
+  DCHECK_GE(i::kMaxInt, compiled_module->module()->functions.size());
+  return static_cast<int>(compiled_module->module()->functions.size());
+}
+
+int debug::WasmScript::NumImportedFunctions() const {
+  i::DisallowHeapAllocation no_gc;
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  i::WasmCompiledModule* compiled_module =
+      i::WasmCompiledModule::cast(script->wasm_compiled_module());
+  DCHECK_GE(i::kMaxInt, compiled_module->module()->num_imported_functions);
+  return static_cast<int>(compiled_module->module()->num_imported_functions);
+}
+
+debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
+    int function_index) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  i::WasmCompiledModule* compiled_module =
+      i::WasmCompiledModule::cast(script->wasm_compiled_module());
+  return compiled_module->DisassembleFunction(function_index);
+}
+
 debug::Location::Location(int line_number, int column_number)
     : line_number_(line_number), column_number_(column_number) {
   CHECK(line_number >= 0);
@@ -9137,23 +9171,6 @@ void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
       }
     }
   }
-}
-
-debug::WasmDisassembly debug::DisassembleWasmFunction(Isolate* v8_isolate,
-                                                      Local<Object> v8_script,
-                                                      int function_index) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  if (v8_script.IsEmpty()) return {};
-  i::Handle<i::Object> script_wrapper = Utils::OpenHandle(*v8_script);
-  if (!script_wrapper->IsJSValue()) return {};
-  i::Handle<i::Object> script_obj(
-      i::Handle<i::JSValue>::cast(script_wrapper)->value(), isolate);
-  if (!script_obj->IsScript()) return {};
-  i::Handle<i::Script> script = i::Handle<i::Script>::cast(script_obj);
-  if (script->type() != i::Script::TYPE_WASM) return {};
-  i::Handle<i::WasmCompiledModule> compiled_module(
-      i::WasmCompiledModule::cast(script->wasm_compiled_module()), isolate);
-  return compiled_module->DisassembleFunction(function_index);
 }
 
 MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,

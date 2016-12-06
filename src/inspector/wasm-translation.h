@@ -9,33 +9,30 @@
 
 #include "include/v8.h"
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/string-16.h"
 
 namespace v8_inspector {
 
 // Forward declarations.
-class V8Debugger;
-class V8DebuggerScript;
-struct ScriptBreakpoint;
-namespace protocol {
-namespace Debugger {
-class Location;
-}
-}
+class V8DebuggerAgentImpl;
 
 class WasmTranslation {
  public:
   enum Mode { Raw, Disassemble };
 
-  WasmTranslation(v8::Isolate* isolate, V8Debugger* debugger);
+  explicit WasmTranslation(v8::Isolate* isolate);
   ~WasmTranslation();
 
   // Set translation mode.
   void SetMode(Mode mode) { mode_ = mode; }
 
-  // Make a wasm script known to the translation. Only locations referencing a
-  // registered script will be translated by the Translate functions below.
-  void AddScript(v8::Local<v8::Object> script_wrapper);
+  // Make a wasm script known to the translation. This will trigger a number of
+  // didParseScript calls to the given debugger agent.
+  // Only locations referencing a registered script will be translated by the
+  // Translate functions below.
+  void AddScript(v8::Local<v8::debug::WasmScript> script,
+                 V8DebuggerAgentImpl* agent);
 
   // Clear all registered scripts.
   void Clear();
@@ -45,15 +42,10 @@ class WasmTranslation {
   // Does nothing for locations referencing a script which was not registered
   // before via AddScript.
   // Line and column are 0-based.
-  // The context group id specifies the context of the script.
-  // If the script was registered and the respective wasm function was not seen
-  // before, a new artificial script representing this function will be created
-  // and made public to the frontend.
   // Returns true if the location was translated, false otherwise.
   bool TranslateWasmScriptLocationToProtocolLocation(String16* script_id,
                                                      int* line_number,
-                                                     int* column_number,
-                                                     int context_group_id);
+                                                     int* column_number);
 
   // Translate back from protocol locations (potentially referencing artificial
   // scripts for individual wasm functions) to locations that make sense to V8.
@@ -68,11 +60,9 @@ class WasmTranslation {
   class TranslatorImpl;
   friend class TranslatorImpl;
 
-  void AddFakeScript(std::unique_ptr<V8DebuggerScript> fake_script,
-                     TranslatorImpl* translator, int context_group_id);
+  void AddFakeScript(const String16& scriptId, TranslatorImpl* translator);
 
   v8::Isolate* isolate_;
-  V8Debugger* debugger_;
   std::unordered_map<int, std::unique_ptr<TranslatorImpl>> wasm_translators_;
   std::unordered_map<String16, TranslatorImpl*> fake_scripts_;
   Mode mode_;

@@ -63,8 +63,7 @@ static const char kDebuggerNotPaused[] =
 namespace {
 
 void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
-                                      WasmTranslation* wasmTranslation,
-                                      int context_group_id) {
+                                      WasmTranslation* wasmTranslation) {
   for (size_t i = 0, e = stackTrace->length(); i != e; ++i) {
     protocol::Debugger::Location* location = stackTrace->get(i)->getLocation();
     String16 scriptId = location->getScriptId();
@@ -72,7 +71,7 @@ void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
     int columnNumber = location->getColumnNumber(-1);
 
     if (!wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-            &scriptId, &lineNumber, &columnNumber, context_group_id)) {
+            &scriptId, &lineNumber, &columnNumber)) {
       continue;
     }
 
@@ -515,6 +514,7 @@ std::unique_ptr<protocol::Debugger::Location>
 V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
                                        const ScriptBreakpoint& breakpoint,
                                        BreakpointSource source) {
+  v8::HandleScope handles(m_isolate);
   DCHECK(enabled());
   // FIXME: remove these checks once crbug.com/520702 is resolved.
   CHECK(!breakpointId.isEmpty());
@@ -526,12 +526,9 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
     return nullptr;
 
   ScriptBreakpoint translatedBreakpoint = breakpoint;
-  if (m_scripts.count(breakpoint.script_id) == 0) {
-    m_debugger->wasmTranslation()
-        ->TranslateProtocolLocationToWasmScriptLocation(
-            &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
-            &translatedBreakpoint.column_number);
-  }
+  m_debugger->wasmTranslation()->TranslateProtocolLocationToWasmScriptLocation(
+      &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
+      &translatedBreakpoint.column_number);
 
   int actualLineNumber;
   int actualColumnNumber;
@@ -1033,8 +1030,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   protocol::ErrorSupport errorSupport;
   *result = Array<CallFrame>::fromValue(protocolValue.get(), &errorSupport);
   if (!*result) return Response::Error(errorSupport.errors());
-  TranslateWasmStackTraceLocations(result->get(), m_debugger->wasmTranslation(),
-                                   m_session->contextGroupId());
+  TranslateWasmStackTraceLocations(result->get(),
+                                   m_debugger->wasmTranslation());
   return Response::OK();
 }
 
