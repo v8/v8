@@ -588,6 +588,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
   const AstRawString* prototype_string = ast_value_factory->prototype_string();
   ast_value_factory->Internalize(info->isolate());
   prototype_string_ = prototype_string->string();
+  undefined_string_ = ast_value_factory->undefined_string();
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
@@ -1831,8 +1832,15 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::UNALLOCATED: {
-      builder()->LoadGlobal(variable->name(), feedback_index(slot),
-                            typeof_mode);
+      // The global identifier "undefined" is immutable. Everything
+      // else could be reassigned. For performance, we do a pointer comparison
+      // rather than checking if the raw_name is really "undefined".
+      if (variable->raw_name() == undefined_string()) {
+        builder()->LoadUndefined();
+      } else {
+        builder()->LoadGlobal(variable->name(), feedback_index(slot),
+                              typeof_mode);
+      }
       break;
     }
     case VariableLocation::CONTEXT: {

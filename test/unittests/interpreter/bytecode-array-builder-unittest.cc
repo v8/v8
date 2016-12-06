@@ -195,6 +195,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::INSTANCEOF, reg, 8)
       .CompareOperation(Token::Value::IN, reg, 9);
 
+  // Emit peephole optimizations of equality with Null or Undefined.
+  builder.LoadUndefined()
+      .CompareOperation(Token::Value::EQ, reg, 1)
+      .LoadNull()
+      .CompareOperation(Token::Value::EQ, reg, 1);
+
   // Emit conversion operator invocations.
   builder.ConvertAccumulatorToNumber(reg)
       .ConvertAccumulatorToObject(reg)
@@ -398,6 +404,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     scorecard[Bytecodes::ToByte(Bytecode::kBitwiseOrSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kShiftLeftSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kShiftRightSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kTestUndetectable)] = 1;
   }
 
   // Check return occurs at the end and only once in the BytecodeArray.

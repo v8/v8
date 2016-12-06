@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 268
+bytecode array length: 266
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -71,11 +71,10 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(15),
-                B(JumpIfTrue), U8(113),
+                B(JumpIfTrue), U8(111),
                 B(LdaNamedProperty), R(2), U8(7), U8(16),
                 B(Star), R(6),
-                B(LdaNull),
-                B(TestEqual), R(6), U8(18),
+                B(TestUndetectable), R(6),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
@@ -144,7 +143,7 @@ constant pool: [
 handlers: [
   [7, 120, 126],
   [10, 84, 86],
-  [195, 205, 207],
+  [193, 203, 205],
 ]
 
 ---
@@ -154,7 +153,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 279
+bytecode array length: 277
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -215,11 +214,10 @@ bytecodes: [
                 B(Star), R(12),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(15),
-                B(JumpIfTrue), U8(113),
+                B(JumpIfTrue), U8(111),
                 B(LdaNamedProperty), R(3), U8(7), U8(16),
                 B(Star), R(7),
-                B(LdaNull),
-                B(TestEqual), R(7), U8(18),
+                B(TestUndetectable), R(7),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
@@ -293,7 +291,7 @@ constant pool: [
 handlers: [
   [11, 120, 126],
   [14, 84, 86],
-  [196, 206, 208],
+  [194, 204, 206],
 ]
 
 ---
@@ -305,7 +303,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 286
+bytecode array length: 284
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -373,11 +371,10 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(17),
-                B(JumpIfTrue), U8(113),
+                B(JumpIfTrue), U8(111),
                 B(LdaNamedProperty), R(2), U8(7), U8(18),
                 B(Star), R(6),
-                B(LdaNull),
-                B(TestEqual), R(6), U8(20),
+                B(TestUndetectable), R(6),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
@@ -446,7 +443,7 @@ constant pool: [
 handlers: [
   [7, 138, 144],
   [10, 102, 104],
-  [213, 223, 225],
+  [211, 221, 223],
 ]
 
 ---
@@ -456,7 +453,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 293
+bytecode array length: 291
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(8),
@@ -521,11 +518,10 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrict), R(3), U8(19),
-                B(JumpIfTrue), U8(113),
+                B(JumpIfTrue), U8(111),
                 B(LdaNamedProperty), R(1), U8(9), U8(20),
                 B(Star), R(5),
-                B(LdaNull),
-                B(TestEqual), R(5), U8(22),
+                B(TestUndetectable), R(5),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
@@ -601,6 +597,6 @@ constant pool: [
 handlers: [
   [15, 134, 140],
   [18, 98, 100],
-  [210, 220, 222],
+  [208, 218, 220],
 ]
 

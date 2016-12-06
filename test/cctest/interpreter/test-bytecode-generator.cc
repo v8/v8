@@ -1742,6 +1742,31 @@ TEST(RemoveRedundantLdar) {
                      LoadGolden("RemoveRedundantLdar.golden")));
 }
 
+TEST(GenerateTestUndetectable) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  const char* snippets[] = {
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a == null) { b = 20;}\n"
+      "return b;\n",
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a == undefined) { b = 20;}\n"
+      "return b;\n",
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a != null) { b = 20;}\n"
+      "return b;\n",
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a != undefined) { b = 20;}\n"
+      "return b;\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("GenerateTestUndetectable.golden")));
+}
+
 TEST(AssignmentsInBinaryExpression) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());

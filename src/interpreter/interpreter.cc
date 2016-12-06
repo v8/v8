@@ -1918,6 +1918,38 @@ void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
   DoCompareOp(Token::INSTANCEOF, assembler);
 }
 
+// TestUndetectable <src>
+//
+// Test if the value in the <src> register equals to Null/Undefined. This is
+// done by checking undetectable bit on the map of the object.
+void Interpreter::DoTestUndetectable(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(reg_index);
+
+  Label not_equal(assembler), end(assembler);
+  // If the object is an Smi then return false.
+  __ GotoIf(__ TaggedIsSmi(object), &not_equal);
+
+  // If it is a HeapObject, load the map and check for undetectable bit.
+  Node* map = __ LoadMap(object);
+  Node* map_bitfield = __ LoadMapBitField(map);
+  Node* map_undetectable =
+      __ Word32And(map_bitfield, __ Int32Constant(1 << Map::kIsUndetectable));
+  __ GotoIf(__ Word32Equal(map_undetectable, __ Int32Constant(0)), &not_equal);
+
+  __ SetAccumulator(__ BooleanConstant(true));
+  __ Goto(&end);
+
+  __ Bind(&not_equal);
+  {
+    __ SetAccumulator(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
+}
+
 // Jump <imm>
 //
 // Jump by number of bytes represented by the immediate operand |imm|.

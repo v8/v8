@@ -1075,7 +1075,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Vector<const uint8_t> source =
       ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
                       STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
-                      STATIC_CHAR_VECTOR("} j=7; j"), 1000);
+                      STATIC_CHAR_VECTOR("} j=7; j"), 1050);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 

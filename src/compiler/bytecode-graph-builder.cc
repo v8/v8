@@ -10,6 +10,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 
@@ -1641,6 +1642,13 @@ void BytecodeGraphBuilder::VisitTestIn() {
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
   BuildCompareOp(javascript()->InstanceOf());
+}
+
+void BytecodeGraphBuilder::VisitTestUndetectable() {
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* node = NewNode(jsgraph()->simplified()->ObjectIsUndetectable(), object);
+  environment()->BindAccumulator(node);
 }
 
 void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
