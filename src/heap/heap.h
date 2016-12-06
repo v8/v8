@@ -1860,7 +1860,7 @@ class Heap {
     return OldGenerationCapacity() + slack >= MaxOldGenerationSize();
   }
 
-  bool ShouldExpandOldGenerationOnAllocationFailure();
+  bool ShouldExpandOldGenerationOnSlowAllocation();
 
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();

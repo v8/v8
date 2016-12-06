@@ -5300,11 +5300,15 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
 // major GC. It happens when the old generation allocation limit is reached and
 // - either we need to optimize for memory usage,
 // - or the incremental marking is not in progress and we cannot start it.
-bool Heap::ShouldExpandOldGenerationOnAllocationFailure() {
+bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
   if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
   // We reached the old generation allocation limit.
 
   if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (incremental_marking()->NeedsFinalization()) {
+    return false;
+  }
 
   if (incremental_marking()->IsStopped() &&
       IncrementalMarkingLimitReached() == IncrementalMarkingLimit::kNoLimit) {
