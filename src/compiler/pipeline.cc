@@ -1762,15 +1762,10 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
         info(), data->graph(), data->schedule()));
   }
 
-  // TODO(ishell): Always enable graph verification of stubs in debug mode
-  // once all the issues are fixed.
-  bool verify_stub_graph =
-      DEBUG_BOOL && FLAG_csa_verify && data->info()->IsStub();
-
-  if (verify_stub_graph || (FLAG_turbo_verify_machine_graph != nullptr &&
-                            (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
-                             !strcmp(FLAG_turbo_verify_machine_graph,
-                                     data->info()->GetDebugName().get())))) {
+  if (FLAG_turbo_verify_machine_graph != nullptr &&
+      (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
+       !strcmp(FLAG_turbo_verify_machine_graph,
+               data->info()->GetDebugName().get()))) {
     Zone temp_zone(data->isolate()->allocator(), ZONE_NAME);
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
                               &temp_zone);
