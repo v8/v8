@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "src/allocation.h"
@@ -390,8 +391,8 @@ class AsmTyper final {
 
   std::uintptr_t stack_limit_;
   bool stack_overflow_ = false;
-  ZoneMap<AstNode*, AsmType*> module_node_types_;
-  ZoneMap<AstNode*, AsmType*> function_node_types_;
+  std::unordered_map<AstNode*, AsmType*> module_node_types_;
+  std::unordered_map<AstNode*, AsmType*> function_node_types_;
   static const int kErrorMessageLimit = 128;
   AsmType* fround_type_;
   AsmType* ffi_type_;

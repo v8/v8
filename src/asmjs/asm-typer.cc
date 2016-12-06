@@ -189,8 +189,6 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
       local_scope_(ZoneHashMap::kDefaultHashMapCapacity,
                    ZoneAllocationPolicy(zone)),
       stack_limit_(isolate->stack_guard()->real_climit()),
-      module_node_types_(zone_),
-      function_node_types_(zone_),
       fround_type_(AsmType::FroundType(zone_)),
       ffi_type_(AsmType::FFIType(zone_)),
       function_pointer_tables_(zone_) {
@@ -399,9 +397,7 @@ AsmTyper::VariableInfo* AsmTyper::Lookup(Variable* variable) const {
 }
 
 void AsmTyper::AddForwardReference(VariableProxy* proxy, VariableInfo* info) {
-  info->SetFirstForwardUse(proxy->position() == kNoSourcePosition
-                               ? -1
-                               : script_->GetLineNumber(proxy->position()));
+  info->SetFirstForwardUse(proxy->position());
   forward_definitions_.push_back(info);
 }
 
@@ -709,8 +705,11 @@ AsmType* AsmTyper::ValidateModuleAfterFunctionsPhase(FunctionLiteral* fun) {
 
   for (auto* forward_def : forward_definitions_) {
     if (forward_def->missing_definition()) {
-      FAIL_LINE(forward_def->source_location(),
-                "Missing definition for forward declared identifier.");
+      int position = forward_def->source_location();
+      int line =
+          position == kNoSourcePosition ? -1 : script_->GetLineNumber(position);
+
+      FAIL_LINE(line, "Missing definition for forward declared identifier.");
     }
   }
 
