@@ -1826,9 +1826,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
-    Handle<JSFunction> promise_fun = InstallFunction(
-        global, "Promise", JS_PROMISE_TYPE, JSObject::kHeaderSize, prototype,
-        Builtins::kPromiseConstructor);
+    Handle<JSFunction> promise_fun =
+        InstallFunction(global, "Promise", JS_PROMISE_TYPE, JSPromise::kSize,
+                        prototype, Builtins::kPromiseConstructor);
     InstallWithIntrinsicDefaultProto(isolate, promise_fun,
                                      Context::PROMISE_FUNCTION_INDEX);
 
@@ -1847,6 +1847,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, factory->to_string_tag_symbol(), factory->Promise_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
+    SimpleInstallFunction(prototype, "then", Builtins::kPromiseThen, 2, true,
+                          DONT_ENUM);
+
     {  // Internal: PromiseInternalConstructor
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
@@ -1855,11 +1858,27 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate, function, Context::PROMISE_INTERNAL_CONSTRUCTOR_INDEX);
     }
 
+    {  // Internal: PromiseCreateAndSet
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kPromiseCreateAndSet, 2, false);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PROMISE_CREATE_AND_SET_INDEX);
+    }
+
     {  // Internal: IsPromise
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(), Builtins::kIsPromise, 1, false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::IS_PROMISE_INDEX);
+    }
+
+    {  // Internal: PerformPromiseThen
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kPerformPromiseThen, 4, false);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PERFORM_PROMISE_THEN_INDEX);
     }
 
     {

@@ -567,6 +567,9 @@ namespace internal {
   CPP(CreateResolvingFunctions)                                               \
   CPP(PromiseResolveClosure)                                                  \
   CPP(PromiseRejectClosure)                                                   \
+  TFJ(PromiseThen, 2)                                                         \
+  TFJ(PromiseCreateAndSet, 2)                                                 \
+  TFJ(PerformPromiseThen, 4)                                                  \
                                                                               \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \

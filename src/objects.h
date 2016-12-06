@@ -8895,6 +8895,41 @@ class JSMessageObject: public JSObject {
                               kSize> BodyDescriptor;
 };
 
+class JSPromise : public JSObject {
+ public:
+  DECL_INT_ACCESSORS(status)
+  DECL_ACCESSORS(result, Object)
+
+  // There are 3 possible states for these fields --
+  // 1) Undefined -- This is the zero state when there is no callback
+  // or deferred registered.
+  // 2) Object -- There is a single Callable directly attached to the
+  // fulfill_reactions, reject_reactions and the deferred JSObject is
+  // directly attached to the deferred field.
+  // 3) FixedArray -- There is more than one callback and deferred
+  // attached to a FixedArray.
+  DECL_ACCESSORS(deferred, Object)
+  DECL_ACCESSORS(fulfill_reactions, Object)
+  DECL_ACCESSORS(reject_reactions, Object)
+
+  static const char* Status(int status);
+
+  DECLARE_CAST(JSPromise)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSPromise)
+  DECLARE_VERIFIER(JSPromise)
+
+  // Layout description.
+  static const int kStatusOffset = JSObject::kHeaderSize;
+  static const int kResultOffset = kStatusOffset + kPointerSize;
+  static const int kDeferredOffset = kResultOffset + kPointerSize;
+  static const int kFulfillReactionsOffset = kDeferredOffset + kPointerSize;
+  static const int kRejectReactionsOffset =
+      kFulfillReactionsOffset + kPointerSize;
+  static const int kSize = kRejectReactionsOffset + kPointerSize;
+};
+
 // Regular expressions
 // The regular expression holds a single reference to a FixedArray in
 // the kDataOffset field.

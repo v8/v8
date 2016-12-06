@@ -1,7 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "src/runtime/runtime-utils.h"
 
 #include "src/debug/debug.h"
@@ -66,10 +65,17 @@ void EnqueuePromiseReactionJob(Isolate* isolate, Handle<Object> value,
   Handle<Object> debug_name = isolate->factory()->undefined_value();
   if (isolate->debug()->is_active()) {
     MaybeHandle<Object> maybe_result;
-    Handle<Object> argv[] = {deferred, status};
+    Handle<Object> deferred_obj(deferred);
+
+    if (deferred->IsFixedArray()) {
+      deferred_obj = isolate->factory()->undefined_value();
+    }
+
+    Handle<Object> argv[] = {deferred_obj, status};
     maybe_result = Execution::TryCall(
         isolate, isolate->promise_debug_get_info(),
         isolate->factory()->undefined_value(), arraysize(argv), argv);
+
     Handle<Object> result;
     if ((maybe_result).ToHandle(&result)) {
       CHECK(result->IsJSArray());
@@ -88,42 +94,50 @@ void EnqueuePromiseReactionJob(Isolate* isolate, Handle<Object> value,
   isolate->EnqueueMicrotask(info);
 }
 
-void PromiseFulfill(Isolate* isolate, Handle<JSReceiver> promise,
-                    Handle<Smi> status, Handle<Object> value,
-                    Handle<Symbol> reaction) {
-  Handle<Object> tasks = JSReceiver::GetDataProperty(promise, reaction);
-  if (!tasks->IsUndefined(isolate)) {
-    Handle<Object> deferred = JSReceiver::GetDataProperty(
-        promise, isolate->factory()->promise_deferred_reaction_symbol());
+void PromiseSet(Handle<JSPromise> promise, int status, Handle<Object> result) {
+  promise->set_status(status);
+  promise->set_result(*result);
+  // TODO(gsathya): reset reactions?
+}
+
+void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
+                    Handle<Smi> status, Handle<Object> value) {
+  // Check if there are any callbacks.
+  if (!promise->deferred()->IsUndefined(isolate)) {
+    Handle<Object> tasks((status->value() == kPromiseFulfilled)
+                             ? promise->fulfill_reactions()
+                             : promise->reject_reactions(),
+                         isolate);
+    Handle<Object> deferred(promise->deferred(), isolate);
     EnqueuePromiseReactionJob(isolate, value, tasks, deferred, status);
   }
+
+  PromiseSet(promise, status->value(), value);
 }
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_PromiseReject) {
   DCHECK(args.length() == 3);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
 
   PromiseRejectEvent(isolate, promise, promise, reason, debug_event);
 
-  Handle<Smi> status = handle(Smi::FromInt(kPromiseRejected), isolate);
-  Handle<Symbol> reaction =
-      isolate->factory()->promise_reject_reactions_symbol();
-  PromiseFulfill(isolate, promise, status, reason, reaction);
+  Handle<Smi> status(Smi::FromInt(kPromiseRejected), isolate);
+  PromiseFulfill(isolate, promise, status, reason);
   return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
-  DCHECK(args.length() == 4);
+  DCHECK(args.length() == 3);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, status, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, reaction, 3);
-  PromiseFulfill(isolate, promise, status, value, reaction);
+  PromiseFulfill(isolate, promise, status, value);
   return isolate->heap()->undefined_value();
 }
 
@@ -192,6 +206,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
 RUNTIME_FUNCTION(Runtime_CreateResolvingFunctions) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  DCHECK(args.length() == 1);
   Handle<JSFunction> resolve, reject;
 
   PromiseUtils::CreateResolvingFunctions(
@@ -202,6 +217,59 @@ RUNTIME_FUNCTION(Runtime_CreateResolvingFunctions) {
   result->set(1, *reject);
 
   return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseStatus) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+
+  return Smi::FromInt(promise->status());
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseResult) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  return promise->result();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseDeferred) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+
+  Handle<Object> deferred(promise->deferred(), isolate);
+  if (deferred->IsUndefined(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  if (deferred->IsJSObject()) {
+    return *deferred;
+  }
+
+  DCHECK(deferred->IsFixedArray());
+  return *isolate->factory()->NewJSArrayWithElements(
+      Handle<FixedArray>::cast(deferred));
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseRejectReactions) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+
+  Handle<Object> reject_reactions(promise->reject_reactions(), isolate);
+  if (reject_reactions->IsUndefined(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  if (reject_reactions->IsJSObject()) {
+    return *reject_reactions;
+  }
+
+  DCHECK(reject_reactions->IsFixedArray());
+  return *isolate->factory()->NewJSArrayWithElements(
+      Handle<FixedArray>::cast(reject_reactions));
 }
 
 }  // namespace internal

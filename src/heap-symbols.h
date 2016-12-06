@@ -210,16 +210,10 @@
   V(premonomorphic_symbol)             \
   V(promise_async_stack_id_symbol)     \
   V(promise_debug_marker_symbol)       \
-  V(promise_deferred_reaction_symbol)  \
   V(promise_forwarding_handler_symbol) \
-  V(promise_fulfill_reactions_symbol)  \
   V(promise_handled_by_symbol)         \
   V(promise_handled_hint_symbol)       \
   V(promise_has_handler_symbol)        \
-  V(promise_raw_symbol)                \
-  V(promise_reject_reactions_symbol)   \
-  V(promise_result_symbol)             \
-  V(promise_state_symbol)              \
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \

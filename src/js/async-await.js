@@ -14,7 +14,6 @@
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
 var CreateInternalPromiseCapability;
-var PerformPromiseThen;
 var PromiseCreate;
 var PromiseNextMicrotaskID;
 var RejectPromise;
@@ -24,7 +23,6 @@ utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
   CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
-  PerformPromiseThen = from.PerformPromiseThen;
   PromiseCreate = from.PromiseCreate;
   RejectPromise = from.RejectPromise;
   ResolvePromise = from.ResolvePromise;
@@ -44,6 +42,7 @@ var promiseHasHandlerSymbol =
 // -------------------------------------------------------------------
 
 function PromiseCastResolved(value) {
+  // TODO(caitp): This is non spec compliant. See v8:5694.
   if (%is_promise(value)) {
     return value;
   } else {
@@ -106,7 +105,7 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
                 outerPromise);
   }
 
-  PerformPromiseThen(promise, onFulfilled, onRejected, throwawayCapability);
+  %perform_promise_then(promise, onFulfilled, onRejected, throwawayCapability);
 }
 
 // Called by the parser from the desugaring of 'await' when catch

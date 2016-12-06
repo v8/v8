@@ -63,60 +63,67 @@ enum ContextLookupFlags {
   V(CREATE_RESOLVING_FUNCTION_INDEX, JSFunction, create_resolving_functions) \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                          \
     promise_internal_constructor)                                            \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)
+  V(IS_PROMISE_INDEX, JSFunction, is_promise)                                \
+  V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)            \
+  V(PROMISE_CREATE_AND_SET_INDEX, JSFunction, promise_create_and_set)
 
-#define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                 \
-  V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                         \
-  V(ARRAY_POP_INDEX, JSFunction, array_pop)                               \
-  V(ARRAY_PUSH_INDEX, JSFunction, array_push)                             \
-  V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                           \
-  V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                         \
-  V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                           \
-  V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                       \
-  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)       \
-  V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                        \
-    async_function_await_caught)                                          \
-  V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                      \
-    async_function_await_uncaught)                                        \
-  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                      \
-    async_function_promise_create)                                        \
-  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                     \
-    async_function_promise_release)                                       \
-  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                 \
-  V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                     \
-  V(ERROR_TO_STRING, JSFunction, error_to_string)                         \
-  V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)           \
-  V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)       \
-  V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                   \
-  V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                      \
-  V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                            \
-  V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                            \
-  V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                            \
-  V(OBJECT_VALUE_OF, JSFunction, object_value_of)                         \
-  V(OBJECT_TO_STRING, JSFunction, object_to_string)                       \
-  V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                       \
-  V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                     \
-  V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                 \
-  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                     \
-  V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,            \
-    promise_has_user_defined_reject_handler)                              \
-  V(PROMISE_DEBUG_GET_INFO_INDEX, JSFunction, promise_debug_get_info)     \
-  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                     \
-  V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject)   \
-  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                   \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                         \
-  V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)         \
-  V(REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, JSFunction,                      \
-    reject_promise_no_debug_event)                                        \
-  V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function) \
-  V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                            \
-  V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                      \
-  V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                            \
-  V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)       \
-  V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)           \
-  V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)             \
-  V(WASM_COMPILE_ERROR_FUNCTION_INDEX, JSFunction,                        \
-    wasm_compile_error_function)                                          \
+#define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
+  V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
+  V(ARRAY_POP_INDEX, JSFunction, array_pop)                                   \
+  V(ARRAY_PUSH_INDEX, JSFunction, array_push)                                 \
+  V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                               \
+  V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                             \
+  V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                               \
+  V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                           \
+  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
+  V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                            \
+    async_function_await_caught)                                              \
+  V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                          \
+    async_function_await_uncaught)                                            \
+  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                          \
+    async_function_promise_create)                                            \
+  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                         \
+    async_function_promise_release)                                           \
+  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \
+  V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                         \
+  V(ERROR_TO_STRING, JSFunction, error_to_string)                             \
+  V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \
+  V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                       \
+  V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                          \
+  V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                \
+  V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                \
+  V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                                \
+  V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)           \
+  V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
+  V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
+  V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
+  V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \
+  V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
+  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                         \
+  V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,                \
+    promise_has_user_defined_reject_handler)                                  \
+  V(PROMISE_DEBUG_GET_INFO_INDEX, JSFunction, promise_debug_get_info)         \
+  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
+  V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject)       \
+  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                       \
+  V(PROMISE_ID_RESOLVE_HANDLER_INDEX, JSFunction, promise_id_resolve_handler) \
+  V(PROMISE_ID_REJECT_HANDLER_INDEX, JSFunction, promise_id_reject_handler)   \
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                             \
+  V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)         \
+  V(INTERNAL_PROMISE_CAPABILITY_INDEX, JSFunction,                            \
+    internal_promise_capability)                                              \
+  V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
+  V(REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, JSFunction,                          \
+    reject_promise_no_debug_event)                                            \
+  V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
+  V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
+  V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                          \
+  V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                \
+  V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)           \
+  V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
+  V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                 \
+  V(WASM_COMPILE_ERROR_FUNCTION_INDEX, JSFunction,                            \
+    wasm_compile_error_function)                                              \
   V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction, wasm_runtime_error_function)
 
 #define NATIVE_CONTEXT_JS_ARRAY_ITERATOR_MAPS(V)                               \

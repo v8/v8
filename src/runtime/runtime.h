@@ -304,10 +304,14 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                           \
   F(NewTypeError, 2, 1)                             \
   F(OrdinaryHasInstance, 2, 1)                      \
+  F(PromiseDeferred, 1, 1)                          \
   F(PromiseReject, 3, 1)                            \
-  F(PromiseFulfill, 4, 1)                           \
+  F(PromiseFulfill, 3, 1)                           \
   F(PromiseRejectEventFromStack, 2, 1)              \
+  F(PromiseRejectReactions, 1, 1)                   \
   F(PromiseRevokeReject, 1, 1)                      \
+  F(PromiseResult, 1, 1)                            \
+  F(PromiseStatus, 1, 1)                            \
   F(PromoteScheduledException, 0, 1)                \
   F(ReThrow, 1, 1)                                  \
   F(RunMicrotasks, 0, 1)                            \
