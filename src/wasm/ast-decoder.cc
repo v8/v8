@@ -1331,8 +1331,9 @@ class WasmFullDecoder : public WasmDecoder {
   unsigned ExtractLane(WasmOpcode opcode, LocalType type) {
     LaneOperand operand(this, pc_);
     if (Validate(pc_, operand)) {
-      TFNode* input = Pop(0, LocalType::kSimd128).node;
-      TFNode* node = BUILD(SimdExtractLane, opcode, operand.lane, input);
+      compiler::NodeVector inputs(1, zone_);
+      inputs[0] = Pop(0, LocalType::kSimd128).node;
+      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
       Push(type, node);
     }
     return operand.length;
@@ -1341,10 +1342,10 @@ class WasmFullDecoder : public WasmDecoder {
   unsigned ReplaceLane(WasmOpcode opcode, LocalType type) {
     LaneOperand operand(this, pc_);
     if (Validate(pc_, operand)) {
-      TFNode* input = Pop(0, LocalType::kSimd128).node;
-      TFNode* replacement = Pop(1, type).node;
-      TFNode* node =
-          BUILD(SimdReplaceLane, opcode, operand.lane, input, replacement);
+      compiler::NodeVector inputs(2, zone_);
+      inputs[1] = Pop(1, type).node;
+      inputs[0] = Pop(0, LocalType::kSimd128).node;
+      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
       Push(LocalType::kSimd128, node);
     }
     return operand.length;

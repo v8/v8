@@ -2147,6 +2147,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
+    case kX64Int32x4ReplaceLane: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      if (instr->InputAt(2)->IsRegister()) {
+        __ Pinsrd(i.OutputSimd128Register(), i.InputRegister(2),
+                  i.InputInt8(1));
+      } else {
+        __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      }
+      break;
+    }
+    case kX64Int32x4Add: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ paddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64Int32x4Sub: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ psubd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(movsxbl);
       break;

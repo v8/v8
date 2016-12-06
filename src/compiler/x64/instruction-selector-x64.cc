@@ -2379,8 +2379,29 @@ void InstructionSelector::VisitCreateInt32x4(Node* node) {
 
 void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
   X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
   Emit(kX64Int32x4ExtractLane, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitInt32x4ReplaceLane(Node* node) {
+  X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kX64Int32x4ReplaceLane, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Add(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Int32x4Add, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Sub(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Int32x4Sub, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 // static

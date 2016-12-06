@@ -1396,6 +1396,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitCreateInt32x4(node);
     case IrOpcode::kInt32x4ExtractLane:
       return MarkAsWord32(node), VisitInt32x4ExtractLane(node);
+    case IrOpcode::kInt32x4ReplaceLane:
+      return MarkAsSimd128(node), VisitInt32x4ReplaceLane(node);
+    case IrOpcode::kInt32x4Add:
+      return MarkAsSimd128(node), VisitInt32x4Add(node);
+    case IrOpcode::kInt32x4Sub:
+      return MarkAsSimd128(node), VisitInt32x4Sub(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1729,6 +1735,14 @@ void InstructionSelector::VisitCreateInt32x4(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
   UNIMPLEMENTED();
 }
+
+void InstructionSelector::VisitInt32x4ReplaceLane(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitInt32x4Add(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32x4Sub(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

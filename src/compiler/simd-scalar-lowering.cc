@@ -399,9 +399,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kInt32x4ExtractLane:
     case IrOpcode::kFloat32x4ExtractLane: {
-      Node* laneNode = node->InputAt(1);
-      DCHECK_EQ(laneNode->opcode(), IrOpcode::kInt32Constant);
-      int32_t lane = OpParameter<int32_t>(laneNode);
+      int32_t lane = OpParameter<int32_t>(node);
       Node* rep_node[kMaxLanes] = {
           GetReplacementsWithType(node->InputAt(0), rep_type)[lane], nullptr,
           nullptr, nullptr};
@@ -410,11 +408,9 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kInt32x4ReplaceLane:
     case IrOpcode::kFloat32x4ReplaceLane: {
-      DCHECK_EQ(3, node->InputCount());
-      Node* laneNode = node->InputAt(1);
-      Node* repNode = node->InputAt(2);
-      DCHECK_EQ(laneNode->opcode(), IrOpcode::kInt32Constant);
-      int32_t lane = OpParameter<int32_t>(laneNode);
+      DCHECK_EQ(2, node->InputCount());
+      Node* repNode = node->InputAt(1);
+      int32_t lane = OpParameter<int32_t>(node);
       DCHECK(lane >= 0 && lane <= 3);
       Node** rep_node = GetReplacementsWithType(node->InputAt(0), rep_type);
       if (HasReplacement(0, repNode)) {

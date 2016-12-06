@@ -392,11 +392,11 @@ const WasmCodePosition kNoCodePosition = -1;
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
   V(F32x4ExtractLane, 0xe501, _)         \
+  V(F32x4ReplaceLane, 0xe502, _)         \
   V(I32x4ExtractLane, 0xe51c, _)         \
+  V(I32x4ReplaceLane, 0xe51d, _)         \
   V(I16x8ExtractLane, 0xe539, _)         \
   V(I8x16ExtractLane, 0xe558, _)         \
-  V(F32x4ReplaceLane, 0xe502, _)         \
-  V(I32x4ReplaceLane, 0xe51d, _)         \
   V(I16x8ReplaceLane, 0xe53a, _)         \
   V(I8x16ReplaceLane, 0xe559, _)
 
@@ -484,11 +484,9 @@ const WasmCodePosition kNoCodePosition = -1;
 #define FOREACH_SIMD_SIGNATURE(V)                  \
   V(s_s, kAstS128, kAstS128)                       \
   V(s_f, kAstS128, kAstF32)                        \
-  V(s_sif, kAstS128, kAstS128, kAstI32, kAstF32)   \
   V(s_ss, kAstS128, kAstS128, kAstS128)            \
   V(s_sss, kAstS128, kAstS128, kAstS128, kAstS128) \
   V(s_i, kAstS128, kAstI32)                        \
-  V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
   V(s_si, kAstS128, kAstS128, kAstI32)
 
 #define FOREACH_PREFIX(V) \

@@ -1131,6 +1131,43 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
   }
 }
 
+const Operator* CommonOperatorBuilder::Int32x4ExtractLane(int32_t lane_number) {
+  DCHECK(0 <= lane_number && lane_number < 4);
+  return new (zone()) Operator1<int32_t>(              // --
+      IrOpcode::kInt32x4ExtractLane, Operator::kPure,  // opcode
+      "Int32x4ExtractLane",                            // name
+      1, 0, 0, 1, 0, 0,                                // counts
+      lane_number);                                    // parameter
+}
+
+const Operator* CommonOperatorBuilder::Int32x4ReplaceLane(int32_t lane_number) {
+  DCHECK(0 <= lane_number && lane_number < 4);
+  return new (zone()) Operator1<int32_t>(              // --
+      IrOpcode::kInt32x4ReplaceLane, Operator::kPure,  // opcode
+      "Int32x4ReplaceLane",                            // name
+      2, 0, 0, 1, 0, 0,                                // counts
+      lane_number);                                    // parameter
+}
+
+const Operator* CommonOperatorBuilder::Float32x4ExtractLane(
+    int32_t lane_number) {
+  DCHECK(0 <= lane_number && lane_number < 4);
+  return new (zone()) Operator1<int32_t>(                // --
+      IrOpcode::kFloat32x4ExtractLane, Operator::kPure,  // opcode
+      "Float32x4ExtractLane",                            // name
+      1, 0, 0, 1, 0, 0,                                  // counts
+      lane_number);                                      // parameter
+}
+
+const Operator* CommonOperatorBuilder::Float32x4ReplaceLane(
+    int32_t lane_number) {
+  DCHECK(0 <= lane_number && lane_number < 4);
+  return new (zone()) Operator1<int32_t>(                // --
+      IrOpcode::kFloat32x4ReplaceLane, Operator::kPure,  // opcode
+      "Float32x4ReplaceLane",                            // name
+      2, 0, 0, 1, 0, 0,                                  // counts
+      lane_number);                                      // parameter
+}
 
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateFrameStateFunctionInfo(

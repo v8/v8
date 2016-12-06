@@ -3124,6 +3124,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI32x4Add:
       return graph()->NewNode(jsgraph()->machine()->Int32x4Add(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI32x4Sub:
+      return graph()->NewNode(jsgraph()->machine()->Int32x4Sub(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateFloat32x4(),
                               inputs[0], inputs[0], inputs[0], inputs[0]);
@@ -3135,29 +3138,21 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
   }
 }
 
-Node* WasmGraphBuilder::SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane,
-                                        Node* input) {
+Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
+                                   const NodeVector& inputs) {
   switch (opcode) {
     case wasm::kExprI32x4ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(), input,
-                              Int32Constant(lane));
-    case wasm::kExprF32x4ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4ExtractLane(),
-                              input, Int32Constant(lane));
-    default:
-      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
-  }
-}
-
-Node* WasmGraphBuilder::SimdReplaceLane(wasm::WasmOpcode opcode, uint8_t lane,
-                                        Node* input, Node* replacement) {
-  switch (opcode) {
+      return graph()->NewNode(jsgraph()->common()->Int32x4ExtractLane(lane),
+                              inputs[0]);
     case wasm::kExprI32x4ReplaceLane:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ReplaceLane(), input,
-                              Int32Constant(lane), replacement);
+      return graph()->NewNode(jsgraph()->common()->Int32x4ReplaceLane(lane),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF32x4ExtractLane:
+      return graph()->NewNode(jsgraph()->common()->Float32x4ExtractLane(lane),
+                              inputs[0]);
     case wasm::kExprF32x4ReplaceLane:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4ReplaceLane(),
-                              input, Int32Constant(lane), replacement);
+      return graph()->NewNode(jsgraph()->common()->Float32x4ReplaceLane(lane),
+                              inputs[0], inputs[1]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
