@@ -81,7 +81,7 @@ function js_div(a, b) { return (a / b) | 0; }
     assertEquals(2, mul.length);
     assertEquals(2, add.length);
     assertEquals(2, sub.length);
-    assertEquals("blarg", add.name);
+    assertEquals(String(f.add.index), add.name);
 
     let exp_div = table.get(i+3);
     assertEquals("function", typeof exp_div);

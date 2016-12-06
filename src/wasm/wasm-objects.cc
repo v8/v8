@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-objects.h"
+#include "src/utils.h"
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
@@ -307,8 +308,20 @@ WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
 }
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<String> name,
-    Handle<Code> export_wrapper, int arity, int func_index) {
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    MaybeHandle<String> maybe_name, int func_index, int arity,
+    Handle<Code> export_wrapper) {
+  ScopedVector<char> buffer(16);
+  int length = SNPrintF(buffer, "%d", func_index);
+  Handle<String> name;
+  if (maybe_name.is_null()) {
+    name = isolate->factory()
+               ->NewStringFromAscii(
+                   Vector<const char>::cast(buffer.SubVector(0, length)))
+               .ToHandleChecked();
+  } else {
+    name = maybe_name.ToHandleChecked();
+  }
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name, export_wrapper, false);

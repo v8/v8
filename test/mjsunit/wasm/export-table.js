@@ -98,7 +98,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print("TestExportMultipleIdentity...");
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("one", kSig_v_v).addBody([kExprNop])
+  var f = builder.addFunction("one", kSig_v_v).addBody([kExprNop])
     .exportAs("a")
     .exportAs("b")
     .exportAs("c");
@@ -110,5 +110,5 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals("function", typeof e.c);
   assertSame(e.a, e.b);
   assertSame(e.a, e.c);
-  assertEquals("a", e.a.name);
+  assertEquals(String(f.index), e.a.name);
 })();

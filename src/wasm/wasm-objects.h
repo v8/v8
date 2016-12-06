@@ -142,9 +142,9 @@ class WasmExportedFunction : public JSFunction {
 
   static Handle<WasmExportedFunction> New(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance,
-                                          Handle<String> name,
-                                          Handle<Code> export_wrapper,
-                                          int arity, int func_index);
+                                          MaybeHandle<String> maybe_name,
+                                          int func_index, int arity,
+                                          Handle<Code> export_wrapper);
 };
 
 class WasmCompiledModule : public FixedArray {

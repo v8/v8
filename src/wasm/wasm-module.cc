@@ -1338,8 +1338,8 @@ class WasmInstanceBuilder {
       Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
           isolate_, module_, startup_code, start_index);
       Handle<WasmExportedFunction> startup_fct = WasmExportedFunction::New(
-          isolate_, instance, factory->InternalizeUtf8String("start"),
-          wrapper_code, static_cast<int>(sig->parameter_count()), start_index);
+          isolate_, instance, MaybeHandle<String>(), start_index,
+          static_cast<int>(sig->parameter_count()), wrapper_code);
       RecordStats(isolate_, *startup_code);
       // Call the JS function.
       Handle<Object> undefined = factory->undefined_value();
@@ -1760,7 +1760,7 @@ class WasmInstanceBuilder {
             // Wrap the exported code as a JSFunction.
             Handle<Code> export_code =
                 code_table->GetValueChecked<Code>(isolate_, func_index);
-            Handle<String> func_name = name;
+            MaybeHandle<String> func_name;
             if (module_->origin == kAsmJsOrigin) {
               // For modules arising from asm.js, honor the names section.
               func_name = ExtractStringFromModuleBytes(
@@ -1769,9 +1769,8 @@ class WasmInstanceBuilder {
                               .ToHandleChecked();
             }
             js_function = WasmExportedFunction::New(
-                isolate_, instance, func_name, export_code,
-                static_cast<int>(function.sig->parameter_count()),
-                function.func_index);
+                isolate_, instance, func_name, function.func_index,
+                static_cast<int>(function.sig->parameter_count()), export_code);
             js_wrappers_[exp.index] = js_function;
           }
           desc.set_value(js_function);
@@ -1921,7 +1920,7 @@ class WasmInstanceBuilder {
 
               Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
                   isolate_, module_, wasm_code, func_index);
-              Handle<String> func_name = isolate_->factory()->empty_string();
+              MaybeHandle<String> func_name;
               if (module_->origin == kAsmJsOrigin) {
                 // For modules arising from asm.js, honor the names section.
                 func_name = ExtractStringFromModuleBytes(
@@ -1931,9 +1930,9 @@ class WasmInstanceBuilder {
               }
               Handle<WasmExportedFunction> js_function =
                   WasmExportedFunction::New(
-                      isolate_, instance, func_name, wrapper_code,
+                      isolate_, instance, func_name, func_index,
                       static_cast<int>(function->sig->parameter_count()),
-                      func_index);
+                      wrapper_code);
               js_wrappers_[func_index] = js_function;
             }
             table_instance.js_wrappers->set(table_index,

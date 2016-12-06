@@ -208,16 +208,15 @@ class TestingModule : public ModuleEnv {
 
   Handle<JSFunction> WrapCode(uint32_t index) {
     // Wrap the code so it can be called as a JS function.
-    Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
     Handle<WasmInstanceObject> instance_obj(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, &module_, code, index);
     Handle<JSFunction> ret = WasmExportedFunction::New(
-        isolate_, instance_obj, name, ret_code,
+        isolate_, instance_obj, MaybeHandle<String>(), static_cast<int>(index),
         static_cast<int>(this->module->functions[index].sig->parameter_count()),
-        static_cast<int>(index));
+        ret_code);
     return ret;
   }
 
