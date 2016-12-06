@@ -67,7 +67,6 @@ def _V8PresubmitChecks(input_api, output_api):
         input_api.PresubmitLocalPath(), 'tools'))
   from presubmit import CppLintProcessor
   from presubmit import SourceProcessor
-  from presubmit import CheckAuthorizedAuthor
   from presubmit import CheckStatusFiles
 
   results = []
@@ -81,7 +80,8 @@ def _V8PresubmitChecks(input_api, output_api):
         "between declarations check failed"))
   if not CheckStatusFiles(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError("Status file check failed"))
-  results.extend(CheckAuthorizedAuthor(input_api, output_api))
+  results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
+      input_api, output_api))
   return results
 
 
