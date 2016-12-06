@@ -173,7 +173,7 @@ void AsmTyper::VariableInfo::SetFirstForwardUse(int source_location) {
 // ----------------------------------------------------------------------------
 // Implementation of AsmTyper
 
-AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
+AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Handle<Script> script,
                    FunctionLiteral* root)
     : isolate_(isolate),
       zone_(zone),
@@ -2866,7 +2866,7 @@ AsmType* AsmTyper::NewHeapView(CallNew* new_heap_view) {
   return heap_view_info->type();
 }
 
-bool IsValidAsm(Isolate* isolate, Zone* zone, Script* script,
+bool IsValidAsm(Isolate* isolate, Zone* zone, Handle<Script> script,
                 FunctionLiteral* root, std::string* error_message) {
   error_message->clear();
 

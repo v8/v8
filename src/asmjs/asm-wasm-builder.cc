@@ -47,7 +47,7 @@ struct ForeignVariable {
 class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
   AsmWasmBuilderImpl(Isolate* isolate, Zone* zone,
-                     AstValueFactory* ast_value_factory, Script* script,
+                     AstValueFactory* ast_value_factory, Handle<Script> script,
                      FunctionLiteral* literal, AsmTyper* typer)
       : local_variables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
@@ -139,10 +139,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       // SharedFunctionInfo to parse a single function,
       // or squirrel away the SharedFunctionInfo to use later.
       Handle<SharedFunctionInfo> shared =
-          isolate_->factory()->NewSharedFunctionInfoForLiteral(
-              decl->fun(), handle(script_, isolate_));
+          isolate_->factory()->NewSharedFunctionInfoForLiteral(decl->fun(),
+                                                               script_);
       shared->set_is_toplevel(false);
-      ParseInfo info(&zone, handle(script_, isolate_));
+      ParseInfo info(&zone, script_);
       info.set_shared_info(shared);
       info.set_toplevel(false);
       info.set_language_mode(decl->fun()->scope()->language_mode());
@@ -1921,7 +1921,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   Isolate* isolate_;
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
-  Script* script_;
+  Handle<Script> script_;
   AsmTyper* typer_;
   bool typer_failed_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
@@ -1940,7 +1940,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
 AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
                                AstValueFactory* ast_value_factory,
-                               Script* script, FunctionLiteral* literal)
+                               Handle<Script> script, FunctionLiteral* literal)
     : isolate_(isolate),
       zone_(zone),
       ast_value_factory_(ast_value_factory),

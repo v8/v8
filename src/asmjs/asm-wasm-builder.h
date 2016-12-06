@@ -28,8 +28,8 @@ class AsmWasmBuilder {
   };
 
   explicit AsmWasmBuilder(Isolate* isolate, Zone* zone,
-                          AstValueFactory* ast_value_factory, Script* script,
-                          FunctionLiteral* root);
+                          AstValueFactory* ast_value_factory,
+                          Handle<Script> script, FunctionLiteral* root);
   Result Run(Handle<FixedArray>* foreign_args);
 
   static const char* foreign_init_name;
@@ -41,7 +41,7 @@ class AsmWasmBuilder {
   Isolate* isolate_;
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
-  Script* script_;
+  Handle<Script> script_;
   FunctionLiteral* literal_;
   AsmTyper typer_;
 };

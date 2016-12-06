@@ -245,10 +245,6 @@
 
   #BUG(v8:5683)
   'wasm/import-memory': [SKIP],
-
-  #BUG(v8:5716)
-  'wasm/asm-wasm-switch': [SKIP],
-  'wasm/asm-wasm-expr': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################

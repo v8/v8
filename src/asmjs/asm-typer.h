@@ -68,7 +68,8 @@ class AsmTyper final {
   };
 
   ~AsmTyper() = default;
-  AsmTyper(Isolate* isolate, Zone* zone, Script* script, FunctionLiteral* root);
+  AsmTyper(Isolate* isolate, Zone* zone, Handle<Script> script,
+           FunctionLiteral* root);
 
   bool Validate();
   // Do asm.js validation in phases (to interleave with conversion to wasm).
@@ -369,7 +370,7 @@ class AsmTyper final {
 
   Isolate* isolate_;
   Zone* zone_;
-  Script* script_;
+  Handle<Script> script_;
   FunctionLiteral* root_;
   bool in_function_ = false;
 

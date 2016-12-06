@@ -154,7 +154,7 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
 MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
   ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
   wasm::AsmWasmBuilder builder(info->isolate(), info->zone(),
-                               info->ast_value_factory(), *info->script(),
+                               info->ast_value_factory(), info->script(),
                                info->literal());
   Handle<FixedArray> foreign_globals;
   auto asm_wasm_result = builder.Run(&foreign_globals);

@@ -69,7 +69,7 @@ class AsmTyperHarnessBuilder {
                   ->AtForTest(0)
                   ->AsFunctionDeclaration()
                   ->fun();
-    typer_.reset(new AsmTyper(isolate_, zone_, *script_, module_));
+    typer_.reset(new AsmTyper(isolate_, zone_, script_, module_));
 
     if (validation_type_ == ValidateStatement ||
         validation_type_ == ValidateExpression) {
