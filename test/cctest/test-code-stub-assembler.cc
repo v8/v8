@@ -1927,5 +1927,44 @@ TEST(BuildAppendJSArrayFastDoubleElementsObject) {
       isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
 }
 
+TEST(CodeStubAssemblerGraphsCorrectness) {
+  // The test does not work with interpreter because bytecode handlers taken
+  // from the snapshot already refer to precompiled stubs from the snapshot
+  // and there is no way to trigger bytecode handlers recompilation.
+  if (i::FLAG_ignition || i::FLAG_turbo) return;
+
+  i::FLAG_csa_verify = true;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
+
+    {
+      // Enforce recompilation of the following stubs.
+      i::CodeStub::Major code_stub_keys[] = {
+          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
+          i::CodeStub::LoadGlobalIC,   i::CodeStub::LoadGlobalICTrampoline,
+          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
+          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
+      };
+      i::Heap* heap = i_isolate->heap();
+      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
+      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
+        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
+      }
+      heap->SetRootCodeStubs(*dict);
+    }
+    // Generate some stubs here.
+  }
+  isolate->Dispose();
+}
+
 }  // namespace internal
 }  // namespace v8
