@@ -34,6 +34,10 @@ class VariableMap: public ZoneHashMap {
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     bool* added = nullptr);
 
+  // Records that "name" exists but doesn't create a Variable. Useful for
+  // preparsing.
+  void DeclareName(Zone* zone, const AstRawString* name);
+
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Zone* zone, Variable* var);
@@ -156,6 +160,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool allow_harmony_restrictive_generators,
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
+
+  void DeclareVariableName(const AstRawString* name, VariableMode mode);
 
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }
@@ -539,7 +545,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // list along the way, so full resolution cannot be done afterwards.
   // If a ParseInfo* is passed, non-free variables will be resolved.
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                    bool try_to_resolve = true,
                                     ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
@@ -576,6 +581,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void SetDefaults();
 
   friend class DeclarationScope;
+  friend class ScopeTestHelper;
 };
 
 class DeclarationScope : public Scope {
@@ -612,7 +618,15 @@ class DeclarationScope : public Scope {
                                         IsClassConstructor(function_kind())));
   }
 
-  bool is_lazily_parsed() const { return is_lazily_parsed_; }
+  bool was_lazily_parsed() const { return was_lazily_parsed_; }
+
+#ifdef DEBUG
+  void set_is_being_lazily_parsed(bool is_being_lazily_parsed) {
+    is_being_lazily_parsed_ = is_being_lazily_parsed;
+  }
+  bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
+#endif
+
   bool ShouldEagerCompile() const;
   void set_should_eager_compile();
 
@@ -815,7 +829,11 @@ class DeclarationScope : public Scope {
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
   bool should_eager_compile_ : 1;
-  bool is_lazily_parsed_ : 1;
+  // Set to true after we have finished lazy parsing the scope.
+  bool was_lazily_parsed_ : 1;
+#if DEBUG
+  bool is_being_lazily_parsed_ : 1;
+#endif
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;

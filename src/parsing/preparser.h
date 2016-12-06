@@ -149,9 +149,11 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment() {
+  static PreParserExpression Assignment(
+      ZoneList<const AstRawString*>* identifiers = nullptr) {
     return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kAssignment));
+                                   ExpressionTypeField::encode(kAssignment),
+                               identifiers);
   }
 
   static PreParserExpression ObjectLiteral(
@@ -604,7 +606,8 @@ class PreParserFactory {
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
-    return PreParserExpression::Assignment();
+    // For tracking identifiers for parameters with a default value.
+    return PreParserExpression::Assignment(left.identifiers_);
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression, int pos,
@@ -746,10 +749,17 @@ class PreParserFactory {
 
 
 struct PreParserFormalParameters : FormalParametersBase {
+  struct Parameter : public ZoneObject {
+    explicit Parameter(PreParserExpression pattern) : pattern(pattern) {}
+    Parameter** next() { return &next_parameter; }
+    Parameter* const* next() const { return &next_parameter; }
+    PreParserExpression pattern;
+    Parameter* next_parameter = nullptr;
+  };
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
 
-  void* params = nullptr;  // Dummy
+  ThreadedList<Parameter> params;
 };
 
 
@@ -1440,13 +1450,29 @@ class PreParser : public ParserBase<PreParser> {
                                     PreParserExpression initializer,
                                     int initializer_end_position,
                                     bool is_rest) {
+    if (track_unresolved_variables_) {
+      DCHECK(FLAG_lazy_inner_functions);
+      parameters->params.Add(new (zone())
+                                 PreParserFormalParameters::Parameter(pattern));
+    }
     parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }
 
-  V8_INLINE void DeclareFormalParameters(DeclarationScope* scope,
-                                         void* parameters) {
+  V8_INLINE void DeclareFormalParameters(
+      DeclarationScope* scope,
+      const ThreadedList<PreParserFormalParameters::Parameter>& parameters) {
     if (!classifier()->is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
+    }
+    if (track_unresolved_variables_) {
+      DCHECK(FLAG_lazy_inner_functions);
+      for (auto parameter : parameters) {
+        if (parameter->pattern.identifiers_ != nullptr) {
+          for (auto i : *parameter->pattern.identifiers_) {
+            scope->DeclareVariableName(i, VAR);
+          }
+        }
+      }
     }
   }
 
@@ -1456,6 +1482,8 @@ class PreParser : public ParserBase<PreParser> {
       bool* ok) {
     // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
     // parameter lists that are too long.
+    // FIXME(marja): Add code to declare arrow function parameters to allocate
+    // less pessimistically.
   }
 
   V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}

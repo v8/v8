@@ -288,7 +288,7 @@ void AstTraversalVisitor<Subclass>::VisitFunctionLiteral(
   DeclarationScope* scope = expr->scope();
   RECURSE_EXPRESSION(VisitDeclarations(scope->declarations()));
   // A lazily parsed function literal won't have a body.
-  if (expr->scope()->is_lazily_parsed()) return;
+  if (expr->scope()->was_lazily_parsed()) return;
   RECURSE_EXPRESSION(VisitStatements(expr->body()));
 }
 

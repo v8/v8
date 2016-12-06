@@ -8403,3 +8403,143 @@ TEST(ArgumentsRedeclaration) {
     RunParserSyncTest(context_data, data, kSuccess);
   }
 }
+
+namespace v8 {
+namespace internal {
+
+class ScopeTestHelper {
+ public:
+  static bool MustAllocateInContext(Variable* var) {
+    return var->scope()->MustAllocateInContext(var);
+  }
+};
+}  // namespace internal
+}  // namespace v8
+
+// Test that lazily parsed inner functions don't result in overly pessimistic
+// context allocations.
+TEST(NoPessimisticContextAllocation) {
+  i::FLAG_lazy_inner_functions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* prefix = "(function outer() { var my_var; ";
+  const char* suffix = " })();";
+  int prefix_len = Utf8LengthHelper(prefix);
+  int suffix_len = Utf8LengthHelper(suffix);
+
+  struct {
+    const char* source;
+    bool ctxt_allocate;
+  } inners[] = {
+      // Context allocating because we need to:
+      {"function inner() { my_var; }", true},
+      {"function inner() { eval(\"foo\"); }", true},
+      {"function inner() { function inner2() { my_var; } }", true},
+      {"function inner() { function inner2() { eval(\"foo\"); } }", true},
+      {"function inner() { var {my_var : a} = {my_var}; }", true},
+      {"function inner() { let {my_var : a} = {my_var}; }", true},
+      {"function inner() { const {my_var : a} = {my_var}; }", true},
+      // No pessimistic context allocation:
+      {"function inner() { var my_var; my_var; }", false},
+      {"function inner() { var my_var; }", false},
+      {"function inner() { let my_var; my_var; }", false},
+      {"function inner() { let my_var; }", false},
+      {"function inner() { const my_var = 0; my_var; }", false},
+      {"function inner() { const my_var = 0; }", false},
+      {"function inner() { var [a, my_var] = [1, 2]; my_var; }", false},
+      {"function inner() { let [a, my_var] = [1, 2]; my_var; }", false},
+      {"function inner() { const [a, my_var] = [1, 2]; my_var; }", false},
+      {"function inner() { var {a: my_var} = {a: 3}; my_var; }", false},
+      {"function inner() { let {a: my_var} = {a: 3}; my_var; }", false},
+      {"function inner() { const {a: my_var} = {a: 3}; my_var; }", false},
+      {"function inner() { var {my_var} = {my_var: 3}; my_var; }", false},
+      {"function inner() { let {my_var} = {my_var: 3}; my_var; }", false},
+      {"function inner() { const {my_var} = {my_var: 3}; my_var; }", false},
+      {"function inner(my_var) { my_var; }", false},
+      {"function inner(my_var) { }", false},
+      {"function inner(...my_var) { my_var; }", false},
+      {"function inner(...my_var) { }", false},
+      {"function inner([a, my_var, b]) { my_var; }", false},
+      {"function inner([a, my_var, b]) { }", false},
+      {"function inner({x: my_var}) { my_var; }", false},
+      {"function inner({x: my_var}) { }", false},
+      {"function inner({my_var}) { my_var; }", false},
+      {"function inner({my_var}) { }", false},
+      {"function inner() { function inner2(my_var) { my_var; } }", false},
+      {"function inner() { function inner2(my_var) { } }", false},
+      {"function inner() { function inner2(...my_var) { my_var; } }", false},
+      {"function inner() { function inner2(...my_var) { } }", false},
+      {"function inner() { function inner2([a, my_var, b]) { my_var; } }",
+       false},
+      {"function inner() { function inner2([a, my_var, b]) { } }", false},
+      {"function inner() { function inner2({x: my_var}) { my_var; } }", false},
+      {"function inner() { function inner2({x: my_var}) { } }", false},
+      {"function inner() { function inner2({my_var}) { my_var; } }", false},
+      {"function inner() { function inner2({my_var}) { } }", false},
+      {"my_var =>  my_var; ", false},
+      {"my_var => { }", false},
+      {"(...my_var) =>  my_var;", false},
+      {"(...my_var) => { }", false},
+      {"([a, my_var, b]) => my_var;", false},
+      {"([a, my_var, b]) => { }", false},
+      {"({x: my_var}) => my_var;", false},
+      {"({x: my_var}) => { }", false},
+      {"({my_var}) => my_var;", false},
+      {"({my_var}) => { }", false},
+      {"function inner() { try { } catch (my_var) { } }", false},
+      {"function inner() { class my_var {}; }", false},
+      // In the following cases we still context allocate pessimistically:
+      {"function inner() { function my_var() {} my_var; }", true},
+      {"function inner() { if (true) { function my_var() {} }  my_var; }",
+       true},
+      {"function inner() { try { } catch (my_var) { my_var; } }", true},
+      {"function inner() { for (my_var of {}) { my_var; } }", true},
+      {"function inner() { for (my_var of {}) { } }", true},
+      {"function inner() { for (my_var in []) { my_var; } }", true},
+      {"function inner() { for (my_var in []) { } }", true},
+      {"function inner() { my_var =>  my_var; }", true},
+      {"function inner() { my_var => { }}", true},
+      {"function inner() { (...my_var) =>  my_var;}", true},
+      {"function inner() { (...my_var) => { }}", true},
+      {"function inner() { ([a, my_var, b]) => my_var;}", true},
+      {"function inner() { ([a, my_var, b]) => { }}", true},
+      {"function inner() { ({x: my_var}) => my_var;}", true},
+      {"function inner() { ({x: my_var}) => { }}", true},
+      {"function inner() { ({my_var}) => my_var;}", true},
+      {"function inner() { ({my_var}) => { }}", true},
+      {"function inner() { class my_var {}; my_var }", true},
+  };
+
+  for (unsigned i = 0; i < arraysize(inners); ++i) {
+    const char* inner = inners[i].source;
+    int inner_len = Utf8LengthHelper(inner);
+    int len = prefix_len + inner_len + suffix_len;
+    i::ScopedVector<char> program(len + 1);
+    i::SNPrintF(program, "%s%s%s", prefix, inner, suffix);
+    i::Handle<i::String> source =
+        factory->InternalizeUtf8String(program.start());
+    source->PrintOn(stdout);
+    printf("\n");
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
+
+    CHECK(i::parsing::ParseProgram(&info));
+    CHECK(i::Compiler::Analyze(&info));
+    CHECK(info.literal() != NULL);
+
+    i::Scope* scope = info.literal()->scope()->inner_scope();
+    DCHECK_NOT_NULL(scope);
+    DCHECK_NULL(scope->sibling());
+    DCHECK(scope->is_function_scope());
+    const i::AstRawString* var_name =
+        info.ast_value_factory()->GetOneByteString("my_var");
+    i::Variable* var = scope->Lookup(var_name);
+    CHECK_EQ(inners[i].ctxt_allocate,
+             i::ScopeTestHelper::MustAllocateInContext(var));
+  }
+}

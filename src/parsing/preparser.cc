@@ -91,6 +91,9 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
+#ifdef DEBUG
+  function_scope->set_is_being_lazily_parsed(true);
+#endif
 
   // In the preparser, we use the function literal ids to count how many
   // FunctionLiterals were encountered. The PreParser doesn't actually persist
@@ -133,6 +136,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
+
   if (result == kLazyParsingAborted) {
     return kPreParseAbort;
   } else if (stack_overflow()) {
@@ -296,13 +300,19 @@ void PreParser::DeclareAndInitializeVariables(
        var + initializer -> RemoveUnresolved followed by NewUnresolved
        let / const + initializer -> RemoveUnresolved
     */
-
+    Scope* scope = declaration_descriptor->hoist_scope;
+    if (scope == nullptr) {
+      scope = this->scope();
+    }
     if (declaration->initializer.IsEmpty() ||
         (declaration_descriptor->mode == VariableMode::LET ||
          declaration_descriptor->mode == VariableMode::CONST)) {
       for (auto identifier : *(declaration->pattern.identifiers_)) {
         declaration_descriptor->scope->RemoveUnresolved(identifier);
       }
+    }
+    for (auto identifier : *(declaration->pattern.identifiers_)) {
+      scope->DeclareVariableName(identifier, declaration_descriptor->mode);
     }
   }
 }
