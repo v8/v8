@@ -1556,8 +1556,10 @@ void Scope::Print(int n) {
     PrintVar(n1, function);
   }
 
-  PrintMap(n1, "// local vars:\n", &variables_, true, function);
-  PrintMap(n1, "// dynamic vars:\n", &variables_, false, function);
+  if (variables_.occupancy() > 0) {
+    PrintMap(n1, "// local vars:\n", &variables_, true, function);
+    PrintMap(n1, "// dynamic vars:\n", &variables_, false, function);
+  }
 
   // Print inner scopes (disable by providing negative n).
   if (n >= 0) {
