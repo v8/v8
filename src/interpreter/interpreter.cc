@@ -73,30 +73,9 @@ void Interpreter::Initialize() {
   };
 
   for (OperandScale operand_scale : kOperandScales) {
-#define GENERATE_CODE(Name, ...)                                               \
-  {                                                                            \
-    if (Bytecodes::BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {     \
-      InterpreterDispatchDescriptor descriptor(isolate_);                      \
-      compiler::CodeAssemblerState state(                                      \
-          isolate_, &zone, descriptor,                                         \
-          Code::ComputeFlags(Code::BYTECODE_HANDLER),                          \
-          Bytecodes::ToString(Bytecode::k##Name),                              \
-          Bytecodes::ReturnCount(Bytecode::k##Name));                          \
-      InterpreterAssembler assembler(&state, Bytecode::k##Name,                \
-                                     operand_scale);                           \
-      Do##Name(&assembler);                                                    \
-      Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);       \
-      size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
-      dispatch_table_[index] = code->entry();                                  \
-      TraceCodegen(code);                                                      \
-      PROFILE(                                                                 \
-          isolate_,                                                            \
-          CodeCreateEvent(                                                     \
-              CodeEventListener::BYTECODE_HANDLER_TAG,                         \
-              AbstractCode::cast(*code),                                       \
-              Bytecodes::ToString(Bytecode::k##Name, operand_scale).c_str())); \
-    }                                                                          \
-  }
+#define GENERATE_CODE(Name, ...)                                  \
+  InstallBytecodeHandler(&zone, Bytecode::k##Name, operand_scale, \
+                         &Interpreter::Do##Name);
     BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
   }
@@ -112,6 +91,27 @@ void Interpreter::Initialize() {
 
   // Initialization should have been successful.
   DCHECK(IsDispatchTableInitialized());
+}
+
+void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
+                                         OperandScale operand_scale,
+                                         BytecodeGeneratorFunc generator) {
+  if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
+
+  InterpreterDispatchDescriptor descriptor(isolate_);
+  compiler::CodeAssemblerState state(
+      isolate_, zone, descriptor, Code::ComputeFlags(Code::BYTECODE_HANDLER),
+      Bytecodes::ToString(bytecode), Bytecodes::ReturnCount(bytecode));
+  InterpreterAssembler assembler(&state, bytecode, operand_scale);
+  (this->*generator)(&assembler);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
+  dispatch_table_[index] = code->entry();
+  TraceCodegen(code);
+  PROFILE(isolate_, CodeCreateEvent(
+                        CodeEventListener::BYTECODE_HANDLER_TAG,
+                        AbstractCode::cast(*code),
+                        Bytecodes::ToString(bytecode, operand_scale).c_str()));
 }
 
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,

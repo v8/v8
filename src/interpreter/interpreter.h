@@ -76,6 +76,14 @@ class Interpreter {
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
+  typedef void (Interpreter::*BytecodeGeneratorFunc)(InterpreterAssembler*);
+
+  // Generates handler for given |bytecode| and |operand_scale| using
+  // |generator| and installs it into the dispatch table.
+  void InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
+                              OperandScale operand_scale,
+                              BytecodeGeneratorFunc generator);
+
   // Generates code to perform the binary operation via |Generator|.
   template <class Generator>
   void DoBinaryOpWithFeedback(InterpreterAssembler* assembler);
