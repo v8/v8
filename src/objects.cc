@@ -1811,11 +1811,13 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
                                  GetPropertyWithInterceptor(it, &done), Object);
       if (done) return result;
     }
+
   } else {
-    MaybeHandle<Object> result;
+    Handle<Object> result;
     bool done;
-    result = GetPropertyWithInterceptorInternal(it, interceptor, &done);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        GetPropertyWithInterceptorInternal(it, interceptor, &done), Object);
     if (done) return result;
   }
 
@@ -1851,7 +1853,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
   } else {
     Maybe<PropertyAttributes> result =
         GetPropertyAttributesWithInterceptorInternal(it, interceptor);
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<PropertyAttributes>());
+    if (isolate->has_pending_exception()) return Nothing<PropertyAttributes>();
     if (result.FromMaybe(ABSENT) != ABSENT) return result;
   }
   isolate->ReportFailedAccessCheck(checked);
@@ -1887,10 +1889,9 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
   } else {
     Maybe<bool> result = SetPropertyWithInterceptorInternal(
         it, interceptor, should_throw, value);
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+    if (isolate->has_pending_exception()) return Nothing<bool>();
     if (result.IsJust()) return result;
   }
-
   isolate->ReportFailedAccessCheck(checked);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
   return Just(true);
