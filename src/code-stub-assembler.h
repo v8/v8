@@ -182,6 +182,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* SelectTaggedConstant(Node* condition, Node* true_value,
                              Node* false_value);
 
+  Node* TruncateWordToWord32(Node* value);
+
   // Check a value for smi-ness
   Node* TaggedIsSmi(Node* a);
   Node* TaggedIsNotSmi(Node* a);

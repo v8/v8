@@ -1958,6 +1958,8 @@ TEST(CodeStubAssemblerGraphsCorrectness) {
 
     // Recompile some stubs here.
     Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
+    Recompile<LoadICStub>(isolate);
+    Recompile<KeyedLoadICTFStub>(isolate);
   }
   v8_isolate->Dispose();
 }

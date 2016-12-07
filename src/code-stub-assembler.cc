@@ -431,10 +431,7 @@ Node* CodeStubAssembler::SmiUntag(Node* value) {
 
 Node* CodeStubAssembler::SmiToWord32(Node* value) {
   Node* result = SmiUntag(value);
-  if (Is64()) {
-    result = TruncateInt64ToInt32(result);
-  }
-  return result;
+  return TruncateWordToWord32(result);
 }
 
 Node* CodeStubAssembler::SmiToFloat64(Node* value) {
@@ -606,6 +603,13 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
 
   Bind(&return_result);
   return var_result.value();
+}
+
+Node* CodeStubAssembler::TruncateWordToWord32(Node* value) {
+  if (Is64()) {
+    return TruncateInt64ToInt32(value);
+  }
+  return value;
 }
 
 Node* CodeStubAssembler::TaggedIsSmi(Node* a) {
@@ -2629,7 +2633,7 @@ Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
   Goto(&if_join);
   Bind(&if_notoverflow);
   {
-    Node* result = Projection(0, pair);
+    Node* result = BitcastWordToTaggedSigned(Projection(0, pair));
     var_result.Bind(result);
   }
   Goto(&if_join);
@@ -2656,7 +2660,7 @@ Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
       Node* overflow = Projection(1, pair);
       GotoIf(overflow, &if_overflow);
 
-      Node* result = Projection(0, pair);
+      Node* result = BitcastWordToTaggedSigned(Projection(0, pair));
       var_result.Bind(result);
     }
   }
@@ -4462,7 +4466,7 @@ template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
 
 Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   // See v8::internal::ComputeIntegerHash()
-  Node* hash = key;
+  Node* hash = TruncateWordToWord32(key);
   hash = Word32Xor(hash, seed);
   hash = Int32Add(Word32Xor(hash, Int32Constant(0xffffffff)),
                   Word32Shl(hash, Int32Constant(15)));

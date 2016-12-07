@@ -803,8 +803,8 @@ void AccessorAssemblerImpl::EmitElementLoad(
                      &if_fast_double,
                      // FAST_HOLEY_DOUBLE_ELEMENTS
                      &if_fast_holey_double};
-  Switch(elements_kind, unimplemented_elements_kind, kinds, labels,
-         arraysize(kinds));
+  Switch(TruncateWordToWord32(elements_kind), unimplemented_elements_kind,
+         kinds, labels, arraysize(kinds));
 
   Bind(&if_fast_packed);
   {
@@ -881,9 +881,7 @@ void AccessorAssemblerImpl::EmitElementLoad(
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     Node* bitfield = LoadObjectField(buffer, JSArrayBuffer::kBitFieldOffset,
                                      MachineType::Uint32());
-    Node* neutered_bit =
-        Word32And(bitfield, Int32Constant(JSArrayBuffer::WasNeutered::kMask));
-    GotoUnless(Word32Equal(neutered_bit, Int32Constant(0)), miss);
+    GotoIf(IsSetWord32<JSArrayBuffer::WasNeutered>(bitfield), miss);
 
     // Bounds check.
     Node* length =
@@ -895,7 +893,8 @@ void AccessorAssemblerImpl::EmitElementLoad(
         LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
                         MachineType::Pointer());
     Node* base_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset,
+                        MachineType::Pointer());
     Node* backing_store = IntPtrAdd(external_pointer, base_pointer);
 
     Label uint8_elements(this), int8_elements(this), uint16_elements(this),
@@ -914,29 +913,33 @@ void AccessorAssemblerImpl::EmitElementLoad(
         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
     DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
     DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
-    Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
-           kTypedElementsKindCount);
+    Switch(TruncateWordToWord32(elements_kind), miss, elements_kinds,
+           elements_kind_labels, kTypedElementsKindCount);
     Bind(&uint8_elements);
     {
       Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
-      Return(SmiTag(Load(MachineType::Uint8(), backing_store, intptr_index)));
+      Node* element = Load(MachineType::Uint8(), backing_store, intptr_index);
+      Return(SmiFromWord32(element));
     }
     Bind(&int8_elements);
     {
       Comment("INT8_ELEMENTS");
-      Return(SmiTag(Load(MachineType::Int8(), backing_store, intptr_index)));
+      Node* element = Load(MachineType::Int8(), backing_store, intptr_index);
+      Return(SmiFromWord32(element));
     }
     Bind(&uint16_elements);
     {
       Comment("UINT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
-      Return(SmiTag(Load(MachineType::Uint16(), backing_store, index)));
+      Node* element = Load(MachineType::Uint16(), backing_store, index);
+      Return(SmiFromWord32(element));
     }
     Bind(&int16_elements);
     {
       Comment("INT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
-      Return(SmiTag(Load(MachineType::Int16(), backing_store, index)));
+      Node* element = Load(MachineType::Int16(), backing_store, index);
+      Return(SmiFromWord32(element));
     }
     Bind(&uint32_elements);
     {
@@ -1034,7 +1037,8 @@ Node* AccessorAssemblerImpl::StubCachePrimaryOffset(Node* name, Node* map) {
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
-  Node* hash = Int32Add(hash_field, map);
+  Node* map32 = TruncateWordToWord32(BitcastTaggedToWord(map));
+  Node* hash = Int32Add(hash_field, map32);
   // Base the offset on a simple combination of name and map.
   hash = Word32Xor(hash, Int32Constant(StubCache::kPrimaryMagic));
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
@@ -1046,7 +1050,8 @@ Node* AccessorAssemblerImpl::StubCacheSecondaryOffset(Node* name, Node* seed) {
   // See v8::internal::StubCache::SecondaryOffset().
 
   // Use the seed from the primary cache in the secondary cache.
-  Node* hash = Int32Sub(seed, name);
+  Node* name32 = TruncateWordToWord32(BitcastTaggedToWord(name));
+  Node* hash = Int32Sub(TruncateWordToWord32(seed), name32);
   hash = Int32Add(hash, Int32Constant(StubCache::kSecondaryMagic));
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
@@ -1512,103 +1517,105 @@ void AccessorAssemblerImpl::StoreIC(const StoreICParameters* p) {
 
 void AccessorAssemblerImpl::KeyedStoreIC(const StoreICParameters* p,
                                          LanguageMode language_mode) {
-  Variable var_handler(this, MachineRepresentation::kTagged);
-  // This is to make |miss| label see the var_handler bound on all paths.
-  var_handler.Bind(IntPtrConstant(0));
-
   // TODO(ishell): defer blocks when it works.
-  Label if_handler(this, &var_handler), try_polymorphic(this),
-      try_megamorphic(this /*, Label::kDeferred*/),
-      try_polymorphic_name(this /*, Label::kDeferred*/),
-      miss(this /*, Label::kDeferred*/);
-
-  Node* receiver_map = LoadReceiverMap(p->receiver);
-
-  // Check monomorphic case.
-  Node* feedback =
-      TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
-                         &var_handler, &try_polymorphic);
-  Bind(&if_handler);
+  Label miss(this /*, Label::kDeferred*/);
   {
-    Comment("KeyedStoreIC_if_handler");
-    HandleStoreICHandlerCase(p, var_handler.value(), &miss, kSupportElements);
-  }
+    Variable var_handler(this, MachineRepresentation::kTagged);
 
-  Bind(&try_polymorphic);
-  {
-    // CheckPolymorphic case.
-    Comment("KeyedStoreIC_try_polymorphic");
-    GotoUnless(
-        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
-        &try_megamorphic);
-    Label if_transition_handler(this);
-    Variable var_transition_map_cell(this, MachineRepresentation::kTagged);
-    HandleKeyedStorePolymorphicCase(receiver_map, feedback, &if_handler,
-                                    &var_handler, &if_transition_handler,
-                                    &var_transition_map_cell, &miss);
-    Bind(&if_transition_handler);
-    Comment("KeyedStoreIC_polymorphic_transition");
+    // TODO(ishell): defer blocks when it works.
+    Label if_handler(this, &var_handler), try_polymorphic(this),
+        try_megamorphic(this /*, Label::kDeferred*/),
+        try_polymorphic_name(this /*, Label::kDeferred*/);
+
+    Node* receiver_map = LoadReceiverMap(p->receiver);
+
+    // Check monomorphic case.
+    Node* feedback =
+        TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
+                           &var_handler, &try_polymorphic);
+    Bind(&if_handler);
     {
-      Node* handler = var_handler.value();
+      Comment("KeyedStoreIC_if_handler");
+      HandleStoreICHandlerCase(p, var_handler.value(), &miss, kSupportElements);
+    }
 
-      Label call_handler(this);
-      Variable var_code_handler(this, MachineRepresentation::kTagged);
-      var_code_handler.Bind(handler);
-      GotoUnless(IsTuple2Map(LoadMap(handler)), &call_handler);
+    Bind(&try_polymorphic);
+    {
+      // CheckPolymorphic case.
+      Comment("KeyedStoreIC_try_polymorphic");
+      GotoUnless(
+          WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
+          &try_megamorphic);
+      Label if_transition_handler(this);
+      Variable var_transition_map_cell(this, MachineRepresentation::kTagged);
+      HandleKeyedStorePolymorphicCase(receiver_map, feedback, &if_handler,
+                                      &var_handler, &if_transition_handler,
+                                      &var_transition_map_cell, &miss);
+      Bind(&if_transition_handler);
+      Comment("KeyedStoreIC_polymorphic_transition");
       {
-        CSA_ASSERT(this, IsTuple2Map(LoadMap(handler)));
+        Node* handler = var_handler.value();
 
-        // Check validity cell.
-        Node* validity_cell = LoadObjectField(handler, Tuple2::kValue1Offset);
-        Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-        GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
-               &miss);
+        Label call_handler(this);
+        Variable var_code_handler(this, MachineRepresentation::kTagged);
+        var_code_handler.Bind(handler);
+        GotoUnless(IsTuple2Map(LoadMap(handler)), &call_handler);
+        {
+          CSA_ASSERT(this, IsTuple2Map(LoadMap(handler)));
 
-        var_code_handler.Bind(LoadObjectField(handler, Tuple2::kValue2Offset));
-        Goto(&call_handler);
-      }
+          // Check validity cell.
+          Node* validity_cell = LoadObjectField(handler, Tuple2::kValue1Offset);
+          Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
+          GotoIf(
+              WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
+              &miss);
 
-      Bind(&call_handler);
-      {
-        Node* code_handler = var_code_handler.value();
-        CSA_ASSERT(this, IsCodeMap(LoadMap(code_handler)));
+          var_code_handler.Bind(
+              LoadObjectField(handler, Tuple2::kValue2Offset));
+          Goto(&call_handler);
+        }
 
-        Node* transition_map =
-            LoadWeakCellValue(var_transition_map_cell.value(), &miss);
-        StoreTransitionDescriptor descriptor(isolate());
-        TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
-                     transition_map, p->value, p->slot, p->vector);
+        Bind(&call_handler);
+        {
+          Node* code_handler = var_code_handler.value();
+          CSA_ASSERT(this, IsCodeMap(LoadMap(code_handler)));
+
+          Node* transition_map =
+              LoadWeakCellValue(var_transition_map_cell.value(), &miss);
+          StoreTransitionDescriptor descriptor(isolate());
+          TailCallStub(descriptor, code_handler, p->context, p->receiver,
+                       p->name, transition_map, p->value, p->slot, p->vector);
+        }
       }
     }
-  }
 
-  Bind(&try_megamorphic);
-  {
-    // Check megamorphic case.
-    Comment("KeyedStoreIC_try_megamorphic");
-    GotoUnless(
-        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-        &try_polymorphic_name);
-    TailCallStub(
-        CodeFactory::KeyedStoreIC_Megamorphic(isolate(), language_mode),
-        p->context, p->receiver, p->name, p->value, p->slot, p->vector);
-  }
+    Bind(&try_megamorphic);
+    {
+      // Check megamorphic case.
+      Comment("KeyedStoreIC_try_megamorphic");
+      GotoUnless(
+          WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+          &try_polymorphic_name);
+      TailCallStub(
+          CodeFactory::KeyedStoreIC_Megamorphic(isolate(), language_mode),
+          p->context, p->receiver, p->name, p->value, p->slot, p->vector);
+    }
 
-  Bind(&try_polymorphic_name);
-  {
-    // We might have a name in feedback, and a fixed array in the next slot.
-    Comment("KeyedStoreIC_try_polymorphic_name");
-    GotoUnless(WordEqual(feedback, p->name), &miss);
-    // If the name comparison succeeded, we know we have a FixedArray with
-    // at least one map/handler pair.
-    Node* offset = ElementOffsetFromIndex(
-        p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
-        FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
-    Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
-    HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
-                          1);
+    Bind(&try_polymorphic_name);
+    {
+      // We might have a name in feedback, and a fixed array in the next slot.
+      Comment("KeyedStoreIC_try_polymorphic_name");
+      GotoUnless(WordEqual(feedback, p->name), &miss);
+      // If the name comparison succeeded, we know we have a FixedArray with
+      // at least one map/handler pair.
+      Node* offset = ElementOffsetFromIndex(
+          p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
+          FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
+      Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
+      HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
+                            &miss, 1);
+    }
   }
-
   Bind(&miss);
   {
     Comment("KeyedStoreIC_miss");
