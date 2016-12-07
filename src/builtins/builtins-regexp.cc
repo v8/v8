@@ -1386,7 +1386,7 @@ class GrowableFixedArray {
     a->Bind(&grow);
     {
       Node* const new_capacity = NewCapacity(a, capacity);
-      Node* const new_array = GrowFixedArray(capacity, new_capacity, mode);
+      Node* const new_array = ResizeFixedArray(length, new_capacity, mode);
 
       var_capacity_.Bind(new_capacity);
       var_array_.Bind(new_array);
@@ -1407,9 +1407,27 @@ class GrowableFixedArray {
     CodeStubAssembler* a = assembler_;
 
     const ElementsKind kind = FAST_ELEMENTS;
+    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
     Node* const native_context = a->LoadNativeContext(context);
     Node* const array_map = a->LoadJSArrayElementsMap(kind, native_context);
+
+    // Shrink to fit if necessary.
+    {
+      Label next(a);
+
+      Node* const length = var_length_.value();
+      Node* const capacity = var_capacity_.value();
+
+      a->GotoIf(a->WordEqual(length, capacity), &next);
+
+      Node* const array = ResizeFixedArray(length, length, mode);
+      var_array_.Bind(array);
+      var_capacity_.Bind(length);
+      a->Goto(&next);
+
+      a->Bind(&next);
+    }
 
     Node* const result_length = a->SmiTag(length());
     Node* const result = a->AllocateUninitializedJSArrayWithoutElements(
@@ -1454,14 +1472,17 @@ class GrowableFixedArray {
     return new_capacity;
   }
 
-  Node* GrowFixedArray(Node* const current_capacity, Node* const new_capacity,
-                       ParameterMode mode) {
+  // Creates a new array with {new_capacity} and copies the first
+  // {element_count} elements from the current array.
+  Node* ResizeFixedArray(Node* const element_count, Node* const new_capacity,
+                         ParameterMode mode) {
     DCHECK(mode == CodeStubAssembler::INTPTR_PARAMETERS);
 
     CodeStubAssembler* a = assembler_;
 
-    CSA_ASSERT(a, a->IntPtrGreaterThan(current_capacity, a->IntPtrConstant(0)));
-    CSA_ASSERT(a, a->IntPtrGreaterThan(new_capacity, current_capacity));
+    CSA_ASSERT(a, a->IntPtrGreaterThan(element_count, a->IntPtrConstant(0)));
+    CSA_ASSERT(a, a->IntPtrGreaterThan(new_capacity, a->IntPtrConstant(0)));
+    CSA_ASSERT(a, a->IntPtrGreaterThanOrEqual(new_capacity, element_count));
 
     const ElementsKind kind = FAST_ELEMENTS;
     const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
@@ -1471,9 +1492,8 @@ class GrowableFixedArray {
     Node* const from_array = var_array_.value();
     Node* const to_array =
         a->AllocateFixedArray(kind, new_capacity, mode, flags);
-    a->CopyFixedArrayElements(kind, from_array, kind, to_array,
-                              current_capacity, new_capacity, barrier_mode,
-                              mode);
+    a->CopyFixedArrayElements(kind, from_array, kind, to_array, element_count,
+                              new_capacity, barrier_mode, mode);
 
     return to_array;
   }
