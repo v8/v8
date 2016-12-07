@@ -278,13 +278,6 @@ class Scanner {
     octal_pos_ = Location::invalid();
     octal_message_ = MessageTemplate::kNone;
   }
-  // Returns the location of the last seen decimal literal with a leading zero.
-  Location decimal_with_leading_zero_position() const {
-    return decimal_with_leading_zero_pos_;
-  }
-  void clear_decimal_with_leading_zero_position() {
-    decimal_with_leading_zero_pos_ = Location::invalid();
-  }
   MessageTemplate::Template octal_message() const { return octal_message_; }
 
   // Returns the value of the last smi that was scanned.
@@ -789,7 +782,6 @@ class Scanner {
 
   // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;
-  Location decimal_with_leading_zero_pos_;
   MessageTemplate::Template octal_message_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.

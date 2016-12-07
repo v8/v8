@@ -162,8 +162,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (is_strict(function_scope->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(function_scope->start_position(), end_pos, ok);
-      CheckDecimalLiteralWithLeadingZero(function_scope->start_position(),
-                                         end_pos);
     }
   }
   return kPreParseSuccess;
@@ -237,7 +235,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
-    CheckDecimalLiteralWithLeadingZero(start_position, end_position);
   }
   function_scope->set_end_position(end_position);
 

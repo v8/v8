@@ -78,7 +78,6 @@ bool Scanner::BookmarkScope::HasBeenApplied() {
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       octal_pos_(Location::invalid()),
-      decimal_with_leading_zero_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone),
       found_html_comment_(false) {}
 
@@ -1159,8 +1158,10 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
           literal.Complete();
           HandleLeadSurrogate();
 
-          if (kind == DECIMAL_WITH_LEADING_ZERO)
-            decimal_with_leading_zero_pos_ = Location(start_pos, source_pos());
+          if (kind == DECIMAL_WITH_LEADING_ZERO) {
+            octal_pos_ = Location(start_pos, source_pos());
+            octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
+          }
           return Token::SMI;
         }
         HandleLeadSurrogate();
@@ -1200,8 +1201,10 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
   literal.Complete();
 
-  if (kind == DECIMAL_WITH_LEADING_ZERO)
-    decimal_with_leading_zero_pos_ = Location(start_pos, source_pos());
+  if (kind == DECIMAL_WITH_LEADING_ZERO) {
+    octal_pos_ = Location(start_pos, source_pos());
+    octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
+  }
   return Token::NUMBER;
 }
 

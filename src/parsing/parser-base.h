@@ -883,17 +883,10 @@ class ParserBase {
       DCHECK_NE(message, MessageTemplate::kNone);
       impl()->ReportMessageAt(octal, message);
       scanner()->clear_octal_position();
+      if (message == MessageTemplate::kStrictDecimalWithLeadingZero) {
+        impl()->CountUsage(v8::Isolate::kDecimalWithLeadingZeroInStrictMode);
+      }
       *ok = false;
-    }
-  }
-  // for now, this check just collects statistics.
-  void CheckDecimalLiteralWithLeadingZero(int beg_pos, int end_pos) {
-    Scanner::Location token_location =
-        scanner()->decimal_with_leading_zero_position();
-    if (token_location.IsValid() && beg_pos <= token_location.beg_pos &&
-        token_location.end_pos <= end_pos) {
-      scanner()->clear_decimal_with_leading_zero_position();
-      impl()->CountUsage(v8::Isolate::kDecimalWithLeadingZeroInStrictMode);
     }
   }
 

@@ -882,8 +882,6 @@ class PreParser : public ParserBase<PreParser> {
     } else if (is_strict(this->scope()->language_mode())) {
       CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
                               &ok);
-      CheckDecimalLiteralWithLeadingZero(start_position,
-                                         scanner()->location().end_pos);
     }
     if (materialized_literals) {
       *materialized_literals = function_state_->materialized_literal_count();

@@ -595,6 +595,8 @@ class ErrorUtils : public AllStatic {
     "In strict mode code, functions can only be declared at top level or "     \
     "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
+  T(StrictDecimalWithLeadingZero,                                              \
+    "Decimals with leading zeros are not allowed in strict mode.")             \
   T(StrictOctalEscape,                                                         \
     "Octal escape sequences are not allowed in strict mode.")                  \
   T(StrictWith, "Strict mode code may not include a with statement")           \

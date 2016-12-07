@@ -778,8 +778,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
-      CheckDecimalLiteralWithLeadingZero(beg_pos,
-                                         scanner()->location().end_pos);
     }
     if (ok && is_sloppy(language_mode())) {
       // TODO(littledan): Function bindings on the global object that modify
@@ -2743,8 +2741,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_strict(language_mode)) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
-      CheckDecimalLiteralWithLeadingZero(scope->start_position(),
-                                         scope->end_position());
     }
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }  // DiscardableZoneScope goes out of scope.
