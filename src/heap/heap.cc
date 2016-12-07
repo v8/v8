@@ -962,6 +962,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
       !ShouldFinalizeIncrementalMarking() && !ShouldAbortIncrementalMarking() &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
+      !incremental_marking()->NeedsFinalization() &&
       !IsCloseToOutOfMemory(new_space_->Capacity())) {
     if (!incremental_marking()->IsComplete() &&
         !mark_compact_collector()->marking_deque()->IsEmpty() &&
