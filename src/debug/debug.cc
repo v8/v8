@@ -1875,16 +1875,6 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  if (event == v8::AfterCompile) {
-    // If debugging there might be script break points registered for this
-    // script. Make sure that these break points are set.
-    Handle<Object> argv[] = {Script::GetWrapper(script)};
-    if (CallFunction("UpdateScriptBreakPoints", arraysize(argv), argv)
-            .is_null()) {
-      return;
-    }
-  }
-
   // Create the compile state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.

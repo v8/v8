@@ -27,14 +27,9 @@
   // Imports
 
   var FindScriptSourcePosition = global.Debug.findScriptSourcePosition;
-  var GetScriptBreakPoints;
   var GlobalArray = global.Array;
   var MathFloor = global.Math.floor;
   var SyntaxError = global.SyntaxError;
-
-  utils.Import(function(from) {
-    GetScriptBreakPoints = from.GetScriptBreakPoints;
-  });
 
   // -------------------------------------------------------------------
 
@@ -170,10 +165,6 @@
     // command for correct stack state if the stack was modified.
     preview_description.stack_modified = dropped_functions_number != 0;
 
-    // Start with breakpoints. Convert their line/column positions and
-    // temporary remove.
-    var break_points_restorer = TemporaryRemoveBreakPoints(script, change_log);
-
     var old_script;
 
     // Create an old script only if there are function that should be linked
@@ -227,8 +218,6 @@
               });
       }
     }
-
-    break_points_restorer(pos_translator, old_script);
 
     preview_description.updated = true;
     return preview_description;
@@ -367,79 +356,6 @@
           { name: old_info_node.info.function_name, not_found: true } );
     }
   }
-
-
-  // Returns function that restores breakpoints.
-  function TemporaryRemoveBreakPoints(original_script, change_log) {
-    var script_break_points = GetScriptBreakPoints(original_script);
-
-    var break_points_update_report = [];
-    change_log.push( { break_points_update: break_points_update_report } );
-
-    var break_point_old_positions = [];
-    for (var i = 0; i < script_break_points.length; i++) {
-      var break_point = script_break_points[i];
-
-      break_point.clear();
-
-      // TODO(LiveEdit): be careful with resource offset here.
-      var break_point_position = FindScriptSourcePosition(original_script,
-          break_point.line(), break_point.column());
-
-      var old_position_description = {
-          position: break_point_position,
-          line: break_point.line(),
-          column: break_point.column()
-      };
-      break_point_old_positions.push(old_position_description);
-    }
-
-
-    // Restores breakpoints and creates their copies in the "old" copy of
-    // the script.
-    return function (pos_translator, old_script_copy_opt) {
-      // Update breakpoints (change positions and restore them in old version
-      // of script.
-      for (var i = 0; i < script_break_points.length; i++) {
-        var break_point = script_break_points[i];
-        if (old_script_copy_opt) {
-          var clone = break_point.cloneForOtherScript(old_script_copy_opt);
-          clone.set(old_script_copy_opt);
-
-          break_points_update_report.push( {
-            type: "copied_to_old",
-            id: break_point.number(),
-            new_id: clone.number(),
-            positions: break_point_old_positions[i]
-            } );
-        }
-
-        var updated_position = pos_translator.Translate(
-            break_point_old_positions[i].position,
-            PosTranslator.ShiftWithTopInsideChunkHandler);
-
-        var new_location =
-            original_script.locationFromPosition(updated_position, false);
-
-        break_point.update_positions(new_location.line, new_location.column);
-
-        var new_position_description = {
-            position: updated_position,
-            line: new_location.line,
-            column: new_location.column
-        };
-
-        break_point.set(original_script);
-
-        break_points_update_report.push( { type: "position_changed",
-          id: break_point.number(),
-          old_positions: break_point_old_positions[i],
-          new_positions: new_position_description
-          } );
-      }
-    };
-  }
-
 
   function Assert(condition, message) {
     if (!condition) {
