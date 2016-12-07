@@ -2501,25 +2501,12 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // When a super call contains a spread, a CallSuper AST node is only created
   // if there is exactly one spread, and it is the last argument.
   if (!args->is_empty() && args->last()->IsSpread()) {
-    // Prepare the spread arguments.
-    RegisterList spread_prepare_args =
-        register_allocator()->NewRegisterList(args->length());
-    VisitArguments(args, spread_prepare_args);
-
-    builder()->CallRuntime(Runtime::kSpreadIterablePrepareVarargs,
-                           spread_prepare_args);
-
-    // Call ReflectConstruct to do the actual super constructor call.
-    RegisterList reflect_construct_args =
-        register_allocator()->NewRegisterList(4);
-    builder()
-        ->StoreAccumulatorInRegister(reflect_construct_args[2])
-        .LoadUndefined()
-        .StoreAccumulatorInRegister(reflect_construct_args[0])
-        .MoveRegister(constructor, reflect_construct_args[1]);
-    VisitForRegisterValue(super->new_target_var(), reflect_construct_args[3]);
-    builder()->CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX,
-                             reflect_construct_args);
+    RegisterList args_regs =
+        register_allocator()->NewRegisterList(args->length() + 2);
+    builder()->MoveRegister(constructor, args_regs[0]);
+    VisitForRegisterValue(super->new_target_var(), args_regs[1]);
+    VisitArguments(args, args_regs, 2);
+    builder()->NewWithSpread(args_regs);
   } else {
     RegisterList args_regs =
         register_allocator()->NewRegisterList(args->length());

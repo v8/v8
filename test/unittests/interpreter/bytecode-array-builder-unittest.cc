@@ -135,7 +135,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .Call(reg, reg_list, 1, Call::GLOBAL_CALL, TailCallMode::kAllow)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list);
+      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
+      .NewWithSpread(reg_list);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, 1)

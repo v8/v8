@@ -926,6 +926,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(RegisterList args) {
+  OutputNewWithSpread(args, args.register_count());
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
                                                    LanguageMode language_mode) {
   if (language_mode == SLOPPY) {

@@ -1508,6 +1508,11 @@ class Object {
   // allow kMaxUInt32.
   inline bool ToArrayIndex(uint32_t* index);
 
+  // Returns true if the result of iterating over the object is the same
+  // (including observable effects) as simply accessing the properties between 0
+  // and length.
+  bool IterationHasObservableEffects();
+
   DECLARE_VERIFIER(Object)
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.

@@ -630,38 +630,6 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   return Smi::FromInt(-1);
 }
 
-namespace {
-
-bool MustIterate(Isolate* isolate, Handle<Object> spread) {
-  if (spread->IsJSArray()) {
-    // Check that the spread arg has fast elements
-    Handle<JSArray> spread_array = Handle<JSArray>::cast(spread);
-    ElementsKind array_kind = spread_array->GetElementsKind();
-
-    // And that it has the orignal ArrayPrototype
-    JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
-    Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
-
-    // Check that the iterator acts as expected.
-    // If IsArrayIteratorLookupChainIntact(), then we know that the initial
-    // ArrayIterator is being used. If the map of the prototype has changed,
-    // then take the slow path.
-    if (isolate->is_initial_array_prototype(array_proto) &&
-        isolate->IsArrayIteratorLookupChainIntact() &&
-        isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
-      if (IsFastPackedElementsKind(array_kind)) {
-        return false;
-      }
-      if (IsFastHoleyElementsKind(array_kind) &&
-          isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-}  //  namespace
 
 RUNTIME_FUNCTION(Runtime_SpreadIterablePrepare) {
   HandleScope scope(isolate);
@@ -669,7 +637,7 @@ RUNTIME_FUNCTION(Runtime_SpreadIterablePrepare) {
   CONVERT_ARG_HANDLE_CHECKED(Object, spread, 0);
 
   // Iterate over the spread if we need to.
-  if (MustIterate(isolate, spread)) {
+  if (spread->IterationHasObservableEffects()) {
     Handle<JSFunction> spread_iterable_function = isolate->spread_iterable();
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, spread,
@@ -678,45 +646,6 @@ RUNTIME_FUNCTION(Runtime_SpreadIterablePrepare) {
   }
 
   return *spread;
-}
-
-RUNTIME_FUNCTION(Runtime_SpreadIterablePrepareVarargs) {
-  HandleScope scope(isolate);
-  DCHECK_LE(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, spread, args.length() - 1);
-
-  // Iterate over the spread if we need to.
-  if (MustIterate(isolate, spread)) {
-    Handle<JSFunction> spread_iterable_function = isolate->spread_iterable();
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, spread,
-        Execution::Call(isolate, spread_iterable_function,
-                        isolate->factory()->undefined_value(), 1, &spread));
-  }
-
-  if (args.length() == 1) return *spread;
-
-  JSArray* spread_array = JSArray::cast(*spread);
-  uint32_t spread_length;
-  CHECK(spread_array->length()->ToArrayIndex(&spread_length));
-
-  // Append each of the individual args to the result.
-  int result_length = args.length() - 1 + spread_length;
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(result_length);
-  for (int i = 0; i < args.length() - 1; i++) {
-    result->set(i, *args.at<Object>(i));
-  }
-
-  // Append element of the spread to the result.
-  for (uint32_t i = 0; i < spread_length; i++) {
-    LookupIterator it(isolate, spread, i);
-    Handle<Object> element = spread_array->GetDataProperty(&it);
-    result->set(args.length() - 1 + i, *element);
-  }
-
-  Handle<JSArray> r = isolate->factory()->NewJSArrayWithElements(
-      result, FAST_ELEMENTS, result_length);
-  return *r;
 }
 
 }  // namespace internal

@@ -2175,6 +2175,35 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
   }
 }
 
+bool Object::IterationHasObservableEffects() {
+  if (IsJSArray()) {
+    // Check that the spread arg has fast elements
+    JSArray* spread_array = JSArray::cast(this);
+    ElementsKind array_kind = spread_array->GetElementsKind();
+    Isolate* isolate = spread_array->GetIsolate();
+
+    // And that it has the orignal ArrayPrototype
+    JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
+    Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
+
+    // Check that the iterator acts as expected.
+    // If IsArrayIteratorLookupChainIntact(), then we know that the initial
+    // ArrayIterator is being used. If the map of the prototype has changed,
+    // then take the slow path.
+    if (isolate->is_initial_array_prototype(array_proto) &&
+        isolate->IsArrayIteratorLookupChainIntact() &&
+        isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
+      if (IsFastPackedElementsKind(array_kind)) {
+        return false;
+      }
+      if (IsFastHoleyElementsKind(array_kind) &&
+          isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 void Object::ShortPrint(FILE* out) {
   OFStream os(out);
