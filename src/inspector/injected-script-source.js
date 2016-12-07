@@ -936,9 +936,12 @@ InjectedScript.RemoteObject.prototype = {
             if (!descriptor.isOwn)
                 continue;
 
-            // Ignore computed properties.
-            if (!("value" in descriptor))
+            // Ignore computed properties unless they have getters.
+            if (!("value" in descriptor)) {
+                if (descriptor.get)
+                    this._appendPropertyPreview(preview, { name: name, type: "accessor", __proto__: null }, propertiesThreshold);
                 continue;
+            }
 
             var value = descriptor.value;
             var type = typeof value;

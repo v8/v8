@@ -1,0 +1,57 @@
+Tests that Runtime.evaluate will generate correct previews.
+
+Running test: testObjectPropertiesPreview
+{
+    description : Object
+    overflow : false
+    properties : [
+        [0] : {
+            name : p1
+            type : object
+            value : Object
+        }
+        [1] : {
+            name : p2
+            type : object
+            value : Object
+        }
+        [2] : {
+            name : p3
+            type : accessor
+        }
+        [3] : {
+            name : p5
+            type : accessor
+        }
+    ]
+    type : object
+}
+
+Running test: testArrayPropertiesPreview
+{
+    description : Array(7)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 2
+            type : number
+            value : 1
+        }
+        [1] : {
+            name : 3
+            subtype : array
+            type : object
+            value : Array(1)
+        }
+        [2] : {
+            name : 4
+            type : accessor
+        }
+        [3] : {
+            name : 6
+            type : accessor
+        }
+    ]
+    subtype : array
+    type : object
+}
