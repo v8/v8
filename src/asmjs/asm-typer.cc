@@ -935,6 +935,10 @@ AsmType* AsmTyper::ValidateExport(ReturnStatement* exports) {
              "Only normal object properties may be used in the export object "
              "literal.");
       }
+      if (!prop->key()->AsLiteral()->IsPropertyName()) {
+        FAIL(prop->key(),
+             "Exported functions must have valid identifier names.");
+      }
 
       auto* export_obj = prop->value()->AsVariableProxy();
       if (export_obj == nullptr) {

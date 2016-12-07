@@ -1484,6 +1484,19 @@ assertWasm(-34359738370.75, TestNegativeDouble);
 })();
 
 
+(function TestBadExportKey() {
+  function Module() {
+    "use asm";
+    function func() {
+    }
+    return {123: func};
+  }
+
+  Module(stdlib);
+  assertTrue(%IsNotAsmWasmCode(Module));
+})();
+
+
 function TestAndIntAndHeapValue(stdlib, foreign, buffer) {
   "use asm";
   var HEAP32 = new stdlib.Int32Array(buffer);
