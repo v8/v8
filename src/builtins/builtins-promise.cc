@@ -479,26 +479,25 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
 
       a->Bind(&if_singlecallback);
       {
-        // Create new FixedArrays to store callbacks.
+        // Create new FixedArrays to store callbacks, and migrate
+        // existing callbacks.
         Node* const deferreds =
             a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
+        a->StoreFixedArrayElement(deferreds, 0, existing_deferred);
+        a->StoreFixedArrayElement(deferreds, 1, deferred);
+
         Node* const fulfill_reactions =
             a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
-        Node* const reject_reactions =
-            a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
-
-        // Store existing callbacks in FixedArrays.
-        a->StoreFixedArrayElement(deferreds, 0, existing_deferred);
         a->StoreFixedArrayElement(
             fulfill_reactions, 0,
             a->LoadObjectField(promise, JSPromise::kFulfillReactionsOffset));
+        a->StoreFixedArrayElement(fulfill_reactions, 1, var_on_resolve.value());
+
+        Node* const reject_reactions =
+            a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
         a->StoreFixedArrayElement(
             reject_reactions, 0,
             a->LoadObjectField(promise, JSPromise::kRejectReactionsOffset));
-
-        // Store new callbacks in FixedArrays.
-        a->StoreFixedArrayElement(deferreds, 1, deferred);
-        a->StoreFixedArrayElement(fulfill_reactions, 1, var_on_resolve.value());
         a->StoreFixedArrayElement(reject_reactions, 1, var_on_reject.value());
 
         // Store new FixedArrays in promise.
