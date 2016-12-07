@@ -17,10 +17,15 @@ Running test: testObjectPropertiesPreview
         }
         [2] : {
             name : p3
-            type : accessor
+            type : function
+            value : 
         }
         [3] : {
-            name : p5
+            name : p4
+            type : accessor
+        }
+        [4] : {
+            name : p6
             type : accessor
         }
     ]
@@ -29,7 +34,7 @@ Running test: testObjectPropertiesPreview
 
 Running test: testArrayPropertiesPreview
 {
-    description : Array(7)
+    description : Array(8)
     overflow : false
     properties : [
         [0] : {
@@ -45,11 +50,51 @@ Running test: testArrayPropertiesPreview
         }
         [2] : {
             name : 4
-            type : accessor
+            type : function
+            value : 
         }
         [3] : {
-            name : 6
+            name : nonEntryFunction
+            type : function
+            value : 
+        }
+        [4] : {
+            name : 5
             type : accessor
+        }
+        [5] : {
+            name : 7
+            type : accessor
+        }
+    ]
+    subtype : array
+    type : object
+}
+
+Running test: testInheritingObjectPropertiesPreview
+{
+    description : Object
+    overflow : false
+    properties : [
+        [0] : {
+            name : prototype
+            type : object
+            value : Object
+        }
+    ]
+    type : object
+}
+
+Running test: testInheritingArrayPropertiesPreview
+{
+    description : Array(0)
+    overflow : false
+    properties : [
+        [0] : {
+            name : prototype
+            subtype : array
+            type : object
+            value : Array(8)
         }
     ]
     subtype : array

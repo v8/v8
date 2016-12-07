@@ -946,10 +946,6 @@ InjectedScript.RemoteObject.prototype = {
             var value = descriptor.value;
             var type = typeof value;
 
-            // Never render functions in object preview.
-            if (type === "function" && (this.subtype !== "array" || !isUInt32(name)))
-                continue;
-
             // Special-case HTMLAll.
             if (type === "undefined" && injectedScript._isHTMLAllCollection(value))
                 type = "object";
