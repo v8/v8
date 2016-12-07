@@ -1224,6 +1224,7 @@ class Heap {
   EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
 
   size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
+  void clear_wrappers_to_trace() { wrappers_to_trace_.clear(); }
 
   // ===========================================================================
   // External string table API. ================================================

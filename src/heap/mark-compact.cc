@@ -800,6 +800,7 @@ void MarkCompactCollector::Prepare() {
     AbortCompaction();
     if (heap_->UsingEmbedderHeapTracer()) {
       heap_->embedder_heap_tracer()->AbortTracing();
+      heap_->clear_wrappers_to_trace();
     }
     marking_deque()->Clear();
     was_marked_incrementally_ = false;
