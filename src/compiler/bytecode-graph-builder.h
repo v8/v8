@@ -182,6 +182,7 @@ class BytecodeGraphBuilder {
   void BuildJumpIfToBooleanTrue();
   void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
+  void BuildJumpIfJSReceiver();
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);
@@ -229,6 +230,9 @@ class BytecodeGraphBuilder {
   Zone* graph_zone() const { return graph()->zone(); }
   JSGraph* jsgraph() const { return jsgraph_; }
   JSOperatorBuilder* javascript() const { return jsgraph_->javascript(); }
+  SimplifiedOperatorBuilder* simplified() const {
+    return jsgraph_->simplified();
+  }
   Zone* local_zone() const { return local_zone_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;

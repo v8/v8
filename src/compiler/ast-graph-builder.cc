@@ -2165,6 +2165,10 @@ void AstGraphBuilder::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
+void AstGraphBuilder::VisitGetIterator(GetIterator* expr) {
+  // GetIterator is supported only by going through Ignition first.
+  UNREACHABLE();
+}
 
 void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   Node* value = GetFunctionClosure();

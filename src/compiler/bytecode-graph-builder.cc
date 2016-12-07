@@ -1715,6 +1715,12 @@ void BytecodeGraphBuilder::VisitJumpIfNotHoleConstant() {
   BuildJumpIfNotHole();
 }
 
+void BytecodeGraphBuilder::VisitJumpIfJSReceiver() { BuildJumpIfJSReceiver(); }
+
+void BytecodeGraphBuilder::VisitJumpIfJSReceiverConstant() {
+  BuildJumpIfJSReceiver();
+}
+
 void BytecodeGraphBuilder::VisitJumpIfNull() {
   BuildJumpIfEqual(jsgraph()->NullConstant());
 }
@@ -2024,6 +2030,12 @@ void BytecodeGraphBuilder::BuildJumpIfNotHole() {
       NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
               accumulator, jsgraph()->TheHoleConstant());
   BuildJumpIfNot(condition);
+}
+
+void BytecodeGraphBuilder::BuildJumpIfJSReceiver() {
+  Node* accumulator = environment()->LookupAccumulator();
+  Node* condition = NewNode(simplified()->ObjectIsReceiver(), accumulator);
+  BuildJumpIf(condition);
 }
 
 Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {

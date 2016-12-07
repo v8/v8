@@ -370,6 +370,11 @@ void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();
 }
 
+void CallPrinter::VisitGetIterator(GetIterator* node) {
+  Print("GetIterator(");
+  Find(node->iterable(), true);
+  Print(")");
+}
 
 void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 
@@ -1181,6 +1186,10 @@ void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   IndentedScope indent(this, "()", node->position());
 }
 
+void AstPrinter::VisitGetIterator(GetIterator* node) {
+  IndentedScope indent(this, "GET-ITERATOR", node->position());
+  Visit(node->iterable());
+}
 
 void AstPrinter::VisitThisFunction(ThisFunction* node) {
   IndentedScope indent(this, "THIS-FUNCTION", node->position());

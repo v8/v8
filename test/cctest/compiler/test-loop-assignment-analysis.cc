@@ -71,27 +71,8 @@ TEST(SimpleLoop1) {
   f.CheckLoopAssignedCount(0, "x");
 }
 
-
-TEST(SimpleLoop2) {
-  const char* loops[] = {
-      "while (x) { var x = 0; }",            "for(;;) { var x = 0; }",
-      "for(;x;) { var x = 0; }",             "for(;x;x) { var x = 0; }",
-      "for(var i = x; x; x) { var x = 0; }", "for(y in 0) { var x = 0; }",
-      "for(y of 0) { var x = 0; }",          "for(var x = 0; x; x++) { }",
-      "for(var x = 0; x++;) { }",            "var x; for(;x;x++) { }",
-      "var x; do { x = 1; } while (0);",     "do { var x = 1; } while (0);"};
-
-  for (size_t i = 0; i < arraysize(loops); i++) {
-    TestHelper f(loops[i]);
-    f.CheckLoopAssignedCount(1, "x");
-  }
-}
-
-
-TEST(ForInOf1) {
-  const char* loops[] = {
-      "for(x in 0) { }", "for(x of 0) { }",
-  };
+TEST(ForIn1) {
+  const char* loops[] = {"for(x in 0) { }"};
 
   for (size_t i = 0; i < arraysize(loops); i++) {
     TestHelper f(loops[i]);

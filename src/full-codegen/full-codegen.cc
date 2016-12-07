@@ -1446,6 +1446,7 @@ void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
+void FullCodeGenerator::VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
 
 void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());

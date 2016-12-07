@@ -88,6 +88,7 @@ namespace internal {
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \
   V(kGenerator, "Generator")                                                   \
+  V(kGetIterator, "GetIterator")                                               \
   V(kGlobalFunctionsMustHaveInitialMap,                                        \
     "Global functions must have initial map")                                  \
   V(kGraphBuildingFailed, "Optimized graph construction failed")               \

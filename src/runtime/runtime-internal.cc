@@ -209,6 +209,13 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

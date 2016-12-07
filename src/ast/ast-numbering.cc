@@ -414,6 +414,13 @@ void AstNumberingVisitor::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();
 }
 
+void AstNumberingVisitor::VisitGetIterator(GetIterator* node) {
+  IncrementNodeCount();
+  DisableFullCodegenAndCrankshaft(kGetIterator);
+  node->set_base_id(ReserveIdRange(GetIterator::num_ids()));
+  Visit(node->iterable());
+  ReserveFeedbackSlots(node);
+}
 
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();

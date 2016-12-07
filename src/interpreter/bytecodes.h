@@ -231,6 +231,7 @@ namespace interpreter {
   V(JumpIfUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)         \
   V(JumpIfTrueConstant, AccumulatorUse::kRead, OperandType::kIdx)              \
   V(JumpIfFalseConstant, AccumulatorUse::kRead, OperandType::kIdx)             \
+  V(JumpIfJSReceiverConstant, AccumulatorUse::kRead, OperandType::kIdx)        \
   V(JumpIfNotHoleConstant, AccumulatorUse::kRead, OperandType::kIdx)           \
   /* - [Start ToBoolean jumps] */                                              \
   V(JumpIfToBooleanTrueConstant, AccumulatorUse::kRead, OperandType::kIdx)     \
@@ -244,6 +245,7 @@ namespace interpreter {
   V(JumpIfFalse, AccumulatorUse::kRead, OperandType::kImm)                     \
   V(JumpIfNull, AccumulatorUse::kRead, OperandType::kImm)                      \
   V(JumpIfUndefined, AccumulatorUse::kRead, OperandType::kImm)                 \
+  V(JumpIfJSReceiver, AccumulatorUse::kRead, OperandType::kImm)                \
   V(JumpIfNotHole, AccumulatorUse::kRead, OperandType::kImm)                   \
                                                                                \
   /* Complex flow control For..in */                                           \
@@ -336,6 +338,7 @@ namespace interpreter {
   V(JumpIfFalse)                                        \
   V(JumpIfNull)                                         \
   V(JumpIfUndefined)                                    \
+  V(JumpIfJSReceiver)                                   \
   V(JumpIfNotHole)
 
 #define JUMP_CONDITIONAL_CONSTANT_BYTECODE_LIST(V)     \
@@ -344,6 +347,7 @@ namespace interpreter {
   V(JumpIfUndefinedConstant)                           \
   V(JumpIfTrueConstant)                                \
   V(JumpIfFalseConstant)                               \
+  V(JumpIfJSReceiverConstant)                          \
   V(JumpIfNotHoleConstant)
 
 #define JUMP_CONSTANT_BYTECODE_LIST(V)         \

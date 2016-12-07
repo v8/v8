@@ -372,6 +372,9 @@ void AstExpressionRewriter::VisitEmptyParentheses(EmptyParentheses* node) {
   NOTHING();
 }
 
+void AstExpressionRewriter::VisitGetIterator(GetIterator* node) {
+  AST_REWRITE_PROPERTY(Expression, node, iterable);
+}
 
 void AstExpressionRewriter::VisitDoExpression(DoExpression* node) {
   REWRITE_THIS(node);

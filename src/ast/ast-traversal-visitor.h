@@ -471,6 +471,12 @@ void AstTraversalVisitor<Subclass>::VisitEmptyParentheses(
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitGetIterator(GetIterator* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->iterable()));
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {
   PROCESS_EXPRESSION(expr);

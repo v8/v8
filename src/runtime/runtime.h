@@ -330,6 +330,7 @@ namespace internal {
   F(ThrowIncompatibleMethodReceiver, 2, 1)          \
   F(ThrowInvalidStringLength, 0, 1)                 \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
+  F(ThrowSymbolIteratorInvalid, 0, 1)               \
   F(ThrowNotGeneric, 1, 1)                          \
   F(ThrowReferenceError, 1, 1)                      \
   F(ThrowStackOverflow, 0, 1)                       \

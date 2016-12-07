@@ -2147,6 +2147,49 @@ void Interpreter::DoJumpIfUndefinedConstant(InterpreterAssembler* assembler) {
   __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
 }
 
+// JumpIfJSReceiver <imm>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is a JSReceiver.
+void Interpreter::DoJumpIfJSReceiver(InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* relative_jump = __ BytecodeOperandImm(0);
+
+  Label if_object(assembler), if_notobject(assembler, Label::kDeferred),
+      if_notsmi(assembler);
+  __ Branch(__ TaggedIsSmi(accumulator), &if_notobject, &if_notsmi);
+
+  __ Bind(&if_notsmi);
+  __ Branch(__ IsJSReceiver(accumulator), &if_object, &if_notobject);
+  __ Bind(&if_object);
+  __ Jump(relative_jump);
+
+  __ Bind(&if_notobject);
+  __ Dispatch();
+}
+
+// JumpIfJSReceiverConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool if
+// the object referenced by the accumulator is a JSReceiver.
+void Interpreter::DoJumpIfJSReceiverConstant(InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
+
+  Label if_object(assembler), if_notobject(assembler), if_notsmi(assembler);
+  __ Branch(__ TaggedIsSmi(accumulator), &if_notobject, &if_notsmi);
+
+  __ Bind(&if_notsmi);
+  __ Branch(__ IsJSReceiver(accumulator), &if_object, &if_notobject);
+
+  __ Bind(&if_object);
+  __ Jump(relative_jump);
+
+  __ Bind(&if_notobject);
+  __ Dispatch();
+}
+
 // JumpIfNotHole <imm>
 //
 // Jump by number of bytes represented by an immediate operand if the object

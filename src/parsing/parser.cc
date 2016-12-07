@@ -504,15 +504,6 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   return NULL;
 }
 
-Expression* Parser::GetIterator(Expression* iterable, int pos) {
-  Expression* iterator_symbol_literal =
-      factory()->NewSymbolLiteral("iterator_symbol", kNoSourcePosition);
-  Expression* prop =
-      factory()->NewProperty(iterable, iterator_symbol_literal, pos);
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(0, zone());
-  return factory()->NewCall(prop, args, pos);
-}
-
 void Parser::MarkTailPosition(Expression* expression) {
   expression->MarkTail();
 }
@@ -2073,12 +2064,13 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
   Variable* completion = NewTemporary(avfactory->empty_string());
 
-  // iterator = iterable[Symbol.iterator]()
+  // iterator = GetIterator(iterable)
   Expression* assign_iterator;
   {
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
-        GetIterator(iterable, iterable->position()), iterable->position());
+        factory()->NewGetIterator(iterable, iterable->position()),
+        iterable->position());
   }
 
   // !%_IsJSReceiver(result = iterator.next()) &&
@@ -4573,8 +4565,7 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
 //     let mode = kNext;
 //     let output = undefined;
 //
-//     let iterator = iterable[Symbol.iterator]();
-//     if (!IS_RECEIVER(iterator)) throw MakeTypeError(kSymbolIteratorInvalid);
+//     let iterator = GetIterator(iterable);
 //
 //     while (true) {
 //       // From the generator to the iterator:
@@ -4677,39 +4668,15 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     initialize_output = factory()->NewExpressionStatement(assignment, nopos);
   }
 
-  // let iterator = iterable[Symbol.iterator];
+  // let iterator = GetIterator(iterable);
   Variable* var_iterator = NewTemporary(ast_value_factory()->empty_string());
   Statement* get_iterator;
   {
-    Expression* iterator = GetIterator(iterable, nopos);
+    Expression* iterator = factory()->NewGetIterator(iterable, nopos);
     Expression* iterator_proxy = factory()->NewVariableProxy(var_iterator);
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, iterator_proxy, iterator, nopos);
     get_iterator = factory()->NewExpressionStatement(assignment, nopos);
-  }
-
-  // if (!IS_RECEIVER(iterator)) throw MakeTypeError(kSymbolIteratorInvalid);
-  Statement* validate_iterator;
-  {
-    Expression* is_receiver_call;
-    {
-      auto args = new (zone()) ZoneList<Expression*>(1, zone());
-      args->Add(factory()->NewVariableProxy(var_iterator), zone());
-      is_receiver_call =
-          factory()->NewCallRuntime(Runtime::kInlineIsJSReceiver, args, nopos);
-    }
-
-    Statement* throw_call;
-    {
-      Expression* call =
-          NewThrowTypeError(MessageTemplate::kSymbolIteratorInvalid,
-                            ast_value_factory()->empty_string(), nopos);
-      throw_call = factory()->NewExpressionStatement(call, nopos);
-    }
-
-    validate_iterator = factory()->NewIfStatement(
-        is_receiver_call, factory()->NewEmptyStatement(nopos), throw_call,
-        nopos);
   }
 
   // output = iterator.next(input);
@@ -5016,12 +4983,11 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     // The rewriter needs to process the get_value statement only, hence we
     // put the preceding statements into an init block.
 
-    Block* do_block_ = factory()->NewBlock(nullptr, 7, true, nopos);
+    Block* do_block_ = factory()->NewBlock(nullptr, 6, true, nopos);
     do_block_->statements()->Add(initialize_input, zone());
     do_block_->statements()->Add(initialize_mode, zone());
     do_block_->statements()->Add(initialize_output, zone());
     do_block_->statements()->Add(get_iterator, zone());
-    do_block_->statements()->Add(validate_iterator, zone());
     do_block_->statements()->Add(loop, zone());
     do_block_->statements()->Add(maybe_return_value, zone());
 

@@ -450,8 +450,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
                                       int pos);
 
-  Expression* GetIterator(Expression* iterable, int pos);
-
   // Initialize the components of a for-in / for-of statement.
   Statement* InitializeForEachStatement(ForEachStatement* stmt,
                                         Expression* each, Expression* subject,

@@ -209,7 +209,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Short jumps with Imm8 operands
   {
-    BytecodeLabel start, after_jump1, after_jump2, after_jump3, after_jump4;
+    BytecodeLabel start, after_jump1, after_jump2, after_jump3, after_jump4,
+        after_jump5;
     builder.Bind(&start)
         .Jump(&after_jump1)
         .Bind(&after_jump1)
@@ -219,11 +220,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .Bind(&after_jump3)
         .JumpIfNotHole(&after_jump4)
         .Bind(&after_jump4)
+        .JumpIfJSReceiver(&after_jump5)
+        .Bind(&after_jump5)
         .JumpLoop(&start, 0);
   }
 
   // Longer jumps with constant operands
-  BytecodeLabel end[8];
+  BytecodeLabel end[9];
   {
     BytecodeLabel after_jump;
     builder.Jump(&end[0])
@@ -238,7 +241,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfFalse(&end[4])
         .JumpIfNull(&end[5])
         .JumpIfUndefined(&end[6])
-        .JumpIfNotHole(&end[7]);
+        .JumpIfNotHole(&end[7])
+        .LoadLiteral(factory->prototype_string())
+        .JumpIfJSReceiver(&end[8]);
   }
 
   // Perform an operation that returns boolean value to

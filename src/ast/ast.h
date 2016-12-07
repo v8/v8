@@ -102,6 +102,7 @@ namespace internal {
   V(SuperCallReference)         \
   V(CaseClause)                 \
   V(EmptyParentheses)           \
+  V(GetIterator)                \
   V(DoExpression)               \
   V(RewritableExpression)
 
@@ -2936,7 +2937,43 @@ class EmptyParentheses final : public Expression {
   explicit EmptyParentheses(int pos) : Expression(pos, kEmptyParentheses) {}
 };
 
+// Represents the spec operation `GetIterator()`
+// (defined at https://tc39.github.io/ecma262/#sec-getiterator). Ignition
+// desugars this into a LoadIC / JSLoadNamed, CallIC, and a type-check to
+// validate return value of the Symbol.iterator() call.
+class GetIterator final : public Expression {
+ public:
+  Expression* iterable() const { return iterable_; }
+  void set_iterable(Expression* iterable) { iterable_ = iterable; }
 
+  static int num_ids() { return parent_num_ids(); }
+
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache) {
+    iterator_property_feedback_slot_ =
+        spec->AddSlot(FeedbackVectorSlotKind::LOAD_IC);
+    iterator_call_feedback_slot_ =
+        spec->AddSlot(FeedbackVectorSlotKind::CALL_IC);
+  }
+
+  FeedbackVectorSlot IteratorPropertyFeedbackSlot() const {
+    return iterator_property_feedback_slot_;
+  }
+
+  FeedbackVectorSlot IteratorCallFeedbackSlot() const {
+    return iterator_call_feedback_slot_;
+  }
+
+ private:
+  friend class AstNodeFactory;
+
+  explicit GetIterator(Expression* iterable, int pos)
+      : Expression(pos, kGetIterator), iterable_(iterable) {}
+
+  Expression* iterable_;
+  FeedbackVectorSlot iterator_property_feedback_slot_;
+  FeedbackVectorSlot iterator_call_feedback_slot_;
+};
 
 // ----------------------------------------------------------------------------
 // Basic visitor
@@ -3517,6 +3554,10 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
     return new (zone_) EmptyParentheses(pos);
+  }
+
+  GetIterator* NewGetIterator(Expression* iterable, int pos) {
+    return new (zone_) GetIterator(iterable, pos);
   }
 
   Zone* zone() const { return zone_; }

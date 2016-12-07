@@ -725,6 +725,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
+    BytecodeLabel* label) {
+  OutputJumpIfJSReceiver(label, 0);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
   OutputJumpLoop(label, 0, loop_depth);

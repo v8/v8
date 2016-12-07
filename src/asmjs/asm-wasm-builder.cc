@@ -273,6 +273,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitEmptyParentheses(EmptyParentheses* paren) { UNREACHABLE(); }
 
+  void VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
+
   void VisitIfStatement(IfStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(stmt->condition()));

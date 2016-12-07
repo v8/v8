@@ -583,6 +583,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       generator_state_(),
       loop_depth_(0),
       home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
+      iterator_symbol_(info->isolate()->factory()->iterator_symbol()),
       empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()) {
   AstValueFactory* ast_value_factory = info->parse_info()->ast_value_factory();
   const AstRawString* prototype_string = ast_value_factory->prototype_string();
@@ -2850,6 +2851,33 @@ void BytecodeGenerator::VisitSpread(Spread* expr) { Visit(expr->expression()); }
 
 void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
+}
+
+void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
+  FeedbackVectorSlot load_slot = expr->IteratorPropertyFeedbackSlot();
+  FeedbackVectorSlot call_slot = expr->IteratorCallFeedbackSlot();
+
+  RegisterList args = register_allocator()->NewRegisterList(1);
+  Register method = register_allocator()->NewRegister();
+  Register obj = args[0];
+
+  VisitForAccumulatorValue(expr->iterable());
+
+  // Let method be GetMethod(obj, @@iterator).
+  builder()
+      ->StoreAccumulatorInRegister(obj)
+      .LoadNamedProperty(obj, iterator_symbol(), feedback_index(load_slot))
+      .StoreAccumulatorInRegister(method);
+
+  // Let iterator be Call(method, obj).
+  builder()->Call(method, args, feedback_index(call_slot),
+                  Call::NAMED_PROPERTY_CALL);
+
+  // If Type(iterator) is not Object, throw a TypeError exception.
+  BytecodeLabel no_type_error;
+  builder()->JumpIfJSReceiver(&no_type_error);
+  builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
+  builder()->Bind(&no_type_error);
 }
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {

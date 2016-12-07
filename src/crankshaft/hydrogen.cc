@@ -11489,6 +11489,9 @@ void HOptimizedGraphBuilder::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
+void HOptimizedGraphBuilder::VisitGetIterator(GetIterator* expr) {
+  UNREACHABLE();
+}
 
 HValue* HOptimizedGraphBuilder::AddThisFunction() {
   return AddInstruction(BuildThisFunction());
