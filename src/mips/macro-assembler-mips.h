@@ -208,6 +208,12 @@ class MacroAssembler: public Assembler {
               Heap::RootListIndex index,
               BranchDelaySlot bdslot = PROTECT);
 
+// Number of instructions needed for calculation of switch table entry address
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kSwitchTablePrologueSize = 5;
+#else
+  static const int kSwitchTablePrologueSize = 10;
+#endif
   // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
   // functor/function with 'Label *func(size_t index)' declaration.
   template <typename Func>
@@ -1832,13 +1838,13 @@ template <typename Func>
 void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
   if (kArchVariant >= kMips32r6) {
-    BlockTrampolinePoolFor(case_count + 5);
+    BlockTrampolinePoolFor(case_count + kSwitchTablePrologueSize);
     addiupc(at, 5);
     Lsa(at, at, index, kPointerSizeLog2);
     lw(at, MemOperand(at));
   } else {
     Label here;
-    BlockTrampolinePoolFor(case_count + 10);
+    BlockTrampolinePoolFor(case_count + kSwitchTablePrologueSize);
     push(ra);
     bal(&here);
     sll(at, index, kPointerSizeLog2);  // Branch delay slot.

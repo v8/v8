@@ -365,16 +365,22 @@ TEST(jump_tables6) {
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  const int kNumCases = 40;
-  const int kFillInstr = 32551;
-  const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
-  const int kTrampolineSlotsSize = 2 * Instruction::kInstrSize;
+  const int kSwitchTableCases = 40;
+
+  const int kInstrSize = Assembler::kInstrSize;
+  const int kMaxBranchOffset = Assembler::kMaxBranchOffset;
+  const int kTrampolineSlotsSize = Assembler::kTrampolineSlotsSize;
+  const int kSwitchTablePrologueSize = MacroAssembler::kSwitchTablePrologueSize;
+
   const int kMaxOffsetForTrampolineStart =
       kMaxBranchOffset - 16 * kTrampolineSlotsSize;
+  const int kFillInstr = (kMaxOffsetForTrampolineStart / kInstrSize) -
+                         (kSwitchTablePrologueSize + 2 * kSwitchTableCases) -
+                         20;
 
-  int values[kNumCases];
+  int values[kSwitchTableCases];
   isolate->random_number_generator()->NextBytes(values, sizeof(values));
-  Label labels[kNumCases];
+  Label labels[kSwitchTableCases];
   Label near_start, end, done;
 
   __ Push(ra);
@@ -384,7 +390,7 @@ TEST(jump_tables6) {
   int gen_insn = 0;
 
   __ Branch(&end);
-  gen_insn += 2;
+  gen_insn += Assembler::IsCompactBranchSupported() ? 1 : 2;
   __ bind(&near_start);
 
   // Generate slightly less than 32K instructions, which will soon require
@@ -394,23 +400,24 @@ TEST(jump_tables6) {
   }
   gen_insn += kFillInstr;
 
-  __ GenerateSwitchTable(a0, kNumCases,
+  __ GenerateSwitchTable(a0, kSwitchTableCases,
                          [&labels](size_t i) { return labels + i; });
-  gen_insn += (11 + 2 * kNumCases);
+  gen_insn += (kSwitchTablePrologueSize + 2 * kSwitchTableCases);
 
-  for (int i = 0; i < kNumCases; ++i) {
+  for (int i = 0; i < kSwitchTableCases; ++i) {
     __ bind(&labels[i]);
     __ li(v0, values[i]);
     __ Branch(&done);
   }
-  gen_insn += (4 * kNumCases);
+  gen_insn +=
+      ((Assembler::IsCompactBranchSupported() ? 3 : 4) * kSwitchTableCases);
 
   // If offset from here to first branch instr is greater than max allowed
   // offset for trampoline ...
   CHECK_LT(kMaxOffsetForTrampolineStart, masm->pc_offset() - offs1);
   // ... number of generated instructions must be greater then "gen_insn",
   // as we are expecting trampoline generation
-  CHECK_LT(gen_insn, (masm->pc_offset() - offs1) / Instruction::kInstrSize);
+  CHECK_LT(gen_insn, (masm->pc_offset() - offs1) / kInstrSize);
 
   __ bind(&done);
   __ Pop(ra);
@@ -428,7 +435,7 @@ TEST(jump_tables6) {
   code->Print(std::cout);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  for (int i = 0; i < kNumCases; ++i) {
+  for (int i = 0; i < kSwitchTableCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(
         CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId64 "\n", i, res);

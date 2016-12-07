@@ -236,6 +236,13 @@ class MacroAssembler: public Assembler {
               Heap::RootListIndex index,
               BranchDelaySlot bdslot = PROTECT);
 
+// Number of instructions needed for calculation of switch table entry address
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kSwitchTablePrologueSize = 6;
+#else
+  static const int kSwitchTablePrologueSize = 11;
+#endif
+
   // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
   // functor/function with 'Label *func(size_t index)' declaration.
   template <typename Func>
@@ -1974,7 +1981,8 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   // Ensure that dd-ed labels following this instruction use 8 bytes aligned
   // addresses.
   if (kArchVariant >= kMips64r6) {
-    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 6);
+    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
+                           kSwitchTablePrologueSize);
     // Opposite of Align(8) as we have odd number of instructions in this case.
     if ((pc_offset() & 7) == 0) {
       nop();
@@ -1984,7 +1992,8 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
     ld(at, MemOperand(at));
   } else {
     Label here;
-    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 11);
+    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
+                           kSwitchTablePrologueSize);
     Align(8);
     push(ra);
     bal(&here);
