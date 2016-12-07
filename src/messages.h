@@ -595,9 +595,11 @@ class ErrorUtils : public AllStatic {
     "In strict mode code, functions can only be declared at top level or "     \
     "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
+  T(StrictOctalEscape,                                                         \
+    "Octal escape sequences are not allowed in strict mode.")                  \
   T(StrictWith, "Strict mode code may not include a with statement")           \
   T(TemplateOctalLiteral,                                                      \
-    "Octal literals are not allowed in template strings.")                     \
+    "Octal escape sequences are not allowed in template strings.")             \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
   T(AwaitBindingIdentifier,                                                    \
     "'await' is not a valid identifier name in an async function")             \

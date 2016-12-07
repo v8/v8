@@ -79,9 +79,8 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       octal_pos_(Location::invalid()),
       decimal_with_leading_zero_pos_(Location::invalid()),
-      found_html_comment_(false) {
-}
-
+      octal_message_(MessageTemplate::kNone),
+      found_html_comment_(false) {}
 
 void Scanner::Initialize(Utf16CharacterStream* source) {
   source_ = source;
@@ -917,6 +916,7 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   // occur before the "use strict" directive.
   if (c != '0' || i > 0) {
     octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
+    octal_message_ = MessageTemplate::kStrictOctalEscape;
   }
   return x;
 }
@@ -1130,6 +1130,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
           if (c0_  < '0' || '7'  < c0_) {
             // Octal literal finished.
             octal_pos_ = Location(start_pos, source_pos());
+            octal_message_ = MessageTemplate::kStrictOctalLiteral;
             break;
           }
           AddLiteralCharAdvance();

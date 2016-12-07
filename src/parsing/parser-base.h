@@ -873,11 +873,14 @@ class ParserBase {
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
   // If so, reports an error. Only called for strict mode and template strings.
-  void CheckOctalLiteral(int beg_pos, int end_pos,
-                         MessageTemplate::Template message, bool* ok) {
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool is_template, bool* ok) {
     Scanner::Location octal = scanner()->octal_position();
     if (octal.IsValid() && beg_pos <= octal.beg_pos &&
         octal.end_pos <= end_pos) {
+      MessageTemplate::Template message =
+          is_template ? MessageTemplate::kTemplateOctalLiteral
+                      : scanner()->octal_message();
+      DCHECK_NE(message, MessageTemplate::kNone);
       impl()->ReportMessageAt(octal, message);
       scanner()->clear_octal_position();
       *ok = false;
@@ -895,13 +898,11 @@ class ParserBase {
   }
 
   inline void CheckStrictOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-    CheckOctalLiteral(beg_pos, end_pos, MessageTemplate::kStrictOctalLiteral,
-                      ok);
+    CheckOctalLiteral(beg_pos, end_pos, false, ok);
   }
 
   inline void CheckTemplateOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-    CheckOctalLiteral(beg_pos, end_pos, MessageTemplate::kTemplateOctalLiteral,
-                      ok);
+    CheckOctalLiteral(beg_pos, end_pos, true, ok);
   }
 
   void CheckDestructuringElement(ExpressionT element, int beg_pos, int end_pos);
