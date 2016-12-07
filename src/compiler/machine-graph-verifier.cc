@@ -237,8 +237,8 @@ class MachineRepresentationChecker {
  public:
   MachineRepresentationChecker(
       Schedule const* const schedule,
-      MachineRepresentationInferrer const* const inferrer)
-      : schedule_(schedule), inferrer_(inferrer) {}
+      MachineRepresentationInferrer const* const inferrer, bool is_stub)
+      : schedule_(schedule), inferrer_(inferrer), is_stub_(is_stub) {}
 
   void Run() {
     BasicBlockVector const* blocks = schedule_->all_blocks();
@@ -290,9 +290,17 @@ class MachineRepresentationChecker {
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:
-            CheckValueInputIsTaggedOrPointer(node, 0);
-            CheckValueInputRepresentationIs(
-                node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
+            if (Is64()) {
+              CheckValueInputIsTaggedOrPointer(node, 0);
+              CheckValueInputIsTaggedOrPointer(node, 1);
+              if (!is_stub_) {
+                CheckValueInputRepresentationIs(
+                    node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
+              }
+            } else {
+              CheckValueInputForInt64Op(node, 0);
+              CheckValueInputForInt64Op(node, 1);
+            }
             break;
           case IrOpcode::kInt64LessThan:
           case IrOpcode::kInt64LessThanOrEqual:
@@ -317,6 +325,19 @@ class MachineRepresentationChecker {
             MACHINE_UNOP_32_LIST(LABEL) { CheckValueInputForInt32Op(node, 0); }
             break;
           case IrOpcode::kWord32Equal:
+            if (Is32()) {
+              CheckValueInputIsTaggedOrPointer(node, 0);
+              CheckValueInputIsTaggedOrPointer(node, 1);
+              if (!is_stub_) {
+                CheckValueInputRepresentationIs(
+                    node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
+              }
+            } else {
+              CheckValueInputForInt32Op(node, 0);
+              CheckValueInputForInt32Op(node, 1);
+            }
+            break;
+
           case IrOpcode::kInt32LessThan:
           case IrOpcode::kInt32LessThanOrEqual:
           case IrOpcode::kUint32LessThan:
@@ -443,6 +464,15 @@ class MachineRepresentationChecker {
   }
 
  private:
+  static bool Is32() {
+    return MachineType::PointerRepresentation() ==
+           MachineRepresentation::kWord32;
+  }
+  static bool Is64() {
+    return MachineType::PointerRepresentation() ==
+           MachineRepresentation::kWord64;
+  }
+
   void CheckValueInputRepresentationIs(Node const* node, int index,
                                        MachineRepresentation representation) {
     Node const* input = node->InputAt(index);
@@ -450,10 +480,10 @@ class MachineRepresentationChecker {
         inferrer_->GetRepresentation(input);
     if (input_representation != representation) {
       std::stringstream str;
-      str << "TypeError: node #" << node->id() << ":" << *node->op() << ":"
-          << MachineReprToString(input_representation) << " uses node #"
-          << input->id() << ":" << *input->op() << " which doesn't have a "
-          << MachineReprToString(representation) << " representation.";
+      str << "TypeError: node #" << node->id() << ":" << *node->op()
+          << " uses node #" << input->id() << ":" << *input->op() << ":"
+          << input_representation << " which doesn't have a " << representation
+          << " representation.";
       FATAL(str.str().c_str());
     }
   }
@@ -482,6 +512,19 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTaggedSigned:
         return;
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        if (Is32()) {
+          return;
+        }
+        break;
+      case MachineRepresentation::kWord64:
+        if (Is64()) {
+          return;
+        }
+        break;
       default:
         break;
     }
@@ -539,9 +582,10 @@ class MachineRepresentationChecker {
         break;
     }
     std::ostringstream str;
-    str << "TypeError: node #" << node->id() << ":" << *node->op() << ":"
-        << input_representation << " uses node #" << input->id() << ":"
-        << *input->op() << " which doesn't have a kWord64 representation.";
+    str << "TypeError: node #" << node->id() << ":" << *node->op()
+        << " uses node #" << input->id() << ":" << *input->op() << ":"
+        << input_representation
+        << " which doesn't have a kWord64 representation.";
     FATAL(str.str().c_str());
   }
 
@@ -590,8 +634,7 @@ class MachineRepresentationChecker {
           str << std::endl;
         }
         str << " * input " << i << " (" << input->id() << ":" << *input->op()
-            << ") doesn't have a " << MachineReprToString(expected_input_type)
-            << " representation.";
+            << ") doesn't have a " << expected_input_type << " representation.";
       }
     }
     if (should_log_error) {
@@ -659,15 +702,18 @@ class MachineRepresentationChecker {
 
   Schedule const* const schedule_;
   MachineRepresentationInferrer const* const inferrer_;
+  bool is_stub_;
 };
 
 }  // namespace
 
 void MachineGraphVerifier::Run(Graph* graph, Schedule const* const schedule,
-                               Linkage* linkage, Zone* temp_zone) {
+                               Linkage* linkage, bool is_stub,
+                               Zone* temp_zone) {
   MachineRepresentationInferrer representation_inferrer(schedule, graph,
                                                         linkage, temp_zone);
-  MachineRepresentationChecker checker(schedule, &representation_inferrer);
+  MachineRepresentationChecker checker(schedule, &representation_inferrer,
+                                       is_stub);
   checker.Run();
 }
 

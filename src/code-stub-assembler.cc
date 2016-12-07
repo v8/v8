@@ -2952,7 +2952,7 @@ Node* CodeStubAssembler::IsHashTable(Node* object) {
 }
 
 Node* CodeStubAssembler::IsDictionary(Node* object) {
-  return WordOr(IsHashTable(object), IsUnseededNumberDictionary(object));
+  return Word32Or(IsHashTable(object), IsUnseededNumberDictionary(object));
 }
 
 Node* CodeStubAssembler::IsUnseededNumberDictionary(Node* object) {

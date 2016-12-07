@@ -635,10 +635,11 @@ void AccessorAssemblerImpl::HandleStoreICSmiHandlerCase(Node* handler_word,
   if (transition) {
     CSA_ASSERT(
         this,
-        WordOr(WordEqual(handler_kind,
-                         IntPtrConstant(StoreHandler::kTransitionToField)),
-               WordEqual(handler_kind,
-                         IntPtrConstant(StoreHandler::kTransitionToConstant))));
+        Word32Or(
+            WordEqual(handler_kind,
+                      IntPtrConstant(StoreHandler::kTransitionToField)),
+            WordEqual(handler_kind,
+                      IntPtrConstant(StoreHandler::kTransitionToConstant))));
   } else {
     CSA_ASSERT(this, WordEqual(handler_kind,
                                IntPtrConstant(StoreHandler::kStoreField)));
