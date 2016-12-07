@@ -14,8 +14,10 @@
 #include "src/gdb-jit.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic-stats.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -2284,7 +2286,19 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a
   // bug somewhere in our state transition machinery.
   DCHECK(from != to);
-  if (!FLAG_trace_ic) return;
+  if (V8_LIKELY(!FLAG_ic_stats)) return;
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    auto ic_stats = ICStats::instance();
+    ic_stats->Begin();
+    ICInfo& ic_info = ic_stats->Current();
+    ic_info.type = MajorName(MajorKey());
+    ic_info.state = ToString(from);
+    ic_info.state += "=>";
+    ic_info.state += ToString(to);
+    ic_stats->End();
+    return;
+  }
   OFStream os(stdout);
   os << "[";
   PrintBaseName(os);

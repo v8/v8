@@ -965,6 +965,8 @@
         'ic/ic-inl.h',
         'ic/ic-state.cc',
         'ic/ic-state.h',
+        'ic/ic-stats.cc',
+        'ic/ic-stats.h',
         'ic/ic.cc',
         'ic/ic.h',
         'ic/ic-compiler.cc',

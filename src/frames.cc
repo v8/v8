@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/ic/ic-stats.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
@@ -1016,7 +1017,6 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
   }
 }
 
-
 void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
                                bool print_line_number) {
   // constructor calls
@@ -1051,6 +1051,51 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         PrintF(file, ")");
       }
       break;
+    }
+    it.Advance();
+  }
+}
+
+void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction* function,
+                                                         AbstractCode* code,
+                                                         int code_offset) {
+  auto ic_stats = ICStats::instance();
+  ICInfo& ic_info = ic_stats->Current();
+  SharedFunctionInfo* shared = function->shared();
+
+  ic_info.function_name = ic_stats->GetOrCacheFunctionName(function);
+  ic_info.script_offset = code_offset;
+
+  int source_pos = code->SourcePosition(code_offset);
+  Object* maybe_script = shared->script();
+  if (maybe_script->IsScript()) {
+    Script* script = Script::cast(maybe_script);
+    ic_info.line_num = script->GetLineNumber(source_pos) + 1;
+    ic_info.script_name = ic_stats->GetOrCacheScriptName(script);
+  }
+}
+
+void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
+  // constructor calls
+  DisallowHeapAllocation no_allocation;
+  JavaScriptFrameIterator it(isolate);
+  ICInfo& ic_info = ICStats::instance()->Current();
+  while (!it.done()) {
+    if (it.frame()->is_java_script()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->IsConstructor()) ic_info.is_constructor = true;
+      JSFunction* function = frame->function();
+      int code_offset = 0;
+      if (frame->is_interpreted()) {
+        InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
+        code_offset = iframe->GetBytecodeOffset();
+      } else {
+        Code* code = frame->unchecked_code();
+        code_offset = static_cast<int>(frame->pc() - code->instruction_start());
+      }
+      CollectFunctionAndOffsetForICStats(function, function->abstract_code(),
+                                         code_offset);
+      return;
     }
     it.Advance();
   }
