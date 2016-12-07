@@ -12543,18 +12543,6 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
   }
 }
 
-
-void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
-  FixedArray* code_map = optimized_code_map();
-  DCHECK(shrink_by % kEntryLength == 0);
-  DCHECK(shrink_by <= code_map->length() - kEntriesStart);
-  // Always trim even when array is cleared because of heap verifier.
-  GetHeap()->RightTrimFixedArray(code_map, shrink_by);
-  if (code_map->length() == kEntriesStart) {
-    ClearOptimizedCodeMap();
-  }
-}
-
 // static
 void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());

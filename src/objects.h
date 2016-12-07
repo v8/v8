@@ -7463,9 +7463,6 @@ class SharedFunctionInfo: public HeapObject {
   // the entry itself is left in the map in order to proceed sharing literals.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
-  // Trims the optimized code map after entries have been removed.
-  void TrimOptimizedCodeMap(int shrink_by);
-
   static Handle<LiteralsArray> FindOrCreateLiterals(
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
