@@ -672,24 +672,35 @@ DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
 void CodeGenerator::TranslateStateValueDescriptor(
     StateValueDescriptor* desc, StateValueList* nested,
     Translation* translation, InstructionOperandIterator* iter) {
+  // Note:
+  // If translation is null, we just skip the relevant instruction operands.
   if (desc->IsNested()) {
-    translation->BeginCapturedObject(static_cast<int>(nested->size()));
+    if (translation != nullptr) {
+      translation->BeginCapturedObject(static_cast<int>(nested->size()));
+    }
     for (auto field : *nested) {
       TranslateStateValueDescriptor(field.desc, field.nested, translation,
                                     iter);
     }
   } else if (desc->IsDuplicate()) {
-    translation->DuplicateObject(static_cast<int>(desc->id()));
+    if (translation != nullptr) {
+      translation->DuplicateObject(static_cast<int>(desc->id()));
+    }
   } else if (desc->IsPlain()) {
-    AddTranslationForOperand(translation, iter->instruction(), iter->Advance(),
-                             desc->type());
+    InstructionOperand* op = iter->Advance();
+    if (translation != nullptr) {
+      AddTranslationForOperand(translation, iter->instruction(), op,
+                               desc->type());
+    }
   } else {
     DCHECK(desc->IsOptimizedOut());
-    if (optimized_out_literal_id_ == -1) {
-      optimized_out_literal_id_ =
-          DefineDeoptimizationLiteral(isolate()->factory()->optimized_out());
+    if (translation != nullptr) {
+      if (optimized_out_literal_id_ == -1) {
+        optimized_out_literal_id_ =
+            DefineDeoptimizationLiteral(isolate()->factory()->optimized_out());
+      }
+      translation->StoreLiteral(optimized_out_literal_id_);
     }
-    translation->StoreLiteral(optimized_out_literal_id_);
   }
 }
 
@@ -701,6 +712,7 @@ void CodeGenerator::TranslateFrameStateDescriptorOperands(
   StateValueList* values = desc->GetStateValueDescriptors();
   for (StateValueList::iterator it = values->begin(); it != values->end();
        ++it, ++index) {
+    StateValueDescriptor* value_desc = (*it).desc;
     if (combine.kind() == OutputFrameStateCombine::kPokeAt) {
       // The result of the call should be placed at position
       // [index_from_top] in the stack (overwriting whatever was
@@ -709,16 +721,17 @@ void CodeGenerator::TranslateFrameStateDescriptorOperands(
           desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
       if (index >= index_from_top &&
           index < index_from_top + iter->instruction()->OutputCount()) {
+        DCHECK_NOT_NULL(translation);
         AddTranslationForOperand(
             translation, iter->instruction(),
             iter->instruction()->OutputAt(index - index_from_top),
             MachineType::AnyTagged());
-        iter->Advance();  // We do not use this input, but we need to
-                          // advace, as the input got replaced.
+        // Skip the instruction operands.
+        TranslateStateValueDescriptor(value_desc, (*it).nested, nullptr, iter);
         continue;
       }
     }
-    TranslateStateValueDescriptor((*it).desc, (*it).nested, translation, iter);
+    TranslateStateValueDescriptor(value_desc, (*it).nested, translation, iter);
   }
   DCHECK_EQ(desc->GetSize(OutputFrameStateCombine::Ignore()), index);
 
