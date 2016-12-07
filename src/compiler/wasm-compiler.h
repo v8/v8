@@ -326,8 +326,7 @@ class WasmGraphBuilder {
                        MachineType result_type, int trap_zero,
                        wasm::WasmCodePosition position);
 
-  Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
-                                Node* control);
+  Node* BuildJavaScriptToNumber(Node* node, Node* context);
 
   Node* BuildChangeInt32ToTagged(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);

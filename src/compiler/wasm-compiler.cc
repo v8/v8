@@ -2376,8 +2376,7 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::LocalType type) {
   }
 }
 
-Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
-                                                Node* effect, Node* control) {
+Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context) {
   Callable callable = CodeFactory::ToNumber(jsgraph()->isolate());
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
@@ -2385,7 +2384,7 @@ Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
   Node* result = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
-                                  node, context, effect, control);
+                                  node, context, *effect_, *control_);
 
   *effect_ = result;
 
@@ -2505,8 +2504,10 @@ Node* WasmGraphBuilder::BuildChangeTaggedToFloat64(Node* value) {
 
 Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
                                wasm::LocalType type) {
+  DCHECK_NE(wasm::kAstStmt, type);
+
   // Do a JavaScript ToNumber.
-  Node* num = BuildJavaScriptToNumber(node, context, *effect_, *control_);
+  Node* num = BuildJavaScriptToNumber(node, context);
 
   // Change representation.
   SimplifiedOperatorBuilder simplified(jsgraph()->zone());
@@ -2530,9 +2531,6 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
                              num);
       break;
     case wasm::kAstF64:
-      break;
-    case wasm::kAstStmt:
-      num = jsgraph()->Int32Constant(0);
       break;
     default:
       UNREACHABLE();
@@ -2786,14 +2784,16 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
     call = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
   }
 
+  *effect_ = call;
+
   // Convert the return value back.
-  Node* ret;
-  Node* val =
-      FromJS(call, HeapConstant(isolate->native_context()),
-             sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
-  Node* pop_size = jsgraph()->Int32Constant(0);
-    ret = graph()->NewNode(jsgraph()->common()->Return(), pop_size, val, call,
-                           start);
+  Node* i32_zero = jsgraph()->Int32Constant(0);
+  Node* val = sig->return_count() == 0
+                  ? i32_zero
+                  : FromJS(call, HeapConstant(isolate->native_context()),
+                           sig->GetReturn());
+  Node* ret = graph()->NewNode(jsgraph()->common()->Return(), i32_zero, val,
+                               *effect_, start);
 
   MergeControlToEnd(jsgraph(), ret);
 }
