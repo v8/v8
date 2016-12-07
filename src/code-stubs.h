@@ -290,6 +290,8 @@ class CodeStub BASE_EMBEDDED {
 
   Isolate* isolate() const { return isolate_; }
 
+  void DeleteStubFromCacheForTesting();
+
  protected:
   CodeStub(uint32_t key, Isolate* isolate)
       : minor_key_(MinorKeyFromKey(key)), isolate_(isolate) {}

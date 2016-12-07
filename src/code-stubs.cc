@@ -112,6 +112,12 @@ Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
   return ic;
 }
 
+void CodeStub::DeleteStubFromCacheForTesting() {
+  Heap* heap = isolate_->heap();
+  Handle<UnseededNumberDictionary> dict(heap->code_stubs());
+  dict = UnseededNumberDictionary::DeleteKey(dict, GetKey());
+  heap->SetRootCodeStubs(*dict);
+}
 
 Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();

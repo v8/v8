@@ -21746,6 +21746,39 @@ int* LookupCounter(const char* name) {
   return NULL;
 }
 
+template <typename Stub, typename... Args>
+void Recompile(Args... args) {
+  Stub stub(args...);
+  stub.DeleteStubFromCacheForTesting();
+  stub.GetCode();
+}
+
+void RecompileICStubs(i::Isolate* isolate) {
+  using namespace i;
+  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
+  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(INSIDE_TYPEOF));
+  Recompile<LoadGlobalICTrampolineStub>(isolate,
+                                        LoadGlobalICState(NOT_INSIDE_TYPEOF));
+  Recompile<LoadGlobalICTrampolineStub>(isolate,
+                                        LoadGlobalICState(INSIDE_TYPEOF));
+
+  Recompile<LoadICStub>(isolate);
+  Recompile<LoadICTrampolineStub>(isolate);
+
+  Recompile<KeyedLoadICTFStub>(isolate);
+  Recompile<KeyedLoadICTrampolineTFStub>(isolate);
+
+  Recompile<StoreICStub>(isolate, StoreICState(SLOPPY));
+  Recompile<StoreICTrampolineStub>(isolate, StoreICState(SLOPPY));
+  Recompile<StoreICStub>(isolate, StoreICState(STRICT));
+  Recompile<StoreICTrampolineStub>(isolate, StoreICState(STRICT));
+
+  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(SLOPPY));
+  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(SLOPPY));
+  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(STRICT));
+  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(STRICT));
+}
+
 }  // namespace
 
 #ifdef ENABLE_DISASSEMBLER
@@ -21779,46 +21812,35 @@ const char* kMegamorphicTestProgram =
     "}\n";
 
 void TestStubCache(bool primary) {
+  using namespace i;
+
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (i::FLAG_ignition || i::FLAG_turbo) return;
+  if (FLAG_ignition || FLAG_turbo) return;
 
-  i::FLAG_native_code_counters = true;
+  FLAG_native_code_counters = true;
   if (primary) {
-    i::FLAG_test_primary_stub_cache = true;
+    FLAG_test_primary_stub_cache = true;
   } else {
-    i::FLAG_test_secondary_stub_cache = true;
+    FLAG_test_secondary_stub_cache = true;
   }
-  i::FLAG_crankshaft = false;
-  i::FLAG_turbo = false;
+  FLAG_crankshaft = false;
+
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
 
-    {
-      // Enforce recompilation of IC stubs that access megamorphic stub cache
-      // to respect enabled native code counters and stub cache test flags.
-      i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
-      };
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      i::Heap* heap = i_isolate->heap();
-      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
-      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
-        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
-      }
-      heap->SetRootCodeStubs(*dict);
-    }
+    // Enforce recompilation of IC stubs that access megamorphic stub cache
+    // to respect enabled native code counters and stub cache test flags.
+    RecompileICStubs(i_isolate);
 
     int initial_probes = probes_counter;
     int initial_misses = misses_counter;
@@ -22711,41 +22733,30 @@ TEST(AccessCheckThrows) {
 }
 
 TEST(AccessCheckInIC) {
+  using namespace i;
+
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (i::FLAG_ignition || i::FLAG_turbo) return;
+  if (FLAG_ignition || FLAG_turbo) return;
 
-  i::FLAG_native_code_counters = true;
-  i::FLAG_crankshaft = false;
-  i::FLAG_turbo = false;
+  FLAG_native_code_counters = true;
+  FLAG_crankshaft = false;
+
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
 
-    {
-      // Enforce recompilation of IC stubs that access megamorphic stub cache
-      // to respect enabled native code counters and stub cache test flags.
-      i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
-      };
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      i::Heap* heap = i_isolate->heap();
-      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
-      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
-        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
-      }
-      heap->SetRootCodeStubs(*dict);
-    }
+    // Enforce recompilation of IC stubs that access megamorphic stub cache
+    // to respect enabled native code counters and stub cache test flags.
+    RecompileICStubs(i_isolate);
 
     // Create an ObjectTemplate for global objects and install access
     // check callbacks that will block access.
