@@ -322,6 +322,7 @@ enum ContextLookupFlags {
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     strict_function_without_prototype_map)                                     \
   V(STRICT_GENERATOR_FUNCTION_MAP_INDEX, Map, strict_generator_function_map)   \
+  V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(STRING_ITERATOR_MAP_INDEX, Map, string_iterator_map)                       \
@@ -623,8 +624,10 @@ class Context: public FixedArray {
     }
 
     if (IsClassConstructor(kind)) {
-      // Use strict function map (no own "caller" / "arguments")
-      return STRICT_FUNCTION_MAP_INDEX;
+      // Like the strict function map, but with no 'name' accessor. 'name'
+      // needs to be the last property and it is added during instantiation,
+      // in case a static property with the same name exists"
+      return CLASS_FUNCTION_MAP_INDEX;
     }
 
     if (IsArrowFunction(kind) || IsConciseMethod(kind) ||

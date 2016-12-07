@@ -1415,6 +1415,7 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);
+  BuildClassLiteralNameProperty(expr, literal);
   builder()->CallRuntime(Runtime::kToFastProperties, literal);
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
@@ -1510,6 +1511,18 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
         break;
       }
     }
+  }
+}
+
+void BytecodeGenerator::BuildClassLiteralNameProperty(ClassLiteral* expr,
+                                                      Register literal) {
+  if (!expr->has_name_static_property() &&
+      !expr->constructor()->raw_name()->IsEmpty()) {
+    Runtime::FunctionId runtime_id =
+        expr->has_static_computed_names()
+            ? Runtime::kInstallClassNameAccessorWithCheck
+            : Runtime::kInstallClassNameAccessor;
+    builder()->CallRuntime(runtime_id, literal);
   }
 }
 

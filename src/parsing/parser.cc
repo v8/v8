@@ -3568,6 +3568,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 //   - static_initializer_var
 //   - instance_field_initializers
 //   - properties
+//   - has_name_static_property
+//   - has_static_computed_names
 Expression* Parser::RewriteClassLiteral(const AstRawString* name,
                                         ClassInfo* class_info, int pos,
                                         bool* ok) {
@@ -3602,7 +3604,9 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       class_info->proxy, class_info->extends, class_info->constructor,
-      class_info->properties, pos, end_pos);
+      class_info->properties, pos, end_pos,
+      class_info->has_name_static_property,
+      class_info->has_static_computed_names);
 
   if (class_info->static_initializer_var != nullptr) {
     class_literal->set_static_initializer_proxy(

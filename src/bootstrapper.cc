@@ -293,6 +293,7 @@ class Genesis BASE_EMBEDDED {
   // prototype, maps.
   Handle<Map> sloppy_function_map_writable_prototype_;
   Handle<Map> strict_function_map_writable_prototype_;
+  Handle<Map> class_function_map_;
   Handle<JSFunction> strict_poison_function_;
   Handle<JSFunction> restricted_function_properties_thrower_;
 
@@ -683,6 +684,10 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // This map is installed in MakeFunctionInstancePrototypeWritable.
   strict_function_map_writable_prototype_ = factory()->CreateStrictFunctionMap(
       FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
+
+  // Allocate map for classes
+  class_function_map_ = factory()->CreateClassFunctionMap(empty);
+  native_context()->set_class_function_map(*class_function_map_);
 
   // Now that the strict mode function map is available, set up the
   // restricted "arguments" and "caller" getters.
@@ -1267,6 +1272,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     sloppy_function_map_writable_prototype_->SetConstructor(*function_fun);
     strict_function_map_writable_prototype_->SetConstructor(*function_fun);
+    class_function_map_->SetConstructor(*function_fun);
   }
 
   {  // --- A r r a y ---

@@ -2525,7 +2525,7 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   assembler->Bind(&if_class_constructor);
   {
     map_index.Bind(
-        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX));
+        assembler->IntPtrConstant(Context::CLASS_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 

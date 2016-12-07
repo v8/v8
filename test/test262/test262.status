@@ -37,12 +37,6 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # The order of adding the name property is wrong
-  # https://code.google.com/p/v8/issues/detail?id=4199
-  'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
-  'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
-  'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
-
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
@@ -79,7 +73,6 @@
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
-  'language/expressions/class/name': [FAIL],
   'language/expressions/function/name': [FAIL],
   'language/expressions/generators/name': [FAIL],
   'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],

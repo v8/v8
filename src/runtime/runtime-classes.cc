@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <limits>
 
+#include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
@@ -168,6 +169,42 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   RETURN_RESULT_OR_FAILURE(
       isolate, DefineClass(isolate, super_class, constructor, start_position,
                            end_position));
+}
+
+namespace {
+void InstallClassNameAccessor(Isolate* isolate, Handle<JSObject> object) {
+  PropertyAttributes attrs =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+  // Cannot fail since this should only be called when creating an object
+  // literal.
+  CHECK(!JSObject::SetAccessor(
+             object, Accessors::FunctionNameInfo(object->GetIsolate(), attrs))
+             .is_null());
+}
+}  // anonymous namespace
+
+RUNTIME_FUNCTION(Runtime_InstallClassNameAccessor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  InstallClassNameAccessor(isolate, object);
+  return *object;
+}
+
+RUNTIME_FUNCTION(Runtime_InstallClassNameAccessorWithCheck) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  // If a property named "name" is already defined, exit.
+  Handle<Name> key = isolate->factory()->name_string();
+  if (JSObject::HasRealNamedProperty(object, key).FromMaybe(false)) {
+    return *object;
+  }
+
+  // Define the "name" accessor.
+  InstallClassNameAccessor(isolate, object);
+  return *object;
 }
 
 namespace {

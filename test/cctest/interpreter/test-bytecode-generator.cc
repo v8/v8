@@ -2142,6 +2142,9 @@ TEST(ClassDeclarations) {
       "var count = 0;\n"
       "class C { constructor() { count++; }}\n"
       "return new C();\n",
+
+      "(class {})\n"
+      "class E { static name () {}}\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

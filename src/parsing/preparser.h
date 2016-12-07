@@ -68,6 +68,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Async() {
     return PreParserIdentifier(kAsyncIdentifier);
   }
+  static PreParserIdentifier Name() {
+    return PreParserIdentifier(kNameIdentifier);
+  }
   bool IsEmpty() const { return type_ == kEmptyIdentifier; }
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
@@ -80,6 +83,7 @@ class PreParserIdentifier {
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsEnum() const { return type_ == kEnumIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
+  bool IsName() const { return type_ == kNameIdentifier; }
 
   // Allow identifier->name()[->length()] to work. The preparser
   // does not need the actual positions/lengths of the identifiers.
@@ -105,7 +109,8 @@ class PreParserIdentifier {
     kConstructorIdentifier,
     kEnumIdentifier,
     kAwaitIdentifier,
-    kAsyncIdentifier
+    kAsyncIdentifier,
+    kNameIdentifier
   };
 
   explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
@@ -1150,6 +1155,10 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool IsConstructor(PreParserIdentifier identifier) const {
     return identifier.IsConstructor();
+  }
+
+  V8_INLINE bool IsName(PreParserIdentifier identifier) const {
+    return identifier.IsName();
   }
 
   V8_INLINE static bool IsBoilerplateProperty(PreParserExpression property) {

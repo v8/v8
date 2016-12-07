@@ -2787,6 +2787,12 @@ class ClassLiteral final : public Expression {
   ZoneList<Property*>* properties() const { return properties_; }
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
+  bool has_name_static_property() const {
+    return HasNameStaticProperty::decode(bit_field_);
+  }
+  bool has_static_computed_names() const {
+    return HasStaticComputedNames::decode(bit_field_);
+  }
 
   VariableProxy* static_initializer_proxy() const {
     return static_initializer_proxy_;
@@ -2813,14 +2819,18 @@ class ClassLiteral final : public Expression {
 
   ClassLiteral(VariableProxy* class_variable_proxy, Expression* extends,
                FunctionLiteral* constructor, ZoneList<Property*>* properties,
-               int start_position, int end_position)
+               int start_position, int end_position,
+               bool has_name_static_property, bool has_static_computed_names)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
         constructor_(constructor),
         properties_(properties),
-        static_initializer_proxy_(nullptr) {}
+        static_initializer_proxy_(nullptr) {
+    bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
+                  HasStaticComputedNames::encode(has_static_computed_names);
+  }
 
   int end_position_;
   FeedbackVectorSlot prototype_slot_;
@@ -2830,6 +2840,11 @@ class ClassLiteral final : public Expression {
   FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
   VariableProxy* static_initializer_proxy_;
+
+  class HasNameStaticProperty
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
+  class HasStaticComputedNames
+      : public BitField<bool, HasNameStaticProperty::kNext, 1> {};
 };
 
 
@@ -3463,9 +3478,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   ClassLiteral* NewClassLiteral(VariableProxy* proxy, Expression* extends,
                                 FunctionLiteral* constructor,
                                 ZoneList<ClassLiteral::Property*>* properties,
-                                int start_position, int end_position) {
-    return new (zone_) ClassLiteral(proxy, extends, constructor, properties,
-                                    start_position, end_position);
+                                int start_position, int end_position,
+                                bool has_name_static_property,
+                                bool has_static_computed_names) {
+    return new (zone_) ClassLiteral(
+        proxy, extends, constructor, properties, start_position, end_position,
+        has_name_static_property, has_static_computed_names);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

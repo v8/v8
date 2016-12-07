@@ -603,7 +603,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 170
+bytecode array length: 175
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -672,6 +672,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaNamedProperty), R(2), U8(2), U8(2),
                 B(Star), R(3),
+                B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(2), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
                 B(StaCurrentContextSlot), U8(6),
                 B(LdaCurrentContextSlot), U8(6),

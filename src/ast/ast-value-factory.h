@@ -304,6 +304,7 @@ class AstValue : public ZoneObject {
   F(get_space, "get ")                          \
   F(length, "length")                           \
   F(let, "let")                                 \
+  F(name, "name")                               \
   F(native, "native")                           \
   F(new_target, ".new.target")                  \
   F(next, "next")                               \

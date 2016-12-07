@@ -67,6 +67,8 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
         return PreParserIdentifier::Prototype();
       if (scanner->LiteralMatches("constructor", 11))
         return PreParserIdentifier::Constructor();
+      if (scanner->LiteralMatches("name", 4))
+        return PreParserIdentifier::Name();
       return PreParserIdentifier::Default();
   }
 }

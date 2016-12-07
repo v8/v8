@@ -74,21 +74,23 @@ namespace internal {
   F(AtomicsWake, 3, 1)                          \
   F(AtomicsNumWaitersForTesting, 2, 1)
 
-#define FOR_EACH_INTRINSIC_CLASSES(F)       \
-  F(ThrowNonMethodError, 0, 1)              \
-  F(ThrowUnsupportedSuperError, 0, 1)       \
-  F(ThrowConstructorNonCallableError, 1, 1) \
-  F(ThrowArrayNotSubclassableError, 0, 1)   \
-  F(ThrowStaticPrototypeError, 0, 1)        \
-  F(HomeObjectSymbol, 0, 1)                 \
-  F(DefineClass, 4, 1)                      \
-  F(LoadFromSuper, 3, 1)                    \
-  F(LoadKeyedFromSuper, 3, 1)               \
-  F(StoreToSuper_Strict, 4, 1)              \
-  F(StoreToSuper_Sloppy, 4, 1)              \
-  F(StoreKeyedToSuper_Strict, 4, 1)         \
-  F(StoreKeyedToSuper_Sloppy, 4, 1)         \
-  F(GetSuperConstructor, 1, 1)              \
+#define FOR_EACH_INTRINSIC_CLASSES(F)        \
+  F(ThrowNonMethodError, 0, 1)               \
+  F(ThrowUnsupportedSuperError, 0, 1)        \
+  F(ThrowConstructorNonCallableError, 1, 1)  \
+  F(ThrowArrayNotSubclassableError, 0, 1)    \
+  F(ThrowStaticPrototypeError, 0, 1)         \
+  F(HomeObjectSymbol, 0, 1)                  \
+  F(DefineClass, 4, 1)                       \
+  F(InstallClassNameAccessor, 1, 1)          \
+  F(InstallClassNameAccessorWithCheck, 1, 1) \
+  F(LoadFromSuper, 3, 1)                     \
+  F(LoadKeyedFromSuper, 3, 1)                \
+  F(StoreToSuper_Strict, 4, 1)               \
+  F(StoreToSuper_Sloppy, 4, 1)               \
+  F(StoreKeyedToSuper_Strict, 4, 1)          \
+  F(StoreKeyedToSuper_Sloppy, 4, 1)          \
+  F(GetSuperConstructor, 1, 1)               \
   F(NewWithSpread, -1, 1)
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \

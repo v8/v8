@@ -722,6 +722,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Map> CreateStrictFunctionMap(FunctionMode function_mode,
                                       Handle<JSFunction> empty_function);
 
+  Handle<Map> CreateClassFunctionMap(Handle<JSFunction> empty_function);
+
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(MessageTemplate::Template message,
                                              Handle<Object> argument,
@@ -803,6 +805,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                            FunctionMode function_mode);
+
+  void SetClassFunctionInstanceDescriptor(Handle<Map> map);
 };
 
 }  // namespace internal
