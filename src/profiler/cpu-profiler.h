@@ -83,7 +83,6 @@ class CodeDeoptEventRecord : public CodeEventRecord {
  public:
   Address start;
   const char* deopt_reason;
-  SourcePosition position;
   int deopt_id;
   void* pc;
   int fp_to_sp_delta;
