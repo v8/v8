@@ -257,9 +257,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool turbofanned = code->is_turbofanned() &&
-                         function->shared()->asm_function() &&
-                         !FLAG_turbo_asm_deoptimization;
+      bool turbofanned =
+          code->is_turbofanned() && function->shared()->asm_function();
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
       bool builtin = code->kind() == Code::BUILTIN;

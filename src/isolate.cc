@@ -1342,7 +1342,6 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         }
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
           DCHECK(summary.function()->shared()->asm_function());
-          DCHECK(!FLAG_turbo_asm_deoptimization);
           // asm code cannot contain try-catch.
           continue;
         }

@@ -1112,8 +1112,7 @@ int JavaScriptFrame::ComputeParametersCount() const {
 namespace {
 
 bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
-  return code->is_turbofanned() && function->shared()->asm_function() &&
-         !FLAG_turbo_asm_deoptimization;
+  return code->is_turbofanned() && function->shared()->asm_function();
 }
 
 }  // namespace

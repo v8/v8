@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 
   // TODO(turbofan): Deoptimization is not supported yet.
   if (function->code()->is_turbofanned() &&
-      function->shared()->asm_function() && !FLAG_turbo_asm_deoptimization) {
+      function->shared()->asm_function()) {
     return isolate->heap()->undefined_value();
   }
 
@@ -74,7 +74,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   // TODO(turbofan): Deoptimization is not supported yet.
   if (function->code()->is_turbofanned() &&
-      function->shared()->asm_function() && !FLAG_turbo_asm_deoptimization) {
+      function->shared()->asm_function()) {
     return isolate->heap()->undefined_value();
   }
 
