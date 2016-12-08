@@ -1920,36 +1920,101 @@ Node* WasmGraphBuilder::BuildI32AsmjsDivS(Node* left, Node* right) {
 }
 
 Node* WasmGraphBuilder::BuildI32AsmjsRemS(Node* left, Node* right) {
+  CommonOperatorBuilder* c = jsgraph()->common();
   MachineOperatorBuilder* m = jsgraph()->machine();
+  Node* const zero = jsgraph()->Int32Constant(0);
 
   Int32Matcher mr(right);
   if (mr.HasValue()) {
-    if (mr.Value() == 0) {
-      return jsgraph()->Int32Constant(0);
-    } else if (mr.Value() == -1) {
-      return jsgraph()->Int32Constant(0);
+    if (mr.Value() == 0 || mr.Value() == -1) {
+      return zero;
     }
     return graph()->NewNode(m->Int32Mod(), left, right, *control_);
   }
 
-  // asm.js semantics return 0 on divide or mod by zero.
-  // Explicit check for x % 0.
-  Diamond z(
-      graph(), jsgraph()->common(),
-      graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(0)),
-      BranchHint::kFalse);
+  // General case for signed integer modulus, with optimization for (unknown)
+  // power of 2 right hand side.
+  //
+  //   if 0 < right then
+  //     msk = right - 1
+  //     if right & msk != 0 then
+  //       left % right
+  //     else
+  //       if left < 0 then
+  //         -(-left & msk)
+  //       else
+  //         left & msk
+  //   else
+  //     if right < -1 then
+  //       left % right
+  //     else
+  //       zero
+  //
+  // Note: We do not use the Diamond helper class here, because it really hurts
+  // readability with nested diamonds.
+  Node* const minus_one = jsgraph()->Int32Constant(-1);
 
-  // Explicit check for x % -1.
-  Diamond d(
-      graph(), jsgraph()->common(),
-      graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(-1)),
-      BranchHint::kFalse);
-  d.Chain(z.if_false);
+  const Operator* const merge_op = c->Merge(2);
+  const Operator* const phi_op = c->Phi(MachineRepresentation::kWord32, 2);
 
-  return z.Phi(
-      MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
-      d.Phi(MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
-            graph()->NewNode(m->Int32Mod(), left, right, d.if_false)));
+  Node* check0 = graph()->NewNode(m->Int32LessThan(), zero, right);
+  Node* branch0 =
+      graph()->NewNode(c->Branch(BranchHint::kTrue), check0, graph()->start());
+
+  Node* if_true0 = graph()->NewNode(c->IfTrue(), branch0);
+  Node* true0;
+  {
+    Node* msk = graph()->NewNode(m->Int32Add(), right, minus_one);
+
+    Node* check1 = graph()->NewNode(m->Word32And(), right, msk);
+    Node* branch1 = graph()->NewNode(c->Branch(), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(c->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(m->Int32Mod(), left, right, if_true1);
+
+    Node* if_false1 = graph()->NewNode(c->IfFalse(), branch1);
+    Node* false1;
+    {
+      Node* check2 = graph()->NewNode(m->Int32LessThan(), left, zero);
+      Node* branch2 =
+          graph()->NewNode(c->Branch(BranchHint::kFalse), check2, if_false1);
+
+      Node* if_true2 = graph()->NewNode(c->IfTrue(), branch2);
+      Node* true2 = graph()->NewNode(
+          m->Int32Sub(), zero,
+          graph()->NewNode(m->Word32And(),
+                           graph()->NewNode(m->Int32Sub(), zero, left), msk));
+
+      Node* if_false2 = graph()->NewNode(c->IfFalse(), branch2);
+      Node* false2 = graph()->NewNode(m->Word32And(), left, msk);
+
+      if_false1 = graph()->NewNode(merge_op, if_true2, if_false2);
+      false1 = graph()->NewNode(phi_op, true2, false2, if_false1);
+    }
+
+    if_true0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    true0 = graph()->NewNode(phi_op, true1, false1, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(c->IfFalse(), branch0);
+  Node* false0;
+  {
+    Node* check1 = graph()->NewNode(m->Int32LessThan(), right, minus_one);
+    Node* branch1 =
+        graph()->NewNode(c->Branch(BranchHint::kTrue), check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(c->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(m->Int32Mod(), left, right, if_true1);
+
+    Node* if_false1 = graph()->NewNode(c->IfFalse(), branch1);
+    Node* false1 = zero;
+
+    if_false0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    false0 = graph()->NewNode(phi_op, true1, false1, if_false0);
+  }
+
+  Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
+  return graph()->NewNode(phi_op, true0, false0, merge0);
 }
 
 Node* WasmGraphBuilder::BuildI32AsmjsDivU(Node* left, Node* right) {
