@@ -36,7 +36,7 @@ bytecodes: [
                 B(Star), R(1),
   /*  117 E> */ B(Call), R(1), R(this), U8(1), U8(2),
                 B(Star), R(1),
-                B(AddSmi), U8(1), R(1), U8(8),
+  /*  126 E> */ B(AddSmi), U8(1), R(1), U8(8),
   /*  131 S> */ B(Return),
 ]
 constant pool: [

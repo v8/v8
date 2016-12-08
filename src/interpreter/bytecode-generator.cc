@@ -2844,6 +2844,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
   FeedbackVectorSlot slot = expr->BinaryOperationFeedbackSlot();
+  builder()->SetExpressionPosition(expr);
   builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
 }
 
