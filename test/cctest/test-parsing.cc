@@ -3261,35 +3261,45 @@ TEST(InnerAssignment) {
   const char* prefix = "function f() {";
   const char* midfix = " function g() {";
   const char* suffix = "}}; f";
-  struct { const char* source; bool assigned; bool strict; } outers[] = {
-    // Actual assignments.
-    { "var x; var x = 5;", true, false },
-    { "var x; { var x = 5; }", true, false },
-    { "'use strict'; let x; x = 6;", true, true },
-    { "var x = 5; function x() {}", true, false },
-    // Actual non-assignments.
-    { "var x;", false, false },
-    { "var x = 5;", false, false },
-    { "'use strict'; let x;", false, true },
-    { "'use strict'; let x = 6;", false, true },
-    { "'use strict'; var x = 0; { let x = 6; }", false, true },
-    { "'use strict'; var x = 0; { let x; x = 6; }", false, true },
-    { "'use strict'; let x = 0; { let x = 6; }", false, true },
-    { "'use strict'; let x = 0; { let x; x = 6; }", false, true },
-    { "var x; try {} catch (x) { x = 5; }", false, false },
-    { "function x() {}", false, false },
-    // Eval approximation.
-    { "var x; eval('');", true, false },
-    { "eval(''); var x;", true, false },
-    { "'use strict'; let x; eval('');", true, true },
-    { "'use strict'; eval(''); let x;", true, true },
-    // Non-assignments not recognized, because the analysis is approximative.
-    { "var x; var x;", true, false },
-    { "var x = 5; var x;", true, false },
-    { "var x; { var x; }", true, false },
-    { "var x; function x() {}", true, false },
-    { "function x() {}; var x;", true, false },
-    { "var x; try {} catch (x) { var x = 5; }", true, false },
+  struct {
+    const char* source;
+    bool assigned;
+    bool strict;
+  } outers[] = {
+      // Actual assignments.
+      {"var x; var x = 5;", true, false},
+      {"var x; { var x = 5; }", true, false},
+      {"'use strict'; let x; x = 6;", true, true},
+      {"var x = 5; function x() {}", true, false},
+      {"var x = 4; var x = 5;", true, false},
+      {"var [x, x] = [4, 5];", true, false},
+      {"var {a: x, b: x} = {a: 4, b: 5};", true, false},
+      {"var x = {a: 4, b: (x = 5)};", true, false},
+      {"var {x=1} = {a: 4, b: (x = 5)};", true, false},
+      {"var {x} = {x: 4, b: (x = 5)};", true, false},
+      // Actual non-assignments.
+      {"var x;", false, false},
+      {"var x = 5;", false, false},
+      {"'use strict'; let x;", false, true},
+      {"'use strict'; let x = 6;", false, true},
+      {"'use strict'; var x = 0; { let x = 6; }", false, true},
+      {"'use strict'; var x = 0; { let x; x = 6; }", false, true},
+      {"'use strict'; let x = 0; { let x = 6; }", false, true},
+      {"'use strict'; let x = 0; { let x; x = 6; }", false, true},
+      {"var x; try {} catch (x) { x = 5; }", false, false},
+      {"function x() {}", false, false},
+      // Eval approximation.
+      {"var x; eval('');", true, false},
+      {"eval(''); var x;", true, false},
+      {"'use strict'; let x; eval('');", true, true},
+      {"'use strict'; eval(''); let x;", true, true},
+      // Non-assignments not recognized, because the analysis is approximative.
+      {"var x; var x;", true, false},
+      {"var x = 5; var x;", true, false},
+      {"var x; { var x; }", true, false},
+      {"var x; function x() {}", true, false},
+      {"function x() {}; var x;", true, false},
+      {"var x; try {} catch (x) { var x = 5; }", true, false},
   };
   struct { const char* source; bool assigned; bool with; } inners[] = {
     // Actual assignments.
