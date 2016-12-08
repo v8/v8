@@ -242,6 +242,8 @@ TFS_BUILTIN(Typeof)
 TFS_BUILTIN(InstanceOf)
 TFS_BUILTIN(OrdinaryHasInstance)
 TFS_BUILTIN(ForInFilter)
+TFS_BUILTIN(NewUnmappedArgumentsElements)
+TFS_BUILTIN(NewRestParameterElements)
 
 #undef TFS_BUILTIN
 

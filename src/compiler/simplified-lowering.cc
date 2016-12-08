@@ -2489,6 +2489,12 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::Undetectable(), lowering);
         return;
       }
+      case IrOpcode::kNewRestParameterElements:
+      case IrOpcode::kNewUnmappedArgumentsElements: {
+        ProcessRemainingInputs(node, 0);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kArrayBufferWasNeutered: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         return;

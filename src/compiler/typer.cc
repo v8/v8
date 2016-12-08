@@ -1826,6 +1826,14 @@ Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
   return TypeUnaryOp(node, ObjectIsUndetectable);
 }
 
+Type* Typer::Visitor::TypeNewUnmappedArgumentsElements(Node* node) {
+  return Type::OtherInternal();
+}
+
+Type* Typer::Visitor::TypeNewRestParameterElements(Node* node) {
+  return Type::OtherInternal();
+}
+
 Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
   return Type::Boolean();
 }

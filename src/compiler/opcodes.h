@@ -323,6 +323,8 @@
   V(ObjectIsSmi)                    \
   V(ObjectIsString)                 \
   V(ObjectIsUndetectable)           \
+  V(NewRestParameterElements)       \
+  V(NewUnmappedArgumentsElements)   \
   V(ArrayBufferWasNeutered)         \
   V(EnsureWritableFastElements)     \
   V(MaybeGrowFastElements)          \

@@ -294,6 +294,18 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void NewArgumentsElementsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  MachineType const kMachineTypes[] = {MachineType::IntPtr()};
+  data->InitializePlatformIndependent(arraysize(kMachineTypes), 0,
+                                      kMachineTypes);
+}
+
+void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, 1);
+}
+
 void VarArgFunctionDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kActualArgumentsCount

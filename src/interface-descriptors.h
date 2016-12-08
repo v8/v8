@@ -87,6 +87,7 @@ class PlatformInterfaceDescriptor;
   V(MathPowTagged)                        \
   V(MathPowInteger)                       \
   V(GrowArrayElements)                    \
+  V(NewArgumentsElements)                 \
   V(InterpreterDispatch)                  \
   V(InterpreterPushArgsAndCall)           \
   V(InterpreterPushArgsAndConstruct)      \
@@ -777,6 +778,13 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 
   static const Register ObjectRegister();
   static const Register KeyRegister();
+};
+
+class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kFormalParameterCount)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(NewArgumentsElementsDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor

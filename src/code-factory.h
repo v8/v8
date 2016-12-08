@@ -141,6 +141,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable GrowFastDoubleElements(Isolate* isolate);
   static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
 
+  static Callable NewUnmappedArgumentsElements(Isolate* isolate);
+  static Callable NewRestParameterElements(Isolate* isolate);
+
   static Callable AllocateHeapNumber(Isolate* isolate);
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
   static Callable Allocate##Type(Isolate* isolate);

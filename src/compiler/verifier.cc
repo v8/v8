@@ -916,6 +916,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kNewRestParameterElements:
+    case IrOpcode::kNewUnmappedArgumentsElements:
+      CheckTypeIs(node, Type::OtherInternal());
+      break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
       break;

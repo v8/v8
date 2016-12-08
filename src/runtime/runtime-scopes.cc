@@ -592,6 +592,21 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
 
+RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Object** frame = reinterpret_cast<Object**>(args[0]);
+  CONVERT_SMI_ARG_CHECKED(length, 1);
+  Handle<FixedArray> result =
+      isolate->factory()->NewUninitializedFixedArray(length);
+  int const offset = length + 1;
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  for (int index = 0; index < length; ++index) {
+    result->set(index, frame[offset - index], mode);
+  }
+  return *result;
+}
 
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
