@@ -67,13 +67,17 @@ class SourcePosition final {
 
   int64_t raw() const { return static_cast<int64_t>(value_); }
   static SourcePosition FromRaw(int64_t raw) {
-    SourcePosition position = Unknown();
+    SourcePosition position;
     DCHECK_GE(raw, 0);
     position.value_ = static_cast<uint64_t>(raw);
     return position;
   }
 
  private:
+  // SourcePosition is used in a union in CodeEventsContainer, which requires a
+  // trivial constructor.
+  SourcePosition() = default;
+
   void Print(std::ostream& out, SharedFunctionInfo* function) const;
   SourcePositionInfo Info(Handle<SharedFunctionInfo> script) const;
 
@@ -102,11 +106,10 @@ struct InliningPosition {
 };
 
 struct SourcePositionInfo {
-  explicit SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f)
-      : position(pos), function(f) {}
+  explicit SourcePositionInfo(SourcePosition pos) : position(pos) {}
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> function;
+  MaybeHandle<SharedFunctionInfo> function;
   int line = -1;
   int column = -1;
 };
