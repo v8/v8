@@ -343,10 +343,10 @@ def read_stats(path, domain, args):
   groups = [];
   if args.aggregate:
     groups = [
-        ('Group-IC', re.compile(".*IC.*")),
+        ('Group-IC', re.compile(".*IC_.*")),
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
-        ('Group-Compile', re.compile(".*Compile.*")),
+        ('Group-Compile', re.compile("(^Compile.*)|(.*_Compile.*)")),
         ('Group-ParseBackground', re.compile(".*ParseBackground.*")),
         ('Group-Parse', re.compile(".*Parse.*")),
         ('Group-Callback', re.compile(".*Callback.*")),
