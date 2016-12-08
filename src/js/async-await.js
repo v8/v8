@@ -17,7 +17,6 @@ var CreateInternalPromiseCapability;
 var PromiseCreate;
 var PromiseNextMicrotaskID;
 var RejectPromise;
-var ResolvePromise;
 
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
@@ -25,7 +24,6 @@ utils.Import(function(from) {
   CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
   PromiseCreate = from.PromiseCreate;
   RejectPromise = from.RejectPromise;
-  ResolvePromise = from.ResolvePromise;
 });
 
 var promiseAsyncStackIDSymbol =
@@ -36,8 +34,6 @@ var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
-var promiseHasHandlerSymbol =
-    utils.ImportNow("promise_has_handler_symbol");
 
 // -------------------------------------------------------------------
 
@@ -47,7 +43,7 @@ function PromiseCastResolved(value) {
     return value;
   } else {
     var promise = PromiseCreate();
-    ResolvePromise(promise, value);
+    %promise_resolve(promise, value);
     return promise;
   }
 }
@@ -90,7 +86,7 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done
-  SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
+  %PromiseMarkAsHandled(throwawayCapability.promise);
 
   if (DEBUG_IS_ACTIVE) {
     if (%is_promise(awaited)) {

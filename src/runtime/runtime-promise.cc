@@ -12,15 +12,15 @@ namespace internal {
 
 namespace {
 
-void PromiseRejectEvent(Isolate* isolate, Handle<JSReceiver> promise,
+void PromiseRejectEvent(Isolate* isolate, Handle<JSPromise> promise,
                         Handle<Object> rejected_promise, Handle<Object> value,
                         bool debug_event) {
   if (isolate->debug()->is_active() && debug_event) {
     isolate->debug()->OnPromiseReject(rejected_promise, value);
   }
-  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  // Do not report if we actually have a handler.
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate)) {
+
+  // Report only if we don't actually have a handler.
+  if (!promise->has_handler()) {
     isolate->ReportPromiseReject(Handle<JSObject>::cast(promise), value,
                                  v8::kPromiseRejectWithNoHandler);
   }
@@ -31,7 +31,7 @@ void PromiseRejectEvent(Isolate* isolate, Handle<JSReceiver> promise,
 RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   DCHECK(args.length() == 2);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 
   Handle<Object> rejected_promise = promise;
@@ -48,10 +48,9 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   // At this point, no revocation has been issued before
-  CHECK(JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate));
+  CHECK(!promise->has_handler());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return isolate->heap()->undefined_value();
@@ -273,6 +272,15 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectReactions) {
   DCHECK(reject_reactions->IsFixedArray());
   return *isolate->factory()->NewJSArrayWithElements(
       Handle<FixedArray>::cast(reject_reactions));
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+
+  promise->set_has_handler(true);
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

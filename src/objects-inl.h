@@ -7100,6 +7100,8 @@ ACCESSORS(JSPromise, result, Object, kResultOffset)
 ACCESSORS(JSPromise, deferred, Object, kDeferredOffset)
 ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
 ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
+SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
+BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)

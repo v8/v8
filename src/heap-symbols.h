@@ -150,6 +150,7 @@
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
   V(SyntaxError_string, "SyntaxError")                             \
+  V(then_string, "then")                                           \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
   V(timed_out, "timed-out")                                        \
@@ -213,7 +214,6 @@
   V(promise_forwarding_handler_symbol) \
   V(promise_handled_by_symbol)         \
   V(promise_handled_hint_symbol)       \
-  V(promise_has_handler_symbol)        \
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \

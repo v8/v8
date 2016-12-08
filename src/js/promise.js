@@ -18,8 +18,6 @@ var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
-var promiseHasHandlerSymbol =
-    utils.ImportNow("promise_has_handler_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
 var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
@@ -47,7 +45,7 @@ function PromiseHandle(value, handler, deferred) {
     if (debug_is_active) %DebugPushPromise(deferred.promise);
     var result = handler(value);
     if (IS_UNDEFINED(deferred.resolve)) {
-      ResolvePromise(deferred.promise, result);
+      %promise_resolve(deferred.promise, result);
     } else {
       %_Call(deferred.resolve, UNDEFINED, result);
     }
@@ -104,61 +102,6 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 // This is used by utils and v8-extras.
 function PromiseCreate() {
   return %promise_internal_constructor();
-}
-
-// ES#sec-promise-resolve-functions
-// Promise Resolve Functions, steps 6-13
-function ResolvePromise(promise, resolution) {
-  if (resolution === promise) {
-    var exception = %make_type_error(kPromiseCyclic, resolution);
-    %PromiseReject(promise, exception, true);
-    return;
-  }
-  if (IS_RECEIVER(resolution)) {
-    // 25.4.1.3.2 steps 8-12
-    try {
-      var then = resolution.then;
-    } catch (e) {
-      %PromiseReject(promise, e, true);
-      return;
-    }
-
-    // Resolution is a native promise and if it's already resolved or
-    // rejected, shortcircuit the resolution procedure by directly
-    // reusing the value from the promise.
-    if (%is_promise(resolution) && then === PromiseThen) {
-      var thenableState = %PromiseStatus(resolution);
-      if (thenableState === kFulfilled) {
-        // This goes inside the if-else to save one symbol lookup in
-        // the slow path.
-        var thenableValue = %PromiseResult(resolution);
-        %PromiseFulfill(promise, kFulfilled, thenableValue);
-        SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
-        return;
-      } else if (thenableState === kRejected) {
-        var thenableValue = %PromiseResult(resolution);
-        if (!HAS_DEFINED_PRIVATE(resolution, promiseHasHandlerSymbol)) {
-          // Promise has already been rejected, but had no handler.
-          // Revoke previously triggered reject event.
-          %PromiseRevokeReject(resolution);
-        }
-        // Don't cause a debug event as this case is forwarding a rejection
-        %PromiseReject(promise, thenableValue, false);
-        SET_PRIVATE(resolution, promiseHasHandlerSymbol, true);
-        return;
-      }
-    }
-
-    if (IS_CALLABLE(then)) {
-      if (DEBUG_IS_ACTIVE && %is_promise(resolution)) {
-          // Mark the dependency of the new promise on the resolution
-        SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
-      }
-      %EnqueuePromiseResolveThenableJob(promise, resolution, then);
-      return;
-    }
-  }
-  %PromiseFulfill(promise, kFulfilled, resolution);
 }
 
 // Only used by async-await.js
@@ -251,7 +194,7 @@ function PromiseResolve(x) {
   // Avoid creating resolving functions.
   if (this === GlobalPromise) {
     var promise = %promise_internal_constructor();
-    ResolvePromise(promise, x);
+    %promise_resolve(promise, x);
     return promise;
   }
 
@@ -422,7 +365,7 @@ function PromiseHasUserDefinedRejectHandler() {
 };
 
 function MarkPromiseAsHandled(promise) {
-  SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
+  %PromiseMarkAsHandled(promise);
 }
 
 
@@ -442,9 +385,7 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 
 utils.InstallGetter(GlobalPromise, speciesSymbol, PromiseSpecies);
 
-utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
-  "catch", PromiseCatch
-]);
+%SetCode(GlobalPromise.prototype.catch, PromiseCatch);
 
 %InstallToContext([
   "promise_catch", PromiseCatch,
@@ -453,8 +394,6 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_reject", DoRejectPromise,
   // TODO(gsathya): Remove this once we update the promise builtin.
   "promise_internal_reject", RejectPromise,
-  "promise_resolve", ResolvePromise,
-  "promise_then", PromiseThen,
   "promise_handle", PromiseHandle,
   "promise_debug_get_info", PromiseDebugGetInfo,
   "new_promise_capability", NewPromiseCapability,
@@ -468,7 +407,6 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 // promise without having to hold on to those closures forever.
 utils.InstallFunctions(extrasUtils, 0, [
   "createPromise", PromiseCreate,
-  "resolvePromise", ResolvePromise,
   "rejectPromise", DoRejectPromise,
   "markPromiseAsHandled", MarkPromiseAsHandled
 ]);
@@ -478,7 +416,6 @@ utils.Export(function(to) {
   to.PromiseThen = PromiseThen;
 
   to.CreateInternalPromiseCapability = CreateInternalPromiseCapability;
-  to.ResolvePromise = ResolvePromise;
   to.RejectPromise = RejectPromise;
 });
 

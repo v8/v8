@@ -565,11 +565,12 @@ namespace internal {
   TFJ(PromiseInternalConstructor, 0)                                          \
   TFJ(IsPromise, 1)                                                           \
   CPP(CreateResolvingFunctions)                                               \
-  CPP(PromiseResolveClosure)                                                  \
+  TFJ(PromiseResolveClosure, 1)                                               \
   CPP(PromiseRejectClosure)                                                   \
   TFJ(PromiseThen, 2)                                                         \
   TFJ(PromiseCreateAndSet, 2)                                                 \
   TFJ(PerformPromiseThen, 4)                                                  \
+  TFJ(ResolvePromise, 2)                                                      \
                                                                               \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \

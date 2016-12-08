@@ -309,6 +309,7 @@ namespace internal {
   F(PromiseDeferred, 1, 1)                          \
   F(PromiseReject, 3, 1)                            \
   F(PromiseFulfill, 3, 1)                           \
+  F(PromiseMarkAsHandled, 1, 1)                     \
   F(PromiseRejectEventFromStack, 2, 1)              \
   F(PromiseRejectReactions, 1, 1)                   \
   F(PromiseRevokeReject, 1, 1)                      \

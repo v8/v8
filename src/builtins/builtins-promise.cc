@@ -11,30 +11,6 @@
 namespace v8 {
 namespace internal {
 
-// ES#sec-promise-resolve-functions
-// Promise Resolve Functions
-BUILTIN(PromiseResolveClosure) {
-  HandleScope scope(isolate);
-
-  Handle<Context> context(isolate->context(), isolate);
-
-  if (PromiseUtils::HasAlreadyVisited(context)) {
-    return isolate->heap()->undefined_value();
-  }
-
-  PromiseUtils::SetAlreadyVisited(context);
-  Handle<JSObject> promise = handle(PromiseUtils::GetPromise(context), isolate);
-  Handle<Object> value = args.atOrUndefined(isolate, 1);
-
-  MaybeHandle<Object> maybe_result;
-  Handle<Object> argv[] = {promise, value};
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, Execution::Call(isolate, isolate->promise_resolve(),
-                               isolate->factory()->undefined_value(),
-                               arraysize(argv), argv));
-  return isolate->heap()->undefined_value();
-}
-
 // ES#sec-promise-reject-functions
 // Promise Reject Functions
 BUILTIN(PromiseRejectClosure) {
@@ -86,6 +62,7 @@ void PromiseInit(CodeStubAssembler* a, compiler::Node* promise,
   CSA_ASSERT(a, a->TaggedIsSmi(status));
   a->StoreObjectField(promise, JSPromise::kStatusOffset, status);
   a->StoreObjectField(promise, JSPromise::kResultOffset, result);
+  a->StoreObjectField(promise, JSPromise::kFlagsOffset, a->SmiConstant(0));
 }
 
 void Builtins::Generate_PromiseConstructor(
@@ -286,6 +263,7 @@ compiler::Node* ThrowIfNotJSReceiver(CodeStubAssembler* a, Isolate* isolate,
   a->Bind(&out);
   return var_value_map.value();
 }
+
 }  // namespace
 
 void Builtins::Generate_IsPromise(compiler::CodeAssemblerState* state) {
@@ -307,6 +285,24 @@ void Builtins::Generate_IsPromise(compiler::CodeAssemblerState* state) {
 }
 
 namespace {
+
+compiler::Node* PromiseHasHandler(CodeStubAssembler* a,
+                                  compiler::Node* promise) {
+  typedef compiler::Node Node;
+
+  Node* const flags = a->LoadObjectField(promise, JSPromise::kFlagsOffset);
+  return a->IsSetWord(a->SmiUntag(flags), 1 << JSPromise::kHasHandlerBit);
+}
+
+void PromiseSetHasHandler(CodeStubAssembler* a, compiler::Node* promise) {
+  typedef compiler::Node Node;
+
+  Node* const flags = a->LoadObjectField(promise, JSPromise::kFlagsOffset);
+  Node* const new_flags =
+      a->WordOr(flags, a->IntPtrConstant(1 << JSPromise::kHasHandlerBit));
+  a->StoreObjectField(promise, JSPromise::kFlagsOffset, a->SmiTag(new_flags));
+}
+
 compiler::Node* SpeciesConstructor(CodeStubAssembler* a, Isolate* isolate,
                                    compiler::Node* context,
                                    compiler::Node* object,
@@ -404,7 +400,6 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
   typedef CodeStubAssembler::Variable Variable;
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-
   Isolate* isolate = a->isolate();
   Node* const native_context = a->LoadNativeContext(context);
 
@@ -536,16 +531,11 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
 
       a->Bind(&reject);
       {
-        Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-        Node* const key =
-            a->HeapConstant(isolate->factory()->promise_has_handler_symbol());
-        Node* const has_handler =
-            a->CallStub(getproperty_callable, context, promise, key);
-
+        Node* const has_handler = PromiseHasHandler(a, promise);
         Label enqueue(a);
 
         // TODO(gsathya): Fold these runtime calls and move to TF.
-        a->GotoIf(a->WordEqual(has_handler, a->TrueConstant()), &enqueue);
+        a->GotoIf(has_handler, &enqueue);
         a->CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
         a->Goto(&enqueue);
 
@@ -562,11 +552,7 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
   }
 
   a->Bind(&out);
-  // TODO(gsathya): Protect with debug check.
-  a->CallRuntime(
-      Runtime::kSetProperty, context, promise,
-      a->HeapConstant(isolate->factory()->promise_has_handler_symbol()),
-      a->TrueConstant(), a->SmiConstant(STRICT));
+  PromiseSetHasHandler(a, promise);
 
   // TODO(gsathya): This call will be removed once we don't have to
   // deal with deferred objects.
@@ -665,6 +651,245 @@ void Builtins::Generate_PromiseThen(compiler::CodeAssemblerState* state) {
   Node* const result = InternalPerformPromiseThen(
       &a, context, promise, on_resolve, on_reject, var_deferred.value());
   a.Return(result);
+}
+
+namespace {
+
+// Promise fast path implementations rely on unmodified JSPromise instances.
+// We use a fairly coarse granularity for this and simply check whether both
+// the promise itself is unmodified (i.e. its map has not changed) and its
+// prototype is unmodified.
+// TODO(gsathya): Refactor this out to prevent code dupe with builtins-regexp
+void BranchIfFastPath(CodeStubAssembler* a, compiler::Node* context,
+                      compiler::Node* promise,
+                      CodeStubAssembler::Label* if_isunmodified,
+                      CodeStubAssembler::Label* if_ismodified) {
+  typedef compiler::Node Node;
+
+  // TODO(gsathya): Assert if promise is receiver
+  Node* const map = a->LoadMap(promise);
+  Node* const native_context = a->LoadNativeContext(context);
+  Node* const promise_fun =
+      a->LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Node* const initial_map =
+      a->LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* const has_initialmap = a->WordEqual(map, initial_map);
+
+  a->GotoUnless(has_initialmap, if_ismodified);
+
+  Node* const initial_proto_initial_map = a->LoadContextElement(
+      native_context, Context::PROMISE_PROTOTYPE_MAP_INDEX);
+  Node* const proto_map = a->LoadMap(a->LoadMapPrototype(map));
+  Node* const proto_has_initialmap =
+      a->WordEqual(proto_map, initial_proto_initial_map);
+
+  a->Branch(proto_has_initialmap, if_isunmodified, if_ismodified);
+}
+
+void InternalResolvePromise(CodeStubAssembler* a, compiler::Node* context,
+                            compiler::Node* promise, compiler::Node* result,
+                            CodeStubAssembler::Label* out) {
+  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Isolate* isolate = a->isolate();
+
+  Variable var_reason(a, MachineRepresentation::kTagged),
+      var_then(a, MachineRepresentation::kTagged);
+
+  Label do_enqueue(a), fulfill(a), if_cycle(a, Label::kDeferred),
+      if_rejectpromise(a, Label::kDeferred);
+
+  // 6. If SameValue(resolution, promise) is true, then
+  a->GotoIf(a->SameValue(promise, result, context), &if_cycle);
+
+  // 7. If Type(resolution) is not Object, then
+  a->GotoIf(a->TaggedIsSmi(result), &fulfill);
+  a->GotoUnless(a->IsJSReceiver(result), &fulfill);
+
+  Label if_nativepromise(a), if_notnativepromise(a, Label::kDeferred);
+  BranchIfFastPath(a, context, result, &if_nativepromise, &if_notnativepromise);
+
+  // Resolution is a native promise and if it's already resolved or
+  // rejected, shortcircuit the resolution procedure by directly
+  // reusing the value from the promise.
+  a->Bind(&if_nativepromise);
+  {
+    Node* const thenable_status =
+        a->LoadObjectField(result, JSPromise::kStatusOffset);
+    Node* const thenable_value =
+        a->LoadObjectField(result, JSPromise::kResultOffset);
+
+    Label if_isnotpending(a);
+    a->GotoUnless(a->SmiEqual(a->SmiConstant(kPromisePending), thenable_status),
+                  &if_isnotpending);
+
+    // TODO(gsathya): Use a marker here instead of the actual then
+    // callback, and check for the marker in PromiseResolveThenableJob
+    // and perform PromiseThen.
+    Node* const native_context = a->LoadNativeContext(context);
+    Node* const then =
+        a->LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
+    var_then.Bind(then);
+    a->Goto(&do_enqueue);
+
+    a->Bind(&if_isnotpending);
+    {
+      Label if_fulfilled(a), if_rejected(a);
+      a->Branch(a->SmiEqual(a->SmiConstant(kPromiseFulfilled), thenable_status),
+                &if_fulfilled, &if_rejected);
+
+      a->Bind(&if_fulfilled);
+      {
+        a->CallRuntime(Runtime::kPromiseFulfill, context, promise,
+                       a->SmiConstant(kPromiseFulfilled), thenable_value);
+        PromiseSetHasHandler(a, promise);
+        a->Goto(out);
+      }
+
+      a->Bind(&if_rejected);
+      {
+        Label reject(a);
+        Node* const has_handler = PromiseHasHandler(a, result);
+
+        // Promise has already been rejected, but had no handler.
+        // Revoke previously triggered reject event.
+        a->GotoIf(has_handler, &reject);
+        a->CallRuntime(Runtime::kPromiseRevokeReject, context, result);
+        a->Goto(&reject);
+
+        a->Bind(&reject);
+        // Don't cause a debug event as this case is forwarding a rejection
+        a->CallRuntime(Runtime::kPromiseReject, context, promise,
+                       thenable_value, a->FalseConstant());
+        PromiseSetHasHandler(a, result);
+        a->Goto(out);
+      }
+    }
+  }
+
+  a->Bind(&if_notnativepromise);
+  {
+    // 8. Let then be Get(resolution, "then").
+    Node* const then_str = a->HeapConstant(isolate->factory()->then_string());
+    Callable getproperty_callable = CodeFactory::GetProperty(a->isolate());
+    Node* const then =
+        a->CallStub(getproperty_callable, context, result, then_str);
+
+    // 9. If then is an abrupt completion, then
+    a->GotoIfException(then, &if_rejectpromise, &var_reason);
+
+    // 11. If IsCallable(thenAction) is false, then
+    a->GotoIf(a->TaggedIsSmi(then), &fulfill);
+    Node* const then_map = a->LoadMap(then);
+    a->GotoUnless(a->IsCallableMap(then_map), &fulfill);
+    var_then.Bind(then);
+    a->Goto(&do_enqueue);
+  }
+
+  a->Bind(&do_enqueue);
+  {
+    Label enqueue(a);
+    a->GotoUnless(a->IsDebugActive(), &enqueue);
+    a->GotoIf(a->TaggedIsSmi(result), &enqueue);
+    a->GotoUnless(a->HasInstanceType(result, JS_PROMISE_TYPE), &enqueue);
+    // Mark the dependency of the new promise on the resolution
+    Node* const key =
+        a->HeapConstant(isolate->factory()->promise_handled_by_symbol());
+    a->CallRuntime(Runtime::kSetProperty, context, result, key, promise,
+                   a->SmiConstant(STRICT));
+    a->Goto(&enqueue);
+
+    // 12. Perform EnqueueJob("PromiseJobs",
+    // PromiseResolveThenableJob, « promise, resolution, thenAction
+    // »).
+    a->Bind(&enqueue);
+    a->CallRuntime(Runtime::kEnqueuePromiseResolveThenableJob, context, promise,
+                   result, var_then.value());
+    a->Goto(out);
+  }
+  // 7.b Return FulfillPromise(promise, resolution).
+  a->Bind(&fulfill);
+  {
+    a->CallRuntime(Runtime::kPromiseFulfill, context, promise,
+                   a->SmiConstant(kPromiseFulfilled), result);
+    a->Goto(out);
+  }
+
+  a->Bind(&if_cycle);
+  {
+    // 6.a Let selfResolutionError be a newly created TypeError object.
+    Node* const message_id = a->SmiConstant(MessageTemplate::kPromiseCyclic);
+    Node* const error =
+        a->CallRuntime(Runtime::kNewTypeError, context, message_id, result);
+    var_reason.Bind(error);
+
+    // 6.b Return RejectPromise(promise, selfResolutionError).
+    a->Goto(&if_rejectpromise);
+  }
+
+  // 9.a Return RejectPromise(promise, then.[[Value]]).
+  a->Bind(&if_rejectpromise);
+  {
+    a->CallRuntime(Runtime::kPromiseReject, context, promise,
+                   var_reason.value(), a->TrueConstant());
+    a->Goto(out);
+  }
+}
+
+}  // namespace
+
+// ES#sec-promise-resolve-functions
+// Promise Resolve Functions
+void Builtins::Generate_PromiseResolveClosure(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* const value = a.Parameter(1);
+  Node* const context = a.Parameter(4);
+
+  Label out(&a);
+
+  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
+  Node* const has_already_visited_slot =
+      a.IntPtrConstant(PromiseUtils::kAlreadyVisitedSlot);
+
+  Node* const has_already_visited =
+      a.LoadFixedArrayElement(context, has_already_visited_slot);
+
+  // 4. If alreadyResolved.[[Value]] is true, return undefined.
+  a.GotoIf(a.SmiEqual(has_already_visited, a.SmiConstant(1)), &out);
+
+  // 5.Set alreadyResolved.[[Value]] to true.
+  a.StoreFixedArrayElement(context, has_already_visited_slot, a.SmiConstant(1));
+
+  // 2. Let promise be F.[[Promise]].
+  Node* const promise = a.LoadFixedArrayElement(
+      context, a.IntPtrConstant(PromiseUtils::kPromiseSlot));
+
+  InternalResolvePromise(&a, context, promise, value, &out);
+
+  a.Bind(&out);
+  a.Return(a.UndefinedConstant());
+}
+
+void Builtins::Generate_ResolvePromise(compiler::CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* const promise = a.Parameter(1);
+  Node* const result = a.Parameter(2);
+  Node* const context = a.Parameter(5);
+
+  Label out(&a);
+  InternalResolvePromise(&a, context, promise, result, &out);
+
+  a.Bind(&out);
+  a.Return(a.UndefinedConstant());
 }
 
 }  // namespace internal

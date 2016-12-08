@@ -1855,8 +1855,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, factory->to_string_tag_symbol(), factory->Promise_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    SimpleInstallFunction(prototype, "then", Builtins::kPromiseThen, 2, true,
+    Handle<JSFunction> promise_then =
+        SimpleCreateFunction(isolate, isolate->factory()->then_string(),
+                             Builtins::kPromiseThen, 2, true);
+    JSObject::AddProperty(prototype, isolate->factory()->then_string(),
+                          promise_then, DONT_ENUM);
+    InstallWithIntrinsicDefaultProto(isolate, promise_then,
+                                     Context::PROMISE_THEN_INDEX);
+
+    // TODO(gsathya): Move to TF
+    SimpleInstallFunction(prototype, "catch", Builtins::kIllegal, 1, true,
                           DONT_ENUM);
+
+    Handle<Map> prototype_map(prototype->map());
+    Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
+
+    // Store the initial Promise.prototype map. This is used in fast-path
+    // checks. Do not alter the prototype after this point.
+    native_context()->set_promise_prototype_map(*prototype_map);
 
     {  // Internal: PromiseInternalConstructor
       Handle<JSFunction> function =
@@ -1887,6 +1903,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Builtins::kPerformPromiseThen, 4, false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PERFORM_PROMISE_THEN_INDEX);
+    }
+
+    {  // Internal: ResolvePromise
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kResolvePromise, 2, false);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PROMISE_RESOLVE_INDEX);
     }
 
     {
@@ -3522,6 +3546,9 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   native_context()->set_extras_utils_object(*extras_utils);
 
   InstallInternalArray(extras_utils, "InternalPackedArray", FAST_ELEMENTS);
+
+  InstallFunction(extras_utils, isolate()->promise_resolve(),
+                  factory()->NewStringFromAsciiChecked("resolvePromise"));
 
   int builtin_index = Natives::GetDebuggerCount();
   // Only run prologue.js and runtime.js at this point.

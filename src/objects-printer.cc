@@ -551,6 +551,7 @@ void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
   os << "\n - deferreds = " << Brief(deferred());
   os << "\n - fulfill_reactions = " << Brief(fulfill_reactions());
   os << "\n - reject_reactions = " << Brief(reject_reactions());
+  os << "\n - has_handler = " << has_handler();
 }
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT

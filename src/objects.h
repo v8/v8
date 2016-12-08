@@ -8910,6 +8910,11 @@ class JSPromise : public JSObject {
   DECL_ACCESSORS(fulfill_reactions, Object)
   DECL_ACCESSORS(reject_reactions, Object)
 
+  DECL_INT_ACCESSORS(flags)
+
+  // [has_handler]: Whether this promise has a reject handler or not.
+  DECL_BOOLEAN_ACCESSORS(has_handler)
+
   static const char* Status(int status);
 
   DECLARE_CAST(JSPromise)
@@ -8925,7 +8930,11 @@ class JSPromise : public JSObject {
   static const int kFulfillReactionsOffset = kDeferredOffset + kPointerSize;
   static const int kRejectReactionsOffset =
       kFulfillReactionsOffset + kPointerSize;
-  static const int kSize = kRejectReactionsOffset + kPointerSize;
+  static const int kFlagsOffset = kRejectReactionsOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
+
+  // Flags layout.
+  static const int kHasHandlerBit = 0;
 };
 
 // Regular expressions

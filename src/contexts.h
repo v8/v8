@@ -65,7 +65,9 @@ enum ContextLookupFlags {
     promise_internal_constructor)                                            \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                                \
   V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)            \
-  V(PROMISE_CREATE_AND_SET_INDEX, JSFunction, promise_create_and_set)
+  V(PROMISE_CREATE_AND_SET_INDEX, JSFunction, promise_create_and_set)        \
+  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                      \
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
@@ -105,10 +107,8 @@ enum ContextLookupFlags {
   V(PROMISE_DEBUG_GET_INFO_INDEX, JSFunction, promise_debug_get_info)         \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject)       \
-  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                       \
   V(PROMISE_ID_RESOLVE_HANDLER_INDEX, JSFunction, promise_id_resolve_handler) \
   V(PROMISE_ID_REJECT_HANDLER_INDEX, JSFunction, promise_id_reject_handler)   \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                             \
   V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)         \
   V(INTERNAL_PROMISE_CAPABILITY_INDEX, JSFunction,                            \
     internal_promise_capability)                                              \
@@ -291,6 +291,7 @@ enum ContextLookupFlags {
   V(PROMISE_RESOLVE_SHARED_FUN, SharedFunctionInfo,                            \
     promise_resolve_shared_fun)                                                \
   V(PROMISE_REJECT_SHARED_FUN, SharedFunctionInfo, promise_reject_shared_fun)  \
+  V(PROMISE_PROTOTYPE_MAP_INDEX, Map, promise_prototype_map)                   \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(REGEXP_LAST_MATCH_INFO_INDEX, RegExpMatchInfo, regexp_last_match_info)     \

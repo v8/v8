@@ -7238,8 +7238,11 @@ bool Promise::HasHandler() {
   i::Isolate* isolate = promise->GetIsolate();
   LOG_API(isolate, Promise, HasRejectHandler);
   ENTER_V8(isolate);
-  i::Handle<i::Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  return i::JSReceiver::GetDataProperty(promise, key)->IsTrue(isolate);
+  if (promise->IsJSPromise()) {
+    i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
+    return js_promise->has_handler();
+  }
+  return false;
 }
 
 
