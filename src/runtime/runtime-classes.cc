@@ -10,6 +10,7 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/debug/debug.h"
+#include "src/elements.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -455,10 +456,10 @@ RUNTIME_FUNCTION(Runtime_NewWithSpread) {
   }
 
   // Append element of the spread to the result.
+  ElementsAccessor* accessor = spread_array->GetElementsAccessor();
   for (uint32_t i = 0; i < spread_length; i++) {
-    // TODO(petermarshall): Use ElementAccessors here.
-    LookupIterator it(isolate, spread, i);
-    Handle<Object> element = spread_array->GetDataProperty(&it);
+    DCHECK(accessor->HasElement(spread_array, i));
+    Handle<Object> element = accessor->Get(spread_array, i);
     construct_args[constructor_argc - 1 + i] = element;
   }
 
