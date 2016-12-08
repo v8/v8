@@ -366,3 +366,21 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     verify_mem_size(++current_mem_size);
   }
 })();
+
+(function TestExportGrow() {
+  print("TestExportGrow");
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(1, 5, true);
+  builder.exportMemoryAs("exported_mem");
+  builder.addFunction("mem_size", kSig_i_v)
+    .addBody([kExprMemorySize, kMemoryZero])
+    .exportFunc();
+  builder.addFunction("grow", kSig_i_i)
+    .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+    .exportFunc();
+  instance = builder.instantiate();
+  assertEquals(kPageSize, instance.exports.exported_mem.buffer.byteLength);
+  assertEquals(1, instance.exports.grow(2));
+  assertEquals(3, instance.exports.mem_size());
+  assertEquals(3*kPageSize, instance.exports.exported_mem.buffer.byteLength);
+})();

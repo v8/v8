@@ -1221,11 +1221,6 @@ class WasmInstanceBuilder {
       LoadDataSegments(nullptr, 0);
     }
 
-    DCHECK(wasm::IsWasmInstance(*instance));
-    if (instance->has_memory_object()) {
-      instance->get_memory_object()->AddInstance(isolate_, instance);
-    }
-
     //--------------------------------------------------------------------------
     // Set up the runtime support for the new instance.
     //--------------------------------------------------------------------------
@@ -1247,6 +1242,14 @@ class WasmInstanceBuilder {
     // Set up the exports object for the new instance.
     //--------------------------------------------------------------------------
     ProcessExports(code_table, instance);
+
+    //--------------------------------------------------------------------------
+    // Add instance to Memory object
+    //--------------------------------------------------------------------------
+    DCHECK(wasm::IsWasmInstance(*instance));
+    if (instance->has_memory_object()) {
+      instance->get_memory_object()->AddInstance(isolate_, instance);
+    }
 
     //--------------------------------------------------------------------------
     // Set up the indirect function tables for the new instance.
@@ -1293,6 +1296,7 @@ class WasmInstanceBuilder {
       }
     }
 
+    //--------------------------------------------------------------------------
     // Set up and link the new instance.
     //--------------------------------------------------------------------------
     {
