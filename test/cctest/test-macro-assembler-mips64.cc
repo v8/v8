@@ -2016,27 +2016,27 @@ static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   // Generate out-of-line cases.
   __ bind(&ool_min_abc);
   __ Float32MinOutOfLine(a, b, c);
-  __ b(&done_min_abc);
+  __ Branch(&done_min_abc);
 
   __ bind(&ool_min_aab);
   __ Float32MinOutOfLine(a, a, b);
-  __ b(&done_min_aab);
+  __ Branch(&done_min_aab);
 
   __ bind(&ool_min_aba);
   __ Float32MinOutOfLine(a, b, a);
-  __ b(&done_min_aba);
+  __ Branch(&done_min_aba);
 
   __ bind(&ool_max_abc);
   __ Float32MaxOutOfLine(a, b, c);
-  __ b(&done_max_abc);
+  __ Branch(&done_max_abc);
 
   __ bind(&ool_max_aab);
   __ Float32MaxOutOfLine(a, a, b);
-  __ b(&done_max_aab);
+  __ Branch(&done_max_aab);
 
   __ bind(&ool_max_aba);
   __ Float32MaxOutOfLine(a, b, a);
-  __ b(&done_max_aba);
+  __ Branch(&done_max_aba);
 
   CodeDesc desc;
   masm->GetCode(&desc);
@@ -2159,27 +2159,27 @@ static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   // Generate out-of-line cases.
   __ bind(&ool_min_abc);
   __ Float64MinOutOfLine(a, b, c);
-  __ b(&done_min_abc);
+  __ Branch(&done_min_abc);
 
   __ bind(&ool_min_aab);
   __ Float64MinOutOfLine(a, a, b);
-  __ b(&done_min_aab);
+  __ Branch(&done_min_aab);
 
   __ bind(&ool_min_aba);
   __ Float64MinOutOfLine(a, b, a);
-  __ b(&done_min_aba);
+  __ Branch(&done_min_aba);
 
   __ bind(&ool_max_abc);
   __ Float64MaxOutOfLine(a, b, c);
-  __ b(&done_max_abc);
+  __ Branch(&done_max_abc);
 
   __ bind(&ool_max_aab);
   __ Float64MaxOutOfLine(a, a, b);
-  __ b(&done_max_aab);
+  __ Branch(&done_max_aab);
 
   __ bind(&ool_max_aba);
   __ Float64MaxOutOfLine(a, b, a);
-  __ b(&done_max_aba);
+  __ Branch(&done_max_aba);
 
   CodeDesc desc;
   masm->GetCode(&desc);

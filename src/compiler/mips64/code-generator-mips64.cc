@@ -1453,52 +1453,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputSingleRegister();
       FPURegister src1 = i.InputSingleRegister(0);
       FPURegister src2 = i.InputSingleRegister(1);
-      if (src1.is(src2)) {
-        __ Move_s(dst, src1);
-      } else {
-        auto ool = new (zone()) OutOfLineFloat32Max(this, dst, src1, src2);
-        __ Float32Max(dst, src1, src2, ool->entry());
-        __ bind(ool->exit());
-      }
+      auto ool = new (zone()) OutOfLineFloat32Max(this, dst, src1, src2);
+      __ Float32Max(dst, src1, src2, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kMips64Float64Max: {
       FPURegister dst = i.OutputDoubleRegister();
       FPURegister src1 = i.InputDoubleRegister(0);
       FPURegister src2 = i.InputDoubleRegister(1);
-      if (src1.is(src2)) {
-        __ Move_d(dst, src1);
-      } else {
-        auto ool = new (zone()) OutOfLineFloat64Max(this, dst, src1, src2);
-        __ Float64Max(dst, src1, src2, ool->entry());
-        __ bind(ool->exit());
-      }
+      auto ool = new (zone()) OutOfLineFloat64Max(this, dst, src1, src2);
+      __ Float64Max(dst, src1, src2, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kMips64Float32Min: {
       FPURegister dst = i.OutputSingleRegister();
       FPURegister src1 = i.InputSingleRegister(0);
       FPURegister src2 = i.InputSingleRegister(1);
-      if (src1.is(src2)) {
-        __ Move_s(dst, src1);
-      } else {
-        auto ool = new (zone()) OutOfLineFloat32Min(this, dst, src1, src2);
-        __ Float32Min(dst, src1, src2, ool->entry());
-        __ bind(ool->exit());
-      }
+      auto ool = new (zone()) OutOfLineFloat32Min(this, dst, src1, src2);
+      __ Float32Min(dst, src1, src2, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kMips64Float64Min: {
       FPURegister dst = i.OutputDoubleRegister();
       FPURegister src1 = i.InputDoubleRegister(0);
       FPURegister src2 = i.InputDoubleRegister(1);
-      if (src1.is(src2)) {
-        __ Move_d(dst, src1);
-      } else {
-        auto ool = new (zone()) OutOfLineFloat64Min(this, dst, src1, src2);
-        __ Float64Min(dst, src1, src2, ool->entry());
-        __ bind(ool->exit());
-      }
+      auto ool = new (zone()) OutOfLineFloat64Min(this, dst, src1, src2);
+      __ Float64Min(dst, src1, src2, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kMips64Float64SilenceNaN:

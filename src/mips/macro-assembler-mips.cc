@@ -5879,7 +5879,10 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register first,
 
 void MacroAssembler::Float32Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
-  DCHECK(!src1.is(src2));
+  if (src1.is(src2)) {
+    Move_s(dst, src1);
+    return;
+  }
 
   // Check if one of operands is NaN.
   BranchF32(nullptr, out_of_line, eq, src1, src2);
@@ -5889,27 +5892,19 @@ void MacroAssembler::Float32Max(FPURegister dst, FPURegister src1,
   } else {
     Label return_left, return_right, done;
 
-    c(OLT, S, src1, src2);
-    bc1t(&return_right);
-    nop();
-
-    c(OLT, S, src2, src1);
-    bc1t(&return_left);
-    nop();
+    BranchF32(&return_right, nullptr, lt, src1, src2);
+    BranchF32(&return_left, nullptr, lt, src2, src1);
 
     // Operands are equal, but check for +/-0.
     mfc1(t8, src1);
-    beq(t8, zero_reg, &return_left);
-    nop();
-    b(&return_right);
-    nop();
+    Branch(&return_left, eq, t8, Operand(zero_reg));
+    Branch(&return_right);
 
     bind(&return_right);
     if (!src2.is(dst)) {
       Move_s(dst, src2);
     }
-    b(&done);
-    nop();
+    Branch(&done);
 
     bind(&return_left);
     if (!src1.is(dst)) {
@@ -5922,13 +5917,15 @@ void MacroAssembler::Float32Max(FPURegister dst, FPURegister src1,
 
 void MacroAssembler::Float32MaxOutOfLine(FPURegister dst, FPURegister src1,
                                          FPURegister src2) {
-  DCHECK(!src1.is(src2));
   add_s(dst, src1, src2);
 }
 
 void MacroAssembler::Float32Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
-  DCHECK(!src1.is(src2));
+  if (src1.is(src2)) {
+    Move_s(dst, src1);
+    return;
+  }
 
   // Check if one of operands is NaN.
   BranchF32(nullptr, out_of_line, eq, src1, src2);
@@ -5938,27 +5935,19 @@ void MacroAssembler::Float32Min(FPURegister dst, FPURegister src1,
   } else {
     Label return_left, return_right, done;
 
-    c(OLT, S, src1, src2);
-    bc1t(&return_left);
-    nop();
-
-    c(OLT, S, src2, src1);
-    bc1t(&return_right);
-    nop();
+    BranchF32(&return_left, nullptr, lt, src1, src2);
+    BranchF32(&return_right, nullptr, lt, src2, src1);
 
     // Left equals right => check for -0.
     mfc1(t8, src1);
-    beq(t8, zero_reg, &return_right);
-    nop();
-    b(&return_left);
-    nop();
+    Branch(&return_right, eq, t8, Operand(zero_reg));
+    Branch(&return_left);
 
     bind(&return_right);
     if (!src2.is(dst)) {
       Move_s(dst, src2);
     }
-    b(&done);
-    nop();
+    Branch(&done);
 
     bind(&return_left);
     if (!src1.is(dst)) {
@@ -5971,13 +5960,15 @@ void MacroAssembler::Float32Min(FPURegister dst, FPURegister src1,
 
 void MacroAssembler::Float32MinOutOfLine(FPURegister dst, FPURegister src1,
                                          FPURegister src2) {
-  DCHECK(!src1.is(src2));
   add_s(dst, src1, src2);
 }
 
 void MacroAssembler::Float64Max(DoubleRegister dst, DoubleRegister src1,
                                 DoubleRegister src2, Label* out_of_line) {
-  DCHECK(!src1.is(src2));
+  if (src1.is(src2)) {
+    Move_d(dst, src1);
+    return;
+  }
 
   // Check if one of operands is NaN.
   BranchF64(nullptr, out_of_line, eq, src1, src2);
@@ -5987,27 +5978,19 @@ void MacroAssembler::Float64Max(DoubleRegister dst, DoubleRegister src1,
   } else {
     Label return_left, return_right, done;
 
-    c(OLT, D, src1, src2);
-    bc1t(&return_right);
-    nop();
-
-    c(OLT, D, src2, src1);
-    bc1t(&return_left);
-    nop();
+    BranchF64(&return_right, nullptr, lt, src1, src2);
+    BranchF64(&return_left, nullptr, lt, src2, src1);
 
     // Left equals right => check for -0.
     Mfhc1(t8, src1);
-    beq(t8, zero_reg, &return_left);
-    nop();
-    b(&return_right);
-    nop();
+    Branch(&return_left, eq, t8, Operand(zero_reg));
+    Branch(&return_right);
 
     bind(&return_right);
     if (!src2.is(dst)) {
       Move_d(dst, src2);
     }
-    b(&done);
-    nop();
+    Branch(&done);
 
     bind(&return_left);
     if (!src1.is(dst)) {
@@ -6021,13 +6004,15 @@ void MacroAssembler::Float64Max(DoubleRegister dst, DoubleRegister src1,
 void MacroAssembler::Float64MaxOutOfLine(DoubleRegister dst,
                                          DoubleRegister src1,
                                          DoubleRegister src2) {
-  DCHECK(!src1.is(src2));
   add_d(dst, src1, src2);
 }
 
 void MacroAssembler::Float64Min(DoubleRegister dst, DoubleRegister src1,
                                 DoubleRegister src2, Label* out_of_line) {
-  DCHECK(!src1.is(src2));
+  if (src1.is(src2)) {
+    Move_d(dst, src1);
+    return;
+  }
 
   // Check if one of operands is NaN.
   BranchF64(nullptr, out_of_line, eq, src1, src2);
@@ -6037,27 +6022,19 @@ void MacroAssembler::Float64Min(DoubleRegister dst, DoubleRegister src1,
   } else {
     Label return_left, return_right, done;
 
-    c(OLT, D, src1, src2);
-    bc1t(&return_left);
-    nop();
-
-    c(OLT, D, src2, src1);
-    bc1t(&return_right);
-    nop();
+    BranchF64(&return_left, nullptr, lt, src1, src2);
+    BranchF64(&return_right, nullptr, lt, src2, src1);
 
     // Left equals right => check for -0.
     Mfhc1(t8, src1);
-    beq(t8, zero_reg, &return_right);
-    nop();
-    b(&return_left);
-    nop();
+    Branch(&return_right, eq, t8, Operand(zero_reg));
+    Branch(&return_left);
 
     bind(&return_right);
     if (!src2.is(dst)) {
       Move_d(dst, src2);
     }
-    b(&done);
-    nop();
+    Branch(&done);
 
     bind(&return_left);
     if (!src1.is(dst)) {
@@ -6071,7 +6048,6 @@ void MacroAssembler::Float64Min(DoubleRegister dst, DoubleRegister src1,
 void MacroAssembler::Float64MinOutOfLine(DoubleRegister dst,
                                          DoubleRegister src1,
                                          DoubleRegister src2) {
-  DCHECK(!src1.is(src2));
   add_d(dst, src1, src2);
 }
 
