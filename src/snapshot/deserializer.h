@@ -138,6 +138,7 @@ class Deserializer : public SerializerDeserializer {
 
   List<HeapObject*> deserialized_large_objects_;
   List<Code*> new_code_objects_;
+  List<AccessorInfo*> accessor_infos_;
   List<Handle<String> > new_internalized_strings_;
   List<Handle<Script> > new_scripts_;
 

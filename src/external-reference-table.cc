@@ -363,9 +363,8 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
 
   static const AccessorRefTable getters[] = {
-#define ACCESSOR_INFO_DECLARATION(name)     \
-  { FUNCTION_ADDR(&Accessors::name##Getter), \
-    "Redirect to Accessors::" #name "Getter"},
+#define ACCESSOR_INFO_DECLARATION(name) \
+  {FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter"},
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
@@ -377,10 +376,7 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
-    const char* name = getters[i].name + 12;  // Skip "Redirect to " prefix.
-    Add(getters[i].address, name);
-    Add(AccessorInfo::redirect(isolate, getters[i].address, ACCESSOR_GETTER),
-        getters[i].name);
+    Add(getters[i].address, getters[i].name);
   }
 
   for (unsigned i = 0; i < arraysize(setters); ++i) {
