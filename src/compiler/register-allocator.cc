@@ -2985,7 +2985,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
     GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
   DCHECK_GE(positions.length(), num_regs);
 
-  for (int i = 0; i < num_regs; i++) {
+  for (int i = 0; i < num_regs; ++i) {
     positions[i] = LifetimePosition::MaxPosition();
   }
 
@@ -3009,9 +3009,13 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 
   for (LiveRange* cur_inactive : inactive_live_ranges()) {
     DCHECK(cur_inactive->End() > range->Start());
+    int cur_reg = cur_inactive->assigned_register();
+    // No need to carry out intersections, when this register won't be
+    // interesting to this range anyway.
+    if (positions[cur_reg] < range->Start()) continue;
+
     LifetimePosition next_intersection = cur_inactive->FirstIntersection(range);
     if (!next_intersection.IsValid()) continue;
-    int cur_reg = cur_inactive->assigned_register();
     if (kSimpleFPAliasing || !check_fp_aliasing()) {
       positions[cur_reg] = Min(positions[cur_reg], next_intersection);
       TRACE("Register %s is free until pos %d (2)\n", RegisterName(cur_reg),
@@ -3111,8 +3115,9 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   const int* codes = allocatable_register_codes();
   MachineRepresentation rep = current->representation();
   if (!kSimpleFPAliasing && (rep == MachineRepresentation::kFloat32 ||
-                             rep == MachineRepresentation::kSimd128))
+                             rep == MachineRepresentation::kSimd128)) {
     GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
+  }
 
   DCHECK_GE(free_until_pos.length(), num_codes);
 
