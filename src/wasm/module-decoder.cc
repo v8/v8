@@ -1204,7 +1204,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("table size");
     if (size == 0) {
-      table.push_back(std::vector<std::pair<int, int>>());
+      table.push_back(std::vector<AsmJsOffsetEntry>());
       continue;
     }
     if (!decoder.checkAvailable(size)) {
@@ -1214,12 +1214,17 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
     uint32_t locals_size = decoder.consume_u32("locals size");
     int last_byte_offset = locals_size;
     int last_asm_position = 0;
-    std::vector<std::pair<int, int>> func_asm_offsets;
+    std::vector<AsmJsOffsetEntry> func_asm_offsets;
     func_asm_offsets.reserve(size / 4);  // conservative estimation
     while (decoder.ok() && decoder.pc() < table_end) {
       last_byte_offset += decoder.consume_u32v("byte offset delta");
-      last_asm_position += decoder.consume_i32v("asm position delta");
-      func_asm_offsets.push_back({last_byte_offset, last_asm_position});
+      int call_position =
+          last_asm_position + decoder.consume_i32v("call position delta");
+      int to_number_position =
+          call_position + decoder.consume_i32v("to_number position delta");
+      last_asm_position = to_number_position;
+      func_asm_offsets.push_back(
+          {last_byte_offset, call_position, to_number_position});
     }
     if (decoder.pc() != table_end) {
       decoder.error("broken asm offset table");

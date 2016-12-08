@@ -134,7 +134,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitDirectCallIndex(uint32_t index);
   void ExportAs(Vector<const char> name);
   void SetName(Vector<const char> name);
-  void AddAsmWasmOffset(int asm_position);
+  void AddAsmWasmOffset(int call_position, int to_number_position);
 
   void WriteSignature(ZoneBuffer& buffer) const;
   void WriteExports(ZoneBuffer& buffer) const;

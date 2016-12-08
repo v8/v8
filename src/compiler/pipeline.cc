@@ -137,14 +137,14 @@ class PipelineData {
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Graph* graph,
-               Schedule* schedule)
+               Schedule* schedule, SourcePositionTable* source_positions)
       : isolate_(info->isolate()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_(graph),
-        source_positions_(new (info->zone()) SourcePositionTable(graph_)),
+        source_positions_(source_positions),
         schedule_(schedule),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
@@ -1641,7 +1641,8 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
-  PipelineData data(&zone_stats, &info, graph, schedule);
+  SourcePositionTable source_positions(graph);
+  PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1695,13 +1696,16 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 }
 
 // static
-Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
-                                              CallDescriptor* call_descriptor,
-                                              Graph* graph,
-                                              Schedule* schedule) {
+Handle<Code> Pipeline::GenerateCodeForTesting(
+    CompilationInfo* info, CallDescriptor* call_descriptor, Graph* graph,
+    Schedule* schedule, SourcePositionTable* source_positions) {
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(info->isolate()->allocator());
-  PipelineData data(&zone_stats, info, graph, schedule);
+  // TODO(wasm): Refactor code generation to check for non-existing source
+  // table, then remove this conditional allocation.
+  if (!source_positions)
+    source_positions = new (info->zone()) SourcePositionTable(graph);
+  PipelineData data(&zone_stats, info, graph, schedule, source_positions);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(info, &zone_stats));

@@ -1111,6 +1111,7 @@ class WasmFrame : public StandardFrame {
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;
+  bool at_to_number_conversion() const;
 
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());
@@ -1134,6 +1135,8 @@ class WasmToJsFrame : public StubFrame {
   inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);
 
  private:
+  void ComputeCallerState(State* state) const override;
+
   friend class StackFrameIteratorBase;
 };
 

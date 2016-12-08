@@ -71,7 +71,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         foreign_init_function_(nullptr),
         function_tables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
-        imported_function_table_(this) {
+        imported_function_table_(this),
+        parent_binop_(nullptr) {
     InitializeAstVisitor(isolate);
   }
 
@@ -1398,6 +1399,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   bool VisitCallExpression(Call* expr) {
     Call::CallType call_type = expr->GetCallType();
     bool returns_value = true;
+
+    // Save the parent now, it might be overwritten in VisitCallArgs.
+    BinaryOperation* parent_binop = parent_binop_;
+
     switch (call_type) {
       case Call::OTHER_CALL: {
         VariableProxy* proxy = expr->expression()->AsVariableProxy();
@@ -1428,13 +1433,20 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           uint32_t index = imported_function_table_.LookupOrInsertImportUse(
               vp->var(), sig.Build());
           VisitCallArgs(expr);
-          current_function_builder_->AddAsmWasmOffset(expr->position());
+          // For non-void functions, we must know the parent node.
+          DCHECK_IMPLIES(returns_value, parent_binop != nullptr);
+          DCHECK_IMPLIES(returns_value, parent_binop->left() == expr ||
+                                            parent_binop->right() == expr);
+          int pos = expr->position();
+          int parent_pos = returns_value ? parent_binop->position() : pos;
+          current_function_builder_->AddAsmWasmOffset(pos, parent_pos);
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitVarInt(index);
         } else {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
-          current_function_builder_->AddAsmWasmOffset(expr->position());
+          current_function_builder_->AddAsmWasmOffset(expr->position(),
+                                                      expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitDirectCallIndex(
               function->func_index());
@@ -1460,7 +1472,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VisitCallArgs(expr);
 
         current_function_builder_->EmitGetLocal(tmp.index());
-        current_function_builder_->AddAsmWasmOffset(expr->position());
+        current_function_builder_->AddAsmWasmOffset(expr->position(),
+                                                    expr->position());
         current_function_builder_->Emit(kExprCallIndirect);
         current_function_builder_->EmitVarInt(indices->signature_index);
         current_function_builder_->EmitVarInt(0);  // table index
@@ -1632,6 +1645,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitBinaryOperation(BinaryOperation* expr) {
     ConvertOperation convertOperation = MatchBinaryOperation(expr);
     static const bool kDontIgnoreSign = false;
+    parent_binop_ = expr;
     if (convertOperation == kToDouble) {
       RECURSE(Visit(expr->left()));
       TypeIndex type = TypeIndexOf(expr->left(), kDontIgnoreSign);
@@ -1935,6 +1949,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
   ImportedFunctionTable imported_function_table_;
+  // Remember the parent node for reporting the correct location for ToNumber
+  // conversions after calls.
+  BinaryOperation* parent_binop_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

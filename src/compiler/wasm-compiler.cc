@@ -2451,6 +2451,8 @@ Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context) {
   Node* result = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
                                   node, context, *effect_, *control_);
 
+  SetSourcePosition(result, 1);
+
   *effect_ = result;
 
   return result;
@@ -2850,6 +2852,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   }
 
   *effect_ = call;
+  SetSourcePosition(call, 0);
 
   // Convert the return value back.
   Node* i32_zero = jsgraph()->Int32Constant(0);
@@ -3324,7 +3327,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> module_name,
-                                    MaybeHandle<String> import_name) {
+                                    MaybeHandle<String> import_name,
+                                    wasm::ModuleOrigin origin) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -3337,7 +3341,11 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(&zone, &jsgraph, sig);
+  SourcePositionTable* source_position_table =
+      origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
+                                   : nullptr;
+
+  WasmGraphBuilder builder(&zone, &jsgraph, sig, source_position_table);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmToJSWrapper(target, sig);
@@ -3373,7 +3381,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
     }
 
     CompilationInfo info(func_name, isolate, &zone, flags);
-    code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
+    code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr,
+                                            source_position_table);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
       OFStream os(stdout);

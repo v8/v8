@@ -1580,9 +1580,18 @@ int WasmFrame::position() const {
         isolate());
     DCHECK_LE(0, position);
     position = WasmCompiledModule::GetAsmJsSourcePosition(
-        compiled_module, function_index(), static_cast<uint32_t>(position));
+        compiled_module, function_index(), static_cast<uint32_t>(position),
+        at_to_number_conversion());
   }
   return position;
+}
+
+bool WasmFrame::at_to_number_conversion() const {
+  // WasmToJsFrame::ComputeCallerState encoded this for us in the constant pool
+  // address. If there was no WasmToJsFrame above us, we just return false here,
+  // but this information is not relevant in this case anyway.
+  intptr_t addr_int = reinterpret_cast<intptr_t>(constant_pool_address());
+  return addr_int == 1;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {
@@ -1592,6 +1601,20 @@ int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   int pc_offset = static_cast<int>(pc() - code->entry());
   *stack_slots = code->stack_slots();
   return table->LookupReturn(pc_offset);
+}
+
+void WasmToJsFrame::ComputeCallerState(State* state) const {
+  // Remember at which of the two calls inside it we are, and transfer this
+  // information to the subsequent WASM frame.
+  Code* code = unchecked_code();
+  AbstractCode* abstract_code = AbstractCode::cast(code);
+  int offset = static_cast<int>(pc() - code->instruction_start());
+  int at_to_number_call = abstract_code->SourcePosition(offset);
+  DCHECK(at_to_number_call == 0 || at_to_number_call == 1);
+  StubFrame::ComputeCallerState(state);
+  // Use a little hack here: The constant pool address is not used for wasm
+  // frames, so use it to encode whether we are at the to_number call.
+  state->constant_pool_address = reinterpret_cast<Address*>(at_to_number_call);
 }
 
 namespace {
