@@ -5946,7 +5946,7 @@ ACCESSORS_CHECKED(Script, eval_from_shared, Object, kEvalFromSharedOffset,
                   this->type() != TYPE_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       this->type() != TYPE_WASM)
-ACCESSORS(Script, shared_function_infos, Object, kSharedFunctionInfosOffset)
+ACCESSORS(Script, shared_function_infos, FixedArray, kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
@@ -6062,8 +6062,6 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                kHasDuplicateParameters)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, never_compiled,
-               kNeverCompiled)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                kIsDeclaration)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
@@ -6284,8 +6282,6 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
 #endif  // DEBUG
 
   set_code(value);
-
-  if (is_compiled()) set_never_compiled(false);
 }
 
 bool SharedFunctionInfo::IsInterpreted() const {

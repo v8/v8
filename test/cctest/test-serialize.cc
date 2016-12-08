@@ -1806,10 +1806,10 @@ TEST(CodeSerializerEagerCompilationAndPreAge) {
     HandleScope i_scope(i_isolate);
     Handle<SharedFunctionInfo> toplevel = v8::Utils::OpenHandle(*unbound);
     Handle<Script> script(Script::cast(toplevel->script()));
-    WeakFixedArray::Iterator iterator(script->shared_function_infos());
     // Every function has been pre-compiled from the code cache.
     int count = 0;
-    while (SharedFunctionInfo* shared = iterator.Next<SharedFunctionInfo>()) {
+    SharedFunctionInfo::ScriptIterator iterator(script);
+    while (SharedFunctionInfo* shared = iterator.Next()) {
       CHECK(shared->is_compiled());
       CHECK_EQ(Code::kPreAgedCodeAge, shared->code()->GetAge());
       count++;

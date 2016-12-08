@@ -6398,7 +6398,7 @@ TEST(SharedFunctionInfoIterator) {
   }
 
   {
-    SharedFunctionInfo::Iterator iterator(isolate);
+    SharedFunctionInfo::GlobalIterator iterator(isolate);
     while (iterator.Next()) sfi_count--;
   }
 
