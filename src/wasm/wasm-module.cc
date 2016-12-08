@@ -883,6 +883,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
        i < temp_instance.function_code.size(); ++i) {
     Code* code = *temp_instance.function_code[i];
     code_table->set(static_cast<int>(i), code);
+    RecordStats(isolate, code);
   }
 
   // Link the functions in the module.
@@ -921,6 +922,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
         compiler::CompileJSToWasmWrapper(isolate, this, wasm_code, exp.index);
     int export_index = static_cast<int>(functions.size() + func_index);
     code_table->set(export_index, *wrapper_code);
+    RecordStats(isolate, *wrapper_code);
     func_index++;
   }
 
