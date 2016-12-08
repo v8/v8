@@ -124,6 +124,9 @@ bool Context::IsScriptContext() {
   return map == map->GetHeap()->script_context_map();
 }
 
+bool Context::OptimizedCodeMapIsCleared() {
+  return osr_code_table() == GetHeap()->empty_fixed_array();
+}
 
 bool Context::HasSameSecurityTokenAs(Context* that) {
   return this->native_context()->security_token() ==
