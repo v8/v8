@@ -1353,12 +1353,6 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     DCHECK(instr->left()->representation().Equals(instr->representation()));
     DCHECK(instr->right()->representation().Equals(instr->representation()));
 
-    if (instr->left()->IsConstant() &&
-        !instr->CheckFlag(HValue::kCanOverflow)) {
-      // If lhs is constant, do reverse subtraction instead.
-      return DoRSub(instr);
-    }
-
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new (zone()) LSubI(left, right);
@@ -1372,21 +1366,6 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   } else {
     return DoArithmeticT(Token::SUB, instr);
   }
-}
-
-LInstruction* LChunkBuilder::DoRSub(HSub* instr) {
-  DCHECK(instr->representation().IsSmiOrInteger32());
-  DCHECK(instr->left()->representation().Equals(instr->representation()));
-  DCHECK(instr->right()->representation().Equals(instr->representation()));
-  DCHECK(!instr->CheckFlag(HValue::kCanOverflow));
-
-  // Note: The lhs of the subtraction becomes the rhs of the
-  // reverse-subtraction.
-  LOperand* left = UseRegisterAtStart(instr->right());
-  LOperand* right = UseOrConstantAtStart(instr->left());
-  LRSubI* rsb = new (zone()) LRSubI(left, right);
-  LInstruction* result = DefineAsRegister(rsb);
-  return result;
 }
 
 LInstruction* LChunkBuilder::DoMultiplyAdd(HMul* mul, HValue* addend) {

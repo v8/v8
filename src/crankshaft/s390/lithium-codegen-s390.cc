@@ -1721,35 +1721,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
   }
 }
 
-void LCodeGen::DoRSubI(LRSubI* instr) {
-  LOperand* left = instr->left();
-  LOperand* right = instr->right();
-  LOperand* result = instr->result();
-
-  DCHECK(!instr->hydrogen()->CheckFlag(HValue::kCanOverflow) &&
-         right->IsConstantOperand());
-
-#if V8_TARGET_ARCH_S390X
-  // The overflow detection needs to be tested on the lower 32-bits.
-  // As a result, on 64-bit, we need to force 32-bit arithmetic operations
-  // to set the CC overflow bit properly.  The result is then sign-extended.
-  bool checkOverflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
-#else
-  bool checkOverflow = true;
-#endif
-
-  Operand right_operand = ToOperand(right);
-  __ mov(r0, right_operand);
-
-  if (!checkOverflow) {
-    __ SubP_ExtendSrc(ToRegister(result), r0, ToRegister(left));
-  } else {
-    __ Sub32(ToRegister(result), r0, ToRegister(left));
-  }
-}
-
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  __ mov(ToRegister(instr->result()), Operand(instr->value()));
+  Register dst = ToRegister(instr->result());
+  if (instr->value() == 0)
+    __ XorP(dst, dst);
+  else
+    __ Load(dst, Operand(instr->value()));
 }
 
 void LCodeGen::DoConstantS(LConstantS* instr) {
