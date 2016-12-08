@@ -451,6 +451,30 @@ void AsmTyper::SetTypeOf(AstNode* node, AsmType* type) {
   }
 }
 
+namespace {
+bool IsLiteralDouble(Literal* literal) {
+  return literal->raw_value()->IsNumber() &&
+         literal->raw_value()->ContainsDot();
+}
+
+bool IsLiteralInt(Literal* literal) {
+  return literal->raw_value()->IsNumber() &&
+         !literal->raw_value()->ContainsDot();
+}
+
+bool IsLiteralMinus1(Literal* literal) {
+  return IsLiteralInt(literal) && literal->raw_value()->AsNumber() == -1.0;
+}
+
+bool IsLiteral1Dot0(Literal* literal) {
+  return IsLiteralDouble(literal) && literal->raw_value()->AsNumber() == 1.0;
+}
+
+bool IsLiteral0(Literal* literal) {
+  return IsLiteralInt(literal) && literal->raw_value()->AsNumber() == 0.0;
+}
+}  // namespace
+
 AsmType* AsmTyper::TypeOf(AstNode* node) const {
   auto node_type_iter = function_node_types_.find(node);
   if (node_type_iter != function_node_types_.end()) {
@@ -464,8 +488,11 @@ AsmType* AsmTyper::TypeOf(AstNode* node) const {
   // Sometimes literal nodes are not added to the node_type_ map simply because
   // their are not visited with ValidateExpression().
   if (auto* literal = node->AsLiteral()) {
-    if (literal->raw_value()->ContainsDot()) {
+    if (IsLiteralDouble(literal)) {
       return AsmType::Double();
+    }
+    if (!IsLiteralInt(literal)) {
+      return AsmType::None();
     }
     uint32_t u;
     if (literal->value()->ToUint32(&u)) {
@@ -737,8 +764,7 @@ bool IsDoubleAnnotation(BinaryOperation* binop) {
     return false;
   }
 
-  return right_as_literal->raw_value()->ContainsDot() &&
-         right_as_literal->raw_value()->AsNumber() == 1.0;
+  return IsLiteral1Dot0(right_as_literal);
 }
 
 bool IsIntAnnotation(BinaryOperation* binop) {
@@ -751,8 +777,7 @@ bool IsIntAnnotation(BinaryOperation* binop) {
     return false;
   }
 
-  return !right_as_literal->raw_value()->ContainsDot() &&
-         right_as_literal->raw_value()->AsNumber() == 0.0;
+  return IsLiteral0(right_as_literal);
 }
 }  // namespace
 
@@ -1469,7 +1494,7 @@ bool ExtractInt32CaseLabel(CaseClause* clause, int32_t* lbl) {
     return false;
   }
 
-  if (lbl_expr->raw_value()->ContainsDot()) {
+  if (!IsLiteralInt(lbl_expr)) {
     return false;
   }
 
@@ -1566,8 +1591,7 @@ bool IsInvert(BinaryOperation* binop) {
     return false;
   }
 
-  return !right_as_literal->raw_value()->ContainsDot() &&
-         right_as_literal->raw_value()->AsNumber() == -1.0;
+  return IsLiteralMinus1(right_as_literal);
 }
 
 bool IsUnaryMinus(BinaryOperation* binop) {
@@ -1581,8 +1605,7 @@ bool IsUnaryMinus(BinaryOperation* binop) {
     return false;
   }
 
-  return !right_as_literal->raw_value()->ContainsDot() &&
-         right_as_literal->raw_value()->AsNumber() == -1.0;
+  return IsLiteralMinus1(right_as_literal);
 }
 }  // namespace
 
@@ -1711,7 +1734,7 @@ AsmType* AsmTyper::ValidateNumericLiteral(Literal* literal) {
     return AsmType::Void();
   }
 
-  if (literal->raw_value()->ContainsDot()) {
+  if (IsLiteralDouble(literal)) {
     return AsmType::Double();
   }
 
@@ -1891,7 +1914,7 @@ bool IsIntishLiteralFactor(Expression* expr, int32_t* factor) {
     return false;
   }
 
-  if (literal->raw_value()->ContainsDot()) {
+  if (!IsLiteralInt(literal)) {
     return false;
   }
 
@@ -2300,7 +2323,7 @@ bool ExtractIndirectCallMask(Expression* expr, uint32_t* value) {
     return false;
   }
 
-  if (as_literal->raw_value()->ContainsDot()) {
+  if (!IsLiteralInt(as_literal)) {
     return false;
   }
 
@@ -2484,7 +2507,7 @@ bool ExtractHeapAccessShift(Expression* expr, uint32_t* value) {
     return false;
   }
 
-  if (as_literal->raw_value()->ContainsDot()) {
+  if (!IsLiteralInt(as_literal)) {
     return false;
   }
 
@@ -2528,7 +2551,7 @@ AsmType* AsmTyper::ValidateHeapAccess(Property* heap,
   SetTypeOf(obj, obj_type);
 
   if (auto* key_as_literal = heap->key()->AsLiteral()) {
-    if (key_as_literal->raw_value()->ContainsDot()) {
+    if (!IsLiteralInt(key_as_literal)) {
       FAIL(key_as_literal, "Heap access index must be int.");
     }
 
@@ -2712,9 +2735,9 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
 
   if (auto* literal = ret_expr->AsLiteral()) {
     int32_t _;
-    if (literal->raw_value()->ContainsDot()) {
+    if (IsLiteralDouble(literal)) {
       return AsmType::Double();
-    } else if (literal->value()->ToInt32(&_)) {
+    } else if (IsLiteralInt(literal) && literal->value()->ToInt32(&_)) {
       return AsmType::Signed();
     } else if (literal->IsUndefinedLiteral()) {
       // *VIOLATION* The parser changes
@@ -2755,13 +2778,15 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
 AsmType* AsmTyper::VariableTypeAnnotations(
     Expression* initializer, VariableInfo::Mutability mutability_type) {
   if (auto* literal = initializer->AsLiteral()) {
-    if (literal->raw_value()->ContainsDot()) {
+    if (IsLiteralDouble(literal)) {
       SetTypeOf(initializer, AsmType::Double());
       return AsmType::Double();
     }
+    if (!IsLiteralInt(literal)) {
+      FAIL(initializer, "Invalid type annotation - forbidden literal.");
+    }
     int32_t i32;
     uint32_t u32;
-
     AsmType* initializer_type = nullptr;
     if (literal->value()->ToUint32(&u32)) {
       if (u32 > LargestFixNum) {

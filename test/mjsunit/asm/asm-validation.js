@@ -295,3 +295,37 @@ function assertValidAsm(func) {
   assertTrue(%IsNotAsmWasmCode(Module));
   assertEquals(0xffffffff, m.foo());
 })();
+
+(function TestBadBooleanAnnotation() {
+  function Module() {
+    "use asm";
+    function foo(x) {
+      x = x | true;
+      return x;
+    }
+    return { foo: foo };
+  }
+  var m = Module();
+  assertTrue(%IsNotAsmWasmCode(Module));
+  assertEquals(3, m.foo(3));
+})();
+
+(function TestBadCase() {
+  function Module() {
+    "use asm";
+    function foo(x) {
+      x = x | 0;
+      switch (x|0) {
+        case true:
+          return 42;
+        default:
+          return 43;
+      }
+      return 0;
+    }
+    return { foo: foo };
+  }
+  var m = Module();
+  assertTrue(%IsNotAsmWasmCode(Module));
+  assertEquals(43, m.foo(3));
+})();
