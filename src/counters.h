@@ -557,6 +557,7 @@ class RuntimeCallTimer final {
   V(FunctionTemplate_GetFunction)                          \
   V(FunctionTemplate_New)                                  \
   V(FunctionTemplate_NewRemoteInstance)                    \
+  V(FunctionTemplate_NewWithCache)                         \
   V(FunctionTemplate_NewWithFastHandler)                   \
   V(Int16Array_New)                                        \
   V(Int32Array_New)                                        \
