@@ -2119,7 +2119,6 @@ Isolate::Isolate(bool enable_serializer)
       global_handles_(NULL),
       eternal_handles_(NULL),
       thread_manager_(NULL),
-      has_installed_extensions_(false),
       regexp_stack_(NULL),
       date_cache_(NULL),
       call_descriptor_data_(NULL),

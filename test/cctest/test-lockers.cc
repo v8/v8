@@ -686,12 +686,9 @@ class IsolateGenesisThread : public JoinableThread {
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
-      CHECK(
-          !reinterpret_cast<i::Isolate*>(isolate)->has_installed_extensions());
       v8::ExtensionConfiguration extensions(count_, extension_names_);
       v8::HandleScope handle_scope(isolate);
       v8::Context::New(isolate, &extensions);
-      CHECK(reinterpret_cast<i::Isolate*>(isolate)->has_installed_extensions());
     }
     isolate->Dispose();
   }

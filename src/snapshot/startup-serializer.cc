@@ -125,10 +125,8 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
-  CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
+  CHECK_EQ(0, isolate->global_handles()->global_handles_count());
   CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
-  // We don't support serializing installed extensions.
-  CHECK(!isolate->has_installed_extensions());
   // First visit immortal immovables to make sure they end up in the first page.
   serializing_immortal_immovables_roots_ = true;
   isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG_ROOT_LIST);

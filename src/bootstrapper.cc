@@ -140,8 +140,7 @@ class Genesis BASE_EMBEDDED {
  public:
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
-          v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-          GlobalContextType context_type);
+          size_t context_snapshot_index, GlobalContextType context_type);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
   ~Genesis() { }
@@ -314,7 +313,7 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     GlobalContextType context_type) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                  extensions, context_snapshot_index, context_type);
+                  context_snapshot_index, context_type);
   Handle<Context> env = genesis.result();
   if (env.is_null() || !InstallExtensions(env, extensions)) {
     return Handle<Context>();
@@ -4213,7 +4212,6 @@ bool Genesis::InstallExtension(Isolate* isolate,
     isolate->clear_pending_exception();
   }
   extension_states->set_state(current, INSTALLED);
-  isolate->NotifyExtensionInstalled();
   return result;
 }
 
@@ -4347,7 +4345,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       Handle<Object> value(cell->value(), isolate());
       if (value->IsTheHole(isolate())) continue;
       PropertyDetails details = cell->property_details();
-      DCHECK_EQ(kData, details.kind());
+      if (details.kind() != kData) continue;
       JSObject::AddProperty(to, key, value, details.attributes());
     }
   } else {
@@ -4445,12 +4443,12 @@ class NoTrackDoubleFieldsForSerializerScope {
 Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
                  v8::Local<v8::ObjectTemplate> global_proxy_template,
-                 v8::ExtensionConfiguration* extensions,
                  size_t context_snapshot_index, GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
+  bool create_new_global_proxy = context_snapshot_index == 0;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
@@ -4469,7 +4467,7 @@ Genesis::Genesis(Isolate* isolate,
   // Create an uninitialized global proxy now if we don't have one
   // and initialize it later in CreateNewGlobals.
   Handle<JSGlobalProxy> global_proxy;
-  if (!maybe_global_proxy.ToHandle(&global_proxy)) {
+  if (!maybe_global_proxy.ToHandle(&global_proxy) && create_new_global_proxy) {
     const int internal_field_count =
         !global_proxy_template.IsEmpty()
             ? global_proxy_template->InternalFieldCount()
@@ -4501,13 +4499,16 @@ Genesis::Genesis(Isolate* isolate,
       Map::TraceAllTransitions(object_fun->initial_map());
     }
 #endif
-    Handle<JSGlobalObject> global_object =
-        CreateNewGlobals(global_proxy_template, global_proxy);
 
-    HookUpGlobalProxy(global_object, global_proxy);
-    HookUpGlobalObject(global_object);
+    if (create_new_global_proxy) {
+      Handle<JSGlobalObject> global_object =
+          CreateNewGlobals(global_proxy_template, global_proxy);
 
-    if (!ConfigureGlobalObjects(global_proxy_template)) return;
+      HookUpGlobalProxy(global_object, global_proxy);
+      HookUpGlobalObject(global_object);
+
+      if (!ConfigureGlobalObjects(global_proxy_template)) return;
+    }
   } else {
     // We get here if there was no context snapshot.
     CreateRoots();
@@ -4529,9 +4530,6 @@ Genesis::Genesis(Isolate* isolate,
     if (!ConfigureGlobalObjects(global_proxy_template)) return;
 
     isolate->counters()->contexts_created_from_scratch()->Increment();
-    // Re-initialize the counter because it got incremented during snapshot
-    // creation.
-    isolate->native_context()->set_errors_thrown(Smi::kZero);
   }
 
   // Install experimental natives. Do not include them into the
@@ -4560,6 +4558,7 @@ Genesis::Genesis(Isolate* isolate,
   // We do not need script contexts for native scripts.
   DCHECK_EQ(1, native_context()->script_context_table()->used());
 
+  native_context()->ResetErrorsThrown();
   result_ = native_context();
 }
 

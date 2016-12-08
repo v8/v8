@@ -499,6 +499,7 @@ class Context: public FixedArray {
     WHITE_LIST_INDEX = MIN_CONTEXT_SLOTS + 1
   };
 
+  void ResetErrorsThrown();
   void IncrementErrorsThrown();
   int GetErrorsThrown();
 

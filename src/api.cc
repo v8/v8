@@ -460,6 +460,7 @@ bool RunExtraCode(Isolate* isolate, Local<Context> context,
 struct SnapshotCreatorData {
   explicit SnapshotCreatorData(Isolate* isolate)
       : isolate_(isolate),
+        default_context_(),
         contexts_(isolate),
         templates_(isolate),
         created_(false) {}
@@ -470,6 +471,7 @@ struct SnapshotCreatorData {
 
   ArrayBufferAllocator allocator_;
   Isolate* isolate_;
+  Persistent<Context> default_context_;
   PersistentValueVector<Context> contexts_;
   PersistentValueVector<Template> templates_;
   bool created_;
@@ -508,6 +510,16 @@ Isolate* SnapshotCreator::GetIsolate() {
   return SnapshotCreatorData::cast(data_)->isolate_;
 }
 
+void SnapshotCreator::SetDefaultContext(Local<Context> context) {
+  DCHECK(!context.IsEmpty());
+  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
+  DCHECK(!data->created_);
+  DCHECK(data->default_context_.IsEmpty());
+  Isolate* isolate = data->isolate_;
+  CHECK_EQ(isolate, context->GetIsolate());
+  data->default_context_.Reset(isolate, context);
+}
+
 size_t SnapshotCreator::AddContext(Local<Context> context) {
   DCHECK(!context.IsEmpty());
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
@@ -536,6 +548,7 @@ StartupData SnapshotCreator::CreateBlob(
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
   DCHECK(!data->created_);
+  DCHECK(!data->default_context_.IsEmpty());
 
   {
     int num_templates = static_cast<int>(data->templates_.Size());
@@ -557,15 +570,21 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  int num_contexts = static_cast<int>(data->contexts_.Size());
-  i::List<i::Object*> contexts(num_contexts);
-  for (int i = 0; i < num_contexts; i++) {
+  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+  i::List<i::Object*> contexts(num_additional_contexts);
+  i::Object* default_context;
+  {
     i::HandleScope scope(isolate);
-    i::Handle<i::Context> context =
-        v8::Utils::OpenHandle(*data->contexts_.Get(i));
-    contexts.Add(*context);
+    default_context =
+        *v8::Utils::OpenHandle(*data->default_context_.Get(data->isolate_));
+    data->default_context_.Reset();
+    for (int i = 0; i < num_additional_contexts; i++) {
+      i::Handle<i::Context> context =
+          v8::Utils::OpenHandle(*data->contexts_.Get(i));
+      contexts.Add(*context);
+    }
+    data->contexts_.Clear();
   }
-  data->contexts_.Clear();
 
 #ifdef DEBUG
   i::ExternalReferenceTable::instance(isolate)->ResetCount();
@@ -575,11 +594,19 @@ StartupData SnapshotCreator::CreateBlob(
   startup_serializer.SerializeStrongReferences();
 
   // Serialize each context with a new partial serializer.
-  i::List<i::SnapshotData*> context_snapshots(num_contexts);
-  for (int i = 0; i < num_contexts; i++) {
+  i::List<i::SnapshotData*> context_snapshots(num_additional_contexts + 1);
+
+  {
     i::PartialSerializer partial_serializer(isolate, &startup_serializer,
                                             callback);
-    partial_serializer.Serialize(&contexts[i]);
+    partial_serializer.Serialize(&default_context, false);
+    context_snapshots.Add(new i::SnapshotData(&partial_serializer));
+  }
+
+  for (int i = 0; i < num_additional_contexts; i++) {
+    i::PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                            callback);
+    partial_serializer.Serialize(&contexts[i], true);
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
 
@@ -619,7 +646,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {
           !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
         return result;
       }
-      snapshot_creator.AddContext(context);
+      snapshot_creator.SetDefaultContext(context);
     }
     result = snapshot_creator.CreateBlob(
         SnapshotCreator::FunctionCodeHandling::kClear);
@@ -660,7 +687,7 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
       HandleScope handle_scope(isolate);
       isolate->ContextDisposedNotification(false);
       Local<Context> context = Context::New(isolate);
-      snapshot_creator.AddContext(context);
+      snapshot_creator.SetDefaultContext(context);
     }
     result = snapshot_creator.CreateBlob(
         SnapshotCreator::FunctionCodeHandling::kKeep);
@@ -6213,16 +6240,15 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
-    v8::ExtensionConfiguration* extensions,
-    v8::MaybeLocal<ObjectTemplate> global_template,
-    v8::MaybeLocal<Value> global_object) {
+    v8::ExtensionConfiguration* extensions) {
+  size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
-          context_snapshot_index)) {
+          index_including_default_context)) {
     return MaybeLocal<Context>();
   }
-  return NewContext(external_isolate, extensions, global_template,
-                    global_object, context_snapshot_index);
+  return NewContext(external_isolate, extensions, MaybeLocal<ObjectTemplate>(),
+                    MaybeLocal<Value>(), index_including_default_context);
 }
 
 MaybeLocal<Object> v8::Context::NewRemoteContext(
