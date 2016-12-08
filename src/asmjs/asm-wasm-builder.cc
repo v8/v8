@@ -714,11 +714,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       Literal* name = prop->key()->AsLiteral();
       DCHECK_NOT_NULL(name);
       DCHECK(name->IsPropertyName());
-      const AstRawString* raw_name = name->AsRawPropertyName();
+      Handle<String> function_name = name->AsPropertyName();
+      int length;
+      std::unique_ptr<char[]> utf8 = function_name->ToCString(
+          DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
       if (var->is_function()) {
         WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-        function->ExportAs({reinterpret_cast<const char*>(raw_name->raw_data()),
-                            raw_name->length()});
+        function->ExportAs({utf8.get(), length});
       }
     }
   }
