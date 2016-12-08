@@ -7484,7 +7484,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
   static const int kLiteralsOffset = 2;
-  static const int kEntryLength = 3;
+  static const int kOsrAstIdOffset = 3;
+  static const int kEntryLength = 4;
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   static const int kNotFound = -1;
@@ -7498,6 +7499,8 @@ class SharedFunctionInfo: public HeapObject {
       kPointerSize * (kCachedCodeOffset - kEntryLength);
   static const int kOffsetToPreviousLiterals =
       FixedArray::kHeaderSize + kPointerSize * (kLiteralsOffset - kEntryLength);
+  static const int kOffsetToPreviousOsrAstId =
+      FixedArray::kHeaderSize + kPointerSize * (kOsrAstIdOffset - kEntryLength);
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -8093,10 +8096,11 @@ class SharedFunctionInfo: public HeapObject {
 #undef BYTE_OFFSET
 
  private:
-  // Returns entry from optimized code map for specified context.
+  // Returns entry from optimized code map for specified context and OSR entry.
   // The result is either kNotFound, or a start index of the context-dependent
   // entry.
-  int SearchOptimizedCodeMapEntry(Context* native_context);
+  int SearchOptimizedCodeMapEntry(Context* native_context,
+                                  BailoutId osr_ast_id);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

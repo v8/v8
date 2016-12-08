@@ -1055,6 +1055,12 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ cmp(temp, native_context);
   __ j(not_equal, &loop_bottom);
+  // OSR id set to none?
+  __ mov(temp, FieldOperand(map, index, times_half_pointer_size,
+                            SharedFunctionInfo::kOffsetToPreviousOsrAstId));
+  const int bailout_id = BailoutId::None().ToInt();
+  __ cmp(temp, Immediate(Smi::FromInt(bailout_id)));
+  __ j(not_equal, &loop_bottom);
   // Literals available?
   __ mov(temp, FieldOperand(map, index, times_half_pointer_size,
                             SharedFunctionInfo::kOffsetToPreviousLiterals));

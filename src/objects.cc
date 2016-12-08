@@ -12404,23 +12404,16 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   DCHECK(code.is_null() ||
          code.ToHandleChecked()->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(native_context->IsNativeContext());
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(kEntryLength == 4);
   Handle<FixedArray> new_code_map;
   int entry;
 
-  if (!osr_ast_id.IsNone()) {
-    Context::AddToOptimizedCodeMap(
-        native_context, shared, code.ToHandleChecked(), literals, osr_ast_id);
-    return;
-  }
-
-  DCHECK(osr_ast_id.IsNone());
   if (shared->OptimizedCodeMapIsCleared()) {
     new_code_map = isolate->factory()->NewFixedArray(kInitialLength, TENURED);
     entry = kEntriesStart;
   } else {
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
-    entry = shared->SearchOptimizedCodeMapEntry(*native_context);
+    entry = shared->SearchOptimizedCodeMapEntry(*native_context, osr_ast_id);
     if (entry >= kEntriesStart) {
       // Just set the code and literals of the entry.
       if (!code.is_null()) {
@@ -12467,6 +12460,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   new_code_map->set(entry + kContextOffset, context_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
   new_code_map->set(entry + kLiteralsOffset, *literals_cell);
+  new_code_map->set(entry + kOsrAstIdOffset, Smi::FromInt(osr_ast_id.ToInt()));
 
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
@@ -12478,6 +12472,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
     cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
     DCHECK(cell->cleared() || cell->value()->IsFixedArray());
+    DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
 
@@ -12499,31 +12494,53 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
   DisallowHeapAllocation no_gc;
   if (OptimizedCodeMapIsCleared()) return;
 
-  Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
+  Heap* heap = GetHeap();
   FixedArray* code_map = optimized_code_map();
+  int dst = kEntriesStart;
   int length = code_map->length();
-  bool found = false;
   for (int src = kEntriesStart; src < length; src += kEntryLength) {
     DCHECK(WeakCell::cast(code_map->get(src))->cleared() ||
            WeakCell::cast(code_map->get(src))->value()->IsNativeContext());
-    found = WeakCell::cast(code_map->get(src + kCachedCodeOffset))->value() ==
-            optimized_code;
-    if (found) {
+    if (WeakCell::cast(code_map->get(src + kCachedCodeOffset))->value() ==
+        optimized_code) {
+      BailoutId osr(Smi::cast(code_map->get(src + kOsrAstIdOffset))->value());
       if (FLAG_trace_opt) {
         PrintF("[evicting entry from optimizing code map (%s) for ", reason);
         ShortPrint();
-        PrintF("]\n");
+        if (osr.IsNone()) {
+          PrintF("]\n");
+        } else {
+          PrintF(" (osr ast id %d)]\n", osr.ToInt());
+        }
       }
-      // Just clear the code in order to continue sharing literals.
+      if (!osr.IsNone()) {
+        // Evict the src entry by not copying it to the dst entry.
+        continue;
+      }
+      // In case of non-OSR entry just clear the code in order to proceed
+      // sharing literals.
       code_map->set(src + kCachedCodeOffset, heap->empty_weak_cell(),
                     SKIP_WRITE_BARRIER);
     }
-  }
 
-  if (!found) {
-    // We didn't find the code in here. It must be osr'd code.
-    isolate->EvictOSROptimizedCode(optimized_code, reason);
+    // Keep the src entry by copying it to the dst entry.
+    if (dst != src) {
+      code_map->set(dst + kContextOffset, code_map->get(src + kContextOffset));
+      code_map->set(dst + kCachedCodeOffset,
+                    code_map->get(src + kCachedCodeOffset));
+      code_map->set(dst + kLiteralsOffset,
+                    code_map->get(src + kLiteralsOffset));
+      code_map->set(dst + kOsrAstIdOffset,
+                    code_map->get(src + kOsrAstIdOffset));
+    }
+    dst += kEntryLength;
+  }
+  if (dst != length) {
+    // Always trim even when array is cleared because of heap verifier.
+    heap->RightTrimFixedArray(code_map, length - dst);
+    if (code_map->length() == kEntriesStart) {
+      ClearOptimizedCodeMap();
+    }
   }
 }
 
@@ -14060,15 +14077,18 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   }
 }
 
-int SharedFunctionInfo::SearchOptimizedCodeMapEntry(Context* native_context) {
+int SharedFunctionInfo::SearchOptimizedCodeMapEntry(Context* native_context,
+                                                    BailoutId osr_ast_id) {
   DisallowHeapAllocation no_gc;
   DCHECK(native_context->IsNativeContext());
   if (!OptimizedCodeMapIsCleared()) {
     FixedArray* optimized_code_map = this->optimized_code_map();
     int length = optimized_code_map->length();
+    Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
     for (int i = kEntriesStart; i < length; i += kEntryLength) {
       if (WeakCell::cast(optimized_code_map->get(i + kContextOffset))
-              ->value() == native_context) {
+                  ->value() == native_context &&
+          optimized_code_map->get(i + kOsrAstIdOffset) == osr_ast_id_smi) {
         return i;
       }
     }
@@ -14091,16 +14111,7 @@ void SharedFunctionInfo::ClearCodeFromOptimizedCodeMap() {
 CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
     Context* native_context, BailoutId osr_ast_id) {
   CodeAndLiterals result = {nullptr, nullptr};
-  if (!osr_ast_id.IsNone()) {
-    Code* code;
-    LiteralsArray* literals;
-    native_context->SearchOptimizedCodeMap(this, osr_ast_id, &code, &literals);
-    result = {code, literals};
-    return result;
-  }
-
-  DCHECK(osr_ast_id.IsNone());
-  int entry = SearchOptimizedCodeMapEntry(native_context);
+  int entry = SearchOptimizedCodeMapEntry(native_context, osr_ast_id);
   if (entry != kNotFound) {
     FixedArray* code_map = optimized_code_map();
     DCHECK_LE(entry + kEntryLength, code_map->length());
