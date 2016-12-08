@@ -28,6 +28,7 @@
 #include "src/ast/ast-value-factory.h"
 
 #include "src/api.h"
+#include "src/char-predicates-inl.h"
 #include "src/objects.h"
 #include "src/utils.h"
 
@@ -222,6 +223,15 @@ void AstValue::Internalize(Isolate* isolate) {
 
 AstRawString* AstValueFactory::GetOneByteStringInternal(
     Vector<const uint8_t> literal) {
+  if (literal.length() == 1 && IsInRange(literal[0], 'a', 'z')) {
+    int key = literal[0] - 'a';
+    if (one_character_strings_[key] == nullptr) {
+      uint32_t hash = StringHasher::HashSequentialString<uint8_t>(
+          literal.start(), literal.length(), hash_seed_);
+      one_character_strings_[key] = GetString(hash, true, literal);
+    }
+    return one_character_strings_[key];
+  }
   uint32_t hash = StringHasher::HashSequentialString<uint8_t>(
       literal.start(), literal.length(), hash_seed_);
   return GetString(hash, true, literal);

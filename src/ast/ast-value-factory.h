@@ -333,7 +333,6 @@ class AstValueFactory {
   AstValueFactory(Zone* zone, uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
         values_(nullptr),
-        smis_(),
         strings_(nullptr),
         strings_end_(&strings_),
         zone_(zone),
@@ -345,6 +344,9 @@ class AstValueFactory {
     OTHER_CONSTANTS(F)
 #undef F
     std::fill(smis_, smis_ + arraysize(smis_), nullptr);
+    std::fill(one_character_strings_,
+              one_character_strings_ + arraysize(one_character_strings_),
+              nullptr);
   }
 
   Zone* zone() const { return zone_; }
@@ -422,11 +424,16 @@ class AstValueFactory {
   // they can be internalized later).
   AstValue* values_;
 
-  AstValue* smis_[kMaxCachedSmi + 1];
   // We need to keep track of strings_ in order since cons strings require their
   // members to be internalized first.
   AstString* strings_;
   AstString** strings_end_;
+
+  // Caches for faster access: small numbers, one character lowercase strings
+  // (for minified code).
+  AstValue* smis_[kMaxCachedSmi + 1];
+  AstRawString* one_character_strings_[26];
+
   Zone* zone_;
 
   uint32_t hash_seed_;
