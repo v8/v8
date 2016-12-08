@@ -264,6 +264,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
+  if (incremental_marking()->NeedsFinalization() &&
+      OldGenerationSpaceAvailable() == 0) {
+    *reason = "Incremental marking needs finalization";
+    return MARK_COMPACTOR;
+  }
+
   // Is there enough space left in OLD to guarantee that a scavenge can
   // succeed?
   //
