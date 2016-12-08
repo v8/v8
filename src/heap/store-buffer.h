@@ -63,22 +63,76 @@ class StoreBuffer {
   // If we only want to delete a single slot, end should be set to null which
   // will be written into the second field. When processing the store buffer
   // the more efficient Remove method will be called in this case.
-  void DeleteEntry(Address start, Address end = nullptr);
+  void DeleteEntry(Address start, Address end = nullptr) {
+    // Deletions coming from the GC are directly deleted from the remembered
+    // set. Deletions coming from the runtime are added to the store buffer
+    // to allow concurrent processing.
+    deletion_callback(this, start, end);
+  }
+
+  static void DeleteDuringGarbageCollection(StoreBuffer* store_buffer,
+                                            Address start, Address end) {
+    // In GC the store buffer has to be empty at any time.
+    DCHECK(store_buffer->Empty());
+    DCHECK(store_buffer->heap()->gc_state() != Heap::NOT_IN_GC);
+    Page* page = Page::FromAddress(start);
+    if (end) {
+      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
+                                             SlotSet::PREFREE_EMPTY_BUCKETS);
+    } else {
+      RememberedSet<OLD_TO_NEW>::Remove(page, start);
+    }
+  }
+
+  static void DeleteDuringRuntime(StoreBuffer* store_buffer, Address start,
+                                  Address end) {
+    DCHECK(store_buffer->heap()->gc_state() == Heap::NOT_IN_GC);
+    store_buffer->InsertDeletionIntoStoreBuffer(start, end);
+  }
+
+  void InsertDeletionIntoStoreBuffer(Address start, Address end) {
+    if (top_ + sizeof(Address) * 2 > limit_[current_]) {
+      StoreBufferOverflow(heap_->isolate());
+    }
+    *top_ = MarkDeletionAddress(start);
+    top_++;
+    *top_ = end;
+    top_++;
+  }
+
+  static void InsertDuringGarbageCollection(StoreBuffer* store_buffer,
+                                            Address slot) {
+    DCHECK(store_buffer->heap()->gc_state() != Heap::NOT_IN_GC);
+    RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+  }
+
+  static void InsertDuringRuntime(StoreBuffer* store_buffer, Address slot) {
+    DCHECK(store_buffer->heap()->gc_state() == Heap::NOT_IN_GC);
+    store_buffer->InsertIntoStoreBuffer(slot);
+  }
+
+  void InsertIntoStoreBuffer(Address slot) {
+    if (top_ + sizeof(Address) > limit_[current_]) {
+      StoreBufferOverflow(heap_->isolate());
+    }
+    *top_ = slot;
+    top_++;
+  }
 
   void InsertEntry(Address slot) {
     // Insertions coming from the GC are directly inserted into the remembered
     // set. Insertions coming from the runtime are added to the store buffer to
     // allow concurrent processing.
-    if (heap_->gc_state() == Heap::NOT_IN_GC) {
-      if (top_ + sizeof(Address) > limit_[current_]) {
-        StoreBufferOverflow(heap_->isolate());
-      }
-      *top_ = slot;
-      top_++;
+    insertion_callback(this, slot);
+  }
+
+  void SetMode(Heap::HeapState state) {
+    if (state == Heap::NOT_IN_GC) {
+      insertion_callback = &InsertDuringRuntime;
+      deletion_callback = &DeleteDuringRuntime;
     } else {
-      // In GC the store buffer has to be empty at any time.
-      DCHECK(Empty());
-      RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+      insertion_callback = &InsertDuringGarbageCollection;
+      deletion_callback = &DeleteDuringGarbageCollection;
     }
   }
 
@@ -94,6 +148,8 @@ class StoreBuffer {
     }
     return top_ == start_[current_];
   }
+
+  Heap* heap() { return heap_; }
 
  private:
   // There are two store buffers. If one store buffer fills up, the main thread
@@ -143,6 +199,11 @@ class StoreBuffer {
   int current_;
 
   base::VirtualMemory* virtual_memory_;
+
+  // Callbacks are more efficient than reading out the gc state for every
+  // store buffer operation.
+  std::function<void(StoreBuffer*, Address)> insertion_callback;
+  std::function<void(StoreBuffer*, Address, Address)> deletion_callback;
 };
 
 }  // namespace internal

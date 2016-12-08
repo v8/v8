@@ -818,6 +818,7 @@ class Heap {
   void PrintShortHeapStatistics();
 
   inline HeapState gc_state() { return gc_state_; }
+  void SetGCState(HeapState state);
 
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 

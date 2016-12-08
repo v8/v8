@@ -286,6 +286,10 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   return YoungGenerationCollector();
 }
 
+void Heap::SetGCState(HeapState state) {
+  gc_state_ = state;
+  store_buffer_->SetMode(gc_state_);
+}
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
 // --log-gc to avoid the complicated preprocessor and flag testing.
@@ -1430,7 +1434,8 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type,
 void Heap::MarkCompact() {
   PauseAllocationObserversScope pause_observers(this);
 
-  gc_state_ = MARK_COMPACT;
+  SetGCState(MARK_COMPACT);
+
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
 
   uint64_t size_of_objects_before_gc = SizeOfObjects();
@@ -1456,7 +1461,7 @@ void Heap::MinorMarkCompact() { UNREACHABLE(); }
 
 void Heap::MarkCompactEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
-  gc_state_ = NOT_IN_GC;
+  SetGCState(NOT_IN_GC);
 
   isolate_->counters()->objs_since_last_full()->Set(0);
 
@@ -1587,7 +1592,7 @@ void Heap::Scavenge() {
 
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 
-  gc_state_ = SCAVENGE;
+  SetGCState(SCAVENGE);
 
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
@@ -1713,7 +1718,7 @@ void Heap::Scavenge() {
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
-  gc_state_ = NOT_IN_GC;
+  SetGCState(NOT_IN_GC);
 }
 
 
