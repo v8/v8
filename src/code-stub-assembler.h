@@ -94,6 +94,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return value;
   }
 
+#define PARAMETER_BINARY_OPERATION(OpName, IntPtrOpName, SmiOpName, \
+                                   Int32OpName)                     \
+  Node* OpName(Node* value1, Node* value2, ParameterMode mode) {    \
+    if (mode == SMI_PARAMETERS) {                                   \
+      return SmiOpName(value1, value2);                             \
+    } else if (mode == INTPTR_PARAMETERS) {                         \
+      return IntPtrOpName(value1, value2);                          \
+    } else {                                                        \
+      DCHECK_EQ(INTEGER_PARAMETERS, mode);                          \
+      return Int32OpName(value1, value2);                           \
+    }                                                               \
+  }
+  PARAMETER_BINARY_OPERATION(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd, Int32Add)
+  PARAMETER_BINARY_OPERATION(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan,
+                             Int32LessThan)
+  PARAMETER_BINARY_OPERATION(IntPtrOrSmiGreaterThan, IntPtrGreaterThan,
+                             SmiGreaterThan, Int32GreaterThan)
+  PARAMETER_BINARY_OPERATION(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow,
+                             Uint32LessThan)
+
+#undef PARAMETER_BINARY_OPERATION
+
   Node* NoContextConstant();
 #define HEAP_CONSTANT_ACCESSOR(rootName, name) Node* name##Constant();
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
@@ -142,6 +164,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* SmiBelow(Node* a, Node* b);
   Node* SmiLessThan(Node* a, Node* b);
   Node* SmiLessThanOrEqual(Node* a, Node* b);
+  Node* SmiGreaterThan(Node* a, Node* b);
   Node* SmiMax(Node* a, Node* b);
   Node* SmiMin(Node* a, Node* b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.

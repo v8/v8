@@ -1958,8 +1958,16 @@ TEST(CodeStubAssemblerGraphsCorrectness) {
 
     // Recompile some stubs here.
     Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
+    Recompile<LoadGlobalICTrampolineStub>(isolate,
+                                          LoadGlobalICState(NOT_INSIDE_TYPEOF));
     Recompile<LoadICStub>(isolate);
+    Recompile<LoadICTrampolineStub>(isolate);
     Recompile<KeyedLoadICTFStub>(isolate);
+    Recompile<KeyedLoadICTrampolineTFStub>(isolate);
+    Recompile<StoreICStub>(isolate, StoreICState(STRICT));
+    Recompile<StoreICTrampolineStub>(isolate, StoreICState(STRICT));
+    Recompile<KeyedStoreICTFStub>(isolate, StoreICState(STRICT));
+    Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(STRICT));
   }
   v8_isolate->Dispose();
 }

@@ -473,6 +473,10 @@ Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
   return IntPtrLessThanOrEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
 }
 
+Node* CodeStubAssembler::SmiGreaterThan(Node* a, Node* b) {
+  return IntPtrGreaterThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
+}
+
 Node* CodeStubAssembler::SmiMax(Node* a, Node* b) {
   return SelectTaggedConstant(SmiLessThan(a, b), b, a);
 }
@@ -2057,10 +2061,9 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                  TagParameter(capacity, capacity_mode));
 
   // Fill in the elements with holes.
-  FillFixedArrayWithValue(
-      kind, elements, capacity_mode == SMI_PARAMETERS ? SmiConstant(Smi::kZero)
-                                                      : IntPtrConstant(0),
-      capacity, Heap::kTheHoleValueRootIndex, capacity_mode);
+  FillFixedArrayWithValue(kind, elements, IntPtrOrSmiConstant(0, capacity_mode),
+                          capacity, Heap::kTheHoleValueRootIndex,
+                          capacity_mode);
 
   return array;
 }
@@ -2069,8 +2072,8 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                             Node* capacity_node,
                                             ParameterMode mode,
                                             AllocationFlags flags) {
-  CSA_ASSERT(this,
-             IntPtrGreaterThan(capacity_node, IntPtrOrSmiConstant(0, mode)));
+  CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
+                                          IntPtrOrSmiConstant(0, mode), mode));
   Node* total_size = GetFixedArrayAllocationSize(capacity_node, kind, mode);
 
   // Allocate both array and elements object, and initialize the JSArray.
@@ -5504,7 +5507,7 @@ void CodeStubAssembler::ExtendPropertiesBackingStore(Node* object) {
   length = UntagParameter(length, mode);
 
   Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
-  Node* new_capacity = IntPtrAdd(length, delta);
+  Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
 
   // Grow properties array.
   ElementsKind kind = FAST_ELEMENTS;
@@ -5512,9 +5515,12 @@ void CodeStubAssembler::ExtendPropertiesBackingStore(Node* object) {
          FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
   // The size of a new properties backing store is guaranteed to be small
   // enough that the new backing store will be allocated in new space.
-  CSA_ASSERT(this, UintPtrLessThan(new_capacity,
-                                   IntPtrConstant(kMaxNumberOfDescriptors +
-                                                  JSObject::kFieldsAdded)));
+  CSA_ASSERT(this,
+             UintPtrOrSmiLessThan(
+                 new_capacity,
+                 IntPtrOrSmiConstant(
+                     kMaxNumberOfDescriptors + JSObject::kFieldsAdded, mode),
+                 mode));
 
   Node* new_properties = AllocateFixedArray(kind, new_capacity, mode);
 

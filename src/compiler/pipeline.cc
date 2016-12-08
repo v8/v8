@@ -1653,6 +1653,12 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
 
   if (FLAG_trace_turbo) {
     {
+      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      OFStream os(tracing_scope.file());
+      os << "---------------------------------------------------\n"
+         << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
+    }
+    {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
       json_of << "{\"function\":\"" << info.GetDebugName().get()
               << "\", \"source\":\"\",\n\"phases\":[";
