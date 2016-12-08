@@ -444,3 +444,15 @@ TEST(NoHandlesForTryNumberToSize) {
     }
   }
 }
+
+TEST(TryNumberToSizeWithMaxSizePlusOne) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  {
+    HandleScope scope(isolate);
+    // 1 << 64, larger than the limit of size_t.
+    double value = 18446744073709551616.0;
+    size_t result = 0;
+    Handle<HeapNumber> heap_number = isolate->factory()->NewHeapNumber(value);
+    CHECK(!TryNumberToSize(*heap_number, &result));
+  }
+}
