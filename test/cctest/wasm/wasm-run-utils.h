@@ -199,9 +199,9 @@ class TestingModule : public ModuleEnv {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null());
-    Handle<Code> code = CompileWasmToJSWrapper(
-        isolate_, jsfunc, sig, index, Handle<String>::null(),
-        Handle<String>::null(), module->origin);
+    Handle<Code> code =
+        CompileWasmToJSWrapper(isolate_, jsfunc, sig, index,
+                               Handle<String>::null(), Handle<String>::null());
     instance->function_code[index] = code;
     return index;
   }

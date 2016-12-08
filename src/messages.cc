@@ -680,15 +680,6 @@ Handle<Object> WasmStackFrame::Null() const {
   return isolate_->factory()->null_value();
 }
 
-void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
-                                         Handle<FrameArray> array,
-                                         int frame_ix) {
-  DCHECK(array->IsAsmJsWasmFrame(frame_ix));
-  WasmStackFrame::FromFrameArray(isolate, array, frame_ix);
-  is_at_number_conversion_ =
-      array->Flags(frame_ix)->value() & FrameArray::kAsmJsAtNumberConversion;
-}
-
 Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
   return isolate_->global_proxy();
 }
@@ -720,8 +711,7 @@ int AsmJsWasmStackFrame::GetPosition() const {
       isolate_);
   DCHECK_LE(0, byte_offset);
   return WasmCompiledModule::GetAsmJsSourcePosition(
-      compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset),
-      is_at_number_conversion_);
+      compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset));
 }
 
 int AsmJsWasmStackFrame::GetLineNumber() {

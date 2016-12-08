@@ -150,8 +150,7 @@ void WasmFunctionBuilder::SetName(Vector<const char> name) {
   memcpy(name_.data(), name.start(), name.length());
 }
 
-void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
-                                           int to_number_position) {
+void WasmFunctionBuilder::AddAsmWasmOffset(int asm_position) {
   // We only want to emit one mapping per byte offset:
   DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
 
@@ -160,12 +159,9 @@ void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
   asm_offsets_.write_u32v(byte_offset - last_asm_byte_offset_);
   last_asm_byte_offset_ = byte_offset;
 
-  DCHECK_GE(call_position, 0);
-  asm_offsets_.write_i32v(call_position - last_asm_source_position_);
-
-  DCHECK_GE(to_number_position, 0);
-  asm_offsets_.write_i32v(to_number_position - call_position);
-  last_asm_source_position_ = to_number_position;
+  DCHECK_GE(asm_position, 0);
+  asm_offsets_.write_i32v(asm_position - last_asm_source_position_);
+  last_asm_source_position_ = asm_position;
 }
 
 void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {

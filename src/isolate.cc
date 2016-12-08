@@ -523,15 +523,9 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         //             be a wasm object.
         DCHECK(wasm::IsWasmInstance(*instance) || instance->IsUndefined(this));
 
-        int flags = 0;
-        if (wasm::WasmIsAsmJs(*instance, this)) {
-          flags |= FrameArray::kIsAsmJsWasmFrame;
-          if (wasm_frame->at_to_number_conversion()) {
-            flags |= FrameArray::kAsmJsAtNumberConversion;
-          }
-        } else {
-          flags |= FrameArray::kIsWasmFrame;
-        }
+        int flags = wasm::WasmIsAsmJs(*instance, this)
+                        ? FrameArray::kIsAsmJsWasmFrame
+                        : FrameArray::kIsWasmFrame;
 
         elements =
             FrameArray::AppendWasmFrame(elements, instance, wasm_function_index,
@@ -1563,10 +1557,8 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       int func_index = elements->WasmFunctionIndex(i)->value();
       int code_offset = elements->Offset(i)->value();
       int byte_pos = elements->Code(i)->SourcePosition(code_offset);
-      bool at_to_number_conversion =
-          elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
       int source_pos = WasmCompiledModule::GetAsmJsSourcePosition(
-          compiled_module, func_index, byte_pos, at_to_number_conversion);
+          compiled_module, func_index, byte_pos);
       Handle<Script> script = compiled_module->script();
 
       *target = MessageLocation(script, source_pos, source_pos + 1);

@@ -461,14 +461,6 @@ bool WasmCompiledModule::GetPositionInfo(uint32_t position,
 }
 
 namespace {
-
-enum AsmJsOffsetTableEntryLayout {
-  kOTEByteOffset,
-  kOTECallPosition,
-  kOTENumberConvPosition,
-  kOTESize
-};
-
 Handle<ByteArray> GetDecodedAsmJsOffsetTable(
     Handle<WasmCompiledModule> compiled_module, Isolate* isolate) {
   DCHECK(compiled_module->has_asm_js_offset_table());
@@ -496,16 +488,13 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
       static_cast<int>(compiled_module->module()->num_imported_functions);
   DCHECK_EQ(compiled_module->module()->functions.size(),
             static_cast<size_t>(num_functions) + num_imported_functions);
-  int num_entries = 0;
-  for (int func = 0; func < num_functions; ++func) {
-    size_t new_size = asm_offsets.val[func].size();
-    DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - num_entries);
-    num_entries += static_cast<int>(new_size);
-  }
   // One byte to encode that this is a decoded table.
-  DCHECK_GE(kMaxInt,
-            1 + static_cast<uint64_t>(num_entries) * kOTESize * kIntSize);
-  int total_size = 1 + num_entries * kOTESize * kIntSize;
+  int total_size = 1;
+  for (int func = 0; func < num_functions; ++func) {
+    size_t new_size = asm_offsets.val[func].size() * 2 * kIntSize;
+    DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - total_size);
+    total_size += static_cast<int>(new_size);
+  }
   Handle<ByteArray> decoded_table =
       isolate->factory()->NewByteArray(total_size, TENURED);
   decoded_table->set(total_size - 1, AsmJsTableType::Decoded);
@@ -514,19 +503,16 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
   int idx = 0;
   std::vector<WasmFunction>& wasm_funs = compiled_module->module()->functions;
   for (int func = 0; func < num_functions; ++func) {
-    std::vector<AsmJsOffsetEntry>& func_asm_offsets = asm_offsets.val[func];
+    std::vector<std::pair<int, int>>& func_asm_offsets = asm_offsets.val[func];
     if (func_asm_offsets.empty()) continue;
     int func_offset =
         wasm_funs[num_imported_functions + func].code_start_offset;
-    for (AsmJsOffsetEntry& e : func_asm_offsets) {
+    for (std::pair<int, int> p : func_asm_offsets) {
       // Byte offsets must be strictly monotonously increasing:
-      DCHECK_IMPLIES(idx > 0, func_offset + e.byte_offset >
-                                  decoded_table->get_int(idx - kOTESize));
-      decoded_table->set_int(idx + kOTEByteOffset, func_offset + e.byte_offset);
-      decoded_table->set_int(idx + kOTECallPosition, e.source_position_call);
-      decoded_table->set_int(idx + kOTENumberConvPosition,
-                             e.source_position_number_conversion);
-      idx += kOTESize;
+      DCHECK(idx == 0 ||
+             func_offset + p.first > decoded_table->get_int(idx - 2));
+      decoded_table->set_int(idx++, func_offset + p.first);
+      decoded_table->set_int(idx++, p.second);
     }
   }
   DCHECK_EQ(total_size, idx * kIntSize + 1);
@@ -536,7 +522,7 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
 
 int WasmCompiledModule::GetAsmJsSourcePosition(
     Handle<WasmCompiledModule> compiled_module, uint32_t func_index,
-    uint32_t byte_offset, bool is_at_number_conversion) {
+    uint32_t byte_offset) {
   Isolate* isolate = compiled_module->GetIsolate();
   Handle<ByteArray> offset_table =
       GetDecodedAsmJsOffsetTable(compiled_module, isolate);
@@ -547,12 +533,12 @@ int WasmCompiledModule::GetAsmJsSourcePosition(
   uint32_t total_offset = func_code_offset + byte_offset;
 
   // Binary search for the total byte offset.
-  int left = 0;                                              // inclusive
-  int right = offset_table->length() / kIntSize / kOTESize;  // exclusive
+  int left = 0;                                       // inclusive
+  int right = offset_table->length() / kIntSize / 2;  // exclusive
   DCHECK_LT(left, right);
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
-    int mid_entry = offset_table->get_int(kOTESize * mid);
+    int mid_entry = offset_table->get_int(2 * mid);
     DCHECK_GE(kMaxInt, mid_entry);
     if (static_cast<uint32_t>(mid_entry) <= total_offset) {
       left = mid;
@@ -562,9 +548,9 @@ int WasmCompiledModule::GetAsmJsSourcePosition(
   }
   // There should be an entry for each position that could show up on the stack
   // trace:
-  DCHECK_EQ(total_offset, offset_table->get_int(kOTESize * left));
-  int idx = is_at_number_conversion ? kOTENumberConvPosition : kOTECallPosition;
-  return offset_table->get_int(kOTESize * left + idx);
+  DCHECK_EQ(total_offset,
+            static_cast<uint32_t>(offset_table->get_int(2 * left)));
+  return offset_table->get_int(2 * left + 1);
 }
 
 v8::debug::WasmDisassembly WasmCompiledModule::DisassembleFunction(
