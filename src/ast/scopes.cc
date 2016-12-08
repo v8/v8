@@ -1541,6 +1541,9 @@ void Scope::Print(int n) {
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
     if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
   }
+  if (has_forced_context_allocation()) {
+    Indent(n1, "// forces context allocation\n");
+  }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
     PrintF("%d stack slots\n", num_stack_slots_);
