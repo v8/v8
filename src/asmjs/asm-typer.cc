@@ -563,6 +563,9 @@ Assignment* ExtractInitializerExpression(Statement* statement) {
 AsmType* AsmTyper::ValidateModuleBeforeFunctionsPhase(FunctionLiteral* fun) {
   DeclarationScope* scope = fun->scope();
   if (!scope->is_function_scope()) FAIL(fun, "Not at function scope.");
+  if (scope->inner_scope_calls_eval()) {
+    FAIL(fun, "Invalid asm.js module using eval.");
+  }
   if (!ValidAsmIdentifier(fun->name()))
     FAIL(fun, "Invalid asm.js identifier in module name.");
   module_name_ = fun->name();

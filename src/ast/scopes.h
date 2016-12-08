@@ -306,6 +306,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool calls_sloppy_eval() const {
     return scope_calls_eval_ && is_sloppy(language_mode());
   }
+  bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
   bool IsAsmFunction() const;
   // Does this scope have the potential to execute declarations non-linearly?
