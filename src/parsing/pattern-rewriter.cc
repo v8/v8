@@ -219,6 +219,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // But for var declarations we need to do a new lookup.
     if (descriptor_->mode == VAR) {
       proxy = var_init_scope->NewUnresolved(factory(), name);
+      // TODO(neis): Set is_assigned on proxy.
     } else {
       DCHECK_NOT_NULL(proxy);
       DCHECK_NOT_NULL(proxy->var());

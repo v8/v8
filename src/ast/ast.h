@@ -1634,8 +1634,10 @@ class VariableProxy final : public Expression {
 
   bool is_assigned() const { return IsAssignedField::decode(bit_field_); }
   void set_is_assigned() {
-    DCHECK(!is_resolved());
     bit_field_ = IsAssignedField::update(bit_field_, true);
+    if (is_resolved()) {
+      var()->set_maybe_assigned();
+    }
   }
 
   bool is_resolved() const { return IsResolvedField::decode(bit_field_); }
@@ -3455,9 +3457,13 @@ class AstNodeFactory final BASE_EMBEDDED {
                             Expression* value,
                             int pos) {
     DCHECK(Token::IsAssignmentOp(op));
+
+    if (op != Token::INIT && target->IsVariableProxy()) {
+      target->AsVariableProxy()->set_is_assigned();
+    }
+
     Assignment* assign = new (zone_) Assignment(op, target, value, pos);
     if (assign->is_compound()) {
-      DCHECK(Token::IsAssignmentOp(op));
       assign->binary_operation_ =
           NewBinaryOperation(assign->binary_op(), target, value, pos + 1);
     }

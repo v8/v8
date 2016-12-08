@@ -1909,6 +1909,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
       body = block;
       each = factory()->NewVariableProxy(temp);
     }
+    MarkExpressionAsAssigned(each);
     stmt->AsForInStatement()->Initialize(each, subject, body);
   }
   return stmt;
@@ -2058,8 +2059,8 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   const int nopos = kNoSourcePosition;
   auto avfactory = ast_value_factory();
 
-  Variable* iterator = NewTemporary(ast_value_factory()->dot_iterator_string());
-  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
+  Variable* iterator = NewTemporary(avfactory->dot_iterator_string());
+  Variable* result = NewTemporary(avfactory->dot_result_string());
   Variable* completion = NewTemporary(avfactory->empty_string());
 
   // iterator = GetIterator(iterable)
