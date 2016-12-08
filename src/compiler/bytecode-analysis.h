@@ -36,17 +36,11 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis BASE_EMBEDDED {
   // at {header_offset}, or -1 for outer-most loops.
   int GetParentLoopFor(int header_offset) const;
 
-  // Gets the in-liveness for the bytecode at {offset}. The liveness bit vector
-  // represents the liveness of the registers and the accumulator, with the last
-  // bit being the accumulator liveness bit, and so is (register count + 1) bits
-  // long.
-  const BitVector* GetInLivenessFor(int offset) const;
+  // Gets the in-liveness for the bytecode at {offset}.
+  const BytecodeLivenessState* GetInLivenessFor(int offset) const;
 
-  // Gets the out-liveness for the bytecode at {offset}. The liveness bit vector
-  // represents the liveness of the registers and the accumulator, with the last
-  // bit being the accumulator liveness bit, and so is (register count + 1) bits
-  // long.
-  const BitVector* GetOutLivenessFor(int offset) const;
+  // Gets the out-liveness for the bytecode at {offset}.
+  const BytecodeLivenessState* GetOutLivenessFor(int offset) const;
 
   std::ostream& PrintLivenessTo(std::ostream& os) const;
 

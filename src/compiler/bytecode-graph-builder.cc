@@ -56,7 +56,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
   Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine,
-                   bool owner_has_exception, const BitVector* liveness);
+                   bool owner_has_exception,
+                   const BytecodeLivenessState* liveness);
 
   // Control dependency tracked by this environment.
   Node* GetControlDependency() const { return control_dependency_; }
@@ -410,7 +411,7 @@ void BytecodeGraphBuilder::Environment::UpdateStateValuesWithCache(
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BailoutId bailout_id, OutputFrameStateCombine combine,
-    bool owner_has_exception, const BitVector* liveness) {
+    bool owner_has_exception, const BytecodeLivenessState* liveness) {
   UpdateStateValues(&parameters_state_values_, &values()->at(0),
                     parameter_count());
 
@@ -418,12 +419,12 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
     Node* optimized_out = builder()->jsgraph()->OptimizedOutConstant();
 
     for (int i = 0; i < register_count(); ++i) {
-      state_value_working_area_[i] = liveness->Contains(i)
+      state_value_working_area_[i] = liveness->RegisterIsLive(i)
                                          ? values()->at(register_base() + i)
                                          : optimized_out;
     }
 
-    Node* accumulator_value = liveness->Contains(register_count())
+    Node* accumulator_value = liveness->AccumulatorIsLive()
                                   ? values()->at(accumulator_base())
                                   : optimized_out;
 
@@ -570,8 +571,9 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
               NodeProperties::GetFrameStateInput(node)->opcode());
     BailoutId bailout_id(bytecode_iterator().current_offset());
 
-    const BitVector* liveness_before = bytecode_analysis()->GetInLivenessFor(
-        bytecode_iterator().current_offset());
+    const BytecodeLivenessState* liveness_before =
+        bytecode_analysis()->GetInLivenessFor(
+            bytecode_iterator().current_offset());
 
     Node* frame_state_before = environment()->Checkpoint(
         bailout_id, OutputFrameStateCombine::Ignore(), false, liveness_before);
@@ -590,8 +592,9 @@ void BytecodeGraphBuilder::PrepareFrameState(Node* node,
     BailoutId bailout_id(bytecode_iterator().current_offset());
     bool has_exception = NodeProperties::IsExceptionalCall(node);
 
-    const BitVector* liveness_after = bytecode_analysis()->GetOutLivenessFor(
-        bytecode_iterator().current_offset());
+    const BytecodeLivenessState* liveness_after =
+        bytecode_analysis()->GetOutLivenessFor(
+            bytecode_iterator().current_offset());
 
     Node* frame_state_after = environment()->Checkpoint(
         bailout_id, combine, has_exception, liveness_after);

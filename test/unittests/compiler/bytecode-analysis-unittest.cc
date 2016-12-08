@@ -37,11 +37,13 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
     i::FLAG_ignition_reo = old_FLAG_ignition_reo_;
   }
 
-  std::string ToLivenessString(const BitVector* liveness) const {
+  std::string ToLivenessString(const BytecodeLivenessState* liveness) const {
+    const BitVector& bit_vector = liveness->bit_vector();
+
     std::string out;
-    out.resize(liveness->length());
-    for (int i = 0; i < liveness->length(); ++i) {
-      if (liveness->Contains(i)) {
+    out.resize(bit_vector.length());
+    for (int i = 0; i < bit_vector.length(); ++i) {
+      if (bit_vector.Contains(i)) {
         out[i] = 'L';
       } else {
         out[i] = '.';
