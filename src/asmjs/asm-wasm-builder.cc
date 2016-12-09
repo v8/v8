@@ -1513,8 +1513,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (expr->op() == op && expr->right()->IsLiteral() &&
         TypeOf(expr) == kAstI32) {
       Literal* right = expr->right()->AsLiteral();
-      DCHECK(right->raw_value()->IsNumber());
-      if (static_cast<int32_t>(right->raw_value()->AsNumber()) == val) {
+      if (right->raw_value()->IsNumber() &&
+          static_cast<int32_t>(right->raw_value()->AsNumber()) == val) {
         return true;
       }
     }

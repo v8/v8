@@ -2254,12 +2254,12 @@ AsmType* AsmTyper::ValidateBitwiseORExpression(BinaryOperation* binop) {
       RECURSE(type = ValidateCall(AsmType::Signed(), left_as_call));
       return type;
     }
-
-    // TODO(jpp): at this point we know that binop is expr|0. We could sinply
-    //
-    // RECURSE(t = ValidateExpression(left));
-    // FAIL_IF(t->IsNotA(Intish));
-    // return Signed;
+    AsmType* left_type;
+    RECURSE(left_type = ValidateExpression(left));
+    if (!left_type->IsA(AsmType::Intish())) {
+      FAIL(left, "Left side of |0 annotation must be intish.");
+    }
+    return AsmType::Signed();
   }
 
   auto* right = binop->right();

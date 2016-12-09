@@ -302,7 +302,7 @@ function assertValidAsm(func) {
   assertEquals(0xffffffff, m.foo());
 })();
 
-(function TestBadBooleanAnnotation() {
+(function TestBadBooleanParamAnnotation() {
   function Module() {
     "use asm";
     function foo(x) {
@@ -314,6 +314,23 @@ function assertValidAsm(func) {
   var m = Module();
   assertFalse(%IsAsmWasmCode(Module));
   assertEquals(3, m.foo(3));
+})();
+
+(function TestBadishBooleanExprAnnotation() {
+  function Module() {
+    "use asm";
+    function foo(x) {
+      x = x | 0;
+      x = (x + 1) | false;
+      return x | 0;
+    }
+    return { foo: foo };
+  }
+  var m = Module();
+  // We all false here because the parser optimizes expressons like:
+  // !123 to false.
+  assertTrue(%IsAsmWasmCode(Module));
+  assertEquals(4, m.foo(3));
 })();
 
 (function TestBadCase() {
