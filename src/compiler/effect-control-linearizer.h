@@ -25,10 +25,12 @@ class MachineOperatorBuilder;
 class JSGraph;
 class Graph;
 class Schedule;
+class SourcePositionTable;
 
 class V8_EXPORT_PRIVATE EffectControlLinearizer {
  public:
-  EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone);
+  EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
+                          SourcePositionTable* source_positions);
 
   void Run();
 
@@ -226,6 +228,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Schedule* schedule_;
   Zone* temp_zone_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
+  SourcePositionTable* source_positions_;
 
   SetOncePointer<Operator const> to_number_operator_;
 };
