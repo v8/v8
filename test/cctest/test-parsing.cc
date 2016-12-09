@@ -3446,6 +3446,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
 }  // namespace
 
 TEST(AsmModuleFlag) {
+  i::FLAG_validate_asm = false;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -3453,8 +3454,7 @@ TEST(AsmModuleFlag) {
   const char* src =
       "function m() {"
       "  'use asm';"
-      "  var x = 0;"
-      "  function f() { return x };"
+      "  function f() { return 0 };"
       "  return { f:f };"
       "}"
       "m();";

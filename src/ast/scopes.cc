@@ -2061,9 +2061,9 @@ void Scope::AllocateVariablesRecursively() {
   // Force allocation of a context for this scope if necessary. For a 'with'
   // scope and for a function scope that makes an 'eval' call we need a context,
   // even if no local variables were statically allocated in the scope.
-  // Likewise for modules.
+  // Likewise for modules and function scopes representing asm.js modules.
   bool must_have_context =
-      is_with_scope() || is_module_scope() ||
+      is_with_scope() || is_module_scope() || IsAsmModule() ||
       (is_function_scope() && calls_sloppy_eval()) ||
       (is_block_scope() && is_declaration_scope() && calls_sloppy_eval());
 
