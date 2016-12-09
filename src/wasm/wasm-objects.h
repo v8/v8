@@ -43,13 +43,6 @@ class WasmModuleObject : public JSObject {
   DECLARE_CASTS(WasmModuleObject);
 
   WasmCompiledModule* get_compiled_module();
-  wasm::WasmModule* module();
-  int num_functions();
-  bool is_asm_js();
-  int GetAsmWasmSourcePosition(int func_index, int byte_offset);
-  WasmDebugInfo* debug_info();
-  void set_debug_info(WasmDebugInfo* debug_info);
-  MaybeHandle<String> GetFunctionName(Isolate* isolate, int func_index);
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
