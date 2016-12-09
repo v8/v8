@@ -34,55 +34,17 @@ listenerComplete = false;
 exception = false;
 
 var breakpoint = -1;
-var base_request = '"seq":0,"type":"request","command":"changebreakpoint"'
-
-function safeEval(code) {
-  try {
-    return eval('(' + code + ')');
-  } catch (e) {
-    assertEquals(void 0, e);
-    return undefined;
-  }
-}
-
-function testArguments(dcp, arguments, success) {
-  var request = '{' + base_request + ',"arguments":' + arguments + '}'
-  var json_response = dcp.processDebugJSONRequest(request);
-  var response = safeEval(json_response);
-  if (success) {
-    assertTrue(response.success, json_response);
-  } else {
-    assertFalse(response.success, json_response);
-  }
-}
 
 function listener(event, exec_state, event_data, data) {
   try {
-  if (event == Debug.DebugEvent.Break) {
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-
-    // Test some illegal clearbreakpoint requests.
-    var request = '{' + base_request + '}'
-    var response = safeEval(dcp.processDebugJSONRequest(request));
-    assertFalse(response.success);
-
-    testArguments(dcp, '{}', false);
-    testArguments(dcp, '{"breakpoint":0,"condition":"false"}', false);
-    testArguments(dcp, '{"breakpoint":' + (breakpoint + 1) + ',"condition":"false"}', false);
-    testArguments(dcp, '{"breakpoint":"xx","condition":"false"}', false);
-
-    // Test some legal clearbreakpoint requests.
-    var bp_str = '"breakpoint":' + breakpoint;;
-    testArguments(dcp, '{' + bp_str + '}', true);
-    testArguments(dcp, '{' + bp_str + ',"enabled":"true"}', true);
-    testArguments(dcp, '{' + bp_str + ',"enabled":"false"}', true);
-    testArguments(dcp, '{' + bp_str + ',"condition":"1==2"}', true);
-    testArguments(dcp, '{' + bp_str + ',"condition":"false"}', true);
-
-    // Indicate that all was processed.
-    listenerComplete = true;
-  }
+    if (event == Debug.DebugEvent.Break) {
+      // Test some legal clearbreakpoint requests.
+      Debug.enableBreakPoint(breakpoint);
+      Debug.disableBreakPoint(breakpoint);
+      Debug.changeBreakPointCondition(breakpoint, "1==2");
+      Debug.changeBreakPointCondition(breakpoint, "false");
+      listenerComplete = true;
+    }
   } catch (e) {
     exception = e
   };

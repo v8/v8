@@ -29,38 +29,6 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-
-function ParsedResponse(json) {
-  this.response_ = eval('(' + json + ')');
-  this.refs_ = [];
-  if (this.response_.refs) {
-    for (var i = 0; i < this.response_.refs.length; i++) {
-      this.refs_[this.response_.refs[i].handle] = this.response_.refs[i];
-    }
-  }
-}
-
-
-ParsedResponse.prototype.response = function() {
-  return this.response_;
-}
-
-
-ParsedResponse.prototype.body = function() {
-  return this.response_.body;
-}
-
-
-ParsedResponse.prototype.running = function() {
-  return this.response_.running;
-}
-
-
-ParsedResponse.prototype.lookup = function(handle) {
-  return this.refs_[handle];
-}
-
-
 listener_complete = false;
 exception = false;
 break_count = 0;
@@ -108,16 +76,6 @@ function listener(event, exec_state, event_data, data) {
         assertTrue(exec_state.frame(0).isAtReturn())
         assertEquals(expected_return_value,
                      exec_state.frame(0).returnValue().value());
-
-        // Check the same using the JSON commands.
-        var dcp = exec_state.debugCommandProcessor(false);
-        var request = '{"seq":0,"type":"request","command":"backtrace"}';
-        var resp = dcp.processDebugJSONRequest(request);
-        response = new ParsedResponse(resp);
-        frames = response.body().frames;
-        assertTrue(frames[0].atReturn);
-        assertEquals(expected_return_value,
-                     response.lookup(frames[0].returnValue.ref).value);
 
         listener_complete = true;
       }
