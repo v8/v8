@@ -335,6 +335,9 @@ void AsmTyper::InitializeStdlib() {
 AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
   auto* obj = import->obj();
   auto* key = import->key()->AsLiteral();
+  if (key == nullptr) {
+    return nullptr;
+  }
 
   ObjectTypeMap* stdlib = &stdlib_types_;
   if (auto* obj_as_property = obj->AsProperty()) {
