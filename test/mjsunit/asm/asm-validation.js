@@ -81,7 +81,7 @@ function assertValidAsm(func) {
   assertEquals(Math.fround(-3.0), m.fVar());
 
   var m = DisallowAssignToConstGlobal();
-  assertTrue(%IsNotAsmWasmCode(DisallowAssignToConstGlobal));
+  assertFalse(%IsAsmWasmCode(DisallowAssignToConstGlobal));
 })();
 
 (function TestModuleArgs() {
@@ -125,7 +125,7 @@ function assertValidAsm(func) {
     return { foo: foo };
   }
   var m = Module({});
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals(123, m.foo());
 })();
 
@@ -136,7 +136,7 @@ function assertValidAsm(func) {
     return {};
   }
   var m = Module(1, 2, 3);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals({}, m);
 })();
 
@@ -147,7 +147,7 @@ function assertValidAsm(func) {
     return {};
   }
   var m = Module(1, 2);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals({}, m);
 })();
 
@@ -170,7 +170,7 @@ function assertValidAsm(func) {
   }
   var heap = new ArrayBuffer(1024 * 1024);
   var m = Module({}, {}, heap);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals(123, m.foo());
 })();
 
@@ -204,9 +204,9 @@ function assertValidAsm(func) {
     return { foo: foo };
   }
   var m1 = Module(1, 2, 3);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   var m2 = Module(1, 2, 3);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals(123, m1.foo());
   assertEquals(123, m2.foo());
 })();
@@ -225,9 +225,9 @@ function assertValidAsm(func) {
   var Module2 = MkModule();
   var heap = new ArrayBuffer(1024 * 1024);
   var m1 = Module1(1, 2, 3);
-  assertTrue(%IsNotAsmWasmCode(Module1));
+  assertFalse(%IsAsmWasmCode(Module1));
   var m2 = Module2({}, {}, heap);
-  assertTrue(%IsNotAsmWasmCode(Module2));
+  assertFalse(%IsAsmWasmCode(Module2));
   assertEquals(123, m1.foo());
   assertEquals(123, m2.foo());
 })();
@@ -248,7 +248,7 @@ function assertValidAsm(func) {
   var m1 = Module1({NaN: NaN}, {}, heap);
   assertValidAsm(Module1);
   var m2 = Module2(1, 2, 3);
-  assertTrue(%IsNotAsmWasmCode(Module2));
+  assertFalse(%IsAsmWasmCode(Module2));
   assertEquals(123, m1.foo());
   assertEquals(123, m2.foo());
 })();
@@ -269,9 +269,9 @@ function assertValidAsm(func) {
   var m1a = Module1({NaN: NaN}, {}, heap);
   assertValidAsm(Module1);
   var m2 = Module2(1, 2, 3);
-  assertTrue(%IsNotAsmWasmCode(Module2));
+  assertFalse(%IsAsmWasmCode(Module2));
   var m1b = Module1({NaN: NaN}, {}, heap);
-  assertTrue(%IsNotAsmWasmCode(Module1));
+  assertFalse(%IsAsmWasmCode(Module1));
   assertEquals(123, m1a.foo());
   assertEquals(123, m1b.foo());
   assertEquals(123, m2.foo());
@@ -298,7 +298,7 @@ function assertValidAsm(func) {
     return { foo: foo };
   }
   var m = Module();
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals(0xffffffff, m.foo());
 })();
 
@@ -312,7 +312,7 @@ function assertValidAsm(func) {
     return { foo: foo };
   }
   var m = Module();
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals(3, m.foo(3));
 })();
 
@@ -332,6 +332,6 @@ function assertValidAsm(func) {
     return { foo: foo };
   }
   var m = Module();
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
   assertEquals(43, m.foo(3));
 })();

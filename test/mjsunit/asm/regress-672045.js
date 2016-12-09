@@ -10,4 +10,4 @@ function Module(stdlib, env) {
   return { foo: function(y) { return eval(1); } };
 }
 Module(this, {bar:0});
-assertTrue(%IsNotAsmWasmCode(Module));
+assertFalse(%IsAsmWasmCode(Module));

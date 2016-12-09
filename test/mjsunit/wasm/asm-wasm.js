@@ -111,7 +111,7 @@ function BadModule() {
   return {caller: caller};
 }
 
-assertTrue(%IsNotAsmWasmCode(BadModule));
+assertFalse(%IsAsmWasmCode(BadModule));
 
 
 function TestReturnInBlock() {
@@ -1390,7 +1390,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
   }
   print("TestBadAssignDoubleFromIntish...");
   Module(stdlib);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 
@@ -1406,7 +1406,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
   }
   print("TestBadAssignIntFromDouble...");
   Module(stdlib);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 
@@ -1421,7 +1421,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
   }
   print("TestBadMultiplyIntish...");
   Module(stdlib);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 
@@ -1436,7 +1436,7 @@ assertWasm(7, TestIntegerMultiplyBothWays);
   }
   print("TestBadCastFromInt...");
   Module(stdlib);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 
@@ -1480,7 +1480,7 @@ assertWasm(-34359738370.75, TestNegativeDouble);
   }
 
   Module(stdlib);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 
@@ -1493,7 +1493,7 @@ assertWasm(-34359738370.75, TestNegativeDouble);
   }
 
   Module(stdlib);
-  assertTrue(%IsNotAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 

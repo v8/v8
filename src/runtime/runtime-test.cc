@@ -677,36 +677,22 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
   return isolate->heap()->ToBoolean(isolate->heap()->InNewSpace(obj));
 }
 
-namespace {
-
-bool IsAsmWasmCode(Isolate* isolate, Handle<JSFunction> function) {
-  if (!function->shared()->HasAsmWasmData()) {
-    // Doesn't have wasm data.
-    return false;
-  }
-  if (function->shared()->code() !=
-      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
-    // Hasn't been compiled yet.
-    return false;
-  }
-  return true;
-}
-
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return isolate->heap()->ToBoolean(IsAsmWasmCode(isolate, function));
+  if (!function->shared()->HasAsmWasmData()) {
+    // Doesn't have wasm data.
+    return isolate->heap()->false_value();
+  }
+  if (function->shared()->code() !=
+      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
+    // Hasn't been compiled yet.
+    return isolate->heap()->false_value();
+  }
+  return isolate->heap()->true_value();
 }
 
-RUNTIME_FUNCTION(Runtime_IsNotAsmWasmCode) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return isolate->heap()->ToBoolean(!IsAsmWasmCode(isolate, function));
-}
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \
