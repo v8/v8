@@ -677,7 +677,9 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
   return isolate->heap()->ToBoolean(isolate->heap()->InNewSpace(obj));
 }
 
-static bool IsAsmWasmCode(Isolate* isolate, Handle<JSFunction> function) {
+namespace {
+
+bool IsAsmWasmCode(Isolate* isolate, Handle<JSFunction> function) {
   if (!function->shared()->HasAsmWasmData()) {
     // Doesn't have wasm data.
     return false;
@@ -690,21 +692,18 @@ static bool IsAsmWasmCode(Isolate* isolate, Handle<JSFunction> function) {
   return true;
 }
 
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  // TODO(mstarzinger): --always-opt should still allow asm.js->wasm,
-  // but currently does not. For now, pretend asm.js->wasm is on for
-  // this case. Be more accurate once this is corrected.
-  return isolate->heap()->ToBoolean(
-      ((FLAG_always_opt || FLAG_prepare_always_opt) && FLAG_validate_asm) ||
-      IsAsmWasmCode(isolate, function));
+  return isolate->heap()->ToBoolean(IsAsmWasmCode(isolate, function));
 }
 
 RUNTIME_FUNCTION(Runtime_IsNotAsmWasmCode) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   return isolate->heap()->ToBoolean(!IsAsmWasmCode(isolate, function));
 }
