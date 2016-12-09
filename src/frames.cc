@@ -574,6 +574,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
+  state->callee_pc_address = nullptr;
   if (FLAG_enable_embedded_constant_pool) {
     state->constant_pool_address = reinterpret_cast<Address*>(
         fp() + ExitFrameConstants::kConstantPoolOffset);
@@ -603,7 +604,7 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
   Address sp = ComputeStackPointer(fp);
   FillState(fp, sp, state);
-  DCHECK(*state->pc_address != NULL);
+  DCHECK_NOT_NULL(*state->pc_address);
 
   return ComputeFrameType(fp);
 }
@@ -637,11 +638,12 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->fp = fp;
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(sp - 1 * kPCOnStackSize));
+  state->callee_pc_address = nullptr;
   // The constant pool recorded in the exit frame is not associated
   // with the pc in this state (the return address into a C entry
   // stub).  ComputeCallerState will retrieve the constant pool
   // together with the associated caller pc.
-  state->constant_pool_address = NULL;
+  state->constant_pool_address = nullptr;
 }
 
 JSFunction* BuiltinExitFrame::function() const {
@@ -745,6 +747,7 @@ void StandardFrame::ComputeCallerState(State* state) const {
   state->fp = caller_fp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
+  state->callee_pc_address = pc_address();
   state->constant_pool_address =
       reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
 }
@@ -879,7 +882,7 @@ void StubFrame::Iterate(ObjectVisitor* v) const {
 
 
 Code* StubFrame::unchecked_code() const {
-  return static_cast<Code*>(isolate()->FindCodeObject(pc()));
+  return isolate()->FindCodeObject(pc());
 }
 
 
@@ -1580,9 +1583,23 @@ int WasmFrame::position() const {
         isolate());
     DCHECK_LE(0, position);
     position = WasmCompiledModule::GetAsmJsSourcePosition(
-        compiled_module, function_index(), static_cast<uint32_t>(position));
+        compiled_module, function_index(), static_cast<uint32_t>(position),
+        at_to_number_conversion());
   }
   return position;
+}
+
+bool WasmFrame::at_to_number_conversion() const {
+  // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
+  // ToNumber conversion call.
+  Address callee_pc = reinterpret_cast<Address>(this->callee_pc());
+  Code* code = callee_pc ? isolate()->FindCodeObject(callee_pc) : nullptr;
+  if (!code || code->kind() != Code::WASM_TO_JS_FUNCTION) return false;
+  int offset = static_cast<int>(callee_pc - code->instruction_start());
+  int pos = AbstractCode::cast(code)->SourcePosition(offset);
+  DCHECK(pos == 0 || pos == 1);
+  // The imported call has position 0, ToNumber has position 1.
+  return !!pos;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {

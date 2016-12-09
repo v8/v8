@@ -68,10 +68,10 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
-                                             CallDescriptor* call_descriptor,
-                                             Graph* graph,
-                                             Schedule* schedule = nullptr);
+  static Handle<Code> GenerateCodeForTesting(
+      CompilationInfo* info, CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule = nullptr,
+      SourcePositionTable* source_positions = nullptr);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);

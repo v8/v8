@@ -1071,7 +1071,7 @@ class Isolate {
   int GenerateIdentityHash(uint32_t mask);
 
   // Given an address occupied by a live code object, return that object.
-  Object* FindCodeObject(Address a);
+  Code* FindCodeObject(Address a);
 
   int NextOptimizationId() {
     int id = next_optimization_id_++;

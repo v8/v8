@@ -296,7 +296,8 @@ class WasmCompiledModule : public FixedArray {
   // Get the asm.js source position from a byte offset.
   // Must only be called if the associated wasm object was created from asm.js.
   static int GetAsmJsSourcePosition(Handle<WasmCompiledModule> debug_info,
-                                    uint32_t func_index, uint32_t byte_offset);
+                                    uint32_t func_index, uint32_t byte_offset,
+                                    bool is_at_number_conversion);
 
   // Compute the disassembly of a wasm function.
   // Returns the disassembly string and a list of <byte_offset, line, column>

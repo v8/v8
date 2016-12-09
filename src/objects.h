@@ -3132,6 +3132,7 @@ class FrameArray : public FixedArray {
   static const int kIsAsmJsWasmFrame = 1 << 1;
   static const int kIsStrict = 1 << 2;
   static const int kForceConstructor = 1 << 3;
+  static const int kAsmJsAtNumberConversion = 1 << 4;
 
   static Handle<FrameArray> AppendJSFrame(Handle<FrameArray> in,
                                           Handle<Object> receiver,

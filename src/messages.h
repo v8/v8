@@ -163,6 +163,7 @@ class WasmStackFrame : public StackFrameBase {
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
   friend class FrameArrayIterator;
+  friend class AsmJsWasmStackFrame;
 };
 
 class AsmJsWasmStackFrame : public WasmStackFrame {
@@ -180,6 +181,12 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
   int GetColumnNumber() override;
 
   MaybeHandle<String> ToString() override;
+
+ private:
+  friend class FrameArrayIterator;
+  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+
+  bool is_at_number_conversion_;
 };
 
 class FrameArrayIterator {

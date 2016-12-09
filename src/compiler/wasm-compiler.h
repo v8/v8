@@ -94,7 +94,8 @@ class WasmCompilationUnit final {
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> module_name,
-                                    MaybeHandle<String> import_name);
+                                    MaybeHandle<String> import_name,
+                                    wasm::ModuleOrigin origin);
 
 // Wraps a given wasm code object, producing a code object.
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
