@@ -49,13 +49,6 @@ class CodeEntry {
                    Address instruction_start = NULL);
   ~CodeEntry();
 
-  // Container describing inlined frames at eager deopt points. Is eventually
-  // being translated into v8::CpuProfileDeoptFrame by the profiler.
-  struct DeoptInlinedFrame {
-    int position;
-    int script_id;
-  };
-
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
@@ -72,18 +65,15 @@ class CodeEntry {
   }
   const char* bailout_reason() const { return bailout_reason_; }
 
-  void set_deopt_info(const char* deopt_reason, SourcePosition position,
-                      int deopt_id) {
+  void set_deopt_info(const char* deopt_reason, int deopt_id) {
     DCHECK(!has_deopt_info());
     deopt_reason_ = deopt_reason;
-    deopt_position_ = position;
     deopt_id_ = deopt_id;
   }
   CpuProfileDeoptInfo GetDeoptInfo();
   bool has_deopt_info() const { return deopt_id_ != kNoDeoptimizationId; }
   void clear_deopt_info() {
     deopt_reason_ = kNoDeoptReason;
-    deopt_position_ = SourcePosition::Unknown();
     deopt_id_ = kNoDeoptimizationId;
   }
 
@@ -99,10 +89,10 @@ class CodeEntry {
 
   int GetSourceLine(int pc_offset) const;
 
-  void AddInlineStack(int pc_offset, std::vector<CodeEntry*>& inline_stack);
+  void AddInlineStack(int pc_offset, std::vector<CodeEntry*> inline_stack);
   const std::vector<CodeEntry*>* GetInlineStack(int pc_offset) const;
 
-  void AddDeoptInlinedFrames(int deopt_id, std::vector<DeoptInlinedFrame>&);
+  void AddDeoptInlinedFrames(int deopt_id, std::vector<CpuProfileDeoptFrame>);
   bool HasDeoptInlinedFramesFor(int deopt_id) const;
 
   Address instruction_start() const { return instruction_start_; }
@@ -167,13 +157,12 @@ class CodeEntry {
   int position_;
   const char* bailout_reason_;
   const char* deopt_reason_;
-  SourcePosition deopt_position_;
   int deopt_id_;
   JITLineInfoTable* line_info_;
   Address instruction_start_;
   // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
   std::map<int, std::vector<CodeEntry*>> inline_locations_;
-  std::map<int, std::vector<DeoptInlinedFrame>> deopt_inlined_frames_;
+  std::map<int, std::vector<CpuProfileDeoptFrame>> deopt_inlined_frames_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
