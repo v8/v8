@@ -109,7 +109,7 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      Zone* z, JSGraph* g, wasm::FunctionSig* function_signature,
+      Zone* z, JSGraph* g, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -207,7 +207,7 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
-  wasm::FunctionSig* GetFunctionSignature() { return function_signature_; }
+  wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
   void Int64LoweringForTesting();
 
@@ -222,25 +222,28 @@ class WasmGraphBuilder {
   Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
                    const NodeVector& inputs);
 
+  bool has_simd() const { return has_simd_; }
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;
 
   Zone* zone_;
   JSGraph* jsgraph_;
-  wasm::ModuleEnv* module_;
-  Node* mem_buffer_;
-  Node* mem_size_;
+  wasm::ModuleEnv* module_ = nullptr;
+  Node* mem_buffer_ = nullptr;
+  Node* mem_size_ = nullptr;
   NodeVector function_tables_;
   NodeVector function_table_sizes_;
-  Node** control_;
-  Node** effect_;
+  Node** control_ = nullptr;
+  Node** effect_ = nullptr;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
+  bool has_simd_ = false;
 
   WasmTrapHelper* trap_;
-  wasm::FunctionSig* function_signature_;
+  wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 
   compiler::SourcePositionTable* source_position_table_ = nullptr;

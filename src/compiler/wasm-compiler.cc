@@ -300,22 +300,23 @@ class WasmTrapHelper : public ZoneObject {
 };
 
 WasmGraphBuilder::WasmGraphBuilder(
-    Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* function_signature,
+    Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
     : zone_(zone),
       jsgraph_(jsgraph),
-      module_(nullptr),
-      mem_buffer_(nullptr),
-      mem_size_(nullptr),
       function_tables_(zone),
       function_table_sizes_(zone),
-      control_(nullptr),
-      effect_(nullptr),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
       trap_(new (zone) WasmTrapHelper(this)),
-      function_signature_(function_signature),
+      sig_(sig),
       source_position_table_(source_position_table) {
+  for (size_t i = 0; i < sig->parameter_count(); i++) {
+    if (sig->GetParam(i) == wasm::kAstS128) has_simd_ = true;
+  }
+  for (size_t i = 0; i < sig->return_count(); i++) {
+    if (sig->GetReturn(i) == wasm::kAstS128) has_simd_ = true;
+  }
   DCHECK_NOT_NULL(jsgraph_);
 }
 
@@ -3155,16 +3156,14 @@ Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 void WasmGraphBuilder::Int64LoweringForTesting() {
   if (jsgraph()->machine()->Is32()) {
     Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(),
-                    jsgraph()->common(), jsgraph()->zone(),
-                    function_signature_);
+                    jsgraph()->common(), jsgraph()->zone(), sig_);
     r.LowerGraph();
   }
 }
 
 void WasmGraphBuilder::SimdScalarLoweringForTesting() {
   SimdScalarLowering(jsgraph()->graph(), jsgraph()->machine(),
-                     jsgraph()->common(), jsgraph()->zone(),
-                     function_signature_)
+                     jsgraph()->common(), jsgraph()->zone(), sig_)
       .LowerGraph();
 }
 
@@ -3178,6 +3177,7 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
 Node* WasmGraphBuilder::CreateS128Value(int32_t value) {
   // TODO(gdeepti): Introduce Simd128Constant to common-operator.h and use
   // instead of creating a SIMD Value.
+  has_simd_ = true;
   return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(),
                           Int32Constant(value), Int32Constant(value),
                           Int32Constant(value), Int32Constant(value));
@@ -3185,6 +3185,7 @@ Node* WasmGraphBuilder::CreateS128Value(int32_t value) {
 
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                                const NodeVector& inputs) {
+  has_simd_ = true;
   switch (opcode) {
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
@@ -3208,6 +3209,7 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
 
 Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
                                    const NodeVector& inputs) {
+  has_simd_ = true;
   switch (opcode) {
     case wasm::kExprI32x4ExtractLane:
       return graph()->NewNode(jsgraph()->common()->Int32x4ExtractLane(lane),
@@ -3441,11 +3443,11 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   }
 
   if (machine->Is32()) {
-    Int64Lowering r(graph, machine, common, jsgraph_->zone(), function_->sig);
-    r.LowerGraph();
+    Int64Lowering(graph, machine, common, jsgraph_->zone(), function_->sig)
+        .LowerGraph();
   }
 
-  if (!CpuFeatures::SupportsSimd128()) {
+  if (builder.has_simd() && !CpuFeatures::SupportsSimd128()) {
     SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
         .LowerGraph();
   }
