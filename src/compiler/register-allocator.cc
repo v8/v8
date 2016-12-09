@@ -3012,7 +3012,11 @@ void LinearScanAllocator::FindFreeRegistersForRange(
     int cur_reg = cur_inactive->assigned_register();
     // No need to carry out intersections, when this register won't be
     // interesting to this range anyway.
-    if (positions[cur_reg] < range->Start()) continue;
+    // TODO(mtrofin): extend to aliased ranges, too.
+    if ((kSimpleFPAliasing || !check_fp_aliasing()) &&
+        positions[cur_reg] < range->Start()) {
+      continue;
+    }
 
     LifetimePosition next_intersection = cur_inactive->FirstIntersection(range);
     if (!next_intersection.IsValid()) continue;
@@ -3209,10 +3213,21 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
 
   for (LiveRange* range : inactive_live_ranges()) {
     DCHECK(range->End() > current->Start());
-    LifetimePosition next_intersection = range->FirstIntersection(current);
-    if (!next_intersection.IsValid()) continue;
     int cur_reg = range->assigned_register();
     bool is_fixed = range->TopLevel()->IsFixed();
+
+    // Don't perform costly intersections if they are guaranteed to not update
+    // block_pos or use_pos.
+    // TODO(mtrofin): extend to aliased ranges, too.
+    if ((kSimpleFPAliasing || !check_fp_aliasing()) && is_fixed) {
+      if (block_pos[cur_reg] < range->Start()) continue;
+    } else {
+      if (use_pos[cur_reg] < range->Start()) continue;
+    }
+
+    LifetimePosition next_intersection = range->FirstIntersection(current);
+    if (!next_intersection.IsValid()) continue;
+
     if (kSimpleFPAliasing || !check_fp_aliasing()) {
       if (is_fixed) {
         block_pos[cur_reg] = Min(block_pos[cur_reg], next_intersection);
