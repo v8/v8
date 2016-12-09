@@ -13605,15 +13605,11 @@ int Script::GetLineNumber(int code_pos) const {
   return info.line;
 }
 
-Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
-  Isolate* isolate = script->GetIsolate();
-
+Object* Script::GetNameOrSourceURL() {
+  Isolate* isolate = GetIsolate();
   // Keep in sync with ScriptNameOrSourceURL in messages.js.
-
-  if (!script->source_url()->IsUndefined(isolate)) {
-    return handle(script->source_url(), isolate);
-  }
-  return handle(script->name(), isolate);
+  if (!source_url()->IsUndefined(isolate)) return source_url();
+  return name();
 }
 
 

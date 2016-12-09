@@ -7152,7 +7152,7 @@ class Script: public Struct {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
-  static Handle<Object> GetNameOrSourceURL(Handle<Script> script);
+  Object* GetNameOrSourceURL();
 
   // Set eval origin for stack trace formatting.
   static void SetEvalOrigin(Handle<Script> script,

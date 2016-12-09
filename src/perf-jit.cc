@@ -247,6 +247,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 }
 
 void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
+  DisallowHeapAllocation no_gc;
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
   for (SourcePositionTableIterator iterator(code->source_position_table());
@@ -254,14 +255,14 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     entry_count++;
   }
   if (entry_count == 0) return;
-  Handle<Script> script(Script::cast(shared->script()));
-  Handle<Object> name_or_url(Script::GetNameOrSourceURL(script));
+  Script* script = Script::cast(shared->script());
+  Object* name_or_url = script->GetNameOrSourceURL();
 
   int name_length = 0;
   std::unique_ptr<char[]> name_string;
   if (name_or_url->IsString()) {
     name_string =
-        Handle<String>::cast(name_or_url)
+        String::cast(name_or_url)
             ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &name_length);
     DCHECK_EQ(0, name_string.get()[name_length]);
   } else {
@@ -294,13 +295,13 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
 
   int script_line_offset = script->line_offset();
-  Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+  FixedArray* line_ends = FixedArray::cast(script->line_ends());
   Address code_start = code->instruction_start();
 
   for (SourcePositionTableIterator iterator(code->source_position_table());
        !iterator.done(); iterator.Advance()) {
     int position = iterator.source_position().ScriptOffset();
-    int line_number = Script::GetLineNumber(script, position);
+    int line_number = script->GetLineNumber(position);
     // Compute column.
     int relative_line_number = line_number - script_line_offset;
     int start =

@@ -326,7 +326,7 @@ Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
 }
 
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
-  Handle<Object> sourceURL = Script::GetNameOrSourceURL(script);
+  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
   if (!sourceURL->IsUndefined(isolate)) {
     DCHECK(sourceURL->IsString());
     return Handle<String>::cast(sourceURL);

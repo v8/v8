@@ -1301,7 +1301,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   Handle<Script> script;
   if (!maybe_shared_info.ToHandle(&shared_info)) {
     script = isolate->factory()->NewScript(source);
-    if (FLAG_trace_deopt) Script::InitLineEnds(script);
+    if (isolate->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     if (!script_name.is_null()) {
       script->set_name(*script_name);
       script->set_line_offset(line_offset);
@@ -1461,7 +1463,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
-    if (FLAG_trace_deopt) Script::InitLineEnds(script);
+    if (isolate->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     if (natives == NATIVES_CODE) {
       script->set_type(Script::TYPE_NATIVE);
     } else if (natives == EXTENSION_CODE) {

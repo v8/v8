@@ -966,6 +966,8 @@ class Isolate {
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
+  bool NeedsSourcePositionsForProfiling() const;
+
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
   }

@@ -664,7 +664,7 @@ class CaptureStackTraceHelper {
     }
 
     if (!script_name_or_source_url_key_.is_null()) {
-      Handle<Object> result = Script::GetNameOrSourceURL(script);
+      Handle<Object> result(script->GetNameOrSourceURL(), isolate_);
       JSObject::AddProperty(stack_frame, script_name_or_source_url_key_, result,
                             NONE);
     }
@@ -1083,7 +1083,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
     printf("Exception thrown:\n");
     if (location) {
       Handle<Script> script = location->script();
-      Handle<Object> name = Script::GetNameOrSourceURL(script);
+      Handle<Object> name(script->GetNameOrSourceURL(), this);
       printf("at ");
       if (name->IsString() && String::cast(*name)->length() > 0)
         String::cast(*name)->PrintOn(stdout);
@@ -2814,6 +2814,12 @@ bool Isolate::use_crankshaft() const {
   return FLAG_crankshaft &&
          !serializer_enabled_ &&
          CpuFeatures::SupportsCrankshaft();
+}
+
+bool Isolate::NeedsSourcePositionsForProfiling() const {
+  return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
+         FLAG_turbo_profiling || is_profiling() || debug_->is_active() ||
+         logger_->is_logging();
 }
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {
