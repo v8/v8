@@ -265,7 +265,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   }
 
   if (incremental_marking()->NeedsFinalization() &&
-      OldGenerationSpaceAvailable() == 0) {
+      AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
     return MARK_COMPACTOR;
   }
@@ -5320,7 +5320,7 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
   if (ShouldOptimizeForMemoryUsage()) return false;
 
   if (incremental_marking()->NeedsFinalization()) {
-    return false;
+    return !AllocationLimitOvershotByLargeMargin();
   }
 
   if (incremental_marking()->IsStopped() &&

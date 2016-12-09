@@ -1823,6 +1823,19 @@ class Heap {
            static_cast<size_t>(PromotedTotalSize());
   }
 
+  // We allow incremental marking to overshoot the allocation limit for
+  // performace reasons. If the overshoot is too large then we are more
+  // eager to finalize incremental marking.
+  inline bool AllocationLimitOvershotByLargeMargin() {
+    if (old_generation_allocation_limit_ >= PromotedTotalSize()) return false;
+    uint64_t overshoot = PromotedTotalSize() - old_generation_allocation_limit_;
+    // Overshoot margin is 50% of allocation limit or half-way to the max heap.
+    uint64_t margin =
+        Min(old_generation_allocation_limit_ / 2,
+            (max_old_generation_size_ - old_generation_allocation_limit_) / 2);
+    return overshoot >= margin;
+  }
+
   void UpdateTotalGCTime(double duration);
 
   bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
