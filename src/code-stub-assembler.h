@@ -1050,6 +1050,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                ParameterMode mode, int base_size = 0);
 
+  // Promise helpers
+  Node* IsPromiseHookEnabled();
+
  protected:
   void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,
                               Label* if_found, Variable* var_name_index,

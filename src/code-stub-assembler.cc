@@ -8237,5 +8237,13 @@ Node* CodeStubAssembler::IsDebugActive() {
   return WordNotEqual(is_debug_active, Int32Constant(0));
 }
 
+Node* CodeStubAssembler::IsPromiseHookEnabled() {
+  Node* const is_promisehook_enabled =
+      Load(MachineType::Uint8(),
+           ExternalConstant(
+               ExternalReference::is_promisehook_enabled_address(isolate())));
+  return WordNotEqual(is_promisehook_enabled, Int32Constant(0));
+}
+
 }  // namespace internal
 }  // namespace v8

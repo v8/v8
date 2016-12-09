@@ -2129,6 +2129,7 @@ Isolate::Isolate(bool enable_serializer)
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
+      is_promisehook_enabled_(false),
       is_tail_call_elimination_enabled_(true),
       is_isolate_in_background_(false),
       cpu_profiler_(NULL),
@@ -3140,6 +3141,9 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
+void Isolate::EnablePromiseHook() { is_promisehook_enabled_ = true; }
+
+void Isolate::DisablePromiseHook() { is_promisehook_enabled_ = false; }
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   promise_reject_callback_ = callback;

@@ -1972,5 +1972,32 @@ TEST(CodeStubAssemblerGraphsCorrectness) {
   v8_isolate->Dispose();
 }
 
+TEST(IsPromiseHookEnabled) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabled()));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(false, isolate->IsPromiseHookEnabled());
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+
+  isolate->EnablePromiseHook();
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->true_value(), *result);
+
+  isolate->DisablePromiseHook();
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+}
+
 }  // namespace internal
 }  // namespace v8
