@@ -235,6 +235,8 @@ class BytecodeNodeBuilder {
 #define DEFINE_BYTECODE_OUTPUT(name, accumulator_use, ...)                 \
   template <typename... Operands>                                          \
   void BytecodeArrayBuilder::Output##name(Operands... operands) {          \
+    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,          \
+                  "too many operands for bytecode");                       \
     BytecodeNode node(BytecodeNodeBuilder<__VA_ARGS__>::Make<Operands...>( \
         this, CurrentSourcePosition(Bytecode::k##name), Bytecode::k##name, \
         operands...));                                                     \
