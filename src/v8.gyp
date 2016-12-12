@@ -742,6 +742,8 @@
         'compiler/wasm-linkage.cc',
         'compiler/zone-stats.cc',
         'compiler/zone-stats.h',
+        'compiler-dispatcher/compiler-dispatcher.cc',
+        'compiler-dispatcher/compiler-dispatcher.h',
         'compiler-dispatcher/compiler-dispatcher-job.cc',
         'compiler-dispatcher/compiler-dispatcher-job.h',
         'compiler-dispatcher/compiler-dispatcher-tracer.cc',

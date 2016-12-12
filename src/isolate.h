@@ -46,7 +46,7 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
-class CompilerDispatcherTracer;
+class CompilerDispatcher;
 class CompilationStatistics;
 class ContextSlotCache;
 class Counters;
@@ -1163,8 +1163,8 @@ class Isolate {
 
   AccountingAllocator* allocator() { return allocator_; }
 
-  CompilerDispatcherTracer* compiler_dispatcher_tracer() const {
-    return compiler_dispatcher_tracer_;
+  CompilerDispatcher* compiler_dispatcher() const {
+    return compiler_dispatcher_;
   }
 
   // Clear all optimized code stored in native contexts.
@@ -1399,7 +1399,7 @@ class Isolate {
 
   interpreter::Interpreter* interpreter_;
 
-  CompilerDispatcherTracer* compiler_dispatcher_tracer_;
+  CompilerDispatcher* compiler_dispatcher_;
 
   typedef std::pair<InterruptCallback, void*> InterruptEntry;
   std::queue<InterruptEntry> api_interrupts_queue_;

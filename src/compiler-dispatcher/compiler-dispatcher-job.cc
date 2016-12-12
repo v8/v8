@@ -21,10 +21,11 @@ namespace v8 {
 namespace internal {
 
 CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
+                                             CompilerDispatcherTracer* tracer,
                                              Handle<SharedFunctionInfo> shared,
                                              size_t max_stack_size)
     : isolate_(isolate),
-      tracer_(isolate_->compiler_dispatcher_tracer()),
+      tracer_(tracer),
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
@@ -42,6 +43,11 @@ CompilerDispatcherJob::~CompilerDispatcherJob() {
   DCHECK(status_ == CompileJobStatus::kInitial ||
          status_ == CompileJobStatus::kDone);
   i::GlobalHandles::Destroy(Handle<Object>::cast(shared_).location());
+}
+
+bool CompilerDispatcherJob::IsAssociatedWith(
+    Handle<SharedFunctionInfo> shared) const {
+  return *shared_ == *shared;
 }
 
 void CompilerDispatcherJob::PrepareToParseOnMainThread() {

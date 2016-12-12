@@ -1001,6 +1001,8 @@ v8_source_set("v8_base") {
     "src/compiler-dispatcher/compiler-dispatcher-job.h",
     "src/compiler-dispatcher/compiler-dispatcher-tracer.cc",
     "src/compiler-dispatcher/compiler-dispatcher-tracer.h",
+    "src/compiler-dispatcher/compiler-dispatcher.cc",
+    "src/compiler-dispatcher/compiler-dispatcher.h",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
     "src/compiler.cc",
