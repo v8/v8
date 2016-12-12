@@ -3810,8 +3810,6 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
           v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
     // Copy over the counters from the background thread to the main counters on
     // the isolate.
-    // TODO(cbruni,lpy): properly attach the runtime stats to the trace for
-    // background parsing.
     isolate->counters()->runtime_call_stats()->Add(runtime_call_stats_);
   }
 }
@@ -3874,9 +3872,13 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     if (result != NULL) *info->cached_data() = logger.GetScriptData();
     log_ = NULL;
   }
-  if (FLAG_runtime_stats) {
-    // TODO(cbruni,lpy): properly attach the runtime stats to the trace for
-    // background parsing.
+  if (FLAG_runtime_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    auto value = v8::tracing::TracedValue::Create();
+    runtime_call_stats_->Dump(value.get());
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
+                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
+                         "runtime-call-stats", std::move(value));
   }
 }
 
