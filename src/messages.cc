@@ -673,6 +673,7 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 }
 
 int WasmStackFrame::GetPosition() const {
+  // TODO(wasm): Clean this up (bug 5007).
   return (offset_ < 0) ? (-1 - offset_) : code_->SourcePosition(offset_);
 }
 

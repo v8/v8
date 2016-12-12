@@ -962,19 +962,20 @@ class V8_EXPORT Data {
 class ScriptOriginOptions {
  public:
   V8_INLINE ScriptOriginOptions(bool is_shared_cross_origin = false,
-                                bool is_opaque = false)
+                                bool is_opaque = false, bool is_wasm = false)
       : flags_((is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
-               (is_opaque ? kIsOpaque : 0)) {}
+               (is_wasm ? kIsWasm : 0) | (is_opaque ? kIsOpaque : 0)) {}
   V8_INLINE ScriptOriginOptions(int flags)
-      : flags_(flags & (kIsSharedCrossOrigin | kIsOpaque)) {}
+      : flags_(flags & (kIsSharedCrossOrigin | kIsOpaque | kIsWasm)) {}
   bool IsSharedCrossOrigin() const {
     return (flags_ & kIsSharedCrossOrigin) != 0;
   }
   bool IsOpaque() const { return (flags_ & kIsOpaque) != 0; }
+  bool IsWasm() const { return (flags_ & kIsWasm) != 0; }
   int Flags() const { return flags_; }
 
  private:
-  enum { kIsSharedCrossOrigin = 1, kIsOpaque = 1 << 1 };
+  enum { kIsSharedCrossOrigin = 1, kIsOpaque = 1 << 1, kIsWasm = 1 << 2 };
   const int flags_;
 };
 
@@ -990,7 +991,8 @@ class ScriptOrigin {
       Local<Boolean> resource_is_shared_cross_origin = Local<Boolean>(),
       Local<Integer> script_id = Local<Integer>(),
       Local<Value> source_map_url = Local<Value>(),
-      Local<Boolean> resource_is_opaque = Local<Boolean>());
+      Local<Boolean> resource_is_opaque = Local<Boolean>(),
+      Local<Boolean> is_wasm = Local<Boolean>());
 
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
@@ -8839,13 +8841,15 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                            Local<Boolean> resource_is_shared_cross_origin,
                            Local<Integer> script_id,
                            Local<Value> source_map_url,
-                           Local<Boolean> resource_is_opaque)
+                           Local<Boolean> resource_is_opaque,
+                           Local<Boolean> is_wasm)
     : resource_name_(resource_name),
       resource_line_offset_(resource_line_offset),
       resource_column_offset_(resource_column_offset),
       options_(!resource_is_shared_cross_origin.IsEmpty() &&
                    resource_is_shared_cross_origin->IsTrue(),
-               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue()),
+               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue(),
+               !is_wasm.IsEmpty() && is_wasm->IsTrue()),
       script_id_(script_id),
       source_map_url_(source_map_url) {}
 

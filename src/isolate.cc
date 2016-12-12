@@ -1551,25 +1551,31 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {
-    if (elements->IsWasmFrame(i)) {
-      // TODO(clemensh): Handle wasm frames if they ever need handling here.
-      continue;
-    }
-
-    if (elements->IsAsmJsWasmFrame(i)) {
+    if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
       Handle<WasmCompiledModule> compiled_module(
           WasmInstanceObject::cast(elements->WasmInstance(i))
               ->get_compiled_module());
       int func_index = elements->WasmFunctionIndex(i)->value();
       int code_offset = elements->Offset(i)->value();
-      int byte_pos = elements->Code(i)->SourcePosition(code_offset);
-      bool at_to_number_conversion =
-          elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
-      int source_pos = WasmCompiledModule::GetAsmJsSourcePosition(
-          compiled_module, func_index, byte_pos, at_to_number_conversion);
+      // TODO(wasm): Clean this up (bug 5007).
+      int pos = code_offset < 0
+                    ? (-1 - code_offset)
+                    : elements->Code(i)->SourcePosition(code_offset);
+      if (elements->IsAsmJsWasmFrame(i)) {
+        // For asm.js frames, make an additional translation step to get the
+        // asm.js source position.
+        bool at_to_number_conversion =
+            elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
+        pos = WasmCompiledModule::GetAsmJsSourcePosition(
+            compiled_module, func_index, pos, at_to_number_conversion);
+      } else {
+        // For pure wasm, make the function-local position module-relative by
+        // adding the function offset.
+        pos += compiled_module->GetFunctionOffset(func_index);
+      }
       Handle<Script> script = compiled_module->script();
 
-      *target = MessageLocation(script, source_pos, source_pos + 1);
+      *target = MessageLocation(script, pos, pos + 1);
       return true;
     }
 
