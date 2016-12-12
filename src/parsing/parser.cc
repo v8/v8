@@ -754,7 +754,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       DCHECK(!is_duplicate);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
 
-      PrepareGeneratorVariables(&function_state);
+      PrepareGeneratorVariables();
       Expression* initial_yield =
           BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
       body->Add(
@@ -2505,19 +2505,19 @@ void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
   }
 }
 
-void Parser::PrepareGeneratorVariables(FunctionState* function_state) {
+void Parser::PrepareGeneratorVariables() {
   // For generators, allocating variables in contexts is currently a win because
   // it minimizes the work needed to suspend and resume an activation.  The
-  // code produced for generators relies on this forced context allocation, but
-  // not in an essential way.
-  scope()->ForceContextAllocation();
+  // code produced for generators relies on this forced context allocation (it
+  // does not restore the frame's parameters upon resume).
+  function_state_->scope()->ForceContextAllocation();
 
   // Calling a generator returns a generator object.  That object is stored
   // in a temporary variable, a definition that is used by "yield"
   // expressions.
   Variable* temp =
       NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state->set_generator_object_variable(temp);
+  function_state_->set_generator_object_variable(temp);
 }
 
 FunctionLiteral* Parser::ParseFunctionLiteral(
@@ -3075,15 +3075,20 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
   return result;
 }
 
-Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
+Assignment* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
+  // .generator = %CreateJSGeneratorObject(...);
   DCHECK_NOT_NULL(function_state_->generator_object_variable());
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewThisFunction(pos), zone());
   args->Add(IsArrowFunction(kind) ? GetLiteralUndefined(pos)
                                   : ThisExpression(kNoSourcePosition),
             zone());
-  return factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args,
-                                   pos);
+  Expression* allocation =
+      factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args, pos);
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  return factory()->NewAssignment(Token::INIT, proxy, allocation,
+                                  kNoSourcePosition);
 }
 
 Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
@@ -3126,17 +3131,13 @@ Variable* Parser::PromiseVariable() {
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
-  Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
-  VariableProxy* init_proxy =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
-  Assignment* assignment = factory()->NewAssignment(
-      Token::INIT, init_proxy, allocation, kNoSourcePosition);
-  VariableProxy* get_proxy =
+  Assignment* assignment = BuildCreateJSGeneratorObject(pos, kind);
+  VariableProxy* generator =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return factory()->NewYield(get_proxy, assignment, scope()->start_position(),
+  return factory()->NewYield(generator, assignment, scope()->start_position(),
                              Yield::kOnExceptionThrow);
 }
 
@@ -3153,7 +3154,7 @@ ZoneList<Statement*>* Parser::ParseFunction(
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
-  if (IsGeneratorFunction(kind)) PrepareGeneratorVariables(&function_state);
+  if (IsResumableFunction(kind)) PrepareGeneratorVariables();
 
   ParserFormalParameters formals(function_scope);
   ParseFormalParameterList(&formals, CHECK_OK);
@@ -4168,23 +4169,13 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
 // when desugaring the body of async_function.
 void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
                                       FunctionKind kind, int pos) {
-  // function async_function() {
-  //   .generator_object = %CreateGeneratorObject();
-  //   BuildRejectPromiseOnException({
-  //     ... block ...
-  //     return %ResolvePromise(.promise, expr), .promise;
-  //   })
-  // }
-
-  Variable* temp =
-      NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state_->set_generator_object_variable(temp);
-
-  Expression* init_generator_variable = factory()->NewAssignment(
-      Token::INIT, factory()->NewVariableProxy(temp),
-      BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition);
-  body->Add(factory()->NewExpressionStatement(init_generator_variable,
-                                              kNoSourcePosition),
+  // When parsing an async arrow function, we get here without having called
+  // PrepareGeneratorVariables yet, so do it now.
+  if (function_state_->generator_object_variable() == nullptr) {
+    PrepareGeneratorVariables();
+  }
+  body->Add(factory()->NewExpressionStatement(
+                BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition),
             zone());
 }
 
@@ -4192,7 +4183,7 @@ void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
 void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
                                       Expression* return_value, bool* ok) {
   // function async_function() {
-  //   .generator_object = %CreateGeneratorObject();
+  //   .generator_object = %CreateJSGeneratorObject();
   //   BuildRejectPromiseOnException({
   //     ... block ...
   //     return %ResolvePromise(.promise, expr), .promise;
@@ -4229,10 +4220,7 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // TODO(littledan): investigate why this ordering is needed in more detail.
   Variable* generator_object_variable =
       function_state_->generator_object_variable();
-
-  // If generator_object_variable is null,
-  // TODO(littledan): Is this necessary?
-  if (!generator_object_variable) return value;
+  DCHECK_NOT_NULL(generator_object_variable);
 
   const int nopos = kNoSourcePosition;
 

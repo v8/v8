@@ -264,7 +264,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return scope()->NewTemporary(name);
   }
 
-  void PrepareGeneratorVariables(FunctionState* function_state);
+  void PrepareGeneratorVariables();
 
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
@@ -630,7 +630,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
 
   Expression* BuildInitialYield(int pos, FunctionKind kind);
-  Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
+  Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
   Variable* PromiseVariable();

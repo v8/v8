@@ -419,8 +419,9 @@ class ParserBase {
     FunctionState* outer() const { return outer_function_state_; }
 
     void set_generator_object_variable(typename Types::Variable* variable) {
-      DCHECK(variable != NULL);
+      DCHECK_NOT_NULL(variable);
       DCHECK(IsResumableFunction(kind()));
+      DCHECK(scope()->has_forced_context_allocation());
       generator_object_variable_ = variable;
     }
     typename Types::Variable* generator_object_variable() const {
@@ -4172,8 +4173,6 @@ void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope, StatementListT body,
                                               FunctionBodyType body_type,
                                               bool accept_IN, int pos,
                                               bool* ok) {
-  scope->ForceContextAllocation();
-
   impl()->PrepareAsyncFunctionBody(body, kind, pos);
 
   BlockT block = factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
