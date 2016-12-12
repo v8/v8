@@ -183,7 +183,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // allocated globally as a "ghost" variable. RemoveUnresolved removes
   // such a variable again if it was added; otherwise this is a no-op.
   bool RemoveUnresolved(VariableProxy* var);
-  bool RemoveUnresolved(const AstRawString* name);
 
   // Creates a new temporary variable in this scope's TemporaryScope.  The
   // name is only used for printing and cannot be used to find the variable.

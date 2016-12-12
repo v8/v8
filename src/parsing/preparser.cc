@@ -269,19 +269,17 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
 
 PreParserExpression PreParser::ExpressionFromIdentifier(
     PreParserIdentifier name, int start_position, InferName infer) {
+  VariableProxy* proxy = nullptr;
   if (track_unresolved_variables_) {
     AstNodeFactory factory(ast_value_factory());
     // Setting the Zone is necessary because zone_ might be the temp Zone, and
     // AstValueFactory doesn't know about it.
     factory.set_zone(zone());
     DCHECK_NOT_NULL(name.string_);
-    VariableProxy* proxy = scope()->NewUnresolved(
-        &factory, name.string_, start_position, NORMAL_VARIABLE);
-    // We don't know whether the preparsed function assigns or not, so we set
-    // is_assigned pessimistically.
-    proxy->set_is_assigned();
+    proxy = scope()->NewUnresolved(&factory, name.string_, start_position,
+                                   NORMAL_VARIABLE);
   }
-  return PreParserExpression::FromIdentifier(name, zone());
+  return PreParserExpression::FromIdentifier(name, proxy, zone());
 }
 
 void PreParser::DeclareAndInitializeVariables(
@@ -289,7 +287,7 @@ void PreParser::DeclareAndInitializeVariables(
     const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
-  if (declaration->pattern.identifiers_ != nullptr) {
+  if (declaration->pattern.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
     /* Mimic what Parser does when declaring variables (see
        Parser::PatternRewriter::VisitVariableProxy).
@@ -306,12 +304,13 @@ void PreParser::DeclareAndInitializeVariables(
     if (declaration->initializer.IsEmpty() ||
         (declaration_descriptor->mode == VariableMode::LET ||
          declaration_descriptor->mode == VariableMode::CONST)) {
-      for (auto identifier : *(declaration->pattern.identifiers_)) {
-        declaration_descriptor->scope->RemoveUnresolved(identifier);
+      for (auto variable : *(declaration->pattern.variables_)) {
+        declaration_descriptor->scope->RemoveUnresolved(variable);
       }
     }
-    for (auto identifier : *(declaration->pattern.identifiers_)) {
-      scope->DeclareVariableName(identifier, declaration_descriptor->mode);
+    for (auto variable : *(declaration->pattern.variables_)) {
+      scope->DeclareVariableName(variable->raw_name(),
+                                 declaration_descriptor->mode);
     }
   }
 }

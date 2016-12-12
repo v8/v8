@@ -3302,63 +3302,68 @@ TEST(InnerAssignment) {
       {"function x() {}; var x;", true, false},
       {"var x; try {} catch (x) { var x = 5; }", true, false},
   };
+
+  // We set allow_error_in_inner_function to true in cases where our handling of
+  // assigned variables in lazy inner functions is currently overly pessimistic.
+  // FIXME(marja): remove it when no longer needed.
   struct {
     const char* source;
     bool assigned;
     bool with;
+    bool allow_error_in_inner_function;
   } inners[] = {
       // Actual assignments.
-      {"x = 1;", true, false},
-      {"x++;", true, false},
-      {"++x;", true, false},
-      {"x--;", true, false},
-      {"--x;", true, false},
-      {"{ x = 1; }", true, false},
-      {"'use strict'; { let x; }; x = 0;", true, false},
-      {"'use strict'; { const x = 1; }; x = 0;", true, false},
-      {"'use strict'; { function x() {} }; x = 0;", true, false},
-      {"with ({}) { x = 1; }", true, true},
-      {"eval('');", true, false},
-      {"'use strict'; { let y; eval('') }", true, false},
-      {"function h() { x = 0; }", true, false},
-      {"(function() { x = 0; })", true, false},
-      {"(function() { x = 0; })", true, false},
-      {"with ({}) (function() { x = 0; })", true, true},
-      {"for (x of [1,2,3]) {}", true, false},
-      {"for (x in {a: 1}) {}", true, false},
-      {"for ([x] of [[1],[2],[3]]) {}", true, false},
-      {"for ([x] in {ab: 1}) {}", true, false},
-      {"for ([...x] in {ab: 1}) {}", true, false},
-      {"[x] = [1]", true, false},
+      {"x = 1;", true, false, false},
+      {"x++;", true, false, false},
+      {"++x;", true, false, false},
+      {"x--;", true, false, false},
+      {"--x;", true, false, false},
+      {"{ x = 1; }", true, false, false},
+      {"'use strict'; { let x; }; x = 0;", true, false, false},
+      {"'use strict'; { const x = 1; }; x = 0;", true, false, false},
+      {"'use strict'; { function x() {} }; x = 0;", true, false, false},
+      {"with ({}) { x = 1; }", true, true, false},
+      {"eval('');", true, false, false},
+      {"'use strict'; { let y; eval('') }", true, false, false},
+      {"function h() { x = 0; }", true, false, false},
+      {"(function() { x = 0; })", true, false, false},
+      {"(function() { x = 0; })", true, false, false},
+      {"with ({}) (function() { x = 0; })", true, true, false},
+      {"for (x of [1,2,3]) {}", true, false, false},
+      {"for (x in {a: 1}) {}", true, false, false},
+      {"for ([x] of [[1],[2],[3]]) {}", true, false, false},
+      {"for ([x] in {ab: 1}) {}", true, false, false},
+      {"for ([...x] in {ab: 1}) {}", true, false, false},
+      {"[x] = [1]", true, false, false},
       // Actual non-assignments.
-      {"", false, false},
-      {"x;", false, false},
-      {"var x;", false, false},
-      {"var x = 8;", false, false},
-      {"var x; x = 8;", false, false},
-      {"'use strict'; let x;", false, false},
-      {"'use strict'; let x = 8;", false, false},
-      {"'use strict'; let x; x = 8;", false, false},
-      {"'use strict'; const x = 8;", false, false},
-      {"function x() {}", false, false},
-      {"function x() { x = 0; }", false, false},
-      {"function h(x) { x = 0; }", false, false},
-      {"'use strict'; { let x; x = 0; }", false, false},
-      {"{ var x; }; x = 0;", false, false},
-      {"with ({}) {}", false, true},
-      {"var x; { with ({}) { x = 1; } }", false, true},
-      {"try {} catch(x) { x = 0; }", false, false},
-      {"try {} catch(x) { with ({}) { x = 1; } }", false, true},
+      {"", false, false, false},
+      {"x;", false, false, false},
+      {"var x;", false, false, false},
+      {"var x = 8;", false, false, false},
+      {"var x; x = 8;", false, false, false},
+      {"'use strict'; let x;", false, false, false},
+      {"'use strict'; let x = 8;", false, false, false},
+      {"'use strict'; let x; x = 8;", false, false, false},
+      {"'use strict'; const x = 8;", false, false, false},
+      {"function x() {}", false, false, false},
+      {"function x() { x = 0; }", false, false, true},
+      {"function h(x) { x = 0; }", false, false, false},
+      {"'use strict'; { let x; x = 0; }", false, false, false},
+      {"{ var x; }; x = 0;", false, false, false},
+      {"with ({}) {}", false, true, false},
+      {"var x; { with ({}) { x = 1; } }", false, true, false},
+      {"try {} catch(x) { x = 0; }", false, false, true},
+      {"try {} catch(x) { with ({}) { x = 1; } }", false, true, true},
       // Eval approximation.
-      {"eval('');", true, false},
-      {"function h() { eval(''); }", true, false},
-      {"(function() { eval(''); })", true, false},
+      {"eval('');", true, false, false},
+      {"function h() { eval(''); }", true, false, false},
+      {"(function() { eval(''); })", true, false, false},
       // Shadowing not recognized because of eval approximation.
-      {"var x; eval('');", true, false},
-      {"'use strict'; let x; eval('');", true, false},
-      {"try {} catch(x) { eval(''); }", true, false},
-      {"function x() { eval(''); }", true, false},
-      {"(function(x) { eval(''); })", true, false},
+      {"var x; eval('');", true, false, false},
+      {"'use strict'; let x; eval('');", true, false, false},
+      {"try {} catch(x) { eval(''); }", true, false, false},
+      {"function x() { eval(''); }", true, false, false},
+      {"(function(x) { eval(''); })", true, false, false},
   };
 
   int prefix_len = Utf8LengthHelper(prefix);
@@ -3417,9 +3422,8 @@ TEST(InnerAssignment) {
         CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
         if (i::FLAG_lazy_inner_functions) {
-          // If we parse inner functions lazily, allow being pessimistic about
-          // maybe_assigned.
-          CHECK(is_maybe_assigned || (is_maybe_assigned == expected));
+          CHECK(is_maybe_assigned == expected ||
+                (is_maybe_assigned && inners[j].allow_error_in_inner_function));
         } else {
           CHECK_EQ(is_maybe_assigned, expected);
         }
