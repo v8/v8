@@ -437,7 +437,15 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   compiler::CodeAssemblerState state(isolate(), &zone, descriptor,
                                      GetCodeFlags(), name);
   GenerateAssembly(&state);
-  return compiler::CodeAssembler::GenerateCode(&state);
+
+  // TODO(ishell): remove this when code stub assembler graphs verification
+  // is enabled for all stubs.
+  bool saved_csa_verify = FLAG_csa_verify;
+  // Enable verification only in mksnapshot.
+  FLAG_csa_verify = DEBUG_BOOL && FLAG_startup_blob != nullptr;
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  FLAG_csa_verify = saved_csa_verify;
+  return code;
 }
 
 #define ACCESSOR_ASSEMBLER(Name)                                       \

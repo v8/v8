@@ -108,7 +108,14 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(isolate, &zone, descriptor, flags, name);
   generator(&state);
+
+  // TODO(ishell): remove this when code stub assembler graphs verification
+  // is enabled for all stubs.
+  bool saved_csa_verify = FLAG_csa_verify;
+  // Enable verification only in mksnapshot.
+  FLAG_csa_verify = DEBUG_BOOL && FLAG_startup_blob != nullptr;
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  FLAG_csa_verify = saved_csa_verify;
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }

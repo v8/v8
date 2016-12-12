@@ -95,27 +95,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return value;
   }
 
-#define PARAMETER_BINARY_OPERATION(OpName, IntPtrOpName, SmiOpName, \
-                                   Int32OpName)                     \
-  Node* OpName(Node* value1, Node* value2, ParameterMode mode) {    \
-    if (mode == SMI_PARAMETERS) {                                   \
-      return SmiOpName(value1, value2);                             \
-    } else if (mode == INTPTR_PARAMETERS) {                         \
-      return IntPtrOpName(value1, value2);                          \
-    } else {                                                        \
-      DCHECK_EQ(INTEGER_PARAMETERS, mode);                          \
-      return Int32OpName(value1, value2);                           \
-    }                                                               \
+#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName, Int32OpName) \
+  Node* OpName(Node* a, Node* b, ParameterMode mode) {                \
+    if (mode == SMI_PARAMETERS) {                                     \
+      return SmiOpName(a, b);                                         \
+    } else if (mode == INTPTR_PARAMETERS) {                           \
+      return IntPtrOpName(a, b);                                      \
+    } else {                                                          \
+      DCHECK_EQ(INTEGER_PARAMETERS, mode);                            \
+      return Int32OpName(a, b);                                       \
+    }                                                                 \
   }
-  PARAMETER_BINARY_OPERATION(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd, Int32Add)
-  PARAMETER_BINARY_OPERATION(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan,
-                             Int32LessThan)
-  PARAMETER_BINARY_OPERATION(IntPtrOrSmiGreaterThan, IntPtrGreaterThan,
-                             SmiGreaterThan, Int32GreaterThan)
-  PARAMETER_BINARY_OPERATION(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow,
-                             Uint32LessThan)
-
-#undef PARAMETER_BINARY_OPERATION
+  PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd, Int32Add)
+  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan,
+                  Int32LessThan)
+  PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan,
+                  Int32GreaterThan)
+  PARAMETER_BINOP(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow,
+                  Uint32LessThan)
+  PARAMETER_BINOP(UintPtrOrSmiGreaterThanOrEqual, UintPtrGreaterThanOrEqual,
+                  SmiAboveOrEqual, Uint32GreaterThanOrEqual)
+#undef PARAMETER_BINOP
 
   Node* NoContextConstant();
 #define HEAP_CONSTANT_ACCESSOR(rootName, name) Node* name##Constant();
@@ -157,25 +157,46 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* SmiToWord32(Node* value);
 
   // Smi operations.
-  Node* SmiAdd(Node* a, Node* b);
-  Node* SmiSub(Node* a, Node* b);
-  Node* SmiEqual(Node* a, Node* b);
-  Node* SmiAbove(Node* a, Node* b);
-  Node* SmiAboveOrEqual(Node* a, Node* b);
-  Node* SmiBelow(Node* a, Node* b);
-  Node* SmiLessThan(Node* a, Node* b);
-  Node* SmiLessThanOrEqual(Node* a, Node* b);
-  Node* SmiGreaterThan(Node* a, Node* b);
+#define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)                  \
+  Node* SmiOpName(Node* a, Node* b) {                                  \
+    return BitcastWordToTaggedSigned(                                  \
+        IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b))); \
+  }
+  SMI_ARITHMETIC_BINOP(SmiAdd, IntPtrAdd)
+  SMI_ARITHMETIC_BINOP(SmiSub, IntPtrSub)
+  SMI_ARITHMETIC_BINOP(SmiAnd, WordAnd)
+  SMI_ARITHMETIC_BINOP(SmiOr, WordOr)
+
+#define SMI_SHIFT_OP(SmiOpName, IntPtrOpName)         \
+  Node* SmiOpName(Node* a, int shift) {               \
+    return BitcastWordToTaggedSigned(                 \
+        IntPtrOpName(BitcastTaggedToWord(a), shift)); \
+  }                                                   \
+  SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)
+
+  SMI_SHIFT_OP(SmiShl, WordShl)
+  SMI_SHIFT_OP(SmiShr, WordShr)
+#undef SMI_SHIFT_OP
+#undef SMI_ARITHMETIC_BINOP
+
+#define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName)                       \
+  Node* SmiOpName(Node* a, Node* b) {                                    \
+    return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
+  }
+  SMI_COMPARISON_OP(SmiEqual, WordEqual)
+  SMI_COMPARISON_OP(SmiAbove, UintPtrGreaterThan)
+  SMI_COMPARISON_OP(SmiAboveOrEqual, UintPtrGreaterThanOrEqual)
+  SMI_COMPARISON_OP(SmiBelow, UintPtrLessThan)
+  SMI_COMPARISON_OP(SmiLessThan, IntPtrLessThan)
+  SMI_COMPARISON_OP(SmiLessThanOrEqual, IntPtrLessThanOrEqual)
+  SMI_COMPARISON_OP(SmiGreaterThan, IntPtrGreaterThan)
+#undef SMI_COMPARISON_OP
   Node* SmiMax(Node* a, Node* b);
   Node* SmiMin(Node* a, Node* b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
   Node* SmiMod(Node* a, Node* b);
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
   Node* SmiMul(Node* a, Node* b);
-  Node* SmiOr(Node* a, Node* b) {
-    return BitcastWordToTaggedSigned(
-        WordOr(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
-  }
 
   // Smi | HeapNumber operations.
   Node* NumberInc(Node* value);
@@ -708,6 +729,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return DecodeWord<T>(ChangeUint32ToWord(word32));
   }
 
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word|. Returns result as an uint32 node.
+  template <typename T>
+  Node* DecodeWord32FromWord(Node* word) {
+    return TruncateWordToWord32(DecodeWord<T>(word));
+  }
+
   // Decodes an unsigned (!) value from |word32| to an uint32 node.
   Node* DecodeWord32(Node* word32, uint32_t shift, uint32_t mask);
 
@@ -861,7 +889,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                         Label* if_not_found, Label* if_bailout);
 
   // This is a type of a lookup in holder generator function. In case of a
-  // property lookup the {key} is guaranteed to be a unique name and in case of
+  // property lookup the {key} is guaranteed to be an unique name and in case of
   // element lookup the key is an Int32 index.
   typedef std::function<void(Node* receiver, Node* holder, Node* map,
                              Node* instance_type, Node* key, Label* next_holder,

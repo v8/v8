@@ -75,8 +75,8 @@ void Builtins::Generate_CopyFastSmiOrObjectElements(
   int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
   Label if_newspace(&assembler), if_oldspace(&assembler);
   assembler.Branch(
-      assembler.UintPtrLessThan(
-          length, assembler.IntPtrOrSmiConstant(max_elements, mode)),
+      assembler.UintPtrOrSmiLessThan(
+          length, assembler.IntPtrOrSmiConstant(max_elements, mode), mode),
       &if_newspace, &if_oldspace);
 
   assembler.Bind(&if_newspace);

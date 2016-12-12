@@ -197,7 +197,7 @@ void AccessorAssemblerImpl::HandleLoadICSmiHandlerCase(
     Node* is_jsarray_condition =
         IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
     Node* elements_kind =
-        DecodeWord<LoadHandler::ElementsKindBits>(handler_word);
+        DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
     Label if_hole(this), unimplemented_elements_kind(this);
     Label* out_of_bounds = miss;
     EmitElementLoad(holder, elements, elements_kind, intptr_index,
@@ -782,7 +782,7 @@ void AccessorAssemblerImpl::EmitElementLoad(
       if_fast_double(this), if_fast_holey_double(this), if_nonfast(this),
       if_dictionary(this);
   GotoIf(
-      IntPtrGreaterThan(elements_kind, IntPtrConstant(LAST_FAST_ELEMENTS_KIND)),
+      Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
       &if_nonfast);
 
   EmitFastElementsBoundsCheck(object, elements, intptr_index,
@@ -803,8 +803,8 @@ void AccessorAssemblerImpl::EmitElementLoad(
                      &if_fast_double,
                      // FAST_HOLEY_DOUBLE_ELEMENTS
                      &if_fast_holey_double};
-  Switch(TruncateWordToWord32(elements_kind), unimplemented_elements_kind,
-         kinds, labels, arraysize(kinds));
+  Switch(elements_kind, unimplemented_elements_kind, kinds, labels,
+         arraysize(kinds));
 
   Bind(&if_fast_packed);
   {
@@ -842,11 +842,11 @@ void AccessorAssemblerImpl::EmitElementLoad(
   Bind(&if_nonfast);
   {
     STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
-    GotoIf(IntPtrGreaterThanOrEqual(
+    GotoIf(Int32GreaterThanOrEqual(
                elements_kind,
-               IntPtrConstant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
+               Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
            &if_typed_array);
-    GotoIf(IntPtrEqual(elements_kind, IntPtrConstant(DICTIONARY_ELEMENTS)),
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &if_dictionary);
     Goto(unimplemented_elements_kind);
   }
@@ -913,8 +913,8 @@ void AccessorAssemblerImpl::EmitElementLoad(
         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
     DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
     DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
-    Switch(TruncateWordToWord32(elements_kind), miss, elements_kinds,
-           elements_kind_labels, kTypedElementsKindCount);
+    Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
+           kTypedElementsKindCount);
     Bind(&uint8_elements);
     {
       Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
@@ -1397,8 +1397,9 @@ void AccessorAssemblerImpl::KeyedLoadICGeneric(const LoadICParameters* p) {
     const int32_t kMaxLinear = 210;
     Label stub_cache(this);
     Node* bitfield3 = LoadMapBitField3(receiver_map);
-    Node* nof = DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
-    GotoIf(Uint32LessThan(Int32Constant(kMaxLinear), nof), &stub_cache);
+    Node* nof =
+        DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+    GotoIf(UintPtrLessThan(IntPtrConstant(kMaxLinear), nof), &stub_cache);
     Node* descriptors = LoadMapDescriptors(receiver_map);
     Variable var_name_index(this, MachineType::PointerRepresentation());
     Label if_descriptor_found(this);

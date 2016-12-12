@@ -438,45 +438,6 @@ Node* CodeStubAssembler::SmiToFloat64(Node* value) {
   return ChangeInt32ToFloat64(SmiToWord32(value));
 }
 
-Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) {
-  return BitcastWordToTaggedSigned(
-      IntPtrAdd(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
-}
-
-Node* CodeStubAssembler::SmiSub(Node* a, Node* b) {
-  return BitcastWordToTaggedSigned(
-      IntPtrSub(BitcastTaggedToWord(a), BitcastTaggedToWord(b)));
-}
-
-Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) {
-  return WordEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
-Node* CodeStubAssembler::SmiAbove(Node* a, Node* b) {
-  return UintPtrGreaterThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
-Node* CodeStubAssembler::SmiAboveOrEqual(Node* a, Node* b) {
-  return UintPtrGreaterThanOrEqual(BitcastTaggedToWord(a),
-                                   BitcastTaggedToWord(b));
-}
-
-Node* CodeStubAssembler::SmiBelow(Node* a, Node* b) {
-  return UintPtrLessThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
-Node* CodeStubAssembler::SmiLessThan(Node* a, Node* b) {
-  return IntPtrLessThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
-Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
-  return IntPtrLessThanOrEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
-Node* CodeStubAssembler::SmiGreaterThan(Node* a, Node* b) {
-  return IntPtrGreaterThan(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-}
-
 Node* CodeStubAssembler::SmiMax(Node* a, Node* b) {
   return SelectTaggedConstant(SmiLessThan(a, b), b, a);
 }
@@ -1783,8 +1744,10 @@ Node* CodeStubAssembler::NewConsString(Node* context, Node* length, Node* left,
   Node* right_instance_type = LoadInstanceType(right);
 
   // Compute intersection and difference of instance types.
-  Node* anded_instance_types = WordAnd(left_instance_type, right_instance_type);
-  Node* xored_instance_types = WordXor(left_instance_type, right_instance_type);
+  Node* anded_instance_types =
+      Word32And(left_instance_type, right_instance_type);
+  Node* xored_instance_types =
+      Word32Xor(left_instance_type, right_instance_type);
 
   // We create a one-byte cons string if
   // 1. both strings are one-byte, or
@@ -1801,15 +1764,15 @@ Node* CodeStubAssembler::NewConsString(Node* context, Node* length, Node* left,
   Label two_byte_map(this);
   Variable result(this, MachineRepresentation::kTagged);
   Label done(this, &result);
-  GotoIf(WordNotEqual(
-             WordAnd(anded_instance_types,
-                     IntPtrConstant(kStringEncodingMask | kOneByteDataHintTag)),
-             IntPtrConstant(0)),
+  GotoIf(Word32NotEqual(Word32And(anded_instance_types,
+                                  Int32Constant(kStringEncodingMask |
+                                                kOneByteDataHintTag)),
+                        Int32Constant(0)),
          &one_byte_map);
-  Branch(WordNotEqual(WordAnd(xored_instance_types,
-                              IntPtrConstant(kStringEncodingMask |
-                                             kOneByteDataHintMask)),
-                      IntPtrConstant(kOneByteStringTag | kOneByteDataHintTag)),
+  Branch(Word32NotEqual(Word32And(xored_instance_types,
+                                  Int32Constant(kStringEncodingMask |
+                                                kOneByteDataHintMask)),
+                        Int32Constant(kOneByteStringTag | kOneByteDataHintTag)),
          &two_byte_map, &one_byte_map);
 
   Bind(&one_byte_map);
@@ -2361,16 +2324,17 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
 
 Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
                                                       ParameterMode mode) {
+  if (mode == SMI_PARAMETERS) {
+    old_capacity = BitcastTaggedToWord(old_capacity);
+  }
   Node* half_old_capacity = WordShr(old_capacity, IntPtrConstant(1));
   Node* new_capacity = IntPtrAdd(half_old_capacity, old_capacity);
-  Node* unconditioned_result =
-      IntPtrAdd(new_capacity, IntPtrOrSmiConstant(16, mode));
-  if (mode == INTEGER_PARAMETERS || mode == INTPTR_PARAMETERS) {
-    return unconditioned_result;
+  Node* unconditioned_result = IntPtrAdd(new_capacity, IntPtrConstant(16));
+  if (mode == SMI_PARAMETERS) {
+    return SmiAnd(BitcastWordToTaggedSigned(unconditioned_result),
+                  SmiConstant(-1));
   } else {
-    int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
-    return WordAnd(unconditioned_result,
-                   IntPtrConstant(static_cast<size_t>(-1) << kSmiShiftBits));
+    return unconditioned_result;
   }
 }
 
@@ -2396,12 +2360,12 @@ Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
 
   // If the gap growth is too big, fall back to the runtime.
   Node* max_gap = IntPtrOrSmiConstant(JSObject::kMaxGap, mode);
-  Node* max_capacity = IntPtrAdd(capacity, max_gap);
-  GotoIf(UintPtrGreaterThanOrEqual(key, max_capacity), bailout);
+  Node* max_capacity = IntPtrOrSmiAdd(capacity, max_gap, mode);
+  GotoIf(UintPtrOrSmiGreaterThanOrEqual(key, max_capacity, mode), bailout);
 
   // Calculate the capacity of the new backing store.
   Node* new_capacity = CalculateNewElementsCapacity(
-      IntPtrAdd(key, IntPtrOrSmiConstant(1, mode)), mode);
+      IntPtrOrSmiAdd(key, IntPtrOrSmiConstant(1, mode), mode), mode);
   return GrowElementsCapacity(object, elements, kind, kind, capacity,
                               new_capacity, mode, bailout);
 }
@@ -2413,8 +2377,8 @@ Node* CodeStubAssembler::GrowElementsCapacity(
   // If size of the allocation for the new capacity doesn't fit in a page
   // that we can bump-pointer allocate from, fall back to the runtime.
   int max_size = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(to_kind);
-  GotoIf(UintPtrGreaterThanOrEqual(new_capacity,
-                                   IntPtrOrSmiConstant(max_size, mode)),
+  GotoIf(UintPtrOrSmiGreaterThanOrEqual(
+             new_capacity, IntPtrOrSmiConstant(max_size, mode), mode),
          bailout);
 
   // Allocate the new backing store.
@@ -2606,7 +2570,7 @@ Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
       Goto(&if_valueisheapnumber);
       Bind(&if_notoverflow);
       {
-        Node* result = Projection(0, pair);
+        Node* result = BitcastWordToTaggedSigned(Projection(0, pair));
         var_result.Bind(result);
         Goto(&if_join);
       }
@@ -3509,12 +3473,10 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
   CSA_ASSERT(this, TaggedIsSmi(left_length));
   CSA_ASSERT(this, TaggedIsSmi(right_length));
   Node* new_length = SmiAdd(left_length, right_length);
-  GotoIf(UintPtrGreaterThanOrEqual(
-             new_length, SmiConstant(Smi::FromInt(String::kMaxLength))),
+  GotoIf(SmiAboveOrEqual(new_length, SmiConstant(String::kMaxLength)),
          &runtime);
 
-  GotoIf(IntPtrLessThan(new_length,
-                        SmiConstant(Smi::FromInt(ConsString::kMinLength))),
+  GotoIf(SmiLessThan(new_length, SmiConstant(ConsString::kMinLength)),
          &non_cons);
 
   result.Bind(NewConsString(context, new_length, left, right, flags));
@@ -3527,23 +3489,24 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
   Node* right_instance_type = LoadInstanceType(right);
   // Compute intersection and difference of instance types.
 
-  Node* ored_instance_types = WordOr(left_instance_type, right_instance_type);
-  Node* xored_instance_types = WordXor(left_instance_type, right_instance_type);
+  Node* ored_instance_types = Word32Or(left_instance_type, right_instance_type);
+  Node* xored_instance_types =
+      Word32Xor(left_instance_type, right_instance_type);
 
   // Check if both strings have the same encoding and both are sequential.
-  GotoIf(WordNotEqual(
-             WordAnd(xored_instance_types, IntPtrConstant(kStringEncodingMask)),
-             IntPtrConstant(0)),
+  GotoIf(Word32NotEqual(Word32And(xored_instance_types,
+                                  Int32Constant(kStringEncodingMask)),
+                        Int32Constant(0)),
          &runtime);
-  GotoIf(WordNotEqual(WordAnd(ored_instance_types,
-                              IntPtrConstant(kStringRepresentationMask)),
-                      IntPtrConstant(0)),
+  GotoIf(Word32NotEqual(Word32And(ored_instance_types,
+                                  Int32Constant(kStringRepresentationMask)),
+                        Int32Constant(0)),
          &runtime);
 
   Label two_byte(this);
-  GotoIf(WordEqual(
-             WordAnd(ored_instance_types, IntPtrConstant(kStringEncodingMask)),
-             IntPtrConstant(kTwoByteStringTag)),
+  GotoIf(Word32Equal(
+             Word32And(ored_instance_types, Int32Constant(kStringEncodingMask)),
+             Int32Constant(kTwoByteStringTag)),
          &two_byte);
   // One-byte sequential string case
   Node* new_string =
@@ -3744,7 +3707,9 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
 
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
-  Node* mask = LoadFixedArrayBaseLength(number_string_cache);
+  // TODO(ishell): cleanup mask handling.
+  Node* mask =
+      BitcastTaggedToWord(LoadFixedArrayBaseLength(number_string_cache));
   Node* one = IntPtrConstant(1);
   mask = IntPtrSub(mask, one);
 
@@ -3760,9 +3725,9 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   Node* high = LoadObjectField(argument, HeapNumber::kValueOffset + kIntSize,
                                MachineType::Int32());
   Node* hash = Word32Xor(low, high);
-  if (Is64()) hash = ChangeInt32ToInt64(hash);
+  hash = ChangeInt32ToIntPtr(hash);
   hash = WordShl(hash, one);
-  Node* index = WordAnd(hash, SmiToWord(mask));
+  Node* index = WordAnd(hash, SmiUntag(BitcastWordToTagged(mask)));
 
   // Cache entry's key must be a heap number
   Node* number_key =
@@ -3776,8 +3741,8 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
                                       MachineType::Int32());
   Node* high_compare = LoadObjectField(
       number_key, HeapNumber::kValueOffset + kIntSize, MachineType::Int32());
-  GotoUnless(WordEqual(low, low_compare), &runtime);
-  GotoUnless(WordEqual(high, high_compare), &runtime);
+  GotoUnless(Word32Equal(low, low_compare), &runtime);
+  GotoUnless(Word32Equal(high, high_compare), &runtime);
 
   // Heap number match, return value fro cache entry.
   IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
@@ -3795,7 +3760,8 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   Bind(&smi);
   {
     // Load the smi key, make sure it matches the smi we're looking for.
-    Node* smi_index = WordAnd(WordShl(argument, one), mask);
+    Node* smi_index = BitcastWordToTagged(
+        WordAnd(WordShl(BitcastTaggedToWord(argument), one), mask));
     Node* smi_key = LoadFixedArrayElement(number_string_cache, smi_index, 0,
                                           SMI_PARAMETERS);
     GotoIf(WordNotEqual(smi_key, argument), &runtime);
@@ -4599,9 +4565,9 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   const int kInitialIndex = 0;
   PropertyDetails d(NONE, DATA, kInitialIndex, PropertyCellType::kNoCell);
   enum_index =
-      WordShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
+      SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
   STATIC_ASSERT(kInitialIndex == 0);
-  var_details.Bind(WordOr(SmiConstant(d.AsSmi()), enum_index));
+  var_details.Bind(SmiOr(SmiConstant(d.AsSmi()), enum_index));
 
   // Private names must be marked non-enumerable.
   Label not_private(this, &var_details);
@@ -4610,8 +4576,8 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   const int kPrivateMask = 1 << Symbol::kPrivateBit;
   GotoUnless(IsSetWord32(flags, kPrivateMask), &not_private);
   Node* dont_enum =
-      WordShl(SmiConstant(DONT_ENUM), PropertyDetails::AttributesField::kShift);
-  var_details.Bind(WordOr(var_details.value(), dont_enum));
+      SmiShl(SmiConstant(DONT_ENUM), PropertyDetails::AttributesField::kShift);
+  var_details.Bind(SmiOr(var_details.value(), dont_enum));
   Goto(&not_private);
   Bind(&not_private);
 
@@ -4641,20 +4607,20 @@ void CodeStubAssembler::Add(Node* dictionary, Node* key, Node* value,
   // Require 33% to still be free after adding additional_elements.
   // Computing "x + (x >> 1)" on a Smi x does not return a valid Smi!
   // But that's OK here because it's only used for a comparison.
-  Node* required_capacity_pseudo_smi = SmiAdd(new_nof, WordShr(new_nof, 1));
-  GotoIf(UintPtrLessThan(capacity, required_capacity_pseudo_smi), bailout);
+  Node* required_capacity_pseudo_smi = SmiAdd(new_nof, SmiShr(new_nof, 1));
+  GotoIf(SmiBelow(capacity, required_capacity_pseudo_smi), bailout);
   // Require rehashing if more than 50% of free elements are deleted elements.
   Node* deleted = GetNumberOfDeletedElements<Dictionary>(dictionary);
-  CSA_ASSERT(this, UintPtrGreaterThan(capacity, new_nof));
-  Node* half_of_free_elements = WordShr(SmiSub(capacity, new_nof), 1);
-  GotoIf(UintPtrGreaterThan(deleted, half_of_free_elements), bailout);
+  CSA_ASSERT(this, SmiAbove(capacity, new_nof));
+  Node* half_of_free_elements = SmiShr(SmiSub(capacity, new_nof), 1);
+  GotoIf(SmiAbove(deleted, half_of_free_elements), bailout);
   Node* enum_index = nullptr;
   if (Dictionary::kIsEnumerable) {
     enum_index = GetNextEnumerationIndex<Dictionary>(dictionary);
     Node* new_enum_index = SmiAdd(enum_index, SmiConstant(1));
     Node* max_enum_index =
         SmiConstant(PropertyDetails::DictionaryStorageField::kMax);
-    GotoIf(UintPtrGreaterThan(new_enum_index, max_enum_index), bailout);
+    GotoIf(SmiAbove(new_enum_index, max_enum_index), bailout);
 
     // No more bailouts after this point.
     // Operations from here on can have side effects.
@@ -4806,8 +4772,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       (DescriptorArray::kDescriptorValue - DescriptorArray::kDescriptorKey) *
       kPointerSize;
 
-  Node* details = LoadAndUntagToWord32FixedArrayElement(descriptors, name_index,
-                                                        name_to_details_offset);
+  Node* details = LoadAndUntagToWord32FixedArrayElement(
+      descriptors, name_index, name_to_details_offset, INTPTR_PARAMETERS);
   var_details->Bind(details);
 
   Node* location = DecodeWord32<PropertyDetails::LocationField>(details);
@@ -4891,8 +4857,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
   }
   Bind(&if_in_descriptor);
   {
-    Node* value =
-        LoadFixedArrayElement(descriptors, name_index, name_to_value_offset);
+    Node* value = LoadFixedArrayElement(
+        descriptors, name_index, name_to_value_offset, INTPTR_PARAMETERS);
     var_value->Bind(value);
     Goto(&done);
   }
@@ -4914,8 +4880,8 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
       (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
       kPointerSize;
 
-  Node* details = LoadAndUntagToWord32FixedArrayElement(dictionary, name_index,
-                                                        name_to_details_offset);
+  Node* details = LoadAndUntagToWord32FixedArrayElement(
+      dictionary, name_index, name_to_details_offset, INTPTR_PARAMETERS);
 
   var_details->Bind(details);
   var_value->Bind(LoadFixedArrayElement(
@@ -6088,7 +6054,8 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
       kMementoMapOffset + AllocationMemento::kSize - kPointerSize;
 
   // Bail out if the object is not in new space.
-  Node* object_page = PageFromAddress(object);
+  Node* object_word = BitcastTaggedToWord(object);
+  Node* object_page = PageFromAddress(object_word);
   {
     Node* page_flags = Load(MachineType::IntPtr(), object_page,
                             IntPtrConstant(Page::kFlagsOffset));
@@ -6099,7 +6066,7 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
   }
 
   Node* memento_last_word = IntPtrAdd(
-      object, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
+      object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
   Node* memento_last_word_page = PageFromAddress(memento_last_word);
 
   Node* new_space_top = Load(MachineType::Pointer(), new_space_top_address);
