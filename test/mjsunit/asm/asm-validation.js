@@ -344,6 +344,21 @@ function assertValidAsm(func) {
   assertEquals(4, m.foo(3));
 })();
 
+(function TestBadFroundTrue() {
+  function Module(stdlib) {
+    "use asm";
+    var fround = stdlib.Math.fround;
+    function foo() {
+      var x = fround(true);
+      return +x;
+    }
+    return { foo: foo };
+  }
+  var m = Module(this);
+  assertFalse(%IsAsmWasmCode(Module));
+  assertEquals(1, m.foo());
+})();
+
 (function TestBadCase() {
   function Module() {
     "use asm";

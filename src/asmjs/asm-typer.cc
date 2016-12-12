@@ -2858,6 +2858,12 @@ AsmType* AsmTyper::VariableTypeAnnotations(
   // However, the errata doc (and actual programs), use integer values
   // with fround(..).
   // Skipping the check that would go here to enforce this.
+  // Checking instead the literal expression is at least a number.
+  if (!src_expr->raw_value()->IsNumber()) {
+    FAIL(initializer,
+         "Invalid float type annotation - expected numeric literal for call "
+         "to fround.");
+  }
 
   return AsmType::Float();
 }
