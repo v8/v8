@@ -2518,8 +2518,8 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     RegisterList args_regs =
         register_allocator()->NewRegisterList(args->length() + 2);
     builder()->MoveRegister(constructor, args_regs[0]);
-    VisitForRegisterValue(super->new_target_var(), args_regs[1]);
     VisitArguments(args, args_regs, 2);
+    VisitForRegisterValue(super->new_target_var(), args_regs[1]);
     builder()->NewWithSpread(args_regs);
   } else {
     RegisterList args_regs =
