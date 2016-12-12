@@ -316,6 +316,18 @@ function assertValidAsm(func) {
   assertEquals(3, m.foo(3));
 })();
 
+(function TestBadExportTwice() {
+  function Module() {
+    "use asm";
+    function bar() { return 1; }
+    function baz() { return 2; }
+    return {foo: bar, foo: baz};
+  }
+  var m = Module();
+  assertTrue(%IsAsmWasmCode(Module));
+  assertEquals(2, m.foo());
+})();
+
 (function TestBadImport() {
   function Module(stdlib) {
     "use asm";

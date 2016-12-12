@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/base/adapters.h"
 #include "src/base/atomic-utils.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
@@ -1750,9 +1751,16 @@ class WasmInstanceBuilder {
     PropertyDescriptor desc;
     desc.set_writable(false);
 
-    // Process each export in the export table.
+    // Count up export indexes.
     int export_index = 0;
     for (auto exp : module_->export_table) {
+      if (exp.kind == kExternalFunction) {
+        ++export_index;
+      }
+    }
+    // Process each export in the export table (go in reverse so asm.js
+    // can skip duplicates).
+    for (auto exp : base::Reversed(module_->export_table)) {
       Handle<String> name =
           ExtractStringFromModuleBytes(isolate_, compiled_module_,
                                        exp.name_offset, exp.name_length)
@@ -1762,7 +1770,7 @@ class WasmInstanceBuilder {
           // Wrap and export the code as a JSFunction.
           WasmFunction& function = module_->functions[exp.index];
           int func_index =
-              static_cast<int>(module_->functions.size() + export_index);
+              static_cast<int>(module_->functions.size() + --export_index);
           Handle<JSFunction> js_function = js_wrappers_[exp.index];
           if (js_function.is_null()) {
             // Wrap the exported code as a JSFunction.
@@ -1782,7 +1790,6 @@ class WasmInstanceBuilder {
             js_wrappers_[exp.index] = js_function;
           }
           desc.set_value(js_function);
-          export_index++;
           break;
         }
         case kExternalTable: {
@@ -1845,6 +1852,14 @@ class WasmInstanceBuilder {
           break;
       }
 
+      // Skip duplicates for asm.js.
+      if (module_->origin == kAsmJsOrigin) {
+        v8::Maybe<bool> status =
+            JSReceiver::HasOwnProperty(exports_object, name);
+        if (status.FromMaybe(false)) {
+          continue;
+        }
+      }
       v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
           isolate_, exports_object, name, &desc, Object::THROW_ON_ERROR);
       if (!status.IsJust()) {

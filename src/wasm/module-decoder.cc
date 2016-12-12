@@ -491,8 +491,8 @@ class ModuleDecoder : public Decoder {
             break;
         }
       }
-      // Check for duplicate exports.
-      if (ok() && module->export_table.size() > 1) {
+      // Check for duplicate exports (except for asm.js).
+      if (ok() && origin_ != kAsmJsOrigin && module->export_table.size() > 1) {
         std::vector<WasmExport> sorted_exports(module->export_table);
         const byte* base = start_;
         auto cmp_less = [base](const WasmExport& a, const WasmExport& b) {
