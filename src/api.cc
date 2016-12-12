@@ -8983,14 +8983,12 @@ MaybeLocal<String> debug::Script::SourceMappingURL() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-MaybeLocal<String> debug::Script::ContextData() const {
+MaybeLocal<Value> debug::Script::ContextData() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Handle<i::Object> value(script->context_data(), isolate);
-  if (!value->IsString()) return MaybeLocal<String>();
-  return Utils::ToLocal(
-      handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
+  return Utils::ToLocal(handle_scope.CloseAndEscape(value));
 }
 
 MaybeLocal<String> debug::Script::Source() const {

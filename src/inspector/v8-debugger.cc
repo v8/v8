@@ -5,6 +5,7 @@
 #include "src/inspector/v8-debugger.h"
 
 #include "src/inspector/debugger-script.h"
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/script-breakpoint.h"
 #include "src/inspector/string-util.h"
@@ -50,7 +51,6 @@ v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
 V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
     : m_isolate(isolate),
       m_inspector(inspector),
-      m_lastContextId(0),
       m_enableCount(0),
       m_breakpointsActivated(true),
       m_runningNestedMessageLoop(false),
@@ -86,47 +86,20 @@ void V8Debugger::disable() {
 
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
 
-// static
-int V8Debugger::contextId(v8::Local<v8::Context> context) {
-  v8::Local<v8::Value> data =
-      context->GetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex));
-  if (data.IsEmpty() || !data->IsString()) return 0;
-  String16 dataString = toProtocolString(data.As<v8::String>());
-  if (dataString.isEmpty()) return 0;
-  size_t commaPos = dataString.find(",");
-  if (commaPos == String16::kNotFound) return 0;
-  size_t commaPos2 = dataString.find(",", commaPos + 1);
-  if (commaPos2 == String16::kNotFound) return 0;
-  return dataString.substring(commaPos + 1, commaPos2 - commaPos - 1)
-      .toInteger();
-}
-
-// static
-int V8Debugger::getGroupId(v8::Local<v8::Context> context) {
-  v8::Local<v8::Value> data =
-      context->GetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex));
-  if (data.IsEmpty() || !data->IsString()) return 0;
-  String16 dataString = toProtocolString(data.As<v8::String>());
-  if (dataString.isEmpty()) return 0;
-  size_t commaPos = dataString.find(",");
-  if (commaPos == String16::kNotFound) return 0;
-  return dataString.substring(0, commaPos).toInteger();
-}
-
 void V8Debugger::getCompiledScripts(
     int contextGroupId,
     std::vector<std::unique_ptr<V8DebuggerScript>>& result) {
   v8::HandleScope scope(m_isolate);
   v8::PersistentValueVector<v8::debug::Script> scripts(m_isolate);
   v8::debug::GetLoadedScripts(m_isolate, scripts);
-  String16 contextPrefix = String16::fromInteger(contextGroupId) + ",";
   for (size_t i = 0; i < scripts.Size(); ++i) {
     v8::Local<v8::debug::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
-    v8::Local<v8::String> v8ContextData;
-    if (!script->ContextData().ToLocal(&v8ContextData)) continue;
-    String16 contextData = toProtocolString(v8ContextData);
-    if (contextData.find(contextPrefix) != 0) continue;
+    v8::Local<v8::Value> contextData;
+    if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32())
+      continue;
+    int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
+    if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
     result.push_back(V8DebuggerScript::Create(m_isolate, script, false));
   }
 }
@@ -483,8 +456,8 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   // Don't allow nested breaks.
   if (m_runningNestedMessageLoop) return;
 
-  V8DebuggerAgentImpl* agent =
-      m_inspector->enabledDebuggerAgentForGroup(getGroupId(pausedContext));
+  V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
+      m_inspector->contextGroupId(pausedContext));
   if (!agent) return;
 
   std::vector<String16> breakpointIds;
@@ -505,12 +478,12 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
       pausedContext, exception, breakpointIds, isPromiseRejection, isUncaught);
   if (result == V8DebuggerAgentImpl::RequestNoSkip) {
     m_runningNestedMessageLoop = true;
-    int groupId = getGroupId(pausedContext);
+    int groupId = m_inspector->contextGroupId(pausedContext);
     DCHECK(groupId);
     m_inspector->client()->runMessageLoopOnPause(groupId);
     // The agent may have been removed in the nested loop.
-    agent =
-        m_inspector->enabledDebuggerAgentForGroup(getGroupId(pausedContext));
+    agent = m_inspector->enabledDebuggerAgentForGroup(
+        m_inspector->contextGroupId(pausedContext));
     if (agent) agent->didContinue();
     m_runningNestedMessageLoop = false;
   }
@@ -566,8 +539,8 @@ void V8Debugger::handleV8DebugEvent(
     return;
   }
 
-  V8DebuggerAgentImpl* agent =
-      m_inspector->enabledDebuggerAgentForGroup(getGroupId(eventContext));
+  V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
+      m_inspector->contextGroupId(eventContext));
   if (!agent) return;
 
   v8::HandleScope scope(m_isolate);
@@ -884,21 +857,11 @@ bool V8Debugger::isPaused() { return !m_pausedContext.IsEmpty(); }
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
     v8::Local<v8::StackTrace> stackTrace) {
   int contextGroupId =
-      m_isolate->InContext() ? getGroupId(m_isolate->GetCurrentContext()) : 0;
+      m_isolate->InContext()
+          ? m_inspector->contextGroupId(m_isolate->GetCurrentContext())
+          : 0;
   return V8StackTraceImpl::create(this, contextGroupId, stackTrace,
                                   V8StackTraceImpl::maxCallStackSizeToCapture);
-}
-
-int V8Debugger::markContext(const V8ContextInfo& info) {
-  DCHECK(info.context->GetIsolate() == m_isolate);
-  int contextId = ++m_lastContextId;
-  String16 debugData = String16::fromInteger(info.contextGroupId) + "," +
-                       String16::fromInteger(contextId) + "," +
-                       toString16(info.auxData);
-  v8::Context::Scope contextScope(info.context);
-  info.context->SetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex),
-                                toV8String(m_isolate, debugData));
-  return contextId;
 }
 
 void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
@@ -929,7 +892,9 @@ void V8Debugger::asyncTaskScheduled(const String16& taskName, void* task,
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
   int contextGroupId =
-      m_isolate->InContext() ? getGroupId(m_isolate->GetCurrentContext()) : 0;
+      m_isolate->InContext()
+          ? m_inspector->contextGroupId(m_isolate->GetCurrentContext())
+          : 0;
   std::unique_ptr<V8StackTraceImpl> chain = V8StackTraceImpl::capture(
       this, contextGroupId, V8StackTraceImpl::maxCallStackSizeToCapture,
       taskName);
@@ -996,7 +961,8 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
   if (!m_isolate->InContext()) return nullptr;
 
   v8::HandleScope handles(m_isolate);
-  int contextGroupId = getGroupId(m_isolate->GetCurrentContext());
+  int contextGroupId =
+      m_inspector->contextGroupId(m_isolate->GetCurrentContext());
   if (!contextGroupId) return nullptr;
 
   size_t stackSize =

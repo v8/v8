@@ -31,10 +31,6 @@ class V8Debugger {
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
 
-  static int contextId(v8::Local<v8::Context>);
-  static int getGroupId(v8::Local<v8::Context>);
-  int markContext(const V8ContextInfo&);
-
   bool enabled() const;
 
   String16 setBreakpoint(const ScriptBreakpoint&, int* actualLineNumber,
@@ -142,7 +138,6 @@ class V8Debugger {
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
-  int m_lastContextId;
   int m_enableCount;
   bool m_breakpointsActivated;
   v8::Global<v8::Object> m_debuggerScript;

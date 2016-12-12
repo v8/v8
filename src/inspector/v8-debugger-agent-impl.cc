@@ -1050,10 +1050,17 @@ void V8DebuggerAgentImpl::didParseSource(
   if (!success)
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
 
+  int contextId = script->executionContextId();
+  int contextGroupId = m_inspector->contextGroupId(contextId);
+  InspectedContext* inspected =
+      m_inspector->getContext(contextGroupId, contextId);
   std::unique_ptr<protocol::DictionaryValue> executionContextAuxData;
-  if (!script->executionContextAuxData().isEmpty())
+  if (inspected) {
+    // Script reused between different groups/sessions can have a stale
+    // execution context id.
     executionContextAuxData = protocol::DictionaryValue::cast(
-        protocol::StringUtil::parseJSON(script->executionContextAuxData()));
+        protocol::StringUtil::parseJSON(inspected->auxData()));
+  }
   bool isLiveEdit = script->isLiveEdit();
   bool hasSourceURL = script->hasSourceURL();
   String16 scriptId = script->scriptId();
@@ -1073,17 +1080,15 @@ void V8DebuggerAgentImpl::didParseSource(
   if (success)
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(),
-        scriptRef->executionContextId(), scriptRef->hash(m_isolate),
-        std::move(executionContextAuxDataParam), isLiveEditParam,
-        std::move(sourceMapURLParam), hasSourceURLParam);
+        scriptRef->endLine(), scriptRef->endColumn(), contextId,
+        scriptRef->hash(m_isolate), std::move(executionContextAuxDataParam),
+        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam);
   else
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(),
-        scriptRef->executionContextId(), scriptRef->hash(m_isolate),
-        std::move(executionContextAuxDataParam), std::move(sourceMapURLParam),
-        hasSourceURLParam);
+        scriptRef->endLine(), scriptRef->endColumn(), contextId,
+        scriptRef->hash(m_isolate), std::move(executionContextAuxDataParam),
+        std::move(sourceMapURLParam), hasSourceURLParam);
 
   if (scriptURL.isEmpty() || !success) return;
 
@@ -1150,7 +1155,7 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
 
   if (!exception.IsEmpty()) {
     InjectedScript* injectedScript = nullptr;
-    m_session->findInjectedScript(V8Debugger::contextId(context),
+    m_session->findInjectedScript(InspectedContext::contextId(context),
                                   injectedScript);
     if (injectedScript) {
       m_breakReason =

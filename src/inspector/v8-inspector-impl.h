@@ -58,6 +58,8 @@ class V8InspectorImpl : public V8Inspector {
   v8::Isolate* isolate() const { return m_isolate; }
   V8InspectorClient* client() { return m_client; }
   V8Debugger* debugger() { return m_debugger.get(); }
+  int contextGroupId(v8::Local<v8::Context>);
+  int contextGroupId(int contextId);
 
   v8::MaybeLocal<v8::Value> runCompiledScript(v8::Local<v8::Context>,
                                               v8::Local<v8::Script>);
@@ -136,6 +138,7 @@ class V8InspectorImpl : public V8Inspector {
   v8::Global<v8::Context> m_regexContext;
   int m_capturingStackTracesCount;
   unsigned m_lastExceptionId;
+  int m_lastContextId;
 
   using MuteExceptionsMap = protocol::HashMap<int, int>;
   MuteExceptionsMap m_muteExceptionsMap;
@@ -150,6 +153,8 @@ class V8InspectorImpl : public V8Inspector {
   using ConsoleStorageMap =
       protocol::HashMap<int, std::unique_ptr<V8ConsoleMessageStorage>>;
   ConsoleStorageMap m_consoleStorageMap;
+
+  protocol::HashMap<int, int> m_contextIdToGroupIdMap;
 
   DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 };

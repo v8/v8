@@ -4,6 +4,7 @@
 
 #include "src/inspector/v8-debugger-script.h"
 
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 
 namespace v8_inspector {
@@ -98,20 +99,10 @@ class ActualScript : public V8DebuggerScript {
       m_endColumn = m_startColumn;
     }
 
-    if (script->ContextData().ToLocal(&tmp)) {
-      String16 contextData = toProtocolString(tmp);
-      size_t firstComma = contextData.find(",", 0);
-      size_t secondComma = firstComma != String16::kNotFound
-                               ? contextData.find(",", firstComma + 1)
-                               : String16::kNotFound;
-      if (secondComma != String16::kNotFound) {
-        String16 executionContextId =
-            contextData.substring(firstComma + 1, secondComma - firstComma - 1);
-        bool isOk = false;
-        m_executionContextId = executionContextId.toInteger(&isOk);
-        if (!isOk) m_executionContextId = 0;
-        m_executionContextAuxData = contextData.substring(secondComma + 1);
-      }
+    v8::Local<v8::Value> contextData;
+    if (script->ContextData().ToLocal(&contextData) && contextData->IsInt32()) {
+      m_executionContextId =
+          static_cast<int>(contextData.As<v8::Int32>()->Value());
     }
 
     if (script->Source().ToLocal(&tmp)) {
@@ -128,10 +119,6 @@ class ActualScript : public V8DebuggerScript {
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
-
-  const String16& executionContextAuxData() const override {
-    return m_executionContextAuxData;
-  }
 
   const String16& sourceMappingURL() const override {
     return m_sourceMappingURL;
@@ -171,7 +158,6 @@ class ActualScript : public V8DebuggerScript {
 
   String16 m_sourceMappingURL;
   v8::Global<v8::String> m_sourceObj;
-  String16 m_executionContextAuxData;
   bool m_isLiveEdit = false;
   v8::Global<v8::debug::Script> m_script;
 };
@@ -199,9 +185,6 @@ class WasmVirtualScript : public V8DebuggerScript {
   }
 
   const String16& sourceMappingURL() const override { return emptyString(); }
-  const String16& executionContextAuxData() const override {
-    return emptyString();
-  }
   bool isLiveEdit() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
 

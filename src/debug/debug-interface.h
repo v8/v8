@@ -154,7 +154,7 @@ class Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
-  MaybeLocal<String> ContextData() const;
+  MaybeLocal<Value> ContextData() const;
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
   bool GetPossibleBreakpoints(const debug::Location& start,

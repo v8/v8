@@ -241,7 +241,7 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
         inspector->client()->ensureDefaultContextInGroup(contextGroupId);
     if (defaultContext.IsEmpty())
       return Response::Error("Cannot find default execution context");
-    *contextId = V8Debugger::contextId(defaultContext);
+    *contextId = InspectedContext::contextId(defaultContext);
   }
   return Response::OK();
 }

@@ -144,20 +144,6 @@ DebuggerScript.getCollectionEntries = function(object)
 }
 
 /**
- * @param {string|undefined} contextData
- * @return {number}
- */
-DebuggerScript._executionContextId = function(contextData)
-{
-    if (!contextData)
-        return 0;
-    var match = contextData.match(/^[^,]*,([^,]*),.*$/);
-    if (!match)
-        return 0;
-    return parseInt(match[1], 10) || 0;
-}
-
-/**
  * @param {!ExecutionState} execState
  * @param {!BreakpointInfo} info
  * @return {string|undefined}
@@ -485,12 +471,9 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     function contextId()
     {
         var mirror = ensureFuncMirror();
-        // Old V8 do not have context() function on these objects
-        if (!mirror.context)
-            return DebuggerScript._executionContextId(mirror.script().value().context_data);
         var context = mirror.context();
-        if (context)
-            return DebuggerScript._executionContextId(context.data());
+        if (context && context.data())
+            return Number(context.data());
         return 0;
     }
 
