@@ -2258,9 +2258,7 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_ = NULL;
   }
 
-  if (heap_.mark_compact_collector()->sweeping_in_progress()) {
-    heap_.mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  heap_.mark_compact_collector()->EnsureSweepingCompleted();
 
   DumpAndResetCompilationStats();
 

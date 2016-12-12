@@ -776,10 +776,8 @@ void MarkCompactCollector::Prepare() {
 
   DCHECK(!FLAG_never_compact || !FLAG_always_compact);
 
-  if (sweeping_in_progress()) {
-    // Instead of waiting we could also abort the sweeper threads here.
-    EnsureSweepingCompleted();
-  }
+  // Instead of waiting we could also abort the sweeper threads here.
+  EnsureSweepingCompleted();
 
   if (heap()->incremental_marking()->IsSweeping()) {
     heap()->incremental_marking()->Stop();

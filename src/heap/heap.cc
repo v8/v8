@@ -4046,9 +4046,7 @@ void Heap::MakeHeapIterable() {
     CollectAllGarbage(kMakeHeapIterableMask,
                       GarbageCollectionReason::kMakeHeapIterable);
   }
-  if (mark_compact_collector()->sweeping_in_progress()) {
-    mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  mark_compact_collector()->EnsureSweepingCompleted();
   DCHECK(IsHeapIterable());
 }
 
@@ -4698,10 +4696,8 @@ void Heap::Verify() {
   CHECK(HasBeenSetUp());
   HandleScope scope(isolate());
 
-  if (mark_compact_collector()->sweeping_in_progress()) {
-    // We have to wait here for the sweeper threads to have an iterable heap.
-    mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  // We have to wait here for the sweeper threads to have an iterable heap.
+  mark_compact_collector()->EnsureSweepingCompleted();
 
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);

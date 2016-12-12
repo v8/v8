@@ -2792,7 +2792,6 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
   }
 }
 
-
 HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -2805,7 +2804,6 @@ HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   }
   return nullptr;
 }
-
 
 HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -2863,9 +2861,7 @@ void PagedSpace::ReportStatistics() {
          ", available: %" V8PRIdPTR ", %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
-  if (heap()->mark_compact_collector()->sweeping_in_progress()) {
-    heap()->mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  heap()->mark_compact_collector()->EnsureSweepingCompleted();
   ClearHistograms(heap()->isolate());
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next())
