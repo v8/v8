@@ -833,6 +833,16 @@ size_t Page::ShrinkToHighWaterMark() {
   return unused;
 }
 
+void Page::CreateBlackArea(Address start, Address end) {
+  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK_EQ(Page::FromAddress(start), this);
+  DCHECK_NE(start, end);
+  DCHECK_EQ(Page::FromAddress(end - 1), this);
+  markbits()->SetRange(AddressToMarkbitIndex(start),
+                       AddressToMarkbitIndex(end));
+  IncrementLiveBytes(static_cast<int>(end - start));
+}
+
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
                                         Address start_free) {
   // We do not allow partial shrink for code.
@@ -1342,10 +1352,7 @@ void PagedSpace::SetAllocationInfo(Address top, Address limit) {
   SetTopAndLimit(top, limit);
   if (top != nullptr && top != limit &&
       heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAllocationAreaAddress(top);
-    page->markbits()->SetRange(page->AddressToMarkbitIndex(top),
-                               page->AddressToMarkbitIndex(limit));
-    page->IncrementLiveBytes(static_cast<int>(limit - top));
+    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }
 }
 
@@ -1354,10 +1361,8 @@ void PagedSpace::MarkAllocationInfoBlack() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != nullptr && current_top != current_limit) {
-    Page* page = Page::FromAllocationAreaAddress(current_top);
-    page->markbits()->SetRange(page->AddressToMarkbitIndex(current_top),
-                               page->AddressToMarkbitIndex(current_limit));
-    page->IncrementLiveBytes(static_cast<int>(current_limit - current_top));
+    Page::FromAllocationAreaAddress(current_top)
+        ->CreateBlackArea(current_top, current_limit);
   }
 }
 

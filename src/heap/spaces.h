@@ -769,6 +769,8 @@ class Page : public MemoryChunk {
 
   size_t ShrinkToHighWaterMark();
 
+  void CreateBlackArea(Address start, Address end);
+
 #ifdef DEBUG
   void Print();
 #endif  // DEBUG
