@@ -590,6 +590,14 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
     FATAL("Code page is too large.");
   }
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
+
+  // Initialize the owner field for each contained page (except the first, which
+  // is initialized by MemoryChunk::Initialize).
+  for (size_t i = Page::kPageSize; i < chunk->size(); i += Page::kPageSize) {
+    // Clear out kPageHeaderTag.
+    Memory::Address_at(chunk->address() + i + Page::kOwnerOffset) = 0;
+  }
+
   return static_cast<LargePage*>(chunk);
 }
 
