@@ -198,6 +198,37 @@ Node* CodeStubAssembler::Float64Floor(Node* x) {
   return var_x.value();
 }
 
+Node* CodeStubAssembler::Float64RoundToEven(Node* x) {
+  if (IsFloat64RoundTiesEvenSupported()) {
+    return Float64RoundTiesEven(x);
+  }
+  // See ES#sec-touint8clamp for details.
+  Node* f = Float64Floor(x);
+  Node* f_and_half = Float64Add(f, Float64Constant(0.5));
+
+  Variable var_result(this, MachineRepresentation::kFloat64);
+  Label return_f(this), return_f_plus_one(this), done(this);
+
+  GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
+  GotoIf(Float64LessThan(x, f_and_half), &return_f);
+  {
+    Node* f_mod_2 = Float64Mod(f, Float64Constant(2.0));
+    Branch(Float64Equal(f_mod_2, Float64Constant(0.0)), &return_f,
+           &return_f_plus_one);
+  }
+
+  Bind(&return_f);
+  var_result.Bind(f);
+  Goto(&done);
+
+  Bind(&return_f_plus_one);
+  var_result.Bind(Float64Add(f, Float64Constant(1.0)));
+  Goto(&done);
+
+  Bind(&done);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::Float64Trunc(Node* x) {
   if (IsFloat64RoundTruncateSupported()) {
     return Float64RoundTruncate(x);
@@ -5294,21 +5325,6 @@ Node* CodeStubAssembler::LoadScriptContext(Node* context, int context_index) {
               IntPtrConstant(offset));
 }
 
-Node* CodeStubAssembler::ClampedToUint8(Node* int32_value) {
-  Label done(this);
-  Node* int32_zero = Int32Constant(0);
-  Node* int32_255 = Int32Constant(255);
-  Variable var_value(this, MachineRepresentation::kWord32);
-  var_value.Bind(int32_value);
-  GotoIf(Uint32LessThanOrEqual(int32_value, int32_255), &done);
-  var_value.Bind(int32_zero);
-  GotoIf(Int32LessThan(int32_value, int32_zero), &done);
-  var_value.Bind(int32_255);
-  Goto(&done);
-  Bind(&done);
-  return var_value.value();
-}
-
 namespace {
 
 // Converts typed array elements kind to a machine representations.
@@ -5341,7 +5357,9 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
                                      ParameterMode mode) {
   if (IsFixedTypedArrayElementsKind(kind)) {
     if (kind == UINT8_CLAMPED_ELEMENTS) {
-      value = ClampedToUint8(value);
+#ifdef DEBUG
+      Assert(Word32Equal(value, Word32And(Int32Constant(0xff), value)));
+#endif
     }
     Node* offset = ElementOffsetFromIndex(index, kind, mode, 0);
     MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
@@ -5358,6 +5376,106 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
   } else {
     StoreFixedArrayElement(elements, index, value, barrier_mode, mode);
   }
+}
+
+Node* CodeStubAssembler::Int32ToUint8Clamped(Node* int32_value) {
+  Label done(this);
+  Node* int32_zero = Int32Constant(0);
+  Node* int32_255 = Int32Constant(255);
+  Variable var_value(this, MachineRepresentation::kWord32);
+  var_value.Bind(int32_value);
+  GotoIf(Uint32LessThanOrEqual(int32_value, int32_255), &done);
+  var_value.Bind(int32_zero);
+  GotoIf(Int32LessThan(int32_value, int32_zero), &done);
+  var_value.Bind(int32_255);
+  Goto(&done);
+  Bind(&done);
+  return var_value.value();
+}
+
+Node* CodeStubAssembler::Float64ToUint8Clamped(Node* float64_value) {
+  Label done(this);
+  Variable var_value(this, MachineRepresentation::kWord32);
+  var_value.Bind(Int32Constant(0));
+  GotoIf(Float64LessThanOrEqual(float64_value, Float64Constant(0.0)), &done);
+  var_value.Bind(Int32Constant(255));
+  GotoIf(Float64LessThanOrEqual(Float64Constant(255.0), float64_value), &done);
+  {
+    Node* rounded_value = Float64RoundToEven(float64_value);
+    var_value.Bind(TruncateFloat64ToWord32(rounded_value));
+    Goto(&done);
+  }
+  Bind(&done);
+  return var_value.value();
+}
+
+Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
+    Node* input, ElementsKind elements_kind, Label* bailout) {
+  DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
+
+  MachineRepresentation rep;
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+      rep = MachineRepresentation::kWord32;
+      break;
+    case FLOAT32_ELEMENTS:
+      rep = MachineRepresentation::kFloat32;
+      break;
+    case FLOAT64_ELEMENTS:
+      rep = MachineRepresentation::kFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+
+  Variable var_result(this, rep);
+  Label done(this, &var_result), if_smi(this);
+  GotoIf(WordIsSmi(input), &if_smi);
+  // Try to convert a heap number to a Smi.
+  GotoUnless(IsHeapNumberMap(LoadMap(input)), bailout);
+  {
+    Node* value = LoadHeapNumberValue(input);
+    if (rep == MachineRepresentation::kWord32) {
+      if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
+        value = Float64ToUint8Clamped(value);
+      } else {
+        value = TruncateFloat64ToWord32(value);
+      }
+    } else if (rep == MachineRepresentation::kFloat32) {
+      value = TruncateFloat64ToFloat32(value);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kFloat64, rep);
+    }
+    var_result.Bind(value);
+    Goto(&done);
+  }
+
+  Bind(&if_smi);
+  {
+    Node* value = SmiToWord32(input);
+    if (rep == MachineRepresentation::kFloat32) {
+      value = RoundInt32ToFloat32(value);
+    } else if (rep == MachineRepresentation::kFloat64) {
+      value = ChangeInt32ToFloat64(value);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kWord32, rep);
+      if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
+        value = Int32ToUint8Clamped(value);
+      }
+    }
+    var_result.Bind(value);
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return var_result.value();
 }
 
 void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
@@ -5382,16 +5500,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     // TODO(ishell): call ToNumber() on value and don't bailout but be careful
     // to call it only once if we decide to bailout because of bounds checks.
 
-    if (IsFixedFloatElementsKind(elements_kind)) {
-      // TODO(ishell): move float32 truncation into PrepareValueForWrite.
-      value = PrepareValueForWrite(value, Representation::Double(), bailout);
-      if (elements_kind == FLOAT32_ELEMENTS) {
-        value = TruncateFloat64ToFloat32(value);
-      }
-    } else {
-      // TODO(ishell): It's fine for word8/16/32 to truncate the result.
-      value = TryToIntptr(value, bailout);
-    }
+    value = PrepareValueForWriteToTypedArray(value, elements_kind, bailout);
 
     // There must be no allocations between the buffer load and
     // and the actual store to backing store, because GC may decide that

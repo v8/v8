@@ -148,9 +148,11 @@ class RawMachineLabel;
   V(ChangeUint32ToFloat64)              \
   V(ChangeUint32ToUint64)               \
   V(RoundFloat64ToInt32)                \
+  V(RoundInt32ToFloat32)                \
   V(Float64SilenceNaN)                  \
   V(Float64RoundDown)                   \
   V(Float64RoundUp)                     \
+  V(Float64RoundTiesEven)               \
   V(Float64RoundTruncate)               \
   V(Word32Clz)                          \
   V(Word32BinaryNot)
@@ -191,6 +193,7 @@ class CodeAssembler {
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;
   bool IsFloat64RoundDownSupported() const;
+  bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
 
   class Label;

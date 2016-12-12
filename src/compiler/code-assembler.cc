@@ -86,6 +86,10 @@ bool CodeAssembler::IsFloat64RoundDownSupported() const {
   return raw_assembler_->machine()->Float64RoundDown().IsSupported();
 }
 
+bool CodeAssembler::IsFloat64RoundTiesEvenSupported() const {
+  return raw_assembler_->machine()->Float64RoundTiesEven().IsSupported();
+}
+
 bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
   return raw_assembler_->machine()->Float64RoundTruncate().IsSupported();
 }

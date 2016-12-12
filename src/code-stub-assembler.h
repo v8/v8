@@ -103,6 +103,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* Float64Ceil(compiler::Node* x);
   compiler::Node* Float64Floor(compiler::Node* x);
   compiler::Node* Float64Round(compiler::Node* x);
+  compiler::Node* Float64RoundToEven(compiler::Node* x);
   compiler::Node* Float64Trunc(compiler::Node* x);
 
   // Tag a Word as a Smi value.
@@ -775,7 +776,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Loads script context from the script context table.
   compiler::Node* LoadScriptContext(compiler::Node* context, int context_index);
 
-  compiler::Node* ClampedToUint8(compiler::Node* int32_value);
+  compiler::Node* Int32ToUint8Clamped(compiler::Node* int32_value);
+  compiler::Node* Float64ToUint8Clamped(compiler::Node* float64_value);
+
+  compiler::Node* PrepareValueForWriteToTypedArray(compiler::Node* key,
+                                                   ElementsKind elements_kind,
+                                                   Label* bailout);
 
   // Store value to an elements array with given elements kind.
   void StoreElement(compiler::Node* elements, ElementsKind kind,
