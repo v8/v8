@@ -484,7 +484,9 @@ class StackFrame BASE_EMBEDDED {
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
-  Address callee_pc() const { return *state_.callee_pc_address; }
+  Address callee_pc() const {
+    return state_.callee_pc_address ? *state_.callee_pc_address : nullptr;
+  }
   Address caller_sp() const { return GetCallerStackPointer(); }
 
   // If this frame is optimized and was dynamically aligned return its old
