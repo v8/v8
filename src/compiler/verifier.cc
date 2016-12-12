@@ -659,6 +659,7 @@ void Verifier::Visitor::Check(Node* node) {
     }
 
     case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSCallConstructWithSpread:
     case IrOpcode::kJSConvertReceiver:
       // Type is Receiver.
       CheckTypeIs(node, Type::Receiver());

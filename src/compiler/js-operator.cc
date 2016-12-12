@@ -80,6 +80,30 @@ CallConstructParameters const& CallConstructParametersOf(Operator const* op) {
   return OpParameter<CallConstructParameters>(op);
 }
 
+bool operator==(CallConstructWithSpreadParameters const& lhs,
+                CallConstructWithSpreadParameters const& rhs) {
+  return lhs.arity() == rhs.arity();
+}
+
+bool operator!=(CallConstructWithSpreadParameters const& lhs,
+                CallConstructWithSpreadParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CallConstructWithSpreadParameters const& p) {
+  return base::hash_combine(p.arity());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CallConstructWithSpreadParameters const& p) {
+  return os << p.arity();
+}
+
+CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCallConstructWithSpread, op->opcode());
+  return OpParameter<CallConstructWithSpreadParameters>(op);
+}
 
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
   os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode() << ", "
@@ -647,6 +671,14 @@ const Operator* JSOperatorBuilder::CallConstruct(
       parameters);                                          // parameter
 }
 
+const Operator* JSOperatorBuilder::CallConstructWithSpread(uint32_t arity) {
+  CallConstructWithSpreadParameters parameters(arity);
+  return new (zone()) Operator1<CallConstructWithSpreadParameters>(   // --
+      IrOpcode::kJSCallConstructWithSpread, Operator::kNoProperties,  // opcode
+      "JSCallConstructWithSpread",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                              // counts
+      parameters);  // parameter
+}
 
 const Operator* JSOperatorBuilder::ConvertReceiver(
     ConvertReceiverMode convert_mode) {

@@ -1305,6 +1305,10 @@ Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
   return Type::Receiver();
 }
 
+Type* Typer::Visitor::TypeJSCallConstructWithSpread(Node* node) {
+  return Type::Receiver();
+}
+
 Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
   if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =

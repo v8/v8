@@ -1340,9 +1340,9 @@ void BytecodeGraphBuilder::VisitNewWithSpread() {
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(0);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(1);
 
-  const Operator* call =
-      javascript()->CallRuntime(Runtime::kNewWithSpread, arg_count);
-  Node* value = ProcessCallRuntimeArguments(call, first_arg, arg_count);
+  const Operator* op =
+      javascript()->CallConstructWithSpread(static_cast<int>(arg_count));
+  Node* value = ProcessCallRuntimeArguments(op, first_arg, arg_count);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 

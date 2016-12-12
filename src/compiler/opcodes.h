@@ -155,6 +155,7 @@
 
 #define JS_OTHER_OP_LIST(V)         \
   V(JSCallConstruct)                \
+  V(JSCallConstructWithSpread)      \
   V(JSCallFunction)                 \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \

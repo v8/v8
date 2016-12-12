@@ -474,6 +474,12 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
+void JSGenericLowering::LowerJSCallConstructWithSpread(Node* node) {
+  CallConstructWithSpreadParameters const& p =
+      CallConstructWithSpreadParametersOf(node->op());
+  ReplaceWithRuntimeCall(node, Runtime::kNewWithSpread,
+                         static_cast<int>(p.arity()));
+}
 
 void JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
