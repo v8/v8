@@ -2818,8 +2818,8 @@ bool Isolate::use_crankshaft() const {
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
   return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
-         FLAG_turbo_profiling || is_profiling() || debug_->is_active() ||
-         logger_->is_logging();
+         FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
+         debug_->is_active() || logger_->is_logging();
 }
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {
