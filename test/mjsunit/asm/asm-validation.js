@@ -363,3 +363,14 @@ function assertValidAsm(func) {
   assertFalse(%IsAsmWasmCode(Module));
   assertEquals(43, m.foo(3));
 })();
+
+(function TestVarHidesExport() {
+  function Module() {
+    "use asm";
+    var foo;
+    function foo() {}
+    return foo;
+  }
+  Module();
+  assertFalse(%IsAsmWasmCode(Module));
+})();

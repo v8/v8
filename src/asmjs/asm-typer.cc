@@ -945,6 +945,10 @@ AsmType* AsmTyper::ExportType(VariableProxy* fun_export) {
     FAIL(fun_export, "Module export is not an asm.js function.");
   }
 
+  if (!fun_export->var()->is_function()) {
+    FAIL(fun_export, "Module exports must be function declarations.");
+  }
+
   return type;
 }
 

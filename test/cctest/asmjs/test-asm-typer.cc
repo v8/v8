@@ -672,11 +672,16 @@ TEST(ErrorsInModuleExport) {
       {"return {'a': f()}", "must be an asm.js function name"},
       {"return {'a': f}", "Undefined identifier in asm.js module export"},
       {"function v() { a(); } return {b: d2s}", "Missing definition for forw"},
-      {"return {b: d2s, 'a': d2s_tbl}", "cannot export function tables"},
-      {"return {b: d2s, 'a': min}", "cannot export standard library"},
-      {"return {b: d2s, 'a': ffi}", "cannot export foreign functions"},
-      {"return {b: d2s, 'a': f()}", "must be an asm.js function name"},
-      {"return {b: d2s, 'a': f}", "Undefined identifier in asm.js module"},
+      {"function v() {} return {b: v, 'a': d2s_tbl}",
+       "cannot export function tables"},
+      {"function v() {} return {b: v, 'a': min}",
+       "cannot export standard library"},
+      {"function v() {} return {b: v, 'a': ffi}",
+       "cannot export foreign functions"},
+      {"function v() {} return {b: v, 'a': f()}",
+       "must be an asm.js function name"},
+      {"function v() {} return {b: v, 'a': f}",
+       "Undefined identifier in asm.js module"},
   };
 
   auto d2s_tbl = [](Zone* zone) -> iw::AsmType* {
@@ -687,17 +692,10 @@ TEST(ErrorsInModuleExport) {
     return ret;
   };
 
-  auto d2s = [](Zone* zone) -> iw::AsmType* {
-    auto* ret = iw::AsmType::Function(zone, iw::AsmType::Signed());
-    ret->AsFunctionType()->AddArgument(iw::AsmType::Double());
-    return ret;
-  };
-
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
     const auto* test = kTests + ii;
     if (!ValidationOf(Export(test->module_export))
              ->WithGlobal(DynamicGlobal("d2s_tbl"), d2s_tbl)
-             ->WithGlobal(DynamicGlobal("d2s"), d2s)
              ->WithImport(DynamicGlobal("min"), iw::AsmTyper::kMathMin)
              ->WithImport(DynamicGlobal("ffi"), iw::AsmTyper::kFFI)
              ->WithGlobal(DynamicGlobal("I"), iw::AsmType::Int())
