@@ -165,6 +165,115 @@ std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
   return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
 }
 
+namespace {
+
+Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
+  if (script->eval_from_shared()->IsUndefined(isolate))
+    return isolate->heap()->undefined_value();
+
+  Handle<SharedFunctionInfo> shared(
+      SharedFunctionInfo::cast(script->eval_from_shared()));
+  // Find the name of the function calling eval.
+  if (shared->name()->BooleanValue()) {
+    return shared->name();
+  }
+
+  return shared->inferred_name();
+}
+
+Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
+  if (script->eval_from_shared()->IsUndefined(isolate))
+    return isolate->heap()->undefined_value();
+
+  Handle<SharedFunctionInfo> eval_from_shared(
+      SharedFunctionInfo::cast(script->eval_from_shared()));
+  return eval_from_shared->script()->IsScript()
+             ? eval_from_shared->script()
+             : isolate->heap()->undefined_value();
+}
+
+MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
+  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
+  if (!sourceURL->IsUndefined(isolate)) {
+    DCHECK(sourceURL->IsString());
+    return Handle<String>::cast(sourceURL);
+  }
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString("eval at ");
+
+  Handle<Object> eval_from_function_name =
+      handle(EvalFromFunctionName(isolate, script), isolate);
+  if (eval_from_function_name->BooleanValue()) {
+    Handle<String> str;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, str, Object::ToString(isolate, eval_from_function_name),
+        String);
+    builder.AppendString(str);
+  } else {
+    builder.AppendCString("<anonymous>");
+  }
+
+  Handle<Object> eval_from_script_obj =
+      handle(EvalFromScript(isolate, script), isolate);
+  if (eval_from_script_obj->IsScript()) {
+    Handle<Script> eval_from_script =
+        Handle<Script>::cast(eval_from_script_obj);
+    builder.AppendCString(" (");
+    if (eval_from_script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+      // Eval script originated from another eval.
+      Handle<String> str;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
+      builder.AppendString(str);
+    } else {
+      DCHECK(eval_from_script->compilation_type() !=
+             Script::COMPILATION_TYPE_EVAL);
+      // eval script originated from "real" source.
+      Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
+      if (eval_from_script->name()->IsString()) {
+        builder.AppendString(Handle<String>::cast(name_obj));
+
+        Script::PositionInfo info;
+        if (Script::GetPositionInfo(eval_from_script, script->GetEvalPosition(),
+                                    &info, Script::NO_OFFSET)) {
+          builder.AppendCString(":");
+
+          Handle<String> str = isolate->factory()->NumberToString(
+              handle(Smi::FromInt(info.line + 1), isolate));
+          builder.AppendString(str);
+
+          builder.AppendCString(":");
+
+          str = isolate->factory()->NumberToString(
+              handle(Smi::FromInt(info.column + 1), isolate));
+          builder.AppendString(str);
+        }
+      } else {
+        DCHECK(!eval_from_script->name()->IsString());
+        builder.AppendCString("unknown source");
+      }
+    }
+    builder.AppendCString(")");
+  }
+
+  Handle<String> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, builder.Finish(), String);
+  return result;
+}
+
+}  // namespace
+
+Handle<Object> StackFrameBase::GetEvalOrigin() {
+  if (!HasScript()) return isolate_->factory()->undefined_value();
+  return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
+}
+
+bool StackFrameBase::IsEval() {
+  return HasScript() &&
+         GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
+}
+
 void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                   int frame_ix) {
   DCHECK(!array->IsWasmFrame(frame_ix));
@@ -179,18 +288,18 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
 }
 
+JSStackFrame::JSStackFrame() {}
+
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
                            Handle<JSFunction> function,
                            Handle<AbstractCode> code, int offset)
-    : isolate_(isolate),
+    : StackFrameBase(isolate),
       receiver_(receiver),
       function_(function),
       code_(code),
       offset_(offset),
       force_constructor_(false),
       is_strict_(false) {}
-
-JSStackFrame::JSStackFrame() {}
 
 Handle<Object> JSStackFrame::GetFunction() const {
   return Handle<Object>::cast(function_);
@@ -298,105 +407,6 @@ Handle<Object> JSStackFrame::GetMethodName() {
   return isolate_->factory()->null_value();
 }
 
-namespace {
-
-Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
-  if (script->eval_from_shared()->IsUndefined(isolate))
-    return isolate->heap()->undefined_value();
-
-  Handle<SharedFunctionInfo> shared(
-      SharedFunctionInfo::cast(script->eval_from_shared()));
-  // Find the name of the function calling eval.
-  if (shared->name()->BooleanValue()) {
-    return shared->name();
-  }
-
-  return shared->inferred_name();
-}
-
-Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
-  if (script->eval_from_shared()->IsUndefined(isolate))
-    return isolate->heap()->undefined_value();
-
-  Handle<SharedFunctionInfo> eval_from_shared(
-      SharedFunctionInfo::cast(script->eval_from_shared()));
-  return eval_from_shared->script()->IsScript()
-             ? eval_from_shared->script()
-             : isolate->heap()->undefined_value();
-}
-
-MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
-  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
-  if (!sourceURL->IsUndefined(isolate)) {
-    DCHECK(sourceURL->IsString());
-    return Handle<String>::cast(sourceURL);
-  }
-
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("eval at ");
-
-  Handle<Object> eval_from_function_name =
-      handle(EvalFromFunctionName(isolate, script), isolate);
-  if (eval_from_function_name->BooleanValue()) {
-    Handle<String> str;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, str, Object::ToString(isolate, eval_from_function_name),
-        String);
-    builder.AppendString(str);
-  } else {
-    builder.AppendCString("<anonymous>");
-  }
-
-  Handle<Object> eval_from_script_obj =
-      handle(EvalFromScript(isolate, script), isolate);
-  if (eval_from_script_obj->IsScript()) {
-    Handle<Script> eval_from_script =
-        Handle<Script>::cast(eval_from_script_obj);
-    builder.AppendCString(" (");
-    if (eval_from_script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
-      // Eval script originated from another eval.
-      Handle<String> str;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
-      builder.AppendString(str);
-    } else {
-      DCHECK(eval_from_script->compilation_type() !=
-             Script::COMPILATION_TYPE_EVAL);
-      // eval script originated from "real" source.
-      Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
-      if (eval_from_script->name()->IsString()) {
-        builder.AppendString(Handle<String>::cast(name_obj));
-
-        Script::PositionInfo info;
-        if (Script::GetPositionInfo(eval_from_script, script->GetEvalPosition(),
-                                    &info, Script::NO_OFFSET)) {
-          builder.AppendCString(":");
-
-          Handle<String> str = isolate->factory()->NumberToString(
-              handle(Smi::FromInt(info.line + 1), isolate));
-          builder.AppendString(str);
-
-          builder.AppendCString(":");
-
-          str = isolate->factory()->NumberToString(
-              handle(Smi::FromInt(info.column + 1), isolate));
-          builder.AppendString(str);
-        }
-      } else {
-        DCHECK(!eval_from_script->name()->IsString());
-        builder.AppendCString("unknown source");
-      }
-    }
-    builder.AppendCString(")");
-  }
-
-  Handle<String> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, builder.Finish(), String);
-  return result;
-}
-
-}  // namespace
-
 Handle<Object> JSStackFrame::GetTypeName() {
   // TODO(jgruber): Check for strict/constructor here as in
   // CallSitePrototypeGetThis.
@@ -409,11 +419,6 @@ Handle<Object> JSStackFrame::GetTypeName() {
   Handle<JSReceiver> receiver_object =
       Object::ToObject(isolate_, receiver_).ToHandleChecked();
   return JSReceiver::GetConstructorName(receiver_object);
-}
-
-Handle<Object> JSStackFrame::GetEvalOrigin() {
-  if (!HasScript()) return isolate_->factory()->undefined_value();
-  return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
 int JSStackFrame::GetLineNumber() {
@@ -437,11 +442,6 @@ bool JSStackFrame::IsNative() {
 bool JSStackFrame::IsToplevel() {
   return receiver_->IsJSGlobalProxy() || receiver_->IsNull(isolate_) ||
          receiver_->IsUndefined(isolate_);
-}
-
-bool JSStackFrame::IsEval() {
-  return HasScript() &&
-         GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
 }
 
 bool JSStackFrame::IsConstructor() {
@@ -619,6 +619,8 @@ Handle<Script> JSStackFrame::GetScript() const {
   return handle(Script::cast(function_->shared()->script()), isolate_);
 }
 
+WasmStackFrame::WasmStackFrame() {}
+
 void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                     int frame_ix) {
   // This function is called for both wasm and asm.js->wasm frames.
@@ -680,6 +682,16 @@ int WasmStackFrame::GetPosition() const {
 Handle<Object> WasmStackFrame::Null() const {
   return isolate_->factory()->null_value();
 }
+
+bool WasmStackFrame::HasScript() const { return true; }
+
+Handle<Script> WasmStackFrame::GetScript() const {
+  return WasmInstanceObject::cast(*wasm_instance_)
+      ->get_compiled_module()
+      ->script();
+}
+
+AsmJsWasmStackFrame::AsmJsWasmStackFrame() {}
 
 void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
                                          Handle<FrameArray> array,

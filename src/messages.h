@@ -56,7 +56,7 @@ class StackFrameBase {
   virtual Handle<Object> GetScriptNameOrSourceUrl() = 0;
   virtual Handle<Object> GetMethodName() = 0;
   virtual Handle<Object> GetTypeName() = 0;
-  virtual Handle<Object> GetEvalOrigin() = 0;
+  virtual Handle<Object> GetEvalOrigin();
 
   virtual int GetPosition() const = 0;
   // Return 1-based line number, including line offset.
@@ -66,11 +66,20 @@ class StackFrameBase {
 
   virtual bool IsNative() = 0;
   virtual bool IsToplevel() = 0;
-  virtual bool IsEval() = 0;
+  virtual bool IsEval();
   virtual bool IsConstructor() = 0;
   virtual bool IsStrict() const = 0;
 
   virtual MaybeHandle<String> ToString() = 0;
+
+ protected:
+  StackFrameBase() {}
+  explicit StackFrameBase(Isolate* isolate) : isolate_(isolate) {}
+  Isolate* isolate_;
+
+ private:
+  virtual bool HasScript() const = 0;
+  virtual Handle<Script> GetScript() const = 0;
 };
 
 class JSStackFrame : public StackFrameBase {
@@ -88,7 +97,6 @@ class JSStackFrame : public StackFrameBase {
   Handle<Object> GetScriptNameOrSourceUrl() override;
   Handle<Object> GetMethodName() override;
   Handle<Object> GetTypeName() override;
-  Handle<Object> GetEvalOrigin() override;
 
   int GetPosition() const override;
   int GetLineNumber() override;
@@ -96,7 +104,6 @@ class JSStackFrame : public StackFrameBase {
 
   bool IsNative() override;
   bool IsToplevel() override;
-  bool IsEval() override;
   bool IsConstructor() override;
   bool IsStrict() const override { return is_strict_; }
 
@@ -106,10 +113,8 @@ class JSStackFrame : public StackFrameBase {
   JSStackFrame();
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
-  bool HasScript() const;
-  Handle<Script> GetScript() const;
-
-  Isolate* isolate_;
+  bool HasScript() const override;
+  Handle<Script> GetScript() const override;
 
   Handle<Object> receiver_;
   Handle<JSFunction> function_;
@@ -134,7 +139,6 @@ class WasmStackFrame : public StackFrameBase {
   Handle<Object> GetScriptNameOrSourceUrl() override { return Null(); }
   Handle<Object> GetMethodName() override { return Null(); }
   Handle<Object> GetTypeName() override { return Null(); }
-  Handle<Object> GetEvalOrigin() override { return Null(); }
 
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
@@ -142,7 +146,6 @@ class WasmStackFrame : public StackFrameBase {
 
   bool IsNative() override { return false; }
   bool IsToplevel() override { return false; }
-  bool IsEval() override { return false; }
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
 
@@ -151,7 +154,8 @@ class WasmStackFrame : public StackFrameBase {
  protected:
   Handle<Object> Null() const;
 
-  Isolate* isolate_;
+  bool HasScript() const override;
+  Handle<Script> GetScript() const override;
 
   // TODO(wasm): Use proper typing.
   Handle<Object> wasm_instance_;
@@ -160,6 +164,7 @@ class WasmStackFrame : public StackFrameBase {
   int offset_;
 
  private:
+  WasmStackFrame();
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
   friend class FrameArrayIterator;
@@ -184,6 +189,7 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
 
  private:
   friend class FrameArrayIterator;
+  AsmJsWasmStackFrame();
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
   bool is_at_number_conversion_;

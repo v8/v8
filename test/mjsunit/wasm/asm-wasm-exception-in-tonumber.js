@@ -80,7 +80,8 @@ function testAll(expected_stack, expected_frames, input) {
   var expected_stack = [
     '^Error: user-thrown$',
     '^ *at sym \\(' + filename + ':\\d+:9\\)$',
-    '^ *at callSym \\(.*<anonymous>:\\d+:12\\)$',
+    '^ *at callSym \\(eval at testHelper \\(' + filename +
+        ':\\d+:19\\), <anonymous>:\\d+:12\\)$',
   ];
   var expected_frames = [
       //  function   pos
@@ -94,7 +95,8 @@ function testAll(expected_stack, expected_frames, input) {
 (function testStackForThrowAtConversion() {
   var expected_stack = [
     '^TypeError: Cannot convert a Symbol value to a number$',
-    '^ *at callSym \\(.*<anonymous>:\\d+:21\\)$',
+    '^ *at callSym \\(eval at testHelper \\(' + filename +
+        ':\\d+:19\\), <anonymous>:\\d+:21\\)$',
   ];
   var expected_frames = [
       //  function   pos
