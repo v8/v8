@@ -17349,6 +17349,79 @@ TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
   isolate->SetCaptureStackTraceForUncaughtExceptions(false);
 }
 
+static int asm_warning_triggered = 0;
+
+static void AsmJsWarningListener(v8::Local<v8::Message> message,
+                                 v8::Local<Value>) {
+  DCHECK_EQ(v8::Isolate::kMessageWarning, message->ErrorLevel());
+  asm_warning_triggered = 1;
+}
+
+TEST(AsmJsWarning) {
+  i::FLAG_validate_asm = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  asm_warning_triggered = 0;
+  isolate->AddMessageListenerWithErrorLevel(AsmJsWarningListener,
+                                            v8::Isolate::kMessageAll);
+  CompileRun(
+      "function module() {\n"
+      "  'use asm';\n"
+      "  var x = 'hi';\n"
+      "  return {};\n"
+      "}\n"
+      "module();");
+  DCHECK_EQ(1, asm_warning_triggered);
+  isolate->RemoveMessageListeners(AsmJsWarningListener);
+}
+
+static int error_level_message_count = 0;
+static int expected_error_level = 0;
+
+static void ErrorLevelListener(v8::Local<v8::Message> message,
+                               v8::Local<Value>) {
+  DCHECK_EQ(expected_error_level, message->ErrorLevel());
+  ++error_level_message_count;
+}
+
+TEST(ErrorLevelWarning) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  const char* source = "fake = 1;";
+  v8::Local<v8::Script> lscript = CompileWithOrigin(source, "test");
+  i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
+      v8::Utils::OpenHandle(*lscript->GetUnboundScript()));
+  CHECK(obj->script()->IsScript());
+  i::Handle<i::Script> script(i::Script::cast(obj->script()));
+
+  int levels[] = {
+      v8::Isolate::kMessageLog, v8::Isolate::kMessageInfo,
+      v8::Isolate::kMessageDebug, v8::Isolate::kMessageWarning,
+  };
+  error_level_message_count = 0;
+  isolate->AddMessageListenerWithErrorLevel(ErrorLevelListener,
+                                            v8::Isolate::kMessageAll);
+  for (size_t i = 0; i < arraysize(levels); i++) {
+    i::MessageLocation location(script, 0, 0);
+    i::Handle<i::String> msg(i_isolate->factory()->InternalizeOneByteString(
+        STATIC_CHAR_VECTOR("test")));
+    i::Handle<i::JSMessageObject> message =
+        i::MessageHandler::MakeMessageObject(
+            i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,
+            i::Handle<i::JSArray>::null());
+    message->set_error_level(levels[i]);
+    expected_error_level = levels[i];
+    i::MessageHandler::ReportMessage(i_isolate, &location, message);
+  }
+  isolate->RemoveMessageListeners(ErrorLevelListener);
+  DCHECK_EQ(arraysize(levels), error_level_message_count);
+}
 
 static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                                            v8::Local<Value>) {

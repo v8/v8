@@ -1579,9 +1579,43 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
-static void EmptyMessageCallback(Local<Message> message, Local<Value> error) {
-  // Nothing to be done here, exceptions thrown up to the shell will be reported
+static void PrintNonErrorsMessageCallback(Local<Message> message,
+                                          Local<Value> error) {
+  // Nothing to do here for errors, exceptions thrown up to the shell will be
+  // reported
   // separately by {Shell::ReportException} after they are caught.
+  // Do print other kinds of messages.
+  switch (message->ErrorLevel()) {
+    case v8::Isolate::kMessageWarning:
+    case v8::Isolate::kMessageLog:
+    case v8::Isolate::kMessageInfo:
+    case v8::Isolate::kMessageDebug: {
+      break;
+    }
+
+    case v8::Isolate::kMessageError: {
+      // Ignore errors, printed elsewhere.
+      return;
+    }
+
+    default: {
+      UNREACHABLE();
+      break;
+    }
+  }
+  // Converts a V8 value to a C string.
+  auto ToCString = [](const v8::String::Utf8Value& value) {
+    return *value ? *value : "<string conversion failed>";
+  };
+  Isolate* isolate = Isolate::GetCurrent();
+  v8::String::Utf8Value msg(message->Get());
+  const char* msg_string = ToCString(msg);
+  // Print (filename):(line number): (message).
+  v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
+  const char* filename_string = ToCString(filename);
+  Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
+  int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
+  printf("%s:%i: %s\n", filename_string, linenum, msg_string);
 }
 
 void Shell::Initialize(Isolate* isolate) {
@@ -1589,7 +1623,11 @@ void Shell::Initialize(Isolate* isolate) {
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
   // Disable default message reporting.
-  isolate->AddMessageListener(EmptyMessageCallback);
+  isolate->AddMessageListenerWithErrorLevel(
+      PrintNonErrorsMessageCallback,
+      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+          v8::Isolate::kMessageLog);
 }
 
 

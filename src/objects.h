@@ -8887,6 +8887,9 @@ class JSMessageObject: public JSObject {
   // position, or the empty string if the position is invalid.
   Handle<String> GetSourceLine() const;
 
+  inline int error_level() const;
+  inline void set_error_level(int level);
+
   DECLARE_CAST(JSMessageObject)
 
   // Dispatched behavior.
@@ -8900,7 +8903,8 @@ class JSMessageObject: public JSObject {
   static const int kStackFramesOffset = kScriptOffset + kPointerSize;
   static const int kStartPositionOffset = kStackFramesOffset + kPointerSize;
   static const int kEndPositionOffset = kStartPositionOffset + kPointerSize;
-  static const int kSize = kEndPositionOffset + kPointerSize;
+  static const int kErrorLevelOffset = kEndPositionOffset + kPointerSize;
+  static const int kSize = kErrorLevelOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<HeapObject::kMapOffset,
                               kStackFramesOffset + kPointerSize,

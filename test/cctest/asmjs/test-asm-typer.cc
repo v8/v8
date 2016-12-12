@@ -126,7 +126,8 @@ class AsmTyperHarnessBuilder {
     WithGlobal(var_name, type);
     auto* var_info = typer_->Lookup(DeclareVariable(var_name));
     CHECK(var_info);
-    var_info->SetFirstForwardUse(-1);
+    MessageLocation location;
+    var_info->SetFirstForwardUse(location);
     return this;
   }
 
@@ -260,12 +261,14 @@ class AsmTyperHarnessBuilder {
       return false;
     }
 
-    if (std::strstr(typer_->error_message(), error_message) == nullptr) {
+    std::unique_ptr<char[]> msg = i::MessageHandler::GetLocalizedMessage(
+        isolate_, typer_->error_message());
+    if (std::strstr(msg.get(), error_message) == nullptr) {
       std::cerr << "Asm validation failed with the wrong error message:\n"
                    "Expected to contain '"
                 << error_message << "'\n"
                                     "       Actually is  '"
-                << typer_->error_message() << "'\n";
+                << msg.get() << "'\n";
       return false;
     }
 

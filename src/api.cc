@@ -2667,6 +2667,10 @@ int Message::GetEndPosition() const {
   return self->end_position();
 }
 
+int Message::ErrorLevel() const {
+  auto self = Utils::OpenHandle(this);
+  return self->error_level();
+}
 
 Maybe<int> Message::GetStartColumn(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
@@ -8452,18 +8456,24 @@ bool Isolate::IsDead() {
   return isolate->IsDead();
 }
 
-
 bool Isolate::AddMessageListener(MessageCallback that, Local<Value> data) {
+  return AddMessageListenerWithErrorLevel(that, kMessageError, data);
+}
+
+bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
+                                               int message_levels,
+                                               Local<Value> data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::TemplateList> list = isolate->factory()->message_listeners();
-  i::Handle<i::FixedArray> listener = isolate->factory()->NewFixedArray(2);
+  i::Handle<i::FixedArray> listener = isolate->factory()->NewFixedArray(3);
   i::Handle<i::Foreign> foreign =
       isolate->factory()->NewForeign(FUNCTION_ADDR(that));
   listener->set(0, *foreign);
   listener->set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
                                   : *Utils::OpenHandle(*data));
+  listener->set(2, i::Smi::FromInt(message_levels));
   list = i::TemplateList::Add(isolate, list, listener);
   isolate->heap()->SetMessageListeners(*list);
   return true;

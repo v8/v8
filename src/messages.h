@@ -669,6 +669,8 @@ class ErrorUtils : public AllStatic {
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapInvalidIndex, "invalid index into function table")                 \
   T(WasmTrapTypeError, "invalid type")                                         \
+  /* Asm.js validation warnings */                                             \
+  T(AsmJsInvalid, "Invalid asm.js: %")                                         \
   /* DataCloneError messages */                                                \
   T(DataCloneError, "% could not be cloned.")                                  \
   T(DataCloneErrorNeuteredArrayBuffer,                                         \
@@ -709,11 +711,11 @@ class MessageHandler {
   // Returns a message object for the API to use.
   static Handle<JSMessageObject> MakeMessageObject(
       Isolate* isolate, MessageTemplate::Template type,
-      MessageLocation* location, Handle<Object> argument,
+      const MessageLocation* location, Handle<Object> argument,
       Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
-  static void ReportMessage(Isolate* isolate, MessageLocation* loc,
+  static void ReportMessage(Isolate* isolate, const MessageLocation* loc,
                             Handle<JSMessageObject> message);
 
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
@@ -721,6 +723,12 @@ class MessageHandler {
   static Handle<String> GetMessage(Isolate* isolate, Handle<Object> data);
   static std::unique_ptr<char[]> GetLocalizedMessage(Isolate* isolate,
                                                      Handle<Object> data);
+
+ private:
+  static void ReportMessageNoExceptions(Isolate* isolate,
+                                        const MessageLocation* loc,
+                                        Handle<Object> message_obj,
+                                        v8::Local<v8::Value> api_exception_obj);
 };
 
 

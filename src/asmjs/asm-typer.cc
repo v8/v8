@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "include/v8.h"
 #include "src/v8.h"
 
 #include "src/asmjs/asm-types.h"
@@ -17,21 +18,25 @@
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/globals.h"
+#include "src/messages.h"
 #include "src/utils.h"
 
-#define FAIL_LINE(line, msg)                                   \
-  do {                                                         \
-    base::OS::SNPrintF(error_message_, sizeof(error_message_), \
-                       "asm: line %d: %s", (line) + 1, msg);   \
-    return AsmType::None();                                    \
+#define FAIL_LOCATION(location, msg)                                      \
+  do {                                                                    \
+    Handle<String> message(isolate_->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(msg)));                                        \
+    error_message_ = MessageHandler::MakeMessageObject(                   \
+        isolate_, MessageTemplate::kAsmJsInvalid, (location), message,    \
+        Handle<JSArray>::null());                                         \
+    error_message_->set_error_level(v8::Isolate::kMessageWarning);        \
+    message_location_ = *(location);                                      \
+    return AsmType::None();                                               \
   } while (false)
 
-#define FAIL(node, msg)                                        \
-  do {                                                         \
-    int line = node->position() == kNoSourcePosition           \
-                   ? -1                                        \
-                   : script_->GetLineNumber(node->position()); \
-    FAIL_LINE(line, msg);                                      \
+#define FAIL(node, msg)                                                    \
+  do {                                                                     \
+    MessageLocation location(script_, node->position(), node->position()); \
+    FAIL_LOCATION(&location, msg);                                         \
   } while (false)
 
 #define RECURSE(call)                                             \
@@ -164,8 +169,8 @@ AsmTyper::VariableInfo* AsmTyper::VariableInfo::Clone(Zone* zone) const {
   return new_var_info;
 }
 
-void AsmTyper::VariableInfo::SetFirstForwardUse(int source_location) {
-  DCHECK(source_location_ == -1);
+void AsmTyper::VariableInfo::SetFirstForwardUse(
+    const MessageLocation& source_location) {
   missing_definition_ = true;
   source_location_ = source_location;
 }
@@ -400,7 +405,8 @@ AsmTyper::VariableInfo* AsmTyper::Lookup(Variable* variable) const {
 }
 
 void AsmTyper::AddForwardReference(VariableProxy* proxy, VariableInfo* info) {
-  info->SetFirstForwardUse(proxy->position());
+  MessageLocation location(script_, proxy->position(), proxy->position());
+  info->SetFirstForwardUse(location);
   forward_definitions_.push_back(info);
 }
 
@@ -738,11 +744,8 @@ AsmType* AsmTyper::ValidateModuleAfterFunctionsPhase(FunctionLiteral* fun) {
 
   for (auto* forward_def : forward_definitions_) {
     if (forward_def->missing_definition()) {
-      int position = forward_def->source_location();
-      int line =
-          position == kNoSourcePosition ? -1 : script_->GetLineNumber(position);
-
-      FAIL_LINE(line, "Missing definition for forward declared identifier.");
+      FAIL_LOCATION(forward_def->source_location(),
+                    "Missing definition for forward declared identifier.");
     }
   }
 
@@ -2909,19 +2912,6 @@ AsmType* AsmTyper::NewHeapView(CallNew* new_heap_view) {
 
   DCHECK(heap_view_info->type()->IsA(AsmType::Heap()));
   return heap_view_info->type();
-}
-
-bool IsValidAsm(Isolate* isolate, Zone* zone, Handle<Script> script,
-                FunctionLiteral* root, std::string* error_message) {
-  error_message->clear();
-
-  AsmTyper typer(isolate, zone, script, root);
-  if (typer.Validate()) {
-    return true;
-  }
-
-  *error_message = typer.error_message();
-  return false;
 }
 
 }  // namespace wasm

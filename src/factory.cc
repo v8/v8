@@ -2295,6 +2295,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
   message_obj->set_end_position(end_position);
   message_obj->set_script(*script);
   message_obj->set_stack_frames(*stack_frames);
+  message_obj->set_error_level(v8::Isolate::kMessageError);
   return message_obj;
 }
 

@@ -160,8 +160,9 @@ MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
   auto asm_wasm_result = builder.Run(&foreign_globals);
   if (!asm_wasm_result.success) {
     DCHECK(!info->isolate()->has_pending_exception());
-    PrintF("Validation of asm.js module failed: %s\n",
-           builder.typer()->error_message());
+    MessageHandler::ReportMessage(info->isolate(),
+                                  builder.typer()->message_location(),
+                                  builder.typer()->error_message());
     return MaybeHandle<FixedArray>();
   }
   wasm::ZoneBuffer* module = asm_wasm_result.module_bytes;
