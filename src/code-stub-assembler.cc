@@ -571,7 +571,7 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
     Label answer_zero(this), answer_not_zero(this);
     Node* answer = Projection(0, pair);
     Node* zero = Int32Constant(0);
-    Branch(WordEqual(answer, zero), &answer_zero, &answer_not_zero);
+    Branch(Word32Equal(answer, zero), &answer_zero, &answer_not_zero);
     Bind(&answer_not_zero);
     {
       var_result.Bind(ChangeInt32ToTagged(answer));
@@ -590,7 +590,7 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
       }
       Bind(&if_should_be_zero);
       {
-        var_result.Bind(zero);
+        var_result.Bind(SmiConstant(0));
         Goto(&return_result);
       }
     }
@@ -627,8 +627,9 @@ Node* CodeStubAssembler::TaggedIsNotSmi(Node* a) {
       IntPtrConstant(0));
 }
 
-Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
-  return WordEqual(WordAnd(a, IntPtrConstant(kSmiTagMask | kSmiSignMask)),
+Node* CodeStubAssembler::TaggedIsPositiveSmi(Node* a) {
+  return WordEqual(WordAnd(BitcastTaggedToWord(a),
+                           IntPtrConstant(kSmiTagMask | kSmiSignMask)),
                    IntPtrConstant(0));
 }
 
@@ -921,7 +922,7 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
 }
 
 Node* CodeStubAssembler::InnerAllocate(Node* previous, Node* offset) {
-  return BitcastWordToTagged(IntPtrAdd(previous, offset));
+  return BitcastWordToTagged(IntPtrAdd(BitcastTaggedToWord(previous), offset));
 }
 
 Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
@@ -1586,9 +1587,10 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
   StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
-  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
+  // Initialize both used and unused parts of hash field slot at once.
+  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
+                                 MachineType::PointerRepresentation());
   return result;
 }
 
@@ -1614,12 +1616,12 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
     Node* result = Allocate(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
     StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
-    StoreObjectFieldNoWriteBarrier(
-        result, SeqOneByteString::kLengthOffset,
-        mode == SMI_PARAMETERS ? length : SmiFromWord(length));
-    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
+    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
+                                   TagParameter(length, mode));
+    // Initialize both used and unused parts of hash field slot at once.
+    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
                                    IntPtrConstant(String::kEmptyHashField),
-                                   MachineRepresentation::kWord32);
+                                   MachineType::PointerRepresentation());
     var_result.Bind(result);
     Goto(&if_join);
   }
@@ -1627,9 +1629,8 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
   Bind(&if_notsizeissmall);
   {
     // We might need to allocate in large object space, go to the runtime.
-    Node* result =
-        CallRuntime(Runtime::kAllocateSeqOneByteString, context,
-                    mode == SMI_PARAMETERS ? length : SmiFromWord(length));
+    Node* result = CallRuntime(Runtime::kAllocateSeqOneByteString, context,
+                               TagParameter(length, mode));
     var_result.Bind(result);
     Goto(&if_join);
   }
@@ -1646,9 +1647,10 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
   StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
-  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
+  // Initialize both used and unused parts of hash field slot at once.
+  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
+                                 MachineType::PointerRepresentation());
   return result;
 }
 
@@ -1677,9 +1679,10 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
     StoreObjectFieldNoWriteBarrier(
         result, SeqTwoByteString::kLengthOffset,
         mode == SMI_PARAMETERS ? length : SmiFromWord(length));
-    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
+    // Initialize both used and unused parts of hash field slot at once.
+    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                    IntPtrConstant(String::kEmptyHashField),
-                                   MachineRepresentation::kWord32);
+                                   MachineType::PointerRepresentation());
     var_result.Bind(result);
     Goto(&if_join);
   }
@@ -1707,9 +1710,10 @@ Node* CodeStubAssembler::AllocateSlicedString(
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kLengthOffset, length,
                                  MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldOffset,
-                                 Int32Constant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
+  // Initialize both used and unused parts of hash field slot at once.
+  StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldSlot,
+                                 IntPtrConstant(String::kEmptyHashField),
+                                 MachineType::PointerRepresentation());
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kParentOffset, parent,
                                  MachineRepresentation::kTagged);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kOffsetOffset, offset,
@@ -1739,9 +1743,10 @@ Node* CodeStubAssembler::AllocateConsString(Heap::RootListIndex map_root_index,
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
                                  MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
-                                 Int32Constant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
+  // Initialize both used and unused parts of hash field slot at once.
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldSlot,
+                                 IntPtrConstant(String::kEmptyHashField),
+                                 MachineType::PointerRepresentation());
   bool const new_space = !(flags & kPretenured);
   if (new_space) {
     StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, first,
@@ -2015,8 +2020,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   Node* array = AllocateUninitializedJSArray(kind, array_map, length,
                                              allocation_site, size);
 
-  // The bitcast here is safe because InnerAllocate doesn't actually allocate.
-  Node* elements = InnerAllocate(BitcastTaggedToWord(array), elements_offset);
+  Node* elements = InnerAllocate(array, elements_offset);
   StoreObjectField(array, JSObject::kElementsOffset, elements);
 
   return {array, elements};
@@ -2032,6 +2036,7 @@ Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
   Comment("write JSArray headers");
   StoreMapNoWriteBarrier(array, array_map);
 
+  CSA_ASSERT(this, TaggedIsSmi(length));
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
 
   StoreObjectFieldRoot(array, JSArray::kPropertiesOffset,
@@ -3260,7 +3265,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   Label end(this);
   Label runtime(this);
 
-  Variable var_instance_type(this, MachineRepresentation::kWord8);  // Int32.
+  Variable var_instance_type(this, MachineRepresentation::kWord32);  // Int32.
   Variable var_result(this, MachineRepresentation::kTagged);        // String.
   Variable var_from(this, MachineRepresentation::kTagged);          // Smi.
   Variable var_string(this, MachineRepresentation::kTagged);        // String.
@@ -3283,8 +3288,8 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
 
   // Make sure that both from and to are non-negative smis.
 
-  GotoUnless(WordIsPositiveSmi(from), &runtime);
-  GotoUnless(WordIsPositiveSmi(to), &runtime);
+  GotoUnless(TaggedIsPositiveSmi(from), &runtime);
+  GotoUnless(TaggedIsPositiveSmi(to), &runtime);
 
   Node* const substr_length = SmiSub(to, from);
   Node* const string_length = LoadStringLength(string);
@@ -3424,8 +3429,9 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     STATIC_ASSERT(SeqTwoByteString::kHeaderSize ==
                   SeqOneByteString::kHeaderSize);
 
-    Node* resource_data = LoadObjectField(var_string.value(),
-                                          ExternalString::kResourceDataOffset);
+    Node* resource_data =
+        LoadObjectField(var_string.value(), ExternalString::kResourceDataOffset,
+                        MachineType::Pointer());
     Node* const fake_sequential_string = IntPtrSub(
         resource_data,
         IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
@@ -3983,7 +3989,7 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
     // TODO(jgruber): This branch and the recheck below can be removed once we
     // have a ToNumber with multiple exits.
     Label next(this, Label::kDeferred);
-    Branch(WordIsPositiveSmi(input), &out, &next);
+    Branch(TaggedIsPositiveSmi(input), &out, &next);
     Bind(&next);
   }
 
@@ -3993,7 +3999,7 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
   // Perhaps we have a positive smi now.
   {
     Label next(this, Label::kDeferred);
-    Branch(WordIsPositiveSmi(number), &out, &next);
+    Branch(TaggedIsPositiveSmi(number), &out, &next);
     Bind(&next);
   }
 
@@ -4857,7 +4863,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       Comment("if_backing_store");
       Node* properties = LoadProperties(object);
       field_index = IntPtrSub(field_index, inobject_properties);
-      Node* value = LoadFixedArrayElement(properties, field_index);
+      Node* value =
+          LoadFixedArrayElement(properties, field_index, 0, INTPTR_PARAMETERS);
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,
@@ -4911,8 +4918,8 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
                                                         name_to_details_offset);
 
   var_details->Bind(details);
-  var_value->Bind(
-      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset));
+  var_value->Bind(LoadFixedArrayElement(
+      dictionary, name_index, name_to_value_offset, INTPTR_PARAMETERS));
 
   Comment("] LoadPropertyFromNameDictionary");
 }
@@ -4929,8 +4936,8 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
       (GlobalDictionary::kEntryValueIndex - GlobalDictionary::kEntryKeyIndex) *
       kPointerSize;
 
-  Node* property_cell =
-      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset);
+  Node* property_cell = LoadFixedArrayElement(
+      dictionary, name_index, name_to_value_offset, INTPTR_PARAMETERS);
 
   Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
   GotoIf(WordEqual(value, TheHoleConstant()), if_deleted);
@@ -5179,7 +5186,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   {
     Variable var_holder(this, MachineRepresentation::kTagged);
     Variable var_holder_map(this, MachineRepresentation::kTagged);
-    Variable var_holder_instance_type(this, MachineRepresentation::kWord8);
+    Variable var_holder_instance_type(this, MachineRepresentation::kWord32);
 
     Variable* merged_variables[] = {&var_holder, &var_holder_map,
                                     &var_holder_instance_type};
@@ -5223,7 +5230,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   {
     Variable var_holder(this, MachineRepresentation::kTagged);
     Variable var_holder_map(this, MachineRepresentation::kTagged);
-    Variable var_holder_instance_type(this, MachineRepresentation::kWord8);
+    Variable var_holder_instance_type(this, MachineRepresentation::kWord32);
 
     Variable* merged_variables[] = {&var_holder, &var_holder_map,
                                     &var_holder_instance_type};
@@ -5448,11 +5455,11 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback,
   // our new feedback in place.
   // TODO(interpreter): Consider passing the feedback as Smi already to avoid
   // the tagging completely.
-  Node* previous_feedback =
-      LoadFixedArrayElement(type_feedback_vector, slot_id);
+  Node* previous_feedback = LoadFixedArrayElement(type_feedback_vector, slot_id,
+                                                  0, INTPTR_PARAMETERS);
   Node* combined_feedback = SmiOr(previous_feedback, SmiFromWord32(feedback));
   StoreFixedArrayElement(type_feedback_vector, slot_id, combined_feedback,
-                         SKIP_WRITE_BARRIER);
+                         SKIP_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
 }
 
 Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
@@ -6205,13 +6212,13 @@ Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   Node* size = IntPtrConstant(AllocationSite::kSize);
   Node* site = Allocate(size, CodeStubAssembler::kPretenured);
 
-  StoreMap(site, LoadRoot(Heap::kAllocationSiteMapRootIndex));
-  Node* kind = SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
+  StoreMap(site, AllocationSiteMapConstant());
+  Node* kind = SmiConstant(GetInitialFastElementsKind());
   StoreObjectFieldNoWriteBarrier(site, AllocationSite::kTransitionInfoOffset,
                                  kind);
 
   // Unlike literals, constructed arrays don't have nested sites
-  Node* zero = IntPtrConstant(0);
+  Node* zero = SmiConstant(0);
   StoreObjectFieldNoWriteBarrier(site, AllocationSite::kNestedSiteOffset, zero);
 
   // Pretenuring calculation field.
@@ -8106,7 +8113,7 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
   {
     Node* map =
         LoadFixedArrayElement(LoadNativeContext(context), var_map_index.value(),
-                              0, CodeStubAssembler::INTPTR_PARAMETERS);
+                              0, INTPTR_PARAMETERS);
     var_result.Bind(AllocateJSArrayIterator(array, var_array_map.value(), map));
     Goto(&return_result);
   }

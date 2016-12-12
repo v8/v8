@@ -344,7 +344,7 @@ void Builtins::Generate_ToLength(compiler::CodeAssemblerState* state) {
     Node* len = var_len.value();
 
     // Check if {len} is a positive Smi.
-    assembler.GotoIf(assembler.WordIsPositiveSmi(len), &return_len);
+    assembler.GotoIf(assembler.TaggedIsPositiveSmi(len), &return_len);
 
     // Check if {len} is a (negative) Smi.
     assembler.GotoIf(assembler.TaggedIsSmi(len), &return_zero);

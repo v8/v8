@@ -258,7 +258,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
       // Omit ToLength if lastindex is a non-negative smi.
       {
         Label call_tolength(this, Label::kDeferred), next(this);
-        Branch(WordIsPositiveSmi(regexp_lastindex), &next, &call_tolength);
+        Branch(TaggedIsPositiveSmi(regexp_lastindex), &next, &call_tolength);
 
         Bind(&call_tolength);
         {

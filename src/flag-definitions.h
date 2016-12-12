@@ -442,6 +442,7 @@ DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_STRING(turbo_verify_machine_graph, nullptr,
               "verify TurboFan machine graph before instruction selection")
 DEFINE_BOOL(csa_verify, false, "verify TurboFan machine graph of code stubs")
+DEFINE_BOOL(trace_csa_verify, false, "trace code stubs verification")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_stats_nvp, false,
             "print TurboFan statistics in machine-readable format")

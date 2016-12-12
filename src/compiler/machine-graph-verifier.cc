@@ -66,6 +66,18 @@ class MachineRepresentationInferrer {
     }
   }
 
+  MachineRepresentation PromoteRepresentation(MachineRepresentation rep) {
+    switch (rep) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return MachineRepresentation::kWord32;
+      default:
+        break;
+    }
+    return rep;
+  }
+
   void Run() {
     auto blocks = schedule_->all_blocks();
     for (BasicBlock* block : *blocks) {
@@ -91,18 +103,22 @@ class MachineRepresentationInferrer {
           case IrOpcode::kAtomicLoad:
           case IrOpcode::kLoad:
           case IrOpcode::kProtectedLoad:
-            representation_vector_[node->id()] =
-                LoadRepresentationOf(node->op()).representation();
+            representation_vector_[node->id()] = PromoteRepresentation(
+                LoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kCheckedLoad:
-            representation_vector_[node->id()] =
-                CheckedLoadRepresentationOf(node->op()).representation();
+            representation_vector_[node->id()] = PromoteRepresentation(
+                CheckedLoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
+            break;
+          case IrOpcode::kUnalignedLoad:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                UnalignedLoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kPhi:
             representation_vector_[node->id()] =
@@ -119,9 +135,19 @@ class MachineRepresentationInferrer {
             }
             break;
           }
-          case IrOpcode::kUnalignedLoad:
+          case IrOpcode::kAtomicStore:
+          case IrOpcode::kStore:
+          case IrOpcode::kProtectedStore:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                StoreRepresentationOf(node->op()).representation());
+            break;
+          case IrOpcode::kCheckedStore:
             representation_vector_[node->id()] =
-                UnalignedLoadRepresentationOf(node->op()).representation();
+                PromoteRepresentation(CheckedStoreRepresentationOf(node->op()));
+            break;
+          case IrOpcode::kUnalignedStore:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                UnalignedStoreRepresentationOf(node->op()));
             break;
           case IrOpcode::kHeapConstant:
           case IrOpcode::kNumberConstant:
@@ -395,7 +421,7 @@ class MachineRepresentationChecker {
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
-            switch (StoreRepresentationOf(node->op()).representation()) {
+            switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
@@ -403,15 +429,14 @@ class MachineRepresentationChecker {
                 break;
               default:
                 CheckValueInputRepresentationIs(
-                    node, 2,
-                    StoreRepresentationOf(node->op()).representation());
+                    node, 2, inferrer_->GetRepresentation(node));
             }
             break;
           case IrOpcode::kAtomicStore:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
-            switch (AtomicStoreRepresentationOf(node->op())) {
+            switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
@@ -419,7 +444,7 @@ class MachineRepresentationChecker {
                 break;
               default:
                 CheckValueInputRepresentationIs(
-                    node, 2, AtomicStoreRepresentationOf(node->op()));
+                    node, 2, inferrer_->GetRepresentation(node));
             }
             break;
           case IrOpcode::kPhi:

@@ -105,12 +105,8 @@ Node* IntrinsicsHelper::InvokeIntrinsic(Node* function_id, Node* context,
 
 Node* IntrinsicsHelper::CompareInstanceType(Node* object, int type,
                                             InstanceTypeCompareMode mode) {
-  InterpreterAssembler::Variable return_value(assembler_,
-                                              MachineRepresentation::kTagged);
   Node* instance_type = __ LoadInstanceType(object);
 
-  InterpreterAssembler::Label if_true(assembler_), if_false(assembler_),
-      end(assembler_);
   if (mode == kInstanceTypeEqual) {
     return __ Word32Equal(instance_type, __ Int32Constant(type));
   } else {
@@ -122,6 +118,7 @@ Node* IntrinsicsHelper::CompareInstanceType(Node* object, int type,
 Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
+  // TODO(ishell): Use Select here.
   InterpreterAssembler::Label if_not_smi(assembler_), return_true(assembler_),
       return_false(assembler_), end(assembler_);
   Node* arg = __ LoadRegister(input);
@@ -148,6 +145,8 @@ Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
 
 Node* IntrinsicsHelper::IsJSReceiver(Node* input, Node* arg_count,
                                      Node* context) {
+  // TODO(ishell): Use Select here.
+  // TODO(ishell): Use CSA::IsJSReceiverInstanceType here.
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
   InterpreterAssembler::Label return_true(assembler_), return_false(assembler_),
@@ -195,6 +194,7 @@ Node* IntrinsicsHelper::IsTypedArray(Node* input, Node* arg_count,
 }
 
 Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
+  // TODO(ishell): Use SelectBooleanConstant here.
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
   InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),

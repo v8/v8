@@ -23,6 +23,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 #define HEAP_CONSTANT_LIST(V)                         \
   V(AccessorInfoMap, AccessorInfoMap)                 \
+  V(AllocationSiteMap, AllocationSiteMap)             \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
@@ -211,7 +212,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* TaggedIsSmi(Node* a);
   Node* TaggedIsNotSmi(Node* a);
   // Check that the value is a non-negative smi.
-  Node* WordIsPositiveSmi(Node* a);
+  Node* TaggedIsPositiveSmi(Node* a);
   // Check that a word has a word-aligned address.
   Node* WordIsWordAligned(Node* word);
   Node* WordIsPowerOfTwo(Node* value);
