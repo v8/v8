@@ -98,12 +98,6 @@ void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
                                          BytecodeGeneratorFunc generator) {
   if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
 
-  // TODO(ishell): remove this when code stub assembler graphs verification
-  // is enabled for all stubs.
-  bool sav_csa_verify = FLAG_csa_verify;
-  // Enable verification only in mksnapshot.
-  FLAG_csa_verify = DEBUG_BOOL && FLAG_startup_blob != nullptr;
-
   InterpreterDispatchDescriptor descriptor(isolate_);
   compiler::CodeAssemblerState state(
       isolate_, zone, descriptor, Code::ComputeFlags(Code::BYTECODE_HANDLER),
@@ -118,7 +112,6 @@ void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
                         CodeEventListener::BYTECODE_HANDLER_TAG,
                         AbstractCode::cast(*code),
                         Bytecodes::ToString(bytecode, operand_scale).c_str()));
-  FLAG_csa_verify = sav_csa_verify;
 }
 
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
