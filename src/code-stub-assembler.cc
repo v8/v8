@@ -8246,5 +8246,26 @@ void CodeStubAssembler::PromiseSet(Node* promise, Node* status, Node* result) {
   StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
 }
 
+Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(Node* value,
+                                                        Node* tasks,
+                                                        Node* deferred,
+                                                        Node* context) {
+  Node* const result = Allocate(PromiseReactionJobInfo::kSize);
+  StoreMapNoWriteBarrier(result, Heap::kPromiseReactionJobInfoMapRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kValueOffset,
+                                 value);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kTasksOffset,
+                                 tasks);
+  StoreObjectFieldNoWriteBarrier(
+      result, PromiseReactionJobInfo::kDeferredOffset, deferred);
+  StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugIdOffset,
+                       Heap::kUndefinedValueRootIndex);
+  StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugNameOffset,
+                       Heap::kUndefinedValueRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kContextOffset,
+                                 context);
+  return result;
+}
+
 }  // namespace internal
 }  // namespace v8

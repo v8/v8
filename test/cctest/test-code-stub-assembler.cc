@@ -2069,5 +2069,39 @@ TEST(PromiseSet) {
   CHECK(!js_promise->has_handler());
 }
 
+TEST(AllocatePromiseReactionJobInfo) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.Int32Constant(1));
+  m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
+  Node* const deferred =
+      m.AllocateFixedArray(FAST_ELEMENTS, m.Int32Constant(1));
+  m.StoreFixedArrayElement(deferred, 0, m.UndefinedConstant());
+  Node* const info = m.AllocatePromiseReactionJobInfo(m.SmiConstant(1), tasks,
+                                                      deferred, context);
+  m.Return(info);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsPromiseReactionJobInfo());
+  Handle<PromiseReactionJobInfo> promise_info =
+      Handle<PromiseReactionJobInfo>::cast(result);
+  CHECK_EQ(Smi::FromInt(1), promise_info->value());
+  CHECK(promise_info->tasks()->IsFixedArray());
+  CHECK(promise_info->deferred()->IsFixedArray());
+  CHECK(promise_info->context()->IsContext());
+  CHECK(promise_info->debug_id()->IsUndefined(isolate));
+  CHECK(promise_info->debug_name()->IsUndefined(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8
