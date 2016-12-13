@@ -437,7 +437,10 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   compiler::CodeAssemblerState state(isolate(), &zone, descriptor,
                                      GetCodeFlags(), name);
   GenerateAssembly(&state);
-  return compiler::CodeAssembler::GenerateCode(&state);
+  // TODO(ishell): enable verification once all issues are fixed.
+  // Enable verification only in mksnapshot.
+  bool verify_graph = FLAG_csa_verify && FLAG_startup_blob != nullptr;
+  return compiler::CodeAssembler::GenerateCode(&state, verify_graph);
 }
 
 #define ACCESSOR_ASSEMBLER(Name)                                       \

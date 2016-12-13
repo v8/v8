@@ -104,7 +104,11 @@ void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
       Bytecodes::ToString(bytecode), Bytecodes::ReturnCount(bytecode));
   InterpreterAssembler assembler(&state, bytecode, operand_scale);
   (this->*generator)(&assembler);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  // TODO(ishell): enable verification once all issues are fixed.
+  // Enable verification only in mksnapshot.
+  bool verify_graph = FLAG_csa_verify && FLAG_startup_blob != nullptr;
+  Handle<Code> code =
+      compiler::CodeAssembler::GenerateCode(&state, verify_graph);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   dispatch_table_[index] = code->entry();
   TraceCodegen(code);

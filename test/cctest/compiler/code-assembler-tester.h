@@ -41,7 +41,7 @@ class CodeAssemblerTester {
   Handle<Code> GenerateCode() { return CodeAssembler::GenerateCode(&state_); }
 
   Handle<Code> GenerateCodeCloseAndEscape() {
-    return scope_.CloseAndEscape(CodeAssembler::GenerateCode(&state_));
+    return scope_.CloseAndEscape(GenerateCode());
   }
 
  private:

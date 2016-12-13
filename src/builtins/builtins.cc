@@ -108,7 +108,8 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(isolate, &zone, descriptor, flags, name);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  Handle<Code> code =
+      compiler::CodeAssembler::GenerateCode(&state, FLAG_csa_verify);
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }

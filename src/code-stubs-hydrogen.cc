@@ -286,7 +286,7 @@ Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
       UNIMPLEMENTED();
       break;
   }
-  return compiler::CodeAssembler::GenerateCode(&state);
+  return compiler::CodeAssembler::GenerateCode(&state, FLAG_csa_verify);
 }
 
 template <class Stub>

@@ -190,7 +190,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   virtual ~CodeAssembler();
 
-  static Handle<Code> GenerateCode(CodeAssemblerState* state);
+  static Handle<Code> GenerateCode(CodeAssemblerState* state,
+                                   bool verify_graph = false);
 
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;

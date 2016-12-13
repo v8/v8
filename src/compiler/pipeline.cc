@@ -177,6 +177,10 @@ class PipelineData {
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
+
+  bool verify_graph() const { return verify_graph_; }
+  void set_verify_graph(bool value) { verify_graph_ = value; }
+
   Handle<Code> code() { return code_; }
   void set_code(Handle<Code> code) {
     DCHECK(code_.is_null());
@@ -321,6 +325,7 @@ class PipelineData {
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
   bool compilation_failed_ = false;
+  bool verify_graph_ = false;
   Handle<Code> code_ = Handle<Code>::null();
 
   // All objects in the following group of fields are allocated in graph_zone_.
@@ -1609,11 +1614,14 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   return ScheduleAndSelectInstructions(linkage, true);
 }
 
+// TODO(ishell): Remove verify_graph parameter and always enable the
+// verification once all the issues are fixed.
 Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                CallDescriptor* call_descriptor,
                                                Graph* graph, Schedule* schedule,
                                                Code::Flags flags,
-                                               const char* debug_name) {
+                                               const char* debug_name,
+                                               bool verify_graph) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
   if (isolate->serializer_enabled()) info.PrepareForSerializing();
 
@@ -1621,6 +1629,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
+  data.set_verify_graph(verify_graph);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1750,11 +1759,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
         info(), data->graph(), data->schedule()));
   }
 
-  // TODO(ishell): Always enable graph verification of stubs in debug mode
-  // once all the issues are fixed.
-  bool verify_stub_graph =
-      DEBUG_BOOL && FLAG_csa_verify && data->info()->IsStub();
-
+  bool verify_stub_graph = data->verify_graph();
   if (verify_stub_graph || (FLAG_turbo_verify_machine_graph != nullptr &&
                             (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
                              !strcmp(FLAG_turbo_verify_machine_graph,
