@@ -7066,7 +7066,7 @@ HEAP_TEST(Regress670675) {
   }
   size_t array_length = Page::kPageSize / kPointerSize + 100;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;
-  for (size_t i = 0; i < n + 10; i++) {
+  for (size_t i = 0; i < n + 40; i++) {
     {
       HandleScope inner_scope(isolate);
       isolate->factory()->NewFixedArray(static_cast<int>(array_length));

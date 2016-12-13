@@ -1827,11 +1827,15 @@ class Heap {
   // performace reasons. If the overshoot is too large then we are more
   // eager to finalize incremental marking.
   inline bool AllocationLimitOvershotByLargeMargin() {
+    // This guards against too eager finalization in small heaps.
+    // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
+    size_t kMarginForSmallHeaps = 32u * MB;
     if (old_generation_allocation_limit_ >= PromotedTotalSize()) return false;
     uint64_t overshoot = PromotedTotalSize() - old_generation_allocation_limit_;
-    // Overshoot margin is 50% of allocation limit or half-way to the max heap.
+    // Overshoot margin is 50% of allocation limit or half-way to the max heap
+    // with special handling of small heaps.
     uint64_t margin =
-        Min(old_generation_allocation_limit_ / 2,
+        Min(Max(old_generation_allocation_limit_ / 2, kMarginForSmallHeaps),
             (max_old_generation_size_ - old_generation_allocation_limit_) / 2);
     return overshoot >= margin;
   }
