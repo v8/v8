@@ -1391,7 +1391,8 @@ void HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
         os << String::cast(source_name)->ToCString().get() << ":";
       }
       os << shared->DebugName()->ToCString().get() << ") id{";
-      os << info_->optimization_id() << "," << inlining_id << "} ---\n";
+      os << info_->optimization_id() << "," << inlining_id << "} start{";
+      os << shared->start_position() << "} ---\n";
       {
         DisallowHeapAllocation no_allocation;
         int start = shared->start_position();
@@ -1413,7 +1414,14 @@ void HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
     OFStream os(tracing_scope.file());
     os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
        << info_->optimization_id() << "," << inlining_id << "} AS "
-       << inlining_id << " AT " << position.ScriptOffset() << std::endl;
+       << inlining_id << " AT ";
+    if (position.IsKnown()) {
+      os << "<" << position.InliningId() << ":" << position.ScriptOffset()
+         << ">";
+    } else {
+      os << "<?>";
+    }
+    os << std::endl;
   }
 }
 
