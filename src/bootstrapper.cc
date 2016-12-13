@@ -177,20 +177,19 @@ class Genesis BASE_EMBEDDED {
   // in through the API.  We call this regardless of whether we are building a
   // context from scratch or using a deserialized one from the partial snapshot
   // but in the latter case we don't use the objects it produces directly, as
-  // we have to used the deserialized ones that are linked together with the
-  // rest of the context snapshot.
+  // we have to use the deserialized ones that are linked together with the
+  // rest of the context snapshot. At the end we link the global proxy and the
+  // context to each other.
   Handle<JSGlobalObject> CreateNewGlobals(
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       Handle<JSGlobalProxy> global_proxy);
-  // Hooks the given global proxy into the context.  If the context was created
-  // by deserialization then this will unhook the global proxy that was
-  // deserialized, leaving the GC to pick it up.
-  void HookUpGlobalProxy(Handle<JSGlobalObject> global_object,
-                         Handle<JSGlobalProxy> global_proxy);
   // Similarly, we want to use the global that has been created by the templates
   // passed through the API.  The global from the snapshot is detached from the
   // other objects in the snapshot.
   void HookUpGlobalObject(Handle<JSGlobalObject> global_object);
+  // Hooks the given global proxy into the context in the case we do not
+  // replace the global object from the deserialized native context.
+  void HookUpGlobalProxy(Handle<JSGlobalProxy> global_proxy);
   // The native context has a ScriptContextTable that store declarative bindings
   // made in script scopes.  Add a "this" binding to that table pointing to the
   // global proxy.
@@ -990,30 +989,42 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   global_proxy_function->initial_map()->set_is_access_check_needed(true);
   global_proxy_function->initial_map()->set_has_hidden_prototype(true);
+  native_context()->set_global_proxy_function(*global_proxy_function);
 
   // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
   // Return the global proxy.
 
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
-  return global_object;
-}
 
-
-void Genesis::HookUpGlobalProxy(Handle<JSGlobalObject> global_object,
-                                Handle<JSGlobalProxy> global_proxy) {
   // Set the native context for the global object.
   global_object->set_native_context(*native_context());
   global_object->set_global_proxy(*global_proxy);
+  // Set the native context of the global proxy.
   global_proxy->set_native_context(*native_context());
-  // If we deserialized the context, the global proxy is already
-  // correctly set up. Otherwise it's undefined.
+  // Set the global proxy of the native context. If the native context has been
+  // deserialized, the global proxy is already correctly set up by the
+  // deserializer. Otherwise it's undefined.
   DCHECK(native_context()
              ->get(Context::GLOBAL_PROXY_INDEX)
              ->IsUndefined(isolate()) ||
          native_context()->global_proxy() == *global_proxy);
   native_context()->set_global_proxy(*global_proxy);
+
+  return global_object;
 }
 
+void Genesis::HookUpGlobalProxy(Handle<JSGlobalProxy> global_proxy) {
+  // Re-initialize the global proxy with the global proxy function from the
+  // snapshot, and then set up the link to the native context.
+  Handle<JSFunction> global_proxy_function(
+      native_context()->global_proxy_function());
+  factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
+  Handle<JSObject> global_object(
+      JSObject::cast(native_context()->global_object()));
+  JSObject::ForceSetPrototype(global_proxy, global_object);
+  global_proxy->set_native_context(*native_context());
+  DCHECK(native_context()->global_proxy() == *global_proxy);
+}
 
 void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
   Handle<JSGlobalObject> global_object_from_snapshot(
@@ -4451,7 +4462,6 @@ Genesis::Genesis(Isolate* isolate,
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
-  bool create_new_global_proxy = context_snapshot_index == 0;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
@@ -4470,7 +4480,7 @@ Genesis::Genesis(Isolate* isolate,
   // Create an uninitialized global proxy now if we don't have one
   // and initialize it later in CreateNewGlobals.
   Handle<JSGlobalProxy> global_proxy;
-  if (!maybe_global_proxy.ToHandle(&global_proxy) && create_new_global_proxy) {
+  if (!maybe_global_proxy.ToHandle(&global_proxy)) {
     const int internal_field_count =
         !global_proxy_template.IsEmpty()
             ? global_proxy_template->InternalFieldCount()
@@ -4503,16 +4513,19 @@ Genesis::Genesis(Isolate* isolate,
     }
 #endif
 
-    if (create_new_global_proxy) {
+    if (context_snapshot_index == 0) {
       Handle<JSGlobalObject> global_object =
           CreateNewGlobals(global_proxy_template, global_proxy);
-
-      HookUpGlobalProxy(global_object, global_proxy);
       HookUpGlobalObject(global_object);
 
       if (!ConfigureGlobalObjects(global_proxy_template)) return;
+    } else {
+      // The global proxy needs to be integrated into the native context.
+      HookUpGlobalProxy(global_proxy);
     }
+    DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
   } else {
+    DCHECK_EQ(0u, context_snapshot_index);
     // We get here if there was no context snapshot.
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
@@ -4521,7 +4534,6 @@ Genesis::Genesis(Isolate* isolate,
     CreateAsyncFunctionMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
-    HookUpGlobalProxy(global_object, global_proxy);
     InitializeGlobal(global_object, empty_function, context_type);
     InitializeNormalizedMapCaches();
 
@@ -4622,7 +4634,7 @@ Genesis::Genesis(Isolate* isolate,
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
-  // HookUpGlobalProxy.
+  // GlobalProxy.
   global_proxy->set_native_context(heap()->null_value());
 
   // DetachGlobal.

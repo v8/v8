@@ -91,6 +91,7 @@ enum ContextLookupFlags {
   V(ERROR_TO_STRING, JSFunction, error_to_string)                             \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                       \
+  V(GLOBAL_PROXY_FUNCTION_INDEX, JSFunction, global_proxy_function)           \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                          \
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                \
   V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                \

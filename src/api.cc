@@ -6245,7 +6245,7 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
-    v8::ExtensionConfiguration* extensions) {
+    v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object) {
   size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
@@ -6253,7 +6253,7 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
     return MaybeLocal<Context>();
   }
   return NewContext(external_isolate, extensions, MaybeLocal<ObjectTemplate>(),
-                    MaybeLocal<Value>(), index_including_default_context);
+                    global_object, index_including_default_context);
 }
 
 MaybeLocal<Object> v8::Context::NewRemoteContext(

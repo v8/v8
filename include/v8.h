@@ -7927,8 +7927,8 @@ class V8_EXPORT Context {
 
   /**
    * Create a new context from a (non-default) context snapshot. There
-   * is no way to provide a global template or global proxy since the
-   * context snapshot already contains a global proxy.
+   * is no way to provide a global object template since we do not create
+   * a new global object from template, but we can reuse a global object.
    *
    * \param isolate See v8::Context::New.
    *
@@ -7936,11 +7936,14 @@ class V8_EXPORT Context {
    * deserialize from. Use v8::Context::New for the default snapshot.
    *
    * \param extensions See v8::Context::New.
+   *
+   * \param global_object See v8::Context::New.
    */
 
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
-      ExtensionConfiguration* extensions = nullptr);
+      ExtensionConfiguration* extensions = nullptr,
+      MaybeLocal<Value> global_object = MaybeLocal<Value>());
 
   /**
    * Returns an global object that isn't backed by an actual context.

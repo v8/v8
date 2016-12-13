@@ -2443,15 +2443,37 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context =
             v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
-        v8::Context::Scope context_scope(context);
-        ExpectInt32("f()", 42);
-        ExpectInt32("g()", 12);
-        ExpectInt32("h()", 13);
-        ExpectInt32("i()", 24);
-        ExpectInt32("j()", 25);
-        ExpectInt32("o.p", 8);
-        ExpectInt32("x", 2016);
-        ExpectInt32("y", 2017);
+        {
+          v8::Context::Scope context_scope(context);
+          ExpectInt32("f()", 42);
+          ExpectInt32("g()", 12);
+          ExpectInt32("h()", 13);
+          ExpectInt32("i()", 24);
+          ExpectInt32("j()", 25);
+          ExpectInt32("o.p", 8);
+          ExpectInt32("x", 2016);
+        }
+
+        v8::Local<v8::Object> global = context->Global();
+        context->DetachGlobal();
+
+        // New context, but reuse global proxy.
+        v8::ExtensionConfiguration* no_extensions = nullptr;
+        v8::Local<v8::Context> context2 =
+            v8::Context::FromSnapshot(isolate, 0, no_extensions, global)
+                .ToLocalChecked();
+        {
+          v8::Context::Scope context_scope(context2);
+          ExpectInt32("f()", 42);
+          ExpectInt32("g()", 12);
+          ExpectInt32("h()", 13);
+          ExpectInt32("i()", 24);
+          ExpectInt32("j()", 25);
+          ExpectInt32("o.p", 8);
+          ExpectInt32("x", 2016);
+        }
+
+        CHECK(context2->Global()->Equals(context2, global).FromJust());
       }
     }
     isolate->Dispose();
