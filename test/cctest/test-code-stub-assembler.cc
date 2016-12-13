@@ -2103,5 +2103,52 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK(promise_info->debug_name()->IsUndefined(isolate));
 }
 
+TEST(IsSymbol) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const symbol = m.Parameter(0);
+  m.Return(m.SelectBooleanConstant(m.IsSymbol(symbol)));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->true_value(), *result);
+
+  result = ft.Call(isolate->factory()->empty_string()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+}
+
+TEST(IsPrivateSymbol) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const symbol = m.Parameter(0);
+  m.Return(m.SelectBooleanConstant(m.IsPrivateSymbol(symbol)));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+
+  result = ft.Call(isolate->factory()->empty_string()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+
+  result = ft.Call(isolate->factory()->NewPrivateSymbol()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->true_value(), *result);
+}
+
 }  // namespace internal
 }  // namespace v8

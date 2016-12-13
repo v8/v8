@@ -2915,6 +2915,22 @@ Node* CodeStubAssembler::IsString(Node* object) {
                               Int32Constant(FIRST_NONSTRING_TYPE));
 }
 
+Node* CodeStubAssembler::IsSymbol(Node* object) {
+  return IsSymbolMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsPrivateSymbol(Node* object) {
+  return Select(
+      IsSymbol(object),
+      [=] {
+        Node* const flags =
+            SmiToWord32(LoadObjectField(object, Symbol::kFlagsOffset));
+        const int kPrivateMask = 1 << Symbol::kPrivateBit;
+        return IsSetWord32(flags, kPrivateMask);
+      },
+      [=] { return Int32Constant(0); }, MachineRepresentation::kWord32);
+}
+
 Node* CodeStubAssembler::IsNativeContext(Node* object) {
   return WordEqual(LoadMap(object), LoadRoot(Heap::kNativeContextMapRootIndex));
 }
@@ -4271,10 +4287,10 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   Goto(if_keyisindex);
 
   Bind(&if_keyisnotindex);
-  Node* key_instance_type = LoadInstanceType(key);
+  Node* key_map = LoadMap(key);
   // Symbols are unique.
-  GotoIf(Word32Equal(key_instance_type, Int32Constant(SYMBOL_TYPE)),
-         if_keyisunique);
+  GotoIf(IsSymbolMap(key_map), if_keyisunique);
+  Node* key_instance_type = LoadMapInstanceType(key_map);
   // Miss if |key| is not a String.
   STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
   GotoUnless(IsStringInstanceType(key_instance_type), if_bailout);
