@@ -867,5 +867,127 @@ void Builtins::Generate_ResolvePromise(compiler::CodeAssemblerState* state) {
   a.Return(a.UndefinedConstant());
 }
 
+void Builtins::Generate_PromiseHandleReject(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef PromiseHandleRejectDescriptor Descriptor;
+
+  Node* const promise = a.Parameter(Descriptor::kPromise);
+  Node* const on_reject = a.Parameter(Descriptor::kOnReject);
+  Node* const exception = a.Parameter(Descriptor::kException);
+  Node* const context = a.Parameter(Descriptor::kContext);
+  Isolate* isolate = a.isolate();
+
+  Callable call_callable = CodeFactory::Call(isolate);
+  Variable var_unused(&a, MachineRepresentation::kTagged);
+
+  Label if_internalhandler(&a), if_customhandler(&a, Label::kDeferred);
+  a.Branch(a.IsUndefined(on_reject), &if_internalhandler, &if_customhandler);
+
+  a.Bind(&if_internalhandler);
+  {
+    a.CallRuntime(Runtime::kPromiseReject, context, promise, exception,
+                  a.FalseConstant());
+    a.Return(a.UndefinedConstant());
+  }
+
+  a.Bind(&if_customhandler);
+  {
+    a.CallJS(call_callable, context, on_reject, a.UndefinedConstant(),
+             exception);
+    a.Return(a.UndefinedConstant());
+  }
+}
+
+void Builtins::Generate_PromiseHandle(compiler::CodeAssemblerState* state) {
+  CodeStubAssembler a(state);
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* const value = a.Parameter(1);
+  Node* const handler = a.Parameter(2);
+  Node* const deferred = a.Parameter(3);
+  Node* const context = a.Parameter(6);
+  Isolate* isolate = a.isolate();
+
+  // Get promise from deferred
+  // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
+  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+  Node* const key = a.HeapConstant(isolate->factory()->promise_string());
+  Node* const promise =
+      a.CallStub(getproperty_callable, context, deferred, key);
+
+  Variable var_reason(&a, MachineRepresentation::kTagged);
+
+  Node* const is_debug_active = a.IsDebugActive();
+  Label run_handler(&a), if_rejectpromise(&a), debug_push(&a, Label::kDeferred),
+      debug_pop(&a, Label::kDeferred);
+  a.Branch(is_debug_active, &debug_push, &run_handler);
+
+  a.Bind(&debug_push);
+  {
+    a.CallRuntime(Runtime::kDebugPushPromise, context, promise);
+    a.Goto(&run_handler);
+  }
+
+  a.Bind(&run_handler);
+  {
+    Callable call_callable = CodeFactory::Call(isolate);
+
+    Node* const result =
+        a.CallJS(call_callable, context, handler, a.UndefinedConstant(), value);
+
+    a.GotoIfException(result, &if_rejectpromise, &var_reason);
+
+    // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
+    Node* const key = a.HeapConstant(isolate->factory()->resolve_string());
+    Node* const on_resolve =
+        a.CallStub(getproperty_callable, context, deferred, key);
+
+    Label if_internalhandler(&a), if_customhandler(&a, Label::kDeferred);
+    a.Branch(a.IsUndefined(on_resolve), &if_internalhandler, &if_customhandler);
+
+    a.Bind(&if_internalhandler);
+    InternalResolvePromise(&a, context, promise, result, &debug_pop);
+
+    a.Bind(&if_customhandler);
+    {
+      Node* const maybe_exception = a.CallJS(call_callable, context, on_resolve,
+                                             a.UndefinedConstant(), result);
+      a.GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
+      a.Goto(&debug_pop);
+    }
+  }
+
+  a.Bind(&if_rejectpromise);
+  {
+    // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
+    Node* const key = a.HeapConstant(isolate->factory()->reject_string());
+    Node* const on_reject =
+        a.CallStub(getproperty_callable, context, deferred, key);
+
+    Callable promise_handle_reject = CodeFactory::PromiseHandleReject(isolate);
+    a.CallStub(promise_handle_reject, context, promise, on_reject,
+               var_reason.value());
+    a.Goto(&debug_pop);
+  }
+
+  a.Bind(&debug_pop);
+  {
+    Label out(&a);
+
+    a.GotoUnless(is_debug_active, &out);
+    a.CallRuntime(Runtime::kDebugPopPromise, context);
+    a.Goto(&out);
+
+    a.Bind(&out);
+    a.Return(a.UndefinedConstant());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

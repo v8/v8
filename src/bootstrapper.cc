@@ -1926,6 +1926,27 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                        Context::PROMISE_RESOLVE_INDEX);
     }
 
+    {  // Internal: PromiseHandle
+      Handle<JSFunction> function = SimpleCreateFunction(
+          isolate, factory->empty_string(), Builtins::kPromiseHandle, 3, true);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PROMISE_HANDLE_INDEX);
+      // Set up catch prediction
+      Handle<Code> promise_handle = isolate->builtins()->PromiseHandle();
+      promise_handle->set_is_promise_rejection(true);
+    }
+
+    {  // Internal: PromiseHandleReject
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kPromiseHandleReject, 3, false);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PROMISE_HANDLE_REJECT_INDEX);
+      // Set up catch prediction
+      Handle<Code> promise_handle = isolate->builtins()->PromiseHandleReject();
+      promise_handle->set_is_exception_caught(true);
+    }
+
     {
       Handle<Code> code =
           handle(isolate->builtins()->builtin(Builtins::kPromiseResolveClosure),

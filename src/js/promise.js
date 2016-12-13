@@ -39,31 +39,6 @@ utils.Import(function(from) {
 
 // Core functionality.
 
-function PromiseHandle(value, handler, deferred) {
-  var debug_is_active = DEBUG_IS_ACTIVE;
-  try {
-    if (debug_is_active) %DebugPushPromise(deferred.promise);
-    var result = handler(value);
-    if (IS_UNDEFINED(deferred.resolve)) {
-      %promise_resolve(deferred.promise, result);
-    } else {
-      %_Call(deferred.resolve, UNDEFINED, result);
-    }
-  } %catch (exception) {  // Natives syntax to mark this catch block.
-    try {
-      if (IS_UNDEFINED(deferred.reject)) {
-        // Pass false for debugEvent so .then chaining or throwaway promises
-        // in async functions do not trigger redundant ExceptionEvents.
-        %PromiseReject(deferred.promise, exception, false);
-      } else {
-        %_Call(deferred.reject, UNDEFINED, exception);
-      }
-    } catch (e) { }
-  } finally {
-    if (debug_is_active) %DebugPopPromise();
-  }
-}
-
 function PromiseDebugGetInfo(deferreds, status) {
   var id, name, instrumenting = DEBUG_IS_ACTIVE;
 
@@ -394,7 +369,6 @@ utils.InstallGetter(GlobalPromise, speciesSymbol, PromiseSpecies);
   "promise_reject", DoRejectPromise,
   // TODO(gsathya): Remove this once we update the promise builtin.
   "promise_internal_reject", RejectPromise,
-  "promise_handle", PromiseHandle,
   "promise_debug_get_info", PromiseDebugGetInfo,
   "new_promise_capability", NewPromiseCapability,
   "internal_promise_capability", CreateInternalPromiseCapability,

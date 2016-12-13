@@ -5145,6 +5145,19 @@ inline void Code::set_is_promise_rejection(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+inline bool Code::is_exception_caught() {
+  DCHECK(kind() == BUILTIN);
+  return IsExceptionCaughtField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+inline void Code::set_is_exception_caught(bool value) {
+  DCHECK(kind() == BUILTIN);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = IsExceptionCaughtField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
   unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);

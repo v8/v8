@@ -244,6 +244,7 @@ TFS_BUILTIN(OrdinaryHasInstance)
 TFS_BUILTIN(ForInFilter)
 TFS_BUILTIN(NewUnmappedArgumentsElements)
 TFS_BUILTIN(NewRestParameterElements)
+TFS_BUILTIN(PromiseHandleReject)
 
 #undef TFS_BUILTIN
 

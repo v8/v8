@@ -1342,10 +1342,18 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       frame->Summarize(&summaries);
       for (const FrameSummary& summary : summaries) {
         Handle<AbstractCode> code = summary.abstract_code();
-        if (code->IsCode() && code->kind() == AbstractCode::BUILTIN &&
-            code->GetCode()->is_promise_rejection()) {
-          return HandlerTable::PROMISE;
+        if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
+          if (code->GetCode()->is_promise_rejection()) {
+            return HandlerTable::PROMISE;
+          }
+
+          // This the exception throw in PromiseHandle which doesn't
+          // cause a promise rejection.
+          if (code->GetCode()->is_exception_caught()) {
+            return HandlerTable::CAUGHT;
+          }
         }
+
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
           DCHECK(summary.function()->shared()->asm_function());
           // asm code cannot contain try-catch.

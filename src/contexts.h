@@ -67,7 +67,9 @@ enum ContextLookupFlags {
   V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)            \
   V(PROMISE_CREATE_AND_SET_INDEX, JSFunction, promise_create_and_set)        \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                      \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                            \
+  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                        \
+  V(PROMISE_HANDLE_REJECT_INDEX, JSFunction, promise_handle_reject)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
@@ -102,7 +104,6 @@ enum ContextLookupFlags {
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
-  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                         \
   V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,                \
     promise_has_user_defined_reject_handler)                                  \
   V(PROMISE_DEBUG_GET_INFO_INDEX, JSFunction, promise_debug_get_info)         \

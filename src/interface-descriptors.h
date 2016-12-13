@@ -93,7 +93,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterPushArgsAndConstruct)      \
   V(InterpreterPushArgsAndConstructArray) \
   V(InterpreterCEntry)                    \
-  V(ResumeGenerator)
+  V(ResumeGenerator)                      \
+  V(PromiseHandleReject)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
@@ -833,6 +834,13 @@ class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
+};
+
+class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kPromise, kOnReject, kException)
+  DECLARE_DEFAULT_DESCRIPTOR(PromiseHandleRejectDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
 };
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE

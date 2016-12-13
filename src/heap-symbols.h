@@ -125,6 +125,7 @@
   V(preventExtensions_string, "preventExtensions")                 \
   V(Promise_string, "Promise")                                     \
   V(PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
+  V(promise_string, "promise")                                     \
   V(proto_string, "__proto__")                                     \
   V(prototype_string, "prototype")                                 \
   V(Proxy_string, "Proxy")                                         \
@@ -132,6 +133,8 @@
   V(RangeError_string, "RangeError")                               \
   V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
+  V(reject_string, "reject")                                       \
+  V(resolve_string, "resolve")                                     \
   V(script_string, "script")                                       \
   V(second_string, "second")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \

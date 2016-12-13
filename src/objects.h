@@ -5579,6 +5579,11 @@ class Code: public HeapObject {
   inline bool is_promise_rejection();
   inline void set_is_promise_rejection(bool flag);
 
+  // [is_exception_caught]: For kind BUILTIN tells whether the exception
+  // thrown by the code will be caught internally.
+  inline bool is_exception_caught();
+  inline void set_is_exception_caught(bool flag);
+
   // [constant_pool]: The constant pool for this function.
   inline Address constant_pool();
 
@@ -5856,9 +5861,10 @@ class Code: public HeapObject {
   // Could be moved to overlap previous bits when we need more space.
   static const int kIsConstructStub = kCanHaveWeakObjects + 1;
   static const int kIsPromiseRejection = kIsConstructStub + 1;
+  static const int kIsExceptionCaught = kIsPromiseRejection + 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
-  STATIC_ASSERT(kIsPromiseRejection + 1 <= 32);
+  STATIC_ASSERT(kIsExceptionCaught + 1 <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
@@ -5872,6 +5878,8 @@ class Code: public HeapObject {
   };  // NOLINT
   class IsPromiseRejectionField
       : public BitField<bool, kIsPromiseRejection, 1> {};  // NOLINT
+  class IsExceptionCaughtField : public BitField<bool, kIsExceptionCaught, 1> {
+  };  // NOLINT
 
   // KindSpecificFlags2 layout (ALL)
   static const int kIsCrankshaftedBit = 0;
