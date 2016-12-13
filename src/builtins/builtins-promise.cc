@@ -57,14 +57,6 @@ BUILTIN(CreateResolvingFunctions) {
                                                      NOT_TENURED);
 }
 
-void PromiseInit(CodeStubAssembler* a, compiler::Node* promise,
-                 compiler::Node* status, compiler::Node* result) {
-  CSA_ASSERT(a, a->TaggedIsSmi(status));
-  a->StoreObjectField(promise, JSPromise::kStatusOffset, status);
-  a->StoreObjectField(promise, JSPromise::kResultOffset, result);
-  a->StoreObjectField(promise, JSPromise::kFlagsOffset, a->SmiConstant(0));
-}
-
 void Builtins::Generate_PromiseConstructor(
     compiler::CodeAssemblerState* state) {
   CodeStubAssembler a(state);
@@ -104,10 +96,7 @@ void Builtins::Generate_PromiseConstructor(
 
   a.Bind(&if_targetisnotmodified);
   {
-    Node* const initial_map = a.LoadObjectField(
-        promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-
-    Node* const instance = a.AllocateJSObjectFromMap(initial_map);
+    Node* const instance = a.AllocateJSPromise(context);
     var_result.Bind(instance);
     a.Goto(&init);
   }
@@ -124,8 +113,7 @@ void Builtins::Generate_PromiseConstructor(
 
   a.Bind(&init);
   {
-    PromiseInit(&a, var_result.value(), a.SmiConstant(kPromisePending),
-                a.UndefinedConstant());
+    a.PromiseInit(var_result.value());
     a.Branch(is_debug_active, &debug_push, &run_executor);
   }
 
@@ -196,15 +184,8 @@ void Builtins::Generate_PromiseInternalConstructor(
   CodeStubAssembler a(state);
 
   Node* const context = a.Parameter(3);
-  Node* const native_context = a.LoadNativeContext(context);
-  Node* const promise_fun =
-      a.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const initial_map =
-      a.LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const instance = a.AllocateJSObjectFromMap(initial_map);
-
-  PromiseInit(&a, instance, a.SmiConstant(kPromisePending),
-              a.UndefinedConstant());
+  Node* const instance = a.AllocateJSPromise(context);
+  a.PromiseInit(instance);
   a.Return(instance);
 }
 
@@ -216,15 +197,9 @@ void Builtins::Generate_PromiseCreateAndSet(
   Node* const status = a.Parameter(1);
   Node* const result = a.Parameter(2);
   Node* const context = a.Parameter(5);
-  Node* const native_context = a.LoadNativeContext(context);
 
-  Node* const promise_fun =
-      a.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const initial_map =
-      a.LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const instance = a.AllocateJSObjectFromMap(initial_map);
-
-  PromiseInit(&a, instance, status, result);
+  Node* const instance = a.AllocateJSPromise(context);
+  a.PromiseSet(instance, status, result);
   a.Return(instance);
 }
 

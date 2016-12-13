@@ -1999,5 +1999,75 @@ TEST(IsPromiseHookEnabled) {
   CHECK_EQ(isolate->heap()->false_value(), *result);
 }
 
+TEST(AllocateJSPromise) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.Return(promise);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsJSPromise());
+}
+
+TEST(PromiseInit) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseInit(promise);
+  m.Return(promise);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsJSPromise());
+  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
+  CHECK_EQ(kPromisePending, js_promise->status());
+  CHECK_EQ(isolate->heap()->undefined_value(), js_promise->result());
+  CHECK(!js_promise->has_handler());
+}
+
+TEST(PromiseSet) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  m.Return(promise);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsJSPromise());
+  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
+  CHECK_EQ(kPromisePending, js_promise->status());
+  CHECK_EQ(Smi::FromInt(1), js_promise->result());
+  CHECK(!js_promise->has_handler());
+}
+
 }  // namespace internal
 }  // namespace v8
