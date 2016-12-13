@@ -1173,21 +1173,6 @@ struct LateGraphTrimmingPhase {
 };
 
 
-struct StressLoopPeelingPhase {
-  static const char* phase_name() { return "stress loop peeling"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    // Peel the first outer loop for testing.
-    // TODO(titzer): peel all loops? the N'th loop? Innermost loops?
-    LoopTree* loop_tree = LoopFinder::BuildLoopTree(data->graph(), temp_zone);
-    if (loop_tree != nullptr && loop_tree->outer_loops().size() > 0) {
-      LoopPeeler::Peel(data->graph(), data->common(), loop_tree,
-                       loop_tree->outer_loops()[0], temp_zone);
-    }
-  }
-};
-
-
 struct ComputeSchedulePhase {
   static const char* phase_name() { return "scheduling"; }
 
@@ -1531,11 +1516,6 @@ bool PipelineImpl::CreateGraph() {
     } else {
       Run<LoopExitEliminationPhase>();
       RunPrintAndVerify("Loop exits eliminated", true);
-    }
-
-    if (FLAG_turbo_stress_loop_peeling) {
-      Run<StressLoopPeelingPhase>();
-      RunPrintAndVerify("Loop peeled");
     }
 
     if (!info()->shared_info()->asm_function()) {
