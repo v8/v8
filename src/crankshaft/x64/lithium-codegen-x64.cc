@@ -2958,9 +2958,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   // Normal function. Replace undefined or null with global receiver.
   __ CompareRoot(receiver, Heap::kNullValueRootIndex);
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
   __ CompareRoot(receiver, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
 
   // The receiver should be a JS object.
   Condition is_smi = __ CheckSmi(receiver);
@@ -2968,7 +2968,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, kScratchRegister);
   DeoptimizeIf(below, instr, DeoptimizeReason::kNotAJavaScriptObject);
 
-  __ jmp(&receiver_ok, Label::kNear);
+  __ jmp(&receiver_ok, dist);
   __ bind(&global_object);
   __ movp(receiver, FieldOperand(function, JSFunction::kContextOffset));
   __ movp(receiver, ContextOperand(receiver, Context::NATIVE_CONTEXT_INDEX));
