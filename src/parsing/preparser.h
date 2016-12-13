@@ -156,10 +156,9 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment(ZoneList<VariableProxy*>* variables) {
+  static PreParserExpression Assignment() {
     return PreParserExpression(TypeField::encode(kExpression) |
-                                   ExpressionTypeField::encode(kAssignment),
-                               variables);
+                               ExpressionTypeField::encode(kAssignment));
   }
 
   static PreParserExpression ObjectLiteral(
@@ -618,8 +617,7 @@ class PreParserFactory {
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
-    // For tracking variables for parameters with a default value.
-    return PreParserExpression::Assignment(left.variables_);
+    return PreParserExpression::Assignment();
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression, int pos,
