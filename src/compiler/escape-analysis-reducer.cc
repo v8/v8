@@ -31,7 +31,7 @@ EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
       fully_reduced_(static_cast<int>(jsgraph->graph()->NodeCount() * 2), zone),
       exists_virtual_allocate_(escape_analysis->ExistsVirtualAllocate()) {}
 
-Reduction EscapeAnalysisReducer::Reduce(Node* node) {
+Reduction EscapeAnalysisReducer::ReduceNode(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
       fully_reduced_.Contains(node->id())) {
     return NoChange();
@@ -95,6 +95,14 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
       break;
   }
   return NoChange();
+}
+
+Reduction EscapeAnalysisReducer::Reduce(Node* node) {
+  Reduction reduction = ReduceNode(node);
+  if (reduction.Changed() && node != reduction.replacement()) {
+    escape_analysis()->SetReplacement(node, reduction.replacement());
+  }
+  return reduction;
 }
 
 namespace {
@@ -202,7 +210,7 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
         escape_analysis()->CompareVirtualObjects(left, right)) {
       ReplaceWithValue(node, jsgraph()->TrueConstant());
       TRACE("Replaced ref eq #%d with true\n", node->id());
-      Replace(jsgraph()->TrueConstant());
+      return Replace(jsgraph()->TrueConstant());
     }
     // Right-hand side is not a virtual object, or a different one.
     ReplaceWithValue(node, jsgraph()->FalseConstant());

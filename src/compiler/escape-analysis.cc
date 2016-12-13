@@ -1586,7 +1586,7 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         cache_->fields().clear();
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
-            cache_->fields().push_back(field);
+            cache_->fields().push_back(ResolveReplacement(field));
           }
         }
         int input_count = static_cast<int>(cache_->fields().size());
