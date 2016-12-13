@@ -1690,6 +1690,15 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
 namespace {
 
 bool AccessNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
+  if (var->mode() == DYNAMIC_LOCAL) {
+    // Dynamically introduced variables never need a hole check (since they're
+    // VAR bindings, either from var or function declarations), but the variable
+    // they shadow might need a hole check, which we want to do if we decide
+    // that no shadowing variable was dynamically introoduced.
+    DCHECK(!var->binding_needs_init());
+    return AccessNeedsHoleCheck(var->local_if_not_shadowed(), proxy, scope);
+  }
+
   if (!var->binding_needs_init()) {
     return false;
   }
