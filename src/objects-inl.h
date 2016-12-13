@@ -858,7 +858,6 @@ bool HeapObject::IsJSArrayBufferView() const {
 
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
-
 template <> inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
 }
@@ -2094,7 +2093,7 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_WEAK_SET_TYPE:
       return JSWeakSet::kSize;
     case JS_PROMISE_TYPE:
-      return JSObject::kHeaderSize;
+      return JSPromise::kSize;
     case JS_REGEXP_TYPE:
       return JSRegExp::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -2337,7 +2336,7 @@ void Object::VerifyApiCallResultType() {
 
 Object* FixedArray::get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->length());
-  return READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  return NOBARRIER_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
 Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
@@ -2366,7 +2365,7 @@ void FixedArray::set(int index, Smi* value) {
   DCHECK(index >= 0 && index < this->length());
   DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
+  NOBARRIER_WRITE_FIELD(this, offset, value);
 }
 
 
@@ -2376,7 +2375,7 @@ void FixedArray::set(int index, Object* value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
+  NOBARRIER_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
@@ -2604,7 +2603,7 @@ void FixedArray::set(int index,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
+  NOBARRIER_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
@@ -2616,7 +2615,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray* array,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!array->GetHeap()->InNewSpace(value));
-  WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  NOBARRIER_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -3323,6 +3322,7 @@ CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSStringIterator)
@@ -3701,7 +3701,7 @@ ACCESSORS(Symbol, name, Object, kNameOffset)
 SMI_ACCESSORS(Symbol, flags, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
 BOOL_ACCESSORS(Symbol, flags, is_well_known_symbol, kWellKnownSymbolBit)
-
+BOOL_ACCESSORS(Symbol, flags, is_public, kPublicBit)
 
 bool String::Equals(String* other) {
   if (other == this) return true;
@@ -4218,12 +4218,22 @@ void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   WRITE_INT8_FIELD(this, kOSRNestingLevelOffset, depth);
 }
 
+BytecodeArray::Age BytecodeArray::bytecode_age() const {
+  return static_cast<Age>(READ_INT8_FIELD(this, kBytecodeAgeOffset));
+}
+
+void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
+  DCHECK_GE(age, kFirstBytecodeAge);
+  DCHECK_LE(age, kLastBytecodeAge);
+  STATIC_ASSERT(kLastBytecodeAge <= kMaxInt8);
+  WRITE_INT8_FIELD(this, kBytecodeAgeOffset, static_cast<int8_t>(age));
+}
+
 int BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
   return READ_INT_FIELD(this, kParameterSizeOffset) >> kPointerSizeLog2;
 }
-
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)
@@ -5122,6 +5132,19 @@ inline void Code::set_is_construct_stub(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+inline bool Code::is_promise_rejection() {
+  DCHECK(kind() == BUILTIN);
+  return IsPromiseRejectionField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+inline void Code::set_is_promise_rejection(bool value) {
+  DCHECK(kind() == BUILTIN);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = IsPromiseRejectionField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
   unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
@@ -5764,8 +5787,8 @@ ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
-ACCESSORS(Tuple3, value1, Object, kValue1Offset)
-ACCESSORS(Tuple3, value2, Object, kValue2Offset)
+ACCESSORS(Tuple2, value1, Object, kValue1Offset)
+ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
@@ -5840,6 +5863,9 @@ ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
 ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
 ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
           kPrototypeTemplateOffset)
+ACCESSORS(FunctionTemplateInfo, prototype_provider_template, Object,
+          kPrototypeProviderTemplateOffset)
+
 ACCESSORS(FunctionTemplateInfo, parent_template, Object, kParentTemplateOffset)
 ACCESSORS(FunctionTemplateInfo, named_property_handler, Object,
           kNamedPropertyHandlerOffset)
@@ -5920,7 +5946,7 @@ ACCESSORS_CHECKED(Script, eval_from_shared, Object, kEvalFromSharedOffset,
                   this->type() != TYPE_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       this->type() != TYPE_WASM)
-ACCESSORS(Script, shared_function_infos, Object, kSharedFunctionInfosOffset)
+ACCESSORS(Script, shared_function_infos, FixedArray, kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
@@ -5993,6 +6019,7 @@ ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, TypeFeedbackMetadata,
           kFeedbackMetadataOffset)
+SMI_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if TRACE_MAPS
 SMI_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif
@@ -6035,8 +6062,6 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                kHasDuplicateParameters)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, never_compiled,
-               kNeverCompiled)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                kIsDeclaration)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
@@ -6270,8 +6295,6 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
 #endif  // DEBUG
 
   set_code(value);
-
-  if (is_compiled()) set_never_compiled(false);
 }
 
 bool SharedFunctionInfo::IsInterpreted() const {
@@ -6798,7 +6821,7 @@ ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
-
+SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
@@ -6807,6 +6830,7 @@ ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, source_position_table, ByteArray, kSourcePositionTableOffset)
+ACCESSORS(Code, protected_instructions, FixedArray, kProtectedInstructionOffset)
 ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, next_code_link, Object, kNextCodeLinkOffset)
 
@@ -7080,6 +7104,13 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 #endif
 
+SMI_ACCESSORS(JSPromise, status, kStatusOffset)
+ACCESSORS(JSPromise, result, Object, kResultOffset)
+ACCESSORS(JSPromise, deferred, Object, kDeferredOffset)
+ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
+ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
+SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
+BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)

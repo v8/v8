@@ -286,7 +286,7 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
     startup_serializer.SerializeStrongReferences();
 
     PartialSerializer partial_serializer(isolate, &startup_serializer, nullptr);
-    partial_serializer.Serialize(&raw_foo);
+    partial_serializer.Serialize(&raw_foo, false);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -386,7 +386,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     SnapshotByteSink partial_sink;
     PartialSerializer partial_serializer(isolate, &startup_serializer, nullptr);
-    partial_serializer.Serialize(&raw_context);
+    partial_serializer.Serialize(&raw_context, false);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(&startup_serializer);
@@ -506,7 +506,7 @@ static void PartiallySerializeCustomContext(
 
     SnapshotByteSink partial_sink;
     PartialSerializer partial_serializer(isolate, &startup_serializer, nullptr);
-    partial_serializer.Serialize(&raw_context);
+    partial_serializer.Serialize(&raw_context, false);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(&startup_serializer);
@@ -1075,7 +1075,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Vector<const uint8_t> source =
       ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
                       STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
-                      STATIC_CHAR_VECTOR("} j=7; j"), 1000);
+                      STATIC_CHAR_VECTOR("} j=7; j"), 1050);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1806,10 +1806,10 @@ TEST(CodeSerializerEagerCompilationAndPreAge) {
     HandleScope i_scope(i_isolate);
     Handle<SharedFunctionInfo> toplevel = v8::Utils::OpenHandle(*unbound);
     Handle<Script> script(Script::cast(toplevel->script()));
-    WeakFixedArray::Iterator iterator(script->shared_function_infos());
     // Every function has been pre-compiled from the code cache.
     int count = 0;
-    while (SharedFunctionInfo* shared = iterator.Next<SharedFunctionInfo>()) {
+    SharedFunctionInfo::ScriptIterator iterator(script);
+    while (SharedFunctionInfo* shared = iterator.Next()) {
       CHECK(shared->is_compiled());
       CHECK_EQ(Code::kPreAgedCodeAge, shared->code()->GetAge());
       count++;
@@ -1962,19 +1962,19 @@ TEST(SnapshotCreatorMultipleContexts) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       CompileRun("var f = function() { return 1; }");
-      CHECK_EQ(0u, creator.AddContext(context));
+      creator.SetDefaultContext(context);
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       CompileRun("var f = function() { return 2; }");
-      CHECK_EQ(1u, creator.AddContext(context));
+      CHECK_EQ(0u, creator.AddContext(context));
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
-      CHECK_EQ(2u, creator.AddContext(context));
+      CHECK_EQ(1u, creator.AddContext(context));
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -1988,22 +1988,21 @@ TEST(SnapshotCreatorMultipleContexts) {
     v8::Isolate::Scope isolate_scope(isolate);
     {
       v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context =
-          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 1);
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context =
-          v8::Context::FromSnapshot(isolate, 1).ToLocalChecked();
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 2);
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context =
-          v8::Context::FromSnapshot(isolate, 2).ToLocalChecked();
+          v8::Context::FromSnapshot(isolate, 1).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectUndefined("this.f");
     }
@@ -2013,24 +2012,68 @@ TEST(SnapshotCreatorMultipleContexts) {
   delete[] blob.data;
 }
 
-void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void SerializedCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(42));
 }
 
-void SerializedCallbackReplacement(
+static void SerializedCallbackReplacement(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(1337));
 }
 
+static void NamedPropertyGetterForSerialization(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  if (name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("x"))
+          .FromJust()) {
+    info.GetReturnValue().Set(v8_num(2016));
+  }
+}
+
+static void AccessorForSerialization(
+    v8::Local<v8::String> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_num(2017));
+}
+
 static int serialized_static_field = 314;
+
+class SerializedExtension : public v8::Extension {
+ public:
+  SerializedExtension()
+      : v8::Extension("serialized extension",
+                      "native function g();"
+                      "function h() { return 13; };"
+                      "function i() { return 14; };"
+                      "var o = { p: 7 };") {}
+
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) {
+    CHECK(name->Equals(isolate->GetCurrentContext(), v8_str("g")).FromJust());
+    return v8::FunctionTemplate::New(isolate, FunctionCallback);
+  }
+
+  static void FunctionCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    args.GetReturnValue().Set(v8_num(12));
+  }
+};
 
 intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallback),
-    reinterpret_cast<intptr_t>(&serialized_static_field), 0};
+    reinterpret_cast<intptr_t>(&serialized_static_field),
+    reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
+    reinterpret_cast<intptr_t>(&AccessorForSerialization),
+    reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    0};
 
 intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallbackReplacement),
-    reinterpret_cast<intptr_t>(&serialized_static_field), 0};
+    reinterpret_cast<intptr_t>(&serialized_static_field),
+    reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
+    reinterpret_cast<intptr_t>(&AccessorForSerialization),
+    reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    0};
 
 TEST(SnapshotCreatorExternalReferences) {
   DisableAlwaysOpt();
@@ -2048,7 +2091,7 @@ TEST(SnapshotCreatorExternalReferences) {
           callback->GetFunction(context).ToLocalChecked();
       CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
       ExpectInt32("f()", 42);
-      CHECK_EQ(0u, creator.AddContext(context));
+      creator.SetDefaultContext(context);
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -2064,8 +2107,7 @@ TEST(SnapshotCreatorExternalReferences) {
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context =
-          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
     }
@@ -2082,8 +2124,7 @@ TEST(SnapshotCreatorExternalReferences) {
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context =
-          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 1337);
     }
@@ -2108,7 +2149,7 @@ TEST(SnapshotCreatorUnknownExternalReferences) {
     CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
     ExpectInt32("f()", 42);
 
-    CHECK_EQ(0u, creator.AddContext(context));
+    creator.SetDefaultContext(context);
   }
   v8::StartupData blob =
       creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -2185,7 +2226,7 @@ TEST(SnapshotCreatorTemplates) {
       c->SetInternalField(2, field_external);
       CHECK(context->Global()->Set(context, v8_str("a"), a).FromJust());
 
-      CHECK_EQ(0u, creator.AddContext(context));
+      creator.SetDefaultContext(context);
       CHECK_EQ(0u, creator.AddTemplate(callback));
       CHECK_EQ(1u, creator.AddTemplate(global_template));
     }
@@ -2209,8 +2250,7 @@ TEST(SnapshotCreatorTemplates) {
       {
         // Create a new context without a new object template.
         v8::HandleScope handle_scope(isolate);
-        v8::Local<v8::Context> context =
-            v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+        v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
         ExpectInt32("f()", 42);
 
@@ -2272,7 +2312,7 @@ TEST(SnapshotCreatorTemplates) {
         // Accessing out of bound returns empty MaybeHandle.
         CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());
         CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
-        CHECK(v8::Context::FromSnapshot(isolate, 2).IsEmpty());
+        CHECK(v8::Context::FromSnapshot(isolate, 1).IsEmpty());
 
         delete a1;
         delete b0;
@@ -2290,11 +2330,128 @@ TEST(SnapshotCreatorTemplates) {
             v8_str("g"),
             v8::FunctionTemplate::New(isolate, SerializedCallbackReplacement));
         v8::Local<v8::Context> context =
-            v8::Context::FromSnapshot(isolate, 0, no_extension, global_template)
-                .ToLocalChecked();
+            v8::Context::New(isolate, no_extension, global_template);
         v8::Context::Scope context_scope(context);
         ExpectInt32("g()", 1337);
         ExpectInt32("f()", 42);
+      }
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorIncludeGlobalProxy) {
+  DisableAlwaysOpt();
+  v8::StartupData blob;
+
+  {
+    v8::SnapshotCreator creator(original_external_references);
+    v8::Isolate* isolate = creator.GetIsolate();
+    v8::RegisterExtension(new SerializedExtension);
+    const char* extension_names[] = {"serialized extension"};
+    v8::ExtensionConfiguration extensions(1, extension_names);
+    {
+      // Set default context. This context implicitly does *not* serialize
+      // the global proxy, and upon deserialization one has to be created
+      // in the bootstrapper from the global object template.
+      // Side effects from extensions are persisted though.
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::ObjectTemplate> global_template =
+          v8::ObjectTemplate::New(isolate);
+      v8::Local<v8::FunctionTemplate> callback =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      global_template->Set(v8_str("f"), callback);
+      global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+          NamedPropertyGetterForSerialization));
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, &extensions, global_template);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 42);
+      ExpectInt32("g()", 12);
+      ExpectInt32("h()", 13);
+      ExpectInt32("o.p", 7);
+      ExpectInt32("x", 2016);
+      creator.SetDefaultContext(context);
+    }
+    {
+      // Add additional context. This context implicitly *does* serialize
+      // the global proxy, and upon deserialization one has to be created
+      // in the bootstrapper from the global object template.
+      // Side effects from extensions are persisted.
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::ObjectTemplate> global_template =
+          v8::ObjectTemplate::New(isolate);
+      v8::Local<v8::FunctionTemplate> callback =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      global_template->Set(v8_str("f"), callback);
+      global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+          NamedPropertyGetterForSerialization));
+      global_template->SetAccessor(v8_str("y"), AccessorForSerialization);
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, &extensions, global_template);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 42);
+      ExpectInt32("g()", 12);
+      ExpectInt32("h()", 13);
+      ExpectInt32("o.p", 7);
+      ExpectInt32("x", 2016);
+      ExpectInt32("y", 2017);
+      CHECK_EQ(0u, creator.AddContext(context));
+    }
+    blob = creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear,
+                              SerializeInternalFields);
+  }
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = original_external_references;
+    params.deserialize_internal_fields_callback = DeserializeInternalFields;
+    v8::Isolate* isolate = v8::Isolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      // We can introduce new extensions, which could override the already
+      // snapshotted extension.
+      v8::Extension* extension = new v8::Extension("new extension",
+                                                   "function i() { return 24; }"
+                                                   "function j() { return 25; }"
+                                                   "if (o.p == 7) o.p++;");
+      extension->set_auto_enable(true);
+      v8::RegisterExtension(extension);
+      {
+        // Create a new context from default context snapshot. This will
+        // create a new global object from a new global object template
+        // without the interceptor.
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context = v8::Context::New(isolate);
+        v8::Context::Scope context_scope(context);
+        ExpectInt32("f()", 42);
+        ExpectInt32("g()", 12);
+        ExpectInt32("h()", 13);
+        ExpectInt32("i()", 24);
+        ExpectInt32("j()", 25);
+        ExpectInt32("o.p", 8);
+        v8::TryCatch try_catch(isolate);
+        CHECK(CompileRun("x").IsEmpty());
+        CHECK(try_catch.HasCaught());
+      }
+      {
+        // Create a new context from first additional context snapshot. This
+        // will use the global object from the snapshot, including interceptor.
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context =
+            v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+        v8::Context::Scope context_scope(context);
+        ExpectInt32("f()", 42);
+        ExpectInt32("g()", 12);
+        ExpectInt32("h()", 13);
+        ExpectInt32("i()", 24);
+        ExpectInt32("j()", 25);
+        ExpectInt32("o.p", 8);
+        ExpectInt32("x", 2016);
+        ExpectInt32("y", 2017);
       }
     }
     isolate->Dispose();

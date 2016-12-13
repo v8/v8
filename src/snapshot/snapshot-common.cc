@@ -62,6 +62,11 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
 
+  if (context_index > 0) {
+    // A non-default context uses the global proxy from the snapshot.
+    DCHECK(global_proxy.is_null());
+  }
+
   MaybeHandle<Object> maybe_context =
       deserializer.DeserializePartial(isolate, global_proxy);
   Handle<Object> result;

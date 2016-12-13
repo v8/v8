@@ -82,6 +82,7 @@ class BinaryOpICState final BASE_EMBEDDED {
   }
 
   ExtraICState GetExtraICState() const;
+  std::string ToString() const;
 
   static void GenerateAheadOfTime(Isolate*,
                                   void (*Generate)(Isolate*,

@@ -5,6 +5,9 @@
 #ifndef V8_COMPILER_BYTECODE_ANALYSIS_H_
 #define V8_COMPILER_BYTECODE_ANALYSIS_H_
 
+#include "src/base/hashmap.h"
+#include "src/bit-vector.h"
+#include "src/compiler/bytecode-liveness-map.h"
 #include "src/handles.h"
 #include "src/zone/zone-containers.h"
 
@@ -15,9 +18,10 @@ class BytecodeArray;
 
 namespace compiler {
 
-class BytecodeAnalysis BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE BytecodeAnalysis BASE_EMBEDDED {
  public:
-  BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone);
+  BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
+                   bool do_liveness_analysis);
 
   // Analyze the bytecodes to find the loop ranges and nesting. No other
   // methods in this class return valid information until this has been called.
@@ -32,19 +36,36 @@ class BytecodeAnalysis BASE_EMBEDDED {
   // at {header_offset}, or -1 for outer-most loops.
   int GetParentLoopFor(int header_offset) const;
 
+  // Gets the in-liveness for the bytecode at {offset}.
+  const BytecodeLivenessState* GetInLivenessFor(int offset) const;
+
+  // Gets the out-liveness for the bytecode at {offset}.
+  const BytecodeLivenessState* GetOutLivenessFor(int offset) const;
+
+  std::ostream& PrintLivenessTo(std::ostream& os) const;
+
  private:
   void PushLoop(int loop_header, int loop_end);
+
+#if DEBUG
+  bool LivenessIsValid();
+#endif
 
   Zone* zone() const { return zone_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
+ private:
   Handle<BytecodeArray> bytecode_array_;
+  bool do_liveness_analysis_;
   Zone* zone_;
 
   ZoneStack<int> loop_stack_;
+  ZoneVector<int> loop_end_index_queue_;
 
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, int> header_to_parent_;
+
+  BytecodeLivenessMap liveness_map_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysis);
 };

@@ -43,7 +43,8 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
 
 
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kStore, op->opcode());
+  DCHECK(IrOpcode::kStore == op->opcode() ||
+         IrOpcode::kProtectedStore == op->opcode());
   return OpParameter<StoreRepresentation>(op);
 }
 
@@ -241,9 +242,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)            \
   V(Float32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                \
   V(Float32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)         \
-  V(Float32x4Select, Operator::kNoProperties, 3, 0, 1)                     \
-  V(Float32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                    \
-  V(Float32x4Shuffle, Operator::kNoProperties, 6, 0, 1)                    \
   V(Float32x4FromInt32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Float32x4FromUint32x4, Operator::kNoProperties, 1, 0, 1)               \
   V(CreateInt32x4, Operator::kNoProperties, 4, 0, 1)                       \
@@ -263,9 +261,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
   V(Int32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Int32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
-  V(Int32x4Select, Operator::kNoProperties, 3, 0, 1)                       \
-  V(Int32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                      \
-  V(Int32x4Shuffle, Operator::kNoProperties, 6, 0, 1)                      \
   V(Int32x4FromFloat32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Uint32x4Min, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint32x4Max, Operator::kCommutative, 2, 0, 1)                          \
@@ -390,7 +385,10 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Simd128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Simd128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
   V(Simd128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
-  V(Simd128Not, Operator::kNoProperties, 1, 0, 1)
+  V(Simd128Not, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Simd32x4Select, Operator::kNoProperties, 3, 0, 1)                      \
+  V(Simd32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                     \
+  V(Simd32x4Shuffle, Operator::kNoProperties, 6, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -510,9 +508,9 @@ struct MachineOperatorGlobalCache {
               "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
   };                                                                         \
   struct ProtectedLoad##Type##Operator final                                 \
-      : public Operator1<ProtectedLoadRepresentation> {                      \
+      : public Operator1<LoadRepresentation> {                               \
     ProtectedLoad##Type##Operator()                                          \
-        : Operator1<ProtectedLoadRepresentation>(                            \
+        : Operator1<LoadRepresentation>(                                     \
               IrOpcode::kProtectedLoad,                                      \
               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
               "ProtectedLoad", 4, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
@@ -585,13 +583,24 @@ struct MachineOperatorGlobalCache {
               "CheckedStore", 4, 1, 1, 0, 1, 0, MachineRepresentation::Type) { \
     }                                                                          \
   };                                                                           \
+  struct ProtectedStore##Type##Operator                                        \
+      : public Operator1<StoreRepresentation> {                                \
+    explicit ProtectedStore##Type##Operator()                                  \
+        : Operator1<StoreRepresentation>(                                      \
+              IrOpcode::kProtectedStore,                                       \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
+              "Store", 5, 1, 1, 0, 1, 0,                                       \
+              StoreRepresentation(MachineRepresentation::Type,                 \
+                                  kNoWriteBarrier)) {}                         \
+  };                                                                           \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
   Store##Type##PointerWriteBarrier##Operator                                   \
       kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
   UnalignedStore##Type##Operator kUnalignedStore##Type;                        \
-  CheckedStore##Type##Operator kCheckedStore##Type;
+  CheckedStore##Type##Operator kCheckedStore##Type;                            \
+  ProtectedStore##Type##Operator kProtectedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 
@@ -751,6 +760,23 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
       case kFullWriteBarrier:                               \
         return &cache_.k##Store##kRep##FullWriteBarrier;    \
     }                                                       \
+    break;
+    MACHINE_REPRESENTATION_LIST(STORE)
+#undef STORE
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::ProtectedStore(
+    MachineRepresentation rep) {
+  switch (rep) {
+#define STORE(kRep)                       \
+  case MachineRepresentation::kRep:       \
+    return &cache_.kProtectedStore##kRep; \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE

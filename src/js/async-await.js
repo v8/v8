@@ -13,23 +13,17 @@
 
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
-var IsPromise;
 var CreateInternalPromiseCapability;
-var PerformPromiseThen;
 var PromiseCreate;
 var PromiseNextMicrotaskID;
 var RejectPromise;
-var ResolvePromise;
 
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  IsPromise = from.IsPromise;
   CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
-  PerformPromiseThen = from.PerformPromiseThen;
   PromiseCreate = from.PromiseCreate;
   RejectPromise = from.RejectPromise;
-  ResolvePromise = from.ResolvePromise;
 });
 
 var promiseAsyncStackIDSymbol =
@@ -40,17 +34,16 @@ var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
-var promiseHasHandlerSymbol =
-    utils.ImportNow("promise_has_handler_symbol");
 
 // -------------------------------------------------------------------
 
 function PromiseCastResolved(value) {
-  if (IsPromise(value)) {
+  // TODO(caitp): This is non spec compliant. See v8:5694.
+  if (%is_promise(value)) {
     return value;
   } else {
     var promise = PromiseCreate();
-    ResolvePromise(promise, value);
+    %promise_resolve(promise, value);
     return promise;
   }
 }
@@ -93,10 +86,10 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done
-  SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
+  %PromiseMarkAsHandled(throwawayCapability.promise);
 
   if (DEBUG_IS_ACTIVE) {
-    if (IsPromise(awaited)) {
+    if (%is_promise(awaited)) {
       // Mark the reject handler callback to be a forwarding edge, rather
       // than a meaningful catch handler
       SET_PRIVATE(onRejected, promiseForwardingHandlerSymbol, true);
@@ -108,7 +101,7 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
                 outerPromise);
   }
 
-  PerformPromiseThen(promise, onFulfilled, onRejected, throwawayCapability);
+  %perform_promise_then(promise, onFulfilled, onRejected, throwawayCapability);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
@@ -120,7 +113,7 @@ function AsyncFunctionAwaitUncaught(generator, awaited, outerPromise) {
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block
 function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
-  if (DEBUG_IS_ACTIVE && IsPromise(awaited)) {
+  if (DEBUG_IS_ACTIVE && %is_promise(awaited)) {
     SET_PRIVATE(awaited, promiseHandledHintSymbol, true);
   }
   AsyncFunctionAwait(generator, awaited, outerPromise);

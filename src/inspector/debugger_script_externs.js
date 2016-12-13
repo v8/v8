@@ -32,6 +32,7 @@ var JavaScriptCallFrameDetails;
         sourceID: function():(number),
         line: function():number,
         column: function():number,
+        contextId: function():number,
         thisObject: !Object,
         evaluate: function(string):*,
         restart: function():undefined,

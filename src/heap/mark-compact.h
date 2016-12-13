@@ -484,8 +484,6 @@ class MarkCompactCollector {
 
   bool is_compacting() const { return compacting_; }
 
-  MarkingParity marking_parity() { return marking_parity_; }
-
   // Ensures that sweeping is finished.
   //
   // Note: Can only be called safely from main thread.
@@ -745,8 +743,6 @@ class MarkCompactCollector {
   // The current stage of the collector.
   CollectorState state_;
 #endif
-
-  MarkingParity marking_parity_;
 
   bool was_marked_incrementally_;
 

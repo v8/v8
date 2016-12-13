@@ -23,10 +23,12 @@ PartialSerializer::~PartialSerializer() {
   OutputStatistics("PartialSerializer");
 }
 
-void PartialSerializer::Serialize(Object** o) {
+void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
   if ((*o)->IsContext()) {
     Context* context = Context::cast(*o);
-    reference_map()->AddAttachedReference(context->global_proxy());
+    if (!include_global_proxy) {
+      reference_map()->AddAttachedReference(context->global_proxy());
+    }
     // The bootstrap snapshot has a code-stub context. When serializing the
     // partial snapshot, it is chained into the weak context list on the isolate
     // and it's next context pointer may point to the code-stub context.  Clear

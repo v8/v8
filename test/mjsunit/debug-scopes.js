@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --expose-debug-as debug --allow-natives-syntax --noanalyze-environment-liveness
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -116,32 +116,6 @@ function CheckScopeChain(scopes, exec_state) {
     }
   }
   CheckFastAllScopes(scopes, exec_state);
-
-  // Get the debug command processor.
-  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-
-  // Send a scopes request and check the result.
-  var json;
-  var request_json = '{"seq":0,"type":"request","command":"scopes"}';
-  var response_json = dcp.processDebugJSONRequest(request_json);
-  var response = JSON.parse(response_json);
-  assertEquals(scopes.length, response.body.scopes.length);
-  for (var i = 0; i < scopes.length; i++) {
-    assertEquals(i, response.body.scopes[i].index);
-    assertEquals(scopes[i], response.body.scopes[i].type);
-    if (scopes[i] == debug.ScopeType.Local ||
-        scopes[i] == debug.ScopeType.Script ||
-        scopes[i] == debug.ScopeType.Closure) {
-      assertTrue(response.body.scopes[i].object.ref < 0);
-    } else {
-      assertTrue(response.body.scopes[i].object.ref >= 0);
-    }
-    var found = false;
-    for (var j = 0; j < response.refs.length && !found; j++) {
-      found = response.refs[j].handle == response.body.scopes[i].object.ref;
-    }
-    assertTrue(found, "Scope object " + response.body.scopes[i].object.ref + " not found");
-  }
 }
 
 
@@ -164,11 +138,13 @@ function CheckScopeContent(minimum_content, number, exec_state) {
   var minimum_count = 0;
   for (var p in minimum_content) {
     var property_mirror = scope.scopeObject().property(p);
-    assertFalse(property_mirror.isUndefined(), 'property ' + p + ' not found in scope');
+    assertFalse(property_mirror.isUndefined(),
+                'property ' + p + ' not found in scope');
     if (typeof(minimum_content[p]) === 'function') {
       assertTrue(property_mirror.value().isFunction());
     } else {
-      assertEquals(minimum_content[p], property_mirror.value().value(), 'property ' + p + ' has unexpected value');
+      assertEquals(minimum_content[p], property_mirror.value().value(),
+                   'property ' + p + ' has unexpected value');
     }
     minimum_count++;
   }
@@ -194,31 +170,6 @@ function CheckScopeContent(minimum_content, number, exec_state) {
     }
   }
   assertTrue(scope_size >= minimum_count);
-
-  // Get the debug command processor.
-  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-
-  // Send a scope request for information on a single scope and check the
-  // result.
-  var request_json = '{"seq":0,"type":"request","command":"scope","arguments":{"number":';
-  request_json += scope.scopeIndex();
-  request_json += '}}';
-  var response_json = dcp.processDebugJSONRequest(request_json);
-  var response = JSON.parse(response_json);
-  assertEquals(scope.scopeType(), response.body.type);
-  assertEquals(number, response.body.index);
-  if (scope.scopeType() == debug.ScopeType.Local ||
-      scope.scopeType() == debug.ScopeType.Script ||
-      scope.scopeType() == debug.ScopeType.Closure) {
-    assertTrue(response.body.object.ref < 0);
-  } else {
-    assertTrue(response.body.object.ref >= 0);
-  }
-  var found = false;
-  for (var i = 0; i < response.refs.length && !found; i++) {
-    found = response.refs[i].handle == response.body.object.ref;
-  }
-  assertTrue(found, "Scope object " + response.body.object.ref + " not found");
 }
 
 // Check that the scopes have positions as expected.
@@ -474,7 +425,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(with_object, 0, exec_state);
   CheckScopeContent(with_object, 1, exec_state);
-  assertEquals(exec_state.frame().scope(0).scopeObject(), exec_state.frame().scope(1).scopeObject());
+  assertEquals(exec_state.frame().scope(0).scopeObject(),
+               exec_state.frame().scope(1).scopeObject());
   assertEquals(with_object, exec_state.frame().scope(1).scopeObject().value());
 };
 with_5();
@@ -490,7 +442,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(with_object, 0, exec_state);
   CheckScopeContent(with_object, 1, exec_state);
-  assertEquals(exec_state.frame().scope(0).scopeObject(), exec_state.frame().scope(1).scopeObject());
+  assertEquals(exec_state.frame().scope(0).scopeObject(),
+               exec_state.frame().scope(1).scopeObject());
   assertEquals(with_object, exec_state.frame().scope(1).scopeObject().value());
 };
 
@@ -542,7 +495,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
-  CheckScopeChainNames(["f", "closure_1", undefined, undefined], exec_state)
+  CheckScopeChainNames(["f", "closure_1", undefined, undefined], exec_state);
 };
 closure_1(1)();
 EndTest();
@@ -569,7 +522,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,x:3}, 1, exec_state);
-  CheckScopeChainNames(["f", "closure_2", undefined, undefined], exec_state)
+  CheckScopeChainNames(["f", "closure_2", undefined, undefined], exec_state);
 };
 closure_2(1, 2)();
 EndTest();
@@ -597,7 +550,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4}, 1, exec_state);
-  CheckScopeChainNames(["f", "closure_3", undefined, undefined], exec_state)
+  CheckScopeChainNames(["f", "closure_3", undefined, undefined], exec_state);
 };
 closure_3(1, 2)();
 EndTest();
@@ -628,7 +581,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
-  CheckScopeChainNames(["f", "closure_4", undefined, undefined], exec_state)
+  CheckScopeChainNames(["f", "closure_4", undefined, undefined], exec_state);
 };
 closure_4(1, 2)();
 EndTest();
@@ -690,7 +643,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
   CheckScopeContent({f:function(){}}, 2, exec_state);
-  CheckScopeChainNames([undefined, "f", "closure_6", undefined, undefined], exec_state)
+  CheckScopeChainNames([undefined, "f", "closure_6", undefined, undefined],
+                       exec_state);
 };
 closure_6(1, 2)();
 EndTest();
@@ -727,7 +681,8 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6}, 1, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 2, exec_state);
-  CheckScopeChainNames([undefined, "f", "closure_7", undefined, undefined], exec_state)
+  CheckScopeChainNames([undefined, "f", "closure_7", undefined, undefined],
+                       exec_state);
 };
 closure_7(1, 2)();
 EndTest();
@@ -746,7 +701,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x: 2}, 0, exec_state);
-  CheckScopeChainNames(["inner", undefined, undefined], exec_state)
+  CheckScopeChainNames(["inner", undefined, undefined], exec_state);
 };
 closure_8();
 EndTest();
@@ -768,7 +723,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainNames(["inner", "closure_9", undefined, undefined], exec_state)
+  CheckScopeChainNames(["inner", "closure_9", undefined, undefined],
+                       exec_state);
 };
 closure_9();
 EndTest();
@@ -817,7 +773,8 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({j:13}, 3, exec_state);
   CheckScopeContent({a:1,b:2,x:9,y:10,i:11,j:12}, 4, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 5, exec_state);
-  CheckScopeChainNames([undefined, undefined, undefined, "f", "f", "the_full_monty", undefined, undefined], exec_state)
+  CheckScopeChainNames([undefined, undefined, undefined, "f", "f",
+                        "the_full_monty", undefined, undefined], exec_state);
 };
 the_full_monty(1, 2)();
 EndTest();
@@ -864,7 +821,8 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({x: 3}, 0, exec_state);
   CheckScopeContent({x: 2}, 1, exec_state);
   CheckScopeContent({x: 1}, 2, exec_state);
-  CheckScopeChainNames(["inner", "inner", "closure_in_with_2", undefined, undefined], exec_state)
+  CheckScopeChainNames(["inner", "inner", "closure_in_with_2",
+                        undefined, undefined], exec_state);
 };
 closure_in_with_2();
 EndTest();
@@ -895,7 +853,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainNames(["inner", "inner", "closure", "createClosure", undefined, undefined], exec_state)
+  CheckScopeChainNames(["inner", "inner", "closure", "createClosure",
+                        undefined, undefined], exec_state);
 }
 closure_in_with_3();
 EndTest();
@@ -909,7 +868,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x: 2}, 0, exec_state);
   CheckScopeContent({x: 1}, 1, exec_state);
-  CheckScopeChainNames([undefined, undefined, undefined, undefined], exec_state)
+  CheckScopeChainNames([undefined, undefined, undefined, undefined],
+                       exec_state);
 };
 
 with({x:1}) {
@@ -923,8 +883,9 @@ EndTest();
 // Test global scope.
 BeginTest("Global");
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Script, debug.ScopeType.Global], exec_state);
-  CheckScopeChainNames([undefined, undefined], exec_state)
+  CheckScopeChain([debug.ScopeType.Script, debug.ScopeType.Global],
+                  exec_state);
+  CheckScopeChainNames([undefined, undefined], exec_state);
 };
 debugger;
 EndTest();
@@ -946,7 +907,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({e:'Exception'}, 0, exec_state);
-  CheckScopeChainNames(["catch_block_1", "catch_block_1", undefined, undefined], exec_state)
+  CheckScopeChainNames(["catch_block_1", "catch_block_1",
+                        undefined, undefined], exec_state);
 };
 catch_block_1();
 EndTest();
@@ -972,7 +934,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({n:10}, 0, exec_state);
   CheckScopeContent({e:'Exception'}, 1, exec_state);
-  CheckScopeChainNames(["catch_block_2", "catch_block_2", "catch_block_2", undefined, undefined], exec_state)
+  CheckScopeChainNames(["catch_block_2", "catch_block_2", "catch_block_2",
+                        undefined, undefined], exec_state);
 };
 catch_block_2();
 EndTest();
@@ -998,7 +961,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({e:'Exception'}, 0, exec_state);
   CheckScopeContent({y:78}, 1, exec_state);
-  CheckScopeChainNames(["catch_block_3", "catch_block_3", undefined, undefined], exec_state)
+  CheckScopeChainNames(["catch_block_3", "catch_block_3",
+                        undefined, undefined], exec_state);
 };
 catch_block_3();
 EndTest();
@@ -1027,7 +991,8 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({n:10}, 0, exec_state);
   CheckScopeContent({e:'Exception'}, 1, exec_state);
   CheckScopeContent({y:98}, 2, exec_state);
-  CheckScopeChainNames(["catch_block_4", "catch_block_4", "catch_block_4", undefined, undefined], exec_state)
+  CheckScopeChainNames(["catch_block_4", "catch_block_4", "catch_block_4",
+                        undefined, undefined], exec_state);
 };
 catch_block_4();
 EndTest();
@@ -1040,7 +1005,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({e:'Exception'}, 0, exec_state);
-  CheckScopeChainNames([undefined, undefined, undefined], exec_state)
+  CheckScopeChainNames([undefined, undefined, undefined], exec_state);
 };
 
 try {
@@ -1061,7 +1026,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x: 2}, 0, exec_state);
   CheckScopeContent({e:'Exception'}, 1, exec_state);
-  CheckScopeChainNames([undefined, undefined, undefined, undefined], exec_state)
+  CheckScopeChainNames([undefined, undefined, undefined, undefined],
+                       exec_state);
 };
 
 try {
@@ -1092,7 +1058,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({e:'Exception'}, 0, exec_state);
-  CheckScopeChainNames(["catch_block_7", "catch_block_7", undefined, undefined], exec_state)
+  CheckScopeChainNames(["catch_block_7", "catch_block_7",
+                        undefined, undefined], exec_state);
 };
 catch_block_7();
 EndTest();
@@ -1106,7 +1073,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 1, exec_state);
-  CheckScopeChainNames(["m", undefined, undefined], exec_state)
+  CheckScopeChainNames(["m", undefined, undefined], exec_state);
 };
 
 (function() {
@@ -1133,7 +1100,8 @@ var code1 = "function f() {        \n" +
             "f();                  \n";
 
 listener_delegate = function(exec_state) {
-  CheckScopeChainPositions([{start: 58, end: 118}, {start: 10, end: 162}, {}, {}], exec_state);
+  CheckScopeChainPositions(
+      [{start: 58, end: 118}, {start: 10, end: 162}, {}, {}], exec_state);
 }
 eval(code1);
 EndTest();
@@ -1162,7 +1130,10 @@ var code2 = "function catch_block() {   \n" +
             "catch_block();             \n";
 
 listener_delegate = function(exec_state) {
-  CheckScopeChainPositions([{start: 131, end: 173}, {start: 94, end: 199}, {start: 20, end: 225}, {}, {}], exec_state);
+  CheckScopeChainPositions([{start: 131, end: 173},
+                            {start: 94, end: 199},
+                            {start: 20, end: 225},
+                            {}, {}], exec_state);
 }
 eval(code2);
 EndTest();
@@ -1180,7 +1151,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 52, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
+  CheckScopeChainPositions(
+      [{start: 52, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
 }
 eval(code3);
 EndTest();
@@ -1200,7 +1172,10 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 66, end: 147}, {start: 52, end: 147}, {start: 22, end: 181}, {}, {}], exec_state);
+  CheckScopeChainPositions([{start: 66, end: 147},
+                            {start: 52, end: 147},
+                            {start: 22, end: 181},
+                            {}, {}], exec_state);
 }
 eval(code4);
 EndTest();
@@ -1218,7 +1193,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 55, end: 111}, {start: 27, end: 145}, {}, {}], exec_state);
+  CheckScopeChainPositions(
+      [{start: 55, end: 111}, {start: 27, end: 145}, {}, {}], exec_state);
 }
 eval(code5);
 EndTest();
@@ -1238,7 +1214,10 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 57, end: 147}, {start: 55, end: 147}, {start: 27, end: 181}, {}, {}], exec_state);
+  CheckScopeChainPositions([{start: 57, end: 147},
+                            {start: 55, end: 147},
+                            {start: 27, end: 181},
+                            {}, {}], exec_state);
 }
 eval(code6);
 EndTest();
@@ -1261,7 +1240,8 @@ listener_delegate = function(exec_state) {
 eval(code7);
 EndTest();
 
-BeginTest("Scope positions in non-lexical for each statement with lexical block");
+BeginTest(
+    "Scope positions in non-lexical for each statement with lexical block");
 var code8 = "function for_each_statement() {    \n" +
             "  var i;                           \n" +
             "  for (i of [0]) {                 \n" +
@@ -1276,7 +1256,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 89, end: 183}, {start: 27, end: 217}, {}, {}], exec_state);
+  CheckScopeChainPositions(
+      [{start: 89, end: 183}, {start: 27, end: 217}, {}, {}], exec_state);
 }
 eval(code8);
 EndTest();

@@ -141,6 +141,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable GrowFastDoubleElements(Isolate* isolate);
   static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
 
+  static Callable NewUnmappedArgumentsElements(Isolate* isolate);
+  static Callable NewRestParameterElements(Isolate* isolate);
+
   static Callable AllocateHeapNumber(Isolate* isolate);
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
   static Callable Allocate##Type(Isolate* isolate);
@@ -166,6 +169,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable InterpreterPushArgsAndConstructArray(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
+
+  static Callable ArrayPush(Isolate* isolate);
+  static Callable FunctionPrototypeBind(Isolate* isolate);
 };
 
 }  // namespace internal

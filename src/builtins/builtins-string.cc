@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
-
+#include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/regexp/regexp-utils.h"
 
 namespace v8 {
@@ -473,27 +473,26 @@ void Builtins::Generate_StringFromCharCode(
     // codes. Stop if any of the conversions generates a code that doesn't fit
     // in 8 bits.
     CodeStubAssembler::VariableList vars({&max_index}, assembler.zone());
-    arguments.ForEach(vars, [context, &two_byte, &max_index, &code16,
-                             one_byte_result](CodeStubAssembler* assembler,
-                                              Node* arg) {
-      Node* code32 = assembler->TruncateTaggedToWord32(context, arg);
-      code16 = assembler->Word32And(
-          code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
+    arguments.ForEach(vars, [&assembler, context, &two_byte, &max_index,
+                             &code16, one_byte_result](Node* arg) {
+      Node* code32 = assembler.TruncateTaggedToWord32(context, arg);
+      code16 = assembler.Word32And(
+          code32, assembler.Int32Constant(String::kMaxUtf16CodeUnit));
 
-      assembler->GotoIf(
-          assembler->Int32GreaterThan(
-              code16, assembler->Int32Constant(String::kMaxOneByteCharCode)),
+      assembler.GotoIf(
+          assembler.Int32GreaterThan(
+              code16, assembler.Int32Constant(String::kMaxOneByteCharCode)),
           &two_byte);
 
       // The {code16} fits into the SeqOneByteString {one_byte_result}.
-      Node* offset = assembler->ElementOffsetFromIndex(
+      Node* offset = assembler.ElementOffsetFromIndex(
           max_index.value(), UINT8_ELEMENTS,
           CodeStubAssembler::INTPTR_PARAMETERS,
           SeqOneByteString::kHeaderSize - kHeapObjectTag);
-      assembler->StoreNoWriteBarrier(MachineRepresentation::kWord8,
-                                     one_byte_result, offset, code16);
-      max_index.Bind(assembler->IntPtrAdd(max_index.value(),
-                                          assembler->IntPtrConstant(1)));
+      assembler.StoreNoWriteBarrier(MachineRepresentation::kWord8,
+                                    one_byte_result, offset, code16);
+      max_index.Bind(
+          assembler.IntPtrAdd(max_index.value(), assembler.IntPtrConstant(1)));
     });
     arguments.PopAndReturn(one_byte_result);
 
@@ -527,20 +526,19 @@ void Builtins::Generate_StringFromCharCode(
     // using a 16-bit representation.
     arguments.ForEach(
         vars,
-        [context, two_byte_result, &max_index](CodeStubAssembler* assembler,
-                                               Node* arg) {
-          Node* code32 = assembler->TruncateTaggedToWord32(context, arg);
-          Node* code16 = assembler->Word32And(
-              code32, assembler->Int32Constant(String::kMaxUtf16CodeUnit));
+        [&assembler, context, two_byte_result, &max_index](Node* arg) {
+          Node* code32 = assembler.TruncateTaggedToWord32(context, arg);
+          Node* code16 = assembler.Word32And(
+              code32, assembler.Int32Constant(String::kMaxUtf16CodeUnit));
 
-          Node* offset = assembler->ElementOffsetFromIndex(
+          Node* offset = assembler.ElementOffsetFromIndex(
               max_index.value(), UINT16_ELEMENTS,
               CodeStubAssembler::INTPTR_PARAMETERS,
               SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-          assembler->StoreNoWriteBarrier(MachineRepresentation::kWord16,
-                                         two_byte_result, offset, code16);
-          max_index.Bind(assembler->IntPtrAdd(max_index.value(),
-                                              assembler->IntPtrConstant(1)));
+          assembler.StoreNoWriteBarrier(MachineRepresentation::kWord16,
+                                        two_byte_result, offset, code16);
+          max_index.Bind(assembler.IntPtrAdd(max_index.value(),
+                                             assembler.IntPtrConstant(1)));
         },
         max_index.value());
 
@@ -973,7 +971,9 @@ void Builtins::Generate_StringPrototypeSubstr(
     {
       Node* const length_plus_start = a.SmiAdd(string_length, start_int);
       var_start.Bind(a.Select(a.SmiLessThan(start_int, zero),
-                              a.SmiMax(length_plus_start, zero), start_int));
+                              [&] { return a.SmiMax(length_plus_start, zero); },
+                              [&] { return start_int; },
+                              MachineRepresentation::kTagged));
       a.Goto(&handle_length);
     }
 
@@ -985,8 +985,8 @@ void Builtins::Generate_StringPrototypeSubstr(
       // returning an empty string.
       Node* const float_zero = a.Float64Constant(0.);
       Node* const start_float = a.LoadHeapNumberValue(start_int);
-      var_start.Bind(a.Select(a.Float64LessThan(start_float, float_zero), zero,
-                              string_length));
+      var_start.Bind(a.SelectTaggedConstant(
+          a.Float64LessThan(start_float, float_zero), zero, string_length));
       a.Goto(&handle_length);
     }
   }
@@ -1031,8 +1031,7 @@ void Builtins::Generate_StringPrototypeSubstr(
       // two cases according to the spec: if it is negative, "" is returned; if
       // it is positive, then length is set to {string_length} - {start}.
 
-      CSA_ASSERT(&a, a.WordEqual(a.LoadMap(var_length.value()),
-                                 a.HeapNumberMapConstant()));
+      CSA_ASSERT(&a, a.IsHeapNumberMap(a.LoadMap(var_length.value())));
 
       Label if_isnegative(&a), if_ispositive(&a);
       Node* const float_zero = a.Float64Constant(0.);
@@ -1093,7 +1092,8 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
     a->Bind(&if_isoutofbounds);
     {
       Node* const zero = a->SmiConstant(Smi::kZero);
-      var_result.Bind(a->Select(a->SmiLessThan(value_int, zero), zero, limit));
+      var_result.Bind(a->SelectTaggedConstant(a->SmiLessThan(value_int, zero),
+                                              zero, limit));
       a->Goto(&out);
     }
   }
@@ -1101,14 +1101,13 @@ compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
   a->Bind(&if_isnotsmi);
   {
     // {value} is a heap number - in this case, it is definitely out of bounds.
-    CSA_ASSERT(a,
-               a->WordEqual(a->LoadMap(value_int), a->HeapNumberMapConstant()));
+    CSA_ASSERT(a, a->IsHeapNumberMap(a->LoadMap(value_int)));
 
     Node* const float_zero = a->Float64Constant(0.);
     Node* const smi_zero = a->SmiConstant(Smi::kZero);
     Node* const value_float = a->LoadHeapNumberValue(value_int);
-    var_result.Bind(a->Select(a->Float64LessThan(value_float, float_zero),
-                              smi_zero, limit));
+    var_result.Bind(a->SelectTaggedConstant(
+        a->Float64LessThan(value_float, float_zero), smi_zero, limit));
     a->Goto(&out);
   }
 
@@ -1283,10 +1282,8 @@ void Builtins::Generate_StringPrototypeIterator(
                                         "String.prototype[Symbol.iterator]");
 
   Node* native_context = assembler.LoadNativeContext(context);
-  Node* map = assembler.LoadFixedArrayElement(
-      native_context,
-      assembler.IntPtrConstant(Context::STRING_ITERATOR_MAP_INDEX), 0,
-      CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* map = assembler.LoadContextElement(native_context,
+                                           Context::STRING_ITERATOR_MAP_INDEX);
   Node* iterator = assembler.Allocate(JSStringIterator::kSize);
   assembler.StoreMapNoWriteBarrier(iterator, map);
   assembler.StoreObjectFieldRoot(iterator, JSValue::kPropertiesOffset,
@@ -1442,10 +1439,8 @@ void Builtins::Generate_StringIteratorPrototypeNext(
   assembler.Bind(&return_result);
   {
     Node* native_context = assembler.LoadNativeContext(context);
-    Node* map = assembler.LoadFixedArrayElement(
-        native_context,
-        assembler.IntPtrConstant(Context::ITERATOR_RESULT_MAP_INDEX), 0,
-        CodeStubAssembler::INTPTR_PARAMETERS);
+    Node* map = assembler.LoadContextElement(
+        native_context, Context::ITERATOR_RESULT_MAP_INDEX);
     Node* result = assembler.Allocate(JSIteratorResult::kSize);
     assembler.StoreMapNoWriteBarrier(result, map);
     assembler.StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,

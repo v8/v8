@@ -163,6 +163,8 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfNullConstant;
     case Bytecode::kJumpIfUndefined:
       return Bytecode::kJumpIfUndefinedConstant;
+    case Bytecode::kJumpIfJSReceiver:
+      return Bytecode::kJumpIfJSReceiverConstant;
     default:
       UNREACHABLE();
       return Bytecode::kIllegal;

@@ -18,7 +18,12 @@ typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
-typedef std::vector<std::vector<std::pair<int, int>>> AsmJsOffsets;
+struct AsmJsOffsetEntry {
+  int byte_offset;
+  int source_position_call;
+  int source_position_number_conversion;
+};
+typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
@@ -37,7 +42,8 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
 // Decodes the bytes of a WASM function between
 // {function_start} and {function_end}.
 V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
-                                                    Zone* zone, ModuleEnv* env,
+                                                    Zone* zone,
+                                                    ModuleBytesEnv* env,
                                                     const byte* function_start,
                                                     const byte* function_end);
 

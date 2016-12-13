@@ -49,7 +49,7 @@ function getStack(error) {
     map(line => line.replace(/^\s*at (@?[a-zA-Z0-9_\.\[\]]+)(.*)/, "$1"));
 
   // remove `Promise.then()` invocation by assertEqualsAsync()
-  if (stack[2] === "assertEqualsAsync") return [];
+  if (stack[1] === "assertEqualsAsync") return [];
 
   return stack.reverse();
 }
@@ -96,6 +96,6 @@ assertEqualsAsync(
     }),
     "should call Promise[@@Species] after non-internal Then");
 assertEquals([
-  "@@Species: [@testThenOnReturnedPromise > Promise.then > FakePromise]",
+  "@@Species: [@testThenOnReturnedPromise > FakePromise]",
   "Then: foo"
 ], log);

@@ -18,7 +18,6 @@ assertTrue(Reflect.preventExtensions(foo));
 assertThrows(() => Reflect.apply(foo, {}, []));
 assertThrows(() => Reflect.construct(foo, {}, []));
 assertSame(null, Reflect.getPrototypeOf(foo));
-// TODO(neis): The next one should be False.
 assertTrue(Reflect.setPrototypeOf(foo, null));
 assertFalse(Reflect.setPrototypeOf(foo, {}));
 assertSame(null, Reflect.getPrototypeOf(foo));

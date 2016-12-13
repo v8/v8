@@ -156,10 +156,6 @@ class TypeFeedbackMetadata : public FixedArray {
   static const int kSlotsCountIndex = 0;
   static const int kReservedIndexCount = 1;
 
-  static const int kNameTableEntrySize = 2;
-  static const int kNameTableSlotIndex = 0;
-  static const int kNameTableNameIndex = 1;
-
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackVectorSlotKind kind);
 
@@ -264,9 +260,6 @@ class TypeFeedbackVector : public FixedArray {
     ClearSlotsImpl(shared, false);
   }
 
-  static void ClearAllKeyedStoreICs(Isolate* isolate);
-  void ClearKeyedStoreICs(SharedFunctionInfo* shared);
-
   // The object that indicates an uninitialized cache.
   static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
 
@@ -286,10 +279,6 @@ class TypeFeedbackVector : public FixedArray {
   static const int kDummyKeyedStoreICSlot = 6;
 
   static Handle<TypeFeedbackVector> DummyVector(Isolate* isolate);
-  static FeedbackVectorSlot DummySlot(int dummyIndex) {
-    DCHECK(dummyIndex >= 0 && dummyIndex <= kDummyKeyedStoreICSlot);
-    return FeedbackVectorSlot(dummyIndex);
-  }
 
  private:
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
@@ -606,7 +595,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
                             List<Handle<Object>>* handlers);
   void ConfigurePolymorphic(MapHandleList* maps,
                             MapHandleList* transitioned_maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
   void ConfigureMegamorphicKeyed(IcCheckType property_type);
 
   KeyedAccessStoreMode GetKeyedAccessStoreMode() const;

@@ -33,7 +33,7 @@ class Vector {
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(int from, int to) {
+  Vector<T> SubVector(int from, int to) const {
     DCHECK(0 <= from);
     SLOW_DCHECK(from < to);
     SLOW_DCHECK(static_cast<unsigned>(to) <= static_cast<unsigned>(length_));

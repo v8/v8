@@ -31,13 +31,13 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#define CHECK_PROTOTYPE_OPCODE(flag)                   \
-  if (module_ && module_->origin == kAsmJsOrigin) {    \
-    error("Opcode not supported for asmjs modules");   \
-  }                                                    \
-  if (!FLAG_##flag) {                                  \
-    error("Invalid opcode (enable with --" #flag ")"); \
-    break;                                             \
+#define CHECK_PROTOTYPE_OPCODE(flag)                        \
+  if (module_ && module_->module->origin == kAsmJsOrigin) { \
+    error("Opcode not supported for asmjs modules");        \
+  }                                                         \
+  if (!FLAG_##flag) {                                       \
+    error("Invalid opcode (enable with --" #flag ")");      \
+    break;                                                  \
   }
 // TODO(titzer): this is only for intermediate migration.
 #define IMPLICIT_FUNCTION_END 1
@@ -88,7 +88,7 @@ struct MergeValues {
   } vals;  // Either multiple values or a single value.
 
   Value& first() {
-    DCHECK_GT(arity, 0u);
+    DCHECK_GT(arity, 0);
     return arity == 1 ? vals.first : vals.array[0];
   }
 };
@@ -577,7 +577,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   // Decodes the locals declarations, if any, populating {local_type_vec_}.
   void DecodeLocalDecls() {
-    DCHECK_EQ(0u, local_type_vec_.size());
+    DCHECK_EQ(0, local_type_vec_.size());
     // Initialize {local_type_vec} from signature.
     if (sig_) {
       local_type_vec_.reserve(sig_->parameter_count());
@@ -1118,7 +1118,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           case kExprGrowMemory: {
             MemoryIndexOperand operand(this, pc_);
-            if (module_->origin != kAsmJsOrigin) {
+            if (module_->module->origin != kAsmJsOrigin) {
               Value val = Pop(0, kAstI32);
               Push(kAstI32, BUILD(GrowMemory, val.node));
             } else {
@@ -1168,7 +1168,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kAtomicPrefix: {
-            if (!module_ || module_->origin != kAsmJsOrigin) {
+            if (!module_ || module_->module->origin != kAsmJsOrigin) {
               error("Atomics are allowed only in AsmJs modules");
               break;
             }
@@ -1187,7 +1187,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           default: {
             // Deal with special asmjs opcodes.
-            if (module_ && module_->origin == kAsmJsOrigin) {
+            if (module_ && module_->module->origin == kAsmJsOrigin) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);
@@ -1331,9 +1331,22 @@ class WasmFullDecoder : public WasmDecoder {
   unsigned ExtractLane(WasmOpcode opcode, LocalType type) {
     LaneOperand operand(this, pc_);
     if (Validate(pc_, operand)) {
-      TFNode* input = Pop(0, LocalType::kSimd128).node;
-      TFNode* node = BUILD(SimdExtractLane, opcode, operand.lane, input);
+      compiler::NodeVector inputs(1, zone_);
+      inputs[0] = Pop(0, LocalType::kSimd128).node;
+      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
       Push(type, node);
+    }
+    return operand.length;
+  }
+
+  unsigned ReplaceLane(WasmOpcode opcode, LocalType type) {
+    LaneOperand operand(this, pc_);
+    if (Validate(pc_, operand)) {
+      compiler::NodeVector inputs(2, zone_);
+      inputs[1] = Pop(1, type).node;
+      inputs[0] = Pop(0, LocalType::kSimd128).node;
+      TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
+      Push(LocalType::kSimd128, node);
     }
     return operand.length;
   }
@@ -1347,6 +1360,14 @@ class WasmFullDecoder : public WasmDecoder {
       }
       case kExprF32x4ExtractLane: {
         len = ExtractLane(opcode, LocalType::kFloat32);
+        break;
+      }
+      case kExprI32x4ReplaceLane: {
+        len = ReplaceLane(opcode, LocalType::kWord32);
+        break;
+      }
+      case kExprF32x4ReplaceLane: {
+        len = ReplaceLane(opcode, LocalType::kFloat32);
         break;
       }
       default: {
@@ -1443,7 +1464,7 @@ class WasmFullDecoder : public WasmDecoder {
       Value val = {pc_, nullptr, kAstStmt};
       return val;
     } else {
-      DCHECK_LE(stack_depth, static_cast<int>(stack_.size()));
+      DCHECK_LE(stack_depth, stack_.size());
       Value val = Pop();
       stack_.resize(stack_depth);
       return val;

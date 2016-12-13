@@ -87,6 +87,7 @@ class PlatformInterfaceDescriptor;
   V(MathPowTagged)                        \
   V(MathPowInteger)                       \
   V(GrowArrayElements)                    \
+  V(NewArgumentsElements)                 \
   V(InterpreterDispatch)                  \
   V(InterpreterPushArgsAndCall)           \
   V(InterpreterPushArgsAndConstruct)      \
@@ -415,6 +416,7 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
 
 class FastNewClosureDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS(kSharedFunctionInfo)
   DECLARE_DESCRIPTOR(FastNewClosureDescriptor, CallInterfaceDescriptor)
 };
 
@@ -618,6 +620,7 @@ class BuiltinDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
   static const Register ArgumentsCountRegister();
   static const Register NewTargetRegister();
+  static const Register TargetRegister();
 };
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
@@ -776,6 +779,13 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 
   static const Register ObjectRegister();
   static const Register KeyRegister();
+};
+
+class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kFormalParameterCount)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(NewArgumentsElementsDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor

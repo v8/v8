@@ -114,6 +114,7 @@ InspectorTest.completeTestAfterPendingTimeouts = function()
 }
 
 InspectorTest.addScript = (string) => compileAndRunWithOrigin(string, "", 0, 0);
+InspectorTest.addScriptWithUrl = (string, url) => compileAndRunWithOrigin(string, url, 0, 0);
 
 InspectorTest.startDumpingProtocolMessages = function()
 {

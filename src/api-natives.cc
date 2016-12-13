@@ -395,6 +395,28 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   return result;
 }
 
+namespace {
+MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
+                                         Object* function_template) {
+  // Enter a new scope.  Recursion could otherwise create a lot of handles.
+  HandleScope scope(isolate);
+  Handle<JSFunction> parent_instance;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, parent_instance,
+      InstantiateFunction(
+          isolate,
+          handle(FunctionTemplateInfo::cast(function_template), isolate)),
+      JSFunction);
+  Handle<Object> instance_prototype;
+  // TODO(cbruni): decide what to do here.
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instance_prototype,
+      JSObject::GetProperty(parent_instance,
+                            isolate->factory()->prototype_string()),
+      JSFunction);
+  return scope.CloseAndEscape(instance_prototype);
+}
+}  // namespace
 
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
@@ -406,11 +428,18 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
       return Handle<JSFunction>::cast(result);
     }
   }
-  Handle<JSObject> prototype;
+  Handle<Object> prototype;
   if (!data->remove_prototype()) {
     Object* prototype_templ = data->prototype_template();
     if (prototype_templ->IsUndefined(isolate)) {
-      prototype = isolate->factory()->NewJSObject(isolate->object_function());
+      Object* protoype_provider_templ = data->prototype_provider_template();
+      if (protoype_provider_templ->IsUndefined(isolate)) {
+        prototype = isolate->factory()->NewJSObject(isolate->object_function());
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, prototype,
+            GetInstancePrototype(isolate, protoype_provider_templ), JSFunction);
+      }
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype,
@@ -422,22 +451,12 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
     }
     Object* parent = data->parent_template();
     if (!parent->IsUndefined(isolate)) {
-      // Enter a new scope.  Recursion could otherwise create a lot of handles.
-      HandleScope scope(isolate);
-      Handle<JSFunction> parent_instance;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, parent_instance,
-          InstantiateFunction(
-              isolate, handle(FunctionTemplateInfo::cast(parent), isolate)),
-          JSFunction);
-      // TODO(dcarney): decide what to do here.
       Handle<Object> parent_prototype;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, parent_prototype,
-          JSObject::GetProperty(parent_instance,
-                                isolate->factory()->prototype_string()),
-          JSFunction);
-      JSObject::ForceSetPrototype(prototype, parent_prototype);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
+                                 GetInstancePrototype(isolate, parent),
+                                 JSFunction);
+      JSObject::ForceSetPrototype(Handle<JSObject>::cast(prototype),
+                                  parent_prototype);
     }
   }
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
@@ -606,7 +625,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (prototype->IsTheHole(isolate)) {
     prototype = isolate->factory()->NewFunctionPrototype(result);
-  } else {
+  } else if (obj->prototype_provider_template()->IsUndefined(isolate)) {
     JSObject::AddProperty(Handle<JSObject>::cast(prototype),
                           isolate->factory()->constructor_string(), result,
                           DONT_ENUM);
@@ -656,6 +675,12 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
+    // We only allow callable undetectable receivers here, since this whole
+    // undetectable business is only to support document.all, which is both
+    // undetectable and callable. If we ever see the need to have an object
+    // that is undetectable but not callable, we need to update the types.h
+    // to allow encoding this.
+    CHECK(!obj->instance_call_handler()->IsUndefined(isolate));
     map->set_is_undetectable();
   }
 

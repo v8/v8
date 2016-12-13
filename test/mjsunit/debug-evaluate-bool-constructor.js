@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --noanalyze-environment-liveness
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
@@ -35,31 +35,16 @@ var exception = false;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      // Get the debug command processor.
-      var dcp = exec_state.debugCommandProcessor();
-
-      var request = {
-         seq: 0,
-         type: 'request',
-         command: 'evaluate',
-         arguments: {
-           expression: 'a',
-           frame: 0
-         }
-      };
-      request = JSON.stringify(request);
-
-      var resp = dcp.processDebugJSONRequest(request);
-      var response = JSON.parse(resp);
-      assertTrue(response.success, 'Command failed: ' + resp);
-      assertEquals('object', response.body.type);
-      assertEquals('Object', response.body.className);
+      var a = exec_state.frame(0).evaluate("a");
+      assertEquals('object', a.type());
+      assertEquals('Object', a.className());
 
       // Indicate that all was processed.
       listenerComplete = true;
     }
   } catch (e) {
-   exception = e
+    print(e);
+    exception = e
   };
 };
 

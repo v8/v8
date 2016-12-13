@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 
   // TODO(turbofan): Deoptimization is not supported yet.
   if (function->code()->is_turbofanned() &&
-      function->shared()->asm_function() && !FLAG_turbo_asm_deoptimization) {
+      function->shared()->asm_function()) {
     return isolate->heap()->undefined_value();
   }
 
@@ -74,7 +74,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   // TODO(turbofan): Deoptimization is not supported yet.
   if (function->code()->is_turbofanned() &&
-      function->shared()->asm_function() && !FLAG_turbo_asm_deoptimization) {
+      function->shared()->asm_function()) {
     return isolate->heap()->undefined_value();
   }
 
@@ -299,6 +299,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
   return Smi::FromInt(function->shared()->opt_count());
 }
 
+static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args.This());
+}
 
 RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   HandleScope scope(isolate);
@@ -307,6 +310,7 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
 
   Local<v8::ObjectTemplate> desc = v8::ObjectTemplate::New(v8_isolate);
   desc->MarkAsUndetectable();
+  desc->SetCallAsFunctionHandler(ReturnThis);
   Local<v8::Object> obj;
   if (!desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocal(&obj)) {
     return nullptr;
@@ -673,37 +677,22 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
   return isolate->heap()->ToBoolean(isolate->heap()->InNewSpace(obj));
 }
 
-static bool IsAsmWasmCode(Isolate* isolate, Handle<JSFunction> function) {
+RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (!function->shared()->HasAsmWasmData()) {
     // Doesn't have wasm data.
-    return false;
+    return isolate->heap()->false_value();
   }
   if (function->shared()->code() !=
       isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
     // Hasn't been compiled yet.
-    return false;
+    return isolate->heap()->false_value();
   }
-  return true;
+  return isolate->heap()->true_value();
 }
 
-RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  // TODO(mstarzinger): --always-opt should still allow asm.js->wasm,
-  // but currently does not. For now, pretend asm.js->wasm is on for
-  // this case. Be more accurate once this is corrected.
-  return isolate->heap()->ToBoolean(
-      ((FLAG_always_opt || FLAG_prepare_always_opt) && FLAG_validate_asm) ||
-      IsAsmWasmCode(isolate, function));
-}
-
-RUNTIME_FUNCTION(Runtime_IsNotAsmWasmCode) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return isolate->heap()->ToBoolean(!IsAsmWasmCode(isolate, function));
-}
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \

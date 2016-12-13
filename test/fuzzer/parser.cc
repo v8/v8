@@ -9,7 +9,7 @@
 #include "include/v8.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
 #include "test/fuzzer/fuzzer-support.h"
 
@@ -36,8 +36,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       factory->NewScript(source.ToHandleChecked());
   v8::internal::Zone zone(i_isolate->allocator(), ZONE_NAME);
   v8::internal::ParseInfo info(&zone, script);
-  v8::internal::Parser parser(&info);
-  parser.Parse(&info);
+  v8::internal::parsing::ParseProgram(&info);
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);
   return 0;

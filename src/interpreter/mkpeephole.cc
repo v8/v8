@@ -192,6 +192,19 @@ PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
     }
   }
 
+  // Fuse LdaNull/LdaUndefined followed by a equality comparison with test
+  // undetectable. Testing undetectable is a simple check on the map which is
+  // more efficient than the full comparison operation.
+  // Note: StrictEquals cannot use this, they need to compare it with the
+  // Null/undefined map.
+  if (last == Bytecode::kLdaNull || last == Bytecode::kLdaUndefined) {
+    if (current == Bytecode::kTestEqual) {
+      return {PeepholeAction::
+                  kTransformEqualityWithNullOrUndefinedToTestUndetectableAction,
+              Bytecode::kIllegal};
+    }
+  }
+
   // If there is no last bytecode to optimize against, store the incoming
   // bytecode or for jumps emit incoming bytecode immediately.
   if (last == Bytecode::kIllegal) {

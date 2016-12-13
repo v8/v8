@@ -117,13 +117,16 @@ namespace compiler {
   V(InternalizedString,  1u << 13)  \
   V(OtherString,         1u << 14)  \
   V(Simd,                1u << 15)  \
+  V(OtherCallable,       1u << 16)  \
   V(OtherObject,         1u << 17)  \
-  V(OtherUndetectable,   1u << 16)  \
-  V(Proxy,               1u << 18)  \
-  V(Function,            1u << 19)  \
-  V(Hole,                1u << 20)  \
-  V(OtherInternal,       1u << 21)  \
-  V(ExternalPointer,     1u << 22)  \
+  V(OtherUndetectable,   1u << 18)  \
+  V(CallableProxy,       1u << 19)  \
+  V(OtherProxy,          1u << 20)  \
+  V(Function,            1u << 21)  \
+  V(BoundFunction,       1u << 22)  \
+  V(Hole,                1u << 23)  \
+  V(OtherInternal,       1u << 24)  \
+  V(ExternalPointer,     1u << 25)  \
   \
   V(Signed31,                   kUnsigned30 | kNegative31) \
   V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
@@ -155,9 +158,14 @@ namespace compiler {
   V(NumberOrUndefined,          kNumber | kUndefined) \
   V(PlainPrimitive,             kNumberOrString | kBoolean | kNullOrUndefined) \
   V(Primitive,                  kSymbol | kSimd | kPlainPrimitive) \
-  V(DetectableReceiver,         kFunction | kOtherObject | kProxy) \
+  V(Proxy,                      kCallableProxy | kOtherProxy) \
+  V(Callable,                   kFunction | kBoundFunction | kOtherCallable | \
+                                kCallableProxy | kOtherUndetectable) \
+  V(DetectableObject,           kFunction | kBoundFunction | kOtherCallable | \
+                                kOtherObject) \
+  V(DetectableReceiver,         kDetectableObject | kProxy) \
   V(DetectableReceiverOrNull,   kDetectableReceiver | kNull) \
-  V(Object,                     kFunction | kOtherObject | kOtherUndetectable) \
+  V(Object,                     kDetectableObject | kOtherUndetectable) \
   V(Receiver,                   kObject | kProxy) \
   V(ReceiverOrUndefined,        kReceiver | kUndefined) \
   V(ReceiverOrNullOrUndefined,  kReceiver | kNull | kUndefined) \

@@ -203,8 +203,14 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
       source_shared->opt_count_and_bailout_reason());
   target_shared->set_native(was_native);
   target_shared->set_profiler_ticks(source_shared->profiler_ticks());
-  SharedFunctionInfo::SetScript(
-      target_shared, Handle<Object>(source_shared->script(), isolate));
+  target_shared->set_function_literal_id(source_shared->function_literal_id());
+
+  Handle<Object> source_script(source_shared->script(), isolate);
+  if (source_script->IsScript()) {
+    SharedFunctionInfo::SetScript(source_shared,
+                                  isolate->factory()->undefined_value());
+  }
+  SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());

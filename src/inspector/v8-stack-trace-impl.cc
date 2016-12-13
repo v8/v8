@@ -42,7 +42,7 @@ V8StackTraceImpl::Frame toFrame(v8::Local<v8::StackFrame> frame,
   // sending the stack trace over wire.
   if (wasmTranslation)
     wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-        &scriptId, &sourceLineNumber, &sourceColumn, contextGroupId);
+        &scriptId, &sourceLineNumber, &sourceColumn);
   return V8StackTraceImpl::Frame(functionName, scriptId, sourceName,
                                  sourceLineNumber + 1, sourceColumn + 1);
 }

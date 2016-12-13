@@ -23,6 +23,14 @@ FieldAccess AccessBuilder::ForExternalDoubleValue() {
 }
 
 // static
+FieldAccess AccessBuilder::ForExternalUint8Value() {
+  FieldAccess access = {kUntaggedBase,        0,
+                        MaybeHandle<Name>(),  TypeCache::Get().kUint8,
+                        MachineType::Uint8(), kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForMap() {
   FieldAccess access = {
       kTaggedBase,           HeapObject::kMapOffset,       MaybeHandle<Name>(),

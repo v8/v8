@@ -189,6 +189,12 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
   }
 }
 
+std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
+  return BytecodeDecoder::Decode(
+      os, bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_,
+      bytecode_array()->parameter_count());
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

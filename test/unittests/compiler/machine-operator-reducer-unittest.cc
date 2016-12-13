@@ -1183,12 +1183,16 @@ TEST_F(MachineOperatorReducerTest, Int32ModWithConstant) {
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),
-        IsSelect(MachineRepresentation::kWord32,
-                 IsInt32LessThan(p0, IsInt32Constant(0)),
-                 IsInt32Sub(IsInt32Constant(0),
-                            IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
-                                        IsInt32Constant(mask))),
-                 IsWord32And(p0, IsInt32Constant(mask))));
+        IsPhi(
+            MachineRepresentation::kWord32,
+            IsInt32Sub(IsInt32Constant(0),
+                       IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
+                                   IsInt32Constant(mask))),
+            IsWord32And(p0, IsInt32Constant(mask)),
+            IsMerge(IsIfTrue(IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
+                                      graph()->start())),
+                    IsIfFalse(IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
+                                       graph()->start())))));
   }
   TRACED_FORRANGE(int32_t, shift, 1, 31) {
     Reduction const r = Reduce(graph()->NewNode(
@@ -1199,12 +1203,16 @@ TEST_F(MachineOperatorReducerTest, Int32ModWithConstant) {
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),
-        IsSelect(MachineRepresentation::kWord32,
-                 IsInt32LessThan(p0, IsInt32Constant(0)),
-                 IsInt32Sub(IsInt32Constant(0),
-                            IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
-                                        IsInt32Constant(mask))),
-                 IsWord32And(p0, IsInt32Constant(mask))));
+        IsPhi(
+            MachineRepresentation::kWord32,
+            IsInt32Sub(IsInt32Constant(0),
+                       IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
+                                   IsInt32Constant(mask))),
+            IsWord32And(p0, IsInt32Constant(mask)),
+            IsMerge(IsIfTrue(IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
+                                      graph()->start())),
+                    IsIfFalse(IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
+                                       graph()->start())))));
   }
   TRACED_FOREACH(int32_t, divisor, kInt32Values) {
     if (divisor == 0 || base::bits::IsPowerOfTwo32(Abs(divisor))) continue;

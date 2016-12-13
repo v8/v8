@@ -243,7 +243,6 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // Only rewrite finally if it could contain 'break' or 'continue'. Always
   // rewrite try.
   if (breakable_) {
-    bool set_after = is_set_;
     // Only set result before a 'break' or 'continue'.
     is_set_ = true;
     Visit(node->finally_block());
@@ -265,7 +264,6 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
     node->finally_block()->statements()->Add(
         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
-    is_set_ = set_after;
   }
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());

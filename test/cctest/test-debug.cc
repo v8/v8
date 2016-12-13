@@ -312,8 +312,8 @@ static void ChangeBreakOnExceptionFromJS(v8::Isolate* isolate, bool caught,
 
 // Change break on exception using the native API call.
 static void ChangeBreakOnExceptionFromAPI(
-    v8::Isolate* isolate, v8::DebugInterface::ExceptionBreakState state) {
-  v8::DebugInterface::ChangeBreakOnException(isolate, state);
+    v8::Isolate* isolate, v8::debug::ExceptionBreakState state) {
+  v8::debug::ChangeBreakOnException(isolate, state);
 }
 
 // Prepare to step to next break location.
@@ -1600,20 +1600,6 @@ TEST(EnableDisableScriptBreakPoint) {
   f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  // Reload the script and get f again checking that the disabling survives.
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()->Get(context, v8_str(isolate, "f")).ToLocalChecked());
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
-
-  EnableScriptBreakPointFromJS(isolate, sbp);
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(3, break_point_hit_count);
-
   v8::Debug::SetDebugEventListener(isolate, nullptr);
   CheckDebuggerUnloaded(isolate);
 }
@@ -1671,100 +1657,6 @@ TEST(ConditionalScriptBreakPoint) {
   }
   CHECK_EQ(5, break_point_hit_count);
 
-  // Reload the script and get f again checking that the condition survives.
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  break_point_hit_count = 0;
-  for (int i = 0; i < 10; i++) {
-    f->Call(env.context(), env->Global(), 0, NULL).ToLocalChecked();
-  }
-  CHECK_EQ(5, break_point_hit_count);
-
-  v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
-}
-
-
-// Test that script break points survive when a script is reloaded.
-TEST(ScriptBreakPointReload) {
-  break_point_hit_count = 0;
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-
-  v8::Debug::SetDebugEventListener(env->GetIsolate(),
-                                   DebugEventBreakPointHitCount);
-
-  v8::Local<v8::Context> context = env.context();
-  v8::Local<v8::Function> f;
-  v8::Local<v8::String> script = v8_str(env->GetIsolate(),
-                                        "function f() {\n"
-                                        "  function h() {\n"
-                                        "    a = 0;  // line 2\n"
-                                        "  }\n"
-                                        "  b = 1;  // line 4\n"
-                                        "  return h();\n"
-                                        "}");
-
-  v8::ScriptOrigin origin_1 = v8::ScriptOrigin(v8_str(env->GetIsolate(), "1"));
-  v8::ScriptOrigin origin_2 = v8::ScriptOrigin(v8_str(env->GetIsolate(), "2"));
-
-  // Set a script break point before the script is loaded.
-  SetScriptBreakPointByNameFromJS(env->GetIsolate(), "1", 2, 0);
-
-  // Compile the script and get the function.
-  v8::Script::Compile(context, script, &origin_1)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  // Call f and check that the script break point is active.
-  break_point_hit_count = 0;
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-
-  // Compile the script again with a different script data and get the
-  // function.
-  v8::Script::Compile(context, script, &origin_2)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  // Call f and check that no break points are set.
-  break_point_hit_count = 0;
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(0, break_point_hit_count);
-
-  // Compile the script again and get the function.
-  v8::Script::Compile(context, script, &origin_1)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  // Call f and check that the script break point is active.
-  break_point_hit_count = 0;
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
 }
@@ -1795,9 +1687,6 @@ TEST(ScriptBreakPointMultiple) {
 
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str(env->GetIsolate(), "test"));
 
-  // Set a script break point before the scripts are loaded.
-  int sbp = SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test", 1, 0);
-
   // Compile the scripts with same script data and get the functions.
   v8::Script::Compile(context, script_f, &origin)
       .ToLocalChecked()
@@ -1815,6 +1704,8 @@ TEST(ScriptBreakPointMultiple) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "g"))
           .ToLocalChecked());
+
+  int sbp = SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test", 1, 0);
 
   // Call f and g and check that the script break point is active.
   break_point_hit_count = 0;
@@ -1871,17 +1762,17 @@ TEST(ScriptBreakPointLineOffset) {
   v8::ScriptOrigin origin(v8_str(env->GetIsolate(), "test.html"),
                           v8::Integer::New(env->GetIsolate(), 7));
 
-  // Set two script break points before the script is loaded.
-  int sbp1 =
-      SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 8, 0);
-  int sbp2 =
-      SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 9, 0);
-
   // Compile the script and get the function.
   v8::Script::Compile(context, script, &origin)
       .ToLocalChecked()
       ->Run(context)
       .ToLocalChecked();
+
+  int sbp1 =
+      SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 8, 0);
+  int sbp2 =
+      SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 9, 0);
+
   f = v8::Local<v8::Function>::Cast(
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "f"))
@@ -1947,7 +1838,13 @@ TEST(ScriptBreakPointLine) {
              "  }\n"
              " a=5;                      // line 12");
 
-  // Set a couple script break point before the script is loaded.
+  // Compile the script and get the function.
+  break_point_hit_count = 0;
+  v8::ScriptOrigin origin(v8_str(env->GetIsolate(), "test.html"),
+                          v8::Integer::New(env->GetIsolate(), 0));
+  v8::Local<v8::Script> compiled =
+      v8::Script::Compile(context, script, &origin).ToLocalChecked();
+
   int sbp1 =
       SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 0, -1);
   int sbp2 =
@@ -1955,14 +1852,8 @@ TEST(ScriptBreakPointLine) {
   int sbp3 =
       SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 5, -1);
 
-  // Compile the script and get the function.
-  break_point_hit_count = 0;
-  v8::ScriptOrigin origin(v8_str(env->GetIsolate(), "test.html"),
-                          v8::Integer::New(env->GetIsolate(), 0));
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
+  compiled->Run(context).ToLocalChecked();
+
   f = v8::Local<v8::Function>::Cast(
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "f"))
@@ -2008,39 +1899,21 @@ TEST(ScriptBreakPointLine) {
   g->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   CHECK_EQ(0, break_point_hit_count);
 
-  // Reload the script which should hit two break points.
-  break_point_hit_count = 0;
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ(0, StrLength(last_function_hit));
-
   // Set a break point in the code after the last function decleration.
   int sbp6 =
       SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 12, -1);
 
-  // Reload the script which should hit three break points.
-  break_point_hit_count = 0;
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  CHECK_EQ(3, break_point_hit_count);
-  CHECK_EQ(0, StrLength(last_function_hit));
-
-  // Clear the last break points, and reload the script which should not hit any
-  // break points.
-  ClearBreakPointFromJS(env->GetIsolate(), sbp1);
-  ClearBreakPointFromJS(env->GetIsolate(), sbp5);
-  ClearBreakPointFromJS(env->GetIsolate(), sbp6);
+  // Reloading the script should not hit any break points.
   break_point_hit_count = 0;
   v8::Script::Compile(context, script, &origin)
       .ToLocalChecked()
       ->Run(context)
       .ToLocalChecked();
   CHECK_EQ(0, break_point_hit_count);
+
+  ClearBreakPointFromJS(env->GetIsolate(), sbp1);
+  ClearBreakPointFromJS(env->GetIsolate(), sbp5);
+  ClearBreakPointFromJS(env->GetIsolate(), sbp6);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2082,17 +1955,9 @@ TEST(ScriptBreakPointLineTopLevel) {
   f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   CHECK_EQ(0, break_point_hit_count);
 
-  // Recompile and run script and check that break point was hit.
+  // Recompile and run script and check that break point was not reapplied.
   break_point_hit_count = 0;
   CompileRunWithOrigin(script, "test.html");
-  CHECK_EQ(1, break_point_hit_count);
-
-  // Call f and check that there are still no break points.
-  break_point_hit_count = 0;
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
   CHECK_EQ(0, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
@@ -2110,20 +1975,18 @@ TEST(ScriptBreakPointTopLevelCrash) {
   v8::Debug::SetDebugEventListener(env->GetIsolate(),
                                    DebugEventBreakPointHitCount);
 
-  v8::Local<v8::String> script_source = v8_str(env->GetIsolate(),
-                                               "function f() {\n"
-                                               "  return 0;\n"
-                                               "}\n"
-                                               "f()");
-
+  CompileRunWithOrigin(
+      "function f() {\n"
+      "  return 0;\n"
+      "}\n",
+      "test.html");
   int sbp1 =
-      SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 3, -1);
-  {
-    v8::HandleScope scope(env->GetIsolate());
-    break_point_hit_count = 0;
-    CompileRunWithOrigin(script_source, "test.html");
-    CHECK_EQ(1, break_point_hit_count);
-  }
+      SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 1, -1);
+  break_point_hit_count = 0;
+
+  CompileRun("f();");
+
+  CHECK_EQ(1, break_point_hit_count);
 
   int sbp2 =
       SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 3, -1);
@@ -3638,15 +3501,16 @@ TEST(PauseInScript) {
   const char* src = "(function (evt) {})";
   const char* script_name = "StepInHandlerTest";
 
-  // Set breakpoint in the script.
-  SetScriptBreakPointByNameFromJS(env->GetIsolate(), script_name, 0, -1);
-  break_point_hit_count = 0;
-
   v8::ScriptOrigin origin(v8_str(env->GetIsolate(), script_name),
                           v8::Integer::New(env->GetIsolate(), 0));
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, v8_str(env->GetIsolate(), src), &origin)
           .ToLocalChecked();
+
+  // Set breakpoint in the script.
+  SetScriptBreakPointByNameFromJS(env->GetIsolate(), script_name, 0, -1);
+  break_point_hit_count = 0;
+
   v8::Local<v8::Value> r = script->Run(context).ToLocalChecked();
 
   CHECK(r->IsFunction());
@@ -3818,7 +3682,7 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::DebugInterface::NoBreakOnException);
+                                v8::debug::NoBreakOnException);
   caught->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   DebugEventCounterCheck(0, 0, 0);
   CHECK(notCaught->Call(context, env->Global(), 0, NULL).IsEmpty());
@@ -3832,7 +3696,7 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::DebugInterface::BreakOnUncaughtException);
+                                v8::debug::BreakOnUncaughtException);
   caught->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   DebugEventCounterCheck(0, 0, 0);
   CHECK(notCaught->Call(context, env->Global(), 0, NULL).IsEmpty());
@@ -3846,7 +3710,7 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::DebugInterface::BreakOnAnyException);
+                                v8::debug::BreakOnAnyException);
   caught->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   DebugEventCounterCheck(1, 0, 0);
   CHECK(notCaught->Call(context, env->Global(), 0, NULL).IsEmpty());

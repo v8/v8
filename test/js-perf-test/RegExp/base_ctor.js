@@ -26,11 +26,12 @@ function CtorWithRegExpPatternAndFlags() {
   new RegExp(/[Cz]/, "guiym");
 }
 
+class SubRegExp extends RegExp {
+  get source() { return "[Cz]"; }
+  get flags() { return "guiym"; }
+}
+
 function CtorWithRegExpSubclassPattern() {
-  class SubRegExp extends RegExp {
-    get source() { return "[Cz]"; }
-    get flags() { return "guiym"; }
-  }
   new RegExp(new SubRegExp(/[Cz]/));
 }
 

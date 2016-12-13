@@ -142,7 +142,6 @@ HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
     }
   }
   DCHECK(info()->shared_info()->has_deoptimization_support());
-  DCHECK(!info()->shared_info()->never_compiled());
 
   // Check the whitelist for Crankshaft.
   if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {
@@ -11489,6 +11488,9 @@ void HOptimizedGraphBuilder::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
+void HOptimizedGraphBuilder::VisitGetIterator(GetIterator* expr) {
+  UNREACHABLE();
+}
 
 HValue* HOptimizedGraphBuilder::AddThisFunction() {
   return AddInstruction(BuildThisFunction());

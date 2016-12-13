@@ -40,7 +40,8 @@ enum class CompileJobStatus {
 
 class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
-  CompilerDispatcherJob(Isolate* isolate, Handle<SharedFunctionInfo> shared,
+  CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
+                        Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);
   ~CompilerDispatcherJob();
 
@@ -53,6 +54,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
     DCHECK(compile_job_.get());
     return can_compile_on_background_thread_;
   }
+
+  // Returns true if this CompilerDispatcherJob was created for the given
+  // function.
+  bool IsAssociatedWith(Handle<SharedFunctionInfo> shared) const;
 
   // Transition from kInitial to kReadyToParse.
   void PrepareToParseOnMainThread();

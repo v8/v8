@@ -72,21 +72,22 @@ const uint32_t kMaxGlobalsSize = 128;
 class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(WasmExecutionMode mode = kExecuteCompiled)
-      : execution_mode_(mode),
+      : ModuleEnv(&module_, &instance_),
+        execution_mode_(mode),
         instance_(&module_),
         isolate_(CcTest::InitIsolateOnce()),
         global_offset(0),
         interpreter_(mode == kExecuteInterpreted
-                         ? new WasmInterpreter(&instance_, &allocator_)
+                         ? new WasmInterpreter(
+                               ModuleBytesEnv(&module_, &instance_,
+                                              Vector<const byte>::empty()),
+                               &allocator_)
                          : nullptr) {
-    module = &module_;
-    instance = &instance_;
     instance->module = &module_;
     instance->globals_start = global_data;
     module_.globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
-    origin = kWasmOrigin;
     memset(global_data, 0, sizeof(global_data));
   }
 
@@ -97,7 +98,7 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
-  void ChangeOriginToAsmjs() { origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { module_.origin = kAsmJsOrigin; }
 
   byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
@@ -198,25 +199,24 @@ class TestingModule : public ModuleEnv {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null());
-    Handle<Code> code =
-        CompileWasmToJSWrapper(isolate_, jsfunc, sig, index,
-                               Handle<String>::null(), Handle<String>::null());
+    Handle<Code> code = CompileWasmToJSWrapper(
+        isolate_, jsfunc, sig, index, Handle<String>::null(),
+        Handle<String>::null(), module->origin);
     instance->function_code[index] = code;
     return index;
   }
 
   Handle<JSFunction> WrapCode(uint32_t index) {
     // Wrap the code so it can be called as a JS function.
-    Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
     Handle<WasmInstanceObject> instance_obj(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
-        compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
+        compiler::CompileJSToWasmWrapper(isolate_, &module_, code, index);
     Handle<JSFunction> ret = WasmExportedFunction::New(
-        isolate_, instance_obj, name, ret_code,
+        isolate_, instance_obj, MaybeHandle<String>(), static_cast<int>(index),
         static_cast<int>(this->module->functions[index].sig->parameter_count()),
-        static_cast<int>(index));
+        ret_code);
     return ret;
   }
 
@@ -481,7 +481,8 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     function_->func_index = 0;
     function_->sig_index = 0;
     if (mode == kExecuteInterpreted) {
-      interpreter_ = new WasmInterpreter(nullptr, zone()->allocator());
+      ModuleBytesEnv empty_env(nullptr, nullptr, Vector<const byte>::empty());
+      interpreter_ = new WasmInterpreter(empty_env, zone()->allocator());
       int index = interpreter_->AddFunctionForTesting(function_);
       CHECK_EQ(0, index);
     }
@@ -564,7 +565,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
-        &info, graph(), desc, &source_position_table_));
+        &info, &jsgraph, desc, &source_position_table_, nullptr));
     if (job->ExecuteJob() != CompilationJob::SUCCEEDED ||
         job->FinalizeJob() != CompilationJob::SUCCEEDED)
       return Handle<Code>::null();
@@ -789,13 +790,15 @@ class WasmRunner {
 };
 
 // A macro to define tests that run in different engine configurations.
-// Currently only supports compiled tests, but a future
-// RunWasmInterpreted_##name version will allow each test to also run in the
-// interpreter.
 #define WASM_EXEC_TEST(name)                                               \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
   TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
+
+#define WASM_EXEC_COMPILED_TEST(name)                                \
+  void RunWasm_##name(WasmExecutionMode execution_mode);             \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 }  // namespace

@@ -76,7 +76,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
     Node* context = jsgraph()->HeapConstant(result.context);
     Node* value = effect = graph()->NewNode(
         javascript()->LoadContext(0, result.index, result.immutable), context,
-        context, effect);
+        effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
@@ -157,7 +157,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
     if (result.immutable) return NoChange();
     Node* context = jsgraph()->HeapConstant(result.context);
     effect = graph()->NewNode(javascript()->StoreContext(0, result.index),
-                              context, value, context, effect, control);
+                              value, context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }

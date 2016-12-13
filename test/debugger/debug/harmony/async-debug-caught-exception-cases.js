@@ -208,9 +208,8 @@ function runPart(n) {
       Debug.clearBreakOnUncaughtException();
     }
     if (expectedEvents != events) {
-      print(`producer ${producer} consumer ${consumer} expectedEvents ` +
-            `${expectedEvents} caught ${caught} events ${events}`);
-      quit(1);
+      %AbortJS(`producer ${producer} consumer ${consumer} expectedEvents ` +
+               `${expectedEvents} caught ${caught} events ${events}`);
     }
   }
 }

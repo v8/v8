@@ -13,8 +13,6 @@ var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
 var MapEntries;
 var MapIteratorNext;
-var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
-var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
 var SetValues;
 
@@ -106,12 +104,6 @@ function ClearMirrorCache(value) {
 }
 
 
-function ObjectIsPromise(value) {
-  return IS_RECEIVER(value) &&
-         !IS_UNDEFINED(%DebugGetProperty(value, promiseStateSymbol));
-}
-
-
 /**
  * Returns the mirror for a specified value or object.
  *
@@ -168,7 +160,7 @@ function MakeMirror(value, opt_transient) {
     mirror = new SetMirror(value);
   } else if (IS_MAP_ITERATOR(value) || IS_SET_ITERATOR(value)) {
     mirror = new IteratorMirror(value);
-  } else if (ObjectIsPromise(value)) {
+  } else if (%is_promise(value)) {
     mirror = new PromiseMirror(value);
   } else if (IS_GENERATOR(value)) {
     mirror = new GeneratorMirror(value);
@@ -1273,7 +1265,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %DebugGetProperty(value, promiseStateSymbol);
+  var status = %PromiseStatus(value);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1281,7 +1273,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %DebugGetProperty(value, promiseResultSymbol);
+  return %PromiseResult(value);
 }
 
 

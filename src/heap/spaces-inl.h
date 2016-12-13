@@ -430,11 +430,10 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
     if (object == NULL) {
       object = SlowAllocateRaw(size_in_bytes);
     }
-    if (object != NULL) {
-      if (heap()->incremental_marking()->black_allocation()) {
-        Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-        MemoryChunk::IncrementLiveBytes(object, size_in_bytes);
-      }
+    if (object != NULL && heap()->incremental_marking()->black_allocation()) {
+      Address start = object->address();
+      Address end = object->address() + size_in_bytes;
+      Page::FromAllocationAreaAddress(start)->CreateBlackArea(start, end);
     }
   }
 
@@ -472,6 +471,11 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
     object = free_list_.Allocate(allocation_size);
     if (object == NULL) {
       object = SlowAllocateRaw(allocation_size);
+      if (object != NULL && heap()->incremental_marking()->black_allocation()) {
+        Address start = object->address();
+        Address end = object->address() + size_in_bytes;
+        Page::FromAllocationAreaAddress(start)->CreateBlackArea(start, end);
+      }
     }
     if (object != NULL && filler_size != 0) {
       object = heap()->AlignWithFiller(object, size_in_bytes, allocation_size,

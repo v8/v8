@@ -80,6 +80,31 @@ std::ostream& operator<<(std::ostream&, CallConstructParameters const&);
 
 CallConstructParameters const& CallConstructParametersOf(Operator const*);
 
+// Defines the arity for a JavaScript constructor call with a spread as the last
+// parameters. This is used as a parameter by JSCallConstructWithSpread
+// operators.
+class CallConstructWithSpreadParameters final {
+ public:
+  explicit CallConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+
+  uint32_t arity() const { return arity_; }
+
+ private:
+  uint32_t const arity_;
+};
+
+bool operator==(CallConstructWithSpreadParameters const&,
+                CallConstructWithSpreadParameters const&);
+bool operator!=(CallConstructWithSpreadParameters const&,
+                CallConstructWithSpreadParameters const&);
+
+size_t hash_value(CallConstructWithSpreadParameters const&);
+
+std::ostream& operator<<(std::ostream&,
+                         CallConstructWithSpreadParameters const&);
+
+CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
+    Operator const*);
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
@@ -478,6 +503,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
   const Operator* CallConstruct(uint32_t arity, float frequency,
                                 VectorSlotPair const& feedback);
+  const Operator* CallConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 

@@ -731,37 +731,29 @@ bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
   return result;
 }
 
+Code::Age Code::GetCodeAge(Isolate* isolate, byte* sequence) {
+  if (IsYoungSequence(isolate, sequence)) return kNoAgeCodeAge;
 
-void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
-                               MarkingParity* parity) {
-  if (IsYoungSequence(isolate, sequence)) {
-    *age = kNoAgeCodeAge;
-    *parity = NO_MARKING_PARITY;
-  } else {
-    Address target_address = Assembler::target_address_at(
-        sequence + Assembler::kInstrSize);
-    Code* stub = GetCodeFromTargetAddress(target_address);
-    GetCodeAgeAndParity(stub, age, parity);
-  }
+  Address target_address =
+      Assembler::target_address_at(sequence + Assembler::kInstrSize);
+  Code* stub = GetCodeFromTargetAddress(target_address);
+  return GetAgeOfCodeAgeStub(stub);
 }
 
-
-void Code::PatchPlatformCodeAge(Isolate* isolate,
-                                byte* sequence,
-                                Code::Age age,
-                                MarkingParity parity) {
+void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
+                                Code::Age age) {
   uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
     isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
-    Code* stub = GetCodeAgeStub(isolate, age, parity);
+    Code* stub = GetCodeAgeStub(isolate, age);
     CodePatcher patcher(isolate, sequence,
                         young_length / Assembler::kInstrSize);
     // Mark this code sequence for FindPlatformCodeAgeSequence().
     patcher.masm()->nop(Assembler::CODE_AGE_MARKER_NOP);
     // Load the stub address to t9 and call it,
-    // GetCodeAgeAndParity() extracts the stub address from this instruction.
+    // GetCodeAge() extracts the stub address from this instruction.
     patcher.masm()->li(
         t9,
         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())),

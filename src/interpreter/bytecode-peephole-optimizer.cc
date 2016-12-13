@@ -138,6 +138,17 @@ void TransformLdaZeroBinaryOpToBinaryOpWithZero(Bytecode new_bytecode,
   }
 }
 
+void TransformEqualityWithNullOrUndefinedToTestUndetectable(
+    BytecodeNode* const last, BytecodeNode* const current) {
+  DCHECK((last->bytecode() == Bytecode::kLdaNull) ||
+         (last->bytecode() == Bytecode::kLdaUndefined));
+  DCHECK_EQ(current->bytecode(), Bytecode::kTestEqual);
+  current->set_bytecode(Bytecode::kTestUndetectable, current->operand(0));
+  if (last->source_info().is_valid()) {
+    current->set_source_info(last->source_info());
+  }
+}
+
 }  // namespace
 
 void BytecodePeepholeOptimizer::DefaultAction(
@@ -249,6 +260,16 @@ void BytecodePeepholeOptimizer::
   } else {
     DefaultAction(node);
   }
+}
+
+void BytecodePeepholeOptimizer::
+    TransformEqualityWithNullOrUndefinedToTestUndetectableAction(
+        BytecodeNode* const node, const PeepholeActionAndData* action_data) {
+  DCHECK(LastIsValid());
+  DCHECK(!Bytecodes::IsJump(node->bytecode()));
+  // Fused last and current into current.
+  TransformEqualityWithNullOrUndefinedToTestUndetectable(last(), node);
+  SetLast(node);
 }
 
 void BytecodePeepholeOptimizer::DefaultJumpAction(

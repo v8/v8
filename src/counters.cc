@@ -280,8 +280,8 @@ void RuntimeCallCounter::Reset() {
 
 void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
   value->BeginArray(name_);
-  value->AppendLongInteger(count_);
-  value->AppendLongInteger(time_.InMicroseconds());
+  value->AppendDouble(count_);
+  value->AppendDouble(time_.InMicroseconds());
   value->EndArray();
 }
 
@@ -322,6 +322,10 @@ const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
     FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 };
+
+// static
+const int RuntimeCallStats::counters_count =
+    arraysize(RuntimeCallStats::counters);
 
 // static
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,

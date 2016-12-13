@@ -477,15 +477,6 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
   EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
-  EXPECT_EQ(MachineType::AnyTagged(),
-            desc_before->GetType(0));  // function is always
-                                       // tagged/any.
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(1));
-  EXPECT_EQ(MachineType::AnyTagged(),
-            desc_before->GetType(2));  // context is always
-                                       // tagged/any.
-  EXPECT_EQ(MachineType::Float64(), desc_before->GetType(3));
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(4));
 
   // Function.
   EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));
@@ -585,31 +576,20 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(1u, desc_before_outer->locals_count());
   EXPECT_EQ(1u, desc_before_outer->stack_count());
   // Values from parent environment.
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(0));
   EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(3)));
-  EXPECT_EQ(MachineType::Int32(), desc_before_outer->GetType(1));
   // Context:
   EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(4)));
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before_outer->GetType(2));
   EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(5)));
-  EXPECT_EQ(MachineType::Int32(), desc_before_outer->GetType(3));
   EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(6)));
-  EXPECT_EQ(MachineType::Int32(), desc_before_outer->GetType(4));
   // Values from the nested frame.
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(2u, desc_before->stack_count());
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(0));
   EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(8)));
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(1));
   EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(9)));
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(2));
   EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(10)));
-  EXPECT_EQ(MachineType::Float64(), desc_before->GetType(3));
   EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(11)));
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(4));
   EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(12)));
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(5));
 
   // Function.
   EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(13)));

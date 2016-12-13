@@ -235,6 +235,8 @@ class BytecodeNodeBuilder {
 #define DEFINE_BYTECODE_OUTPUT(name, accumulator_use, ...)                 \
   template <typename... Operands>                                          \
   void BytecodeArrayBuilder::Output##name(Operands... operands) {          \
+    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,          \
+                  "too many operands for bytecode");                       \
     BytecodeNode node(BytecodeNodeBuilder<__VA_ARGS__>::Make<Operands...>( \
         this, CurrentSourcePosition(Bytecode::k##name), Bytecode::k##name, \
         operands...));                                                     \
@@ -725,6 +727,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
+    BytecodeLabel* label) {
+  OutputJumpIfJSReceiver(label, 0);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
   OutputJumpLoop(label, 0, loop_depth);
@@ -923,6 +931,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
                                                           RegisterList args) {
   OutputCallJSRuntime(context_index, args, args.register_count());
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(RegisterList args) {
+  OutputNewWithSpread(args, args.register_count());
   return *this;
 }
 

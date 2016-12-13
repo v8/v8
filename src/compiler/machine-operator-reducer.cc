@@ -50,12 +50,12 @@ Node* MachineOperatorReducer::Float64Mul(Node* lhs, Node* rhs) {
 Node* MachineOperatorReducer::Float64PowHalf(Node* value) {
   value =
       graph()->NewNode(machine()->Float64Add(), Float64Constant(0.0), value);
-  return graph()->NewNode(
-      common()->Select(MachineRepresentation::kFloat64, BranchHint::kFalse),
-      graph()->NewNode(machine()->Float64LessThanOrEqual(), value,
-                       Float64Constant(-V8_INFINITY)),
-      Float64Constant(V8_INFINITY),
-      graph()->NewNode(machine()->Float64Sqrt(), value));
+  Diamond d(graph(), common(),
+            graph()->NewNode(machine()->Float64LessThanOrEqual(), value,
+                             Float64Constant(-V8_INFINITY)),
+            BranchHint::kFalse);
+  return d.Phi(MachineRepresentation::kFloat64, Float64Constant(V8_INFINITY),
+               graph()->NewNode(machine()->Float64Sqrt(), value));
 }
 
 Node* MachineOperatorReducer::Word32And(Node* lhs, Node* rhs) {
@@ -841,14 +841,13 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
     if (base::bits::IsPowerOfTwo32(divisor)) {
       uint32_t const mask = divisor - 1;
       Node* const zero = Int32Constant(0);
-      node->ReplaceInput(
-          0, graph()->NewNode(machine()->Int32LessThan(), dividend, zero));
-      node->ReplaceInput(
-          1, Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask)));
-      node->ReplaceInput(2, Word32And(dividend, mask));
-      NodeProperties::ChangeOp(
-          node,
-          common()->Select(MachineRepresentation::kWord32, BranchHint::kFalse));
+      Diamond d(graph(), common(),
+                graph()->NewNode(machine()->Int32LessThan(), dividend, zero),
+                BranchHint::kFalse);
+      return Replace(
+          d.Phi(MachineRepresentation::kWord32,
+                Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask)),
+                Word32And(dividend, mask)));
     } else {
       Node* quotient = Int32Div(dividend, divisor);
       DCHECK_EQ(dividend, node->InputAt(0));

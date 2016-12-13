@@ -28,7 +28,7 @@
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/messages.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/runtime-profiler.h"
@@ -460,12 +460,29 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
   return true;
 }
 
+void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info) {
+  DCHECK(info->is_toplevel());
+  DCHECK(!info->script().is_null());
+  if (info->script()->shared_function_infos()->length() > 0) {
+    DCHECK_EQ(info->script()->shared_function_infos()->length(),
+              info->max_function_literal_id() + 1);
+    return;
+  }
+  Isolate* isolate = info->isolate();
+  Handle<FixedArray> infos(
+      isolate->factory()->NewFixedArray(info->max_function_literal_id() + 1));
+  info->script()->set_shared_function_infos(*infos);
+}
+
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
+  if (!parsing::ParseAny(info->parse_info())) return MaybeHandle<Code>();
+  if (info->parse_info()->is_toplevel()) {
+    EnsureSharedFunctionInfosArrayOnScript(info->parse_info());
+  }
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -681,7 +698,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
-    info->AbortOptimization(kOptimizedTooManyTimes);
+    info->AbortOptimization(kDeoptimizedTooManyTimes);
     return MaybeHandle<Code>();
   }
 
@@ -835,7 +852,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   }
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info.parse_info())) return MaybeHandle<Code>();
+  if (!parsing::ParseFunction(info.parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info.shared_info();
   DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
 
@@ -948,18 +965,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-    Isolate* isolate, FunctionLiteral* literal, Handle<Script> script) {
-  Handle<Code> code = isolate->builtins()->CompileLazy();
-  Handle<ScopeInfo> scope_info = handle(ScopeInfo::Empty(isolate));
-  Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
-      literal->name(), literal->materialized_literal_count(), literal->kind(),
-      code, scope_info);
-  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-  SharedFunctionInfo::SetScript(result, script);
-  return result;
-}
-
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
@@ -977,9 +982,12 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
-    if (parse_info->literal() == nullptr && !Parser::ParseStatic(parse_info)) {
+    if (parse_info->literal() == nullptr &&
+        !parsing::ParseProgram(parse_info)) {
       return Handle<SharedFunctionInfo>::null();
     }
+
+    EnsureSharedFunctionInfosArrayOnScript(parse_info);
 
     FunctionLiteral* lit = parse_info->literal();
 
@@ -998,9 +1006,10 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     // Allocate a shared function info object.
     DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
-    result = NewSharedFunctionInfoForLiteral(isolate, lit, script);
+    result = isolate->factory()->NewSharedFunctionInfoForLiteral(lit, script);
     result->set_is_toplevel(true);
     parse_info->set_shared_info(result);
+    parse_info->set_function_literal_id(result->function_literal_id());
 
     // Compile the code.
     if (!CompileUnoptimizedCode(info)) {
@@ -1041,7 +1050,8 @@ bool Compiler::Analyze(ParseInfo* info) {
 }
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
-  if (!Parser::ParseStatic(info)) return false;
+  if (!parsing::ParseAny(info)) return false;
+  if (info->is_toplevel()) EnsureSharedFunctionInfosArrayOnScript(info);
   if (!Compiler::Analyze(info)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1162,8 +1172,9 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   // In order to ensure that live edit function info collection finds the newly
   // generated shared function infos, clear the script's list temporarily
   // and restore it at the end of this method.
-  Handle<Object> old_function_infos(script->shared_function_infos(), isolate);
-  script->set_shared_function_infos(Smi::kZero);
+  Handle<FixedArray> old_function_infos(script->shared_function_infos(),
+                                        isolate);
+  script->set_shared_function_infos(isolate->heap()->empty_fixed_array());
 
   // Start a compilation.
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -1192,9 +1203,11 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
   if (!info->shared_info()->is_compiled()) {
     if (GetUnoptimizedCode(info).is_null()) return false;
-    if (info->shared_info()->HasAsmWasmData()) return false;
   }
   DCHECK(info->shared_info()->is_compiled());
+
+  if (info->shared_info()->HasAsmWasmData()) return false;
+
   DCHECK_EQ(ShouldUseIgnition(info), info->shared_info()->HasBytecodeArray());
   return info->shared_info()->HasBytecodeArray();
 }
@@ -1288,7 +1301,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   Handle<Script> script;
   if (!maybe_shared_info.ToHandle(&shared_info)) {
     script = isolate->factory()->NewScript(source);
-    if (FLAG_trace_deopt) Script::InitLineEnds(script);
+    if (isolate->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     if (!script_name.is_null()) {
       script->set_name(*script_name);
       script->set_line_offset(line_offset);
@@ -1449,7 +1464,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
-    if (FLAG_trace_deopt) Script::InitLineEnds(script);
+    if (isolate->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     if (natives == NATIVES_CODE) {
       script->set_type(Script::TYPE_NATIVE);
     } else if (natives == EXTENSION_CODE) {
@@ -1549,15 +1566,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 
   // Find any previously allocated shared function info for the given literal.
-  if (outer_info->shared_info()->never_compiled()) {
-    // On the first compile, there are no existing shared function info for
-    // inner functions yet, so do not try to find them. All bets are off for
-    // live edit though.
-    SLOW_DCHECK(script->FindSharedFunctionInfo(literal).is_null() ||
-                isolate->debug()->live_edit_enabled());
-  } else {
-    maybe_existing = script->FindSharedFunctionInfo(literal);
-  }
+  maybe_existing = script->FindSharedFunctionInfo(isolate, literal);
 
   // We found an existing shared function info. If it has any sort of code
   // attached, don't worry about compiling and simply return it. Otherwise,
@@ -1577,13 +1586,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Allocate a shared function info object.
   Handle<SharedFunctionInfo> result;
   if (!maybe_existing.ToHandle(&result)) {
-    result = NewSharedFunctionInfoForLiteral(isolate, literal, script);
+    result =
+        isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
     result->set_is_toplevel(false);
-
-    // If the outer function has been compiled before, we cannot be sure that
-    // shared function info for this function literal has been created for the
-    // first time. It may have already been compiled previously.
-    result->set_never_compiled(outer_info->shared_info()->never_compiled());
   }
 
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -1591,6 +1596,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   parse_info.set_literal(literal);
   parse_info.set_shared_info(result);
+  parse_info.set_function_literal_id(result->function_literal_id());
   parse_info.set_language_mode(literal->scope()->language_mode());
   parse_info.set_typed(literal->scope()->typed());
   parse_info.set_ast_value_factory(
@@ -1713,6 +1719,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   Handle<SharedFunctionInfo> shared(function->shared());
 
   if (FLAG_always_opt && shared->allows_lazy_compilation() &&
+      !function->shared()->HasAsmWasmData() &&
       function->shared()->is_compiled()) {
     function->MarkForOptimization();
   }

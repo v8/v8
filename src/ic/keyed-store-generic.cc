@@ -118,7 +118,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
     TrapAllocationMemento(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
-  Variable var_target_map(this, MachineType::PointerRepresentation());
+  Variable var_target_map(this, MachineRepresentation::kTagged);
   // Check if the receiver has the default |from_kind| map.
   {
     Node* packed_map =
@@ -149,7 +149,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
                            capacity, INTPTR_PARAMETERS, bailout);
     }
-    StoreObjectField(receiver, JSObject::kMapOffset, var_target_map.value());
+    StoreMap(receiver, var_target_map.value());
   }
 }
 
@@ -166,7 +166,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   }
   Node* holey_map =
       LoadContextElement(native_context, Context::ArrayMapIndex(holey_kind));
-  StoreObjectField(receiver, JSObject::kMapOffset, holey_map);
+  StoreMap(receiver, holey_map);
   Goto(done);
 }
 
@@ -282,7 +282,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
                             FAST_ELEMENTS, slow);
       }
-      Store(MachineRepresentation::kTagged, elements, offset, value);
+      Store(elements, offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
 
       Bind(&must_transition);
@@ -326,7 +326,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                            FAST_SMI_ELEMENTS, target_kind, slow);
         // The elements backing store didn't change, no reload necessary.
         CSA_ASSERT(this, WordEqual(elements, LoadElements(receiver)));
-        Store(MachineRepresentation::kTagged, elements, offset, value);
+        Store(elements, offset, value);
         MaybeUpdateLengthAndReturn(receiver, intptr_index, value,
                                    update_length);
       }
@@ -390,7 +390,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       Node* fast_elements = LoadElements(receiver);
       Node* fast_offset = ElementOffsetFromIndex(
           intptr_index, FAST_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
-      Store(MachineRepresentation::kTagged, fast_elements, fast_offset, value);
+      Store(fast_elements, fast_offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
     }
   }
@@ -534,7 +534,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
                                           DescriptorArray::kDescriptorKey) *
                                          kPointerSize;
         Node* details = LoadAndUntagToWord32FixedArrayElement(
-            descriptors, name_index, kNameToDetailsOffset);
+            descriptors, name_index, kNameToDetailsOffset, INTPTR_PARAMETERS);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
@@ -553,15 +553,15 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
                                           NameDictionary::kEntryKeyIndex) *
                                          kPointerSize;
         Node* details = LoadAndUntagToWord32FixedArrayElement(
-            dictionary, entry, kNameToDetailsOffset);
+            dictionary, entry, kNameToDetailsOffset, INTPTR_PARAMETERS);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
         const int kNameToValueOffset = (NameDictionary::kEntryValueIndex -
                                         NameDictionary::kEntryKeyIndex) *
                                        kPointerSize;
-        var_accessor_pair->Bind(
-            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset));
+        var_accessor_pair->Bind(LoadFixedArrayElement(
+            dictionary, entry, kNameToValueOffset, INTPTR_PARAMETERS));
         var_accessor_holder->Bind(holder);
         Goto(accessor);
       }
@@ -574,8 +574,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
                                         GlobalDictionary::kEntryKeyIndex) *
                                        kPointerSize;
 
-        Node* property_cell =
-            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset);
+        Node* property_cell = LoadFixedArrayElement(
+            dictionary, entry, kNameToValueOffset, INTPTR_PARAMETERS);
 
         Node* value =
             LoadObjectField(property_cell, PropertyCell::kValueOffset);
@@ -641,15 +641,17 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
                                         NameDictionary::kEntryKeyIndex) *
                                        kPointerSize;
       Node* details = LoadAndUntagToWord32FixedArrayElement(
-          properties, var_name_index.value(), kNameToDetailsOffset);
+          properties, var_name_index.value(), kNameToDetailsOffset,
+          INTPTR_PARAMETERS);
       JumpIfDataProperty(details, &overwrite, &readonly);
 
       // Accessor case.
       const int kNameToValueOffset =
           (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
           kPointerSize;
-      var_accessor_pair.Bind(LoadFixedArrayElement(
-          properties, var_name_index.value(), kNameToValueOffset));
+      var_accessor_pair.Bind(
+          LoadFixedArrayElement(properties, var_name_index.value(),
+                                kNameToValueOffset, INTPTR_PARAMETERS));
       var_accessor_holder.Bind(receiver);
       Goto(&accessor);
 

@@ -338,3 +338,50 @@ testCallBinopVoid(kAstF64);
     '-3': {18: print}
   });
 })();
+
+(function ImportSymbolAsVoidDoesNotThrow() {
+  var builder = new WasmModuleBuilder();
+  // Return type is void, so there should be no ToNumber conversion.
+  var index = builder.addImport("func", kSig_v_v);
+  builder.addFunction("main", kSig_v_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var func = () => Symbol();
+  var main = builder.instantiate({func: func}).exports.main;
+  main();
+})();
+
+(function ToNumberCalledOnImport() {
+  var builder = new WasmModuleBuilder();
+  // Return type is int, so there should be a ToNumber conversion.
+  var index = builder.addImport("func", kSig_i_v);
+  builder.addFunction("main", kSig_i_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var num_valueOf = 0;
+  function Foo() {}
+  Foo.prototype.valueOf = () => ++num_valueOf;
+  var func = () => new Foo();
+  var main = builder.instantiate({func: func}).exports.main;
+  main();
+  assertEquals(1, num_valueOf);
+  main();
+  assertEquals(2, num_valueOf);
+})();
+
+(function ToNumberNotCalledOnVoidImport() {
+  var builder = new WasmModuleBuilder();
+  // Return type is void, so there should be no ToNumber conversion.
+  var index = builder.addImport("func", kSig_v_v);
+  builder.addFunction("main", kSig_v_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var num_valueOf = 0;
+  function Foo() {}
+  Foo.prototype.valueOf = () => ++num_valueOf;
+  var func = () => new Foo();
+  var main = builder.instantiate({func: func}).exports.main;
+  main();
+  main();
+  assertEquals(0, num_valueOf);
+})();

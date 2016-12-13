@@ -46,9 +46,9 @@ const WasmModule* DecodeWasmModuleForTesting(
 }
 
 const Handle<WasmInstanceObject> InstantiateModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const WasmModule* module) {
-  CHECK(module != nullptr);
-
+    Isolate* isolate, ErrorThrower* thrower, const WasmModule* module,
+    const ModuleWireBytes& wire_bytes) {
+  DCHECK_NOT_NULL(module);
   if (module->import_table.size() > 0) {
     thrower->CompileError("Not supported: module has imports.");
   }
@@ -59,8 +59,9 @@ const Handle<WasmInstanceObject> InstantiateModuleForTesting(
   // again through the normal pipeline.
   // TODO(wasm): Use {module} instead of decoding the module bytes again.
   MaybeHandle<WasmModuleObject> module_object = CreateModuleObjectFromBytes(
-      isolate, module->module_start, module->module_end, thrower,
-      ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr, nullptr);
+      isolate, wire_bytes.module_bytes.start(), wire_bytes.module_bytes.end(),
+      thrower, ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr,
+      nullptr);
   if (module_object.is_null()) {
     thrower->CompileError("Module pre-validation failed.");
     return Handle<WasmInstanceObject>::null();
@@ -85,7 +86,8 @@ const Handle<WasmInstanceObject> CompileInstantiateWasmModuleForTesting(
     thrower->CompileError("Wasm module decoding failed");
     return Handle<WasmInstanceObject>::null();
   }
-  return InstantiateModuleForTesting(isolate, thrower, module.get());
+  return InstantiateModuleForTesting(isolate, thrower, module.get(),
+                                     ModuleWireBytes(module_start, module_end));
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
@@ -110,10 +112,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 }
 
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
-                            const WasmModule* module, int function_index,
-                            WasmVal* args, bool* possible_nondeterminism) {
-  CHECK(module != nullptr);
-
+                            const WasmModule* module,
+                            const ModuleWireBytes& wire_bytes,
+                            int function_index, WasmVal* args,
+                            bool* possible_nondeterminism) {
+  DCHECK_NOT_NULL(module);
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
 
@@ -136,7 +139,8 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
       static_cast<byte*>(calloc(GetMinModuleMemSize(module), 1));
   instance.globals_start = nullptr;
 
-  WasmInterpreter interpreter(&instance, isolate->allocator());
+  ModuleBytesEnv env(module, &instance, wire_bytes);
+  WasmInterpreter interpreter(env, isolate->allocator());
 
   WasmInterpreter::Thread* thread = interpreter.GetThread(0);
   thread->Reset();

@@ -1041,6 +1041,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
+  static ExternalReference is_promisehook_enabled_address(Isolate* isolate);
+
   V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
       Isolate* isolate);
 

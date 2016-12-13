@@ -8,6 +8,7 @@
 
 #include "src/api.h"
 #include "src/ast/ast-expression-rewriter.h"
+#include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-literal-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -243,9 +244,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
-      // $super_constructor = %_GetSuperConstructor(<this-function>)
-      // %reflect_construct(
-      //     $super_constructor, InternalArray(...args), new.target)
+      // Create a SuperCallReference and handle in BytecodeGenerator.
       auto constructor_args_name = ast_value_factory()->empty_string();
       bool is_duplicate;
       bool is_rest = true;
@@ -255,29 +254,13 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
           ast_value_factory());
 
       ZoneList<Expression*>* args =
-          new (zone()) ZoneList<Expression*>(2, zone());
-      VariableProxy* this_function_proxy =
-          NewUnresolved(ast_value_factory()->this_function_string(), pos);
-      ZoneList<Expression*>* tmp =
           new (zone()) ZoneList<Expression*>(1, zone());
-      tmp->Add(this_function_proxy, zone());
-      Expression* super_constructor = factory()->NewCallRuntime(
-          Runtime::kInlineGetSuperConstructor, tmp, pos);
-      args->Add(super_constructor, zone());
       Spread* spread_args = factory()->NewSpread(
           factory()->NewVariableProxy(constructor_args), pos, pos);
-      ZoneList<Expression*>* spread_args_expr =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      spread_args_expr->Add(spread_args, zone());
-      args->AddAll(*PrepareSpreadArguments(spread_args_expr), zone());
-      VariableProxy* new_target_proxy =
-          NewUnresolved(ast_value_factory()->new_target_string(), pos);
-      args->Add(new_target_proxy, zone());
-      Expression* call = factory()->NewCallRuntime(
-          Context::REFLECT_CONSTRUCT_INDEX, args, pos);
-      if (requires_class_field_init) {
-        call = CallClassFieldInitializer(scope(), call);
-      }
+
+      args->Add(spread_args, zone());
+      Expression* super_call_ref = NewSuperCallReference(pos);
+      Expression* call = factory()->NewCall(super_call_ref, args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());
     }
 
@@ -290,7 +273,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       expected_property_count, parameter_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
-      true);
+      true, GetNextFunctionLiteralId());
 
   function_literal->set_requires_class_field_init(requires_class_field_init);
 
@@ -521,15 +504,6 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   return NULL;
 }
 
-Expression* Parser::GetIterator(Expression* iterable, int pos) {
-  Expression* iterator_symbol_literal =
-      factory()->NewSymbolLiteral("iterator_symbol", kNoSourcePosition);
-  Expression* prop =
-      factory()->NewProperty(iterable, iterator_symbol_literal, pos);
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(0, zone());
-  return factory()->NewCall(prop, args, pos);
-}
-
 void Parser::MarkTailPosition(Expression* expression) {
   expression->MarkTail();
 }
@@ -745,6 +719,9 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK_NULL(target_stack_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  ResetFunctionLiteralId();
+  DCHECK(info->function_literal_id() == FunctionLiteral::kIdTypeTopLevel ||
+         info->function_literal_id() == FunctionLiteral::kIdTypeInvalid);
 
   FunctionLiteral* result = NULL;
   {
@@ -778,7 +755,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       DCHECK(!is_duplicate);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
 
-      PrepareGeneratorVariables(&function_state);
+      PrepareGeneratorVariables();
       Expression* initial_yield =
           BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
       body->Add(
@@ -803,8 +780,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
-      CheckDecimalLiteralWithLeadingZero(beg_pos,
-                                         scanner()->location().end_pos);
     }
     if (ok && is_sloppy(language_mode())) {
       // TODO(littledan): Function bindings on the global object that modify
@@ -836,6 +811,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     }
   }
 
+  info->set_max_function_literal_id(GetLastFunctionLiteralId());
+
   // Make sure the target stack is empty.
   DCHECK(target_stack_ == NULL);
 
@@ -857,6 +834,12 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   }
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
+  if (info->asm_function_scope()) {
+    original_scope_ = info->asm_function_scope();
+    factory()->set_zone(info->zone());
+  } else {
+    DCHECK_EQ(factory()->zone(), info->zone());
+  }
 
   // Initialize parser state.
   source = String::Flatten(source);
@@ -905,6 +888,10 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
   DCHECK(ast_value_factory());
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
   fni_->PushEnclosingName(raw_name);
+
+  ResetFunctionLiteralId();
+  DCHECK_LT(0, info->function_literal_id());
+  SkipFunctionLiterals(info->function_literal_id() - 1);
 
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
@@ -971,12 +958,27 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals, false, &ok);
-          if (ok) DeclareFormalParameter(formals.scope, formals.at(0));
+          if (ok) DeclareFormalParameters(formals.scope, formals.params);
         }
       }
 
       if (ok) {
         checkpoint.Restore(&formals.materialized_literals_count);
+        if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
+          // If there were FunctionLiterals in the parameters, we need to
+          // renumber them to shift down so the next function literal id for
+          // the arrow function is the one requested.
+          AstFunctionLiteralIdReindexer reindexer(
+              stack_limit_,
+              (info->function_literal_id() - 1) - GetLastFunctionLiteralId());
+          for (auto p : formals.params) {
+            if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
+            if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
+          }
+          ResetFunctionLiteralId();
+          SkipFunctionLiterals(info->function_literal_id() - 1);
+        }
+
         // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
         // not be observable, or else the preparser would have failed.
         Expression* expression = ParseArrowFunctionLiteral(true, formals, &ok);
@@ -1030,6 +1032,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
 
   // Make sure the target stack is empty.
   DCHECK_NULL(target_stack_);
+  DCHECK_IMPLIES(result,
+                 info->function_literal_id() == result->function_literal_id());
   return result;
 }
 
@@ -1686,6 +1690,7 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {
 
 ZoneList<const AstRawString*>* Parser::DeclareLabel(
     ZoneList<const AstRawString*>* labels, VariableProxy* var, bool* ok) {
+  DCHECK(IsIdentifier(var));
   const AstRawString* label = var->raw_name();
   // TODO(1240780): We don't check for redeclaration of labels
   // during preparsing since keeping track of the set of active
@@ -1978,6 +1983,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
       body = block;
       each = factory()->NewVariableProxy(temp);
     }
+    MarkExpressionAsAssigned(each);
     stmt->AsForInStatement()->Initialize(each, subject, body);
   }
   return stmt;
@@ -2127,16 +2133,17 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   const int nopos = kNoSourcePosition;
   auto avfactory = ast_value_factory();
 
-  Variable* iterator = NewTemporary(ast_value_factory()->dot_iterator_string());
-  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
+  Variable* iterator = NewTemporary(avfactory->dot_iterator_string());
+  Variable* result = NewTemporary(avfactory->dot_result_string());
   Variable* completion = NewTemporary(avfactory->empty_string());
 
-  // iterator = iterable[Symbol.iterator]()
+  // iterator = GetIterator(iterable)
   Expression* assign_iterator;
   {
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
-        GetIterator(iterable, iterable->position()), iterable->position());
+        factory()->NewGetIterator(iterable, iterable->position()),
+        iterable->position());
   }
 
   // !%_IsJSReceiver(result = iterator.next()) &&
@@ -2548,15 +2555,11 @@ void Parser::DeclareArrowFunctionFormalParameters(
   if (!parameters->is_simple) {
     this->classifier()->RecordNonSimpleParameter();
   }
-  for (int i = 0; i < parameters->arity; ++i) {
-    auto parameter = parameters->at(i);
-    DeclareFormalParameter(parameters->scope, parameter);
-    if (!this->classifier()
-             ->is_valid_formal_parameter_list_without_duplicates() &&
-        !duplicate_loc->IsValid()) {
-      *duplicate_loc =
-          this->classifier()->duplicate_formal_parameter_error().location;
-    }
+  DeclareFormalParameters(parameters->scope, parameters->params);
+  if (!this->classifier()
+           ->is_valid_formal_parameter_list_without_duplicates()) {
+    *duplicate_loc =
+        this->classifier()->duplicate_formal_parameter_error().location;
   }
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
@@ -2565,28 +2568,28 @@ void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
   if (function_state_->materialized_literal_count() > 0) {
     AstLiteralReindexer reindexer;
 
-    for (const auto p : parameters.params) {
-      if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
-      if (p.initializer != nullptr) reindexer.Reindex(p.initializer);
+    for (auto p : parameters.params) {
+      if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
+      if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
     }
 
     DCHECK(reindexer.count() <= function_state_->materialized_literal_count());
   }
 }
 
-void Parser::PrepareGeneratorVariables(FunctionState* function_state) {
+void Parser::PrepareGeneratorVariables() {
   // For generators, allocating variables in contexts is currently a win because
   // it minimizes the work needed to suspend and resume an activation.  The
-  // code produced for generators relies on this forced context allocation, but
-  // not in an essential way.
-  scope()->ForceContextAllocation();
+  // code produced for generators relies on this forced context allocation (it
+  // does not restore the frame's parameters upon resume).
+  function_state_->scope()->ForceContextAllocation();
 
   // Calling a generator returns a generator object.  That object is stored
   // in a temporary variable, a definition that is used by "yield"
   // expressions.
   Variable* temp =
       NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state->set_generator_object_variable(temp);
+  function_state_->set_generator_object_variable(temp);
 }
 
 // This function may return a nullptr with *ok==true in typed mode,
@@ -2685,8 +2688,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   //   FunctionExpression; even without enclosing parentheses it might be
   //   immediately invoked.
   // - The function literal shouldn't be hinted to eagerly compile.
-  // - For asm.js functions the body needs to be available when module
-  //   validation is active, because we examine the entire module at once.
 
   // Inner functions will be parsed using a temporary Zone. After parsing, we
   // will migrate unresolved variable into a Scope in the main Zone.
@@ -2696,8 +2697,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
            ? can_preparse
            : (is_lazy_top_level_function ||
               (allow_lazy_ && function_type == FunctionLiteral::kDeclaration &&
-               eager_compile_hint == FunctionLiteral::kShouldLazyCompile))) &&
-      !(FLAG_validate_asm && scope()->IsAsmModule());
+               eager_compile_hint == FunctionLiteral::kShouldLazyCompile)));
   bool is_lazy_inner_function =
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
 
@@ -2708,6 +2708,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int num_parameters = -1;
   int function_length = -1;
   bool has_duplicate_parameters = false;
+  int function_literal_id = GetNextFunctionLiteralId();
 
   Zone* outer_zone = zone();
   DeclarationScope* scope;
@@ -2806,12 +2807,20 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
     }
-    if (is_lazy_top_level_function) {
-      CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
-                                     PreParseNoVariableResolution);
-    } else if (temp_zoned_) {
-      CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats_,
-                                     PreParseWithVariableResolution);
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {
+      if (is_lazy_top_level_function) {
+        RuntimeCallStats::CorrectCurrentCounterId(
+            runtime_call_stats_,
+            parsing_on_main_thread_
+                ? &RuntimeCallStats::PreParseNoVariableResolution
+                : &RuntimeCallStats::PreParseBackgroundNoVariableResolution);
+      } else if (temp_zoned_) {
+        RuntimeCallStats::CorrectCurrentCounterId(
+            runtime_call_stats_,
+            parsing_on_main_thread_
+                ? &RuntimeCallStats::PreParseWithVariableResolution
+                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution);
+      }
     }
 
     // Validate function name. We can do this only after parsing the function,
@@ -2823,8 +2832,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_strict(language_mode)) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
-      CheckDecimalLiteralWithLeadingZero(scope->start_position(),
-                                         scope->end_position());
     }
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }  // DiscardableZoneScope goes out of scope.
@@ -2837,7 +2844,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, materialized_literal_count,
       expected_property_count, num_parameters, function_length,
-      duplicate_parameters, function_type, eager_compile_hint, pos, true);
+      duplicate_parameters, function_type, eager_compile_hint, pos, true,
+      function_literal_id);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -2886,6 +2894,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
       if (entry.uses_super_property())
         function_scope->RecordSuperPropertyUsage();
       if (entry.calls_eval()) function_scope->RecordEvalCall();
+      SkipFunctionLiterals(entry.num_inner_functions());
       return kLazyParsingComplete;
     }
     cached_parse_data_->Reject();
@@ -2939,13 +2948,15 @@ Parser::LazyParsingResult Parser::SkipFunction(
   *has_duplicate_parameters = logger->has_duplicate_parameters();
   *materialized_literal_count = logger->literals();
   *expected_property_count = logger->properties();
+  SkipFunctionLiterals(logger->num_inner_functions());
   if (!is_inner_function && produce_cached_parse_data()) {
     DCHECK(log_);
     log_->LogFunction(
         function_scope->start_position(), function_scope->end_position(),
         *num_parameters, *function_length, *has_duplicate_parameters,
         *materialized_literal_count, *expected_property_count, language_mode(),
-        function_scope->uses_super_property(), function_scope->calls_eval());
+        function_scope->uses_super_property(), function_scope->calls_eval(),
+        logger->num_inner_functions());
   }
   return kLazyParsingComplete;
 }
@@ -3016,44 +3027,44 @@ Block* Parser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   Block* init_block = factory()->NewBlock(NULL, 1, true, kNoSourcePosition);
-  for (int i = 0; i < parameters.params.length(); ++i) {
-    auto parameter = parameters.params[i];
-    if (parameter.is_rest && parameter.pattern->IsVariableProxy()) break;
+  int index = 0;
+  for (auto parameter : parameters.params) {
+    if (parameter->is_rest && parameter->pattern->IsVariableProxy()) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.scope = scope();
     descriptor.hoist_scope = nullptr;
     descriptor.mode = LET;
-    descriptor.declaration_pos = parameter.pattern->position();
+    descriptor.declaration_pos = parameter->pattern->position();
     // The position that will be used by the AssignmentExpression
     // which copies from the temp parameter to the pattern.
     //
     // TODO(adamk): Should this be kNoSourcePosition, since
     // it's just copying from a temp var to the real param var?
-    descriptor.initialization_pos = parameter.pattern->position();
+    descriptor.initialization_pos = parameter->pattern->position();
     Expression* initial_value =
-        factory()->NewVariableProxy(parameters.scope->parameter(i));
-    if (parameter.initializer != nullptr) {
+        factory()->NewVariableProxy(parameters.scope->parameter(index));
+    if (parameter->initializer != nullptr) {
       // IS_UNDEFINED($param) ? initializer : $param
 
       // Ensure initializer is rewritten
-      RewriteParameterInitializer(parameter.initializer, scope());
+      RewriteParameterInitializer(parameter->initializer, scope());
 
       auto condition = factory()->NewCompareOperation(
           Token::EQ_STRICT,
-          factory()->NewVariableProxy(parameters.scope->parameter(i)),
+          factory()->NewVariableProxy(parameters.scope->parameter(index)),
           factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
       initial_value = factory()->NewConditional(
-          condition, parameter.initializer, initial_value, kNoSourcePosition);
-      descriptor.initialization_pos = parameter.initializer->position();
+          condition, parameter->initializer, initial_value, kNoSourcePosition);
+      descriptor.initialization_pos = parameter->initializer->position();
     }
 
     Scope* param_scope = scope();
     Block* param_block = init_block;
-    if (!parameter.is_simple() && scope()->calls_sloppy_eval()) {
+    if (!parameter->is_simple() && scope()->calls_sloppy_eval()) {
       param_scope = NewVarblockScope();
       param_scope->set_start_position(descriptor.initialization_pos);
-      param_scope->set_end_position(parameter.initializer_end_position);
+      param_scope->set_end_position(parameter->initializer_end_position);
       param_scope->RecordEvalCall();
       param_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
       param_block->set_scope(param_scope);
@@ -3068,7 +3079,7 @@ Block* Parser::BuildParameterInitializationBlock(
 
     BlockState block_state(&scope_state_, param_scope);
     DeclarationParsingResult::Declaration decl(
-        parameter.pattern, parameter.initializer_end_position, initial_value);
+        parameter->pattern, parameter->initializer_end_position, initial_value);
     PatternRewriter::DeclareAndInitializeVariables(
         this, param_block, &descriptor, &decl, nullptr, CHECK_OK);
 
@@ -3079,6 +3090,7 @@ Block* Parser::BuildParameterInitializationBlock(
       }
       init_block->statements()->Add(param_block, zone());
     }
+    ++index;
   }
   return init_block;
 }
@@ -3153,15 +3165,20 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
   return result;
 }
 
-Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
+Assignment* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
+  // .generator = %CreateJSGeneratorObject(...);
   DCHECK_NOT_NULL(function_state_->generator_object_variable());
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewThisFunction(pos), zone());
   args->Add(IsArrowFunction(kind) ? GetLiteralUndefined(pos)
                                   : ThisExpression(kNoSourcePosition),
             zone());
-  return factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args,
-                                   pos);
+  Expression* allocation =
+      factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args, pos);
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  return factory()->NewAssignment(Token::INIT, proxy, allocation,
+                                  kNoSourcePosition);
 }
 
 Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
@@ -3204,17 +3221,13 @@ Variable* Parser::PromiseVariable() {
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
-  Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
-  VariableProxy* init_proxy =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
-  Assignment* assignment = factory()->NewAssignment(
-      Token::INIT, init_proxy, allocation, kNoSourcePosition);
-  VariableProxy* get_proxy =
+  Assignment* assignment = BuildCreateJSGeneratorObject(pos, kind);
+  VariableProxy* generator =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return factory()->NewYield(get_proxy, assignment, scope()->start_position(),
+  return factory()->NewYield(generator, assignment, scope()->start_position(),
                              Yield::kOnExceptionThrow);
 }
 
@@ -3228,10 +3241,10 @@ ZoneList<Statement*>* Parser::ParseFunction(
 
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
 
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
-  if (IsGeneratorFunction(kind)) PrepareGeneratorVariables(&function_state);
+  if (IsResumableFunction(kind)) PrepareGeneratorVariables();
 
   ParserFormalParameters formals(function_scope);
   ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
@@ -3546,7 +3559,7 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position(),
-      true);
+      true, GetNextFunctionLiteralId());
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
@@ -3590,8 +3603,11 @@ void Parser::DeclareClassVariable(const AstRawString* name, Scope* block_scope,
 //   - properties
 void Parser::DeclareClassProperty(const AstRawString* class_name,
                                   ClassLiteralProperty* property,
+                                  ClassLiteralProperty::Kind kind,
+                                  bool is_static, bool is_constructor,
                                   ClassInfo* class_info, bool* ok) {
-  if (class_info->has_seen_constructor && class_info->constructor == nullptr) {
+  if (is_constructor) {
+    DCHECK(!class_info->constructor);
     class_info->constructor = GetPropertyValue(property)->AsFunctionLiteral();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
@@ -3655,6 +3671,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 //   - static_initializer_var
 //   - instance_field_initializers
 //   - properties
+//   - has_name_static_property
+//   - has_static_computed_names
 Expression* Parser::RewriteClassLiteral(const AstRawString* name,
                                         ClassInfo* class_info, int pos,
                                         bool* ok) {
@@ -3689,7 +3707,9 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       class_info->proxy, class_info->extends, class_info->constructor,
-      class_info->properties, pos, end_pos);
+      class_info->properties, pos, end_pos,
+      class_info->has_name_static_property,
+      class_info->has_static_computed_names);
 
   if (class_info->static_initializer_var != nullptr) {
     class_literal->set_static_initializer_proxy(
@@ -3901,47 +3921,9 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
           v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
     // Copy over the counters from the background thread to the main counters on
     // the isolate.
-    // TODO(cbruni,lpy): properly attach the runtime stats to the trace for
-    // background parsing.
     isolate->counters()->runtime_call_stats()->Add(runtime_call_stats_);
   }
 }
-
-
-// ----------------------------------------------------------------------------
-// The Parser interface.
-
-
-bool Parser::ParseStatic(ParseInfo* info) {
-  Parser parser(info);
-  if (parser.Parse(info)) {
-    info->set_language_mode(info->literal()->language_mode());
-    info->set_typed(info->literal()->typed());
-    return true;
-  }
-  return false;
-}
-
-
-bool Parser::Parse(ParseInfo* info) {
-  DCHECK(info->literal() == NULL);
-  FunctionLiteral* result = NULL;
-  // Ok to use Isolate here; this function is only called in the main thread.
-  DCHECK(parsing_on_main_thread_);
-  Isolate* isolate = info->isolate();
-
-  if (info->is_toplevel()) {
-    SetCachedData(info);
-    result = ParseProgram(isolate, info);
-  } else {
-    result = ParseFunction(isolate, info);
-  }
-  info->set_literal(result);
-
-  Internalize(isolate, info->script(), result == NULL);
-  return (result != NULL);
-}
-
 
 void Parser::ParseOnBackground(ParseInfo* info) {
   parsing_on_main_thread_ = false;
@@ -3970,7 +3952,8 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   } else {
     DCHECK(info->character_stream() == nullptr);
     stream.reset(ScannerStream::For(info->source_stream(),
-                                    info->source_stream_encoding()));
+                                    info->source_stream_encoding(),
+                                    runtime_call_stats_));
     stream_ptr = stream.get();
   }
   DCHECK(info->maybe_outer_scope_info().is_null());
@@ -4000,9 +3983,13 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     if (result != NULL) *info->cached_data() = logger.GetScriptData();
     log_ = NULL;
   }
-  if (FLAG_runtime_stats) {
-    // TODO(cbruni,lpy): properly attach the runtime stats to the trace for
-    // background parsing.
+  if (FLAG_runtime_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    auto value = v8::tracing::TracedValue::Create();
+    runtime_call_stats_->Dump(value.get());
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
+                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
+                         "runtime-call-stats", std::move(value));
   }
 }
 
@@ -4190,6 +4177,23 @@ Expression* Parser::SpreadCall(Expression* function,
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
     // %reflect_construct($super_constructor, args, new.target)
+
+    bool only_last_arg_is_spread = false;
+    for (int i = 0; i < args->length(); i++) {
+      if (args->at(i)->IsSpread()) {
+        if (i == args->length() - 1) {
+          only_last_arg_is_spread = true;
+        }
+        break;
+      }
+    }
+
+    if (only_last_arg_is_spread) {
+      // Handle in BytecodeGenerator.
+      Expression* super_call_ref = NewSuperCallReference(pos);
+      return factory()->NewCall(super_call_ref, args, pos);
+    }
+    args = PrepareSpreadArguments(args);
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
     Expression* super_constructor = factory()->NewCallRuntime(
@@ -4199,6 +4203,7 @@ Expression* Parser::SpreadCall(Expression* function,
     return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args,
                                      pos);
   } else {
+    args = PrepareSpreadArguments(args);
     if (function->IsProperty()) {
       // Method calls
       if (function->AsProperty()->IsSuperAccess()) {
@@ -4229,6 +4234,7 @@ Expression* Parser::SpreadCall(Expression* function,
 
 Expression* Parser::SpreadCallNew(Expression* function,
                                   ZoneList<Expression*>* args, int pos) {
+  args = PrepareSpreadArguments(args);
   args->InsertAt(0, function, zone());
 
   return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);
@@ -4276,23 +4282,13 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
 // when desugaring the body of async_function.
 void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
                                       FunctionKind kind, int pos) {
-  // function async_function() {
-  //   .generator_object = %CreateGeneratorObject();
-  //   BuildRejectPromiseOnException({
-  //     ... block ...
-  //     return %ResolvePromise(.promise, expr), .promise;
-  //   })
-  // }
-
-  Variable* temp =
-      NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state_->set_generator_object_variable(temp);
-
-  Expression* init_generator_variable = factory()->NewAssignment(
-      Token::INIT, factory()->NewVariableProxy(temp),
-      BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition);
-  body->Add(factory()->NewExpressionStatement(init_generator_variable,
-                                              kNoSourcePosition),
+  // When parsing an async arrow function, we get here without having called
+  // PrepareGeneratorVariables yet, so do it now.
+  if (function_state_->generator_object_variable() == nullptr) {
+    PrepareGeneratorVariables();
+  }
+  body->Add(factory()->NewExpressionStatement(
+                BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition),
             zone());
 }
 
@@ -4300,7 +4296,7 @@ void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
 void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
                                       Expression* return_value, bool* ok) {
   // function async_function() {
-  //   .generator_object = %CreateGeneratorObject();
+  //   .generator_object = %CreateJSGeneratorObject();
   //   BuildRejectPromiseOnException({
   //     ... block ...
   //     return %ResolvePromise(.promise, expr), .promise;
@@ -4337,10 +4333,7 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // TODO(littledan): investigate why this ordering is needed in more detail.
   Variable* generator_object_variable =
       function_state_->generator_object_variable();
-
-  // If generator_object_variable is null,
-  // TODO(littledan): Is this necessary?
-  if (!generator_object_variable) return value;
+  DCHECK_NOT_NULL(generator_object_variable);
 
   const int nopos = kNoSourcePosition;
 
@@ -4672,8 +4665,7 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
 //     let mode = kNext;
 //     let output = undefined;
 //
-//     let iterator = iterable[Symbol.iterator]();
-//     if (!IS_RECEIVER(iterator)) throw MakeTypeError(kSymbolIteratorInvalid);
+//     let iterator = GetIterator(iterable);
 //
 //     while (true) {
 //       // From the generator to the iterator:
@@ -4776,39 +4768,15 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     initialize_output = factory()->NewExpressionStatement(assignment, nopos);
   }
 
-  // let iterator = iterable[Symbol.iterator];
+  // let iterator = GetIterator(iterable);
   Variable* var_iterator = NewTemporary(ast_value_factory()->empty_string());
   Statement* get_iterator;
   {
-    Expression* iterator = GetIterator(iterable, nopos);
+    Expression* iterator = factory()->NewGetIterator(iterable, nopos);
     Expression* iterator_proxy = factory()->NewVariableProxy(var_iterator);
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, iterator_proxy, iterator, nopos);
     get_iterator = factory()->NewExpressionStatement(assignment, nopos);
-  }
-
-  // if (!IS_RECEIVER(iterator)) throw MakeTypeError(kSymbolIteratorInvalid);
-  Statement* validate_iterator;
-  {
-    Expression* is_receiver_call;
-    {
-      auto args = new (zone()) ZoneList<Expression*>(1, zone());
-      args->Add(factory()->NewVariableProxy(var_iterator), zone());
-      is_receiver_call =
-          factory()->NewCallRuntime(Runtime::kInlineIsJSReceiver, args, nopos);
-    }
-
-    Statement* throw_call;
-    {
-      Expression* call =
-          NewThrowTypeError(MessageTemplate::kSymbolIteratorInvalid,
-                            ast_value_factory()->empty_string(), nopos);
-      throw_call = factory()->NewExpressionStatement(call, nopos);
-    }
-
-    validate_iterator = factory()->NewIfStatement(
-        is_receiver_call, factory()->NewEmptyStatement(nopos), throw_call,
-        nopos);
   }
 
   // output = iterator.next(input);
@@ -5115,12 +5083,11 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     // The rewriter needs to process the get_value statement only, hence we
     // put the preceding statements into an init block.
 
-    Block* do_block_ = factory()->NewBlock(nullptr, 7, true, nopos);
+    Block* do_block_ = factory()->NewBlock(nullptr, 6, true, nopos);
     do_block_->statements()->Add(initialize_input, zone());
     do_block_->statements()->Add(initialize_mode, zone());
     do_block_->statements()->Add(initialize_output, zone());
     do_block_->statements()->Add(get_iterator, zone());
-    do_block_->statements()->Add(validate_iterator, zone());
     do_block_->statements()->Add(loop, zone());
     do_block_->statements()->Add(maybe_return_value, zone());
 
@@ -5543,7 +5510,7 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
   //       %ReThrow(e);
   //     }
   //   } finally {
-  //     if (!(completion === kNormalCompletion || IS_UNDEFINED(#iterator))) {
+  //     if (!(completion === kNormalCompletion)) {
   //       #BuildIteratorCloseForCompletion(#iterator, completion)
   //     }
   //   }
@@ -5554,18 +5521,13 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
 
   const int nopos = kNoSourcePosition;
 
-  // !(completion === kNormalCompletion || IS_UNDEFINED(#iterator))
+  // !(completion === kNormalCompletion)
   Expression* closing_condition;
   {
-    Expression* lhs = factory()->NewCompareOperation(
+    Expression* cmp = factory()->NewCompareOperation(
         Token::EQ_STRICT, factory()->NewVariableProxy(var_completion),
         factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
-    Expression* rhs = factory()->NewCompareOperation(
-        Token::EQ_STRICT, factory()->NewVariableProxy(loop->iterator()),
-        factory()->NewUndefinedLiteral(nopos), nopos);
-    closing_condition = factory()->NewUnaryOperation(
-        Token::NOT, factory()->NewBinaryOperation(Token::OR, lhs, rhs, nopos),
-        nopos);
+    closing_condition = factory()->NewUnaryOperation(Token::NOT, cmp, nopos);
   }
 
   Block* final_loop = factory()->NewBlock(nullptr, 2, false, nopos);

@@ -29,14 +29,6 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 var exception = false;
-
-function sendCommand(state, cmd) {
-  // Get the debug command processor in paused state.
-  var dcp = state.debugCommandProcessor(false);
-  var request = JSON.stringify(cmd);
-  var response = dcp.processDebugJSONRequest(request);
-}
-
 var state = 0;
 
 function listener(event, exec_state, event_data, data) {
@@ -44,8 +36,6 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       var line = event_data.sourceLineText();
       print('break: ' + line);
-      print('event data: ' + event_data.toJSONProtocol());
-      print();
       assertEquals('// BREAK', line.substr(-8),
                    "should not break outside evaluate");
 
@@ -56,25 +46,13 @@ function listener(event, exec_state, event_data, data) {
         // executed in the evaluate command, the stepping must stop at the end
         // of the said set of instructions and not step further into native
         // debugger code.
-        sendCommand(exec_state, {
-          seq : 0,
-          type : "request",
-          command : "evaluate",
-          arguments : {
-            'expression' : 'print("A"); debugger; print("B"); // BREAK',
-            'global' : true
-          }
-        });
+        exec_state.frame(0).evaluate(
+            "print('A');\n" +
+            "debugger;   // BREAK\n" +
+            "print('B'); // BREAK");
         break;
       case 1:
-        sendCommand(exec_state, {
-          seq : 0,
-          type : "request",
-          command : "continue",
-          arguments : {
-            stepaction : "next"
-          }
-        });
+        exec_state.prepareStep(Debug.StepAction.StepNext);
         break;
       }
     }

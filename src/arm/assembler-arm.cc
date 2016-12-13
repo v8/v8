@@ -3911,7 +3911,7 @@ void Assembler::vmov(const QwNeonRegister dst, const QwNeonRegister src) {
   dst.split_code(&vd, &d);
   int vm, m;
   src.split_code(&vm, &m);
-  emit(0x1E4 * B23 | d * B22 | 2 * B20 | vm * B16 | vd * B12 | B8 | m * B7 |
+  emit(0x1E4U * B23 | d * B22 | 2 * B20 | vm * B16 | vd * B12 | B8 | m * B7 |
        B6 | m * B5 | B4 | vm);
 }
 
@@ -3950,8 +3950,8 @@ void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
   src1.split_code(&vn, &n);
   int vm, m;
   src2.split_code(&vm, &m);
-  emit(0x1E6 * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | m * B5 | B4 |
-       vm);
+  emit(0x1E6U * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | m * B5 |
+       B4 | vm);
 }
 
 void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
@@ -3964,8 +3964,8 @@ void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
   src1.split_code(&vn, &n);
   int vm, m;
   src2.split_code(&vm, &m);
-  emit(0x1E6 * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | B6 | m * B5 |
-       B4 | vm);
+  emit(0x1E6U * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | B6 |
+       m * B5 | B4 | vm);
 }
 
 // Pseudo instructions.

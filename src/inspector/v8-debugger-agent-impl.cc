@@ -63,8 +63,7 @@ static const char kDebuggerNotPaused[] =
 namespace {
 
 void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
-                                      WasmTranslation* wasmTranslation,
-                                      int context_group_id) {
+                                      WasmTranslation* wasmTranslation) {
   for (size_t i = 0, e = stackTrace->length(); i != e; ++i) {
     protocol::Debugger::Location* location = stackTrace->get(i)->getLocation();
     String16 scriptId = location->getScriptId();
@@ -72,7 +71,7 @@ void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
     int columnNumber = location->getColumnNumber(-1);
 
     if (!wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-            &scriptId, &lineNumber, &columnNumber, context_group_id)) {
+            &scriptId, &lineNumber, &columnNumber)) {
       continue;
     }
 
@@ -183,7 +182,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_state->setObject(DebuggerAgentState::javaScriptBreakpoints,
                      protocol::DictionaryValue::create());
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState,
-                      v8::DebugInterface::NoBreakOnException);
+                      v8::debug::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
   if (!m_pausedContext.IsEmpty()) m_debugger->continueProgram();
@@ -221,7 +220,7 @@ void V8DebuggerAgentImpl::restore() {
 
   enableImpl();
 
-  int pauseState = v8::DebugInterface::NoBreakOnException;
+  int pauseState = v8::debug::NoBreakOnException;
   m_state->getInteger(DebuggerAgentState::pauseOnExceptionsState, &pauseState);
   setPauseOnExceptionsImpl(pauseState);
 
@@ -385,9 +384,9 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     return Response::Error(
         "start.lineNumber and start.columnNumber should be >= 0");
 
-  v8::DebugInterface::Location v8Start(start->getLineNumber(),
-                                       start->getColumnNumber(0));
-  v8::DebugInterface::Location v8End;
+  v8::debug::Location v8Start(start->getLineNumber(),
+                              start->getColumnNumber(0));
+  v8::debug::Location v8End;
   if (end.isJust()) {
     if (end.fromJust()->getScriptId() != scriptId)
       return Response::Error("Locations should contain the same scriptId");
@@ -396,12 +395,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     if (line < 0 || column < 0)
       return Response::Error(
           "end.lineNumber and end.columnNumber should be >= 0");
-    v8End = v8::DebugInterface::Location(line, column);
+    v8End = v8::debug::Location(line, column);
   }
   auto it = m_scripts.find(scriptId);
   if (it == m_scripts.end()) return Response::Error("Script not found");
 
-  std::vector<v8::DebugInterface::Location> v8Locations;
+  std::vector<v8::debug::Location> v8Locations;
   if (!it->second->getPossibleBreakpoints(v8Start, v8End, &v8Locations))
     return Response::InternalError();
 
@@ -515,6 +514,7 @@ std::unique_ptr<protocol::Debugger::Location>
 V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
                                        const ScriptBreakpoint& breakpoint,
                                        BreakpointSource source) {
+  v8::HandleScope handles(m_isolate);
   DCHECK(enabled());
   // FIXME: remove these checks once crbug.com/520702 is resolved.
   CHECK(!breakpointId.isEmpty());
@@ -526,12 +526,9 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
     return nullptr;
 
   ScriptBreakpoint translatedBreakpoint = breakpoint;
-  if (m_scripts.count(breakpoint.script_id) == 0) {
-    m_debugger->wasmTranslation()
-        ->TranslateProtocolLocationToWasmScriptLocation(
-            &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
-            &translatedBreakpoint.column_number);
-  }
+  m_debugger->wasmTranslation()->TranslateProtocolLocationToWasmScriptLocation(
+      &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
+      &translatedBreakpoint.column_number);
 
   int actualLineNumber;
   int actualColumnNumber;
@@ -726,13 +723,13 @@ Response V8DebuggerAgentImpl::stepOut() {
 Response V8DebuggerAgentImpl::setPauseOnExceptions(
     const String16& stringPauseState) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
-  v8::DebugInterface::ExceptionBreakState pauseState;
+  v8::debug::ExceptionBreakState pauseState;
   if (stringPauseState == "none") {
-    pauseState = v8::DebugInterface::NoBreakOnException;
+    pauseState = v8::debug::NoBreakOnException;
   } else if (stringPauseState == "all") {
-    pauseState = v8::DebugInterface::BreakOnAnyException;
+    pauseState = v8::debug::BreakOnAnyException;
   } else if (stringPauseState == "uncaught") {
-    pauseState = v8::DebugInterface::BreakOnUncaughtException;
+    pauseState = v8::debug::BreakOnUncaughtException;
   } else {
     return Response::Error("Unknown pause on exceptions mode: " +
                            stringPauseState);
@@ -743,7 +740,7 @@ Response V8DebuggerAgentImpl::setPauseOnExceptions(
 
 void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(int pauseState) {
   m_debugger->setPauseOnExceptionsState(
-      static_cast<v8::DebugInterface::ExceptionBreakState>(pauseState));
+      static_cast<v8::debug::ExceptionBreakState>(pauseState));
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState, pauseState);
 }
 
@@ -937,7 +934,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   }
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Context> debuggerContext =
-      v8::DebugInterface::GetDebugContext(m_isolate);
+      v8::debug::GetDebugContext(m_isolate);
   v8::Context::Scope contextScope(debuggerContext);
 
   v8::Local<v8::Array> objects = v8::Array::New(m_isolate);
@@ -1033,8 +1030,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   protocol::ErrorSupport errorSupport;
   *result = Array<CallFrame>::fromValue(protocolValue.get(), &errorSupport);
   if (!*result) return Response::Error(errorSupport.errors());
-  TranslateWasmStackTraceLocations(result->get(), m_debugger->wasmTranslation(),
-                                   m_session->contextGroupId());
+  TranslateWasmStackTraceLocations(result->get(),
+                                   m_debugger->wasmTranslation());
   return Response::OK();
 }
 
@@ -1053,10 +1050,17 @@ void V8DebuggerAgentImpl::didParseSource(
   if (!success)
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
 
+  int contextId = script->executionContextId();
+  int contextGroupId = m_inspector->contextGroupId(contextId);
+  InspectedContext* inspected =
+      m_inspector->getContext(contextGroupId, contextId);
   std::unique_ptr<protocol::DictionaryValue> executionContextAuxData;
-  if (!script->executionContextAuxData().isEmpty())
+  if (inspected) {
+    // Script reused between different groups/sessions can have a stale
+    // execution context id.
     executionContextAuxData = protocol::DictionaryValue::cast(
-        protocol::StringUtil::parseJSON(script->executionContextAuxData()));
+        protocol::StringUtil::parseJSON(inspected->auxData()));
+  }
   bool isLiveEdit = script->isLiveEdit();
   bool hasSourceURL = script->hasSourceURL();
   String16 scriptId = script->scriptId();
@@ -1076,17 +1080,15 @@ void V8DebuggerAgentImpl::didParseSource(
   if (success)
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(),
-        scriptRef->executionContextId(), scriptRef->hash(m_isolate),
-        std::move(executionContextAuxDataParam), isLiveEditParam,
-        std::move(sourceMapURLParam), hasSourceURLParam);
+        scriptRef->endLine(), scriptRef->endColumn(), contextId,
+        scriptRef->hash(m_isolate), std::move(executionContextAuxDataParam),
+        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam);
   else
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(),
-        scriptRef->executionContextId(), scriptRef->hash(m_isolate),
-        std::move(executionContextAuxDataParam), std::move(sourceMapURLParam),
-        hasSourceURLParam);
+        scriptRef->endLine(), scriptRef->endColumn(), contextId,
+        scriptRef->hash(m_isolate), std::move(executionContextAuxDataParam),
+        std::move(sourceMapURLParam), hasSourceURLParam);
 
   if (scriptURL.isEmpty() || !success) return;
 
@@ -1153,7 +1155,7 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
 
   if (!exception.IsEmpty()) {
     InjectedScript* injectedScript = nullptr;
-    m_session->findInjectedScript(V8Debugger::contextId(context),
+    m_session->findInjectedScript(InspectedContext::contextId(context),
                                   injectedScript);
     if (injectedScript) {
       m_breakReason =
@@ -1236,8 +1238,7 @@ void V8DebuggerAgentImpl::breakProgramOnException(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
   if (!enabled() ||
-      m_debugger->getPauseOnExceptionsState() ==
-          v8::DebugInterface::NoBreakOnException)
+      m_debugger->getPauseOnExceptionsState() == v8::debug::NoBreakOnException)
     return;
   breakProgram(breakReason, std::move(data));
 }

@@ -65,12 +65,7 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
-  if (FLAG_minimal) {
-    InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
-  } else {
-    FastArrayPushStub stub(isolate);
-    InstallCode(isolate, holder, "push", stub.GetCode());
-  }
+  InstallBuiltin(isolate, holder, "push", Builtins::kFastArrayPush);
   InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
@@ -635,47 +630,22 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   return Smi::FromInt(-1);
 }
 
+
 RUNTIME_FUNCTION(Runtime_SpreadIterablePrepare) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, spread, 0);
 
-  if (spread->IsJSArray()) {
-    // Check that the spread arg has fast elements
-    Handle<JSArray> spread_array = Handle<JSArray>::cast(spread);
-    ElementsKind array_kind = spread_array->GetElementsKind();
-
-    // And that it has the orignal ArrayPrototype
-    JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
-    Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
-
-    // Check that the iterator acts as expected.
-    // If IsArrayIteratorLookupChainIntact(), then we know that the initial
-    // ArrayIterator is being used. If the map of the prototype has changed,
-    // then take the slow path.
-
-    if (isolate->is_initial_array_prototype(array_proto) &&
-        isolate->IsArrayIteratorLookupChainIntact() &&
-        isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
-      if (IsFastPackedElementsKind(array_kind)) {
-        return *spread;
-      }
-      if (IsFastHoleyElementsKind(array_kind) &&
-          isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-        return *spread;
-      }
-    }
+  // Iterate over the spread if we need to.
+  if (spread->IterationHasObservableEffects()) {
+    Handle<JSFunction> spread_iterable_function = isolate->spread_iterable();
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, spread,
+        Execution::Call(isolate, spread_iterable_function,
+                        isolate->factory()->undefined_value(), 1, &spread));
   }
 
-  Handle<JSFunction> spread_iterable_function = isolate->spread_iterable();
-
-  Handle<Object> spreaded;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, spreaded,
-      Execution::Call(isolate, spread_iterable_function,
-                      isolate->factory()->undefined_value(), 1, &spread));
-
-  return *spreaded;
+  return *spread;
 }
 
 }  // namespace internal

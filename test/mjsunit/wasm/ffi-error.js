@@ -115,3 +115,14 @@ assertThrows(function() {
     main(13);
   }, TypeError);
 })();
+
+(function ImportSymbolToNumberThrows() {
+  var builder = new WasmModuleBuilder();
+  var index = builder.addImport("func", kSig_i_v);
+  builder.addFunction("main", kSig_i_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var func = () => Symbol();
+  var main = builder.instantiate({func: func}).exports.main;
+  assertThrows(() => main(), TypeError);
+})();

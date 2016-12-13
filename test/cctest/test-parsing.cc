@@ -43,6 +43,7 @@
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -819,8 +820,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::ParseInfo info(&zone, script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
-      i::Parser parser(&info);
-      CHECK(parser.Parse(&info));
+      CHECK(i::parsing::ParseProgram(&info));
       CHECK(i::Rewriter::Rewrite(&info));
       i::DeclarationScope::Analyze(&info, i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
@@ -1173,9 +1173,8 @@ TEST(ScopePositions) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
     info.set_language_mode(source_data[i].language_mode);
-    parser.Parse(&info);
+    i::parsing::ParseProgram(&info);
     CHECK_NOT_NULL(info.literal());
 
     // Check scope types and positions.
@@ -1221,8 +1220,7 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
-    parser.Parse(&info);
+    i::parsing::ParseProgram(&info);
     function = info.literal();
     CHECK_NOT_NULL(function);
     CHECK_NOT_NULL(function->body());
@@ -1288,9 +1286,18 @@ enum ParserSyncTestResult {
   kError
 };
 
-template <typename Traits>
-void SetParserFlags(i::ParserBase<Traits>* parser,
-                    i::EnumSet<ParserFlag> flags) {
+void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
+  i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
+  i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
+  i::FLAG_harmony_async_await = flags.Contains(kAllowHarmonyAsyncAwait);
+  i::FLAG_harmony_restrictive_generators =
+      flags.Contains(kAllowHarmonyRestrictiveGenerators);
+  i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
+  i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
+  i::FLAG_harmony_types = flags.Contains(kAllowTypes);
+}
+
+void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
@@ -1304,7 +1311,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyClassFields));
   parser->set_allow_harmony_types(flags.Contains(kAllowTypes));
 }
-
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags,
@@ -1344,10 +1350,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
-    i::Parser parser(&info);
-    SetParserFlags(&parser, flags);
+    SetGlobalFlags(flags);
     if (is_module) info.set_module();
-    parser.Parse(&info);
+    i::parsing::ParseProgram(&info);
     function = info.literal();
     if (function) {
       parser_materialized_literals = function->materialized_literal_count();
@@ -2479,7 +2484,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::ScriptData* sd = NULL;
     info.set_cached_data(&sd);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
-    i::Parser::ParseStatic(&info);
+    i::parsing::ParseProgram(&info);
     i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
     if (pd->FunctionCount() != test_cases[i].functions) {
@@ -3259,83 +3264,109 @@ TEST(InnerAssignment) {
   const char* prefix = "function f() {";
   const char* midfix = " function g() {";
   const char* suffix = "}}; f";
-  struct { const char* source; bool assigned; bool strict; } outers[] = {
-    // Actual assignments.
-    { "var x; var x = 5;", true, false },
-    { "var x; { var x = 5; }", true, false },
-    { "'use strict'; let x; x = 6;", true, true },
-    { "var x = 5; function x() {}", true, false },
-    // Actual non-assignments.
-    { "var x;", false, false },
-    { "var x = 5;", false, false },
-    { "'use strict'; let x;", false, true },
-    { "'use strict'; let x = 6;", false, true },
-    { "'use strict'; var x = 0; { let x = 6; }", false, true },
-    { "'use strict'; var x = 0; { let x; x = 6; }", false, true },
-    { "'use strict'; let x = 0; { let x = 6; }", false, true },
-    { "'use strict'; let x = 0; { let x; x = 6; }", false, true },
-    { "var x; try {} catch (x) { x = 5; }", false, false },
-    { "function x() {}", false, false },
-    // Eval approximation.
-    { "var x; eval('');", true, false },
-    { "eval(''); var x;", true, false },
-    { "'use strict'; let x; eval('');", true, true },
-    { "'use strict'; eval(''); let x;", true, true },
-    // Non-assignments not recognized, because the analysis is approximative.
-    { "var x; var x;", true, false },
-    { "var x = 5; var x;", true, false },
-    { "var x; { var x; }", true, false },
-    { "var x; function x() {}", true, false },
-    { "function x() {}; var x;", true, false },
-    { "var x; try {} catch (x) { var x = 5; }", true, false },
+  struct {
+    const char* source;
+    bool assigned;
+    bool strict;
+  } outers[] = {
+      // Actual assignments.
+      {"var x; var x = 5;", true, false},
+      {"var x; { var x = 5; }", true, false},
+      {"'use strict'; let x; x = 6;", true, true},
+      {"var x = 5; function x() {}", true, false},
+      {"var x = 4; var x = 5;", true, false},
+      {"var [x, x] = [4, 5];", true, false},
+      {"var x; [x, x] = [4, 5];", true, false},
+      {"var {a: x, b: x} = {a: 4, b: 5};", true, false},
+      {"var x = {a: 4, b: (x = 5)};", true, false},
+      {"var {x=1} = {a: 4, b: (x = 5)};", true, false},
+      {"var {x} = {x: 4, b: (x = 5)};", true, false},
+      // Actual non-assignments.
+      {"var x;", false, false},
+      {"var x = 5;", false, false},
+      {"'use strict'; let x;", false, true},
+      {"'use strict'; let x = 6;", false, true},
+      {"'use strict'; var x = 0; { let x = 6; }", false, true},
+      {"'use strict'; var x = 0; { let x; x = 6; }", false, true},
+      {"'use strict'; let x = 0; { let x = 6; }", false, true},
+      {"'use strict'; let x = 0; { let x; x = 6; }", false, true},
+      {"var x; try {} catch (x) { x = 5; }", false, false},
+      {"function x() {}", false, false},
+      // Eval approximation.
+      {"var x; eval('');", true, false},
+      {"eval(''); var x;", true, false},
+      {"'use strict'; let x; eval('');", true, true},
+      {"'use strict'; eval(''); let x;", true, true},
+      // Non-assignments not recognized, because the analysis is approximative.
+      {"var x; var x;", true, false},
+      {"var x = 5; var x;", true, false},
+      {"var x; { var x; }", true, false},
+      {"var x; function x() {}", true, false},
+      {"function x() {}; var x;", true, false},
+      {"var x; try {} catch (x) { var x = 5; }", true, false},
   };
-  struct { const char* source; bool assigned; bool with; } inners[] = {
-    // Actual assignments.
-    { "x = 1;", true, false },
-    { "x++;", true, false },
-    { "++x;", true, false },
-    { "x--;", true, false },
-    { "--x;", true, false },
-    { "{ x = 1; }", true, false },
-    { "'use strict'; { let x; }; x = 0;", true, false },
-    { "'use strict'; { const x = 1; }; x = 0;", true, false },
-    { "'use strict'; { function x() {} }; x = 0;", true, false },
-    { "with ({}) { x = 1; }", true, true },
-    { "eval('');", true, false },
-    { "'use strict'; { let y; eval('') }", true, false },
-    { "function h() { x = 0; }", true, false },
-    { "(function() { x = 0; })", true, false },
-    { "(function() { x = 0; })", true, false },
-    { "with ({}) (function() { x = 0; })", true, true },
-    // Actual non-assignments.
-    { "", false, false },
-    { "x;", false, false },
-    { "var x;", false, false },
-    { "var x = 8;", false, false },
-    { "var x; x = 8;", false, false },
-    { "'use strict'; let x;", false, false },
-    { "'use strict'; let x = 8;", false, false },
-    { "'use strict'; let x; x = 8;", false, false },
-    { "'use strict'; const x = 8;", false, false },
-    { "function x() {}", false, false },
-    { "function x() { x = 0; }", false, false },
-    { "function h(x) { x = 0; }", false, false },
-    { "'use strict'; { let x; x = 0; }", false, false },
-    { "{ var x; }; x = 0;", false, false },
-    { "with ({}) {}", false, true },
-    { "var x; { with ({}) { x = 1; } }", false, true },
-    { "try {} catch(x) { x = 0; }", false, false },
-    { "try {} catch(x) { with ({}) { x = 1; } }", false, true },
-    // Eval approximation.
-    { "eval('');", true, false },
-    { "function h() { eval(''); }", true, false },
-    { "(function() { eval(''); })", true, false },
-    // Shadowing not recognized because of eval approximation.
-    { "var x; eval('');", true, false },
-    { "'use strict'; let x; eval('');", true, false },
-    { "try {} catch(x) { eval(''); }", true, false },
-    { "function x() { eval(''); }", true, false },
-    { "(function(x) { eval(''); })", true, false },
+
+  // We set allow_error_in_inner_function to true in cases where our handling of
+  // assigned variables in lazy inner functions is currently overly pessimistic.
+  // FIXME(marja): remove it when no longer needed.
+  struct {
+    const char* source;
+    bool assigned;
+    bool with;
+    bool allow_error_in_inner_function;
+  } inners[] = {
+      // Actual assignments.
+      {"x = 1;", true, false, false},
+      {"x++;", true, false, false},
+      {"++x;", true, false, false},
+      {"x--;", true, false, false},
+      {"--x;", true, false, false},
+      {"{ x = 1; }", true, false, false},
+      {"'use strict'; { let x; }; x = 0;", true, false, false},
+      {"'use strict'; { const x = 1; }; x = 0;", true, false, false},
+      {"'use strict'; { function x() {} }; x = 0;", true, false, false},
+      {"with ({}) { x = 1; }", true, true, false},
+      {"eval('');", true, false, false},
+      {"'use strict'; { let y; eval('') }", true, false, false},
+      {"function h() { x = 0; }", true, false, false},
+      {"(function() { x = 0; })", true, false, false},
+      {"(function() { x = 0; })", true, false, false},
+      {"with ({}) (function() { x = 0; })", true, true, false},
+      {"for (x of [1,2,3]) {}", true, false, false},
+      {"for (x in {a: 1}) {}", true, false, false},
+      {"for ([x] of [[1],[2],[3]]) {}", true, false, false},
+      {"for ([x] in {ab: 1}) {}", true, false, false},
+      {"for ([...x] in {ab: 1}) {}", true, false, false},
+      {"[x] = [1]", true, false, false},
+      // Actual non-assignments.
+      {"", false, false, false},
+      {"x;", false, false, false},
+      {"var x;", false, false, false},
+      {"var x = 8;", false, false, false},
+      {"var x; x = 8;", false, false, false},
+      {"'use strict'; let x;", false, false, false},
+      {"'use strict'; let x = 8;", false, false, false},
+      {"'use strict'; let x; x = 8;", false, false, false},
+      {"'use strict'; const x = 8;", false, false, false},
+      {"function x() {}", false, false, false},
+      {"function x() { x = 0; }", false, false, true},
+      {"function h(x) { x = 0; }", false, false, false},
+      {"'use strict'; { let x; x = 0; }", false, false, false},
+      {"{ var x; }; x = 0;", false, false, false},
+      {"with ({}) {}", false, true, false},
+      {"var x; { with ({}) { x = 1; } }", false, true, false},
+      {"try {} catch(x) { x = 0; }", false, false, true},
+      {"try {} catch(x) { with ({}) { x = 1; } }", false, true, true},
+      // Eval approximation.
+      {"eval('');", true, false, false},
+      {"function h() { eval(''); }", true, false, false},
+      {"(function() { eval(''); })", true, false, false},
+      // Shadowing not recognized because of eval approximation.
+      {"var x; eval('');", true, false, false},
+      {"'use strict'; let x; eval('');", true, false, false},
+      {"try {} catch(x) { eval(''); }", true, false, false},
+      {"function x() { eval(''); }", true, false, false},
+      {"(function(x) { eval(''); })", true, false, false},
   };
 
   int prefix_len = Utf8LengthHelper(prefix);
@@ -3365,6 +3396,7 @@ TEST(InnerAssignment) {
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
+          CHECK(i::parsing::ParseFunction(info.get()));
         } else {
           i::Handle<i::String> source =
               factory->InternalizeUtf8String(program.start());
@@ -3373,9 +3405,8 @@ TEST(InnerAssignment) {
           i::Handle<i::Script> script = factory->NewScript(source);
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
           info->set_allow_lazy_parsing(false);
+          CHECK(i::parsing::ParseProgram(info.get()));
         }
-        i::Parser parser(info.get());
-        CHECK(parser.Parse(info.get()));
         CHECK(i::Compiler::Analyze(info.get()));
         CHECK(info->literal() != NULL);
 
@@ -3394,11 +3425,10 @@ TEST(InnerAssignment) {
         CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
         if (i::FLAG_lazy_inner_functions) {
-          // If we parse inner functions lazily, allow being pessimistic about
-          // maybe_assigned.
-          CHECK(is_maybe_assigned || (is_maybe_assigned == expected));
+          CHECK(is_maybe_assigned == expected ||
+                (is_maybe_assigned && inners[j].allow_error_in_inner_function));
         } else {
-          CHECK(is_maybe_assigned == expected);
+          CHECK_EQ(is_maybe_assigned, expected);
         }
       }
     }
@@ -3423,6 +3453,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
 }  // namespace
 
 TEST(AsmModuleFlag) {
+  i::FLAG_validate_asm = false;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -3430,8 +3461,7 @@ TEST(AsmModuleFlag) {
   const char* src =
       "function m() {"
       "  'use asm';"
-      "  var x = 0;"
-      "  function f() { return x };"
+      "  function f() { return 0 };"
       "  return { f:f };"
       "}"
       "m();";
@@ -5738,9 +5768,8 @@ TEST(BasicImportExportParsing) {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
       i::ParseInfo info(&zone, script);
-      i::Parser parser(&info);
       info.set_module();
-      if (!parser.Parse(&info)) {
+      if (!i::parsing::ParseProgram(&info)) {
         i::Handle<i::JSObject> exception_handle(
             i::JSObject::cast(isolate->pending_exception()));
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
@@ -5764,8 +5793,7 @@ TEST(BasicImportExportParsing) {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
       i::ParseInfo info(&zone, script);
-      i::Parser parser(&info);
-      CHECK(!parser.Parse(&info));
+      CHECK(!i::parsing::ParseProgram(&info));
       isolate->clear_pending_exception();
     }
   }
@@ -5856,9 +5884,8 @@ TEST(ImportExportParsingErrors) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
     info.set_module();
-    CHECK(!parser.Parse(&info));
+    CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
   }
 }
@@ -5894,9 +5921,8 @@ TEST(ModuleTopLevelFunctionDecl) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::ParseInfo info(&zone, script);
-    i::Parser parser(&info);
     info.set_module();
-    CHECK(!parser.Parse(&info));
+    CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
   }
 }
@@ -6093,9 +6119,8 @@ TEST(ModuleParsingInternals) {
   i::Handle<i::Script> script = factory->NewScript(source);
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::ParseInfo info(&zone, script);
-  i::Parser parser(&info);
   info.set_module();
-  CHECK(parser.Parse(&info));
+  CHECK(i::parsing::ParseProgram(&info));
   CHECK(i::Compiler::Analyze(&info));
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
@@ -6354,8 +6379,7 @@ void TestLanguageMode(const char* source,
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::ParseInfo info(&zone, script);
-  i::Parser parser(&info);
-  parser.Parse(&info);
+  i::parsing::ParseProgram(&info);
   CHECK(info.literal() != NULL);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }
@@ -8407,6 +8431,149 @@ TEST(ArgumentsRedeclaration) {
     RunParserSyncTest(context_data, data, kSuccess);
   }
 }
+
+namespace v8 {
+namespace internal {
+
+class ScopeTestHelper {
+ public:
+  static bool MustAllocateInContext(Variable* var) {
+    return var->scope()->MustAllocateInContext(var);
+  }
+};
+}  // namespace internal
+}  // namespace v8
+
+// Test that lazily parsed inner functions don't result in overly pessimistic
+// context allocations.
+TEST(NoPessimisticContextAllocation) {
+  i::FLAG_lazy_inner_functions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* prefix = "(function outer() { var my_var; ";
+  const char* suffix = " })();";
+  int prefix_len = Utf8LengthHelper(prefix);
+  int suffix_len = Utf8LengthHelper(suffix);
+
+  struct {
+    const char* source;
+    bool ctxt_allocate;
+  } inners[] = {
+      // Context allocating because we need to:
+      {"function inner() { my_var; }", true},
+      {"function inner() { eval(\"foo\"); }", true},
+      {"function inner() { function inner2() { my_var; } }", true},
+      {"function inner() { function inner2() { eval(\"foo\"); } }", true},
+      {"function inner() { var {my_var : a} = {my_var}; }", true},
+      {"function inner() { let {my_var : a} = {my_var}; }", true},
+      {"function inner() { const {my_var : a} = {my_var}; }", true},
+      // No pessimistic context allocation:
+      {"function inner() { var my_var; my_var; }", false},
+      {"function inner() { var my_var; }", false},
+      {"function inner() { let my_var; my_var; }", false},
+      {"function inner() { let my_var; }", false},
+      {"function inner() { const my_var = 0; my_var; }", false},
+      {"function inner() { const my_var = 0; }", false},
+      {"function inner() { var [a, my_var] = [1, 2]; my_var; }", false},
+      {"function inner() { let [a, my_var] = [1, 2]; my_var; }", false},
+      {"function inner() { const [a, my_var] = [1, 2]; my_var; }", false},
+      {"function inner() { var {a: my_var} = {a: 3}; my_var; }", false},
+      {"function inner() { let {a: my_var} = {a: 3}; my_var; }", false},
+      {"function inner() { const {a: my_var} = {a: 3}; my_var; }", false},
+      {"function inner() { var {my_var} = {my_var: 3}; my_var; }", false},
+      {"function inner() { let {my_var} = {my_var: 3}; my_var; }", false},
+      {"function inner() { const {my_var} = {my_var: 3}; my_var; }", false},
+      {"function inner(my_var) { my_var; }", false},
+      {"function inner(my_var) { }", false},
+      {"function inner(...my_var) { my_var; }", false},
+      {"function inner(...my_var) { }", false},
+      {"function inner([a, my_var, b]) { my_var; }", false},
+      {"function inner([a, my_var, b]) { }", false},
+      {"function inner({x: my_var}) { my_var; }", false},
+      {"function inner({x: my_var}) { }", false},
+      {"function inner({my_var}) { my_var; }", false},
+      {"function inner({my_var}) { }", false},
+      {"function inner() { function inner2(my_var) { my_var; } }", false},
+      {"function inner() { function inner2(my_var) { } }", false},
+      {"function inner() { function inner2(...my_var) { my_var; } }", false},
+      {"function inner() { function inner2(...my_var) { } }", false},
+      {"function inner() { function inner2([a, my_var, b]) { my_var; } }",
+       false},
+      {"function inner() { function inner2([a, my_var, b]) { } }", false},
+      {"function inner() { function inner2({x: my_var}) { my_var; } }", false},
+      {"function inner() { function inner2({x: my_var}) { } }", false},
+      {"function inner() { function inner2({my_var}) { my_var; } }", false},
+      {"function inner() { function inner2({my_var}) { } }", false},
+      {"my_var =>  my_var; ", false},
+      {"my_var => { }", false},
+      {"(...my_var) =>  my_var;", false},
+      {"(...my_var) => { }", false},
+      {"([a, my_var, b]) => my_var;", false},
+      {"([a, my_var, b]) => { }", false},
+      {"({x: my_var}) => my_var;", false},
+      {"({x: my_var}) => { }", false},
+      {"({my_var}) => my_var;", false},
+      {"({my_var}) => { }", false},
+      {"function inner() { try { } catch (my_var) { } }", false},
+      {"function inner() { class my_var {}; }", false},
+      // In the following cases we still context allocate pessimistically:
+      {"function inner() { function my_var() {} my_var; }", true},
+      {"function inner() { if (true) { function my_var() {} }  my_var; }",
+       true},
+      {"function inner() { try { } catch (my_var) { my_var; } }", true},
+      {"function inner() { for (my_var of {}) { my_var; } }", true},
+      {"function inner() { for (my_var of {}) { } }", true},
+      {"function inner() { for (my_var in []) { my_var; } }", true},
+      {"function inner() { for (my_var in []) { } }", true},
+      {"function inner() { my_var =>  my_var; }", true},
+      {"function inner() { my_var => { }}", true},
+      {"function inner() { (...my_var) =>  my_var;}", true},
+      {"function inner() { (...my_var) => { }}", true},
+      {"function inner() { ([a, my_var, b]) => my_var;}", true},
+      {"function inner() { ([a, my_var, b]) => { }}", true},
+      {"function inner() { ({x: my_var}) => my_var;}", true},
+      {"function inner() { ({x: my_var}) => { }}", true},
+      {"function inner() { ({my_var}) => my_var;}", true},
+      {"function inner() { ({my_var}) => { }}", true},
+      {"function inner() { class my_var {}; my_var }", true},
+  };
+
+  for (unsigned i = 0; i < arraysize(inners); ++i) {
+    const char* inner = inners[i].source;
+    int inner_len = Utf8LengthHelper(inner);
+    int len = prefix_len + inner_len + suffix_len;
+    i::ScopedVector<char> program(len + 1);
+    i::SNPrintF(program, "%s%s%s", prefix, inner, suffix);
+    i::Handle<i::String> source =
+        factory->InternalizeUtf8String(program.start());
+    source->PrintOn(stdout);
+    printf("\n");
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
+
+    CHECK(i::parsing::ParseProgram(&info));
+    CHECK(i::Compiler::Analyze(&info));
+    CHECK(info.literal() != NULL);
+
+    i::Scope* scope = info.literal()->scope()->inner_scope();
+    DCHECK_NOT_NULL(scope);
+    DCHECK_NULL(scope->sibling());
+    DCHECK(scope->is_function_scope());
+    const i::AstRawString* var_name =
+        info.ast_value_factory()->GetOneByteString("my_var");
+    i::Variable* var = scope->Lookup(var_name);
+    CHECK_EQ(inners[i].ctxt_allocate,
+             i::ScopeTestHelper::MustAllocateInContext(var));
+  }
+}
+
+
+// Tests for the optional type system.
 
 TEST(TypedVariableDeclarations) {
   const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};

@@ -254,20 +254,6 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
 }
 
 
-// Creates a clone of script breakpoint that is linked to another script.
-ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
-  var copy = new ScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
-      other_script.id, this.line_, this.column_, this.groupId_,
-      this.position_alignment_);
-  copy.number_ = next_break_point_number++;
-  script_break_points.push(copy);
-
-  copy.active_ = this.active_;
-  copy.condition_ = this.condition_;
-  return copy;
-};
-
-
 ScriptBreakPoint.prototype.number = function() {
   return this.number_;
 };
@@ -431,31 +417,6 @@ ScriptBreakPoint.prototype.clear = function () {
   break_points = remaining_break_points;
   this.break_points_ = [];
 };
-
-
-// Function called from runtime when a new script is compiled to set any script
-// break points set in this script.
-function UpdateScriptBreakPoints(script) {
-  for (var i = 0; i < script_break_points.length; i++) {
-    var break_point = script_break_points[i];
-    if ((break_point.type() == Debug.ScriptBreakPointType.ScriptName ||
-         break_point.type() == Debug.ScriptBreakPointType.ScriptRegExp) &&
-        break_point.matchesScript(script)) {
-      break_point.set(script);
-    }
-  }
-}
-
-
-function GetScriptBreakPoints(script) {
-  var result = [];
-  for (var i = 0; i < script_break_points.length; i++) {
-    if (script_break_points[i].matchesScript(script)) {
-      result.push(script_break_points[i]);
-    }
-  }
-  return result;
-}
 
 
 Debug.setListener = function(listener, opt_data) {
@@ -2462,12 +2423,6 @@ utils.InstallFunctions(utils, DONT_ENUM, [
   "MakeCompileEvent", MakeCompileEvent,
   "MakeAsyncTaskEvent", MakeAsyncTaskEvent,
   "IsBreakPointTriggered", IsBreakPointTriggered,
-  "UpdateScriptBreakPoints", UpdateScriptBreakPoints,
 ]);
-
-// Export to liveedit.js
-utils.Export(function(to) {
-  to.GetScriptBreakPoints = GetScriptBreakPoints;
-});
 
 })

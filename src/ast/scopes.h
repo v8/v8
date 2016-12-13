@@ -34,6 +34,10 @@ class VariableMap: public ZoneHashMap {
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     bool* added = nullptr);
 
+  // Records that "name" exists but doesn't create a Variable. Useful for
+  // preparsing.
+  void DeclareName(Zone* zone, const AstRawString* name);
+
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Zone* zone, Variable* var);
@@ -161,6 +165,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
+  void DeclareVariableName(const AstRawString* name, VariableMode mode);
+
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }
 
@@ -181,7 +187,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // allocated globally as a "ghost" variable. RemoveUnresolved removes
   // such a variable again if it was added; otherwise this is a no-op.
   bool RemoveUnresolved(VariableProxy* var);
-  bool RemoveUnresolved(const AstRawString* name);
 
   // Creates a new temporary variable in this scope's TemporaryScope.  The
   // name is only used for printing and cannot be used to find the variable.
@@ -211,14 +216,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Scope-specific info.
 
   // Inform the scope and outer scopes that the corresponding code contains an
-  // eval call. We don't record eval calls from innner scopes in the outer most
-  // script scope, as we only see those when parsing eagerly. If we recorded the
-  // calls then, the outer most script scope would look different depending on
-  // whether we parsed eagerly or not which is undesirable.
+  // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
     inner_scope_calls_eval_ = true;
-    for (Scope* scope = outer_scope(); scope && !scope->is_script_scope();
+    for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
       scope->inner_scope_calls_eval_ = true;
     }
@@ -313,6 +315,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool calls_sloppy_eval() const {
     return scope_calls_eval_ && is_sloppy(language_mode());
   }
+  bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
   bool IsAsmFunction() const;
   bool typed() const { return typed_; }
@@ -434,6 +437,22 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
+  bool RemoveInnerScope(Scope* inner_scope) {
+    DCHECK_NOT_NULL(inner_scope);
+    if (inner_scope == inner_scope_) {
+      inner_scope_ = inner_scope_->sibling_;
+      return true;
+    }
+    for (Scope* scope = inner_scope_; scope != nullptr;
+         scope = scope->sibling_) {
+      if (scope->sibling_ == inner_scope) {
+        scope->sibling_ = scope->sibling_->sibling_;
+        return true;
+      }
+    }
+    return false;
+  }
+
  protected:
   explicit Scope(Zone* zone);
 
@@ -541,7 +560,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // list along the way, so full resolution cannot be done afterwards.
   // If a ParseInfo* is passed, non-free variables will be resolved.
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                    bool try_to_resolve = true,
                                     ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
@@ -575,24 +593,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     inner_scope->outer_scope_ = this;
   }
 
-  void RemoveInnerScope(Scope* inner_scope) {
-    DCHECK_NOT_NULL(inner_scope);
-    if (inner_scope == inner_scope_) {
-      inner_scope_ = inner_scope_->sibling_;
-      return;
-    }
-    for (Scope* scope = inner_scope_; scope != nullptr;
-         scope = scope->sibling_) {
-      if (scope->sibling_ == inner_scope) {
-        scope->sibling_ = scope->sibling_->sibling_;
-        return;
-      }
-    }
-  }
-
   void SetDefaults();
 
   friend class DeclarationScope;
+  friend class ScopeTestHelper;
 };
 
 class DeclarationScope : public Scope {
@@ -629,7 +633,15 @@ class DeclarationScope : public Scope {
                                         IsClassConstructor(function_kind())));
   }
 
-  bool is_lazily_parsed() const { return is_lazily_parsed_; }
+  bool was_lazily_parsed() const { return was_lazily_parsed_; }
+
+#ifdef DEBUG
+  void set_is_being_lazily_parsed(bool is_being_lazily_parsed) {
+    is_being_lazily_parsed_ = is_being_lazily_parsed;
+  }
+  bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
+#endif
+
   bool ShouldEagerCompile() const;
   void set_should_eager_compile();
 
@@ -832,7 +844,11 @@ class DeclarationScope : public Scope {
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
   bool should_eager_compile_ : 1;
-  bool is_lazily_parsed_ : 1;
+  // Set to true after we have finished lazy parsing the scope.
+  bool was_lazily_parsed_ : 1;
+#if DEBUG
+  bool is_being_lazily_parsed_ : 1;
+#endif
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;

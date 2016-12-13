@@ -27,7 +27,13 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
       deopt_reason_(kNoDeoptReason),
       deopt_id_(kNoDeoptimizationId),
       line_info_(line_info),
-      instruction_start_(instruction_start) {}
+      instruction_start_(instruction_start) {
+// TODO(alph): Extra check to help catch crbug.com/665398
+// Remove before 5.8 branch
+#if V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION == 7
+  CHECK(name);
+#endif
+}
 
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
                          ProfileNode* parent)

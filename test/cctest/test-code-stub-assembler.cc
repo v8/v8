@@ -1742,9 +1742,8 @@ TEST(ArgumentsForEach) {
 
   sum.Bind(m.IntPtrConstant(0));
 
-  arguments.ForEach(list, [&m, &sum](CodeStubAssembler* assembler, Node* arg) {
-    sum.Bind(assembler->IntPtrAdd(sum.value(), arg));
-  });
+  arguments.ForEach(
+      list, [&m, &sum](Node* arg) { sum.Bind(m.IntPtrAdd(sum.value(), arg)); });
 
   m.Return(sum.value());
 
@@ -1795,6 +1794,279 @@ TEST(IsDebugActive) {
 
   // Reset debug mode.
   *debug_is_active = false;
+}
+
+class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
+ public:
+  AppendJSArrayCodeStubAssembler(compiler::CodeAssemblerState* state,
+                                 ElementsKind kind)
+      : CodeStubAssembler(state), kind_(kind) {}
+
+  void TestAppendJSArrayImpl(Isolate* isolate, CodeAssemblerTester* tester,
+                             Object* o1, Object* o2, Object* o3, Object* o4,
+                             int initial_size, int result_size) {
+    typedef CodeStubAssembler::Variable Variable;
+    typedef CodeStubAssembler::Label Label;
+    Handle<JSArray> array = isolate->factory()->NewJSArray(
+        kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+    JSObject::SetElement(isolate, array, 0,
+                         Handle<Smi>(Smi::FromInt(1), isolate), SLOPPY)
+        .Check();
+    JSObject::SetElement(isolate, array, 1,
+                         Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
+        .Check();
+    CodeStubArguments args(this, IntPtrConstant(kNumParams));
+    Variable arg_index(this, MachineType::PointerRepresentation());
+    Label bailout(this);
+    arg_index.Bind(IntPtrConstant(0));
+    Node* length = BuildAppendJSArray(
+        kind_, HeapConstant(Handle<HeapObject>(isolate->context(), isolate)),
+        HeapConstant(array), args, arg_index, &bailout);
+    Return(length);
+
+    Bind(&bailout);
+    Return(SmiTag(IntPtrAdd(arg_index.value(), IntPtrConstant(2))));
+
+    Handle<Code> code = tester->GenerateCode();
+    CHECK(!code.is_null());
+
+    FunctionTester ft(code, kNumParams);
+
+    Handle<Object> result =
+        ft.Call(Handle<Object>(o1, isolate), Handle<Object>(o2, isolate),
+                Handle<Object>(o3, isolate), Handle<Object>(o4, isolate))
+            .ToHandleChecked();
+
+    CHECK_EQ(kind_, array->GetElementsKind());
+    CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
+    CHECK_EQ(result_size, Smi::cast(array->length())->value());
+    Object* obj = *JSObject::GetElement(isolate, array, 2).ToHandleChecked();
+    CHECK_EQ(result_size < 3 ? isolate->heap()->undefined_value() : o1, obj);
+    obj = *JSObject::GetElement(isolate, array, 3).ToHandleChecked();
+    CHECK_EQ(result_size < 4 ? isolate->heap()->undefined_value() : o2, obj);
+    obj = *JSObject::GetElement(isolate, array, 4).ToHandleChecked();
+    CHECK_EQ(result_size < 5 ? isolate->heap()->undefined_value() : o3, obj);
+    obj = *JSObject::GetElement(isolate, array, 5).ToHandleChecked();
+    CHECK_EQ(result_size < 6 ? isolate->heap()->undefined_value() : o4, obj);
+  }
+
+  static void TestAppendJSArray(Isolate* isolate, ElementsKind kind, Object* o1,
+                                Object* o2, Object* o3, Object* o4,
+                                int initial_size, int result_size) {
+    CodeAssemblerTester data(isolate, kNumParams);
+    AppendJSArrayCodeStubAssembler m(data.state(), kind);
+    m.TestAppendJSArrayImpl(isolate, &data, o1, o2, o3, o4, initial_size,
+                            result_size);
+  }
+
+ private:
+  static const int kNumParams = 4;
+  ElementsKind kind_;
+};
+
+TEST(BuildAppendJSArrayFastElement) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4), Smi::FromInt(5),
+      Smi::FromInt(6), 6, 6);
+}
+
+TEST(BuildAppendJSArrayFastElementGrow) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4), Smi::FromInt(5),
+      Smi::FromInt(6), 2, 6);
+}
+
+TEST(BuildAppendJSArrayFastSmiElement) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      Smi::FromInt(5), Smi::FromInt(6), 6, 6);
+}
+
+TEST(BuildAppendJSArrayFastSmiElementGrow) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      Smi::FromInt(5), Smi::FromInt(6), 2, 6);
+}
+
+TEST(BuildAppendJSArrayFastSmiElementObject) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
+}
+
+TEST(BuildAppendJSArrayFastSmiElementObjectGrow) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate->heap()->undefined_value(), Smi::FromInt(6), 2, 4);
+}
+
+TEST(BuildAppendJSArrayFastDoubleElements) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      Smi::FromInt(5), Smi::FromInt(6), 6, 6);
+}
+
+TEST(BuildAppendJSArrayFastDoubleElementsGrow) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      Smi::FromInt(5), Smi::FromInt(6), 2, 6);
+}
+
+TEST(BuildAppendJSArrayFastDoubleElementsObject) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  AppendJSArrayCodeStubAssembler::TestAppendJSArray(
+      isolate, FAST_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
+      isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
+}
+
+namespace {
+
+template <typename Stub, typename... Args>
+void Recompile(Args... args) {
+  Stub stub(args...);
+  stub.DeleteStubFromCacheForTesting();
+  stub.GetCode();
+}
+
+}  // namespace
+
+TEST(CodeStubAssemblerGraphsCorrectness) {
+  // The test does not work with interpreter because bytecode handlers taken
+  // from the snapshot already refer to precompiled stubs from the snapshot
+  // and there is no way to trigger bytecode handlers recompilation.
+  if (FLAG_ignition || FLAG_turbo) return;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    LocalContext env(v8_isolate);
+    v8::HandleScope scope(v8_isolate);
+
+    FLAG_csa_verify = true;
+
+    // Recompile some stubs here.
+    Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
+    Recompile<LoadGlobalICTrampolineStub>(isolate,
+                                          LoadGlobalICState(NOT_INSIDE_TYPEOF));
+    Recompile<LoadICStub>(isolate);
+    Recompile<LoadICTrampolineStub>(isolate);
+    Recompile<KeyedLoadICTFStub>(isolate);
+    Recompile<KeyedLoadICTrampolineTFStub>(isolate);
+    Recompile<StoreICStub>(isolate, StoreICState(STRICT));
+    Recompile<StoreICTrampolineStub>(isolate, StoreICState(STRICT));
+    Recompile<KeyedStoreICTFStub>(isolate, StoreICState(STRICT));
+    Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(STRICT));
+  }
+  v8_isolate->Dispose();
+}
+
+TEST(IsPromiseHookEnabled) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabled()));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(false, isolate->IsPromiseHookEnabled());
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+
+  isolate->EnablePromiseHook();
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->true_value(), *result);
+
+  isolate->DisablePromiseHook();
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
+}
+
+TEST(AllocateJSPromise) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.Return(promise);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsJSPromise());
+}
+
+TEST(PromiseInit) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseInit(promise);
+  m.Return(promise);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsJSPromise());
+  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
+  CHECK_EQ(kPromisePending, js_promise->status());
+  CHECK_EQ(isolate->heap()->undefined_value(), js_promise->result());
+  CHECK(!js_promise->has_handler());
+}
+
+TEST(PromiseSet) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  m.Return(promise);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsJSPromise());
+  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
+  CHECK_EQ(kPromisePending, js_promise->status());
+  CHECK_EQ(Smi::FromInt(1), js_promise->result());
+  CHECK(!js_promise->has_handler());
 }
 
 }  // namespace internal

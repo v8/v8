@@ -30,10 +30,14 @@ class Zone;
 namespace compiler {
 
 class CallDescriptor;
+class CodeAssemblerLabel;
+class CodeAssemblerVariable;
 class CodeAssemblerState;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
+
+typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
@@ -151,9 +155,11 @@ class RawMachineLabel;
   V(ChangeUint32ToFloat64)              \
   V(ChangeUint32ToUint64)               \
   V(RoundFloat64ToInt32)                \
+  V(RoundInt32ToFloat32)                \
   V(Float64SilenceNaN)                  \
   V(Float64RoundDown)                   \
   V(Float64RoundUp)                     \
+  V(Float64RoundTiesEven)               \
   V(Float64RoundTruncate)               \
   V(Word32Clz)                          \
   V(Word32BinaryNot)
@@ -189,27 +195,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;
   bool IsFloat64RoundDownSupported() const;
+  bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
 
-  class Label;
-  class Variable {
-   public:
-    explicit Variable(CodeAssembler* assembler, MachineRepresentation rep);
-    ~Variable();
-    void Bind(Node* value);
-    Node* value() const;
-    MachineRepresentation rep() const;
-    bool IsBound() const;
-
-   private:
-    friend class CodeAssembler;
-    friend class CodeAssemblerState;
-    class Impl;
-    Impl* impl_;
-    CodeAssemblerState* state_;
-  };
-
-  typedef ZoneList<Variable*> VariableList;
+  // Shortened aliases for use in CodeAssembler subclasses.
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
+  typedef CodeAssemblerVariableList VariableList;
 
   // ===========================================================================
   // Base Assembler
@@ -249,9 +241,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
 
-  Node* Select(Node* condition, Node* true_value, Node* false_value,
-               MachineRepresentation rep = MachineRepresentation::kTagged);
-
   // Access to the frame pointer
   Node* LoadFramePointer();
   Node* LoadParentFramePointer();
@@ -261,19 +250,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
-  Node* Load(MachineType rep, Node* base, Node* index);
-  Node* AtomicLoad(MachineType rep, Node* base, Node* index);
+  Node* Load(MachineType rep, Node* base, Node* offset);
+  Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
 
   // Store value to raw memory location.
-  Node* Store(MachineRepresentation rep, Node* base, Node* value);
-  Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value);
+  Node* Store(Node* base, Node* value);
+  Node* Store(Node* base, Node* offset, Node* value);
+  Node* StoreWithMapWriteBarrier(Node* base, Node* offset, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* index,
+  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
-  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
                     Node* value);
 
   // Store a value to the root array.
@@ -462,6 +452,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Isolate* isolate() const;
   Zone* zone() const;
 
+  CodeAssemblerState* state() { return state_; }
+
  protected:
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
@@ -478,24 +470,46 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
 
-class CodeAssembler::Label {
+class CodeAssemblerVariable {
+ public:
+  explicit CodeAssemblerVariable(CodeAssembler* assembler,
+                                 MachineRepresentation rep);
+  ~CodeAssemblerVariable();
+  void Bind(Node* value);
+  Node* value() const;
+  MachineRepresentation rep() const;
+  bool IsBound() const;
+
+ private:
+  friend class CodeAssemblerLabel;
+  friend class CodeAssemblerState;
+  class Impl;
+  Impl* impl_;
+  CodeAssemblerState* state_;
+};
+
+class CodeAssemblerLabel {
  public:
   enum Type { kDeferred, kNonDeferred };
 
-  explicit Label(
+  explicit CodeAssemblerLabel(
       CodeAssembler* assembler,
-      CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, 0, nullptr, type) {}
-  Label(CodeAssembler* assembler, const VariableList& merged_variables,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, merged_variables.length(),
-                             &(merged_variables[0]), type) {}
-  Label(CodeAssembler* assembler, size_t count, Variable** vars,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
-  Label(CodeAssembler* assembler, CodeAssembler::Variable* merged_variable,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : Label(assembler, 1, &merged_variable, type) {}
-  ~Label() {}
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, 0, nullptr, type) {}
+  CodeAssemblerLabel(
+      CodeAssembler* assembler,
+      const CodeAssemblerVariableList& merged_variables,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, merged_variables.length(),
+                           &(merged_variables[0]), type) {}
+  CodeAssemblerLabel(
+      CodeAssembler* assembler, size_t count, CodeAssemblerVariable** vars,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred);
+  CodeAssemblerLabel(
+      CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
+  ~CodeAssemblerLabel() {}
 
  private:
   friend class CodeAssembler;
@@ -509,10 +523,10 @@ class CodeAssembler::Label {
   RawMachineLabel* label_;
   // Map of variables that need to be merged to their phi nodes (or placeholders
   // for those phis).
-  std::map<Variable::Impl*, Node*> variable_phis_;
+  std::map<CodeAssemblerVariable::Impl*, Node*> variable_phis_;
   // Map of variables to the list of value nodes that have been added from each
   // merge path in their order of merging.
-  std::map<Variable::Impl*, std::vector<Node*>> variable_merges_;
+  std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>> variable_merges_;
 };
 
 class V8_EXPORT_PRIVATE CodeAssemblerState {
@@ -533,6 +547,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
  private:
   friend class CodeAssembler;
+  friend class CodeAssemblerLabel;
+  friend class CodeAssemblerVariable;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Flags flags,
@@ -542,7 +558,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   Code::Flags flags_;
   const char* name_;
   bool code_generated_;
-  ZoneSet<CodeAssembler::Variable::Impl*> variables_;
+  ZoneSet<CodeAssemblerVariable::Impl*> variables_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };

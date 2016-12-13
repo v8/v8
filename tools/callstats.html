@@ -1103,7 +1103,23 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return result;
     }
 
+    function fixSinglePageJSON(json) {
+      // Try to detect the single-version case, where we're missing the toplevel
+      // version object. The incoming JSON is of the form:
+      //    {"Page 1": [... data points ... ], "Page 2": [...], ...}
+      // Instead of the default multi-page JSON:
+      //    {"Version 1": { "Page 1": ..., ...}, "Version 2": {...}, ...}
+      // In this case insert a single "Default" version as top-level entry.
+      var firstProperty = (object) => {
+        for (var key in object) return key;
+      };
+      var maybePage = json[firstProperty(json)];
+      if (!Array.isArray(maybePage)) return json;
+      return {"Default": json}
+    }
+
     function handleLoadJSON(json) {
+      json = fixSinglePageJSON(json);
       var state = getStateFromParams();
       pages = new Pages();
       versions = Versions.fromJSON(json);
@@ -1632,10 +1648,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return group;
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB'));
-    Group.add('ic', new Group('IC', /.*IC.*/, "#3366CC"));
+    Group.add('ic', new Group('IC', /.*IC_.*/, "#3366CC"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
-    Group.add('compile', new Group('Compile', /.*Compile.*/, "#FFAA00"));
+    Group.add('compile', new Group('Compile',
+        /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
     Group.add('parse-background',
         new Group('Parse-Background', /.*ParseBackground.*/, "#af744d"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));

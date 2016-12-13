@@ -46,7 +46,7 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
-class CompilerDispatcherTracer;
+class CompilerDispatcher;
 class CompilationStatistics;
 class ContextSlotCache;
 class Counters;
@@ -765,7 +765,9 @@ class Isolate {
   Object* PromoteScheduledException();
 
   // Attempts to compute the current source location, storing the
-  // result in the target out parameter.
+  // result in the target out parameter. The source location is attached to a
+  // Message object as the location which should be shown to the user. It's
+  // typically the top-most meaningful location on the stack.
   bool ComputeLocation(MessageLocation* target);
   bool ComputeLocationFromException(MessageLocation* target,
                                     Handle<Object> exception);
@@ -905,12 +907,6 @@ class Isolate {
 
   Builtins* builtins() { return &builtins_; }
 
-  void NotifyExtensionInstalled() {
-    has_installed_extensions_ = true;
-  }
-
-  bool has_installed_extensions() { return has_installed_extensions_; }
-
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       regexp_macro_assembler_canonicalize() {
     return &regexp_macro_assembler_canonicalize_;
@@ -969,6 +965,8 @@ class Isolate {
   bool use_crankshaft() const;
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
+
+  bool NeedsSourcePositionsForProfiling() const;
 
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
@@ -1075,7 +1073,7 @@ class Isolate {
   int GenerateIdentityHash(uint32_t mask);
 
   // Given an address occupied by a live code object, return that object.
-  Object* FindCodeObject(Address a);
+  Code* FindCodeObject(Address a);
 
   int NextOptimizationId() {
     int id = next_optimization_id_++;
@@ -1084,9 +1082,6 @@ class Isolate {
     }
     return id;
   }
-
-  // Get (and lazily initialize) the registry for per-isolate symbols.
-  Handle<JSObject> GetSymbolRegistry();
 
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
@@ -1115,6 +1110,9 @@ class Isolate {
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
   int GetNextDebugMicrotaskId() { return debug_microtask_count_++; }
 
+  Handle<Symbol> SymbolFor(Heap::RootListIndex dictionary_index,
+                           Handle<String> name, bool private_symbol);
+
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
@@ -1126,6 +1124,13 @@ class Isolate {
 #if TRACE_MAPS
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
+
+  Address is_promisehook_enabled_address() {
+    return reinterpret_cast<Address>(&is_promisehook_enabled_);
+  }
+  bool IsPromiseHookEnabled() { return is_promisehook_enabled_; }
+  void EnablePromiseHook();
+  void DisablePromiseHook();
 
   // Support for dynamically disabling tail call elimination.
   Address is_tail_call_elimination_enabled_address() {
@@ -1158,9 +1163,15 @@ class Isolate {
 
   AccountingAllocator* allocator() { return allocator_; }
 
-  CompilerDispatcherTracer* compiler_dispatcher_tracer() const {
-    return compiler_dispatcher_tracer_;
+  CompilerDispatcher* compiler_dispatcher() const {
+    return compiler_dispatcher_;
   }
+
+  // Clear all optimized code stored in native contexts.
+  void ClearOSROptimizedCode();
+
+  // Ensure that a particular optimized code is evicted.
+  void EvictOSROptimizedCode(Code* code, const char* reason);
 
   bool IsInAnyContext(Object* object, uint32_t index);
 
@@ -1185,8 +1196,6 @@ class Isolate {
  private:
   friend struct GlobalState;
   friend struct InitializeGlobalState;
-  Handle<JSObject> SetUpSubregistry(Handle<JSObject> registry, Handle<Map> map,
-                                    const char* name);
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8.h) constants. This is also
@@ -1342,7 +1351,6 @@ class Isolate {
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   Builtins builtins_;
-  bool has_installed_extensions_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
@@ -1363,6 +1371,9 @@ class Isolate {
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
+
+  // True if PromiseHook feature is enabled.
+  bool is_promisehook_enabled_;
 
   // True if ES2015 tail call elimination feature is enabled.
   bool is_tail_call_elimination_enabled_;
@@ -1388,7 +1399,7 @@ class Isolate {
 
   interpreter::Interpreter* interpreter_;
 
-  CompilerDispatcherTracer* compiler_dispatcher_tracer_;
+  CompilerDispatcher* compiler_dispatcher_;
 
   typedef std::pair<InterruptCallback, void*> InterruptEntry;
   std::queue<InterruptEntry> api_interrupts_queue_;

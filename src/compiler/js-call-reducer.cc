@@ -4,7 +4,9 @@
 
 #include "src/compiler/js-call-reducer.h"
 
+#include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
@@ -189,6 +191,35 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   return reduction.Changed() ? reduction : Changed(node);
 }
 
+// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] (V)
+Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* object = (node->op()->ValueInputCount() >= 3)
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // TODO(turbofan): If JSOrdinaryToInstance raises an exception, the
+  // stack trace doesn't contain the @@hasInstance call; we have the
+  // corresponding bug in the baseline case. Some massaging of the frame
+  // state would be necessary here.
+
+  // Morph this {node} into a JSOrdinaryHasInstance node.
+  node->ReplaceInput(0, receiver);
+  node->ReplaceInput(1, object);
+  node->ReplaceInput(2, context);
+  node->ReplaceInput(3, frame_state);
+  node->ReplaceInput(4, effect);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
+  return Changed(node);
+}
+
 namespace {
 
 // TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
@@ -228,7 +259,57 @@ MaybeHandle<Map> InferReceiverMap(Node* node) {
   }
 }
 
+bool CanInlineApiCall(Isolate* isolate, Node* node,
+                      Handle<FunctionTemplateInfo> function_template_info) {
+  DCHECK(node->opcode() == IrOpcode::kJSCallFunction);
+  if (function_template_info->call_code()->IsUndefined(isolate)) {
+    return false;
+  }
+  CallFunctionParameters const& params = CallFunctionParametersOf(node->op());
+  // CallApiCallbackStub expects the target in a register, so we count it out,
+  // and counts the receiver as an implicit argument, so we count the receiver
+  // out too.
+  int const argc = static_cast<int>(params.arity()) - 2;
+  if (argc > CallApiCallbackStub::kArgMax || !params.feedback().IsValid()) {
+    return false;
+  }
+  HeapObjectMatcher receiver(NodeProperties::GetValueInput(node, 1));
+  if (!receiver.HasValue()) {
+    return false;
+  }
+  return receiver.Value()->IsUndefined(isolate) ||
+         (receiver.Value()->map()->IsJSObjectMap() &&
+          !receiver.Value()->map()->is_access_check_needed());
+}
+
 }  // namespace
+
+JSCallReducer::HolderLookup JSCallReducer::LookupHolder(
+    Handle<JSObject> object,
+    Handle<FunctionTemplateInfo> function_template_info,
+    Handle<JSObject>* holder) {
+  DCHECK(object->map()->IsJSObjectMap());
+  Handle<Map> object_map(object->map());
+  Handle<FunctionTemplateInfo> expected_receiver_type;
+  if (!function_template_info->signature()->IsUndefined(isolate())) {
+    expected_receiver_type =
+        handle(FunctionTemplateInfo::cast(function_template_info->signature()));
+  }
+  if (expected_receiver_type.is_null() ||
+      expected_receiver_type->IsTemplateFor(*object_map)) {
+    *holder = Handle<JSObject>::null();
+    return kHolderIsReceiver;
+  }
+  while (object_map->has_hidden_prototype()) {
+    Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
+    object_map = handle(prototype->map());
+    if (expected_receiver_type->IsTemplateFor(*object_map)) {
+      *holder = prototype;
+      return kHolderFound;
+    }
+  }
+  return kHolderNotFound;
+}
 
 // ES6 section B.2.2.1.1 get Object.prototype.__proto__
 Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
@@ -249,6 +330,69 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   }
 
   return NoChange();
+}
+
+Reduction JSCallReducer::ReduceCallApiFunction(
+    Node* node, Node* target,
+    Handle<FunctionTemplateInfo> function_template_info) {
+  Isolate* isolate = this->isolate();
+  CHECK(!isolate->serializer_enabled());
+  HeapObjectMatcher m(target);
+  DCHECK(m.HasValue() && m.Value()->IsJSFunction());
+  if (!CanInlineApiCall(isolate, node, function_template_info)) {
+    return NoChange();
+  }
+  Handle<CallHandlerInfo> call_handler_info(
+      handle(CallHandlerInfo::cast(function_template_info->call_code())));
+  Handle<Object> data(call_handler_info->data(), isolate);
+
+  Node* receiver_node = NodeProperties::GetValueInput(node, 1);
+  CallFunctionParameters const& params = CallFunctionParametersOf(node->op());
+
+  Handle<HeapObject> receiver = HeapObjectMatcher(receiver_node).Value();
+  bool const receiver_is_undefined = receiver->IsUndefined(isolate);
+  if (receiver_is_undefined) {
+    receiver = handle(Handle<JSFunction>::cast(m.Value())->global_proxy());
+  } else {
+    DCHECK(receiver->map()->IsJSObjectMap() &&
+           !receiver->map()->is_access_check_needed());
+  }
+
+  Handle<JSObject> holder;
+  HolderLookup lookup = LookupHolder(Handle<JSObject>::cast(receiver),
+                                     function_template_info, &holder);
+  if (lookup == kHolderNotFound) return NoChange();
+  if (receiver_is_undefined) {
+    receiver_node = jsgraph()->HeapConstant(receiver);
+    NodeProperties::ReplaceValueInput(node, receiver_node, 1);
+  }
+  Node* holder_node =
+      lookup == kHolderFound ? jsgraph()->HeapConstant(holder) : receiver_node;
+
+  Zone* zone = graph()->zone();
+  // Same as CanInlineApiCall: exclude the target (which goes in a register) and
+  // the receiver (which is implicitly counted by CallApiCallbackStub) from the
+  // arguments count.
+  int const argc = static_cast<int>(params.arity() - 2);
+  CallApiCallbackStub stub(isolate, argc, data->IsUndefined(isolate), false);
+  CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate, zone, cid,
+      cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
+      CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
+      MachineType::AnyTagged(), 1);
+  ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
+  ExternalReference function_reference(
+      &api_function, ExternalReference::DIRECT_API_CALL, isolate);
+
+  // CallApiCallbackStub's register arguments: code, target, call data, holder,
+  // function address.
+  node->InsertInput(zone, 0, jsgraph()->HeapConstant(stub.GetCode()));
+  node->InsertInput(zone, 2, jsgraph()->Constant(data));
+  node->InsertInput(zone, 3, holder_node);
+  node->InsertInput(zone, 4, jsgraph()->ExternalConstant(function_reference));
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+  return Changed(node);
 }
 
 Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
@@ -280,6 +424,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           return ReduceFunctionPrototypeApply(node);
         case Builtins::kFunctionPrototypeCall:
           return ReduceFunctionPrototypeCall(node);
+        case Builtins::kFunctionPrototypeHasInstance:
+          return ReduceFunctionPrototypeHasInstance(node);
         case Builtins::kNumberConstructor:
           return ReduceNumberConstructor(node);
         case Builtins::kObjectPrototypeGetProto:
@@ -291,6 +437,12 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       // Check for the Array constructor.
       if (*function == function->native_context()->array_function()) {
         return ReduceArrayConstructor(node);
+      }
+
+      if (shared->IsApiFunction()) {
+        return ReduceCallApiFunction(
+            node, target,
+            handle(FunctionTemplateInfo::cast(shared->function_data())));
       }
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =

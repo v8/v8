@@ -1024,9 +1024,14 @@ class RepresentationSelector {
         // TODO(turbofan): Special treatment for ExternalPointer here,
         // to avoid incompatible truncations. We really need a story
         // for the JSFunction::entry field.
-        UseInfo use_info = input_type->Is(Type::ExternalPointer())
-                               ? UseInfo::PointerInt()
-                               : UseInfo::Any();
+        UseInfo use_info = UseInfo::None();
+        if (input_type->IsInhabited()) {
+          if (input_type->Is(Type::ExternalPointer())) {
+            use_info = UseInfo::PointerInt();
+          } else {
+            use_info = UseInfo::Any();
+          }
+        }
         EnqueueInput(node, i, use_info);
       }
     } else if (lower()) {
@@ -1041,7 +1046,9 @@ class RepresentationSelector {
         // TODO(turbofan): Special treatment for ExternalPointer here,
         // to avoid incompatible truncations. We really need a story
         // for the JSFunction::entry field.
-        if (input_type->Is(Type::ExternalPointer())) {
+        if (!input_type->IsInhabited()) {
+          (*types)[i] = MachineType::None();
+        } else if (input_type->Is(Type::ExternalPointer())) {
           (*types)[i] = MachineType::Pointer();
         } else {
           MachineRepresentation rep = input_type->IsInhabited()
@@ -2480,6 +2487,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kObjectIsUndetectable: {
         VisitObjectIs(node, Type::Undetectable(), lowering);
+        return;
+      }
+      case IrOpcode::kNewRestParameterElements:
+      case IrOpcode::kNewUnmappedArgumentsElements: {
+        ProcessRemainingInputs(node, 0);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kArrayBufferWasNeutered: {

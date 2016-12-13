@@ -853,30 +853,17 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Expression* key = expr->key();
 
   if (key->IsPropertyName()) {
-    if (!expr->IsSuperAccess()) {
-      VisitForAccumulatorValue(expr->obj());
-      __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-      EmitNamedPropertyLoad(expr);
-    } else {
-      VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object());
-      EmitNamedSuperPropertyLoad(expr);
-    }
+    DCHECK(!expr->IsSuperAccess());
+    VisitForAccumulatorValue(expr->obj());
+    __ Move(LoadDescriptor::ReceiverRegister(), result_register());
+    EmitNamedPropertyLoad(expr);
   } else {
-    if (!expr->IsSuperAccess()) {
-      VisitForStackValue(expr->obj());
-      VisitForAccumulatorValue(expr->key());
-      __ Move(LoadDescriptor::NameRegister(), result_register());
-      PopOperand(LoadDescriptor::ReceiverRegister());
-      EmitKeyedPropertyLoad(expr);
-    } else {
-      VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object());
-      VisitForStackValue(expr->key());
-      EmitKeyedSuperPropertyLoad(expr);
-    }
+    DCHECK(!expr->IsSuperAccess());
+    VisitForStackValue(expr->obj());
+    VisitForAccumulatorValue(expr->key());
+    __ Move(LoadDescriptor::NameRegister(), result_register());
+    PopOperand(LoadDescriptor::ReceiverRegister());
+    EmitKeyedPropertyLoad(expr);
   }
   PrepareForBailoutForId(expr->LoadId(), BailoutState::TOS_REGISTER);
   context()->Plug(result_register());
@@ -1059,17 +1046,6 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   CallLoadIC(prop->PropertyFeedbackSlot(), key->value());
 }
 
-void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
-  // Stack: receiver, home_object
-  SetExpressionPosition(prop);
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(!key->value()->IsSmi());
-  DCHECK(prop->IsSuperAccess());
-
-  PushOperand(key->value());
-  CallRuntimeWithOperands(Runtime::kLoadFromSuper);
-}
-
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetExpressionPosition(prop);
 
@@ -1078,12 +1054,6 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
-}
-
-void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
-  // Stack: receiver, home_object, key.
-  SetExpressionPosition(prop);
-  CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
 }
 
 void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
@@ -1114,33 +1084,8 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
-  Comment cmnt(masm_, "[ WithStatement");
-  SetStatementPosition(stmt);
-
-  VisitForAccumulatorValue(stmt->expression());
-  Callable callable = CodeFactory::ToObject(isolate());
-  __ Move(callable.descriptor().GetRegisterParameter(0), result_register());
-  __ Call(callable.code(), RelocInfo::CODE_TARGET);
-  RestoreContext();
-  PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
-  PushOperand(result_register());
-  PushOperand(stmt->scope()->scope_info());
-  PushFunctionArgumentForContextAllocation();
-  CallRuntimeWithOperands(Runtime::kPushWithContext);
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
-  PrepareForBailoutForId(stmt->EntryId(), BailoutState::NO_REGISTERS);
-
-  Scope* saved_scope = scope();
-  scope_ = stmt->scope();
-  { WithOrCatch body(this);
-    Visit(stmt->statement());
-  }
-  scope_ = saved_scope;
-
-  // Pop context.
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+  // Dynamic scoping is not supported.
+  UNREACHABLE();
 }
 
 
@@ -1261,43 +1206,8 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
 
 void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
-  Comment cmnt(masm_, "[ ForOfStatement");
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  // var iterator = iterable[Symbol.iterator]();
-  SetExpressionAsStatementPosition(stmt->assign_iterator());
-  VisitForEffect(stmt->assign_iterator());
-
-  // Loop entry.
-  __ bind(loop_statement.continue_label());
-
-  // result = iterator.next()
-  SetExpressionAsStatementPosition(stmt->next_result());
-  VisitForEffect(stmt->next_result());
-
-  // if (result.done) break;
-  Label result_not_done;
-  VisitForControl(stmt->result_done(), loop_statement.break_label(),
-                  &result_not_done, &result_not_done);
-  __ bind(&result_not_done);
-
-  // each = result.value
-  VisitForEffect(stmt->assign_each());
-
-  // Generate code for the body of the loop.
-  Visit(stmt->body());
-
-  // Check stack before looping.
-  PrepareForBailoutForId(stmt->BackEdgeId(), BailoutState::NO_REGISTERS);
-  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
-  __ jmp(loop_statement.continue_label());
-
-  // Exit and decrement the loop depth.
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
-  __ bind(loop_statement.break_label());
-  decrement_loop_depth();
+  // Iterator looping is not supported.
+  UNREACHABLE();
 }
 
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
@@ -1464,15 +1374,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       EmitKeyedCallWithLoadIC(expr, property->key());
       break;
     }
-    case Call::NAMED_SUPER_PROPERTY_CALL:
-      EmitSuperCallWithLoadIC(expr);
-      break;
-    case Call::KEYED_SUPER_PROPERTY_CALL:
-      EmitKeyedSuperCallWithLoadIC(expr);
-      break;
-    case Call::SUPER_CALL:
-      EmitSuperConstructorCall(expr);
-      break;
     case Call::OTHER_CALL:
       // Call to an arbitrary expression not handled specially above.
       VisitForStackValue(callee);
@@ -1481,6 +1382,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Emit function call.
       EmitCall(expr);
       break;
+    case Call::NAMED_SUPER_PROPERTY_CALL:
+    case Call::KEYED_SUPER_PROPERTY_CALL:
+    case Call::SUPER_CALL:
     case Call::WITH_CALL:
       UNREACHABLE();
   }
@@ -1542,6 +1446,7 @@ void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
+void FullCodeGenerator::VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
 
 void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());

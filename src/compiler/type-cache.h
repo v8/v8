@@ -141,6 +141,10 @@ class TypeCache final {
   Type* const kJSDateYearType =
       Type::Union(Type::SignedSmall(), Type::NaN(), zone());
 
+  // The valid number of arguments for JavaScript functions.
+  Type* const kArgumentsLengthType =
+      Type::Range(0.0, Code::kMaxArguments, zone());
+
  private:
   template <typename T>
   Type* CreateRange() {

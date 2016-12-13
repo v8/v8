@@ -29,9 +29,7 @@ namespace internal {
   V(NoAge)                        \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
-#define DECLARE_CODE_AGE_BUILTIN(C, V) \
-  V(Make##C##CodeYoungAgainOddMarking) \
-  V(Make##C##CodeYoungAgainEvenMarking)
+#define DECLARE_CODE_AGE_BUILTIN(C, V) V(Make##C##CodeYoungAgain)
 
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
 //      Args: name
@@ -153,6 +151,10 @@ namespace internal {
   TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements)    \
   TFS(GrowFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                  \
       GrowArrayElements)                                                      \
+  TFS(NewUnmappedArgumentsElements, BUILTIN, kNoExtraICState,                 \
+      NewArgumentsElements)                                                   \
+  TFS(NewRestParameterElements, BUILTIN, kNoExtraICState,                     \
+      NewArgumentsElements)                                                   \
                                                                               \
   /* Debugger */                                                              \
   DBG(FrameDropper_LiveEdit)                                                  \
@@ -220,6 +222,7 @@ namespace internal {
   TFJ(ArrayIndexOf, 2)                                                        \
   CPP(ArrayPop)                                                               \
   CPP(ArrayPush)                                                              \
+  TFJ(FastArrayPush, -1)                                                      \
   CPP(ArrayShift)                                                             \
   CPP(ArraySlice)                                                             \
   CPP(ArraySplice)                                                            \
@@ -370,6 +373,8 @@ namespace internal {
   CPP(FunctionConstructor)                                                    \
   ASM(FunctionPrototypeApply)                                                 \
   CPP(FunctionPrototypeBind)                                                  \
+  TFJ(FastFunctionPrototypeBind,                                              \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                        \
   ASM(FunctionPrototypeCall)                                                  \
   /* ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V ) */       \
   TFJ(FunctionPrototypeHasInstance, 1)                                        \
@@ -560,9 +565,16 @@ namespace internal {
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                     \
                                                                               \
   /* Promise */                                                               \
+  TFJ(PromiseConstructor, 1)                                                  \
+  TFJ(PromiseInternalConstructor, 0)                                          \
+  TFJ(IsPromise, 1)                                                           \
   CPP(CreateResolvingFunctions)                                               \
-  CPP(PromiseResolveClosure)                                                  \
+  TFJ(PromiseResolveClosure, 1)                                               \
   CPP(PromiseRejectClosure)                                                   \
+  TFJ(PromiseThen, 2)                                                         \
+  TFJ(PromiseCreateAndSet, 2)                                                 \
+  TFJ(PerformPromiseThen, 4)                                                  \
+  TFJ(ResolvePromise, 2)                                                      \
                                                                               \
   /* Proxy */                                                                 \
   CPP(ProxyConstructor)                                                       \
@@ -593,25 +605,25 @@ namespace internal {
   CPP(RegExpCapture7Getter)                                                   \
   CPP(RegExpCapture8Getter)                                                   \
   CPP(RegExpCapture9Getter)                                                   \
-  CPP(RegExpConstructor)                                                      \
+  TFJ(RegExpConstructor, 2)                                                   \
   TFJ(RegExpInternalMatch, 2)                                                 \
   CPP(RegExpInputGetter)                                                      \
   CPP(RegExpInputSetter)                                                      \
   CPP(RegExpLastMatchGetter)                                                  \
   CPP(RegExpLastParenGetter)                                                  \
   CPP(RegExpLeftContextGetter)                                                \
-  CPP(RegExpPrototypeCompile)                                                 \
+  TFJ(RegExpPrototypeCompile, 2)                                              \
   TFJ(RegExpPrototypeExec, 1)                                                 \
   TFJ(RegExpPrototypeFlagsGetter, 0)                                          \
   TFJ(RegExpPrototypeGlobalGetter, 0)                                         \
   TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                     \
-  CPP(RegExpPrototypeMatch)                                                   \
+  TFJ(RegExpPrototypeMatch, 1)                                                \
   TFJ(RegExpPrototypeMultilineGetter, 0)                                      \
   TFJ(RegExpPrototypeReplace, 2)                                              \
   TFJ(RegExpPrototypeSearch, 1)                                               \
-  CPP(RegExpPrototypeSourceGetter)                                            \
-  CPP(RegExpPrototypeSpeciesGetter)                                           \
-  CPP(RegExpPrototypeSplit)                                                   \
+  TFJ(RegExpPrototypeSourceGetter, 0)                                         \
+  TFJ(RegExpPrototypeSpeciesGetter, 0)                                        \
+  TFJ(RegExpPrototypeSplit, 2)                                                \
   TFJ(RegExpPrototypeStickyGetter, 0)                                         \
   TFJ(RegExpPrototypeTest, 1)                                                 \
   CPP(RegExpPrototypeToString)                                                \
@@ -672,6 +684,10 @@ namespace internal {
   /* Symbol */                                                                \
   CPP(SymbolConstructor)                                                      \
   CPP(SymbolConstructor_ConstructStub)                                        \
+  /* ES6 section 19.4.2.1 Symbol.for */                                       \
+  CPP(SymbolFor)                                                              \
+  /* ES6 section 19.4.2.5 Symbol.keyFor */                                    \
+  CPP(SymbolKeyFor)                                                           \
   /* ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint ) */      \
   TFJ(SymbolPrototypeToPrimitive, 1)                                          \
   /* ES6 section 19.4.3.2 Symbol.prototype.toString ( ) */                    \

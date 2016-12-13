@@ -461,45 +461,23 @@ def _CheckStatusFileForDuplicateKeys(filepath):
   json.loads(contents, object_pairs_hook=check_pairs)
   return status["success"]
 
-def CheckStatusFiles(workspace):
-  success = True
-  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
-  for root in suite_paths:
-    suite_path = join(workspace, "test", root)
-    status_file_path = join(suite_path, root + ".status")
-    suite = testsuite.TestSuite.LoadTestSuite(suite_path)
-    if suite and exists(status_file_path):
+
+class StatusFilesProcessor(SourceFileProcessor):
+  """Checks status files for incorrect syntax and duplicate keys."""
+
+  def IsRelevant(self, name):
+    return name.endswith('.status')
+
+  def GetPathsToSearch(self):
+    return ['test']
+
+  def ProcessFiles(self, files):
+    success = True
+    for status_file_path in files:
       success &= statusfile.PresubmitCheck(status_file_path)
       success &= _CheckStatusFileForDuplicateKeys(status_file_path)
-  return success
+    return success
 
-def CheckAuthorizedAuthor(input_api, output_api):
-  """For non-googler/chromites committers, verify the author's email address is
-  in AUTHORS.
-  """
-  # TODO(maruel): Add it to input_api?
-  import fnmatch
-
-  author = input_api.change.author_email
-  if not author:
-    input_api.logging.info('No author, skipping AUTHOR check')
-    return []
-  authors_path = input_api.os_path.join(
-      input_api.PresubmitLocalPath(), 'AUTHORS')
-  valid_authors = (
-      input_api.re.match(r'[^#]+\s+\<(.+?)\>\s*$', line)
-      for line in open(authors_path))
-  valid_authors = [item.group(1).lower() for item in valid_authors if item]
-  if not any(fnmatch.fnmatch(author.lower(), valid) for valid in valid_authors):
-    input_api.logging.info('Valid authors are %s', ', '.join(valid_authors))
-    return [output_api.PresubmitPromptWarning(
-        ('%s is not in AUTHORS file. If you are a new contributor, please visit'
-        '\n'
-        'http://www.chromium.org/developers/contributing-code and read the '
-        '"Legal" section\n'
-        'If you are a chromite, verify the contributor signed the CLA.') %
-        author)]
-  return []
 
 def GetOptions():
   result = optparse.OptionParser()
@@ -519,7 +497,8 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success &= SourceProcessor().RunOnPath(workspace)
-  success &= CheckStatusFiles(workspace)
+  print "Running status-files check..."
+  success &= StatusFilesProcessor().RunOnPath(workspace)
   if success:
     return 0
   else:

@@ -248,15 +248,9 @@ class V8_EXPORT V8Inspector {
   class V8_EXPORT Channel {
    public:
     virtual ~Channel() {}
-    virtual void sendProtocolResponse(int callId, const StringView& message) {}
-    virtual void sendProtocolNotification(const StringView& message) {}
     virtual void sendResponse(int callId,
-                              std::unique_ptr<StringBuffer> message) {
-      sendProtocolResponse(callId, message->string());
-    }
-    virtual void sendNotification(std::unique_ptr<StringBuffer> message) {
-      sendProtocolNotification(message->string());
-    }
+                              std::unique_ptr<StringBuffer> message) = 0;
+    virtual void sendNotification(std::unique_ptr<StringBuffer> message) = 0;
     virtual void flushProtocolNotifications() = 0;
   };
   virtual std::unique_ptr<V8InspectorSession> connect(

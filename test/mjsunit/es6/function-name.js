@@ -373,3 +373,16 @@
   assertEquals('function () {}', obj.h.toString());
   assertEquals('() => {}', obj.i.toString());
 })();
+
+(function testClassNameOrder() {
+  assertEquals(['length', 'prototype'], Object.getOwnPropertyNames(class {}));
+
+  class A { }
+  assertEquals(['length', 'prototype', 'name'], Object.getOwnPropertyNames(A));
+
+  class B { static foo() { } }
+  assertEquals(['length', 'prototype', 'foo', 'name'], Object.getOwnPropertyNames(B));
+
+  class C { static name() { } static foo() { } }
+  assertEquals(['length', 'prototype', 'name', 'foo'], Object.getOwnPropertyNames(C));
+})();

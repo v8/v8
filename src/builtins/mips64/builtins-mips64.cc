@@ -139,7 +139,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ LoadRoot(t1, root_index);
   __ ldc1(f0, FieldMemOperand(t1, HeapNumber::kValueOffset));
 
-  Label done_loop, loop;
+  Label done_loop, loop, done;
   __ mov(a3, a0);
   __ bind(&loop);
   {
@@ -195,15 +195,25 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     // accumulator value on the left hand side (f0) and the next parameter value
     // on the right hand side (f2).
     // We need to work out which HeapNumber (or smi) the result came from.
-    Label compare_nan;
+    Label compare_nan, ool_min, ool_max;
     __ BranchF(nullptr, &compare_nan, eq, f0, f2);
     __ Move(a4, f0);
     if (kind == MathMaxMinKind::kMin) {
-      __ MinNaNCheck_d(f0, f0, f2);
+      __ Float64Min(f0, f0, f2, &ool_min);
     } else {
       DCHECK(kind == MathMaxMinKind::kMax);
-      __ MaxNaNCheck_d(f0, f0, f2);
+      __ Float64Max(f0, f0, f2, &ool_max);
     }
+    __ jmp(&done);
+
+    __ bind(&ool_min);
+    __ Float64MinOutOfLine(f0, f0, f2);
+    __ jmp(&done);
+
+    __ bind(&ool_max);
+    __ Float64MaxOutOfLine(f0, f0, f2);
+
+    __ bind(&done);
     __ Move(at, f0);
     __ Branch(&loop, eq, a4, Operand(at));
     __ mov(t1, a2);
@@ -1020,6 +1030,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
               Operand(BYTECODE_ARRAY_TYPE));
   }
 
+  // Reset code age.
+  DCHECK_EQ(0, BytecodeArray::kNoAgeBytecodeAge);
+  __ sb(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                  BytecodeArray::kBytecodeAgeOffset));
+
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
@@ -1356,11 +1371,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
                               SharedFunctionInfo::kOffsetToPreviousContext));
   __ ld(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ Branch(&loop_bottom, ne, temp, Operand(native_context));
-  // OSR id set to none?
-  __ ld(temp, FieldMemOperand(array_pointer,
-                              SharedFunctionInfo::kOffsetToPreviousOsrAstId));
-  const int bailout_id = BailoutId::None().ToInt();
-  __ Branch(&loop_bottom, ne, temp, Operand(Smi::FromInt(bailout_id)));
   // Literals available?
   __ ld(temp, FieldMemOperand(array_pointer,
                               SharedFunctionInfo::kOffsetToPreviousLiterals));
@@ -1553,14 +1563,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ Jump(a0);
 }
 
-#define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                  \
-  void Builtins::Generate_Make##C##CodeYoungAgainEvenMarking( \
-      MacroAssembler* masm) {                                 \
-    GenerateMakeCodeYoungAgainCommon(masm);                   \
-  }                                                           \
-  void Builtins::Generate_Make##C##CodeYoungAgainOddMarking(  \
-      MacroAssembler* masm) {                                 \
-    GenerateMakeCodeYoungAgainCommon(masm);                   \
+#define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                              \
+  void Builtins::Generate_Make##C##CodeYoungAgain(MacroAssembler* masm) { \
+    GenerateMakeCodeYoungAgainCommon(masm);                               \
   }
 CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
@@ -2144,7 +2149,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Create the list of arguments from the array-like argumentsList.
   {
-    Label create_arguments, create_array, create_runtime, done_create;
+    Label create_arguments, create_array, create_holey_array, create_runtime,
+        done_create;
     __ JumpIfSmi(arguments_list, &create_runtime);
 
     // Load the map of argumentsList into a2.
@@ -2192,12 +2198,29 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
     __ Branch(&done_create);
 
+    // For holey JSArrays we need to check that the array prototype chain
+    // protector is intact and our prototype is the Array.prototype actually.
+    __ bind(&create_holey_array);
+    __ ld(a2, FieldMemOperand(a2, Map::kPrototypeOffset));
+    __ ld(at, ContextMemOperand(t0, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ Branch(&create_runtime, ne, a2, Operand(at));
+    __ LoadRoot(at, Heap::kArrayProtectorRootIndex);
+    __ lw(a2, UntagSmiFieldMemOperand(at, PropertyCell::kValueOffset));
+    __ Branch(&create_runtime, ne, a2,
+              Operand(Smi::FromInt(Isolate::kProtectorValid)));
+    __ lw(a2, UntagSmiFieldMemOperand(a0, JSArray::kLengthOffset));
+    __ ld(a0, FieldMemOperand(a0, JSArray::kElementsOffset));
+    __ Branch(&done_create);
+
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
     __ ld(a2, FieldMemOperand(a2, Map::kBitField2Offset));
     __ DecodeField<Map::ElementsKindBits>(a2);
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+    __ Branch(&create_holey_array, eq, a2, Operand(FAST_HOLEY_SMI_ELEMENTS));
+    __ Branch(&create_holey_array, eq, a2, Operand(FAST_HOLEY_ELEMENTS));
     __ andi(a2, a2, uint16_t(~FAST_ELEMENTS));  // works if enum ElementsKind
     // has less than 2^16 elements
     __ Branch(&create_runtime, ne, a2, Operand(int64_t(0)));
@@ -2233,7 +2256,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
-    Label done, loop;
+    Label done, push, loop;
     Register src = a4;
     Register scratch = len;
 
@@ -2242,8 +2265,12 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ mov(a0, len);  // The 'len' argument for Call() or Construct().
     __ dsll(scratch, len, kPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
+    __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
     __ bind(&loop);
     __ ld(a5, MemOperand(src));
+    __ Branch(&push, ne, a5, Operand(t1));
+    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ daddiu(src, src, kPointerSize);
     __ Push(a5);
     __ Branch(&loop, ne, scratch, Operand(sp));

@@ -3,7 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-objects.h"
+#include "src/utils.h"
+
+#include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-text.h"
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -49,7 +53,7 @@ static uint32_t SafeUint32(Object* value) {
   DCHECK(value->IsHeapNumber());
   HeapNumber* num = HeapNumber::cast(value);
   CHECK_GE(num->value(), 0.0);
-  CHECK_LE(num->value(), static_cast<double>(kMaxUInt32));
+  CHECK_LE(num->value(), kMaxUInt32);
   return static_cast<uint32_t>(num->value());
 }
 
@@ -59,8 +63,8 @@ static int32_t SafeInt32(Object* value) {
   }
   DCHECK(value->IsHeapNumber());
   HeapNumber* num = HeapNumber::cast(value);
-  CHECK_GE(num->value(), static_cast<double>(Smi::kMinValue));
-  CHECK_LE(num->value(), static_cast<double>(Smi::kMaxValue));
+  CHECK_GE(num->value(), Smi::kMinValue);
+  CHECK_LE(num->value(), Smi::kMaxValue);
   return static_cast<int32_t>(num->value());
 }
 
@@ -204,19 +208,16 @@ WasmMemoryObject* WasmMemoryObject::cast(Object* object) {
 
 void WasmMemoryObject::AddInstance(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance) {
-  Handle<WasmInstanceWrapper> instance_wrapper;
+  Handle<WasmInstanceWrapper> instance_wrapper =
+      handle(instance->get_instance_wrapper());
   if (has_instances_link()) {
     Handle<WasmInstanceWrapper> current_wrapper(get_instances_link());
     DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*current_wrapper));
     DCHECK(!current_wrapper->has_previous());
-    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
     instance_wrapper->set_next_wrapper(*current_wrapper);
     current_wrapper->set_previous_wrapper(*instance_wrapper);
-  } else {
-    instance_wrapper = WasmInstanceWrapper::New(isolate, instance);
   }
   set_instances_link(*instance_wrapper);
-  instance->set_instance_wrapper(*instance_wrapper);
 }
 
 void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
@@ -284,6 +285,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   instance->SetInternalField(kCompiledModule, *compiled_module);
   instance->SetInternalField(kMemoryObject, isolate->heap()->undefined_value());
+  Handle<WasmInstanceWrapper> instance_wrapper =
+      WasmInstanceWrapper::New(isolate, instance);
+  instance->SetInternalField(kWasmMemInstanceWrapper, *instance_wrapper);
   return instance;
 }
 
@@ -304,8 +308,20 @@ WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
 }
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<String> name,
-    Handle<Code> export_wrapper, int arity, int func_index) {
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    MaybeHandle<String> maybe_name, int func_index, int arity,
+    Handle<Code> export_wrapper) {
+  ScopedVector<char> buffer(16);
+  int length = SNPrintF(buffer, "%d", func_index);
+  Handle<String> name;
+  if (maybe_name.is_null()) {
+    name = isolate->factory()
+               ->NewStringFromAscii(
+                   Vector<const char>::cast(buffer.SubVector(0, length)))
+               .ToHandleChecked();
+  } else {
+    name = maybe_name.ToHandleChecked();
+  }
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name, export_wrapper, false);
@@ -392,9 +408,8 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
   DCHECK_GT(module()->functions.size(), func_index);
   WasmFunction& function = module()->functions[func_index];
   SeqOneByteString* bytes = ptr_to_module_bytes();
-  DCHECK_GE(static_cast<size_t>(bytes->length()), function.name_offset);
-  DCHECK_GE(static_cast<size_t>(bytes->length() - function.name_offset),
-            function.name_length);
+  DCHECK_GE(bytes->length(), function.name_offset);
+  DCHECK_GE(bytes->length() - function.name_offset, function.name_length);
   return Vector<const uint8_t>(bytes->GetCharsAddress() + function.name_offset,
                                function.name_length);
 }
@@ -402,8 +417,7 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
 int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) const {
   std::vector<WasmFunction>& functions = module()->functions;
   if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
-  DCHECK_GE(static_cast<uint32_t>(kMaxInt),
-            functions[func_index].code_start_offset);
+  DCHECK_GE(kMaxInt, functions[func_index].code_start_offset);
   return static_cast<int>(functions[func_index].code_start_offset);
 }
 
@@ -444,6 +458,134 @@ bool WasmCompiledModule::GetPositionInfo(uint32_t position,
   info->line_start = function.code_start_offset;
   info->line_end = function.code_end_offset;
   return true;
+}
+
+namespace {
+
+enum AsmJsOffsetTableEntryLayout {
+  kOTEByteOffset,
+  kOTECallPosition,
+  kOTENumberConvPosition,
+  kOTESize
+};
+
+Handle<ByteArray> GetDecodedAsmJsOffsetTable(
+    Handle<WasmCompiledModule> compiled_module, Isolate* isolate) {
+  DCHECK(compiled_module->has_asm_js_offset_table());
+  Handle<ByteArray> offset_table = compiled_module->asm_js_offset_table();
+
+  // The last byte in the asm_js_offset_tables ByteArray tells whether it is
+  // still encoded (0) or decoded (1).
+  enum AsmJsTableType : int { Encoded = 0, Decoded = 1 };
+  int table_type = offset_table->get(offset_table->length() - 1);
+  DCHECK(table_type == Encoded || table_type == Decoded);
+  if (table_type == Decoded) return offset_table;
+
+  AsmJsOffsetsResult asm_offsets;
+  {
+    DisallowHeapAllocation no_gc;
+    const byte* bytes_start = offset_table->GetDataStartAddress();
+    const byte* bytes_end = bytes_start + offset_table->length() - 1;
+    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end);
+  }
+  // Wasm bytes must be valid and must contain asm.js offset table.
+  DCHECK(asm_offsets.ok());
+  DCHECK_GE(kMaxInt, asm_offsets.val.size());
+  int num_functions = static_cast<int>(asm_offsets.val.size());
+  int num_imported_functions =
+      static_cast<int>(compiled_module->module()->num_imported_functions);
+  DCHECK_EQ(compiled_module->module()->functions.size(),
+            static_cast<size_t>(num_functions) + num_imported_functions);
+  int num_entries = 0;
+  for (int func = 0; func < num_functions; ++func) {
+    size_t new_size = asm_offsets.val[func].size();
+    DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - num_entries);
+    num_entries += static_cast<int>(new_size);
+  }
+  // One byte to encode that this is a decoded table.
+  DCHECK_GE(kMaxInt,
+            1 + static_cast<uint64_t>(num_entries) * kOTESize * kIntSize);
+  int total_size = 1 + num_entries * kOTESize * kIntSize;
+  Handle<ByteArray> decoded_table =
+      isolate->factory()->NewByteArray(total_size, TENURED);
+  decoded_table->set(total_size - 1, AsmJsTableType::Decoded);
+  compiled_module->set_asm_js_offset_table(decoded_table);
+
+  int idx = 0;
+  std::vector<WasmFunction>& wasm_funs = compiled_module->module()->functions;
+  for (int func = 0; func < num_functions; ++func) {
+    std::vector<AsmJsOffsetEntry>& func_asm_offsets = asm_offsets.val[func];
+    if (func_asm_offsets.empty()) continue;
+    int func_offset =
+        wasm_funs[num_imported_functions + func].code_start_offset;
+    for (AsmJsOffsetEntry& e : func_asm_offsets) {
+      // Byte offsets must be strictly monotonously increasing:
+      DCHECK_IMPLIES(idx > 0, func_offset + e.byte_offset >
+                                  decoded_table->get_int(idx - kOTESize));
+      decoded_table->set_int(idx + kOTEByteOffset, func_offset + e.byte_offset);
+      decoded_table->set_int(idx + kOTECallPosition, e.source_position_call);
+      decoded_table->set_int(idx + kOTENumberConvPosition,
+                             e.source_position_number_conversion);
+      idx += kOTESize;
+    }
+  }
+  DCHECK_EQ(total_size, idx * kIntSize + 1);
+  return decoded_table;
+}
+}  // namespace
+
+int WasmCompiledModule::GetAsmJsSourcePosition(
+    Handle<WasmCompiledModule> compiled_module, uint32_t func_index,
+    uint32_t byte_offset, bool is_at_number_conversion) {
+  Isolate* isolate = compiled_module->GetIsolate();
+  Handle<ByteArray> offset_table =
+      GetDecodedAsmJsOffsetTable(compiled_module, isolate);
+
+  DCHECK_LT(func_index, compiled_module->module()->functions.size());
+  uint32_t func_code_offset =
+      compiled_module->module()->functions[func_index].code_start_offset;
+  uint32_t total_offset = func_code_offset + byte_offset;
+
+  // Binary search for the total byte offset.
+  int left = 0;                                              // inclusive
+  int right = offset_table->length() / kIntSize / kOTESize;  // exclusive
+  DCHECK_LT(left, right);
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    int mid_entry = offset_table->get_int(kOTESize * mid);
+    DCHECK_GE(kMaxInt, mid_entry);
+    if (static_cast<uint32_t>(mid_entry) <= total_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // There should be an entry for each position that could show up on the stack
+  // trace:
+  DCHECK_EQ(total_offset, offset_table->get_int(kOTESize * left));
+  int idx = is_at_number_conversion ? kOTENumberConvPosition : kOTECallPosition;
+  return offset_table->get_int(kOTESize * left + idx);
+}
+
+v8::debug::WasmDisassembly WasmCompiledModule::DisassembleFunction(
+    int func_index) {
+  DisallowHeapAllocation no_gc;
+
+  if (func_index < 0 ||
+      static_cast<uint32_t>(func_index) >= module()->functions.size())
+    return {};
+
+  SeqOneByteString* module_bytes_str = ptr_to_module_bytes();
+  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
+                                  module_bytes_str->length());
+
+  std::ostringstream disassembly_os;
+  v8::debug::WasmDisassembly::OffsetTable offset_table;
+
+  PrintWasmText(module(), module_bytes, static_cast<uint32_t>(func_index),
+                disassembly_os, &offset_table);
+
+  return {disassembly_os.str(), std::move(offset_table)};
 }
 
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(

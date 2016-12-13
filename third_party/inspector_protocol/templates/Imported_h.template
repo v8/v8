@@ -18,7 +18,7 @@
 namespace {{namespace}} {
 {% endfor %}
   {% for type in domain.types %}
-    {% if not (type.type == "object") or not ("properties" in type) or not (type.exported) %}{% continue %}{% endif %}
+    {% if not (type.type == "object") or not ("properties" in type) or not protocol.is_imported(domain.domain, type.id) %}{% continue %}{% endif %}
 
 template<>
 struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> {

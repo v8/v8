@@ -307,7 +307,12 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     // We just provide a dummy value here.
     return jsgraph()->TheHoleConstant();
   } else if (output_rep == MachineRepresentation::kBit) {
-    return node;
+    if (output_type->Is(Type::Boolean())) {
+      op = simplified()->ChangeBitToTagged();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTagged);
+    }
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Unsigned32())) {
       // uint32 -> float64 -> tagged
@@ -634,10 +639,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (use_info.type_check() != TypeCheckKind::kNone) {
-        op = simplified()->CheckedTruncateTaggedToWord32();
-      } else {
+      if (output_type->Is(Type::NumberOrOddball())) {
         op = simplified()->TruncateTaggedToWord32();
+      } else if (use_info.type_check() != TypeCheckKind::kNone) {
+        op = simplified()->CheckedTruncateTaggedToWord32();
       }
     }
   } else if (output_rep == MachineRepresentation::kWord32) {

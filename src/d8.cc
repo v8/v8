@@ -422,12 +422,6 @@ bool CounterMap::Match(void* key1, void* key2) {
 }
 
 
-// Converts a V8 value to a C string.
-const char* Shell::ToCString(const v8::String::Utf8Value& value) {
-  return *value ? *value : "<string conversion failed>";
-}
-
-
 ScriptCompiler::CachedData* CompileForCachedData(
     Local<String> source, Local<Value> name,
     ScriptCompiler::CompileOptions compile_options) {
@@ -1256,12 +1250,17 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   HandleScope handle_scope(isolate);
-  Local<Context> context;
-  bool enter_context = !isolate->InContext();
+  Local<Context> context = isolate->GetCurrentContext();
+  bool enter_context = context.IsEmpty();
   if (enter_context) {
     context = Local<Context>::New(isolate, evaluation_context_);
     context->Enter();
   }
+  // Converts a V8 value to a C string.
+  auto ToCString = [](const v8::String::Utf8Value& value) {
+    return *value ? *value : "<string conversion failed>";
+  };
+
   v8::String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
   Local<Message> message = try_catch->Message();
@@ -1269,40 +1268,40 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
     printf("%s\n", exception_string);
+  } else if (message->GetScriptOrigin().Options().IsWasm()) {
+    // Print <WASM>[(function index)]((function name))+(offset): (message).
+    int function_index = message->GetLineNumber(context).FromJust() - 1;
+    int offset = message->GetStartColumn(context).FromJust();
+    printf("<WASM>[%d]+%d: %s\n", function_index, offset, exception_string);
   } else {
     // Print (filename):(line number): (message).
     v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
-    Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
-    int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
+    int linenum = message->GetLineNumber(context).FromMaybe(-1);
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);
     Local<String> sourceline;
-    if (message->GetSourceLine(isolate->GetCurrentContext())
-            .ToLocal(&sourceline)) {
+    if (message->GetSourceLine(context).ToLocal(&sourceline)) {
       // Print line of source code.
       v8::String::Utf8Value sourcelinevalue(sourceline);
       const char* sourceline_string = ToCString(sourcelinevalue);
       printf("%s\n", sourceline_string);
       // Print wavy underline (GetUnderline is deprecated).
-      int start =
-          message->GetStartColumn(isolate->GetCurrentContext()).FromJust();
+      int start = message->GetStartColumn(context).FromJust();
       for (int i = 0; i < start; i++) {
         printf(" ");
       }
-      int end = message->GetEndColumn(isolate->GetCurrentContext()).FromJust();
+      int end = message->GetEndColumn(context).FromJust();
       for (int i = start; i < end; i++) {
         printf("^");
       }
       printf("\n");
     }
-    Local<Value> stack_trace_string;
-    if (try_catch->StackTrace(isolate->GetCurrentContext())
-            .ToLocal(&stack_trace_string) &&
-        stack_trace_string->IsString()) {
-      v8::String::Utf8Value stack_trace(
-          Local<String>::Cast(stack_trace_string));
-      printf("%s\n", ToCString(stack_trace));
-    }
+  }
+  Local<Value> stack_trace_string;
+  if (try_catch->StackTrace(context).ToLocal(&stack_trace_string) &&
+      stack_trace_string->IsString()) {
+    v8::String::Utf8Value stack_trace(Local<String>::Cast(stack_trace_string));
+    printf("%s\n", ToCString(stack_trace));
   }
   printf("\n");
   if (enter_context) context->Exit();
@@ -1580,9 +1579,43 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
-static void EmptyMessageCallback(Local<Message> message, Local<Value> error) {
-  // Nothing to be done here, exceptions thrown up to the shell will be reported
+static void PrintNonErrorsMessageCallback(Local<Message> message,
+                                          Local<Value> error) {
+  // Nothing to do here for errors, exceptions thrown up to the shell will be
+  // reported
   // separately by {Shell::ReportException} after they are caught.
+  // Do print other kinds of messages.
+  switch (message->ErrorLevel()) {
+    case v8::Isolate::kMessageWarning:
+    case v8::Isolate::kMessageLog:
+    case v8::Isolate::kMessageInfo:
+    case v8::Isolate::kMessageDebug: {
+      break;
+    }
+
+    case v8::Isolate::kMessageError: {
+      // Ignore errors, printed elsewhere.
+      return;
+    }
+
+    default: {
+      UNREACHABLE();
+      break;
+    }
+  }
+  // Converts a V8 value to a C string.
+  auto ToCString = [](const v8::String::Utf8Value& value) {
+    return *value ? *value : "<string conversion failed>";
+  };
+  Isolate* isolate = Isolate::GetCurrent();
+  v8::String::Utf8Value msg(message->Get());
+  const char* msg_string = ToCString(msg);
+  // Print (filename):(line number): (message).
+  v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
+  const char* filename_string = ToCString(filename);
+  Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
+  int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
+  printf("%s:%i: %s\n", filename_string, linenum, msg_string);
 }
 
 void Shell::Initialize(Isolate* isolate) {
@@ -1590,7 +1623,11 @@ void Shell::Initialize(Isolate* isolate) {
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
   // Disable default message reporting.
-  isolate->AddMessageListener(EmptyMessageCallback);
+  isolate->AddMessageListenerWithErrorLevel(
+      PrintNonErrorsMessageCallback,
+      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+          v8::Isolate::kMessageLog);
 }
 
 
@@ -1827,13 +1864,14 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
   virtual ~InspectorFrontend() = default;
 
  private:
-  void sendProtocolResponse(int callId,
-                            const v8_inspector::StringView& message) override {
-    Send(message);
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    Send(message->string());
   }
-  void sendProtocolNotification(
-      const v8_inspector::StringView& message) override {
-    Send(message);
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    Send(message->string());
   }
   void flushProtocolNotifications() override {}
 

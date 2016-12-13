@@ -14,8 +14,10 @@
 #include "src/gdb-jit.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic-stats.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -112,6 +114,12 @@ Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
   return ic;
 }
 
+void CodeStub::DeleteStubFromCacheForTesting() {
+  Heap* heap = isolate_->heap();
+  Handle<UnseededNumberDictionary> dict(heap->code_stubs());
+  dict = UnseededNumberDictionary::DeleteKey(dict, GetKey());
+  heap->SetRootCodeStubs(*dict);
+}
 
 Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();
@@ -478,7 +486,7 @@ void StoreMapStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
   Node* map = assembler.Parameter(Descriptor::kMap);
   Node* value = assembler.Parameter(Descriptor::kValue);
 
-  assembler.StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler.StoreMap(receiver, map);
   assembler.Return(value);
 }
 
@@ -521,7 +529,7 @@ void StoreTransitionStub::GenerateAssembly(
 
   // And finally update the map.
   assembler.Comment("Store map");
-  assembler.StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler.StoreMap(receiver, map);
   assembler.Return(value);
 
   // Only store to tagged field never bails out.
@@ -609,16 +617,16 @@ void StringLengthStub::GenerateAssembly(
   assembler.Return(result);
 }
 
-#define BINARY_OP_STUB(Name)                                               \
-  void Name::GenerateAssembly(compiler::CodeAssemblerState* state) const { \
-    typedef BinaryOpWithVectorDescriptor Descriptor;                       \
-    CodeStubAssembler assembler(state);                                    \
-    assembler.Return(Generate(&assembler,                                  \
-                              assembler.Parameter(Descriptor::kLeft),      \
-                              assembler.Parameter(Descriptor::kRight),     \
-                              assembler.Parameter(Descriptor::kSlot),      \
-                              assembler.Parameter(Descriptor::kVector),    \
-                              assembler.Parameter(Descriptor::kContext))); \
+#define BINARY_OP_STUB(Name)                                                  \
+  void Name::GenerateAssembly(compiler::CodeAssemblerState* state) const {    \
+    typedef BinaryOpWithVectorDescriptor Descriptor;                          \
+    CodeStubAssembler assembler(state);                                       \
+    assembler.Return(Generate(                                                \
+        &assembler, assembler.Parameter(Descriptor::kLeft),                   \
+        assembler.Parameter(Descriptor::kRight),                              \
+        assembler.ChangeUint32ToWord(assembler.Parameter(Descriptor::kSlot)), \
+        assembler.Parameter(Descriptor::kVector),                             \
+        assembler.Parameter(Descriptor::kContext)));                          \
   }
 BINARY_OP_STUB(AddWithFeedbackStub)
 BINARY_OP_STUB(SubtractWithFeedbackStub)
@@ -1047,8 +1055,6 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       var_result(assembler, MachineRepresentation::kTagged),
       var_type_feedback(assembler, MachineRepresentation::kWord32);
 
-  Node* number_map = assembler->HeapNumberMapConstant();
-
   Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
@@ -1063,11 +1069,10 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
       // in case of overflow.
       var_result.Bind(assembler->SmiMul(lhs, rhs));
-      var_type_feedback.Bind(assembler->Select(
+      var_type_feedback.Bind(assembler->SelectInt32Constant(
           assembler->TaggedIsSmi(var_result.value()),
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall),
-          assembler->Int32Constant(BinaryOperationFeedback::kNumber),
-          MachineRepresentation::kWord32));
+          BinaryOperationFeedback::kSignedSmall,
+          BinaryOperationFeedback::kNumber));
       assembler->Goto(&end);
     }
 
@@ -1076,7 +1081,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
                             &check_rhsisoddball);
 
       // Convert {lhs} to a double and multiply it with the value of {rhs}.
@@ -1091,7 +1096,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if {lhs} is a HeapNumber.
-    assembler->GotoUnless(assembler->WordEqual(lhs_map, number_map),
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
                           &if_lhsisnotnumber);
 
     // Check if {rhs} is a Smi.
@@ -1112,7 +1117,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
                             &check_rhsisoddball);
 
       // Both {lhs} and {rhs} are HeapNumbers. Load their values and
@@ -1211,8 +1216,6 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       var_result(assembler, MachineRepresentation::kTagged),
       var_type_feedback(assembler, MachineRepresentation::kWord32);
 
-  Node* number_map = assembler->HeapNumberMapConstant();
-
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                     &dividend_is_not_smi);
@@ -1229,27 +1232,26 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       // Do floating point division if {divisor} is zero.
       assembler->GotoIf(
-          assembler->WordEqual(divisor, assembler->IntPtrConstant(0)),
-          &bailout);
+          assembler->WordEqual(divisor, assembler->SmiConstant(0)), &bailout);
 
       // Do floating point division {dividend} is zero and {divisor} is
       // negative.
       Label dividend_is_zero(assembler), dividend_is_not_zero(assembler);
       assembler->Branch(
-          assembler->WordEqual(dividend, assembler->IntPtrConstant(0)),
+          assembler->WordEqual(dividend, assembler->SmiConstant(0)),
           &dividend_is_zero, &dividend_is_not_zero);
 
       assembler->Bind(&dividend_is_zero);
       {
         assembler->GotoIf(
-            assembler->IntPtrLessThan(divisor, assembler->IntPtrConstant(0)),
+            assembler->SmiLessThan(divisor, assembler->SmiConstant(0)),
             &bailout);
         assembler->Goto(&dividend_is_not_zero);
       }
       assembler->Bind(&dividend_is_not_zero);
 
-      Node* untagged_divisor = assembler->SmiUntag(divisor);
-      Node* untagged_dividend = assembler->SmiUntag(dividend);
+      Node* untagged_divisor = assembler->SmiToWord32(divisor);
+      Node* untagged_dividend = assembler->SmiToWord32(dividend);
 
       // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
       // if the Smi size is 31) and {divisor} is -1.
@@ -1279,7 +1281,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
                         &bailout);
       var_type_feedback.Bind(
           assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall));
-      var_result.Bind(assembler->SmiTag(untagged_result));
+      var_result.Bind(assembler->SmiFromWord32(untagged_result));
       assembler->Goto(&end);
 
       // Bailout: convert {dividend} and {divisor} to double and do double
@@ -1297,7 +1299,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       Node* divisor_map = assembler->LoadMap(divisor);
 
       // Check if {divisor} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                             &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
@@ -1312,7 +1314,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       Node* dividend_map = assembler->LoadMap(dividend);
 
       // Check if {dividend} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(dividend_map),
                             &dividend_is_not_number);
 
       // Check if {divisor} is a Smi.
@@ -1334,7 +1336,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
         Node* divisor_map = assembler->LoadMap(divisor);
 
         // Check if {divisor} is a HeapNumber.
-        assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+        assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                               &check_divisor_for_oddball);
 
         // Both {dividend} and {divisor} are HeapNumbers. Load their values
@@ -1433,8 +1435,6 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
       var_result(assembler, MachineRepresentation::kTagged),
       var_type_feedback(assembler, MachineRepresentation::kWord32);
 
-  Node* number_map = assembler->HeapNumberMapConstant();
-
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
                     &dividend_is_not_smi);
@@ -1448,10 +1448,10 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
     assembler->Bind(&divisor_is_smi);
     {
       var_result.Bind(assembler->SmiMod(dividend, divisor));
-      var_type_feedback.Bind(assembler->Select(
+      var_type_feedback.Bind(assembler->SelectInt32Constant(
           assembler->TaggedIsSmi(var_result.value()),
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall),
-          assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
+          BinaryOperationFeedback::kSignedSmall,
+          BinaryOperationFeedback::kNumber));
       assembler->Goto(&end);
     }
 
@@ -1460,7 +1460,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
       Node* divisor_map = assembler->LoadMap(divisor);
 
       // Check if {divisor} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                             &check_divisor_for_oddball);
 
       // Convert {dividend} to a double and divide it with the value of
@@ -1476,7 +1476,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
     Node* dividend_map = assembler->LoadMap(dividend);
 
     // Check if {dividend} is a HeapNumber.
-    assembler->GotoUnless(assembler->WordEqual(dividend_map, number_map),
+    assembler->GotoUnless(assembler->IsHeapNumberMap(dividend_map),
                           &dividend_is_not_number);
 
     // Check if {divisor} is a Smi.
@@ -1498,7 +1498,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
       Node* divisor_map = assembler->LoadMap(divisor);
 
       // Check if {divisor} is a HeapNumber.
-      assembler->GotoUnless(assembler->WordEqual(divisor_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(divisor_map),
                             &check_divisor_for_oddball);
 
       // Both {dividend} and {divisor} are HeapNumbers. Load their values
@@ -1893,10 +1893,8 @@ void LoadApiGetterStub::GenerateAssembly(
   Node* holder = receiver;
   Node* map = assembler.LoadMap(receiver);
   Node* descriptors = assembler.LoadMapDescriptors(map);
-  Node* value_index =
-      assembler.IntPtrConstant(DescriptorArray::ToValueIndex(index()));
   Node* callback = assembler.LoadFixedArrayElement(
-      descriptors, value_index, 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      descriptors, DescriptorArray::ToValueIndex(index()));
   assembler.TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
                          holder, callback);
 }
@@ -2097,9 +2095,7 @@ void LoadScriptContextFieldStub::GenerateAssembly(
   Node* context = assembler.Parameter(Descriptor::kContext);
 
   Node* script_context = assembler.LoadScriptContext(context, context_index());
-  Node* result = assembler.LoadFixedArrayElement(
-      script_context, assembler.IntPtrConstant(slot_index()), 0,
-      CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* result = assembler.LoadFixedArrayElement(script_context, slot_index());
   assembler.Return(result);
 }
 
@@ -2147,7 +2143,7 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
   Node* context = assembler.Parameter(Descriptor::kContext);
 
   Label if_keyispositivesmi(&assembler), if_keyisinvalid(&assembler);
-  assembler.Branch(assembler.WordIsPositiveSmi(key), &if_keyispositivesmi,
+  assembler.Branch(assembler.TaggedIsPositiveSmi(key), &if_keyispositivesmi,
                    &if_keyisinvalid);
   assembler.Bind(&if_keyispositivesmi);
   assembler.TailCallRuntime(Runtime::kLoadElementWithInterceptor, context,
@@ -2209,7 +2205,7 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
   Node* boilerplate_map = assembler->LoadMap(boilerplate);
   Node* instance_size = assembler->LoadMapInstanceSize(boilerplate_map);
   Node* size_in_words = assembler->WordShr(object_size, kPointerSizeLog2);
-  assembler->GotoUnless(assembler->Word32Equal(instance_size, size_in_words),
+  assembler->GotoUnless(assembler->WordEqual(instance_size, size_in_words),
                         call_runtime);
 
   Node* copy = assembler->Allocate(allocation_size);
@@ -2243,9 +2239,8 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
 
   if (FLAG_allocation_site_pretenuring) {
     Node* memento = assembler->InnerAllocate(copy, object_size);
-    assembler->StoreObjectFieldNoWriteBarrier(
-        memento, HeapObject::kMapOffset,
-        assembler->LoadRoot(Heap::kAllocationMementoMapRootIndex));
+    assembler->StoreMapNoWriteBarrier(memento,
+                                      Heap::kAllocationMementoMapRootIndex);
     assembler->StoreObjectFieldNoWriteBarrier(
         memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
     Node* memento_create_count = assembler->LoadObjectField(
@@ -2290,7 +2285,19 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a
   // bug somewhere in our state transition machinery.
   DCHECK(from != to);
-  if (!FLAG_trace_ic) return;
+  if (V8_LIKELY(!FLAG_ic_stats)) return;
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    auto ic_stats = ICStats::instance();
+    ic_stats->Begin();
+    ICInfo& ic_info = ic_stats->Current();
+    ic_info.type = MajorName(MajorKey());
+    ic_info.state = ToString(from);
+    ic_info.state += "=>";
+    ic_info.state += ToString(to);
+    ic_stats->End();
+    return;
+  }
   OFStream os(stdout);
   os << "[";
   PrintBaseName(os);
@@ -2506,36 +2513,32 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&if_normal);
   {
-    map_index.Bind(assembler->Select(
-        is_strict,
-        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX),
-        assembler->IntPtrConstant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
+    map_index.Bind(assembler->SelectIntPtrConstant(
+        is_strict, Context::STRICT_FUNCTION_MAP_INDEX,
+        Context::SLOPPY_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_generator);
   {
-    map_index.Bind(assembler->Select(
-        is_strict,
-        assembler->IntPtrConstant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
-        assembler->IntPtrConstant(
-            Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX)));
+    map_index.Bind(assembler->SelectIntPtrConstant(
+        is_strict, Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX,
+        Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_async);
   {
-    map_index.Bind(assembler->Select(
-        is_strict,
-        assembler->IntPtrConstant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
-        assembler->IntPtrConstant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
+    map_index.Bind(assembler->SelectIntPtrConstant(
+        is_strict, Context::STRICT_ASYNC_FUNCTION_MAP_INDEX,
+        Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_class_constructor);
   {
     map_index.Bind(
-        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX));
+        assembler->IntPtrConstant(Context::CLASS_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
@@ -2578,10 +2581,11 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
       assembler->isolate()->builtins()->builtin(Builtins::kCompileLazy));
   Node* lazy_builtin = assembler->HeapConstant(lazy_builtin_handle);
   Node* lazy_builtin_entry = assembler->IntPtrAdd(
-      lazy_builtin,
+      assembler->BitcastTaggedToWord(lazy_builtin),
       assembler->IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
   assembler->StoreObjectFieldNoWriteBarrier(
-      result, JSFunction::kCodeEntryOffset, lazy_builtin_entry);
+      result, JSFunction::kCodeEntryOffset, lazy_builtin_entry,
+      MachineType::PointerRepresentation());
   assembler->StoreObjectFieldNoWriteBarrier(result,
                                             JSFunction::kNextFunctionLinkOffset,
                                             assembler->UndefinedConstant());
@@ -2591,9 +2595,11 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
 
 void FastNewClosureStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
+  typedef compiler::Node Node;
   CodeStubAssembler assembler(state);
-  assembler.Return(
-      Generate(&assembler, assembler.Parameter(0), assembler.Parameter(1)));
+  Node* shared = assembler.Parameter(Descriptor::kSharedFunctionInfo);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  assembler.Return(Generate(&assembler, shared, context));
 }
 
 // static
@@ -2602,23 +2608,23 @@ compiler::Node* FastNewFunctionContextStub::Generate(
     compiler::Node* slots, compiler::Node* context) {
   typedef compiler::Node Node;
 
+  slots = assembler->ChangeUint32ToWord(slots);
+
+  // TODO(ishell): Use CSA::OptimalParameterMode() here.
+  CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
   Node* min_context_slots =
-      assembler->Int32Constant(Context::MIN_CONTEXT_SLOTS);
-  Node* length = assembler->Int32Add(slots, min_context_slots);
-  Node* size = assembler->Int32Add(
-      assembler->Word32Shl(length, assembler->Int32Constant(kPointerSizeLog2)),
-      assembler->Int32Constant(FixedArray::kHeaderSize));
+      assembler->IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
+  Node* length = assembler->IntPtrAdd(slots, min_context_slots);
+  Node* size =
+      assembler->GetFixedArrayAllocationSize(length, FAST_ELEMENTS, mode);
 
   // Create a new closure from the given function info in new space
   Node* function_context = assembler->Allocate(size);
 
-  Isolate* isolate = assembler->isolate();
-  assembler->StoreMapNoWriteBarrier(
-      function_context,
-      assembler->HeapConstant(isolate->factory()->function_context_map()));
-  assembler->StoreObjectFieldNoWriteBarrier(function_context,
-                                            Context::kLengthOffset,
-                                            assembler->SmiFromWord32(length));
+  assembler->StoreMapNoWriteBarrier(function_context,
+                                    Heap::kFunctionContextMapRootIndex);
+  assembler->StoreObjectFieldNoWriteBarrier(
+      function_context, Context::kLengthOffset, assembler->SmiTag(length));
 
   // Set up the fixed slots.
   assembler->StoreFixedArrayElement(function_context, Context::CLOSURE_INDEX,
@@ -2639,10 +2645,11 @@ compiler::Node* FastNewFunctionContextStub::Generate(
   Node* undefined = assembler->UndefinedConstant();
   assembler->BuildFastFixedArrayForEach(
       function_context, FAST_ELEMENTS, min_context_slots, length,
-      [undefined](CodeStubAssembler* assembler, Node* context, Node* offset) {
-        assembler->StoreNoWriteBarrier(MachineType::PointerRepresentation(),
-                                       context, offset, undefined);
-      });
+      [assembler, undefined](Node* context, Node* offset) {
+        assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, context,
+                                       offset, undefined);
+      },
+      mode);
 
   return function_context;
 }
@@ -2652,7 +2659,7 @@ void FastNewFunctionContextStub::GenerateAssembly(
   typedef compiler::Node Node;
   CodeStubAssembler assembler(state);
   Node* function = assembler.Parameter(Descriptor::kFunction);
-  Node* slots = assembler.Parameter(FastNewFunctionContextDescriptor::kSlots);
+  Node* slots = assembler.Parameter(Descriptor::kSlots);
   Node* context = assembler.Parameter(Descriptor::kContext);
 
   assembler.Return(Generate(&assembler, function, slots, context));
@@ -2729,14 +2736,10 @@ compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
   typedef compiler::Node Node;
   typedef CodeStubAssembler::ParameterMode ParameterMode;
 
-  ParameterMode param_mode = CodeStubAssembler::SMI_PARAMETERS;
+  ParameterMode param_mode = assembler->OptimalParameterMode();
 
   Node* length = assembler->LoadJSArrayLength(boilerplate);
-
-  if (assembler->Is64()) {
-    capacity = assembler->SmiUntag(capacity);
-    param_mode = CodeStubAssembler::INTEGER_PARAMETERS;
-  }
+  capacity = assembler->UntagParameter(capacity, param_mode);
 
   Node *array, *elements;
   std::tie(array, elements) =
@@ -2744,15 +2747,17 @@ compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
           kind, boilerplate_map, length, allocation_site, capacity, param_mode);
 
   assembler->Comment("copy elements header");
-  for (int offset = 0; offset < FixedArrayBase::kHeaderSize;
-       offset += kPointerSize) {
-    Node* value = assembler->LoadObjectField(boilerplate_elements, offset);
-    assembler->StoreObjectField(elements, offset, value);
+  // Header consists of map and length.
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
+  assembler->StoreMap(elements, assembler->LoadMap(boilerplate_elements));
+  {
+    int offset = FixedArrayBase::kLengthOffset;
+    assembler->StoreObjectFieldNoWriteBarrier(
+        elements, offset,
+        assembler->LoadObjectField(boilerplate_elements, offset));
   }
 
-  if (assembler->Is64()) {
-    length = assembler->SmiUntag(length);
-  }
+  length = assembler->UntagParameter(length, param_mode);
 
   assembler->Comment("copy boilerplate elements");
   assembler->CopyFixedArrayElements(kind, boilerplate_elements, elements,

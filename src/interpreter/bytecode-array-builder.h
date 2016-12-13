@@ -240,6 +240,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Call the JS runtime function with |context_index| and arguments |args|.
   BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
 
+  // Call the constructor in |args[0]| with new_target in |args[1]| and the
+  // arguments starting at |args[2]| onwards. The final argument must be a
+  // spread.
+  BytecodeArrayBuilder& NewWithSpread(RegisterList args);
+
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
@@ -274,6 +279,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& JumpIfTrue(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);

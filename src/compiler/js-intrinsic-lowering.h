@@ -40,6 +40,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
 
  private:
   Reduction ReduceCreateIterResultObject(Node* node);
+  Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
   Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);

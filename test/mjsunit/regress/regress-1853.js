@@ -36,38 +36,22 @@ var break_count = 0;
 var test_break_1 = false;
 var test_break_2 = false;
 
-function sendCommand(state, cmd) {
-  // Get the debug command processor in paused state.
-  var dcp = state.debugCommandProcessor(false);
-  var request = JSON.stringify(cmd);
-  var response = dcp.processDebugJSONRequest(request);
-  return JSON.parse(response);
-}
-
 function setBreakPointByName(state) {
-  sendCommand(state, {
-    seq: 0,
-    type: "request",
-    command: "setbreakpoint",
-    arguments: {
-      type: "script",
-      target: "testScriptOne",
-      line: 2
+  var scripts = Debug.scripts();
+  for (var script of scripts) {
+    if (script.source_url == "testScriptOne") {
+      Debug.setScriptBreakPointById(script.id, 2);
     }
-  });
+  }
 }
 
 function setBreakPointByRegExp(state) {
-  sendCommand(state, {
-    seq: 0,
-    type: "request",
-    command: "setbreakpoint",
-    arguments: {
-      type: "scriptRegExp",
-      target: "Scrip.Two",
-      line: 2
+  var scripts = Debug.scripts();
+  for (var script of scripts) {
+    if (/Scrip.Two/.test(script.source_url)) {
+      Debug.setScriptBreakPointById(script.id, 2);
     }
-  });
+  }
 }
 
 function listener(event, exec_state, event_data, data) {
@@ -96,7 +80,6 @@ function listener(event, exec_state, event_data, data) {
 }
 
 Debug.setListener(listener);
-debugger;
 
 eval('function test1() {                \n' +
      '  assertFalse(test_break_1);      \n' +
@@ -109,6 +92,8 @@ eval('function test2() {                \n' +
      '  assertTrue(test_break_2);       \n' +
      '}                                 \n' +
      '//# sourceURL=testScriptTwo');
+
+debugger;
 
 test1();
 test2();

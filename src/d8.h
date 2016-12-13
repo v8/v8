@@ -324,7 +324,6 @@ class Shell : public i::AllStatic {
                             Local<Value> name, bool print_result,
                             bool report_exceptions);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
-  static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);

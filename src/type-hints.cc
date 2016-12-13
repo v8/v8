@@ -76,6 +76,37 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   return os;
 }
 
+std::string ToString(ToBooleanHint hint) {
+  switch (hint) {
+    case ToBooleanHint::kNone:
+      return "None";
+    case ToBooleanHint::kUndefined:
+      return "Undefined";
+    case ToBooleanHint::kBoolean:
+      return "Boolean";
+    case ToBooleanHint::kNull:
+      return "Null";
+    case ToBooleanHint::kSmallInteger:
+      return "SmallInteger";
+    case ToBooleanHint::kReceiver:
+      return "Receiver";
+    case ToBooleanHint::kString:
+      return "String";
+    case ToBooleanHint::kSymbol:
+      return "Symbol";
+    case ToBooleanHint::kHeapNumber:
+      return "HeapNumber";
+    case ToBooleanHint::kSimdValue:
+      return "SimdValue";
+    case ToBooleanHint::kAny:
+      return "Any";
+    case ToBooleanHint::kNeedsMap:
+      return "NeedsMap";
+  }
+  UNREACHABLE();
+  return "";
+}
+
 std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
   if (hints == ToBooleanHint::kAny) return os << "Any";
   if (hints == ToBooleanHint::kNone) return os << "None";
@@ -89,6 +120,22 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
     }
   }
   return os;
+}
+
+std::string ToString(ToBooleanHints hints) {
+  if (hints == ToBooleanHint::kAny) return "Any";
+  if (hints == ToBooleanHint::kNone) return "None";
+  std::string ret;
+  bool first = true;
+  for (ToBooleanHints::mask_type i = 0; i < sizeof(i) * 8; ++i) {
+    ToBooleanHint const hint = static_cast<ToBooleanHint>(1u << i);
+    if (hints & hint) {
+      if (!first) ret += "|";
+      first = false;
+      ret += ToString(hint);
+    }
+  }
+  return ret;
 }
 
 std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {

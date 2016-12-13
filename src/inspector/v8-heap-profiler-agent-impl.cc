@@ -5,6 +5,7 @@
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
 #include "src/inspector/injected-script.h"
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
@@ -55,7 +56,7 @@ class GlobalObjectNameResolver final
   const char* GetName(v8::Local<v8::Object> object) override {
     InspectedContext* context = m_session->inspector()->getContext(
         m_session->contextGroupId(),
-        V8Debugger::contextId(object->CreationContext()));
+        InspectedContext::contextId(object->CreationContext()));
     if (!context) return "";
     String16 name = context->origin();
     size_t length = name.length();

@@ -182,19 +182,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
     }
   };
 
-  // The body of a with or catch.
-  class WithOrCatch : public NestedStatement {
-   public:
-    explicit WithOrCatch(FullCodeGenerator* codegen)
-        : NestedStatement(codegen) {
-    }
-
-    NestedStatement* Exit(int* context_length) override {
-      ++(*context_length);
-      return previous_;
-    }
-  };
-
   // A platform-specific utility to overwrite the accumulator register
   // with a GC-safe value.
   void ClearAccumulator();
@@ -405,11 +392,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   // Platform-specific code sequences for calls
   void EmitCall(Call* expr, ConvertReceiverMode = ConvertReceiverMode::kAny);
-  void EmitSuperConstructorCall(Call* expr);
   void EmitCallWithLoadIC(Call* expr);
-  void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
-  void EmitKeyedSuperCallWithLoadIC(Call* expr);
 
 #define FOR_EACH_FULL_CODE_INTRINSIC(F) \
   F(IsSmi)                              \
@@ -466,14 +450,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
 
-  // Load a value from super.named property.
-  // Expect receiver ('this' value) and home_object on the stack.
-  void EmitNamedSuperPropertyLoad(Property* expr);
-
-  // Load a value from super[keyed] property.
-  // Expect receiver ('this' value), home_object and key on the stack.
-  void EmitKeyedSuperPropertyLoad(Property* expr);
-
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
@@ -510,14 +486,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
   void EmitNamedPropertyAssignment(Assignment* expr);
-
-  // Complete a super named property assignment. The right-hand-side value
-  // is expected in accumulator.
-  void EmitNamedSuperPropertyStore(Property* prop);
-
-  // Complete a super named property assignment. The right-hand-side value
-  // is expected in accumulator.
-  void EmitKeyedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the

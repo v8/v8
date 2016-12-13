@@ -116,8 +116,7 @@
       'V8 Linux - s390 - sim': 'gyp_release_simulate_s390',
       'V8 Linux - s390x - sim': 'gyp_release_simulate_s390x',
       # X87.
-      'V8 Linux - x87 - nosnap - debug builder':
-          'gyp_debug_simulate_x87_no_snap',
+      'V8 Linux - x87 - nosnap - debug builder': 'gyp_debug_simulate_x87',
     },
     'client.v8.branches': {
       'V8 Linux - beta branch': 'gn_release_x86',
@@ -359,9 +358,8 @@
       'gn', 'release_trybot', 'x86', 'swarming'],
 
     # Gyp debug configs for simulators.
-    'gyp_debug_simulate_x87_no_snap': [
-      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming',
-      'v8_snapshot_none'],
+    'gyp_debug_simulate_x87': [
+      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [

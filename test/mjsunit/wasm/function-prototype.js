@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestFunctionPrototype() {
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("nine", kSig_i_v)
+  var f = builder.addFunction("nine", kSig_i_v)
     .addBody([kExprI8Const, 9])
     .exportFunc();
 
@@ -19,7 +19,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // Check type and existence of prototype
   assertEquals("function", typeof func.apply);
   assertTrue(func.prototype != undefined);
-  assertEquals("nine", func.name);
+  assertEquals(String(f.index), func.name);
   assertEquals(undefined, func.displayName);
 
   // Check that .apply() works.

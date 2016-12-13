@@ -295,7 +295,7 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    const String16& groupName,
                                    bool generatePreview) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(V8Debugger::contextId(context), injectedScript);
+  findInjectedScript(InspectedContext::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
   injectedScript->wrapObject(value, groupName, false, generatePreview, &result);
@@ -307,7 +307,7 @@ V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
                                   v8::Local<v8::Value> table,
                                   v8::Local<v8::Value> columns) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(V8Debugger::contextId(context), injectedScript);
+  findInjectedScript(InspectedContext::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;
   return injectedScript->wrapTable(table, columns);
 }

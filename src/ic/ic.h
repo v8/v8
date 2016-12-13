@@ -120,7 +120,7 @@ class IC {
   // keyed stores).
   void ConfigureVectorState(MapHandleList* maps,
                             MapHandleList* transitioned_maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);

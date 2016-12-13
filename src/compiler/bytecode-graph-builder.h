@@ -135,10 +135,6 @@ class BytecodeGraphBuilder {
   // Conceptually this frame state is "after" a given operation.
   void PrepareFrameState(Node* node, OutputFrameStateCombine combine);
 
-  // Computes register liveness and replaces dead ones in frame states with the
-  // undefined values.
-  void ClearNonLiveSlotsInFrameStates();
-
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
@@ -186,6 +182,7 @@ class BytecodeGraphBuilder {
   void BuildJumpIfToBooleanTrue();
   void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
+  void BuildJumpIfJSReceiver();
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);
@@ -208,6 +205,10 @@ class BytecodeGraphBuilder {
   // Simulates entry and exit of exception handlers.
   void EnterAndExitExceptionHandlers(int current_offset);
 
+  // Update the current position of the {SourcePositionTable} to that of the
+  // bytecode at {offset}, if any.
+  void UpdateCurrentSourcePosition(SourcePositionTableIterator* it, int offset);
+
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
@@ -229,6 +230,9 @@ class BytecodeGraphBuilder {
   Zone* graph_zone() const { return graph()->zone(); }
   JSGraph* jsgraph() const { return jsgraph_; }
   JSOperatorBuilder* javascript() const { return jsgraph_->javascript(); }
+  SimplifiedOperatorBuilder* simplified() const {
+    return jsgraph_->simplified();
+  }
   Zone* local_zone() const { return local_zone_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
@@ -260,8 +264,6 @@ class BytecodeGraphBuilder {
     bytecode_analysis_ = bytecode_analysis;
   }
 
-  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
-
   bool IsLivenessAnalysisEnabled() const {
     return this->is_liveness_analysis_enabled_;
   }
@@ -281,6 +283,7 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
+  int osr_loop_offset_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -307,17 +310,10 @@ class BytecodeGraphBuilder {
 
   StateValuesCache state_values_cache_;
 
-  // Analyzer of register liveness.
-  LivenessAnalyzer liveness_analyzer_;
-
-  // The Turbofan source position table, to be populated.
+  // The source position table, to be populated.
   SourcePositionTable* source_positions_;
 
   SourcePosition const start_position_;
-
-  // Update [source_positions_]'s current position to that of the bytecode at
-  // [offset], if any.
-  void UpdateCurrentSourcePosition(SourcePositionTableIterator* it, int offset);
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;

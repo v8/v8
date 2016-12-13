@@ -1269,6 +1269,223 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
                                         isolate, subject, regexp, replace));
 }
 
+namespace {
+
+// ES##sec-speciesconstructor
+// SpeciesConstructor ( O, defaultConstructor )
+MUST_USE_RESULT MaybeHandle<Object> SpeciesConstructor(
+    Isolate* isolate, Handle<JSReceiver> recv,
+    Handle<JSFunction> default_ctor) {
+  Handle<Object> ctor_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, ctor_obj,
+      JSObject::GetProperty(recv, isolate->factory()->constructor_string()),
+      Object);
+
+  if (ctor_obj->IsUndefined(isolate)) return default_ctor;
+
+  if (!ctor_obj->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kConstructorNotReceiver),
+                    Object);
+  }
+
+  Handle<JSReceiver> ctor = Handle<JSReceiver>::cast(ctor_obj);
+
+  Handle<Object> species;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, species,
+      JSObject::GetProperty(ctor, isolate->factory()->species_symbol()),
+      Object);
+
+  if (species->IsNull(isolate) || species->IsUndefined(isolate)) {
+    return default_ctor;
+  }
+
+  if (species->IsConstructor()) return species;
+
+  THROW_NEW_ERROR(
+      isolate, NewTypeError(MessageTemplate::kSpeciesNotConstructor), Object);
+}
+
+MUST_USE_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
+                                             Handle<Object> object,
+                                             uint32_t* out) {
+  if (object->IsUndefined(isolate)) {
+    *out = kMaxUInt32;
+    return object;
+  }
+
+  Handle<Object> number;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number, Object::ToNumber(object), Object);
+  *out = NumberToUint32(*number);
+  return object;
+}
+
+Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
+                                       Handle<FixedArray> elems,
+                                       int num_elems) {
+  elems->Shrink(num_elems);
+  return isolate->factory()->NewJSArrayWithElements(elems);
+}
+
+}  // namespace
+
+// Slow path for:
+// ES#sec-regexp.prototype-@@replace
+// RegExp.prototype [ @@split ] ( string, limit )
+RUNTIME_FUNCTION(Runtime_RegExpSplit) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+
+  DCHECK(args[1]->IsString());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, recv, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, limit_obj, 2);
+
+  Factory* factory = isolate->factory();
+
+  Handle<JSFunction> regexp_fun = isolate->regexp_function();
+  Handle<Object> ctor;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, ctor, SpeciesConstructor(isolate, recv, regexp_fun));
+
+  Handle<Object> flags_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, flags_obj, JSObject::GetProperty(recv, factory->flags_string()));
+
+  Handle<String> flags;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags,
+                                     Object::ToString(isolate, flags_obj));
+
+  Handle<String> u_str = factory->LookupSingleCharacterStringFromCode('u');
+  const bool unicode = (String::IndexOf(isolate, flags, u_str, 0) >= 0);
+
+  Handle<String> y_str = factory->LookupSingleCharacterStringFromCode('y');
+  const bool sticky = (String::IndexOf(isolate, flags, y_str, 0) >= 0);
+
+  Handle<String> new_flags = flags;
+  if (!sticky) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_flags,
+                                       factory->NewConsString(flags, y_str));
+  }
+
+  Handle<JSReceiver> splitter;
+  {
+    const int argc = 2;
+
+    ScopedVector<Handle<Object>> argv(argc);
+    argv[0] = recv;
+    argv[1] = new_flags;
+
+    Handle<JSFunction> ctor_fun = Handle<JSFunction>::cast(ctor);
+    Handle<Object> splitter_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, splitter_obj, Execution::New(ctor_fun, argc, argv.start()));
+
+    splitter = Handle<JSReceiver>::cast(splitter_obj);
+  }
+
+  uint32_t limit;
+  RETURN_FAILURE_ON_EXCEPTION(isolate, ToUint32(isolate, limit_obj, &limit));
+
+  const int length = string->length();
+
+  if (limit == 0) return *factory->NewJSArray(0);
+
+  if (length == 0) {
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
+                                                 factory->undefined_value()));
+
+    if (!result->IsNull(isolate)) return *factory->NewJSArray(0);
+
+    Handle<FixedArray> elems = factory->NewUninitializedFixedArray(1);
+    elems->set(0, *string);
+    return *factory->NewJSArrayWithElements(elems);
+  }
+
+  static const int kInitialArraySize = 8;
+  Handle<FixedArray> elems = factory->NewFixedArrayWithHoles(kInitialArraySize);
+  int num_elems = 0;
+
+  int string_index = 0;
+  int prev_string_index = 0;
+  while (string_index < length) {
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, RegExpUtils::SetLastIndex(isolate, splitter, string_index));
+
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
+                                                 factory->undefined_value()));
+
+    if (result->IsNull(isolate)) {
+      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
+                                                     string_index, unicode);
+      continue;
+    }
+
+    Handle<Object> last_index_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, last_index_obj, RegExpUtils::GetLastIndex(isolate, splitter));
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
+    const int last_index = Handle<Smi>::cast(last_index_obj)->value();
+
+    const int end = std::min(last_index, length);
+    if (end == prev_string_index) {
+      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
+                                                     string_index, unicode);
+      continue;
+    }
+
+    {
+      Handle<String> substr =
+          factory->NewSubString(string, prev_string_index, string_index);
+      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      if (static_cast<uint32_t>(num_elems) == limit) {
+        return *NewJSArrayWithElements(isolate, elems, num_elems);
+      }
+    }
+
+    prev_string_index = end;
+
+    Handle<Object> num_captures_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num_captures_obj,
+        Object::GetProperty(result, isolate->factory()->length_string()));
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num_captures_obj, Object::ToLength(isolate, num_captures_obj));
+    const int num_captures =
+        std::max(Handle<Smi>::cast(num_captures_obj)->value(), 0);
+
+    for (int i = 1; i < num_captures; i++) {
+      Handle<Object> capture;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, capture, Object::GetElement(isolate, result, i));
+      elems = FixedArray::SetAndGrow(elems, num_elems++, capture);
+      if (static_cast<uint32_t>(num_elems) == limit) {
+        return *NewJSArrayWithElements(isolate, elems, num_elems);
+      }
+    }
+
+    string_index = prev_string_index;
+  }
+
+  {
+    Handle<String> substr =
+        factory->NewSubString(string, prev_string_index, length);
+    elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+  }
+
+  return *NewJSArrayWithElements(isolate, elems, num_elems);
+}
+
 // Slow path for:
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
@@ -1448,6 +1665,18 @@ RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
   return isolate->ReThrow(exception);
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
+
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              JSRegExp::Initialize(regexp, source, flags));
+
+  return *regexp;
+}
 
 RUNTIME_FUNCTION(Runtime_IsRegExp) {
   SealHandleScope shs(isolate);

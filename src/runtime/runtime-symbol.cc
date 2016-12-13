@@ -56,13 +56,6 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SymbolRegistry) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  return *isolate->GetSymbolRegistry();
-}
-
-
 RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

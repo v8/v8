@@ -36,7 +36,7 @@
         "slow_replace.js",
         "slow_search.js",
         "slow_split.js",
-        "slow_test.js",
+        "slow_test.js"
       ],
       "results_regexp": "^%s\\-RegExp\\(Score\\): (.+)$",
       "tests": [
@@ -54,7 +54,7 @@
         {"name": "SlowReplace"},
         {"name": "SlowSearch"},
         {"name": "SlowSplit"},
-        {"name": "SlowTest"},
+        {"name": "SlowTest"}
       ]
     }
   ]

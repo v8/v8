@@ -4215,7 +4215,7 @@ void MacroAssembler::Load(Register dst, const Operand& opnd) {
 #endif
   } else {
 #if V8_TARGET_ARCH_S390X
-    llilf(dst, opnd);
+    lgfi(dst, opnd);
 #else
     iilf(dst, opnd);
 #endif

@@ -270,18 +270,21 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 class WasmOutOfLineTrap final : public OutOfLineCode {
  public:
-  WasmOutOfLineTrap(CodeGenerator* gen, Address pc, bool frame_elided,
+  WasmOutOfLineTrap(CodeGenerator* gen, int pc, bool frame_elided,
                     Register context, int32_t position)
       : OutOfLineCode(gen),
+        gen_(gen),
         pc_(pc),
         frame_elided_(frame_elided),
         context_(context),
         position_(position) {}
 
+  // TODO(eholk): Refactor this method to take the code generator as a
+  // parameter.
   void Generate() final {
-    // TODO(eholk): record pc_ and the current pc in a table so that
-    // the signal handler can find it.
-    USE(pc_);
+    int current_pc = __ pc_offset();
+
+    gen_->AddProtectedInstruction(pc_, current_pc);
 
     if (frame_elided_) {
       __ EnterFrame(StackFrame::WASM);
@@ -296,12 +299,24 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
   }
 
  private:
-  Address pc_;
+  CodeGenerator* gen_;
+  int pc_;
   bool frame_elided_;
   Register context_;
   int32_t position_;
 };
 
+void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
+                         InstructionCode opcode, X64OperandConverter& i,
+                         int pc) {
+  X64MemoryProtection protection =
+      static_cast<X64MemoryProtection>(MiscField::decode(opcode));
+  if (protection == X64MemoryProtection::kProtected) {
+    bool frame_elided = !codegen->frame_access_state()->has_frame();
+    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, i.InputRegister(2),
+                                 i.InputInt32(3));
+  }
+}
 }  // namespace
 
 
@@ -1839,17 +1854,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Movsxbl:
       ASSEMBLE_MOVX(movsxbl);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
       ASSEMBLE_MOVX(movzxbl);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxbq:
       ASSEMBLE_MOVX(movsxbq);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movzxbq:
       ASSEMBLE_MOVX(movzxbq);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movb: {
@@ -1860,21 +1879,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ movb(operand, i.InputRegister(index));
       }
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     }
     case kX64Movsxwl:
       ASSEMBLE_MOVX(movsxwl);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
       ASSEMBLE_MOVX(movzxwl);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxwq:
       ASSEMBLE_MOVX(movsxwq);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movzxwq:
       ASSEMBLE_MOVX(movzxwq);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
@@ -1885,10 +1909,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ movw(operand, i.InputRegister(index));
       }
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     }
     case kX64Movl:
-    case kX64TrapMovl:
       if (instr->HasOutput()) {
         if (instr->addressing_mode() == kMode_None) {
           if (instr->InputAt(0)->IsRegister()) {
@@ -1897,15 +1921,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ movl(i.OutputRegister(), i.InputOperand(0));
           }
         } else {
-          Address pc = __ pc();
           __ movl(i.OutputRegister(), i.MemoryOperand());
-
-          if (arch_opcode == kX64TrapMovl) {
-            bool frame_elided = !frame_access_state()->has_frame();
-            new (zone()) WasmOutOfLineTrap(this, pc, frame_elided,
-                                           i.InputRegister(2), i.InputInt32(3));
-          }
         }
+        EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
         __ AssertZeroExtended(i.OutputRegister());
       } else {
         size_t index = 0;
@@ -1915,10 +1933,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ movl(operand, i.InputRegister(index));
         }
+        EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       }
       break;
     case kX64Movsxlq:
       ASSEMBLE_MOVX(movsxlq);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movq:
       if (instr->HasOutput()) {
@@ -1932,6 +1952,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ movq(operand, i.InputRegister(index));
         }
       }
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movss:
       if (instr->HasOutput()) {
@@ -1941,6 +1962,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Operand operand = i.MemoryOperand(&index);
         __ movss(operand, i.InputDoubleRegister(index));
       }
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movsd:
       if (instr->HasOutput()) {
@@ -1950,6 +1972,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Operand operand = i.MemoryOperand(&index);
         __ Movsd(operand, i.InputDoubleRegister(index));
       }
+      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64BitcastFI:
       if (instr->InputAt(0)->IsFPStackSlot()) {
@@ -2122,6 +2145,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Int32x4ExtractLane: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
+      break;
+    }
+    case kX64Int32x4ReplaceLane: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      if (instr->InputAt(2)->IsRegister()) {
+        __ Pinsrd(i.OutputSimd128Register(), i.InputRegister(2),
+                  i.InputInt8(1));
+      } else {
+        __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      }
+      break;
+    }
+    case kX64Int32x4Add: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ paddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64Int32x4Sub: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ psubd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kCheckedLoadInt8:

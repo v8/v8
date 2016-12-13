@@ -2919,42 +2919,55 @@ TEST(vswp) {
   Assembler assm(isolate, NULL, 0);
 
   typedef struct {
-    double result0;
-    double result1;
-    double result2;
-    double result3;
-    double result4;
-    double result5;
-    double result6;
-    double result7;
+    uint64_t vswp_d0;
+    uint64_t vswp_d1;
+    uint64_t vswp_d30;
+    uint64_t vswp_d31;
+    uint32_t vswp_q4[4];
+    uint32_t vswp_q5[4];
   } T;
   T t;
 
-  __ vmov(d0, 1.0);
-  __ vmov(d1, -1.0);
+  __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
+
+  uint64_t one = bit_cast<uint64_t>(1.0);
+  __ mov(r5, Operand(one >> 32));
+  __ mov(r4, Operand(one & 0xffffffff));
+  uint64_t minus_one = bit_cast<uint64_t>(-1.0);
+  __ mov(r7, Operand(minus_one >> 32));
+  __ mov(r6, Operand(minus_one & 0xffffffff));
+
+  __ vmov(d0, r4, r5);  // d0 = 1.0
+  __ vmov(d1, r6, r7);  // d1 = -1.0
   __ vswp(d0, d1);
-  __ vstr(d0, r0, offsetof(T, result0));
-  __ vstr(d1, r0, offsetof(T, result1));
+  __ vstr(d0, r0, offsetof(T, vswp_d0));
+  __ vstr(d1, r0, offsetof(T, vswp_d1));
 
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
-    __ vmov(d30, 1.0);
-    __ vmov(d31, -1.0);
+    __ vmov(d30, r4, r5);  // d30 = 1.0
+    __ vmov(d31, r6, r7);  // d31 = -1.0
     __ vswp(d30, d31);
-    __ vstr(d30, r0, offsetof(T, result2));
-    __ vstr(d31, r0, offsetof(T, result3));
+    __ vstr(d30, r0, offsetof(T, vswp_d30));
+    __ vstr(d31, r0, offsetof(T, vswp_d31));
   }
 
   // q-register swap.
-  __ vmov(d8, 1.0);
-  __ vmov(d9, 2.0);
-  __ vmov(d10, 3.0);
-  __ vmov(d11, 4.0);
+  const uint32_t test_1 = 0x01234567;
+  const uint32_t test_2 = 0x89abcdef;
+  __ mov(r4, Operand(test_1));
+  __ mov(r5, Operand(test_2));
+  // TODO(bbudge) replace with vdup when implemented.
+  __ vmov(d8, r4, r4);
+  __ vmov(d9, r4, r4);  // q4 = [1.0, 1.0]
+  __ vmov(d10, r5, r5);
+  __ vmov(d11, r5, r5);  // q5 = [-1.0, -1.0]
   __ vswp(q4, q5);
-  __ vstr(d8, r0, offsetof(T, result4));
-  __ vstr(d9, r0, offsetof(T, result5));
-  __ vstr(d10, r0, offsetof(T, result6));
-  __ vstr(d11, r0, offsetof(T, result7));
+  __ add(r6, r0, Operand(static_cast<int32_t>(offsetof(T, vswp_q4))));
+  __ vst1(Neon8, NeonListOperand(d8, 2), NeonMemOperand(r6));
+  __ add(r6, r0, Operand(static_cast<int32_t>(offsetof(T, vswp_q5))));
+  __ vst1(Neon8, NeonListOperand(d10, 2), NeonMemOperand(r6));
 
+  __ ldm(ia_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | pc.bit());
   __ bx(lr);
 
   CodeDesc desc;
@@ -2968,16 +2981,20 @@ TEST(vswp) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
-  CHECK_EQ(-1.0, t.result0);
-  CHECK_EQ(1.0, t.result1);
+  CHECK_EQ(minus_one, t.vswp_d0);
+  CHECK_EQ(one, t.vswp_d1);
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
-    CHECK_EQ(-1.0, t.result2);
-    CHECK_EQ(1.0, t.result3);
+    CHECK_EQ(minus_one, t.vswp_d30);
+    CHECK_EQ(one, t.vswp_d31);
   }
-  CHECK_EQ(3.0, t.result4);
-  CHECK_EQ(4.0, t.result5);
-  CHECK_EQ(1.0, t.result6);
-  CHECK_EQ(2.0, t.result7);
+  CHECK_EQ(t.vswp_q4[0], test_2);
+  CHECK_EQ(t.vswp_q4[1], test_2);
+  CHECK_EQ(t.vswp_q4[2], test_2);
+  CHECK_EQ(t.vswp_q4[3], test_2);
+  CHECK_EQ(t.vswp_q5[0], test_1);
+  CHECK_EQ(t.vswp_q5[1], test_1);
+  CHECK_EQ(t.vswp_q5[2], test_1);
+  CHECK_EQ(t.vswp_q5[3], test_1);
 }
 
 TEST(regress4292_b) {

@@ -1244,9 +1244,14 @@ Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
 
 Type* Typer::Visitor::TypeJSHasProperty(Node* node) { return Type::Boolean(); }
 
-Type* Typer::Visitor::TypeJSInstanceOf(Node* node) { return Type::Boolean(); }
+// JS instanceof operator.
 
-Type* Typer::Visitor::TypeJSOrdinaryHasInstance(Node* node) {
+Type* Typer::Visitor::JSInstanceOfTyper(Type* lhs, Type* rhs, Typer* t) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::JSOrdinaryHasInstanceTyper(Type* lhs, Type* rhs,
+                                                 Typer* t) {
   return Type::Boolean();
 }
 
@@ -1297,6 +1302,10 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
+  return Type::Receiver();
+}
+
+Type* Typer::Visitor::TypeJSCallConstructWithSpread(Node* node) {
   return Type::Receiver();
 }
 
@@ -1819,6 +1828,14 @@ Type* Typer::Visitor::TypeObjectIsString(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
   return TypeUnaryOp(node, ObjectIsUndetectable);
+}
+
+Type* Typer::Visitor::TypeNewUnmappedArgumentsElements(Node* node) {
+  return Type::OtherInternal();
+}
+
+Type* Typer::Visitor::TypeNewRestParameterElements(Node* node) {
+  return Type::OtherInternal();
 }
 
 Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {

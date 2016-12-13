@@ -71,8 +71,6 @@
   V(flags_string, "flags")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
-  V(for_api_string, "for_api")                                     \
-  V(for_string, "for")                                             \
   V(function_string, "function")                                   \
   V(Function_string, "Function")                                   \
   V(Generator_string, "Generator")                                 \
@@ -125,7 +123,6 @@
   V(ownKeys_string, "ownKeys")                                     \
   V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
-  V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
   V(PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
   V(proto_string, "__proto__")                                     \
@@ -153,6 +150,7 @@
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
   V(SyntaxError_string, "SyntaxError")                             \
+  V(then_string, "then")                                           \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
   V(timed_out, "timed-out")                                        \
@@ -213,16 +211,9 @@
   V(premonomorphic_symbol)             \
   V(promise_async_stack_id_symbol)     \
   V(promise_debug_marker_symbol)       \
-  V(promise_deferred_reaction_symbol)  \
   V(promise_forwarding_handler_symbol) \
-  V(promise_fulfill_reactions_symbol)  \
   V(promise_handled_by_symbol)         \
   V(promise_handled_hint_symbol)       \
-  V(promise_has_handler_symbol)        \
-  V(promise_raw_symbol)                \
-  V(promise_reject_reactions_symbol)   \
-  V(promise_result_symbol)             \
-  V(promise_state_symbol)              \
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \

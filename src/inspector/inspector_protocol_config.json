@@ -6,14 +6,17 @@
         "namespace": ["v8_inspector", "protocol"],
         "options": [
             {
-                "domain": "Schema"
+                "domain": "Schema",
+                "exported": ["Domain"]
             },
             {
                 "domain": "Runtime",
-                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript"]
+                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript"],
+                "exported": ["StackTrace", "RemoteObject"]
             },
             {
-                "domain": "Debugger"
+                "domain": "Debugger",
+                "exported": ["SearchMatch", "paused.reason"]
             },
             {
                 "domain": "Console"

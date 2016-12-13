@@ -38,9 +38,7 @@ class PointerToIndexHashMap
     return reinterpret_cast<uintptr_t>(value);
   }
 
-  static uint32_t Hash(uintptr_t key) {
-    return static_cast<uint32_t>(key >> kPointerSizeLog2);
-  }
+  static uint32_t Hash(uintptr_t key) { return static_cast<uint32_t>(key); }
 };
 
 class AddressToIndexHashMap : public PointerToIndexHashMap<Address> {};

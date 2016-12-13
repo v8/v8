@@ -730,6 +730,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsUndetectable:
       state = LowerObjectIsUndetectable(node, *effect, *control);
       break;
+    case IrOpcode::kNewRestParameterElements:
+      state = LowerNewRestParameterElements(node, *effect, *control);
+      break;
+    case IrOpcode::kNewUnmappedArgumentsElements:
+      state = LowerNewUnmappedArgumentsElements(node, *effect, *control);
+      break;
     case IrOpcode::kArrayBufferWasNeutered:
       state = LowerArrayBufferWasNeutered(node, *effect, *control);
       break;
@@ -2160,6 +2166,42 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
                            vfalse, control);
 
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerNewRestParameterElements(Node* node, Node* effect,
+                                                       Node* control) {
+  int const formal_parameter_count = ParameterCountOf(node->op());
+
+  Callable const callable = CodeFactory::NewRestParameterElements(isolate());
+  Operator::Properties const properties = node->op()->properties();
+  CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  Node* value = effect = graph()->NewNode(
+      common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+      jsgraph()->IntPtrConstant(formal_parameter_count),
+      jsgraph()->NoContextConstant(), effect);
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerNewUnmappedArgumentsElements(Node* node,
+                                                           Node* effect,
+                                                           Node* control) {
+  int const formal_parameter_count = ParameterCountOf(node->op());
+
+  Callable const callable =
+      CodeFactory::NewUnmappedArgumentsElements(isolate());
+  Operator::Properties const properties = node->op()->properties();
+  CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  Node* value = effect = graph()->NewNode(
+      common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+      jsgraph()->IntPtrConstant(formal_parameter_count),
+      jsgraph()->NoContextConstant(), effect);
   return ValueEffectControl(value, effect, control);
 }
 

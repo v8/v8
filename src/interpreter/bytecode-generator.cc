@@ -583,11 +583,13 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       generator_state_(),
       loop_depth_(0),
       home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
+      iterator_symbol_(info->isolate()->factory()->iterator_symbol()),
       empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()) {
   AstValueFactory* ast_value_factory = info->parse_info()->ast_value_factory();
   const AstRawString* prototype_string = ast_value_factory->prototype_string();
   ast_value_factory->Internalize(info->isolate());
   prototype_string_ = prototype_string->string();
+  undefined_string_ = ast_value_factory->undefined_string();
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
@@ -722,22 +724,25 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
                                              LoopBuilder* loop_builder) {
   // Recall that stmt->yield_count() is always zero inside ordinary
   // (i.e. non-generator) functions.
+  if (stmt->yield_count() == 0) {
+    loop_builder->LoopHeader();
+  } else {
+    // Collect all labels for generator resume points within the loop (if any)
+    // so that they can be bound to the loop header below. Also create fresh
+    // labels for these resume points, to be used inside the loop.
+    ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
+    size_t first_yield = stmt->first_yield_id();
+    DCHECK_LE(first_yield + stmt->yield_count(),
+              generator_resume_points_.size());
+    for (size_t id = first_yield; id < first_yield + stmt->yield_count();
+         id++) {
+      auto& label = generator_resume_points_[id];
+      resume_points_in_loop.push_back(label);
+      generator_resume_points_[id] = BytecodeLabel();
+    }
 
-  // Collect all labels for generator resume points within the loop (if any) so
-  // that they can be bound to the loop header below. Also create fresh labels
-  // for these resume points, to be used inside the loop.
-  ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
-  size_t first_yield = stmt->first_yield_id();
-  DCHECK_LE(first_yield + stmt->yield_count(), generator_resume_points_.size());
-  for (size_t id = first_yield; id < first_yield + stmt->yield_count(); id++) {
-    auto& label = generator_resume_points_[id];
-    resume_points_in_loop.push_back(label);
-    generator_resume_points_[id] = BytecodeLabel();
-  }
+    loop_builder->LoopHeader(&resume_points_in_loop);
 
-  loop_builder->LoopHeader(&resume_points_in_loop);
-
-  if (stmt->yield_count() > 0) {
     // If we are not resuming, fall through to loop body.
     // If we are resuming, perform state dispatch.
     BytecodeLabel not_resuming;
@@ -1402,9 +1407,8 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
   VisitClassLiteralForRuntimeDefinition(expr);
 
   // Load the "prototype" from the constructor.
-  RegisterList args = register_allocator()->NewRegisterList(2);
-  Register literal = args[0];
-  Register prototype = args[1];
+  Register literal = register_allocator()->NewRegister();
+  Register prototype = register_allocator()->NewRegister();
   FeedbackVectorSlot slot = expr->PrototypeSlot();
   builder()
       ->StoreAccumulatorInRegister(literal)
@@ -1412,6 +1416,7 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);
+  BuildClassLiteralNameProperty(expr, literal);
   builder()->CallRuntime(Runtime::kToFastProperties, literal);
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
@@ -1507,6 +1512,18 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
         break;
       }
     }
+  }
+}
+
+void BytecodeGenerator::BuildClassLiteralNameProperty(ClassLiteral* expr,
+                                                      Register literal) {
+  if (!expr->has_name_static_property() &&
+      !expr->constructor()->raw_name()->IsEmpty()) {
+    Runtime::FunctionId runtime_id =
+        expr->has_static_computed_names()
+            ? Runtime::kInstallClassNameAccessorWithCheck
+            : Runtime::kInstallClassNameAccessor;
+    builder()->CallRuntime(runtime_id, literal);
   }
 }
 
@@ -1829,8 +1846,15 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::UNALLOCATED: {
-      builder()->LoadGlobal(variable->name(), feedback_index(slot),
-                            typeof_mode);
+      // The global identifier "undefined" is immutable. Everything
+      // else could be reassigned. For performance, we do a pointer comparison
+      // rather than checking if the raw_name is really "undefined".
+      if (variable->raw_name() == undefined_string()) {
+        builder()->LoadUndefined();
+      } else {
+        builder()->LoadGlobal(variable->name(), feedback_index(slot),
+                              typeof_mode);
+      }
       break;
     }
     case VariableLocation::CONTEXT: {
@@ -2486,24 +2510,36 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register constructor = this_function;  // Re-use dead this_function register.
   builder()->StoreAccumulatorInRegister(constructor);
 
-  RegisterList args =
-      register_allocator()->NewRegisterList(expr->arguments()->length());
-  VisitArguments(expr->arguments(), args);
+  ZoneList<Expression*>* args = expr->arguments();
 
-  // The new target is loaded into the accumulator from the
-  // {new.target} variable.
-  VisitForAccumulatorValue(super->new_target_var());
+  // When a super call contains a spread, a CallSuper AST node is only created
+  // if there is exactly one spread, and it is the last argument.
+  if (!args->is_empty() && args->last()->IsSpread()) {
+    RegisterList args_regs =
+        register_allocator()->NewRegisterList(args->length() + 2);
+    builder()->MoveRegister(constructor, args_regs[0]);
+    VisitArguments(args, args_regs, 2);
+    VisitForRegisterValue(super->new_target_var(), args_regs[1]);
+    builder()->NewWithSpread(args_regs);
+  } else {
+    RegisterList args_regs =
+        register_allocator()->NewRegisterList(args->length());
+    VisitArguments(args, args_regs);
+    // The new target is loaded into the accumulator from the
+    // {new.target} variable.
+    VisitForAccumulatorValue(super->new_target_var());
 
-  // Call construct.
-  builder()->SetExpressionPosition(expr);
-  // TODO(turbofan): For now we do gather feedback on super constructor
-  // calls, utilizing the existing machinery to inline the actual call
-  // target and the JSCreate for the implicit receiver allocation. This
-  // is not an ideal solution for super constructor calls, but it gets
-  // the job done for now. In the long run we might want to revisit this
-  // and come up with a better way.
-  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-  builder()->New(constructor, args, feedback_slot_index);
+    // Call construct.
+    builder()->SetExpressionPosition(expr);
+    // TODO(turbofan): For now we do gather feedback on super constructor
+    // calls, utilizing the existing machinery to inline the actual call
+    // target and the JSCreate for the implicit receiver allocation. This
+    // is not an ideal solution for super constructor calls, but it gets
+    // the job done for now. In the long run we might want to revisit this
+    // and come up with a better way.
+    int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
+    builder()->New(constructor, args_regs, feedback_slot_index);
+  }
 }
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) {
@@ -2808,13 +2844,41 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
   FeedbackVectorSlot slot = expr->BinaryOperationFeedbackSlot();
+  builder()->SetExpressionPosition(expr);
   builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
 }
 
-void BytecodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
+void BytecodeGenerator::VisitSpread(Spread* expr) { Visit(expr->expression()); }
 
 void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
+}
+
+void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
+  FeedbackVectorSlot load_slot = expr->IteratorPropertyFeedbackSlot();
+  FeedbackVectorSlot call_slot = expr->IteratorCallFeedbackSlot();
+
+  RegisterList args = register_allocator()->NewRegisterList(1);
+  Register method = register_allocator()->NewRegister();
+  Register obj = args[0];
+
+  VisitForAccumulatorValue(expr->iterable());
+
+  // Let method be GetMethod(obj, @@iterator).
+  builder()
+      ->StoreAccumulatorInRegister(obj)
+      .LoadNamedProperty(obj, iterator_symbol(), feedback_index(load_slot))
+      .StoreAccumulatorInRegister(method);
+
+  // Let iterator be Call(method, obj).
+  builder()->Call(method, args, feedback_index(call_slot),
+                  Call::NAMED_PROPERTY_CALL);
+
+  // If Type(iterator) is not Object, throw a TypeError exception.
+  BytecodeLabel no_type_error;
+  builder()->JumpIfJSReceiver(&no_type_error);
+  builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
+  builder()->Bind(&no_type_error);
 }
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {

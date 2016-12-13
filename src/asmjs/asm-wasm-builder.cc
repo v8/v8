@@ -19,6 +19,10 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/isolate.h"
+#include "src/parsing/parse-info.h"
 
 namespace v8 {
 namespace internal {
@@ -42,8 +46,9 @@ struct ForeignVariable {
 
 class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
-  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, FunctionLiteral* literal,
-                     AsmTyper* typer)
+  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone,
+                     AstValueFactory* ast_value_factory, Handle<Script> script,
+                     FunctionLiteral* literal, AsmTyper* typer)
       : local_variables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
         functions_(ZoneHashMap::kDefaultHashMapCapacity,
@@ -56,15 +61,18 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         literal_(literal),
         isolate_(isolate),
         zone_(zone),
+        ast_value_factory_(ast_value_factory),
+        script_(script),
         typer_(typer),
+        typer_failed_(false),
         breakable_blocks_(zone),
         foreign_variables_(zone),
         init_function_(nullptr),
         foreign_init_function_(nullptr),
-        next_table_index_(0),
         function_tables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
-        imported_function_table_(this) {
+        imported_function_table_(this),
+        parent_binop_(nullptr) {
     InitializeAstVisitor(isolate);
   }
 
@@ -92,8 +100,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
   }
 
-  i::Handle<i::FixedArray> GetForeignArgs() {
-    i::Handle<FixedArray> ret = isolate_->factory()->NewFixedArray(
+  Handle<FixedArray> GetForeignArgs() {
+    Handle<FixedArray> ret = isolate_->factory()->NewFixedArray(
         static_cast<int>(foreign_variables_.size()));
     for (size_t i = 0; i < foreign_variables_.size(); ++i) {
       ForeignVariable* fv = &foreign_variables_[i];
@@ -102,10 +110,21 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     return ret;
   }
 
-  void Build() {
+  bool Build() {
     InitializeInitFunction();
-    RECURSE(VisitFunctionLiteral(literal_));
+    if (!typer_->ValidateBeforeFunctionsPhase()) {
+      return false;
+    }
+    DCHECK(!HasStackOverflow());
+    VisitFunctionLiteral(literal_);
+    if (HasStackOverflow()) {
+      return false;
+    }
+    if (typer_failed_) {
+      return false;
+    }
     BuildForeignInitFunction();
+    return true;
   }
 
   void VisitVariableDeclaration(VariableDeclaration* decl) {}
@@ -113,12 +132,62 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitFunctionDeclaration(FunctionDeclaration* decl) {
     DCHECK_EQ(kModuleScope, scope_);
     DCHECK_NULL(current_function_builder_);
+    FunctionLiteral* old_func = decl->fun();
+    Zone zone(isolate_->allocator(), ZONE_NAME);
+    DeclarationScope* new_func_scope = nullptr;
+    if (decl->fun()->body() == nullptr) {
+      // TODO(bradnelson): Refactor parser so we don't need a
+      // SharedFunctionInfo to parse a single function,
+      // or squirrel away the SharedFunctionInfo to use later.
+      Handle<SharedFunctionInfo> shared =
+          isolate_->factory()->NewSharedFunctionInfoForLiteral(decl->fun(),
+                                                               script_);
+      shared->set_is_toplevel(false);
+      ParseInfo info(&zone, script_);
+      info.set_shared_info(shared);
+      info.set_toplevel(false);
+      info.set_language_mode(decl->fun()->scope()->language_mode());
+      info.set_allow_lazy_parsing(false);
+      info.set_function_literal_id(shared->function_literal_id());
+      info.set_ast_value_factory(ast_value_factory_);
+      info.set_ast_value_factory_owned(false);
+      // Create fresh function scope to use to parse the function in.
+      new_func_scope = new (info.zone()) DeclarationScope(
+          info.zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
+      info.set_asm_function_scope(new_func_scope);
+      if (!Compiler::ParseAndAnalyze(&info)) {
+        typer_failed_ = true;
+        return;
+      }
+      FunctionLiteral* func = info.literal();
+      DCHECK_NOT_NULL(func);
+      decl->set_fun(func);
+    }
+    if (!typer_->ValidateInnerFunction(decl)) {
+      typer_failed_ = true;
+      decl->set_fun(old_func);
+      if (new_func_scope != nullptr) {
+        DCHECK_EQ(new_func_scope, decl->scope()->inner_scope());
+        if (!decl->scope()->RemoveInnerScope(new_func_scope)) {
+          UNREACHABLE();
+        }
+      }
+      return;
+    }
     current_function_builder_ = LookupOrInsertFunction(decl->proxy()->var());
     scope_ = kFuncScope;
     RECURSE(Visit(decl->fun()));
+    decl->set_fun(old_func);
+    if (new_func_scope != nullptr) {
+      DCHECK_EQ(new_func_scope, decl->scope()->inner_scope());
+      if (!decl->scope()->RemoveInnerScope(new_func_scope)) {
+        UNREACHABLE();
+      }
+    }
     scope_ = kModuleScope;
     current_function_builder_ = nullptr;
     local_variables_.Clear();
+    typer_->ClearFunctionNodeTypes();
   }
 
   void VisitStatements(ZoneList<Statement*>* stmts) {
@@ -129,6 +198,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         continue;
       }
       RECURSE(Visit(stmt));
+      if (typer_failed_) break;
       if (stmt->IsJump()) break;
     }
   }
@@ -204,6 +274,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitEmptyParentheses(EmptyParentheses* paren) { UNREACHABLE(); }
 
+  void VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
+
   void VisitIfStatement(IfStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(stmt->condition()));
@@ -245,6 +317,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitReturnStatement(ReturnStatement* stmt) {
     if (scope_ == kModuleScope) {
+      if (!typer_->ValidateAfterFunctionsPhase()) {
+        typer_failed_ = true;
+        return;
+      }
       scope_ = kExportScope;
       RECURSE(Visit(stmt->expression()));
       scope_ = kModuleScope;
@@ -448,8 +524,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         UNREACHABLE();
       }
     }
-    RECURSE(VisitStatements(expr->body()));
     RECURSE(VisitDeclarations(scope->declarations()));
+    if (typer_failed_) return;
+    RECURSE(VisitStatements(expr->body()));
   }
 
   void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
@@ -638,12 +715,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       Literal* name = prop->key()->AsLiteral();
       DCHECK_NOT_NULL(name);
       DCHECK(name->IsPropertyName());
-      const AstRawString* raw_name = name->AsRawPropertyName();
+      Handle<String> function_name = name->AsPropertyName();
+      int length;
+      std::unique_ptr<char[]> utf8 = function_name->ToCString(
+          DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
       if (var->is_function()) {
         WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-        function->Export();
-        function->SetName({reinterpret_cast<const char*>(raw_name->raw_data()),
-                           raw_name->length()});
+        function->ExportAs({utf8.get(), length});
       }
     }
   }
@@ -660,10 +738,22 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     current_function_builder_ = nullptr;
   }
 
-  void AddFunctionTable(VariableProxy* table, ArrayLiteral* funcs) {
-    auto* func_tbl_type = typer_->TypeOf(funcs)->AsFunctionTableType();
-    DCHECK_NOT_NULL(func_tbl_type);
-    auto* func_type = func_tbl_type->signature()->AsFunctionType();
+  struct FunctionTableIndices : public ZoneObject {
+    uint32_t start_index;
+    uint32_t signature_index;
+  };
+
+  FunctionTableIndices* LookupOrAddFunctionTable(VariableProxy* table,
+                                                 Property* p) {
+    FunctionTableIndices* indices = LookupFunctionTable(table->var());
+    if (indices != nullptr) {
+      // Already setup.
+      return indices;
+    }
+    indices = new (zone()) FunctionTableIndices();
+    auto* func_type = typer_->TypeOf(p)->AsFunctionType();
+    auto* func_table_type = typer_->TypeOf(p->obj()->AsVariableProxy()->var())
+                                ->AsFunctionTableType();
     const auto& arguments = func_type->Arguments();
     LocalType return_type = TypeFrom(func_type->ReturnType());
     FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
@@ -675,36 +765,38 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       sig.AddParam(TypeFrom(arg));
     }
     uint32_t signature_index = builder_->AddSignature(sig.Build());
-    InsertFunctionTable(table->var(), next_table_index_, signature_index);
-    next_table_index_ += funcs->values()->length();
-    for (int i = 0; i < funcs->values()->length(); ++i) {
-      VariableProxy* func = funcs->values()->at(i)->AsVariableProxy();
-      DCHECK_NOT_NULL(func);
-      builder_->AddIndirectFunction(
-          LookupOrInsertFunction(func->var())->func_index());
-    }
-  }
-
-  struct FunctionTableIndices : public ZoneObject {
-    uint32_t start_index;
-    uint32_t signature_index;
-  };
-
-  void InsertFunctionTable(Variable* v, uint32_t start_index,
-                           uint32_t signature_index) {
-    FunctionTableIndices* container = new (zone()) FunctionTableIndices();
-    container->start_index = start_index;
-    container->signature_index = signature_index;
+    indices->start_index = builder_->AllocateIndirectFunctions(
+        static_cast<uint32_t>(func_table_type->length()));
+    indices->signature_index = signature_index;
     ZoneHashMap::Entry* entry = function_tables_.LookupOrInsert(
-        v, ComputePointerHash(v), ZoneAllocationPolicy(zone()));
-    entry->value = container;
+        table->var(), ComputePointerHash(table->var()),
+        ZoneAllocationPolicy(zone()));
+    entry->value = indices;
+    return indices;
   }
 
   FunctionTableIndices* LookupFunctionTable(Variable* v) {
     ZoneHashMap::Entry* entry =
         function_tables_.Lookup(v, ComputePointerHash(v));
-    DCHECK_NOT_NULL(entry);
+    if (entry == nullptr) {
+      return nullptr;
+    }
     return reinterpret_cast<FunctionTableIndices*>(entry->value);
+  }
+
+  void PopulateFunctionTable(VariableProxy* table, ArrayLiteral* funcs) {
+    FunctionTableIndices* indices = LookupFunctionTable(table->var());
+    // Ignore unused function tables.
+    if (indices == nullptr) {
+      return;
+    }
+    for (int i = 0; i < funcs->values()->length(); ++i) {
+      VariableProxy* func = funcs->values()->at(i)->AsVariableProxy();
+      DCHECK_NOT_NULL(func);
+      builder_->SetIndirectFunction(
+          indices->start_index + i,
+          LookupOrInsertFunction(func->var())->func_index());
+    }
   }
 
   class ImportedFunctionTable {
@@ -727,20 +819,33 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                  ZoneAllocationPolicy(builder->zone())),
           builder_(builder) {}
 
-    void AddImport(Variable* v, const char* name, int name_length) {
-      ImportedFunctionIndices* indices = new (builder_->zone())
-          ImportedFunctionIndices(name, name_length, builder_->zone());
+    ImportedFunctionIndices* LookupOrInsertImport(Variable* v) {
       auto* entry = table_.LookupOrInsert(
           v, ComputePointerHash(v), ZoneAllocationPolicy(builder_->zone()));
-      entry->value = indices;
+      ImportedFunctionIndices* indices;
+      if (entry->value == nullptr) {
+        indices = new (builder_->zone())
+            ImportedFunctionIndices(nullptr, 0, builder_->zone());
+        entry->value = indices;
+      } else {
+        indices = reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+      }
+      return indices;
+    }
+
+    void SetImportName(Variable* v, const char* name, int name_length) {
+      auto* indices = LookupOrInsertImport(v);
+      indices->name_ = name;
+      indices->name_length_ = name_length;
+      for (auto i : indices->signature_to_index_) {
+        builder_->builder_->SetImportName(i.second, indices->name_,
+                                          indices->name_length_);
+      }
     }
 
     // Get a function's index (or allocate if new).
-    uint32_t LookupOrInsertImport(Variable* v, FunctionSig* sig) {
-      ZoneHashMap::Entry* entry = table_.Lookup(v, ComputePointerHash(v));
-      DCHECK_NOT_NULL(entry);
-      ImportedFunctionIndices* indices =
-          reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+    uint32_t LookupOrInsertImportUse(Variable* v, FunctionSig* sig) {
+      auto* indices = LookupOrInsertImport(v);
       WasmModuleBuilder::SignatureMap::iterator pos =
           indices->signature_to_index_.find(sig);
       if (pos != indices->signature_to_index_.end()) {
@@ -901,7 +1006,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           if (typer_->TypeOf(target)->AsFFIType() != nullptr) {
             const AstRawString* name =
                 prop->key()->AsLiteral()->AsRawPropertyName();
-            imported_function_table_.AddImport(
+            imported_function_table_.SetImportName(
                 target->var(), reinterpret_cast<const char*>(name->raw_data()),
                 name->length());
           }
@@ -910,14 +1015,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         return;
       }
       ArrayLiteral* funcs = expr->value()->AsArrayLiteral();
-      if (funcs != nullptr &&
-          typer_->TypeOf(funcs)
-              ->AsFunctionTableType()
-              ->signature()
-              ->AsFunctionType()) {
+      if (funcs != nullptr) {
         VariableProxy* target = expr->target()->AsVariableProxy();
         DCHECK_NOT_NULL(target);
-        AddFunctionTable(target, funcs);
+        PopulateFunctionTable(target, funcs);
         // Only add to the function table. No init needed.
         return;
       }
@@ -952,7 +1053,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     DCHECK_NOT_NULL(key_literal);
     if (!key_literal->value().is_null()) {
       Handle<Name> name =
-          i::Object::ToName(isolate_, key_literal->value()).ToHandleChecked();
+          Object::ToName(isolate_, key_literal->value()).ToHandleChecked();
       LocalType type = is_float ? kAstF64 : kAstI32;
       foreign_variables_.push_back({name, var, type});
     }
@@ -1298,6 +1399,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   bool VisitCallExpression(Call* expr) {
     Call::CallType call_type = expr->GetCallType();
     bool returns_value = true;
+
+    // Save the parent now, it might be overwritten in VisitCallArgs.
+    BinaryOperation* parent_binop = parent_binop_;
+
     switch (call_type) {
       case Call::OTHER_CALL: {
         VariableProxy* proxy = expr->expression()->AsVariableProxy();
@@ -1325,16 +1430,23 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           for (int i = 0; i < args->length(); ++i) {
             sig.AddParam(TypeOf(args->at(i)));
           }
-          uint32_t index = imported_function_table_.LookupOrInsertImport(
+          uint32_t index = imported_function_table_.LookupOrInsertImportUse(
               vp->var(), sig.Build());
           VisitCallArgs(expr);
-          current_function_builder_->AddAsmWasmOffset(expr->position());
+          // For non-void functions, we must know the parent node.
+          DCHECK_IMPLIES(returns_value, parent_binop != nullptr);
+          DCHECK_IMPLIES(returns_value, parent_binop->left() == expr ||
+                                            parent_binop->right() == expr);
+          int pos = expr->position();
+          int parent_pos = returns_value ? parent_binop->position() : pos;
+          current_function_builder_->AddAsmWasmOffset(pos, parent_pos);
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitVarInt(index);
         } else {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
-          current_function_builder_->AddAsmWasmOffset(expr->position());
+          current_function_builder_->AddAsmWasmOffset(expr->position(),
+                                                      expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitDirectCallIndex(
               function->func_index());
@@ -1348,7 +1460,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         DCHECK_NOT_NULL(p);
         VariableProxy* var = p->obj()->AsVariableProxy();
         DCHECK_NOT_NULL(var);
-        FunctionTableIndices* indices = LookupFunctionTable(var->var());
+        FunctionTableIndices* indices = LookupOrAddFunctionTable(var, p);
         Visit(p->key());  // TODO(titzer): should use RECURSE()
 
         // We have to use a temporary for the correct order of evaluation.
@@ -1360,7 +1472,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VisitCallArgs(expr);
 
         current_function_builder_->EmitGetLocal(tmp.index());
-        current_function_builder_->AddAsmWasmOffset(expr->position());
+        current_function_builder_->AddAsmWasmOffset(expr->position(),
+                                                    expr->position());
         current_function_builder_->Emit(kExprCallIndirect);
         current_function_builder_->EmitVarInt(indices->signature_index);
         current_function_builder_->EmitVarInt(0);  // table index
@@ -1400,8 +1513,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (expr->op() == op && expr->right()->IsLiteral() &&
         TypeOf(expr) == kAstI32) {
       Literal* right = expr->right()->AsLiteral();
-      DCHECK(right->raw_value()->IsNumber());
-      if (static_cast<int32_t>(right->raw_value()->AsNumber()) == val) {
+      if (right->raw_value()->IsNumber() &&
+          static_cast<int32_t>(right->raw_value()->AsNumber()) == val) {
         return true;
       }
     }
@@ -1532,6 +1645,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitBinaryOperation(BinaryOperation* expr) {
     ConvertOperation convertOperation = MatchBinaryOperation(expr);
     static const bool kDontIgnoreSign = false;
+    parent_binop_ = expr;
     if (convertOperation == kToDouble) {
       RECURSE(Visit(expr->left()));
       TypeIndex type = TypeIndexOf(expr->left(), kDontIgnoreSign);
@@ -1694,6 +1808,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitDeclarations(Declaration::List* decls) {
     for (Declaration* decl : *decls) {
       RECURSE(Visit(decl));
+      if (typer_failed_) {
+        return;
+      }
     }
   }
 
@@ -1821,7 +1938,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   FunctionLiteral* literal_;
   Isolate* isolate_;
   Zone* zone_;
+  AstValueFactory* ast_value_factory_;
+  Handle<Script> script_;
   AsmTyper* typer_;
+  bool typer_failed_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   ZoneVector<ForeignVariable> foreign_variables_;
   WasmFunctionBuilder* init_function_;
@@ -1829,6 +1949,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
   ImportedFunctionTable imported_function_table_;
+  // Remember the parent node for reporting the correct location for ToNumber
+  // conversions after calls.
+  BinaryOperation* parent_binop_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -1837,21 +1960,27 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 };
 
 AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
-                               FunctionLiteral* literal, AsmTyper* typer)
-    : isolate_(isolate), zone_(zone), literal_(literal), typer_(typer) {}
+                               AstValueFactory* ast_value_factory,
+                               Handle<Script> script, FunctionLiteral* literal)
+    : isolate_(isolate),
+      zone_(zone),
+      ast_value_factory_(ast_value_factory),
+      script_(script),
+      literal_(literal),
+      typer_(isolate, zone, script, literal) {}
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
-AsmWasmBuilder::Result AsmWasmBuilder::Run(
-    i::Handle<i::FixedArray>* foreign_args) {
-  AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
-  impl.Build();
+AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
+  AsmWasmBuilderImpl impl(isolate_, zone_, ast_value_factory_, script_,
+                          literal_, &typer_);
+  bool success = impl.Build();
   *foreign_args = impl.GetForeignArgs();
   ZoneBuffer* module_buffer = new (zone_) ZoneBuffer(zone_);
   impl.builder_->WriteTo(*module_buffer);
   ZoneBuffer* asm_offsets_buffer = new (zone_) ZoneBuffer(zone_);
   impl.builder_->WriteAsmJsOffsetTable(*asm_offsets_buffer);
-  return {module_buffer, asm_offsets_buffer};
+  return {module_buffer, asm_offsets_buffer, success};
 }
 
 const char* AsmWasmBuilder::foreign_init_name = "__foreign_init__";

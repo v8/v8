@@ -72,7 +72,7 @@ TEST(ReduceJSLoadContext) {
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
-                                    const_context, const_context, start);
+                                    const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
@@ -80,7 +80,7 @@ TEST(ReduceJSLoadContext) {
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
-                                    param_context, param_context, start);
+                                    param_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
@@ -89,10 +89,10 @@ TEST(ReduceJSLoadContext) {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
     Node* load = t.graph()->NewNode(
         t.javascript()->LoadContext(2, Context::GLOBAL_EVAL_FUN_INDEX, false),
-        deep_const_context, deep_const_context, start);
+        deep_const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
-    Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
+    Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
     CHECK_EQ(*native, *match.Value());
@@ -105,7 +105,7 @@ TEST(ReduceJSLoadContext) {
   {
     // Immutable slot, constant context, depth = 0 => specialize.
     Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, slot, true),
-                                    const_context, const_context, start);
+                                    const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
@@ -142,27 +142,24 @@ TEST(ReduceJSStoreContext) {
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    Node* load =
-        t.graph()->NewNode(t.javascript()->StoreContext(0, 0), const_context,
-                           const_context, const_context, start, start);
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
+                                    const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    Node* load =
-        t.graph()->NewNode(t.javascript()->StoreContext(0, 0), param_context,
-                           param_context, const_context, start, start);
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
+                                    param_context, param_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Immutable slot, constant context, depth = 0 => do nothing.
-    Node* load =
-        t.graph()->NewNode(t.javascript()->StoreContext(0, slot), const_context,
-                           const_context, const_context, start, start);
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, slot),
+                                    const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
@@ -171,10 +168,10 @@ TEST(ReduceJSStoreContext) {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
     Node* load = t.graph()->NewNode(
         t.javascript()->StoreContext(2, Context::GLOBAL_EVAL_FUN_INDEX),
-        deep_const_context, deep_const_context, const_context, start, start);
+        deep_const_context, deep_const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
-    Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
+    Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
     CHECK_EQ(*native, *match.Value());

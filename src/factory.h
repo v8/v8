@@ -85,6 +85,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
 
+  // Create a new Tuple2 struct.
+  Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2);
+
   // Create a new Tuple3 struct.
   Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
                            Handle<Object> value3);
@@ -706,6 +709,9 @@ class V8_EXPORT_PRIVATE Factory final {
                                                    MaybeHandle<Code> code,
                                                    bool is_constructor);
 
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
+      FunctionLiteral* literal, Handle<Script> script);
+
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
     return (function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
             function_mode == FUNCTION_WITH_READONLY_PROTOTYPE);
@@ -715,6 +721,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<Map> CreateStrictFunctionMap(FunctionMode function_mode,
                                       Handle<JSFunction> empty_function);
+
+  Handle<Map> CreateClassFunctionMap(Handle<JSFunction> empty_function);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(MessageTemplate::Template message,
@@ -797,6 +805,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                            FunctionMode function_mode);
+
+  void SetClassFunctionInstanceDescriptor(Handle<Map> map);
 };
 
 }  // namespace internal

@@ -93,31 +93,6 @@ function CheckScopeChain(scopes, exec_state) {
       assertPropertiesEqual(this, scope.scopeObject().value());
     }
   }
-
-  // Get the debug command processor.
-  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-
-  // Send a scopes request and check the result.
-  var json;
-  var request_json = '{"seq":0,"type":"request","command":"scopes"}';
-  var response_json = dcp.processDebugJSONRequest(request_json);
-  var response = JSON.parse(response_json);
-  assertEquals(scopes.length, response.body.scopes.length);
-  for (var i = 0; i < scopes.length; i++) {
-    assertEquals(i, response.body.scopes[i].index);
-    assertEquals(scopes[i], response.body.scopes[i].type);
-    if (scopes[i] == debug.ScopeType.Local ||
-        scopes[i] == debug.ScopeType.Closure) {
-      assertTrue(response.body.scopes[i].object.ref < 0);
-    } else {
-      assertTrue(response.body.scopes[i].object.ref >= 0);
-    }
-    var found = false;
-    for (var j = 0; j < response.refs.length && !found; j++) {
-      found = response.refs[j].handle == response.body.scopes[i].object.ref;
-    }
-    assertTrue(found, "Scope object " + response.body.scopes[i].object.ref + " not found");
-  }
 }
 
 // Check that the content of the scope is as expected. For functions just check
@@ -130,11 +105,13 @@ function CheckScopeContent(content, number, exec_state) {
     if (property_mirror.isUndefined()) {
       print('property ' + p + ' not found in scope');
     }
-    assertFalse(property_mirror.isUndefined(), 'property ' + p + ' not found in scope');
+    assertFalse(property_mirror.isUndefined(),
+                'property ' + p + ' not found in scope');
     if (typeof(content[p]) === 'function') {
       assertTrue(property_mirror.value().isFunction());
     } else {
-      assertEquals(content[p], property_mirror.value().value(), 'property ' + p + ' has unexpected value');
+      assertEquals(content[p], property_mirror.value().value(),
+                   'property ' + p + ' has unexpected value');
     }
     count++;
   }
@@ -158,30 +135,6 @@ function CheckScopeContent(content, number, exec_state) {
     }
   }
   assertEquals(count, scope_size);
-
-  // Get the debug command processor.
-  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-
-  // Send a scope request for information on a single scope and check the
-  // result.
-  var request_json = '{"seq":0,"type":"request","command":"scope","arguments":{"number":';
-  request_json += scope.scopeIndex();
-  request_json += '}}';
-  var response_json = dcp.processDebugJSONRequest(request_json);
-  var response = JSON.parse(response_json);
-  assertEquals(scope.scopeType(), response.body.type);
-  assertEquals(number, response.body.index);
-  if (scope.scopeType() == debug.ScopeType.Local ||
-      scope.scopeType() == debug.ScopeType.Closure) {
-    assertTrue(response.body.object.ref < 0);
-  } else {
-    assertTrue(response.body.object.ref >= 0);
-  }
-  var found = false;
-  for (var i = 0; i < response.refs.length && !found; i++) {
-    found = response.refs[i].handle == response.body.object.ref;
-  }
-  assertTrue(found, "Scope object " + response.body.object.ref + " not found");
 }
 
 

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -184,9 +185,8 @@ void Builtins::Generate_ToString(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&not_string);
   {
-    assembler.GotoUnless(
-        assembler.WordEqual(input_map, assembler.HeapNumberMapConstant()),
-        &not_heap_number);
+    assembler.GotoUnless(assembler.IsHeapNumberMap(input_map),
+                         &not_heap_number);
     assembler.Goto(&is_number);
   }
 
@@ -344,7 +344,7 @@ void Builtins::Generate_ToLength(compiler::CodeAssemblerState* state) {
     Node* len = var_len.value();
 
     // Check if {len} is a positive Smi.
-    assembler.GotoIf(assembler.WordIsPositiveSmi(len), &return_len);
+    assembler.GotoIf(assembler.TaggedIsPositiveSmi(len), &return_len);
 
     // Check if {len} is a (negative) Smi.
     assembler.GotoIf(assembler.TaggedIsSmi(len), &return_zero);

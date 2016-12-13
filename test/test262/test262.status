@@ -37,12 +37,6 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # The order of adding the name property is wrong
-  # https://code.google.com/p/v8/issues/detail?id=4199
-  'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
-  'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
-  'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
-
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
@@ -79,7 +73,6 @@
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
-  'language/expressions/class/name': [FAIL],
   'language/expressions/function/name': [FAIL],
   'language/expressions/generators/name': [FAIL],
   'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],
@@ -325,9 +318,6 @@
   'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4973
-  'language/literals/numeric/non-octal-decimal-integer-strict': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5130
   'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-data': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-get-err': [FAIL],
@@ -417,13 +407,6 @@
   'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5328
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-numericindex-desc-not-writable': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5329
   'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],

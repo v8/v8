@@ -53,7 +53,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
-      marking_parity_(ODD_MARKING_PARITY),
       was_marked_incrementally_(false),
       evacuation_(false),
       compacting_(false),
@@ -777,10 +776,8 @@ void MarkCompactCollector::Prepare() {
 
   DCHECK(!FLAG_never_compact || !FLAG_always_compact);
 
-  if (sweeping_in_progress()) {
-    // Instead of waiting we could also abort the sweeper threads here.
-    EnsureSweepingCompleted();
-  }
+  // Instead of waiting we could also abort the sweeper threads here.
+  EnsureSweepingCompleted();
 
   if (heap()->incremental_marking()->IsSweeping()) {
     heap()->incremental_marking()->Stop();
@@ -801,6 +798,7 @@ void MarkCompactCollector::Prepare() {
     AbortCompaction();
     if (heap_->UsingEmbedderHeapTracer()) {
       heap_->embedder_heap_tracer()->AbortTracing();
+      heap_->clear_wrappers_to_trace();
     }
     marking_deque()->Clear();
     was_marked_incrementally_ = false;
@@ -872,13 +870,6 @@ void MarkCompactCollector::Finish() {
   }
 
   heap_->incremental_marking()->ClearIdleMarkingDelayCounter();
-
-  if (marking_parity_ == EVEN_MARKING_PARITY) {
-    marking_parity_ = ODD_MARKING_PARITY;
-  } else {
-    DCHECK(marking_parity_ == ODD_MARKING_PARITY);
-    marking_parity_ = EVEN_MARKING_PARITY;
-  }
 }
 
 

@@ -21,6 +21,7 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/ic-inl.h"
+#include "src/ic/ic-stats.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
@@ -29,6 +30,7 @@
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -90,7 +92,7 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 
 
 void IC::TraceIC(const char* type, Handle<Object> name) {
-  if (FLAG_trace_ic) {
+  if (FLAG_ic_stats) {
     if (AddressIsDeoptimizedCode()) return;
     DCHECK(UseVector());
     State new_state = nexus()->StateFromFeedback();
@@ -101,8 +103,17 @@ void IC::TraceIC(const char* type, Handle<Object> name) {
 
 void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
                  State new_state) {
-  if (!FLAG_trace_ic) return;
-  PrintF("[%s%s in ", is_keyed() ? "Keyed" : "", type);
+  if (V8_LIKELY(!FLAG_ic_stats)) return;
+
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    ICStats::instance()->Begin();
+    ICInfo& ic_info = ICStats::instance()->Current();
+    ic_info.type = is_keyed() ? "Keyed" : "";
+    ic_info.type += type;
+  } else {
+    PrintF("[%s%s in ", is_keyed() ? "Keyed" : "", type);
+  }
 
   // TODO(jkummerow): Add support for "apply". The logic is roughly:
   // marker = [fp_ + kMarkerOffset];
@@ -121,8 +132,14 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
       code_offset =
           static_cast<int>(pc() - function->code()->instruction_start());
     }
-    JavaScriptFrame::PrintFunctionAndOffset(function, function->abstract_code(),
-                                            code_offset, stdout, true);
+    if (FLAG_ic_stats &
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+      JavaScriptFrame::CollectFunctionAndOffsetForICStats(
+          function, function->abstract_code(), code_offset);
+    } else {
+      JavaScriptFrame::PrintFunctionAndOffset(
+          function, function->abstract_code(), code_offset, stdout, true);
+    }
   }
 
   const char* modifier = "";
@@ -135,17 +152,45 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   if (!receiver_map().is_null()) {
     map = *receiver_map();
   }
-  PrintF(" (%c->%c%s) map=(%p", TransitionMarkFromState(old_state),
-         TransitionMarkFromState(new_state), modifier,
-         reinterpret_cast<void*>(map));
-  if (map != nullptr) {
-    PrintF(" dict=%u own=%u type=", map->is_dictionary_map(),
-           map->NumberOfOwnDescriptors());
-    std::cout << map->instance_type();
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    ICInfo& ic_info = ICStats::instance()->Current();
+    // Reverse enough space for IC transition state, the longest length is 17.
+    ic_info.state.reserve(17);
+    ic_info.state = "(";
+    ic_info.state += TransitionMarkFromState(old_state);
+    ic_info.state += "->";
+    ic_info.state += TransitionMarkFromState(new_state);
+    ic_info.state += modifier;
+    ic_info.state += ")";
+    ic_info.map = reinterpret_cast<void*>(map);
+  } else {
+    PrintF(" (%c->%c%s) map=(%p", TransitionMarkFromState(old_state),
+           TransitionMarkFromState(new_state), modifier,
+           reinterpret_cast<void*>(map));
   }
-  PrintF(") ");
-  name->ShortPrint(stdout);
-  PrintF("]\n");
+  if (map != nullptr) {
+    if (FLAG_ic_stats &
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+      ICInfo& ic_info = ICStats::instance()->Current();
+      ic_info.is_dictionary_map = map->is_dictionary_map();
+      ic_info.number_of_own_descriptors = map->NumberOfOwnDescriptors();
+      ic_info.instance_type = std::to_string(map->instance_type());
+    } else {
+      PrintF(" dict=%u own=%u type=", map->is_dictionary_map(),
+             map->NumberOfOwnDescriptors());
+      std::cout << map->instance_type();
+    }
+  }
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    // TODO(lpy) Add name as key field in ICStats.
+    ICStats::instance()->End();
+  } else {
+    PrintF(") ");
+    name->ShortPrint(stdout);
+    PrintF("]\n");
+  }
 }
 
 
@@ -603,10 +648,9 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
   OnTypeFeedbackChanged(isolate(), get_host());
 }
 
-
 void IC::ConfigureVectorState(MapHandleList* maps,
                               MapHandleList* transitioned_maps,
-                              CodeHandleList* handlers) {
+                              List<Handle<Object>>* handlers) {
   DCHECK(UseVector());
   DCHECK(kind() == Code::KEYED_STORE_IC);
   KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
@@ -621,6 +665,13 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
+    if (FLAG_use_ic && state() != UNINITIALIZED && state() != PREMONOMORPHIC) {
+      // Ensure the IC state progresses.
+      TRACE_HANDLER_STATS(isolate(), LoadIC_NonReceiver);
+      update_receiver_map(object);
+      PatchCache(name, slow_stub());
+      TRACE_IC("LoadIC", name);
+    }
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
@@ -1821,6 +1872,13 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
+    if (FLAG_use_ic && state() != UNINITIALIZED && state() != PREMONOMORPHIC) {
+      // Ensure the IC state progresses.
+      TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
+      update_receiver_map(object);
+      PatchCache(name, slow_stub());
+      TRACE_IC("StoreIC", name);
+    }
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
@@ -2208,7 +2266,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
-    Handle<Code> handler =
+    Handle<Object> handler =
         PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(monomorphic_map,
                                                                 store_mode);
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
@@ -2242,7 +2300,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
-      Handle<Code> handler =
+      Handle<Object> handler =
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
               transitioned_receiver_map, store_mode);
       ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
@@ -2256,7 +2314,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
-      Handle<Code> handler =
+      Handle<Object> handler =
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(receiver_map,
                                                                   store_mode);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
@@ -2317,7 +2375,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   MapHandleList transitioned_maps(target_receiver_maps.length());
-  CodeHandleList handlers(target_receiver_maps.length());
+  List<Handle<Object>> handlers(target_receiver_maps.length());
   PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
       &target_receiver_maps, &transitioned_maps, &handlers, store_mode);
   ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);
@@ -2899,7 +2957,19 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   }
   set_target(*new_target);
 
-  if (FLAG_trace_ic) {
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    auto ic_stats = ICStats::instance();
+    ic_stats->Begin();
+    ICInfo& ic_info = ic_stats->Current();
+    ic_info.type = "BinaryOpIC";
+    ic_info.state = old_state.ToString();
+    ic_info.state += " => ";
+    ic_info.state += state.ToString();
+    JavaScriptFrame::CollectTopFrameForICStats(isolate());
+    ic_stats->End();
+  } else if (FLAG_ic_stats) {
+    // if (FLAG_trace_ic) {
     OFStream os(stdout);
     os << "[BinaryOpIC" << old_state << " => " << state << " @ "
        << static_cast<void*>(*new_target) << " <- ";
@@ -2973,7 +3043,30 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   Handle<Code> new_target = stub.GetCode();
   set_target(*new_target);
 
-  if (FLAG_trace_ic) {
+  if (FLAG_ic_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    auto ic_stats = ICStats::instance();
+    ic_stats->Begin();
+    ICInfo& ic_info = ic_stats->Current();
+    ic_info.type = "CompareIC";
+    JavaScriptFrame::CollectTopFrameForICStats(isolate());
+    ic_info.state = "((";
+    ic_info.state += CompareICState::GetStateName(old_stub.left());
+    ic_info.state += "+";
+    ic_info.state += CompareICState::GetStateName(old_stub.right());
+    ic_info.state += "=";
+    ic_info.state += CompareICState::GetStateName(old_stub.state());
+    ic_info.state += ")->(";
+    ic_info.state += CompareICState::GetStateName(new_left);
+    ic_info.state += "+";
+    ic_info.state += CompareICState::GetStateName(new_right);
+    ic_info.state += "=";
+    ic_info.state += CompareICState::GetStateName(state);
+    ic_info.state += "))#";
+    ic_info.state += Token::Name(op_);
+    ic_stats->End();
+  } else if (FLAG_ic_stats) {
+    // if (FLAG_trace_ic) {
     PrintF("[CompareIC in ");
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
     PrintF(" ((%s+%s=%s)->(%s+%s=%s))#%s @ %p]\n",

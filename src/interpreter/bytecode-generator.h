@@ -132,6 +132,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
   void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
                                    Register prototype);
+  void BuildClassLiteralNameProperty(ClassLiteral* expr, Register literal);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
   void VisitBlockDeclarationsAndStatements(Block* stmt);
@@ -193,8 +194,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int feedback_index(FeedbackVectorSlot slot) const;
 
   Handle<Name> home_object_symbol() const { return home_object_symbol_; }
+  Handle<Name> iterator_symbol() const { return iterator_symbol_; }
   Handle<Name> prototype_string() const { return prototype_string_; }
   Handle<FixedArray> empty_fixed_array() const { return empty_fixed_array_; }
+  const AstRawString* undefined_string() const { return undefined_string_; }
 
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
@@ -216,8 +219,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int loop_depth_;
 
   Handle<Name> home_object_symbol_;
+  Handle<Name> iterator_symbol_;
   Handle<Name> prototype_string_;
   Handle<FixedArray> empty_fixed_array_;
+  const AstRawString* undefined_string_;
 };
 
 }  // namespace interpreter

@@ -23,6 +23,8 @@ StoreBuffer::StoreBuffer(Heap* heap)
     lazy_top_[i] = nullptr;
   }
   task_running_ = false;
+  insertion_callback = &InsertDuringRuntime;
+  deletion_callback = &DeleteDuringRuntime;
 }
 
 void StoreBuffer::SetUp() {
@@ -135,16 +137,6 @@ void StoreBuffer::ConcurrentlyProcessStoreBuffer() {
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   task_running_ = false;
-}
-
-void StoreBuffer::DeleteEntry(Address start, Address end) {
-  if (top_ + sizeof(Address) * 2 > limit_[current_]) {
-    StoreBufferOverflow(heap_->isolate());
-  }
-  *top_ = MarkDeletionAddress(start);
-  top_++;
-  *top_ = end;
-  top_++;
 }
 
 }  // namespace internal

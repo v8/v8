@@ -441,12 +441,11 @@ class StackFrame BASE_EMBEDDED {
   };
 
   struct State {
-    State() : sp(NULL), fp(NULL), pc_address(NULL),
-              constant_pool_address(NULL) { }
-    Address sp;
-    Address fp;
-    Address* pc_address;
-    Address* constant_pool_address;
+    Address sp = nullptr;
+    Address fp = nullptr;
+    Address* pc_address = nullptr;
+    Address* callee_pc_address = nullptr;
+    Address* constant_pool_address = nullptr;
   };
 
   // Copy constructor; it breaks the connection to host iterator
@@ -485,6 +484,9 @@ class StackFrame BASE_EMBEDDED {
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
+  Address callee_pc() const {
+    return state_.callee_pc_address ? *state_.callee_pc_address : nullptr;
+  }
   Address caller_sp() const { return GetCallerStackPointer(); }
 
   // If this frame is optimized and was dynamically aligned return its old
@@ -909,6 +911,11 @@ class JavaScriptFrame : public StandardFrame {
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
+  static void CollectFunctionAndOffsetForICStats(JSFunction* function,
+                                                 AbstractCode* code,
+                                                 int code_offset);
+  static void CollectTopFrameForICStats(Isolate* isolate);
+
  protected:
   inline explicit JavaScriptFrame(StackFrameIteratorBase* iterator);
 
@@ -1106,6 +1113,7 @@ class WasmFrame : public StandardFrame {
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;
+  bool at_to_number_conversion() const;
 
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());

@@ -18,6 +18,7 @@
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
@@ -315,7 +316,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
   } else {
-    maximum = static_cast<int>(i::wasm::WasmModule::kV8MaxTableSize);
+    maximum = static_cast<int>(i::wasm::kV8MaxWasmTableSize);
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

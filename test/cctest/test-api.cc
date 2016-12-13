@@ -3325,6 +3325,20 @@ THREADED_TEST(GlobalSymbols) {
   CHECK(!sym2->SameValue(glob_api));
 }
 
+THREADED_TEST(GlobalSymbolsNoContext) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<String> name = v8_str("my-symbol");
+  v8::Local<v8::Symbol> glob = v8::Symbol::For(isolate, name);
+  v8::Local<v8::Symbol> glob2 = v8::Symbol::For(isolate, name);
+  CHECK(glob2->SameValue(glob));
+
+  v8::Local<v8::Symbol> glob_api = v8::Symbol::ForApi(isolate, name);
+  v8::Local<v8::Symbol> glob_api2 = v8::Symbol::ForApi(isolate, name);
+  CHECK(glob_api2->SameValue(glob_api));
+  CHECK(!glob_api->SameValue(glob));
+}
 
 static void CheckWellKnownSymbol(v8::Local<v8::Symbol>(*getter)(v8::Isolate*),
                                  const char* name) {
@@ -7085,6 +7099,9 @@ THREADED_TEST(Regress892105) {
                        .FromJust());
 }
 
+static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args.This());
+}
 
 THREADED_TEST(UndetectableObject) {
   LocalContext env;
@@ -7093,6 +7110,7 @@ THREADED_TEST(UndetectableObject) {
   Local<v8::FunctionTemplate> desc =
       v8::FunctionTemplate::New(env->GetIsolate());
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
 
   Local<v8::Object> obj = desc->GetFunction(env.local())
                               .ToLocalChecked()
@@ -7141,6 +7159,7 @@ THREADED_TEST(VoidLiteral) {
 
   Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
 
   Local<v8::Object> obj = desc->GetFunction(env.local())
                               .ToLocalChecked()
@@ -7191,6 +7210,7 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 
   Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
 
   Local<v8::Object> obj = desc->GetFunction(env.local())
                               .ToLocalChecked()
@@ -11772,11 +11792,6 @@ static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   args.GetReturnValue().Set(args[0]);
-}
-
-
-static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(args.This());
 }
 
 
@@ -17334,6 +17349,79 @@ TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
   isolate->SetCaptureStackTraceForUncaughtExceptions(false);
 }
 
+static int asm_warning_triggered = 0;
+
+static void AsmJsWarningListener(v8::Local<v8::Message> message,
+                                 v8::Local<Value>) {
+  DCHECK_EQ(v8::Isolate::kMessageWarning, message->ErrorLevel());
+  asm_warning_triggered = 1;
+}
+
+TEST(AsmJsWarning) {
+  i::FLAG_validate_asm = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  asm_warning_triggered = 0;
+  isolate->AddMessageListenerWithErrorLevel(AsmJsWarningListener,
+                                            v8::Isolate::kMessageAll);
+  CompileRun(
+      "function module() {\n"
+      "  'use asm';\n"
+      "  var x = 'hi';\n"
+      "  return {};\n"
+      "}\n"
+      "module();");
+  DCHECK_EQ(1, asm_warning_triggered);
+  isolate->RemoveMessageListeners(AsmJsWarningListener);
+}
+
+static int error_level_message_count = 0;
+static int expected_error_level = 0;
+
+static void ErrorLevelListener(v8::Local<v8::Message> message,
+                               v8::Local<Value>) {
+  DCHECK_EQ(expected_error_level, message->ErrorLevel());
+  ++error_level_message_count;
+}
+
+TEST(ErrorLevelWarning) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  const char* source = "fake = 1;";
+  v8::Local<v8::Script> lscript = CompileWithOrigin(source, "test");
+  i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
+      v8::Utils::OpenHandle(*lscript->GetUnboundScript()));
+  CHECK(obj->script()->IsScript());
+  i::Handle<i::Script> script(i::Script::cast(obj->script()));
+
+  int levels[] = {
+      v8::Isolate::kMessageLog, v8::Isolate::kMessageInfo,
+      v8::Isolate::kMessageDebug, v8::Isolate::kMessageWarning,
+  };
+  error_level_message_count = 0;
+  isolate->AddMessageListenerWithErrorLevel(ErrorLevelListener,
+                                            v8::Isolate::kMessageAll);
+  for (size_t i = 0; i < arraysize(levels); i++) {
+    i::MessageLocation location(script, 0, 0);
+    i::Handle<i::String> msg(i_isolate->factory()->InternalizeOneByteString(
+        STATIC_CHAR_VECTOR("test")));
+    i::Handle<i::JSMessageObject> message =
+        i::MessageHandler::MakeMessageObject(
+            i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,
+            i::Handle<i::JSArray>::null());
+    message->set_error_level(levels[i]);
+    expected_error_level = levels[i];
+    i::MessageHandler::ReportMessage(i_isolate, &location, message);
+  }
+  isolate->RemoveMessageListeners(ErrorLevelListener);
+  DCHECK_EQ(arraysize(levels), error_level_message_count);
+}
 
 static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                                            v8::Local<Value>) {
@@ -21731,6 +21819,39 @@ int* LookupCounter(const char* name) {
   return NULL;
 }
 
+template <typename Stub, typename... Args>
+void Recompile(Args... args) {
+  Stub stub(args...);
+  stub.DeleteStubFromCacheForTesting();
+  stub.GetCode();
+}
+
+void RecompileICStubs(i::Isolate* isolate) {
+  using namespace i;
+  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
+  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(INSIDE_TYPEOF));
+  Recompile<LoadGlobalICTrampolineStub>(isolate,
+                                        LoadGlobalICState(NOT_INSIDE_TYPEOF));
+  Recompile<LoadGlobalICTrampolineStub>(isolate,
+                                        LoadGlobalICState(INSIDE_TYPEOF));
+
+  Recompile<LoadICStub>(isolate);
+  Recompile<LoadICTrampolineStub>(isolate);
+
+  Recompile<KeyedLoadICTFStub>(isolate);
+  Recompile<KeyedLoadICTrampolineTFStub>(isolate);
+
+  Recompile<StoreICStub>(isolate, StoreICState(SLOPPY));
+  Recompile<StoreICTrampolineStub>(isolate, StoreICState(SLOPPY));
+  Recompile<StoreICStub>(isolate, StoreICState(STRICT));
+  Recompile<StoreICTrampolineStub>(isolate, StoreICState(STRICT));
+
+  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(SLOPPY));
+  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(SLOPPY));
+  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(STRICT));
+  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(STRICT));
+}
+
 }  // namespace
 
 #ifdef ENABLE_DISASSEMBLER
@@ -21764,46 +21885,35 @@ const char* kMegamorphicTestProgram =
     "}\n";
 
 void TestStubCache(bool primary) {
+  using namespace i;
+
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (i::FLAG_ignition || i::FLAG_turbo) return;
+  if (FLAG_ignition || FLAG_turbo) return;
 
-  i::FLAG_native_code_counters = true;
+  FLAG_native_code_counters = true;
   if (primary) {
-    i::FLAG_test_primary_stub_cache = true;
+    FLAG_test_primary_stub_cache = true;
   } else {
-    i::FLAG_test_secondary_stub_cache = true;
+    FLAG_test_secondary_stub_cache = true;
   }
-  i::FLAG_crankshaft = false;
-  i::FLAG_turbo = false;
+  FLAG_crankshaft = false;
+
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
 
-    {
-      // Enforce recompilation of IC stubs that access megamorphic stub cache
-      // to respect enabled native code counters and stub cache test flags.
-      i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
-      };
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      i::Heap* heap = i_isolate->heap();
-      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
-      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
-        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
-      }
-      heap->SetRootCodeStubs(*dict);
-    }
+    // Enforce recompilation of IC stubs that access megamorphic stub cache
+    // to respect enabled native code counters and stub cache test flags.
+    RecompileICStubs(i_isolate);
 
     int initial_probes = probes_counter;
     int initial_misses = misses_counter;
@@ -22696,41 +22806,30 @@ TEST(AccessCheckThrows) {
 }
 
 TEST(AccessCheckInIC) {
+  using namespace i;
+
   // The test does not work with interpreter because bytecode handlers taken
   // from the snapshot already refer to ICs with disabled counters and there
   // is no way to trigger bytecode handlers recompilation.
-  if (i::FLAG_ignition || i::FLAG_turbo) return;
+  if (FLAG_ignition || FLAG_turbo) return;
 
-  i::FLAG_native_code_counters = true;
-  i::FLAG_crankshaft = false;
-  i::FLAG_turbo = false;
+  FLAG_native_code_counters = true;
+  FLAG_crankshaft = false;
+
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
 
-    {
-      // Enforce recompilation of IC stubs that access megamorphic stub cache
-      // to respect enabled native code counters and stub cache test flags.
-      i::CodeStub::Major code_stub_keys[] = {
-          i::CodeStub::LoadIC,         i::CodeStub::LoadICTrampoline,
-          i::CodeStub::KeyedLoadICTF,  i::CodeStub::KeyedLoadICTrampolineTF,
-          i::CodeStub::StoreIC,        i::CodeStub::StoreICTrampoline,
-          i::CodeStub::KeyedStoreICTF, i::CodeStub::KeyedStoreICTrampolineTF,
-      };
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      i::Heap* heap = i_isolate->heap();
-      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
-      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
-        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
-      }
-      heap->SetRootCodeStubs(*dict);
-    }
+    // Enforce recompilation of IC stubs that access megamorphic stub cache
+    // to respect enabled native code counters and stub cache test flags.
+    RecompileICStubs(i_isolate);
 
     // Create an ObjectTemplate for global objects and install access
     // check callbacks that will block access.
@@ -26158,4 +26257,30 @@ TEST(InternalFieldsOnDataView) {
     CHECK_EQ(static_cast<void*>(nullptr),
              array->GetAlignedPointerFromInternalField(i));
   }
+}
+
+TEST(SetPrototypeTemplate) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<FunctionTemplate> HTMLElementTemplate = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> HTMLImageElementTemplate =
+      FunctionTemplate::New(isolate);
+  HTMLImageElementTemplate->Inherit(HTMLElementTemplate);
+
+  Local<FunctionTemplate> ImageTemplate = FunctionTemplate::New(isolate);
+  ImageTemplate->SetPrototypeProviderTemplate(HTMLImageElementTemplate);
+
+  Local<Function> HTMLImageElement =
+      HTMLImageElementTemplate->GetFunction(env.local()).ToLocalChecked();
+  Local<Function> Image =
+      ImageTemplate->GetFunction(env.local()).ToLocalChecked();
+
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("HTMLImageElement"), HTMLImageElement)
+            .FromJust());
+  CHECK(env->Global()->Set(env.local(), v8_str("Image"), Image).FromJust());
+
+  ExpectTrue("Image.prototype === HTMLImageElement.prototype");
 }

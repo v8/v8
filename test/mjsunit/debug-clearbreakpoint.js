@@ -34,53 +34,15 @@ listenerComplete = false;
 exception = false;
 
 var breakpoint = -1;
-var base_request = '"seq":0,"type":"request","command":"clearbreakpoint"'
-
-function safeEval(code) {
-  try {
-    return eval('(' + code + ')');
-  } catch (e) {
-    assertEquals(void 0, e);
-    return undefined;
-  }
-}
-
-function testArguments(dcp, arguments, success) {
-  var request = '{' + base_request + ',"arguments":' + arguments + '}'
-  var json_response = dcp.processDebugJSONRequest(request);
-  var response = safeEval(json_response);
-  if (success) {
-    assertTrue(response.success, json_response);
-  } else {
-    assertFalse(response.success, json_response);
-  }
-}
 
 function listener(event, exec_state, event_data, data) {
   try {
-  if (event == Debug.DebugEvent.Break) {
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-
-    // Test some illegal clearbreakpoint requests.
-    var request = '{' + base_request + '}'
-    var response = safeEval(dcp.processDebugJSONRequest(request));
-    assertFalse(response.success);
-
-    testArguments(dcp, '{}', false);
-    testArguments(dcp, '{"breakpoint":0}', false);
-    testArguments(dcp, '{"breakpoint":' + (breakpoint + 1)+ '}', false);
-    testArguments(dcp, '{"breakpoint":"xx"}', false);
-
-    // Test some legal clearbreakpoint requests.
-    testArguments(dcp, '{"breakpoint":' + breakpoint + '}', true);
-
-    // Cannot clear the same break point twice.
-    testArguments(dcp, '{"breakpoint":' + breakpoint + '}', false);
-
-    // Indicate that all was processed.
-    listenerComplete = true;
-  }
+    if (event == Debug.DebugEvent.Break) {
+      // Clear once.
+      Debug.clearBreakPoint(breakpoint);
+      // Indicate that all was processed.
+      listenerComplete = true;
+    }
   } catch (e) {
     exception = e
   };

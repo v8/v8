@@ -257,9 +257,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool turbofanned = code->is_turbofanned() &&
-                         function->shared()->asm_function() &&
-                         !FLAG_turbo_asm_deoptimization;
+      bool turbofanned =
+          code->is_turbofanned() && function->shared()->asm_function();
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
       bool builtin = code->kind() == Code::BUILTIN;
@@ -391,14 +390,13 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
   }
 }
 
-
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code* code) {
   Isolate* isolate = function->GetIsolate();
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  Code* code = function->code();
+  if (code == nullptr) code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also
     // refer to that code. The code cannot be shared across native contexts,
@@ -627,19 +625,15 @@ namespace {
 int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kFunction: {
-      BailoutId node_id = translated_frame->node_id();
+#ifdef DEBUG
       JSFunction* function =
           JSFunction::cast(translated_frame->begin()->GetRawValue());
       Code* non_optimized_code = function->shared()->code();
-      FixedArray* raw_data = non_optimized_code->deoptimization_data();
-      DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-      unsigned pc_and_state =
-          Deoptimizer::GetOutputInfo(data, node_id, function->shared());
-      unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
       HandlerTable* table =
           HandlerTable::cast(non_optimized_code->handler_table());
-      HandlerTable::CatchPrediction prediction;
-      return table->LookupRange(pc_offset, data_out, &prediction);
+      DCHECK_EQ(0, table->NumberOfRangeEntries());
+#endif
+      break;
     }
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
@@ -647,8 +641,7 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
           JSFunction::cast(translated_frame->begin()->GetRawValue());
       BytecodeArray* bytecode = function->shared()->bytecode_array();
       HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
-      HandlerTable::CatchPrediction prediction;
-      return table->LookupRange(bytecode_offset, data_out, &prediction);
+      return table->LookupRange(bytecode_offset, data_out, nullptr);
     }
     default:
       break;
@@ -2721,6 +2714,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 
 
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
+  CHECK(code->instruction_start() <= pc && pc <= code->instruction_end());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kNoReason;
   int last_deopt_id = kNoDeoptimizationId;
@@ -2730,9 +2724,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
              RelocInfo::ModeMask(RelocInfo::DEOPT_INLINING_ID);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    if (info->pc() >= pc) {
-      return DeoptInfo(last_position, last_reason, last_deopt_id);
-    }
+    if (info->pc() >= pc) break;
     if (info->rmode() == RelocInfo::DEOPT_SCRIPT_OFFSET) {
       int script_offset = static_cast<int>(info->data());
       it.next();
@@ -2745,7 +2737,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
       last_reason = static_cast<DeoptimizeReason>(info->data());
     }
   }
-  return DeoptInfo(SourcePosition::Unknown(), DeoptimizeReason::kNoReason, -1);
+  return DeoptInfo(last_position, last_reason, last_deopt_id);
 }
 
 
@@ -3939,8 +3931,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
   return nullptr;
 }
 
-
-void TranslatedState::StoreMaterializedValuesAndDeopt() {
+void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   MaterializedObjectStore* materialized_store =
       isolate_->materialized_object_store();
   Handle<FixedArray> previously_materialized_objects =
@@ -3986,8 +3977,8 @@ void TranslatedState::StoreMaterializedValuesAndDeopt() {
     CHECK(frames_[0].kind() == TranslatedFrame::kFunction ||
           frames_[0].kind() == TranslatedFrame::kInterpretedFunction ||
           frames_[0].kind() == TranslatedFrame::kTailCallerFunction);
-    Object* const function = frames_[0].front().GetRawValue();
-    Deoptimizer::DeoptimizeFunction(JSFunction::cast(function));
+    CHECK_EQ(frame->function(), frames_[0].front().GetRawValue());
+    Deoptimizer::DeoptimizeFunction(frame->function(), frame->LookupCode());
   }
 }
 

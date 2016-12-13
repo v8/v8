@@ -331,6 +331,12 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   return OpParameter<NumberOperationHint>(op);
 }
 
+int ParameterCountOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kNewUnmappedArgumentsElements ||
+         op->opcode() == IrOpcode::kNewRestParameterElements);
+  return OpParameter<int>(op);
+}
+
 PretenureFlag PretenureFlagOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
   return OpParameter<PretenureFlag>(op);
@@ -735,6 +741,26 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       "TransitionElementsKind",                       // name
       3, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewUnmappedArgumentsElements(
+    int parameter_count) {
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kNewUnmappedArgumentsElements,  // opcode
+      Operator::kEliminatable,                  // flags
+      "NewUnmappedArgumentsElements",           // name
+      0, 1, 0, 1, 1, 0,                         // counts
+      parameter_count);                         // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewRestParameterElements(
+    int parameter_count) {
+  return new (zone()) Operator1<int>(       // --
+      IrOpcode::kNewRestParameterElements,  // opcode
+      Operator::kEliminatable,              // flags
+      "NewRestParameterElements",           // name
+      0, 1, 0, 1, 1, 0,                     // counts
+      parameter_count);                     // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {

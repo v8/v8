@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 274
+bytecode array length: 272
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -19,11 +19,12 @@ bytecodes: [
                 B(Mov), R(context), R(11),
                 B(Mov), R(context), R(12),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
-                B(Star), R(14),
-                B(LdaConstant), U8(1),
-  /*   48 E> */ B(LdaKeyedProperty), R(14), U8(4),
                 B(Star), R(13),
-  /*   48 E> */ B(CallProperty), R(13), R(14), U8(1), U8(2),
+                B(LdaNamedProperty), R(13), U8(1), U8(2),
+                B(Star), R(14),
+                B(CallProperty), R(14), R(13), U8(1), U8(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(2),
   /*   45 S> */ B(LdaNamedProperty), R(2), U8(2), U8(8),
                 B(Star), R(14),
@@ -71,24 +72,20 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(15),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(2), U8(16),
-                B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(2), U8(7), U8(17),
+                B(JumpIfTrue), U8(111),
+                B(LdaNamedProperty), R(2), U8(7), U8(16),
                 B(Star), R(6),
-                B(LdaNull),
-                B(TestEqual), R(6), U8(19),
+                B(TestUndetectable), R(6),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(4), U8(20),
+                B(TestEqualStrict), R(4), U8(19),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(6),
                 B(TypeOf),
                 B(Star), R(12),
                 B(LdaConstant), U8(8),
-                B(TestEqualStrict), R(12), U8(21),
+                B(TestEqualStrict), R(12), U8(20),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -145,9 +142,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [7, 120, 126],
-  [10, 84, 86],
-  [201, 211, 213],
+  [7, 126, 132],
+  [10, 90, 92],
+  [199, 209, 211],
 ]
 
 ---
@@ -157,7 +154,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 285
+bytecode array length: 286
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -166,10 +163,12 @@ bytecodes: [
                 B(Star), R(5),
                 B(Mov), R(context), R(12),
                 B(Mov), R(context), R(13),
-  /*   68 S> */ B(LdaConstant), U8(1),
-  /*   68 E> */ B(LdaKeyedProperty), R(0), U8(4),
-                B(Star), R(14),
-  /*   68 E> */ B(CallProperty), R(14), R(0), U8(1), U8(2),
+  /*   68 S> */ B(LdaNamedProperty), R(0), U8(1), U8(2),
+                B(Star), R(15),
+                B(CallProperty), R(15), R(0), U8(1), U8(4),
+                B(Mov), R(0), R(14),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
   /*   65 S> */ B(LdaNamedProperty), R(3), U8(2), U8(8),
                 B(Star), R(15),
@@ -218,24 +217,20 @@ bytecodes: [
                 B(Star), R(12),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(15),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(3), U8(16),
-                B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(3), U8(7), U8(17),
+                B(JumpIfTrue), U8(111),
+                B(LdaNamedProperty), R(3), U8(7), U8(16),
                 B(Star), R(7),
-                B(LdaNull),
-                B(TestEqual), R(7), U8(19),
+                B(TestUndetectable), R(7),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(5), U8(20),
+                B(TestEqualStrict), R(5), U8(19),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(7),
                 B(TypeOf),
                 B(Star), R(13),
                 B(LdaConstant), U8(8),
-                B(TestEqualStrict), R(13), U8(21),
+                B(TestEqualStrict), R(13), U8(20),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -297,9 +292,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [11, 120, 126],
-  [14, 84, 86],
-  [202, 212, 214],
+  [11, 129, 135],
+  [14, 93, 95],
+  [203, 213, 215],
 ]
 
 ---
@@ -311,7 +306,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 292
+bytecode array length: 290
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -319,11 +314,12 @@ bytecodes: [
                 B(Mov), R(context), R(11),
                 B(Mov), R(context), R(12),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
-                B(Star), R(14),
-                B(LdaConstant), U8(1),
-  /*   48 E> */ B(LdaKeyedProperty), R(14), U8(4),
                 B(Star), R(13),
-  /*   48 E> */ B(CallProperty), R(13), R(14), U8(1), U8(2),
+                B(LdaNamedProperty), R(13), U8(1), U8(2),
+                B(Star), R(14),
+                B(CallProperty), R(14), R(13), U8(1), U8(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(2),
   /*   45 S> */ B(LdaNamedProperty), R(2), U8(2), U8(8),
                 B(Star), R(14),
@@ -379,24 +375,20 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(17),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(2), U8(18),
-                B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(2), U8(7), U8(19),
+                B(JumpIfTrue), U8(111),
+                B(LdaNamedProperty), R(2), U8(7), U8(18),
                 B(Star), R(6),
-                B(LdaNull),
-                B(TestEqual), R(6), U8(21),
+                B(TestUndetectable), R(6),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(4), U8(22),
+                B(TestEqualStrict), R(4), U8(21),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(6),
                 B(TypeOf),
                 B(Star), R(12),
                 B(LdaConstant), U8(8),
-                B(TestEqualStrict), R(12), U8(23),
+                B(TestEqualStrict), R(12), U8(22),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -453,9 +445,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [7, 138, 144],
-  [10, 102, 104],
-  [219, 229, 231],
+  [7, 144, 150],
+  [10, 108, 110],
+  [217, 227, 229],
 ]
 
 ---
@@ -465,7 +457,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 299
+bytecode array length: 297
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(8),
@@ -475,11 +467,12 @@ bytecodes: [
                 B(Mov), R(context), R(10),
                 B(Mov), R(context), R(11),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(9),
-                B(Star), R(13),
-                B(LdaConstant), U8(2),
-  /*   77 E> */ B(LdaKeyedProperty), R(13), U8(4),
                 B(Star), R(12),
-  /*   77 E> */ B(CallProperty), R(12), R(13), U8(1), U8(2),
+                B(LdaNamedProperty), R(12), U8(2), U8(2),
+                B(Star), R(13),
+                B(CallProperty), R(13), R(12), U8(1), U8(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(1),
   /*   74 S> */ B(LdaNamedProperty), R(1), U8(3), U8(8),
                 B(Star), R(13),
@@ -530,24 +523,20 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrict), R(3), U8(19),
-                B(JumpIfTrue), U8(119),
-                B(LdaUndefined),
-                B(TestEqualStrict), R(1), U8(20),
-                B(JumpIfTrue), U8(113),
-                B(LdaNamedProperty), R(1), U8(9), U8(21),
+                B(JumpIfTrue), U8(111),
+                B(LdaNamedProperty), R(1), U8(9), U8(20),
                 B(Star), R(5),
-                B(LdaNull),
-                B(TestEqual), R(5), U8(23),
+                B(TestUndetectable), R(5),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(99),
                 B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(3), U8(24),
+                B(TestEqualStrict), R(3), U8(23),
                 B(JumpIfFalse), U8(67),
                 B(Ldar), R(5),
                 B(TypeOf),
                 B(Star), R(11),
                 B(LdaConstant), U8(10),
-                B(TestEqualStrict), R(11), U8(25),
+                B(TestEqualStrict), R(11), U8(24),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), U16(130),
@@ -611,8 +600,8 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [15, 134, 140],
-  [18, 98, 100],
-  [216, 226, 228],
+  [15, 140, 146],
+  [18, 104, 106],
+  [214, 224, 226],
 ]
 

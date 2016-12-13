@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/ic/ic-stats.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
@@ -573,6 +574,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
+  state->callee_pc_address = nullptr;
   if (FLAG_enable_embedded_constant_pool) {
     state->constant_pool_address = reinterpret_cast<Address*>(
         fp() + ExitFrameConstants::kConstantPoolOffset);
@@ -602,7 +604,7 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
   Address sp = ComputeStackPointer(fp);
   FillState(fp, sp, state);
-  DCHECK(*state->pc_address != NULL);
+  DCHECK_NOT_NULL(*state->pc_address);
 
   return ComputeFrameType(fp);
 }
@@ -636,11 +638,12 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->fp = fp;
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(sp - 1 * kPCOnStackSize));
+  state->callee_pc_address = nullptr;
   // The constant pool recorded in the exit frame is not associated
   // with the pc in this state (the return address into a C entry
   // stub).  ComputeCallerState will retrieve the constant pool
   // together with the associated caller pc.
-  state->constant_pool_address = NULL;
+  state->constant_pool_address = nullptr;
 }
 
 JSFunction* BuiltinExitFrame::function() const {
@@ -744,6 +747,7 @@ void StandardFrame::ComputeCallerState(State* state) const {
   state->fp = caller_fp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
+  state->callee_pc_address = pc_address();
   state->constant_pool_address =
       reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
 }
@@ -878,7 +882,7 @@ void StubFrame::Iterate(ObjectVisitor* v) const {
 
 
 Code* StubFrame::unchecked_code() const {
-  return static_cast<Code*>(isolate()->FindCodeObject(pc()));
+  return isolate()->FindCodeObject(pc());
 }
 
 
@@ -1016,7 +1020,6 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
   }
 }
 
-
 void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
                                bool print_line_number) {
   // constructor calls
@@ -1056,6 +1059,51 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
   }
 }
 
+void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction* function,
+                                                         AbstractCode* code,
+                                                         int code_offset) {
+  auto ic_stats = ICStats::instance();
+  ICInfo& ic_info = ic_stats->Current();
+  SharedFunctionInfo* shared = function->shared();
+
+  ic_info.function_name = ic_stats->GetOrCacheFunctionName(function);
+  ic_info.script_offset = code_offset;
+
+  int source_pos = code->SourcePosition(code_offset);
+  Object* maybe_script = shared->script();
+  if (maybe_script->IsScript()) {
+    Script* script = Script::cast(maybe_script);
+    ic_info.line_num = script->GetLineNumber(source_pos) + 1;
+    ic_info.script_name = ic_stats->GetOrCacheScriptName(script);
+  }
+}
+
+void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
+  // constructor calls
+  DisallowHeapAllocation no_allocation;
+  JavaScriptFrameIterator it(isolate);
+  ICInfo& ic_info = ICStats::instance()->Current();
+  while (!it.done()) {
+    if (it.frame()->is_java_script()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->IsConstructor()) ic_info.is_constructor = true;
+      JSFunction* function = frame->function();
+      int code_offset = 0;
+      if (frame->is_interpreted()) {
+        InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
+        code_offset = iframe->GetBytecodeOffset();
+      } else {
+        Code* code = frame->unchecked_code();
+        code_offset = static_cast<int>(frame->pc() - code->instruction_start());
+      }
+      CollectFunctionAndOffsetForICStats(function, function->abstract_code(),
+                                         code_offset);
+      return;
+    }
+    it.Advance();
+  }
+}
+
 Object* JavaScriptFrame::GetParameter(int index) const {
   return Memory::Object_at(GetParameterSlot(index));
 }
@@ -1067,8 +1115,7 @@ int JavaScriptFrame::ComputeParametersCount() const {
 namespace {
 
 bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
-  return code->is_turbofanned() && function->shared()->asm_function() &&
-         !FLAG_turbo_asm_deoptimization;
+  return code->is_turbofanned() && function->shared()->asm_function();
 }
 
 }  // namespace
@@ -1357,8 +1404,8 @@ int InterpretedFrame::position() const {
 int InterpretedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
   BytecodeArray* bytecode = function()->shared()->bytecode_array();
-  return bytecode->LookupRangeInHandlerTable(GetBytecodeOffset(),
-                                             context_register, prediction);
+  HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+  return table->LookupRange(GetBytecodeOffset(), context_register, prediction);
 }
 
 int InterpretedFrame::GetBytecodeOffset() const {
@@ -1531,11 +1578,28 @@ Script* WasmFrame::script() const {
 int WasmFrame::position() const {
   int position = StandardFrame::position();
   if (wasm::WasmIsAsmJs(wasm_instance(), isolate())) {
-    Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
-    position =
-        wasm::GetAsmWasmSourcePosition(instance, function_index(), position);
+    Handle<WasmCompiledModule> compiled_module(
+        WasmInstanceObject::cast(wasm_instance())->get_compiled_module(),
+        isolate());
+    DCHECK_LE(0, position);
+    position = WasmCompiledModule::GetAsmJsSourcePosition(
+        compiled_module, function_index(), static_cast<uint32_t>(position),
+        at_to_number_conversion());
   }
   return position;
+}
+
+bool WasmFrame::at_to_number_conversion() const {
+  // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
+  // ToNumber conversion call.
+  Address callee_pc = reinterpret_cast<Address>(this->callee_pc());
+  Code* code = callee_pc ? isolate()->FindCodeObject(callee_pc) : nullptr;
+  if (!code || code->kind() != Code::WASM_TO_JS_FUNCTION) return false;
+  int offset = static_cast<int>(callee_pc - code->instruction_start());
+  int pos = AbstractCode::cast(code)->SourcePosition(offset);
+  DCHECK(pos == 0 || pos == 1);
+  // The imported call has position 0, ToNumber has position 1.
+  return !!pos;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {

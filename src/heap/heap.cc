@@ -264,6 +264,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
+  if (incremental_marking()->NeedsFinalization() &&
+      AllocationLimitOvershotByLargeMargin()) {
+    *reason = "Incremental marking needs finalization";
+    return MARK_COMPACTOR;
+  }
+
   // Is there enough space left in OLD to guarantee that a scavenge can
   // succeed?
   //
@@ -286,6 +292,10 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   return YoungGenerationCollector();
 }
 
+void Heap::SetGCState(HeapState state) {
+  gc_state_ = state;
+  store_buffer_->SetMode(gc_state_);
+}
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
 // --log-gc to avoid the complicated preprocessor and flag testing.
@@ -962,6 +972,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
       !ShouldFinalizeIncrementalMarking() && !ShouldAbortIncrementalMarking() &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
+      !incremental_marking()->NeedsFinalization() &&
       !IsCloseToOutOfMemory(new_space_->Capacity())) {
     if (!incremental_marking()->IsComplete() &&
         !mark_compact_collector()->marking_deque()->IsEmpty() &&
@@ -1429,7 +1440,8 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type,
 void Heap::MarkCompact() {
   PauseAllocationObserversScope pause_observers(this);
 
-  gc_state_ = MARK_COMPACT;
+  SetGCState(MARK_COMPACT);
+
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
 
   uint64_t size_of_objects_before_gc = SizeOfObjects();
@@ -1455,7 +1467,7 @@ void Heap::MinorMarkCompact() { UNREACHABLE(); }
 
 void Heap::MarkCompactEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
-  gc_state_ = NOT_IN_GC;
+  SetGCState(NOT_IN_GC);
 
   isolate_->counters()->objs_since_last_full()->Set(0);
 
@@ -1586,7 +1598,7 @@ void Heap::Scavenge() {
 
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 
-  gc_state_ = SCAVENGE;
+  SetGCState(SCAVENGE);
 
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
@@ -1712,7 +1724,7 @@ void Heap::Scavenge() {
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
-  gc_state_ = NOT_IN_GC;
+  SetGCState(NOT_IN_GC);
 }
 
 
@@ -1991,7 +2003,6 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
   ArrayBufferTracker::Unregister(this, buffer);
 }
 
-
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     old_generation_allocation_limit_ =
@@ -2001,7 +2012,6 @@ void Heap::ConfigureInitialOldGenerationSize() {
                 (tracer()->AverageSurvivalRatio() / 100)));
   }
 }
-
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                                           int instance_size) {
@@ -2684,6 +2694,10 @@ void Heap::CreateInitialObjects() {
   empty_properties_dictionary->SetRequiresCopyOnCapacityChange();
   set_empty_properties_dictionary(*empty_properties_dictionary);
 
+  set_public_symbol_table(*empty_properties_dictionary);
+  set_api_symbol_table(*empty_properties_dictionary);
+  set_api_private_symbol_table(*empty_properties_dictionary);
+
   set_number_string_cache(
       *factory->NewFixedArray(kInitialNumberStringCacheSize * 2, TENURED));
 
@@ -2711,9 +2725,6 @@ void Heap::CreateInitialObjects() {
       *factory->NewFixedArray(ExperimentalExtraNatives::GetBuiltinsCount()));
 
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
-
-  // The symbol registry is initialized lazily.
-  set_symbol_registry(Smi::kZero);
 
   // Microtask queue uses the empty fixed array as a sentinel for "empty".
   // Number of queued microtasks stored in Isolate::pending_microtask_count().
@@ -2875,7 +2886,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kInstanceofCacheAnswerRootIndex:
     case kCodeStubsRootIndex:
     case kEmptyScriptRootIndex:
-    case kSymbolRegistryRootIndex:
     case kScriptListRootIndex:
     case kMaterializedObjectsRootIndex:
     case kMicrotaskQueueRootIndex:
@@ -2886,6 +2896,9 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:
+    case kPublicSymbolTableRootIndex:
+    case kApiSymbolTableRootIndex:
+    case kApiPrivateSymbolTableRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
       SMI_ROOT_LIST(SMI_ENTRY)
@@ -3041,6 +3054,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_parameter_count(parameter_count);
   instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_osr_loop_nesting_level(0);
+  instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(constant_pool);
   instance->set_handler_table(empty_fixed_array());
   instance->set_source_position_table(empty_byte_array());
@@ -3391,6 +3405,7 @@ AllocationResult Heap::CopyBytecodeArray(BytecodeArray* bytecode_array) {
   copy->set_source_position_table(bytecode_array->source_position_table());
   copy->set_interrupt_budget(bytecode_array->interrupt_budget());
   copy->set_osr_loop_nesting_level(bytecode_array->osr_loop_nesting_level());
+  copy->set_bytecode_age(bytecode_array->bytecode_age());
   bytecode_array->CopyBytecodesTo(copy);
   return copy;
 }
@@ -4031,9 +4046,7 @@ void Heap::MakeHeapIterable() {
     CollectAllGarbage(kMakeHeapIterableMask,
                       GarbageCollectionReason::kMakeHeapIterable);
   }
-  if (mark_compact_collector()->sweeping_in_progress()) {
-    mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  mark_compact_collector()->EnsureSweepingCompleted();
   DCHECK(IsHeapIterable());
 }
 
@@ -4683,10 +4696,8 @@ void Heap::Verify() {
   CHECK(HasBeenSetUp());
   HandleScope scope(isolate());
 
-  if (mark_compact_collector()->sweeping_in_progress()) {
-    // We have to wait here for the sweeper threads to have an iterable heap.
-    mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  // We have to wait here for the sweeper threads to have an iterable heap.
+  mark_compact_collector()->EnsureSweepingCompleted();
 
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
@@ -4922,8 +4933,9 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
     case VISIT_ONLY_STRONG_ROOT_LIST:
       UNREACHABLE();
       break;
-    case VISIT_ONLY_STRONG:
     case VISIT_ONLY_STRONG_FOR_SERIALIZATION:
+      break;
+    case VISIT_ONLY_STRONG:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
@@ -5297,11 +5309,15 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
 // major GC. It happens when the old generation allocation limit is reached and
 // - either we need to optimize for memory usage,
 // - or the incremental marking is not in progress and we cannot start it.
-bool Heap::ShouldExpandOldGenerationOnAllocationFailure() {
+bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
   if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
   // We reached the old generation allocation limit.
 
   if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (incremental_marking()->NeedsFinalization()) {
+    return !AllocationLimitOvershotByLargeMargin();
+  }
 
   if (incremental_marking()->IsStopped() &&
       IncrementalMarkingLimitReached() == IncrementalMarkingLimit::kNoLimit) {
@@ -5784,8 +5800,6 @@ void Heap::CompactWeakFixedArrays() {
         WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
         array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
       }
-    } else if (o->IsScript()) {
-      CompactWeakFixedArray(Script::cast(o)->shared_function_infos());
     }
   }
   CompactWeakFixedArray(noscript_shared_function_infos());
@@ -5885,19 +5899,28 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
     Address slot_addr = reinterpret_cast<Address>(slot);
     Page* page = Page::FromAddress(slot_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    store_buffer()->MoveAllEntriesToRememberedSet();
-    RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
+    store_buffer()->DeleteEntry(slot_addr);
     RememberedSet<OLD_TO_OLD>::Remove(page, slot_addr);
   }
+}
+
+bool Heap::HasRecordedSlot(HeapObject* object, Object** slot) {
+  if (InNewSpace(object)) {
+    return false;
+  }
+  Address slot_addr = reinterpret_cast<Address>(slot);
+  Page* page = Page::FromAddress(slot_addr);
+  DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
+  store_buffer()->MoveAllEntriesToRememberedSet();
+  return RememberedSet<OLD_TO_NEW>::Contains(page, slot_addr) ||
+         RememberedSet<OLD_TO_OLD>::Contains(page, slot_addr);
 }
 
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
   Page* page = Page::FromAddress(start);
   if (!page->InNewSpace()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    store_buffer()->MoveAllEntriesToRememberedSet();
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                           SlotSet::PREFREE_EMPTY_BUCKETS);
+    store_buffer()->DeleteEntry(start, end);
     RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end,
                                            SlotSet::FREE_EMPTY_BUCKETS);
   }

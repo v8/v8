@@ -192,7 +192,9 @@ using v8::MemoryPressureLevel;
     ExperimentalExtraNativesSourceCache)                                       \
   /* Lists and dictionaries */                                                 \
   V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
-  V(Object, symbol_registry, SymbolRegistry)                                   \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                    \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
   V(Object, script_list, ScriptList)                                           \
   V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
@@ -603,7 +605,7 @@ class Heap {
   static const int kMaxOldSpaceSizeMediumMemoryDevice =
       256 * kPointerMultiplier;
   static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kPointerMultiplier;
+  static const int kMaxOldSpaceSizeHugeMemoryDevice = 1024 * kPointerMultiplier;
 
   // The executable size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
@@ -816,6 +818,7 @@ class Heap {
   void PrintShortHeapStatistics();
 
   inline HeapState gc_state() { return gc_state_; }
+  void SetGCState(HeapState state);
 
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
@@ -1172,6 +1175,8 @@ class Heap {
   void ClearRecordedSlot(HeapObject* object, Object** slot);
   void ClearRecordedSlotRange(Address start, Address end);
 
+  bool HasRecordedSlot(HeapObject* object, Object** slot);
+
   // ===========================================================================
   // Incremental marking API. ==================================================
   // ===========================================================================
@@ -1220,6 +1225,7 @@ class Heap {
   EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
 
   size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
+  void clear_wrappers_to_trace() { wrappers_to_trace_.clear(); }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -1817,6 +1823,19 @@ class Heap {
            static_cast<size_t>(PromotedTotalSize());
   }
 
+  // We allow incremental marking to overshoot the allocation limit for
+  // performace reasons. If the overshoot is too large then we are more
+  // eager to finalize incremental marking.
+  inline bool AllocationLimitOvershotByLargeMargin() {
+    if (old_generation_allocation_limit_ >= PromotedTotalSize()) return false;
+    uint64_t overshoot = PromotedTotalSize() - old_generation_allocation_limit_;
+    // Overshoot margin is 50% of allocation limit or half-way to the max heap.
+    uint64_t margin =
+        Min(old_generation_allocation_limit_ / 2,
+            (max_old_generation_size_ - old_generation_allocation_limit_) / 2);
+    return overshoot >= margin;
+  }
+
   void UpdateTotalGCTime(double duration);
 
   bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
@@ -1856,7 +1875,7 @@ class Heap {
     return OldGenerationCapacity() + slack >= MaxOldGenerationSize();
   }
 
-  bool ShouldExpandOldGenerationOnAllocationFailure();
+  bool ShouldExpandOldGenerationOnSlowAllocation();
 
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();

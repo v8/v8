@@ -32,40 +32,6 @@ Debug = debug.Debug
 listenerComplete = false;
 exception = false;
 
-// The base part of all evaluate requests.
-var base_request = '"seq":0,"type":"request","command":"evaluate"'
-
-function safeEval(code) {
-  try {
-    return eval('(' + code + ')');
-  } catch (e) {
-    assertEquals(void 0, e);
-    return undefined;
-  }
-}
-
-function testRequest(exec_state, arguments, success, result) {
-  // Get the debug command processor in paused state.
-  var dcp = exec_state.debugCommandProcessor(false);
-
-  // Generate request with the supplied arguments.
-  var request;
-  if (arguments) {
-    request = '{' + base_request + ',"arguments":' + arguments + '}';
-  } else {
-    request = '{' + base_request + '}'
-  }
-  var response = safeEval(dcp.processDebugJSONRequest(request));
-  if (success) {
-    assertTrue(response.success, request + ' -> ' + response.message);
-    assertEquals(result, response.body.value);
-  } else {
-    assertFalse(response.success, request + ' -> ' + response.message);
-  }
-  assertFalse(response.running, request + ' -> expected not running');
-}
-
-
 // Event listener which evaluates with break disabled.
 function listener(event, exec_state, event_data, data) {
   try {
@@ -76,23 +42,6 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(2, exec_state.evaluateGlobal('g()', true).value());
       assertEquals(1, exec_state.frame(0).evaluate('f()', true).value());
       assertEquals(2, exec_state.frame(0).evaluate('g()', true).value());
-
-      // Call functions with break using the JSON protocol. Tests that argument
-      // disable_break is default true.
-      testRequest(exec_state, '{"expression":"f()"}', true, 1);
-      testRequest(exec_state, '{"expression":"f()","frame":0}',  true, 1);
-      testRequest(exec_state, '{"expression":"g()"}', true, 2);
-      testRequest(exec_state, '{"expression":"g()","frame":0}',  true, 2);
-
-      // Call functions with break using the JSON protocol. Tests passing
-      // argument disable_break is default true.
-      testRequest(exec_state, '{"expression":"f()","disable_break":true}', true, 1);
-      testRequest(exec_state, '{"expression":"f()","frame":0,"disable_break":true}',
-                  true, 1);
-      testRequest(exec_state, '{"expression":"g()","disable_break":true}', true, 2);
-      testRequest(exec_state, '{"expression":"g()","frame":0,"disable_break":true}',
-                  true, 2);
-
       // Indicate that all was processed.
       listenerComplete = true;
     }

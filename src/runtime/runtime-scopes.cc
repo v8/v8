@@ -377,6 +377,8 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
         NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
+      // If we materialize any object, we should deoptimize the frame because we
+      // might alias an object that was eliminated by escape analysis.
       should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
       Handle<Object> value = iter->GetValue();
       param_data[i] = value;
@@ -384,7 +386,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     }
 
     if (should_deoptimize) {
-      translated_values.StoreMaterializedValuesAndDeopt();
+      translated_values.StoreMaterializedValuesAndDeopt(frame);
     }
 
     return param_data;
@@ -590,6 +592,21 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
 
+RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Object** frame = reinterpret_cast<Object**>(args[0]);
+  CONVERT_SMI_ARG_CHECKED(length, 1);
+  Handle<FixedArray> result =
+      isolate->factory()->NewUninitializedFixedArray(length);
+  int const offset = length + 1;
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  for (int index = 0; index < length; ++index) {
+    result->set(index, frame[offset - index], mode);
+  }
+  return *result;
+}
 
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);

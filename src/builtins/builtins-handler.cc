@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/code-stub-assembler.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"

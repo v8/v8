@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class FunctionLiteral;
+class Script;
 
 namespace wasm {
 
@@ -23,20 +24,26 @@ class AsmWasmBuilder {
   struct Result {
     ZoneBuffer* module_bytes;
     ZoneBuffer* asm_offset_table;
+    bool success;
   };
 
-  explicit AsmWasmBuilder(Isolate* isolate, Zone* zone, FunctionLiteral* root,
-                          AsmTyper* typer);
+  explicit AsmWasmBuilder(Isolate* isolate, Zone* zone,
+                          AstValueFactory* ast_value_factory,
+                          Handle<Script> script, FunctionLiteral* root);
   Result Run(Handle<FixedArray>* foreign_args);
 
   static const char* foreign_init_name;
   static const char* single_function_name;
 
+  const AsmTyper* typer() { return &typer_; }
+
  private:
   Isolate* isolate_;
   Zone* zone_;
+  AstValueFactory* ast_value_factory_;
+  Handle<Script> script_;
   FunctionLiteral* literal_;
-  AsmTyper* typer_;
+  AsmTyper typer_;
 };
 }  // namespace wasm
 }  // namespace internal

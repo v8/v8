@@ -1486,8 +1486,8 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   // object is still located in new-space.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    function->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
-    function2->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    function->shared()->code()->MakeOlder();
+    function2->shared()->code()->MakeOlder();
   }
 
   // Simulate incremental marking so that the functions are enqueued as
@@ -1545,7 +1545,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // Bump the code age so that flushing is triggered.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    function->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    function->shared()->code()->MakeOlder();
   }
 
   // Simulate incremental marking so that the function is enqueued as
@@ -1619,7 +1619,6 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this
   // test is invalid.
-  i::FLAG_allow_natives_syntax = true;
   if (!FLAG_flush_code || !FLAG_compilation_cache) {
     return;
   }
@@ -1663,13 +1662,12 @@ TEST(CompilationCacheCachingBehavior) {
   }
 
   // Progress code age until it's old and ready for GC.
-  while (!info.ToHandleChecked()->code()->IsOld()) {
-    // To guarantee progress, we have to MakeOlder with different parities.
-    // We can't just use NO_MARKING_PARITY, since e.g. kExecutedOnceCodeAge is
-    // always NO_MARKING_PARITY and the code age only progresses if the parity
-    // is different.
-    info.ToHandleChecked()->code()->MakeOlder(ODD_MARKING_PARITY);
-    info.ToHandleChecked()->code()->MakeOlder(EVEN_MARKING_PARITY);
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
+    info.ToHandleChecked()->code()->MakeOlder();
+    if (info.ToHandleChecked()->HasBytecodeArray()) {
+      info.ToHandleChecked()->bytecode_array()->MakeOlder();
+    }
   }
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
@@ -4035,7 +4033,7 @@ TEST(Regress159140) {
     CHECK(g->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      g->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      g->code()->MakeOlder();
     }
 
     code = inner_scope.CloseAndEscape(Handle<Code>(f->code()));
@@ -4083,7 +4081,7 @@ TEST(Regress165495) {
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      f->shared()->code()->MakeOlder();
     }
 
     CompileRun("f = null;");
@@ -4136,7 +4134,7 @@ TEST(Regress169209) {
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      f->shared()->code()->MakeOlder();
     }
 
     shared1 = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
@@ -4161,7 +4159,7 @@ TEST(Regress169209) {
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      f->shared()->code()->MakeOlder();
     }
 
     shared2 = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
@@ -4262,7 +4260,6 @@ TEST(Regress169928) {
 
 #ifdef DEBUG
 TEST(Regress513507) {
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_gc_global = true;
   CcTest::InitializeVM();
@@ -4319,7 +4316,6 @@ TEST(Regress513507) {
 
 TEST(Regress514122) {
   if (!i::FLAG_incremental_marking) return;
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4412,7 +4408,6 @@ TEST(Regress514122) {
 
 
 TEST(OptimizedCodeMapReuseEntries) {
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   // BUG(v8:4598): Since TurboFan doesn't treat maps in code weakly, we can't
   // run this test.
@@ -4520,7 +4515,6 @@ TEST(OptimizedCodeMapReuseEntries) {
 
 
 TEST(Regress513496) {
-  i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4552,7 +4546,7 @@ TEST(Regress513496) {
     CHECK(g->shared()->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      g->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+      g->shared()->code()->MakeOlder();
     }
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
@@ -6404,7 +6398,7 @@ TEST(SharedFunctionInfoIterator) {
   }
 
   {
-    SharedFunctionInfo::Iterator iterator(isolate);
+    SharedFunctionInfo::GlobalIterator iterator(isolate);
     while (iterator.Next()) sfi_count--;
   }
 
@@ -7052,6 +7046,38 @@ TEST(RememberedSetRemoveRange) {
     CHECK(slots[addr]);
     return KEEP_SLOT;
   });
+}
+
+HEAP_TEST(Regress670675) {
+  if (!FLAG_incremental_marking) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
+  if (marking->IsStopped()) {
+    marking->Start(i::GarbageCollectionReason::kTesting);
+  }
+  size_t array_length = Page::kPageSize / kPointerSize + 100;
+  size_t n = heap->OldGenerationSpaceAvailable() / array_length;
+  for (size_t i = 0; i < n + 10; i++) {
+    {
+      HandleScope inner_scope(isolate);
+      isolate->factory()->NewFixedArray(static_cast<int>(array_length));
+    }
+    if (marking->IsStopped()) break;
+    double deadline = heap->MonotonicallyIncreasingTimeInMs() + 1;
+    marking->AdvanceIncrementalMarking(
+        deadline, IncrementalMarking::GC_VIA_STACK_GUARD,
+        IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
+  }
+  DCHECK(marking->IsStopped());
 }
 
 }  // namespace internal

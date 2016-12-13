@@ -11,6 +11,8 @@
 // Do not include anything from src/compiler here!
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/trap-handler/trap-handler.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone.h"
@@ -29,8 +31,10 @@ class SourcePositionTable;
 
 namespace wasm {
 // Forward declarations for some WASM data structures.
+struct ModuleBytesEnv;
 struct ModuleEnv;
 struct WasmFunction;
+struct WasmModule;
 class ErrorThrower;
 struct DecodeStruct;
 
@@ -43,7 +47,7 @@ namespace compiler {
 class WasmCompilationUnit final {
  public:
   WasmCompilationUnit(wasm::ErrorThrower* thrower, Isolate* isolate,
-                      wasm::ModuleEnv* module_env,
+                      wasm::ModuleBytesEnv* module_env,
                       const wasm::WasmFunction* function, uint32_t index);
 
   Zone* graph_zone() { return graph_zone_.get(); }
@@ -54,19 +58,21 @@ class WasmCompilationUnit final {
 
   static Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower,
                                           Isolate* isolate,
-                                          wasm::ModuleEnv* module_env,
+                                          wasm::ModuleBytesEnv* module_env,
                                           const wasm::WasmFunction* function) {
-    WasmCompilationUnit unit(thrower, isolate, module_env, function, 0);
+    WasmCompilationUnit unit(thrower, isolate, module_env, function,
+                             function->func_index);
     unit.ExecuteCompilation();
     return unit.FinishCompilation();
   }
 
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
+  Handle<FixedArray> PackProtectedInstructions() const;
 
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
-  wasm::ModuleEnv* module_env_;
+  wasm::ModuleBytesEnv* module_env_;
   const wasm::WasmFunction* function_;
   // The graph zone is deallocated at the end of ExecuteCompilation.
   std::unique_ptr<Zone> graph_zone_;
@@ -77,6 +83,9 @@ class WasmCompilationUnit final {
   uint32_t index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_;
+  ZoneVector<trap_handler::ProtectedInstructionData>
+      protected_instructions_;  // Instructions that are protected by the signal
+                                // handler.
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
@@ -85,10 +94,12 @@ class WasmCompilationUnit final {
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> module_name,
-                                    MaybeHandle<String> import_name);
+                                    MaybeHandle<String> import_name,
+                                    wasm::ModuleOrigin origin);
 
 // Wraps a given wasm code object, producing a code object.
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                    const wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
@@ -98,7 +109,7 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      Zone* z, JSGraph* g, wasm::FunctionSig* function_signature,
+      Zone* z, JSGraph* g, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -196,7 +207,7 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
-  wasm::FunctionSig* GetFunctionSignature() { return function_signature_; }
+  wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
   void Int64LoweringForTesting();
 
@@ -207,7 +218,11 @@ class WasmGraphBuilder {
   Node* CreateS128Value(int32_t value);
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
-  Node* SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input);
+
+  Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
+                   const NodeVector& inputs);
+
+  bool has_simd() const { return has_simd_; }
 
  private:
   static const int kDefaultBufferSize = 16;
@@ -215,19 +230,20 @@ class WasmGraphBuilder {
 
   Zone* zone_;
   JSGraph* jsgraph_;
-  wasm::ModuleEnv* module_;
-  Node* mem_buffer_;
-  Node* mem_size_;
+  wasm::ModuleEnv* module_ = nullptr;
+  Node* mem_buffer_ = nullptr;
+  Node* mem_size_ = nullptr;
   NodeVector function_tables_;
   NodeVector function_table_sizes_;
-  Node** control_;
-  Node** effect_;
+  Node** control_ = nullptr;
+  Node** effect_ = nullptr;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
+  bool has_simd_ = false;
 
   WasmTrapHelper* trap_;
-  wasm::FunctionSig* function_signature_;
+  wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 
   compiler::SourcePositionTable* source_position_table_ = nullptr;
@@ -314,8 +330,7 @@ class WasmGraphBuilder {
                        MachineType result_type, int trap_zero,
                        wasm::WasmCodePosition position);
 
-  Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
-                                Node* control);
+  Node* BuildJavaScriptToNumber(Node* node, Node* context);
 
   Node* BuildChangeInt32ToTagged(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);

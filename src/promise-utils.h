@@ -5,6 +5,7 @@
 #ifndef V8_PROMISE_UTILS_H_
 #define V8_PROMISE_UTILS_H_
 
+#include "src/contexts.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -13,6 +14,19 @@ namespace internal {
 // Helper methods for Promise builtins.
 class PromiseUtils : public AllStatic {
  public:
+  enum PromiseResolvingFunctionContextSlot {
+    // Whether the resolve/reject callback was already called.
+    kAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // The promise which resolve/reject callbacks fulfill.
+    kPromiseSlot,
+
+    // Whether to trigger a debug event or not. Used in catch
+    // prediction.
+    kDebugEventSlot,
+    kPromiseContextLength,
+  };
+
   // These get and set the slots on the PromiseResolvingContext, which
   // is used by the resolve/reject promise callbacks.
   static JSObject* GetPromise(Handle<Context> context);

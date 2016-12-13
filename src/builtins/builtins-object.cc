@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
-
+#include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {
@@ -48,6 +48,10 @@ void Builtins::Generate_ObjectHasOwnProperty(
                               &return_false, &call_runtime);
 
   assembler.Bind(&keyisindex);
+  // Handle negative keys in the runtime.
+  assembler.GotoIf(
+      assembler.IntPtrLessThan(var_index.value(), assembler.IntPtrConstant(0)),
+      &call_runtime);
   assembler.TryLookupElement(object, map, instance_type, var_index.value(),
                              &return_true, &return_false, &call_runtime);
 

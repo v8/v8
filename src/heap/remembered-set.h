@@ -31,6 +31,19 @@ class RememberedSet {
     slot_set[offset / Page::kPageSize].Insert(offset % Page::kPageSize);
   }
 
+  // Given a page and a slot in that page, this function returns true if
+  // the remembered set contains the slot.
+  static bool Contains(MemoryChunk* chunk, Address slot_addr) {
+    DCHECK(chunk->Contains(slot_addr));
+    SlotSet* slot_set = GetSlotSet(chunk);
+    if (slot_set == nullptr) {
+      return false;
+    }
+    uintptr_t offset = slot_addr - chunk->address();
+    return slot_set[offset / Page::kPageSize].Contains(offset %
+                                                       Page::kPageSize);
+  }
+
   // Given a page and a slot in that page, this function removes the slot from
   // the remembered set.
   // If the slot was never added, then the function does nothing.

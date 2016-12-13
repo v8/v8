@@ -14,7 +14,7 @@
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -189,7 +189,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 
-  CHECK(Parser::ParseStatic(info.parse_info()));
+  CHECK(parsing::ParseFunction(info.parse_info()));
   info.SetOptimizing();
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

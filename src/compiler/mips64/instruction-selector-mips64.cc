@@ -195,6 +195,16 @@ struct ExtendingLoadMatcher {
     DCHECK(m.IsWord64Sar());
     if (m.left().IsLoad() && m.right().Is(32) &&
         selector_->CanCover(m.node(), m.left().node())) {
+      MachineRepresentation rep =
+          LoadRepresentationOf(m.left().node()->op()).representation();
+      DCHECK(ElementSizeLog2Of(rep) == 3);
+      if (rep != MachineRepresentation::kTaggedSigned &&
+          rep != MachineRepresentation::kTaggedPointer &&
+          rep != MachineRepresentation::kTagged &&
+          rep != MachineRepresentation::kWord64) {
+        return;
+      }
+
       Mips64OperandGenerator g(selector_);
       Node* load = m.left().node();
       Node* offset = load->InputAt(1);
@@ -212,7 +222,8 @@ struct ExtendingLoadMatcher {
   }
 };
 
-bool TryEmitExtendingLoad(InstructionSelector* selector, Node* node) {
+bool TryEmitExtendingLoad(InstructionSelector* selector, Node* node,
+                          Node* output_node) {
   ExtendingLoadMatcher m(node, selector);
   Mips64OperandGenerator g(selector);
   if (m.Matches()) {
@@ -222,7 +233,7 @@ bool TryEmitExtendingLoad(InstructionSelector* selector, Node* node) {
         m.opcode() | AddressingModeField::encode(kMode_MRI);
     DCHECK(is_int32(m.immediate()));
     inputs[1] = g.TempImmediate(static_cast<int32_t>(m.immediate()));
-    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    InstructionOperand outputs[] = {g.DefineAsRegister(output_node)};
     selector->Emit(opcode, arraysize(outputs), outputs, arraysize(inputs),
                    inputs);
     return true;
@@ -464,6 +475,10 @@ void InstructionSelector::VisitStore(Node* node) {
   }
 }
 
+void InstructionSelector::VisitProtectedStore(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitWord32And(Node* node) {
   Mips64OperandGenerator g(this);
@@ -774,7 +789,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
-  if (TryEmitExtendingLoad(this, node)) return;
+  if (TryEmitExtendingLoad(this, node, node)) return;
   VisitRRO(this, kMips64Dsar, node);
 }
 
@@ -1344,13 +1359,17 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   if (CanCover(node, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord64Sar: {
-        Int64BinopMatcher m(value);
-        if (m.right().IsInRange(32, 63)) {
-          // After smi untagging no need for truncate. Combine sequence.
-          Emit(kMips64Dsar, g.DefineSameAsFirst(node),
-               g.UseRegister(m.left().node()),
-               g.UseImmediate(m.right().node()));
+        if (TryEmitExtendingLoad(this, value, node)) {
           return;
+        } else {
+          Int64BinopMatcher m(value);
+          if (m.right().IsInRange(32, 63)) {
+            // After smi untagging no need for truncate. Combine sequence.
+            Emit(kMips64Dsar, g.DefineSameAsFirst(node),
+                 g.UseRegister(m.left().node()),
+                 g.UseImmediate(m.right().node()));
+            return;
+          }
         }
         break;
       }

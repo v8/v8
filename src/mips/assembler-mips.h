@@ -552,6 +552,17 @@ class Assembler : public AssemblerBase {
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
+  // Max offset for instructions with 16-bit offset field
+  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+
+  // Max offset for compact branch instructions with 26-bit offset field
+  static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
+
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kTrampolineSlotsSize = 2 * kInstrSize;
+#else
+  static const int kTrampolineSlotsSize = 4 * kInstrSize;
+#endif
 
   // ---------------------------------------------------------------------------
   // Code generation.
@@ -1166,6 +1177,9 @@ class Assembler : public AssemblerBase {
   }
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
+  static bool IsCompactBranchSupported() {
+    return IsMipsArchVariant(kMips32r6);
+  }
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
@@ -1440,18 +1454,15 @@ class Assembler : public AssemblerBase {
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
-#ifdef _MIPS_ARCH_MIPS32R6
-  static const int kTrampolineSlotsSize = 2 * kInstrSize;
-#else
-  static const int kTrampolineSlotsSize = 4 * kInstrSize;
-#endif
-  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
-  static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
 
   // Internal reference positions, required for unbounded internal reference
   // labels.
   std::set<int> internal_reference_positions_;
+  bool is_internal_reference(Label* L) {
+    return internal_reference_positions_.find(L->pos()) !=
+           internal_reference_positions_.end();
+  }
 
   void EmittedCompactBranchInstruction() { prev_instr_compact_branch_ = true; }
   void ClearCompactBranchState() { prev_instr_compact_branch_ = false; }

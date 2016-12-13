@@ -106,6 +106,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
     script_scope_ = script_scope;
   }
 
+  DeclarationScope* asm_function_scope() const { return asm_function_scope_; }
+  void set_asm_function_scope(DeclarationScope* scope) {
+    asm_function_scope_ = scope;
+  }
+
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   void set_ast_value_factory(AstValueFactory* ast_value_factory) {
     ast_value_factory_ = ast_value_factory;
@@ -144,6 +149,16 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
+
+  int function_literal_id() const { return function_literal_id_; }
+  void set_function_literal_id(int function_literal_id) {
+    function_literal_id_ = function_literal_id;
+  }
+
+  int max_function_literal_id() const { return max_function_literal_id_; }
+  void set_max_function_literal_id(int max_function_literal_id) {
+    max_function_literal_id_ = max_function_literal_id;
+  }
 
   // Getters for individual compiler hints.
   bool is_declaration() const;
@@ -220,12 +235,15 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
   DeclarationScope* script_scope_;
+  DeclarationScope* asm_function_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int function_literal_id_;
+  int max_function_literal_id_;
 
   // TODO(titzer): Move handles and isolate out of ParseInfo.
   Isolate* isolate_;

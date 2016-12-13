@@ -294,6 +294,18 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void NewArgumentsElementsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  MachineType const kMachineTypes[] = {MachineType::IntPtr()};
+  data->InitializePlatformIndependent(arraysize(kMachineTypes), 0,
+                                      kMachineTypes);
+}
+
+void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, 1);
+}
+
 void VarArgFunctionDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kActualArgumentsCount
@@ -391,14 +403,16 @@ void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformIndependent(
 void BuiltinDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::Int32()};
+                                 MachineType::AnyTagged(),
+                                 MachineType::Pointer()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
 
 void BuiltinDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {NewTargetRegister(), ArgumentsCountRegister()};
+  Register registers[] = {TargetRegister(), NewTargetRegister(),
+                          ArgumentsCountRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -407,6 +421,10 @@ const Register BuiltinDescriptor::ArgumentsCountRegister() {
 }
 const Register BuiltinDescriptor::NewTargetRegister() {
   return kJavaScriptCallNewTargetRegister;
+}
+
+const Register BuiltinDescriptor::TargetRegister() {
+  return kJSFunctionRegister;
 }
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformIndependent(

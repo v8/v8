@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins.h"
+#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -20,9 +21,9 @@ BUILTIN(TypedArrayPrototypeBuffer) {
 
 namespace {
 
-void Generate_TypedArrayProtoypeGetter(compiler::CodeAssemblerState* state,
-                                       const char* method_name,
-                                       int object_offset) {
+void Generate_TypedArrayPrototypeGetter(compiler::CodeAssemblerState* state,
+                                        const char* method_name,
+                                        int object_offset) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   CodeStubAssembler assembler(state);
@@ -70,24 +71,24 @@ void Generate_TypedArrayProtoypeGetter(compiler::CodeAssemblerState* state,
 // ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength
 void Builtins::Generate_TypedArrayPrototypeByteLength(
     compiler::CodeAssemblerState* state) {
-  Generate_TypedArrayProtoypeGetter(state,
-                                    "get TypedArray.prototype.byteLength",
-                                    JSTypedArray::kByteLengthOffset);
+  Generate_TypedArrayPrototypeGetter(state,
+                                     "get TypedArray.prototype.byteLength",
+                                     JSTypedArray::kByteLengthOffset);
 }
 
 // ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset
 void Builtins::Generate_TypedArrayPrototypeByteOffset(
     compiler::CodeAssemblerState* state) {
-  Generate_TypedArrayProtoypeGetter(state,
-                                    "get TypedArray.prototype.byteOffset",
-                                    JSTypedArray::kByteOffsetOffset);
+  Generate_TypedArrayPrototypeGetter(state,
+                                     "get TypedArray.prototype.byteOffset",
+                                     JSTypedArray::kByteOffsetOffset);
 }
 
 // ES6 section 22.2.3.18 get %TypedArray%.prototype.length
 void Builtins::Generate_TypedArrayPrototypeLength(
     compiler::CodeAssemblerState* state) {
-  Generate_TypedArrayProtoypeGetter(state, "get TypedArray.prototype.length",
-                                    JSTypedArray::kLengthOffset);
+  Generate_TypedArrayPrototypeGetter(state, "get TypedArray.prototype.length",
+                                     JSTypedArray::kLengthOffset);
 }
 
 namespace {

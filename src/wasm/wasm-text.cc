@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-text.h"
 
+#include "src/debug/interface-types.h"
 #include "src/ostreams.h"
 #include "src/vector.h"
 #include "src/wasm/ast-decoder.h"
@@ -11,6 +12,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 
+using namespace v8;
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 
@@ -93,6 +95,7 @@ const char *GetOpName(WasmOpcode opcode) {
     CASE_OP(Throw, "throw")
     CASE_OP(Catch, "catch")
     CASE_OP(Drop, "drop")
+    CASE_OP(Select, "select")
     CASE_ALL_OP(LoadMem, "load")
     CASE_SIGN_OP(INT, LoadMem8, "load8")
     CASE_SIGN_OP(INT, LoadMem16, "load16")
@@ -127,9 +130,10 @@ bool IsValidFunctionName(const Vector<const char> &name) {
 
 }  // namespace
 
-void wasm::PrintWasmText(
-    const WasmModule *module, uint32_t func_index, std::ostream &os,
-    std::vector<std::tuple<uint32_t, int, int>> *offset_table) {
+void wasm::PrintWasmText(const WasmModule *module,
+                         const ModuleWireBytes &wire_bytes, uint32_t func_index,
+                         std::ostream &os,
+                         debug::WasmDisassembly::OffsetTable *offset_table) {
   DCHECK_NOT_NULL(module);
   DCHECK_GT(module->functions.size(), func_index);
   const WasmFunction *fun = &module->functions[func_index];
@@ -141,9 +145,7 @@ void wasm::PrintWasmText(
 
   // Print the function signature.
   os << "func";
-  Vector<const char> fun_name(
-      reinterpret_cast<const char *>(module->module_start + fun->name_offset),
-      fun->name_length);
+  WasmName fun_name = wire_bytes.GetNameOrNull(fun);
   if (IsValidFunctionName(fun_name)) {
     os << " $";
     os.write(fun_name.start(), fun_name.length());
@@ -167,10 +169,10 @@ void wasm::PrintWasmText(
 
   // Print the local declarations.
   AstLocalDecls decls(&zone);
-  const byte *code_start = module->module_start + fun->code_start_offset;
-  const byte *code_end = module->module_start + fun->code_end_offset;
-  BytecodeIterator i(code_start, code_end, &decls);
-  DCHECK_LT(code_start, i.pc());
+  Vector<const byte> func_bytes = wire_bytes.module_bytes.SubVector(
+      fun->code_start_offset, fun->code_end_offset);
+  BytecodeIterator i(func_bytes.begin(), func_bytes.end(), &decls);
+  DCHECK_LT(func_bytes.begin(), i.pc());
   if (!decls.local_types.empty()) {
     os << "(local";
     for (auto p : decls.local_types) {
@@ -189,8 +191,8 @@ void wasm::PrintWasmText(
     const int kMaxIndentation = 64;
     int indentation = std::min(kMaxIndentation, 2 * control_depth);
     if (offset_table) {
-      offset_table->push_back(
-          std::make_tuple(i.pc_offset(), line_nr, indentation));
+      offset_table->push_back(debug::WasmDisassemblyOffsetTableEntry(
+          i.pc_offset(), line_nr, indentation));
     }
 
     // 64 whitespaces
@@ -233,7 +235,7 @@ void wasm::PrintWasmText(
       }
       case kExprCallIndirect: {
         CallIndirectOperand operand(&i, i.pc());
-        DCHECK_EQ(0U, operand.table_index);
+        DCHECK_EQ(0, operand.table_index);
         os << "call_indirect " << operand.index;
         break;
       }
@@ -284,6 +286,7 @@ void wasm::PrintWasmText(
       case kExprMemorySize:
       case kExprGrowMemory:
       case kExprDrop:
+      case kExprSelect:
       case kExprThrow:
         os << GetOpName(opcode);
         break;

@@ -167,13 +167,35 @@ void Accessors::ArrayLengthSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
+  DCHECK(Utils::OpenHandle(*name)->SameValue(isolate->heap()->length_string()));
+
   Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
+  bool was_readonly = JSArray::HasReadOnlyLength(array);
+
   uint32_t length = 0;
   if (!JSArray::AnythingToArrayLength(isolate, length_obj, &length)) {
     isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  if (!was_readonly && V8_UNLIKELY(JSArray::HasReadOnlyLength(array)) &&
+      length != array->length()->Number()) {
+    // AnythingToArrayLength() may have called setter re-entrantly and modified
+    // its property descriptor. Don't perform this check if "length" was
+    // previously readonly, as this may have been called during
+    // DefineOwnPropertyIgnoreAttributes().
+    if (info.ShouldThrowOnError()) {
+      Factory* factory = isolate->factory();
+      isolate->Throw(*factory->NewTypeError(
+          MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
+          i::Object::TypeOf(isolate, object), object));
+      isolate->OptionalRescheduleException(false);
+    } else {
+      info.GetReturnValue().Set(false);
+    }
     return;
   }
 
@@ -801,8 +823,8 @@ static Handle<Object> ArgumentsForInlinedFunction(
   Handle<FixedArray> array = factory->NewFixedArray(argument_count);
   bool should_deoptimize = false;
   for (int i = 0; i < argument_count; ++i) {
-    // If we materialize any object, we should deopt because we might alias
-    // an object that was eliminated by escape analysis.
+    // If we materialize any object, we should deoptimize the frame because we
+    // might alias an object that was eliminated by escape analysis.
     should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
     Handle<Object> value = iter->GetValue();
     array->set(i, *value);
@@ -811,7 +833,7 @@ static Handle<Object> ArgumentsForInlinedFunction(
   arguments->set_elements(*array);
 
   if (should_deoptimize) {
-    translated_values.StoreMaterializedValuesAndDeopt();
+    translated_values.StoreMaterializedValuesAndDeopt(frame);
   }
 
   // Return the freshly allocated arguments object.

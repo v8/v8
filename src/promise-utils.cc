@@ -11,13 +11,6 @@
 namespace v8 {
 namespace internal {
 
-enum PromiseResolvingFunctionContextSlot {
-  kAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
-  kPromiseSlot,
-  kDebugEventSlot,
-  kPromiseContextLength,
-};
-
 JSObject* PromiseUtils::GetPromise(Handle<Context> context) {
   return JSObject::cast(context->get(kPromiseSlot));
 }
