@@ -16,6 +16,7 @@ RedundancyElimination::RedundancyElimination(Editor* editor, Zone* zone)
 RedundancyElimination::~RedundancyElimination() {}
 
 Reduction RedundancyElimination::Reduce(Node* node) {
+  if (node_checks_.Get(node)) return NoChange();
   switch (node->opcode()) {
     case IrOpcode::kCheckBounds:
     case IrOpcode::kCheckFloat64Hole:
