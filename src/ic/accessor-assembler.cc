@@ -879,9 +879,7 @@ void AccessorAssemblerImpl::EmitElementLoad(
     Comment("typed elements");
     // Check if buffer has been neutered.
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-    Node* bitfield = LoadObjectField(buffer, JSArrayBuffer::kBitFieldOffset,
-                                     MachineType::Uint32());
-    GotoIf(IsSetWord32<JSArrayBuffer::WasNeutered>(bitfield), miss);
+    GotoIf(IsDetachedBuffer(buffer), miss);
 
     // Bounds check.
     Node* length =
@@ -893,9 +891,9 @@ void AccessorAssemblerImpl::EmitElementLoad(
         LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
                         MachineType::Pointer());
     Node* base_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset,
-                        MachineType::Pointer());
-    Node* backing_store = IntPtrAdd(external_pointer, base_pointer);
+        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+    Node* backing_store =
+        IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer));
 
     Label uint8_elements(this), int8_elements(this), uint16_elements(this),
         int16_elements(this), uint32_elements(this), int32_elements(this),

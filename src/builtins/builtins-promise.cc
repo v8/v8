@@ -272,7 +272,8 @@ compiler::Node* PromiseHasHandler(CodeStubAssembler* a,
 void PromiseSetHasHandler(CodeStubAssembler* a, compiler::Node* promise) {
   typedef compiler::Node Node;
 
-  Node* const flags = a->LoadObjectField(promise, JSPromise::kFlagsOffset);
+  Node* const flags =
+      a->SmiUntag(a->LoadObjectField(promise, JSPromise::kFlagsOffset));
   Node* const new_flags =
       a->WordOr(flags, a->IntPtrConstant(1 << JSPromise::kHasHandlerBit));
   a->StoreObjectField(promise, JSPromise::kFlagsOffset, a->SmiTag(new_flags));
@@ -345,10 +346,10 @@ void AppendPromiseCallback(CodeStubAssembler* a, int offset,
   Node* elements = a->LoadObjectField(promise, offset);
   Node* length = a->LoadFixedArrayBaseLength(elements);
   CodeStubAssembler::ParameterMode mode = a->OptimalParameterMode();
-  length = a->UntagParameter(length, mode);
+  length = a->TaggedToParameter(length, mode);
 
   Node* delta = a->IntPtrOrSmiConstant(1, mode);
-  Node* new_capacity = a->IntPtrAdd(length, delta);
+  Node* new_capacity = a->IntPtrOrSmiAdd(length, delta, mode);
 
   const ElementsKind kind = FAST_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;

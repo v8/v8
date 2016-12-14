@@ -367,10 +367,10 @@ void Builtins::Generate_FastFunctionPrototypeBind(
   Label empty_arguments(&assembler);
   Label arguments_done(&assembler, &argument_array);
   assembler.GotoIf(
-      assembler.UintPtrLessThanOrEqual(argc, assembler.IntPtrConstant(1)),
+      assembler.Uint32LessThanOrEqual(argc, assembler.Int32Constant(1)),
       &empty_arguments);
-  Node* elements_length =
-      assembler.IntPtrSub(argc, assembler.IntPtrConstant(1));
+  Node* elements_length = assembler.ChangeUint32ToWord(
+      assembler.Int32Sub(argc, assembler.Int32Constant(1)));
   Node* elements = assembler.AllocateFixedArray(
       FAST_ELEMENTS, elements_length, CodeStubAssembler::INTPTR_PARAMETERS);
   Variable index(&assembler, MachineType::PointerRepresentation());
@@ -398,7 +398,7 @@ void Builtins::Generate_FastFunctionPrototypeBind(
   Variable bound_receiver(&assembler, MachineRepresentation::kTagged);
   Label has_receiver(&assembler);
   Label receiver_done(&assembler, &bound_receiver);
-  assembler.GotoIf(assembler.WordNotEqual(argc, assembler.IntPtrConstant(0)),
+  assembler.GotoIf(assembler.Word32NotEqual(argc, assembler.Int32Constant(0)),
                    &has_receiver);
   bound_receiver.Bind(assembler.UndefinedConstant());
   assembler.Goto(&receiver_done);

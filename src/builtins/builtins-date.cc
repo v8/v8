@@ -953,7 +953,7 @@ void Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
     Node* function = assembler->ExternalConstant(
         ExternalReference::get_date_field_function(assembler->isolate()));
     Node* result = assembler->CallCFunction2(
-        MachineType::AnyTagged(), MachineType::Pointer(),
+        MachineType::AnyTagged(), MachineType::AnyTagged(),
         MachineType::AnyTagged(), function, receiver, field_index_smi);
     assembler->Return(result);
   }

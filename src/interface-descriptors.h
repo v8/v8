@@ -616,6 +616,7 @@ SIMD128_TYPES(SIMD128_ALLOC_DESC)
 
 class BuiltinDescriptor : public CallInterfaceDescriptor {
  public:
+  // TODO(ishell): Where is kFunction??
   DEFINE_PARAMETERS(kNewTarget, kArgumentsCount)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BuiltinDescriptor,
                                                CallInterfaceDescriptor)

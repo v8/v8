@@ -2742,7 +2742,7 @@ compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
   ParameterMode param_mode = assembler->OptimalParameterMode();
 
   Node* length = assembler->LoadJSArrayLength(boilerplate);
-  capacity = assembler->UntagParameter(capacity, param_mode);
+  capacity = assembler->TaggedToParameter(capacity, param_mode);
 
   Node *array, *elements;
   std::tie(array, elements) =
@@ -2760,7 +2760,7 @@ compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
         assembler->LoadObjectField(boilerplate_elements, offset));
   }
 
-  length = assembler->UntagParameter(length, param_mode);
+  length = assembler->TaggedToParameter(length, param_mode);
 
   assembler->Comment("copy boilerplate elements");
   assembler->CopyFixedArrayElements(kind, boilerplate_elements, elements,

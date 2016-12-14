@@ -30,6 +30,10 @@ class MachineRepresentationInferrer {
     Run();
   }
 
+  CallDescriptor* call_descriptor() const {
+    return linkage_->GetIncomingDescriptor();
+  }
+
   MachineRepresentation GetRepresentation(Node const* node) const {
     return representation_vector_.at(node->id());
   }
@@ -94,6 +98,11 @@ class MachineRepresentationInferrer {
                 linkage_->GetParameterType(ParameterIndexOf(node->op()))
                     .representation();
             break;
+          case IrOpcode::kReturn: {
+            representation_vector_[node->id()] = PromoteRepresentation(
+                linkage_->GetReturnType().representation());
+            break;
+          }
           case IrOpcode::kProjection: {
             representation_vector_[node->id()] = GetProjectionType(node);
           } break;
@@ -136,6 +145,9 @@ class MachineRepresentationInferrer {
             break;
           }
           case IrOpcode::kAtomicStore:
+            representation_vector_[node->id()] =
+                PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
+            break;
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -456,6 +468,11 @@ class MachineRepresentationChecker {
                   CheckValueInputIsTagged(node, i);
                 }
                 break;
+              case MachineRepresentation::kWord32:
+                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+                  CheckValueInputForInt32Op(node, i);
+                }
+                break;
               default:
                 for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
                   CheckValueInputRepresentationIs(
@@ -468,10 +485,33 @@ class MachineRepresentationChecker {
           case IrOpcode::kSwitch:
             CheckValueInputForInt32Op(node, 0);
             break;
-          case IrOpcode::kReturn:
-            // TODO(epertoso): use the linkage to determine which tipe we
-            // should have here.
+          case IrOpcode::kReturn: {
+            // TODO(ishell): enable once the pop count parameter type becomes
+            // MachineType::PointerRepresentation(). Currently it's int32 or
+            // word-size.
+            // CheckValueInputRepresentationIs(
+            //     node, 0, MachineType::PointerRepresentation());  // Pop count
+            size_t return_count = inferrer_->call_descriptor()->ReturnCount();
+            for (size_t i = 0; i < return_count; i++) {
+              MachineType type = inferrer_->call_descriptor()->GetReturnType(i);
+              int input_index = static_cast<int>(i + 1);
+              switch (type.representation()) {
+                case MachineRepresentation::kTagged:
+                case MachineRepresentation::kTaggedPointer:
+                case MachineRepresentation::kTaggedSigned:
+                  CheckValueInputIsTagged(node, input_index);
+                  break;
+                case MachineRepresentation::kWord32:
+                  CheckValueInputForInt32Op(node, input_index);
+                  break;
+                default:
+                  CheckValueInputRepresentationIs(
+                      node, 2, inferrer_->GetRepresentation(node));
+              }
+              break;
+            }
             break;
+          }
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
             break;

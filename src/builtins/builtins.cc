@@ -89,7 +89,8 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate,
   compiler::CodeAssemblerState state(isolate, &zone, argc_with_recv, flags,
                                      name);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  Handle<Code> code =
+      compiler::CodeAssembler::GenerateCode(&state, FLAG_csa_verify);
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }

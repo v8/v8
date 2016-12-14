@@ -183,16 +183,19 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
   {
     Node* const from_cursor = var_from_cursor.value();
     Node* const to_cursor = var_to_cursor.value();
-    Node* const start = LoadFixedArrayElement(match_info, from_cursor);
+    Node* const start =
+        LoadFixedArrayElement(match_info, from_cursor, 0, INTPTR_PARAMETERS);
 
     Label next_iter(this);
     GotoIf(SmiEqual(start, SmiConstant(Smi::FromInt(-1))), &next_iter);
 
     Node* const from_cursor_plus1 = IntPtrAdd(from_cursor, IntPtrConstant(1));
-    Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
+    Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1, 0,
+                                            INTPTR_PARAMETERS);
 
     Node* const capture = SubString(context, string, start, end);
-    StoreFixedArrayElement(result_elements, to_cursor, capture);
+    StoreFixedArrayElement(result_elements, to_cursor, capture,
+                           UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
     Goto(&next_iter);
 
     Bind(&next_iter);
@@ -566,7 +569,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   do {                                                         \
     Label next(this);                                          \
     GotoUnless(IsSetWord(flags_intptr, FLAG), &next);          \
-    Node* const value = IntPtrConstant(CHAR);                  \
+    Node* const value = Int32Constant(CHAR);                   \
     StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
                         var_offset.value(), value);            \
     var_offset.Bind(IntPtrAdd(var_offset.value(), int_one));   \
@@ -590,8 +593,8 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
                                         Node* const maybe_receiver) {
   Label out(this), if_isregexp(this);
 
-  Variable var_result(this, MachineType::PointerRepresentation());
-  var_result.Bind(IntPtrConstant(0));
+  Variable var_result(this, MachineRepresentation::kWord32);
+  var_result.Bind(Int32Constant(0));
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
   GotoUnless(IsJSReceiver(maybe_receiver), &out);
@@ -615,7 +618,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
   }
 
   Bind(&if_isregexp);
-  var_result.Bind(IntPtrConstant(1));
+  var_result.Bind(Int32Constant(1));
   Goto(&out);
 
   Bind(&out);
@@ -962,7 +965,7 @@ Node* RegExpBuiltinsAssembler::FastFlagGetter(Node* const regexp,
   Node* const smi_zero = SmiConstant(Smi::kZero);
   Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
   Node* const mask = SmiConstant(Smi::FromInt(flag));
-  Node* const is_flag_set = WordNotEqual(WordAnd(flags, mask), smi_zero);
+  Node* const is_flag_set = WordNotEqual(SmiAnd(flags, mask), smi_zero);
 
   return is_flag_set;
 }
@@ -974,7 +977,7 @@ Node* RegExpBuiltinsAssembler::SlowFlagGetter(Node* const context,
   Factory* factory = isolate()->factory();
 
   Label out(this);
-  Variable var_result(this, MachineType::PointerRepresentation());
+  Variable var_result(this, MachineRepresentation::kWord32);
 
   Node* name;
 
@@ -1006,13 +1009,13 @@ Node* RegExpBuiltinsAssembler::SlowFlagGetter(Node* const context,
 
   Bind(&if_true);
   {
-    var_result.Bind(IntPtrConstant(1));
+    var_result.Bind(Int32Constant(1));
     Goto(&out);
   }
 
   Bind(&if_false);
   {
-    var_result.Bind(IntPtrConstant(0));
+    var_result.Bind(Int32Constant(0));
     Goto(&out);
   }
 
@@ -2249,7 +2252,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
                    var_match_start.value(), string);
 
         Node* const replacement_str = ToString(context, replacement_obj);
-        StoreFixedArrayElement(res_elems, i, replacement_str);
+        StoreFixedArrayElement(res_elems, i, replacement_str,
+                               UPDATE_WRITE_BARRIER, 0, mode);
 
         Node* const elem_length = LoadStringLength(elem);
         Node* const new_match_start =
@@ -2439,8 +2443,6 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const replace_value = Parameter(2);
   Node* const context = Parameter(5);
 
-  Node* const int_zero = IntPtrConstant(0);
-
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
       context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
@@ -2472,10 +2474,10 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
     Node* const replace_string =
         CallStub(tostring_callable, context, replace_value);
 
-    Node* const dollar_char = IntPtrConstant('$');
+    Node* const dollar_char = Int32Constant('$');
     Node* const smi_minusone = SmiConstant(Smi::FromInt(-1));
     GotoUnless(SmiEqual(StringIndexOfChar(context, replace_string, dollar_char,
-                                          int_zero),
+                                          SmiConstant(0)),
                         smi_minusone),
                &runtime);
 

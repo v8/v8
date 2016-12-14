@@ -85,13 +85,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                : MachineRepresentation::kTaggedSigned;
   }
 
-  Node* UntagParameter(Node* value, ParameterMode mode) {
-    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
+  Node* ParameterToWord(Node* value, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
 
-  Node* TagParameter(Node* value, ParameterMode mode) {
+  Node* WordToParameter(Node* value, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) value = SmiTag(value);
+    return value;
+  }
+
+  Node* ParameterToTagged(Node* value, ParameterMode mode) {
     if (mode != SMI_PARAMETERS) value = SmiTag(value);
+    return value;
+  }
+
+  Node* TaggedToParameter(Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
 
@@ -111,6 +121,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   Int32LessThan)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan,
                   Int32GreaterThan)
+  PARAMETER_BINOP(IntPtrOrSmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual,
+                  SmiGreaterThanOrEqual, Int32GreaterThanOrEqual)
   PARAMETER_BINOP(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow,
                   Uint32LessThan)
   PARAMETER_BINOP(UintPtrOrSmiGreaterThanOrEqual, UintPtrGreaterThanOrEqual,
@@ -190,6 +202,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   SMI_COMPARISON_OP(SmiLessThan, IntPtrLessThan)
   SMI_COMPARISON_OP(SmiLessThanOrEqual, IntPtrLessThanOrEqual)
   SMI_COMPARISON_OP(SmiGreaterThan, IntPtrGreaterThan)
+  SMI_COMPARISON_OP(SmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual)
 #undef SMI_COMPARISON_OP
   Node* SmiMax(Node* a, Node* b);
   Node* SmiMin(Node* a, Node* b);
@@ -759,13 +772,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns true if any of the |T|'s bits in given |word| are set.
   template <typename T>
   Node* IsSetWord(Node* word) {
-    return WordNotEqual(WordAnd(word, IntPtrConstant(T::kMask)),
-                        IntPtrConstant(0));
+    return IsSetWord(word, T::kMask);
   }
 
   // Returns true if any of the mask's bits in given |word| are set.
   Node* IsSetWord(Node* word, uint32_t mask) {
-    return WordNotEqual(WordAnd(word, Int32Constant(mask)), Int32Constant(0));
+    return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
   void SetCounter(StatsCounter* counter, int value);
@@ -1141,11 +1153,9 @@ class CodeStubArguments {
  public:
   typedef compiler::Node Node;
 
-  // |argc| specifies the number of arguments passed to the builtin excluding
-  // the receiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
-                    CodeStubAssembler::ParameterMode mode =
-                        CodeStubAssembler::INTPTR_PARAMETERS);
+  // |argc| is an uint32 value which specifies the number of arguments passed
+  // to the builtin excluding the receiver.
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc);
 
   Node* GetReceiver() const;
 

@@ -225,9 +225,7 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     // to figure out whether the length property is still writable.
     assembler.Comment(
         "Disallow pushing onto arrays in dictionary named property mode");
-    Node* bit_field3 = assembler.LoadMapBitField3(map);
-    assembler.GotoIf(assembler.IsSetWord32<Map::DictionaryMap>(bit_field3),
-                     &runtime);
+    assembler.GotoIf(assembler.IsDictionaryMap(map), &runtime);
 
     // Check whether the length property is writable. The length property is the
     // only default named property on arrays. It's nonconfigurable, hence is
@@ -237,15 +235,15 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
         descriptors, DescriptorArray::ToDetailsIndex(0));
     mask = READ_ONLY << PropertyDetails::AttributesField::kShift;
     Node* mask_node = assembler.SmiConstant(mask);
-    test = assembler.WordAnd(details, mask_node);
+    test = assembler.SmiAnd(details, mask_node);
     assembler.GotoIf(assembler.WordEqual(test, mask_node), &runtime);
 
     arg_index.Bind(assembler.IntPtrConstant(0));
     kind = assembler.DecodeWord32<Map::ElementsKindBits>(bit_field2);
 
     assembler.GotoIf(
-        assembler.IntPtrGreaterThan(
-            kind, assembler.IntPtrConstant(FAST_HOLEY_SMI_ELEMENTS)),
+        assembler.Int32GreaterThan(
+            kind, assembler.Int32Constant(FAST_HOLEY_SMI_ELEMENTS)),
         &object_push_pre);
 
     Node* new_length = assembler.BuildAppendJSArray(
@@ -273,8 +271,8 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&object_push_pre);
   {
-    assembler.Branch(assembler.IntPtrGreaterThan(
-                         kind, assembler.IntPtrConstant(FAST_HOLEY_ELEMENTS)),
+    assembler.Branch(assembler.Int32GreaterThan(
+                         kind, assembler.Int32Constant(FAST_HOLEY_ELEMENTS)),
                      &double_push, &object_push);
   }
 
@@ -2202,7 +2200,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
   }
 
   assembler.Bind(&return_found);
-  assembler.Return(assembler.ChangeInt32ToTagged(index_var.value()));
+  assembler.Return(assembler.SmiTag(index_var.value()));
 
   assembler.Bind(&return_not_found);
   assembler.Return(assembler.NumberConstant(-1));
@@ -2339,10 +2337,9 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
     assembler.GotoUnless(assembler.SmiBelow(index, length), &set_done);
 
     Node* one = assembler.SmiConstant(Smi::FromInt(1));
-    assembler.StoreObjectFieldNoWriteBarrier(
-        iterator, JSArrayIterator::kNextIndexOffset,
-        assembler.IntPtrAdd(assembler.BitcastTaggedToWord(index),
-                            assembler.BitcastTaggedToWord(one)));
+    assembler.StoreObjectFieldNoWriteBarrier(iterator,
+                                             JSArrayIterator::kNextIndexOffset,
+                                             assembler.SmiAdd(index, one));
 
     var_done.Bind(assembler.FalseConstant());
     Node* elements = assembler.LoadElements(array);
@@ -2566,19 +2563,20 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
 
       assembler.GotoUnless(assembler.SmiBelow(index, length), &set_done);
 
-      Node* one = assembler.SmiConstant(Smi::FromInt(1));
+      Node* one = assembler.SmiConstant(1);
       assembler.StoreObjectFieldNoWriteBarrier(
           iterator, JSArrayIterator::kNextIndexOffset,
-          assembler.IntPtrAdd(assembler.BitcastTaggedToWord(index),
-                              assembler.BitcastTaggedToWord(one)));
+          assembler.SmiAdd(index, one));
       var_done.Bind(assembler.FalseConstant());
 
       Node* elements = assembler.LoadElements(array);
       Node* base_ptr = assembler.LoadObjectField(
           elements, FixedTypedArrayBase::kBasePointerOffset);
       Node* external_ptr = assembler.LoadObjectField(
-          elements, FixedTypedArrayBase::kExternalPointerOffset);
-      Node* data_ptr = assembler.IntPtrAdd(base_ptr, external_ptr);
+          elements, FixedTypedArrayBase::kExternalPointerOffset,
+          MachineType::Pointer());
+      Node* data_ptr = assembler.IntPtrAdd(
+          assembler.BitcastTaggedToWord(base_ptr), external_ptr);
 
       static int32_t kInstanceType[] = {
           JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
@@ -2624,7 +2622,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
       {
         Node* value_uint8 = assembler.LoadFixedTypedArrayElement(
             data_ptr, index, UINT8_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
-        var_value.Bind(assembler.SmiFromWord(value_uint8));
+        var_value.Bind(assembler.SmiFromWord32(value_uint8));
         assembler.Goto(&allocate_entry_if_needed);
       }
 
@@ -2632,7 +2630,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
       {
         Node* value_int8 = assembler.LoadFixedTypedArrayElement(
             data_ptr, index, INT8_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
-        var_value.Bind(assembler.SmiFromWord(value_int8));
+        var_value.Bind(assembler.SmiFromWord32(value_int8));
         assembler.Goto(&allocate_entry_if_needed);
       }
 
@@ -2641,7 +2639,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
         Node* value_uint16 = assembler.LoadFixedTypedArrayElement(
             data_ptr, index, UINT16_ELEMENTS,
             CodeStubAssembler::SMI_PARAMETERS);
-        var_value.Bind(assembler.SmiFromWord(value_uint16));
+        var_value.Bind(assembler.SmiFromWord32(value_uint16));
         assembler.Goto(&allocate_entry_if_needed);
       }
 
@@ -2649,7 +2647,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
       {
         Node* value_int16 = assembler.LoadFixedTypedArrayElement(
             data_ptr, index, INT16_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
-        var_value.Bind(assembler.SmiFromWord(value_int16));
+        var_value.Bind(assembler.SmiFromWord32(value_int16));
         assembler.Goto(&allocate_entry_if_needed);
       }
 

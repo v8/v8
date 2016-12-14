@@ -434,11 +434,12 @@ void Builtins::Generate_StringFromCharCode(
   typedef CodeStubAssembler::Variable Variable;
   CodeStubAssembler assembler(state);
 
-  Node* argc = assembler.ChangeInt32ToIntPtr(
-      assembler.Parameter(BuiltinDescriptor::kArgumentsCount));
+  Node* argc = assembler.Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = assembler.Parameter(BuiltinDescriptor::kContext);
 
   CodeStubArguments arguments(&assembler, argc);
+  // From now on use word-size argc value.
+  argc = arguments.GetLength();
 
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
@@ -1312,7 +1313,7 @@ compiler::Node* LoadSurrogatePairInternal(CodeStubAssembler* assembler,
   typedef CodeStubAssembler::Variable Variable;
   Label handle_surrogate_pair(assembler), return_result(assembler);
   Variable var_result(assembler, MachineRepresentation::kWord32);
-  Variable var_trail(assembler, MachineRepresentation::kWord16);
+  Variable var_trail(assembler, MachineRepresentation::kWord32);
   var_result.Bind(assembler->StringCharCodeAt(string, index));
   var_trail.Bind(assembler->Int32Constant(0));
 
@@ -1350,12 +1351,12 @@ compiler::Node* LoadSurrogatePairInternal(CodeStubAssembler* assembler,
 
     switch (encoding) {
       case UnicodeEncoding::UTF16:
-        var_result.Bind(assembler->WordOr(
+        var_result.Bind(assembler->Word32Or(
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
-            assembler->WordShl(lead, assembler->Int32Constant(16)), trail));
+            assembler->Word32Shl(lead, assembler->Int32Constant(16)), trail));
 #else
-            assembler->WordShl(trail, assembler->Int32Constant(16)), lead));
+            assembler->Word32Shl(trail, assembler->Int32Constant(16)), lead));
 #endif
         break;
 
@@ -1410,8 +1411,8 @@ void Builtins::Generate_StringIteratorPrototypeNext(
 
   assembler.GotoIf(assembler.TaggedIsSmi(iterator), &throw_bad_receiver);
   assembler.GotoUnless(
-      assembler.WordEqual(assembler.LoadInstanceType(iterator),
-                          assembler.Int32Constant(JS_STRING_ITERATOR_TYPE)),
+      assembler.Word32Equal(assembler.LoadInstanceType(iterator),
+                            assembler.Int32Constant(JS_STRING_ITERATOR_TYPE)),
       &throw_bad_receiver);
 
   Node* string =

@@ -1984,7 +1984,8 @@ void InstructionSelector::VisitReturn(Node* ret) {
   DCHECK_GE(input_count, 1);
   auto value_locations = zone()->NewArray<InstructionOperand>(input_count);
   Node* pop_count = ret->InputAt(0);
-  value_locations[0] = pop_count->opcode() == IrOpcode::kInt32Constant
+  value_locations[0] = (pop_count->opcode() == IrOpcode::kInt32Constant ||
+                        pop_count->opcode() == IrOpcode::kInt64Constant)
                            ? g.UseImmediate(pop_count)
                            : g.UseRegister(pop_count);
   for (int i = 1; i < input_count; ++i) {

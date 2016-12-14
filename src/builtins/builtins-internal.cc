@@ -67,7 +67,7 @@ void Builtins::Generate_CopyFastSmiOrObjectElements(
   Node* source = assembler.LoadObjectField(object, JSObject::kElementsOffset);
 
   CodeStubAssembler::ParameterMode mode = assembler.OptimalParameterMode();
-  Node* length = assembler.UntagParameter(
+  Node* length = assembler.TaggedToParameter(
       assembler.LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
