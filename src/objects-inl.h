@@ -2108,6 +2108,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSStringIterator::kSize;
     case JS_FIXED_ARRAY_ITERATOR_TYPE:
       return JSFixedArrayIterator::kHeaderSize;
+    case JS_MODULE_NAMESPACE_TYPE:
+      return JSModuleNamespace::kSize;
     default:
       UNREACHABLE();
       return 0;
