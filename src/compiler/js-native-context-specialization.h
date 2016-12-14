@@ -150,7 +150,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   ValueEffectControl InlineApiCall(
       Node* receiver, Node* context, Node* target, Node* frame_state,
-      ZoneVector<Node*>* stack_parameters, Node* effect, Node* control,
+      Node* parameter, Node* effect, Node* control,
       Handle<SharedFunctionInfo> shared_info,
       Handle<FunctionTemplateInfo> function_template_info);
 

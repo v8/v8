@@ -1023,10 +1023,9 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           Handle<FunctionTemplateInfo> function_template_info(
               Handle<FunctionTemplateInfo>::cast(access_info.constant()));
           DCHECK(!function_template_info->call_code()->IsUndefined(isolate()));
-          ZoneVector<Node*> stack_parameters(graph()->zone());
           ValueEffectControl value_effect_control = InlineApiCall(
-              receiver, context, target, frame_state0, &stack_parameters,
-              effect, control, shared_info, function_template_info);
+              receiver, context, target, frame_state0, nullptr, effect, control,
+              shared_info, function_template_info);
           value = value_effect_control.value();
           effect = value_effect_control.effect();
           control = value_effect_control.control();
@@ -1060,11 +1059,9 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           Handle<FunctionTemplateInfo> function_template_info(
               Handle<FunctionTemplateInfo>::cast(access_info.constant()));
           DCHECK(!function_template_info->call_code()->IsUndefined(isolate()));
-          ZoneVector<Node*> stack_parameters(graph()->zone());
-          stack_parameters.push_back(value);
           ValueEffectControl value_effect_control = InlineApiCall(
-              receiver, context, target, frame_state0, &stack_parameters,
-              effect, control, shared_info, function_template_info);
+              receiver, context, target, frame_state0, value, effect, control,
+              shared_info, function_template_info);
           value = value_effect_control.value();
           effect = value_effect_control.effect();
           control = value_effect_control.control();
@@ -1563,25 +1560,25 @@ JSNativeContextSpecialization::BuildElementAccess(
 
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* context, Node* target, Node* frame_state,
-    ZoneVector<Node*>* stack_parameters, Node* effect, Node* control,
-    Handle<SharedFunctionInfo> shared_info,
+    Node* receiver, Node* context, Node* target, Node* frame_state, Node* value,
+    Node* effect, Node* control, Handle<SharedFunctionInfo> shared_info,
     Handle<FunctionTemplateInfo> function_template_info) {
   Handle<CallHandlerInfo> call_handler_info = handle(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
   Handle<Object> call_data_object(call_handler_info->data(), isolate());
 
+  // Only setters have a value.
+  int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
   CallApiCallbackStub stub(
-      isolate(), static_cast<int>(stack_parameters->size()),
-      call_data_object->IsUndefined(isolate()),
-      true /* TODO(epertoso): similar to CallOptimization */);
+      isolate(), argc, call_data_object->IsUndefined(isolate()),
+      true /* FunctionTemplateInfo doesn't have an associated context. */);
   CallInterfaceDescriptor call_interface_descriptor =
       stub.GetCallInterfaceDescriptor();
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), call_interface_descriptor,
-      call_interface_descriptor.GetStackParameterCount() +
-          static_cast<int>(stack_parameters->size()) + 1,
+      call_interface_descriptor.GetStackParameterCount() + argc +
+          1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1);
 
@@ -1592,30 +1589,21 @@ JSNativeContextSpecialization::InlineApiCall(
           &function, ExternalReference::DIRECT_API_CALL, isolate())));
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
-  ZoneVector<Node*> inputs(zone());
-  inputs.push_back(code);
-
-  // CallApiCallbackStub's register arguments.
-  inputs.push_back(target);
-  inputs.push_back(data);
-  inputs.push_back(receiver);
-  inputs.push_back(function_reference);
-
-  // Stack parameters: CallApiCallbackStub expects the first one to be the
-  // receiver.
-  inputs.push_back(receiver);
-  for (Node* node : *stack_parameters) {
-    inputs.push_back(node);
+  // Add CallApiCallbackStub's register argument as well.
+  Node* inputs[11] = {
+      code, target, data, receiver /* holder */, function_reference, receiver};
+  if (value != nullptr) {
+    inputs[6] = value;
   }
-  inputs.push_back(context);
-  inputs.push_back(frame_state);
-  inputs.push_back(effect);
-  inputs.push_back(control);
+  int index = 6 + argc;
+  inputs[index++] = context;
+  inputs[index++] = frame_state;
+  inputs[index++] = effect;
+  inputs[index++] = control;
 
   Node* effect0;
   Node* value0 = effect0 =
-      graph()->NewNode(common()->Call(call_descriptor),
-                       static_cast<int>(inputs.size()), inputs.data());
+      graph()->NewNode(common()->Call(call_descriptor), index, inputs);
   Node* control0 = graph()->NewNode(common()->IfSuccess(), value0);
   return ValueEffectControl(value0, effect0, control0);
 }
