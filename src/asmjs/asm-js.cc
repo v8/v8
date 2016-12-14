@@ -210,9 +210,15 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(ParseInfo* info) {
   MessageLocation location(info->script(), info->literal()->position(),
                            info->literal()->position());
   char text[100];
-  int length = base::OS::SNPrintF(text, arraysize(text),
-                                  "asm->wasm: %0.3f ms, compile: %0.3f ms",
-                                  asm_wasm_time, compile_time);
+  int length;
+  if (FLAG_trace_asm_time) {
+    length =
+        base::OS::SNPrintF(text, arraysize(text),
+                           "success, asm->wasm: %0.3f ms, compile: %0.3f ms",
+                           asm_wasm_time, compile_time);
+  } else {
+    length = base::OS::SNPrintF(text, arraysize(text), "success");
+  }
   DCHECK_NE(-1, length);
   USE(length);
   Handle<String> stext(info->isolate()->factory()->InternalizeUtf8String(text));
@@ -307,9 +313,13 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   }
   MessageLocation location(script, position, position);
   char text[50];
-  int length =
-      base::OS::SNPrintF(text, arraysize(text), "%0.3f ms",
-                         instantiate_timer.Elapsed().InMillisecondsF());
+  int length;
+  if (FLAG_trace_asm_time) {
+    length = base::OS::SNPrintF(text, arraysize(text), "success, %0.3f ms",
+                                instantiate_timer.Elapsed().InMillisecondsF());
+  } else {
+    length = base::OS::SNPrintF(text, arraysize(text), "success");
+  }
   DCHECK_NE(-1, length);
   USE(length);
   Handle<String> stext(isolate->factory()->InternalizeUtf8String(text));
