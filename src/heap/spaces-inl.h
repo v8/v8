@@ -594,6 +594,17 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
     FATAL("Code page is too large.");
   }
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
+
+  // Initialize the owner field for each contained page (except the first, which
+  // is initialized by MemoryChunk::Initialize).
+  for (Address addr = chunk->address() + Page::kPageSize + Page::kOwnerOffset;
+       addr < chunk->area_end(); addr += Page::kPageSize) {
+    // Clear out kPageHeaderTag.
+    Memory::Address_at(addr) = 0;
+  }
+
   return static_cast<LargePage*>(chunk);
 }
 
