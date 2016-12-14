@@ -144,7 +144,6 @@
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
-  'debug-scopes': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
@@ -206,10 +205,6 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 
-  # Async function tests taking too long
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
-  'harmony/async-function-debug-scopes': [SKIP],
-
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
@@ -234,14 +229,8 @@
   'regress/regress-446389': [PASS, SLOW],
   'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
 
-  # BUG(v8:3097)
-  'debug-references': [SKIP],
-
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
-
-  # BUG(chromium:664490)
-  'debug-scopes': [SKIP],
 
   #BUG(v8:5683)
   'wasm/import-memory': [SKIP],
@@ -304,7 +293,6 @@
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-assert': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
-  'debug-scopes': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
@@ -374,7 +362,6 @@
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
-  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
   'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
 
@@ -418,7 +405,6 @@
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
-  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
 
   # Times out often in release mode on MIPS.
@@ -456,7 +442,6 @@
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
-  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
 
   # Times out often in release mode on MIPS.

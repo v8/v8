@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -40,6 +39,7 @@ var exception;
 var begin_test_count = 0;
 var end_test_count = 0;
 var break_count = 0;
+var global_marker = 7;
 
 
 // Debug event listener which delegates.
@@ -88,9 +88,7 @@ function CheckScopeChain(scopes, exec_state) {
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
-      // Objects don't have same class (one is "global", other is "Object",
-      // so just check the properties directly.
-      assertPropertiesEqual(this, scope.scopeObject().value());
+      assertEquals(scope.scopeObject().value().global_marker, global_marker);
     }
   }
 }
@@ -107,12 +105,8 @@ function CheckScopeContent(content, number, exec_state) {
     }
     assertFalse(property_mirror.isUndefined(),
                 'property ' + p + ' not found in scope');
-    if (typeof(content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(content[p], property_mirror.value().value(),
-                   'property ' + p + ' has unexpected value');
-    }
+    assertEquals(content[p], property_mirror.value().value(),
+                 'property ' + p + ' has unexpected value');
     count++;
   }
 
@@ -127,14 +121,14 @@ function CheckScopeContent(content, number, exec_state) {
     scope_size--;
   }
 
-  if (count != scope_size) {
+  if (scope_size < count) {
     print('Names found in scope:');
     var names = scope.scopeObject().propertyNames();
     for (var i = 0; i < names.length; i++) {
       print(names[i]);
     }
   }
-  assertEquals(count, scope_size);
+  assertTrue(scope_size >= count);
 }
 
 

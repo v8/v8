@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 listener_complete = false;
@@ -42,7 +40,6 @@ function listener(event, exec_state, event_data, data) {
     {
       break_count++;
       if (break_count < 4) {
-        assertFalse(exec_state.frame(0).isAtReturn())
         switch (break_count) {
           case 1:
             // Collect the position of the debugger statement.
@@ -73,7 +70,6 @@ function listener(event, exec_state, event_data, data) {
         exec_state.frame(0).sourcePosition());
 
         // Just about to return from the function.
-        assertTrue(exec_state.frame(0).isAtReturn())
         assertEquals(expected_return_value,
                      exec_state.frame(0).returnValue().value());
 

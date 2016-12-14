@@ -25,12 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --ignition-filter=f --expose-debug-as debug
+// Flags: --ignition-filter=f
 
 // This test tests that full code compiled without debug break slots
 // is recompiled with debug break slots when debugging is started.
 
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 var done = false;

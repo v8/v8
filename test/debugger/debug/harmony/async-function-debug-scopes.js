@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-async-await --expose-debug-as debug
+// Flags: --harmony-async-await
 
 var Debug = debug.Debug;
+var global_marker = 7;
 
 async function thrower() { throw 'Exception'; }
 
@@ -491,7 +492,6 @@ function CheckFastAllScopes(scopes, exec_state) {
   assertTrue(scopes.length >= length);
   for (var i = 0; i < scopes.length && i < length; i++) {
     var scope = fast_all_scopes[length - i - 1];
-    assertTrue(scope.isScope());
     assertEquals(scopes[scopes.length - i - 1], scope.scopeType());
   }
 }
@@ -503,15 +503,12 @@ function CheckScopeChain(scopes, exec_state) {
       scopes.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
     assertScopeMirrorEquals(all_scopes[i], scope);
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
-      // Objects don't have same class (one is "global", other is "Object",
-      // so just check the properties directly.
-      assertPropertiesEqual(this, scope.scopeObject().value());
+      assertEquals(global_marker, scope.scopeObject().value().global_marker);
     }
   }
   CheckFastAllScopes(scopes, exec_state);
@@ -526,12 +523,8 @@ function CheckScopeContent(content, number, exec_state) {
     var property_mirror = scope.scopeObject().property(p);
     assertFalse(property_mirror.isUndefined(),
                 `property ${p} not found in scope`);
-    if (typeof(content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(content[p], property_mirror.value().value(),
-                   `property ${p} has unexpected value`);
-    }
+    assertEquals(content[p], property_mirror.value().value(),
+                 `property ${p} has unexpected value`);
     count++;
   }
 
@@ -546,12 +539,12 @@ function CheckScopeContent(content, number, exec_state) {
     scope_size--;
   }
 
-  if (count != scope_size) {
+  if (scope_size < count) {
     print('Names found in scope:');
     var names = scope.scopeObject().propertyNames();
     for (var i = 0; i < names.length; i++) {
       print(names[i]);
     }
   }
-  assertEquals(count, scope_size);
+  assertTrue(scope_size >= count);
 }

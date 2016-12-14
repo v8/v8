@@ -25,13 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --noanalyze-environment-liveness
+// Flags: --noanalyze-environment-liveness
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
 "use strict";
 
-// Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
 
 var test_name;
@@ -41,6 +40,7 @@ var exception;
 var begin_test_count = 0;
 var end_test_count = 0;
 var break_count = 0;
+var global_marker = 7;
 
 
 // Debug event listener which delegates.
@@ -73,7 +73,7 @@ function BeginTest(name) {
 
 // Check result of a test.
 function EndTest() {
-  assertTrue(listener_called, "listerner not called for " + test_name);
+  assertTrue(listener_called, "listener not called for " + test_name);
   assertNull(exception, test_name, exception);
   end_test_count++;
 }
@@ -85,14 +85,14 @@ function CheckScopeChain(scopes, exec_state) {
   assertEquals(scopes.length, exec_state.frame().scopeCount());
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
       // Objects don't have same class (one is "global", other is "Object",
       // so just check the properties directly.
-      assertPropertiesEqual(global_object, scope.scopeObject().value());
+      assertEquals(global_object.global_marker,
+                   scope.scopeObject().value().global_marker);
     }
   }
 }
@@ -109,12 +109,8 @@ function CheckScopeContent(content, number, exec_state) {
     }
     assertFalse(property_mirror.isUndefined(),
                 'property ' + p + ' not found in scope');
-    if (typeof(content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(content[p], property_mirror.value().value(),
-                   'property ' + p + ' has unexpected value');
-    }
+    assertEquals(content[p], property_mirror.value().value(),
+                 'property ' + p + ' has unexpected value');
     count++;
   }
 

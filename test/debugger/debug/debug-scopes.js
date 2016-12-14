@@ -25,11 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --noanalyze-environment-liveness
+// Flags: --noanalyze-environment-liveness
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
-// Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
 
 var test_name;
@@ -39,6 +38,7 @@ var exception;
 var begin_test_count = 0;
 var end_test_count = 0;
 var break_count = 0;
+var global_marker = 7;
 
 
 // Debug event listener which delegates.
@@ -51,6 +51,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     exception = e;
+    print(e, e.stack);
   }
 }
 
@@ -70,7 +71,7 @@ function BeginTest(name) {
 
 // Check result of a test.
 function EndTest() {
-  assertTrue(listener_called, "listerner not called for " + test_name);
+  assertTrue(listener_called, "listener not called for " + test_name);
   assertNull(exception, test_name + " / " + exception);
   end_test_count++;
 }
@@ -91,7 +92,6 @@ function CheckFastAllScopes(scopes, exec_state)
   assertTrue(scopes.length >= length);
   for (var i = 0; i < scopes.length && i < length; i++) {
     var scope = fast_all_scopes[length - i - 1];
-    assertTrue(scope.isScope());
     assertEquals(scopes[scopes.length - i - 1], scope.scopeType());
   }
 }
@@ -104,15 +104,13 @@ function CheckScopeChain(scopes, exec_state) {
   assertEquals(scopes.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
     assertScopeMirrorEquals(all_scopes[i], scope);
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
-      // Objects don't have same class (one is "global", other is "Object",
-      // so just check the properties directly.
-      assertPropertiesEqual(this, scope.scopeObject().value());
+      // Just check the marker of the global object.
+      assertEquals(scope.scopeObject().value().global_marker, global_marker);
     }
   }
   CheckFastAllScopes(scopes, exec_state);
@@ -125,7 +123,6 @@ function CheckScopeChainNames(names, exec_state) {
   assertEquals(names.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < names.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(names[i], scope.details().name())
   }
 }
@@ -140,12 +137,8 @@ function CheckScopeContent(minimum_content, number, exec_state) {
     var property_mirror = scope.scopeObject().property(p);
     assertFalse(property_mirror.isUndefined(),
                 'property ' + p + ' not found in scope');
-    if (typeof(minimum_content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(minimum_content[p], property_mirror.value().value(),
-                   'property ' + p + ' has unexpected value');
-    }
+    assertEquals(minimum_content[p], property_mirror.value().value(),
+                 'property ' + p + ' has unexpected value');
     minimum_count++;
   }
 
@@ -178,7 +171,6 @@ function CheckScopeChainPositions(positions, exec_state) {
   assertEquals(positions.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < positions.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     var position = positions[i];
     if (!position)
       continue;
@@ -425,8 +417,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(with_object, 0, exec_state);
   CheckScopeContent(with_object, 1, exec_state);
-  assertEquals(exec_state.frame().scope(0).scopeObject(),
-               exec_state.frame().scope(1).scopeObject());
+  assertEquals(exec_state.frame().scope(0).scopeObject().value(),
+               exec_state.frame().scope(1).scopeObject().value());
   assertEquals(with_object, exec_state.frame().scope(1).scopeObject().value());
 };
 with_5();
@@ -442,8 +434,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(with_object, 0, exec_state);
   CheckScopeContent(with_object, 1, exec_state);
-  assertEquals(exec_state.frame().scope(0).scopeObject(),
-               exec_state.frame().scope(1).scopeObject());
+  assertEquals(exec_state.frame().scope(0).scopeObject().value(),
+               exec_state.frame().scope(1).scopeObject().value());
   assertEquals(with_object, exec_state.frame().scope(1).scopeObject().value());
 };
 
@@ -580,7 +572,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,f:undefined}, 1, exec_state);
   CheckScopeChainNames(["f", "closure_4", undefined, undefined], exec_state);
 };
 closure_4(1, 2)();
@@ -610,7 +602,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,f:undefined}, 1, exec_state);
   CheckScopeChainNames(["f", "closure_5", undefined, undefined], exec_state)
 };
 closure_5(1, 2)();
@@ -642,7 +634,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
-  CheckScopeContent({f:function(){}}, 2, exec_state);
+  CheckScopeContent({f:undefined}, 2, exec_state);
   CheckScopeChainNames([undefined, "f", "closure_6", undefined, undefined],
                        exec_state);
 };
@@ -680,7 +672,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6}, 1, exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 2, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:undefined}, 2, exec_state);
   CheckScopeChainNames([undefined, "f", "closure_7", undefined, undefined],
                        exec_state);
 };
@@ -772,7 +764,7 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({x:14}, 2, exec_state);
   CheckScopeContent({j:13}, 3, exec_state);
   CheckScopeContent({a:1,b:2,x:9,y:10,i:11,j:12}, 4, exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 5, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:undefined}, 5, exec_state);
   CheckScopeChainNames([undefined, undefined, undefined, "f", "f",
                         "the_full_monty", undefined, undefined], exec_state);
 };

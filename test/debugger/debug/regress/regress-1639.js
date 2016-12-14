@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,51 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
-
-// Simple function which stores the last debug event.
-listenerComplete = false;
-exception = false;
-
-var breakpoint = -1;
+var breaks = 0;
+var exception = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      // Clear once.
-      Debug.clearBreakPoint(breakpoint);
-      // Indicate that all was processed.
-      listenerComplete = true;
+      var line = event_data.sourceLineText();
+      print('break: ' + line);
+
+      assertEquals(-1, line.indexOf('NOBREAK'),
+                   "should not break on unexpected lines")
+      assertEquals('BREAK ' + breaks, line.substr(-7));
+      breaks++;
+      if (breaks < 4) exec_state.prepareStep(Debug.StepAction.StepNext);
     }
   } catch (e) {
-    exception = e
-  };
-};
+    print(e);
+    exception = true;
+  }
+}
 
 // Add the debug event listener.
 Debug.setListener(listener);
 
-function g() {};
+function a(f) {
+  if (f) {  // NOBREAK: should not break here!
+    try {
+      f();
+    } catch(e) {
+    }
+  }
+}  // BREAK 2
+
+function b() {
+  c();  // BREAK 0
+}  // BREAK 1
+
+function c() {
+  a();
+}
 
 // Set a break point and call to invoke the debug event listener.
-breakpoint = Debug.setBreakPoint(g, 0, 0);
-g();
+Debug.setBreakPoint(b, 0, 0);
+a(b);
+a(); // BREAK 3
 
-// Make sure that the debug event listener vas invoked.
-assertTrue(listenerComplete, "listener did not run to completion");
-assertFalse(exception, "exception in listener")
+assertFalse(exception);

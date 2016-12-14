@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 // Simple function which stores the last debug event.
@@ -42,26 +40,18 @@ var h_line = 0;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      Debug.setBreakPoint(exec_state.evaluateGlobal("f").value());
-      Debug.setBreakPoint(exec_state.evaluateGlobal("h").value());
-      Debug.setBreakPoint(exec_state.evaluateGlobal("f").value(), 1);
-      Debug.setBreakPoint(exec_state.evaluateGlobal("f").value(), 1);
-      Debug.setBreakPoint(exec_state.evaluateGlobal("f").value(),
-                          undefined, undefined, "i == 1");
+      if (listenerComplete) return;
 
-      Debug.setScriptBreakPointByName("test");
-      Debug.setScriptBreakPointByName("test", 1);
-      Debug.setScriptBreakPointByName("test", 1, 1);
-
-      Debug.setScriptBreakPointByName(f_script_id, f_line);
-      Debug.setScriptBreakPointByName(g_script_id, g_line);
-      Debug.setScriptBreakPointByName(h_script_id, h_line);
+      Debug.setScriptBreakPointById(f_script_id, f_line);
+      Debug.setScriptBreakPointById(g_script_id, g_line);
+      Debug.setScriptBreakPointById(h_script_id, h_line);
 
       // Indicate that all was processed.
       listenerComplete = true;
     }
   } catch (e) {
     exception = e
+    print(e)
   };
 };
 
@@ -69,7 +59,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 function f() {
-  a=1
+  a=1;
 };
 
 function g() {

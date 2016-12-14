@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --noanalyze-environment-liveness
-// Get the Debug object exposed from the debug context global object.
+// Flags: --noanalyze-environment-liveness
 Debug = debug.Debug
 
 var listenerComplete = false;

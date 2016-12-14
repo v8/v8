@@ -25,27 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-// Simple function which stores the last debug event.
-listenerComplete = false;
+// Make sure that the backtrace command can be processed when the receiver is
+// undefined.
+listenerCalled = false;
 exception = false;
-
-var breakpoint = -1;
 
 function listener(event, exec_state, event_data, data) {
   try {
-    if (event == Debug.DebugEvent.Break) {
-      // Test some legal clearbreakpoint requests.
-      Debug.enableBreakPoint(breakpoint);
-      Debug.disableBreakPoint(breakpoint);
-      Debug.changeBreakPointCondition(breakpoint, "1==2");
-      Debug.changeBreakPointCondition(breakpoint, "false");
-      listenerComplete = true;
+    if (event == Debug.DebugEvent.Exception) {
+      // The expected backtrace is
+      // 1: g
+      // 0: [anonymous]
+
+      assertEquals(2, exec_state.frameCount());
+      assertEquals("g", exec_state.frame(0).func().name());
+      assertEquals("", exec_state.frame(1).func().name());
+
+      listenerCalled = true;
     }
   } catch (e) {
+    print(e);
     exception = e
   };
 };
@@ -53,12 +54,19 @@ function listener(event, exec_state, event_data, data) {
 // Add the debug event listener.
 Debug.setListener(listener);
 
-function g() {};
+// Call method on undefined.
+function g() {
+  (void 0).f();
+};
 
-// Set a break point and call to invoke the debug event listener.
-breakpoint = Debug.setBreakPoint(g, 0, 0);
-g();
+// Break on the exception to do a backtrace with undefined as receiver.
+Debug.setBreakOnException(true);
+try {
+  g();
+} catch(e) {
+  // Ignore the exception "Cannot call method 'x' of undefined"
+}
 
+assertFalse(exception, "exception in listener", exception)
 // Make sure that the debug event listener vas invoked.
-assertTrue(listenerComplete, "listener did not run to completion");
-assertFalse(exception, "exception in listener")
+assertTrue(listenerCalled, "listener not called");

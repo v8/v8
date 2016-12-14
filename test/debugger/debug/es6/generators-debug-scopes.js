@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --noanalyze-environment-liveness
+// Flags: --noanalyze-environment-liveness
 
 var Debug = debug.Debug;
+var global_marker = 7;
 
 function RunTest(name, formals_and_body, args, handler, continuation) {
   var handler_called = false;
@@ -59,7 +60,6 @@ function CheckFastAllScopes(scopes, exec_state) {
   assertTrue(scopes.length >= length);
   for (var i = 0; i < scopes.length && i < length; i++) {
     var scope = fast_all_scopes[length - i - 1];
-    assertTrue(scope.isScope());
     assertEquals(scopes[scopes.length - i - 1], scope.scopeType());
   }
 }
@@ -71,15 +71,12 @@ function CheckScopeChain(scopes, exec_state) {
   assertEquals(scopes.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
     assertScopeMirrorEquals(all_scopes[i], scope);
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
-      // Objects don't have same class (one is "global", other is "Object",
-      // so just check the properties directly.
-      assertPropertiesEqual(this, scope.scopeObject().value());
+      assertEquals(global_marker, scope.scopeObject().value().global_marker);
     }
   }
   CheckFastAllScopes(scopes, exec_state);
@@ -94,12 +91,8 @@ function CheckScopeContent(content, number, exec_state) {
     var property_mirror = scope.scopeObject().property(p);
     assertFalse(property_mirror.isUndefined(),
                 'property ' + p + ' not found in scope');
-    if (typeof(content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(content[p], property_mirror.value().value(),
-                   'property ' + p + ' has unexpected value');
-    }
+    assertEquals(content[p], property_mirror.value().value(),
+                 'property ' + p + ' has unexpected value');
     count++;
   }
 
@@ -114,14 +107,14 @@ function CheckScopeContent(content, number, exec_state) {
     scope_size--;
   }
 
-  if (count != scope_size) {
+  if (scope_size < count) {
     print('Names found in scope:');
     var names = scope.scopeObject().propertyNames();
     for (var i = 0; i < names.length; i++) {
       print(names[i]);
     }
   }
-  assertEquals(count, scope_size);
+  assertTrue(scope_size >= count);
 }
 
 
@@ -208,7 +201,7 @@ RunTest("Local 7",
 
 // Nested empty with blocks.
 RunTest("With",
-        ["with ({}) { with ({}) { debugger; } }"],
+        ["with ({a:1}) { with ({b:2}) { debugger; } }"],
         [],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.With,
@@ -216,8 +209,8 @@ RunTest("With",
                            debug.ScopeType.Local,
                            debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
-          CheckScopeContent({}, 0, exec_state);
-          CheckScopeContent({}, 1, exec_state);
+          CheckScopeContent({b:2}, 0, exec_state);
+          CheckScopeContent({a:1}, 1, exec_state);
         });
 
 // Simple closure formed by returning an inner function referering the outer
@@ -274,7 +267,7 @@ RunTest("The full monty",
           CheckScopeContent({x:14}, 2, exec_state);
           CheckScopeContent({j:13}, 3, exec_state);
           CheckScopeContent({a:1,b:2,x:9,y:10,i:11,j:12}, 4, exec_state);
-          CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 5,
+          CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:undefined}, 5,
                             exec_state);
         },
         function (result) { result() });
