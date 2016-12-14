@@ -879,15 +879,16 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
     case HandlerTable::CAUGHT:
       prediction = "CAUGHT";
       break;
-    case HandlerTable::PROMISE:
-      prediction = "PROMISE";
-      break;
     case HandlerTable::DESUGARING:
       prediction = "DESUGARING";
       break;
     case HandlerTable::ASYNC_AWAIT:
       prediction = "ASYNC_AWAIT";
       break;
+    case HandlerTable::PROMISE:
+      // Catch prediction resulting in promise rejections aren't
+      // parsed by the parser.
+      UNREACHABLE();
   }
   Print(" %s\n", prediction);
 }

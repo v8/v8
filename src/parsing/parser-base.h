@@ -642,7 +642,6 @@ class ParserBase {
           scope(nullptr),
           init_block(parser->impl()->NullBlock()),
           inner_block(parser->impl()->NullBlock()),
-          for_promise_reject(false),
           bound_names(1, parser->zone()),
           tail_call_expressions(parser->zone()) {}
     IdentifierT name;
@@ -651,7 +650,6 @@ class ParserBase {
     Scope* scope;
     BlockT init_block;
     BlockT inner_block;
-    bool for_promise_reject;
     ZoneList<const AstRawString*> bound_names;
     TailCallExpressionList tail_call_expressions;
   };
@@ -5121,7 +5119,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
   }
 
   CatchInfo catch_info(this);
-  catch_info.for_promise_reject = allow_natives() && Check(Token::MOD);
 
   if (peek() != Token::CATCH && peek() != Token::FINALLY) {
     ReportMessage(MessageTemplate::kNoCatchOrFinally);

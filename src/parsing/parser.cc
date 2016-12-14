@@ -1814,15 +1814,9 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
     DCHECK_NOT_NULL(catch_info.scope);
     DCHECK_NOT_NULL(catch_info.variable);
     TryCatchStatement* statement;
-    if (catch_info.for_promise_reject) {
-      statement = factory()->NewTryCatchStatementForPromiseReject(
-          try_block, catch_info.scope, catch_info.variable, catch_block,
-          kNoSourcePosition);
-    } else {
-      statement = factory()->NewTryCatchStatement(
-          try_block, catch_info.scope, catch_info.variable, catch_block,
-          kNoSourcePosition);
-    }
+    statement = factory()->NewTryCatchStatement(try_block, catch_info.scope,
+                                                catch_info.variable,
+                                                catch_block, kNoSourcePosition);
 
     try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
     try_block->statements()->Add(statement, zone());

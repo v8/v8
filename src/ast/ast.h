@@ -3237,15 +3237,6 @@ class AstNodeFactory final BASE_EMBEDDED {
         try_block, scope, variable, catch_block, HandlerTable::UNCAUGHT, pos);
   }
 
-  TryCatchStatement* NewTryCatchStatementForPromiseReject(Block* try_block,
-                                                          Scope* scope,
-                                                          Variable* variable,
-                                                          Block* catch_block,
-                                                          int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::PROMISE, pos);
-  }
-
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
                                                        Scope* scope,
                                                        Variable* variable,
