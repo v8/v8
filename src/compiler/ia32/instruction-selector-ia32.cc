@@ -395,25 +395,18 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  Int32Matcher mbuffer(buffer);
-  InstructionOperand buffer_operand =
-      mbuffer.HasValue() ? g.UseImmediate(buffer) : g.UseRegister(buffer);
-  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
-    Int32Matcher mlength(length);
-    Int32BinopMatcher moffset(offset);
-    if (mlength.HasValue() && moffset.right().HasValue() &&
-        moffset.right().Value() > 0 &&
-        mlength.Value() >= moffset.right().Value()) {
-      Emit(opcode, g.DefineAsRegister(node), buffer_operand,
-           g.UseRegister(moffset.left().node()),
-           g.UseImmediate(moffset.right().node()), g.UseImmediate(length));
-      return;
-    }
-  }
+  InstructionOperand offset_operand = g.UseRegister(offset);
   InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
-  Emit(opcode, g.DefineAsRegister(node), buffer_operand, g.UseRegister(offset),
-       g.TempImmediate(0), length_operand);
+  if (g.CanBeImmediate(buffer)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), offset_operand, length_operand,
+         offset_operand, g.UseImmediate(buffer));
+  } else {
+    Emit(opcode | AddressingModeField::encode(kMode_MR1),
+         g.DefineAsRegister(node), offset_operand, length_operand,
+         g.UseRegister(buffer), offset_operand);
+  }
 }
 
 
@@ -457,26 +450,18 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
                                   rep == MachineRepresentation::kBit)
                                      ? g.UseByteRegister(value)
                                      : g.UseRegister(value));
-  Int32Matcher mbuffer(buffer);
-  InstructionOperand buffer_operand =
-      mbuffer.HasValue() ? g.UseImmediate(buffer) : g.UseRegister(buffer);
-  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
-    Int32Matcher mlength(length);
-    Int32BinopMatcher moffset(offset);
-    if (mlength.HasValue() && moffset.right().HasValue() &&
-        moffset.right().Value() > 0 &&
-        mlength.Value() >= moffset.right().Value()) {
-      Emit(opcode, g.NoOutput(), buffer_operand,
-           g.UseRegister(moffset.left().node()),
-           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
-           value_operand);
-      return;
-    }
-  }
+  InstructionOperand offset_operand = g.UseRegister(offset);
   InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
-  Emit(opcode, g.NoOutput(), buffer_operand, g.UseRegister(offset),
-       g.TempImmediate(0), length_operand, value_operand);
+  if (g.CanBeImmediate(buffer)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         offset_operand, length_operand, value_operand, offset_operand,
+         g.UseImmediate(buffer));
+  } else {
+    Emit(opcode | AddressingModeField::encode(kMode_MR1), g.NoOutput(),
+         offset_operand, length_operand, value_operand, g.UseRegister(buffer),
+         offset_operand);
+  }
 }
 
 namespace {
