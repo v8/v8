@@ -441,8 +441,10 @@ void ObjectStatsCollector::RecordJSCollectionDetails(JSObject* obj) {
 }
 
 void ObjectStatsCollector::RecordScriptDetails(Script* obj) {
-  FixedArray* infos = FixedArray::cast(obj->shared_function_infos());
-  RecordFixedArrayHelper(obj, infos, SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
+  Object* infos = WeakFixedArray::cast(obj->shared_function_infos());
+  if (infos->IsWeakFixedArray())
+    RecordFixedArrayHelper(obj, WeakFixedArray::cast(infos),
+                           SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
 }
 
 void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {

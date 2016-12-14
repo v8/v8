@@ -29,7 +29,6 @@
   var FindScriptSourcePosition = global.Debug.findScriptSourcePosition;
   var GlobalArray = global.Array;
   var MathFloor = global.Math.floor;
-  var MathMax = global.Math.max;
   var SyntaxError = global.SyntaxError;
 
   // -------------------------------------------------------------------
@@ -76,10 +75,6 @@
       }
       throw failure;
     }
-
-    var max_function_literal_id = new_compile_info.reduce(
-        (max, info) => MathMax(max, info.function_literal_id), 0);
-
     var root_new_node = BuildCodeInfoTree(new_compile_info);
 
     // Link recompiled script data with other data.
@@ -182,7 +177,8 @@
 
       // Update the script text and create a new script representing an old
       // version of the script.
-      old_script = %LiveEditReplaceScript(script, new_source, old_script_name);
+      old_script = %LiveEditReplaceScript(script, new_source,
+          old_script_name);
 
       var link_to_old_script_report = new GlobalArray();
       change_log.push( { linked_to_old_script: link_to_old_script_report } );
@@ -194,6 +190,12 @@
       }
 
       preview_description.created_script_name = old_script_name;
+    }
+
+    // Link to an actual script all the functions that we are going to use.
+    for (var i = 0; i < link_to_original_script_list.length; i++) {
+      %LiveEditFunctionSetScript(
+          link_to_original_script_list[i].info.shared_function_info, script);
     }
 
     for (var i = 0; i < replace_code_list.length; i++) {
@@ -210,23 +212,11 @@
           position_patch_report);
 
       if (update_positions_list[i].live_shared_function_infos) {
-        var new_function_literal_id =
-            update_positions_list[i]
-                .corresponding_node.info.function_literal_id;
-        update_positions_list[i].live_shared_function_infos.forEach(function(
-            info) {
-          %LiveEditFunctionSourceUpdated(
-              info.raw_array, new_function_literal_id);
-        });
+        update_positions_list[i].live_shared_function_infos.
+            forEach(function (info) {
+                %LiveEditFunctionSourceUpdated(info.raw_array);
+              });
       }
-    }
-
-    %LiveEditFixupScript(script, max_function_literal_id);
-
-    // Link all the functions we're going to use to an actual script.
-    for (var i = 0; i < link_to_original_script_list.length; i++) {
-      %LiveEditFunctionSetScript(
-          link_to_original_script_list[i].info.shared_function_info, script);
     }
 
     preview_description.updated = true;
@@ -771,7 +761,6 @@
     this.scope_info = raw_array[4];
     this.outer_index = raw_array[5];
     this.shared_function_info = raw_array[6];
-    this.function_literal_id = raw_array[8];
     this.next_sibling_index = null;
     this.raw_array = raw_array;
   }

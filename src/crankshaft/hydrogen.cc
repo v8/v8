@@ -142,6 +142,7 @@ HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
     }
   }
   DCHECK(info()->shared_info()->has_deoptimization_support());
+  DCHECK(!info()->shared_info()->never_compiled());
 
   // Check the whitelist for Crankshaft.
   if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {

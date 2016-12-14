@@ -460,29 +460,12 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
   return true;
 }
 
-void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info) {
-  DCHECK(info->is_toplevel());
-  DCHECK(!info->script().is_null());
-  if (info->script()->shared_function_infos()->length() > 0) {
-    DCHECK_EQ(info->script()->shared_function_infos()->length(),
-              info->max_function_literal_id() + 1);
-    return;
-  }
-  Isolate* isolate = info->isolate();
-  Handle<FixedArray> infos(
-      isolate->factory()->NewFixedArray(info->max_function_literal_id() + 1));
-  info->script()->set_shared_function_infos(*infos);
-}
-
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
   // Parse and update CompilationInfo with the results.
   if (!parsing::ParseAny(info->parse_info())) return MaybeHandle<Code>();
-  if (info->parse_info()->is_toplevel()) {
-    EnsureSharedFunctionInfosArrayOnScript(info->parse_info());
-  }
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -987,8 +970,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       return Handle<SharedFunctionInfo>::null();
     }
 
-    EnsureSharedFunctionInfosArrayOnScript(parse_info);
-
     FunctionLiteral* lit = parse_info->literal();
 
     // Measure how long it takes to do the compilation; only take the
@@ -1051,7 +1032,6 @@ bool Compiler::Analyze(ParseInfo* info) {
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
   if (!parsing::ParseAny(info)) return false;
-  if (info->is_toplevel()) EnsureSharedFunctionInfosArrayOnScript(info);
   if (!Compiler::Analyze(info)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1172,9 +1152,8 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   // In order to ensure that live edit function info collection finds the newly
   // generated shared function infos, clear the script's list temporarily
   // and restore it at the end of this method.
-  Handle<FixedArray> old_function_infos(script->shared_function_infos(),
-                                        isolate);
-  script->set_shared_function_infos(isolate->heap()->empty_fixed_array());
+  Handle<Object> old_function_infos(script->shared_function_infos(), isolate);
+  script->set_shared_function_infos(Smi::kZero);
 
   // Start a compilation.
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -1563,7 +1542,15 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 
   // Find any previously allocated shared function info for the given literal.
-  maybe_existing = script->FindSharedFunctionInfo(isolate, literal);
+  if (outer_info->shared_info()->never_compiled()) {
+    // On the first compile, there are no existing shared function info for
+    // inner functions yet, so do not try to find them. All bets are off for
+    // live edit though.
+    SLOW_DCHECK(script->FindSharedFunctionInfo(literal).is_null() ||
+                isolate->debug()->live_edit_enabled());
+  } else {
+    maybe_existing = script->FindSharedFunctionInfo(literal);
+  }
 
   // We found an existing shared function info. If it has any sort of code
   // attached, don't worry about compiling and simply return it. Otherwise,
@@ -1586,6 +1573,11 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     result =
         isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
     result->set_is_toplevel(false);
+
+    // If the outer function has been compiled before, we cannot be sure that
+    // shared function info for this function literal has been created for the
+    // first time. It may have already been compiled previously.
+    result->set_never_compiled(outer_info->shared_info()->never_compiled());
   }
 
   Zone zone(isolate->allocator(), ZONE_NAME);

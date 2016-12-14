@@ -91,15 +91,13 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     source = isolate->factory()->NewStringFromAsciiChecked(test_script);
   }
   Handle<Script> script = isolate->factory()->NewScript(source);
-  Handle<FixedArray> infos = isolate->factory()->NewFixedArray(3);
-  script->set_shared_function_infos(*infos);
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       isolate->factory()->NewStringFromAsciiChecked("f"),
       isolate->builtins()->CompileLazy(), false);
+  SharedFunctionInfo::SetScript(shared, script);
   shared->set_end_position(source->length());
   shared->set_outer_scope_info(ScopeInfo::Empty(isolate));
   shared->set_function_literal_id(1);
-  SharedFunctionInfo::SetScript(shared, script);
   return scope.CloseAndEscape(shared);
 }
 

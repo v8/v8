@@ -595,11 +595,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> source = factory->NewStringFromStaticChars("() {}");
   Handle<Script> script = factory->NewScript(source);
   script->set_type(Script::TYPE_NATIVE);
-  Handle<FixedArray> infos = factory->NewFixedArray(2);
-  script->set_shared_function_infos(*infos);
   empty_function->shared()->set_start_position(0);
   empty_function->shared()->set_end_position(source->length());
-  empty_function->shared()->set_function_literal_id(1);
   empty_function->shared()->DontAdaptArguments();
   SharedFunctionInfo::SetScript(handle(empty_function->shared()), script);
 

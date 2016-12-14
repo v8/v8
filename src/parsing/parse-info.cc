@@ -27,7 +27,6 @@ ParseInfo::ParseInfo(Zone* zone)
       start_position_(0),
       end_position_(0),
       function_literal_id_(FunctionLiteral::kIdTypeInvalid),
-      max_function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       isolate_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),

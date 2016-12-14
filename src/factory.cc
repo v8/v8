@@ -167,6 +167,7 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
       FixedArray);
 }
 
+
 Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -1057,7 +1058,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
   script->set_eval_from_position(0);
-  script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  script->set_shared_function_infos(Smi::kZero);
   script->set_flags(0);
 
   heap->set_script_list(*WeakFixedArray::Add(script_list(), script));

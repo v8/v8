@@ -363,7 +363,7 @@ utils.InstallGetter(GlobalPromise, speciesSymbol, PromiseSpecies);
 %SetCode(GlobalPromise.prototype.catch, PromiseCatch);
 
 %InstallToContext([
-  "promise_catch", GlobalPromise.prototype.catch,
+  "promise_catch", PromiseCatch,
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", DoRejectPromise,

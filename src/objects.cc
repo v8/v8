@@ -13638,16 +13638,23 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
   return result;
 }
 
+
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Isolate* isolate, FunctionLiteral* fun) {
-  DCHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
-  DCHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
-  Object* shared = shared_function_infos()->get(fun->function_literal_id());
-  if (shared->IsUndefined(isolate) || WeakCell::cast(shared)->cleared()) {
-    return MaybeHandle<SharedFunctionInfo>();
+    FunctionLiteral* fun) {
+  WeakFixedArray::Iterator iterator(shared_function_infos());
+  SharedFunctionInfo* shared;
+  while ((shared = iterator.Next<SharedFunctionInfo>())) {
+    if (fun->function_token_position() == shared->function_token_position() &&
+        fun->start_position() == shared->start_position() &&
+        fun->end_position() == shared->end_position()) {
+      DCHECK_EQ(fun->function_literal_id(), shared->function_literal_id());
+      return Handle<SharedFunctionInfo>(shared);
+    }
+    DCHECK_NE(fun->function_literal_id(), shared->function_literal_id());
   }
-  return handle(SharedFunctionInfo::cast(WeakCell::cast(shared)->value()));
+  return MaybeHandle<SharedFunctionInfo>();
 }
+
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
@@ -13655,51 +13662,31 @@ Script::Iterator::Iterator(Isolate* isolate)
 
 Script* Script::Iterator::Next() { return iterator_.Next<Script>(); }
 
-SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<Script> script)
-    : ScriptIterator(script->GetIsolate(),
-                     handle(script->shared_function_infos())) {}
 
-SharedFunctionInfo::ScriptIterator::ScriptIterator(
-    Isolate* isolate, Handle<FixedArray> shared_function_infos)
-    : isolate_(isolate),
-      shared_function_infos_(shared_function_infos),
-      index_(0) {}
-
-SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
-  while (index_ < shared_function_infos_->length()) {
-    Object* raw = shared_function_infos_->get(index_++);
-    if (raw->IsUndefined(isolate_) || WeakCell::cast(raw)->cleared()) continue;
-    return SharedFunctionInfo::cast(WeakCell::cast(raw)->value());
-  }
-  return nullptr;
-}
-
-void SharedFunctionInfo::ScriptIterator::Reset(Handle<Script> script) {
-  shared_function_infos_ = handle(script->shared_function_infos());
-  index_ = 0;
-}
-
-SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
+SharedFunctionInfo::Iterator::Iterator(Isolate* isolate)
     : script_iterator_(isolate),
-      noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
-      sfi_iterator_(handle(script_iterator_.Next(), isolate)) {}
+      sfi_iterator_(isolate->heap()->noscript_shared_function_infos()) {}
 
-SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
-  SharedFunctionInfo* next = noscript_sfi_iterator_.Next<SharedFunctionInfo>();
-  if (next != nullptr) return next;
-  for (;;) {
-    next = sfi_iterator_.Next();
-    if (next != nullptr) return next;
-    Script* next_script = script_iterator_.Next();
-    if (next_script == nullptr) return nullptr;
-    sfi_iterator_.Reset(handle(next_script));
-  }
+
+bool SharedFunctionInfo::Iterator::NextScript() {
+  Script* script = script_iterator_.Next();
+  if (script == NULL) return false;
+  sfi_iterator_.Reset(script->shared_function_infos());
+  return true;
+}
+
+
+SharedFunctionInfo* SharedFunctionInfo::Iterator::Next() {
+  do {
+    SharedFunctionInfo* next = sfi_iterator_.Next<SharedFunctionInfo>();
+    if (next != NULL) return next;
+  } while (NextScript());
+  return NULL;
 }
 
 
 void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
                                    Handle<Object> script_object) {
-  DCHECK_NE(shared->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
   if (shared->script() == *script_object) return;
   Isolate* isolate = shared->GetIsolate();
 
@@ -13707,52 +13694,39 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   // the shared function info may be temporarily in two lists.
   // This is okay because the gc-time processing of these lists can tolerate
   // duplicates.
+  Handle<Object> list;
   if (script_object->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_object);
-    Handle<FixedArray> list = handle(script->shared_function_infos(), isolate);
-#ifdef DEBUG
-    DCHECK_LT(shared->function_literal_id(), list->length());
-    if (list->get(shared->function_literal_id())->IsWeakCell() &&
-        !WeakCell::cast(list->get(shared->function_literal_id()))->cleared()) {
-      DCHECK(
-          WeakCell::cast(list->get(shared->function_literal_id()))->value() ==
-          *shared);
-    }
-#endif
-    Handle<WeakCell> cell = isolate->factory()->NewWeakCell(shared);
-    list->set(shared->function_literal_id(), *cell);
+    list = handle(script->shared_function_infos(), isolate);
   } else {
-    Handle<Object> list = isolate->factory()->noscript_shared_function_infos();
+    list = isolate->factory()->noscript_shared_function_infos();
+  }
 
 #ifdef DEBUG
-    if (FLAG_enable_slow_asserts) {
-      WeakFixedArray::Iterator iterator(*list);
-      SharedFunctionInfo* next;
-      while ((next = iterator.Next<SharedFunctionInfo>())) {
-        DCHECK_NE(next, *shared);
-      }
+  if (FLAG_enable_slow_asserts) {
+    WeakFixedArray::Iterator iterator(*list);
+    SharedFunctionInfo* next;
+    while ((next = iterator.Next<SharedFunctionInfo>())) {
+      DCHECK_NE(next, *shared);
     }
+  }
 #endif  // DEBUG
+  list = WeakFixedArray::Add(list, shared);
 
-    list = WeakFixedArray::Add(list, shared);
-
+  if (script_object->IsScript()) {
+    Handle<Script> script = Handle<Script>::cast(script_object);
+    script->set_shared_function_infos(*list);
+  } else {
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
   }
 
+  // Remove shared function info from old script's list.
   if (shared->script()->IsScript()) {
-    // Remove shared function info from old script's list.
     Script* old_script = Script::cast(shared->script());
-
-    // Due to liveedit, it might happen that the old_script doesn't know
-    // about the SharedFunctionInfo, so we have to guard against that.
-    Handle<FixedArray> infos(old_script->shared_function_infos(), isolate);
-    if (shared->function_literal_id() < infos->length()) {
-      Object* raw = old_script->shared_function_infos()->get(
-          shared->function_literal_id());
-      if (!raw->IsWeakCell() || WeakCell::cast(raw)->value() == *shared) {
-        old_script->shared_function_infos()->set(
-            shared->function_literal_id(), isolate->heap()->undefined_value());
-      }
+    if (old_script->shared_function_infos()->IsWeakFixedArray()) {
+      WeakFixedArray* list =
+          WeakFixedArray::cast(old_script->shared_function_infos());
+      list->Remove(shared);
     }
   } else {
     // Remove shared function info from root array.
@@ -14017,6 +13991,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   shared_info->set_is_function(lit->is_function());
+  shared_info->set_never_compiled(true);
   shared_info->set_kind(lit->kind());
   if (!IsConstructable(lit->kind(), lit->language_mode())) {
     shared_info->SetConstructStub(

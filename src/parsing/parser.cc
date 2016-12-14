@@ -809,8 +809,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     }
   }
 
-  info->set_max_function_literal_id(GetLastFunctionLiteralId());
-
   // Make sure the target stack is empty.
   DCHECK(target_stack_ == NULL);
 

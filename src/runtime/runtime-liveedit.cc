@@ -100,31 +100,15 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
   }
 }
 
-// Recreate the shared function infos array after changing the IDs of all
-// SharedFunctionInfos.
-RUNTIME_FUNCTION(Runtime_LiveEditFixupScript) {
-  HandleScope scope(isolate);
-  CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK_EQ(args.length(), 2);
-  CONVERT_ARG_CHECKED(JSValue, script_value, 0);
-  CONVERT_INT32_ARG_CHECKED(max_function_literal_id, 1);
-
-  CHECK(script_value->value()->IsScript());
-  Handle<Script> script(Script::cast(script_value->value()));
-
-  LiveEdit::FixupScript(script, max_function_literal_id);
-  return isolate->heap()->undefined_value();
-}
 
 RUNTIME_FUNCTION(Runtime_LiveEditFunctionSourceUpdated) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK_EQ(args.length(), 2);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 0);
-  CONVERT_INT32_ARG_CHECKED(new_function_literal_id, 1);
   CHECK(SharedInfoWrapper::IsInstance(shared_info));
 
-  LiveEdit::FunctionSourceUpdated(shared_info, new_function_literal_id);
+  LiveEdit::FunctionSourceUpdated(shared_info);
   return isolate->heap()->undefined_value();
 }
 

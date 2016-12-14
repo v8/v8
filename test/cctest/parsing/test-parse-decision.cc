@@ -30,9 +30,9 @@ void GetTopLevelFunctionInfo(
   Handle<JSFunction> toplevel_fn = v8::Utils::OpenHandle(*script);
   Handle<Script> i_script =
       handle(Script::cast(toplevel_fn->shared()->script()));
-  SharedFunctionInfo::ScriptIterator iterator(i_script);
 
-  while (SharedFunctionInfo* shared = iterator.Next()) {
+  WeakFixedArray::Iterator iter(i_script->shared_function_infos());
+  while (SharedFunctionInfo* shared = iter.Next<SharedFunctionInfo>()) {
     std::unique_ptr<char[]> name = String::cast(shared->name())->ToCString();
     is_compiled->insert(std::make_pair(name.get(), shared->is_compiled()));
   }

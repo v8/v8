@@ -5800,6 +5800,8 @@ void Heap::CompactWeakFixedArrays() {
         WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
         array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
       }
+    } else if (o->IsScript()) {
+      CompactWeakFixedArray(Script::cast(o)->shared_function_infos());
     }
   }
   CompactWeakFixedArray(noscript_shared_function_infos());

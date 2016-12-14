@@ -1244,7 +1244,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   // cover this, because the given function might have been inlined into code
   // for which no JSFunction exists.
   {
-    SharedFunctionInfo::GlobalIterator iterator(isolate_);
+    SharedFunctionInfo::Iterator iterator(isolate_);
     while (SharedFunctionInfo* shared = iterator.Next()) {
       shared->ClearCodeFromOptimizedCodeMap();
     }
@@ -1335,18 +1335,24 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
 bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
                                    int end_position, std::set<int>* positions) {
   while (true) {
+    if (!script->shared_function_infos()->IsWeakFixedArray()) return false;
+
+    WeakFixedArray* infos =
+        WeakFixedArray::cast(script->shared_function_infos());
     HandleScope scope(isolate_);
     List<Handle<SharedFunctionInfo>> candidates;
-    SharedFunctionInfo::ScriptIterator iterator(script);
-    for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
-         info = iterator.Next()) {
-      if (info->end_position() < start_position ||
-          info->start_position() >= end_position) {
-        continue;
+    {
+      WeakFixedArray::Iterator iterator(infos);
+      SharedFunctionInfo* info;
+      while ((info = iterator.Next<SharedFunctionInfo>())) {
+        if (info->end_position() < start_position ||
+            info->start_position() >= end_position) {
+          continue;
+        }
+        if (!info->IsSubjectToDebugging()) continue;
+        if (!info->HasDebugCode() && !info->allows_lazy_compilation()) continue;
+        candidates.Add(i::handle(info));
       }
-      if (!info->IsSubjectToDebugging()) continue;
-      if (!info->HasDebugCode() && !info->allows_lazy_compilation()) continue;
-      candidates.Add(i::handle(info));
     }
 
     bool was_compiled = false;
@@ -1456,14 +1462,15 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     // find the inner most function containing this position.
     // If there is no shared function info for this script at all, there is
     // no point in looking for it by walking the heap.
+    if (!script->shared_function_infos()->IsWeakFixedArray()) break;
 
     SharedFunctionInfo* shared;
     {
       SharedFunctionInfoFinder finder(position);
-      SharedFunctionInfo::ScriptIterator iterator(script);
-      for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
-           info = iterator.Next()) {
-        finder.NewCandidate(info);
+      WeakFixedArray::Iterator iterator(script->shared_function_infos());
+      SharedFunctionInfo* candidate;
+      while ((candidate = iterator.Next<SharedFunctionInfo>())) {
+        finder.NewCandidate(candidate);
       }
       shared = finder.Result();
       if (shared == NULL) break;
