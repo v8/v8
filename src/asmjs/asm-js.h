@@ -16,7 +16,7 @@ class ParseInfo;
 // Interface to compile and instantiate for asmjs.
 class AsmJs {
  public:
-  static MaybeHandle<FixedArray> ConvertAsmToWasm(ParseInfo* info);
+  static MaybeHandle<FixedArray> CompileAsmViaWasm(ParseInfo* info);
   static bool IsStdlibValid(Isolate* isolate, Handle<FixedArray> wasm_data,
                             Handle<JSReceiver> stdlib);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,
