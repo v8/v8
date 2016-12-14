@@ -2177,7 +2177,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         is_computed_name, CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
   }
 
-  if (!*has_name_static_property && is_static && impl()->IsName(name)) {
+  if (!*has_name_static_property && *is_static && impl()->IsName(name)) {
     *has_name_static_property = true;
   }
 
