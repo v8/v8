@@ -62,7 +62,6 @@ inline bool IsValidSectionCode(uint8_t byte) {
 const char* SectionName(WasmSectionCode code);
 
 // Constants for fixed-size elements within a module.
-static const uint32_t kMaxReturnCount = 1;
 static const uint8_t kResizableMaximumFlag = 1;
 static const int32_t kInvalidFunctionIndex = -1;
 

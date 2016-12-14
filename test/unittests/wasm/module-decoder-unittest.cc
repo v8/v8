@@ -7,6 +7,7 @@
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -310,7 +311,7 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
       WASM_INIT_EXPR_F32(7.7),  // init
   };
 
-  for (uint32_t i = 0; i < 1000000; i = i * 13 + 1) {
+  for (uint32_t i = 0; i < kV8MaxWasmGlobals; i = i * 13 + 1) {
     std::vector<byte> buffer;
     size_t size = SizeOfVarInt(i) + i * sizeof(data);
     const byte globals[] = {kGlobalSectionCode, U32V_5(size)};
@@ -844,6 +845,31 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
       EXPECT_EQ(p0_type.type, sig->GetParam(0));
       EXPECT_EQ(p1_type.type, sig->GetParam(1));
     }
+  }
+}
+
+TEST_F(WasmSignatureDecodeTest, TooManyParams) {
+  static const byte data[] = {kWasmFunctionTypeForm,
+                              WASM_I32V_3(kV8MaxWasmFunctionParams + 1),
+                              kLocalI32, 0};
+  FunctionSig* sig =
+      DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
+  EXPECT_FALSE(sig != nullptr);
+}
+
+TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
+  bool prev = FLAG_wasm_mv_prototype;
+  for (int i = 0; i < 2; i++) {
+    FLAG_wasm_mv_prototype = i != 0;
+    const int max_return_count =
+        static_cast<int>(FLAG_wasm_mv_prototype ? kV8MaxWasmFunctionMultiReturns
+                                                : kV8MaxWasmFunctionReturns);
+    byte data[] = {kWasmFunctionTypeForm, 0, WASM_I32V_3(max_return_count + 1),
+                   kLocalI32};
+    FunctionSig* sig =
+        DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
+    EXPECT_EQ(nullptr, sig);
+    FLAG_wasm_mv_prototype = prev;
   }
 }
 

@@ -590,7 +590,7 @@ class WasmFullDecoder : public WasmDecoder {
     TRACE("local decls count: %u\n", entries);
     while (entries-- > 0 && pc_ < limit_) {
       uint32_t count = consume_u32v("local count");
-      if (count > kMaxNumWasmLocals) {
+      if ((count + local_type_vec_.size()) > kMaxNumWasmLocals) {
         error(pc_ - 1, "local count too large");
         return;
       }

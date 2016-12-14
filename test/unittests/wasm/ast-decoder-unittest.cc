@@ -314,13 +314,13 @@ TEST_F(AstDecoderTest, NumLocalAboveLimit) {
 }
 
 TEST_F(AstDecoderTest, GetLocal_varint) {
-  const int kMaxLocals = kMaxNumWasmLocals;
+  const int kMaxLocals = kMaxNumWasmLocals - 1;
   AddLocals(kAstI32, kMaxLocals);
 
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_1(66));
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_2(7777));
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_3(888888));
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_4(3999999));
+  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_3(8888));
+  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_4(9999));
 
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_5(kMaxLocals - 1));
 
@@ -332,6 +332,14 @@ TEST_F(AstDecoderTest, GetLocal_varint) {
 
   EXPECT_FAILURE(i_v, kExprGetLocal, U32V_4(kMaxLocals));
   EXPECT_FAILURE(i_v, kExprGetLocal, U32V_4(kMaxLocals + 1));
+}
+
+TEST_F(AstDecoderTest, GetLocal_toomany) {
+  AddLocals(kAstI32, kMaxNumWasmLocals - 100);
+  AddLocals(kAstI32, 100);
+
+  EXPECT_VERIFIES(i_v, kExprGetLocal, U32V_1(66));
+  EXPECT_FAILURE(i_i, kExprGetLocal, U32V_1(66));
 }
 
 TEST_F(AstDecoderTest, Binops_off_end) {
