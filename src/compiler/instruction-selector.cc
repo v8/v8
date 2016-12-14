@@ -555,6 +555,11 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
   DCHECK_EQ(descriptor->stack_count(), StateValuesAccess(stack).size());
 
   StateValueList* values_descriptor = descriptor->GetStateValueDescriptors();
+
+  DCHECK_EQ(values_descriptor->size(), 0u);
+  values_descriptor->ReserveSize(
+      descriptor->GetSize(OutputFrameStateCombine::Ignore()));
+
   entries += AddOperandToStateValueDescriptor(
       values_descriptor, inputs, g, deduplicator, function,
       MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);

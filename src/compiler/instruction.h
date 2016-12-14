@@ -1197,6 +1197,8 @@ class StateValueList {
     ZoneVector<StateValueList*>::iterator nested_iterator;
   };
 
+  void ReserveSize(size_t size) { fields_.reserve(size); }
+
   StateValueList* PushRecursiveField(Zone* zone, size_t id) {
     fields_.push_back(StateValueDescriptor::Recursive(id));
     StateValueList* nested =
