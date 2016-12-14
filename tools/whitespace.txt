@@ -13,3 +13,5 @@ git cl commit.
 
 CQ commit + numbering.
 git cl commit + numbering.
+
+CQ commit on fresh new branch + numbering.
