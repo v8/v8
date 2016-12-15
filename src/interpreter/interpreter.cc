@@ -884,8 +884,7 @@ void Interpreter::DoLdaModuleVariable(InterpreterAssembler* assembler) {
         __ LoadObjectField(module, Module::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
     Node* export_index = __ IntPtrSub(cell_index, __ IntPtrConstant(1));
-    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index, 0,
-                                          CodeStubAssembler::INTPTR_PARAMETERS);
+    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index);
     __ SetAccumulator(__ LoadObjectField(cell, Cell::kValueOffset));
     __ Goto(&end);
   }
@@ -896,8 +895,7 @@ void Interpreter::DoLdaModuleVariable(InterpreterAssembler* assembler) {
         __ LoadObjectField(module, Module::kRegularImportsOffset);
     // The actual array index is (-cell_index - 1).
     Node* import_index = __ IntPtrSub(__ IntPtrConstant(-1), cell_index);
-    Node* cell = __ LoadFixedArrayElement(regular_imports, import_index, 0,
-                                          CodeStubAssembler::INTPTR_PARAMETERS);
+    Node* cell = __ LoadFixedArrayElement(regular_imports, import_index);
     __ SetAccumulator(__ LoadObjectField(cell, Cell::kValueOffset));
     __ Goto(&end);
   }
@@ -929,8 +927,7 @@ void Interpreter::DoStaModuleVariable(InterpreterAssembler* assembler) {
         __ LoadObjectField(module, Module::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
     Node* export_index = __ IntPtrSub(cell_index, __ IntPtrConstant(1));
-    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index, 0,
-                                          CodeStubAssembler::INTPTR_PARAMETERS);
+    Node* cell = __ LoadFixedArrayElement(regular_exports, export_index);
     __ StoreObjectField(cell, Cell::kValueOffset, value);
     __ Goto(&end);
   }
@@ -2718,8 +2715,7 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
     Node* megamorphic_sentinel =
         __ HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate_));
     __ StoreFixedArrayElement(type_feedback_vector, vector_index,
-                              megamorphic_sentinel, SKIP_WRITE_BARRIER, 0,
-                              CodeStubAssembler::INTPTR_PARAMETERS);
+                              megamorphic_sentinel, SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.
     Node* context = __ GetContext();

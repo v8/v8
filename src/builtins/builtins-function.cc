@@ -371,16 +371,13 @@ void Builtins::Generate_FastFunctionPrototypeBind(
       &empty_arguments);
   Node* elements_length = assembler.ChangeUint32ToWord(
       assembler.Int32Sub(argc, assembler.Int32Constant(1)));
-  Node* elements = assembler.AllocateFixedArray(
-      FAST_ELEMENTS, elements_length, CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* elements = assembler.AllocateFixedArray(FAST_ELEMENTS, elements_length);
   Variable index(&assembler, MachineType::PointerRepresentation());
   index.Bind(assembler.IntPtrConstant(0));
   CodeStubAssembler::VariableList foreach_vars({&index}, assembler.zone());
   args.ForEach(foreach_vars,
                [&assembler, elements, &index](compiler::Node* arg) {
-                 assembler.StoreFixedArrayElement(
-                     elements, index.value(), arg, UPDATE_WRITE_BARRIER, 0,
-                     CodeStubAssembler::INTPTR_PARAMETERS);
+                 assembler.StoreFixedArrayElement(elements, index.value(), arg);
                  assembler.Increment(index);
                },
                assembler.IntPtrConstant(1));

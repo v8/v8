@@ -183,19 +183,16 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
   {
     Node* const from_cursor = var_from_cursor.value();
     Node* const to_cursor = var_to_cursor.value();
-    Node* const start =
-        LoadFixedArrayElement(match_info, from_cursor, 0, INTPTR_PARAMETERS);
+    Node* const start = LoadFixedArrayElement(match_info, from_cursor);
 
     Label next_iter(this);
     GotoIf(SmiEqual(start, SmiConstant(Smi::FromInt(-1))), &next_iter);
 
     Node* const from_cursor_plus1 = IntPtrAdd(from_cursor, IntPtrConstant(1));
-    Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1, 0,
-                                            INTPTR_PARAMETERS);
+    Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
 
     Node* const capture = SubString(context, string, start, end);
-    StoreFixedArrayElement(result_elements, to_cursor, capture,
-                           UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+    StoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
     Bind(&next_iter);
@@ -1374,9 +1371,6 @@ class GrowableFixedArray {
   void Push(Node* const value) {
     CodeStubAssembler* a = assembler_;
 
-    const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-
     Node* const length = var_length_.value();
     Node* const capacity = var_capacity_.value();
 
@@ -1386,7 +1380,7 @@ class GrowableFixedArray {
     a->Bind(&grow);
     {
       Node* const new_capacity = NewCapacity(a, capacity);
-      Node* const new_array = ResizeFixedArray(length, new_capacity, mode);
+      Node* const new_array = ResizeFixedArray(length, new_capacity);
 
       var_capacity_.Bind(new_capacity);
       var_array_.Bind(new_array);
@@ -1396,7 +1390,7 @@ class GrowableFixedArray {
     a->Bind(&store);
     {
       Node* const array = var_array_.value();
-      a->StoreFixedArrayElement(array, length, value, barrier_mode, 0, mode);
+      a->StoreFixedArrayElement(array, length, value);
 
       Node* const new_length = a->IntPtrAdd(length, a->IntPtrConstant(1));
       var_length_.Bind(new_length);
@@ -1407,7 +1401,6 @@ class GrowableFixedArray {
     CodeStubAssembler* a = assembler_;
 
     const ElementsKind kind = FAST_ELEMENTS;
-    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
     Node* const native_context = a->LoadNativeContext(context);
     Node* const array_map = a->LoadJSArrayElementsMap(kind, native_context);
@@ -1421,7 +1414,7 @@ class GrowableFixedArray {
 
       a->GotoIf(a->WordEqual(length, capacity), &next);
 
-      Node* const array = ResizeFixedArray(length, length, mode);
+      Node* const array = ResizeFixedArray(length, length);
       var_array_.Bind(array);
       var_capacity_.Bind(length);
       a->Goto(&next);
@@ -1445,14 +1438,13 @@ class GrowableFixedArray {
     CodeStubAssembler* a = assembler_;
 
     const ElementsKind kind = FAST_ELEMENTS;
-    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
     static const int kInitialArraySize = 8;
     Node* const capacity = a->IntPtrConstant(kInitialArraySize);
-    Node* const array = a->AllocateFixedArray(kind, capacity, mode);
+    Node* const array = a->AllocateFixedArray(kind, capacity);
 
     a->FillFixedArrayWithValue(kind, array, a->IntPtrConstant(0), capacity,
-                               Heap::kTheHoleValueRootIndex, mode);
+                               Heap::kTheHoleValueRootIndex);
 
     var_array_.Bind(array);
     var_capacity_.Bind(capacity);
@@ -1474,10 +1466,7 @@ class GrowableFixedArray {
 
   // Creates a new array with {new_capacity} and copies the first
   // {element_count} elements from the current array.
-  Node* ResizeFixedArray(Node* const element_count, Node* const new_capacity,
-                         ParameterMode mode) {
-    DCHECK(mode == CodeStubAssembler::INTPTR_PARAMETERS);
-
+  Node* ResizeFixedArray(Node* const element_count, Node* const new_capacity) {
     CodeStubAssembler* a = assembler_;
 
     CSA_ASSERT(a, a->IntPtrGreaterThan(element_count, a->IntPtrConstant(0)));
@@ -1486,6 +1475,7 @@ class GrowableFixedArray {
 
     const ElementsKind kind = FAST_ELEMENTS;
     const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
     const CodeStubAssembler::AllocationFlags flags =
         CodeStubAssembler::kAllowLargeObjectAllocation;
 
@@ -2202,8 +2192,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
       Node* const i = var_i.value();
       GotoUnless(IntPtrLessThan(i, end), &create_result);
 
-      ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-      Node* const elem = LoadFixedArrayElement(res_elems, i, 0, mode);
+      Node* const elem = LoadFixedArrayElement(res_elems, i);
 
       Label if_issmi(this), if_isstring(this), loop_epilogue(this);
       Branch(TaggedIsSmi(elem), &if_issmi, &if_isstring);
@@ -2230,8 +2219,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           Node* const next_i = IntPtrAdd(i, int_one);
           var_i.Bind(next_i);
 
-          Node* const next_elem =
-              LoadFixedArrayElement(res_elems, next_i, 0, mode);
+          Node* const next_elem = LoadFixedArrayElement(res_elems, next_i);
 
           Node* const new_match_start = SmiSub(next_elem, elem);
           var_match_start.Bind(new_match_start);
@@ -2249,8 +2237,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
                    var_match_start.value(), string);
 
         Node* const replacement_str = ToString(context, replacement_obj);
-        StoreFixedArrayElement(res_elems, i, replacement_str,
-                               UPDATE_WRITE_BARRIER, 0, mode);
+        StoreFixedArrayElement(res_elems, i, replacement_str);
 
         Node* const elem_length = LoadStringLength(elem);
         Node* const new_match_start =
@@ -2270,8 +2257,6 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
   Bind(&if_hasexplicitcaptures);
   {
-    ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-
     Node* const from = int_zero;
     Node* const to = SmiUntag(res_length);
     const int increment = 1;
@@ -2279,8 +2264,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     BuildFastLoop(
         MachineType::PointerRepresentation(), from, to,
         [this, res_elems, isolate, native_context, context, undefined,
-         replace_callable, mode](Node* index) {
-          Node* const elem = LoadFixedArrayElement(res_elems, index, 0, mode);
+         replace_callable](Node* index) {
+          Node* const elem = LoadFixedArrayElement(res_elems, index);
 
           Label do_continue(this);
           GotoIf(TaggedIsSmi(elem), &do_continue);
@@ -2303,8 +2288,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           // back from the callback function.
 
           Node* const replacement_str = ToString(context, replacement_obj);
-          StoreFixedArrayElement(res_elems, index, replacement_str,
-                                 UPDATE_WRITE_BARRIER, 0, mode);
+          StoreFixedArrayElement(res_elems, index, replacement_str);
 
           Goto(&do_continue);
           Bind(&do_continue);

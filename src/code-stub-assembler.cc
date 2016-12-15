@@ -158,11 +158,9 @@ Node* CodeStubAssembler::StaleRegisterConstant() {
 Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   if (mode == SMI_PARAMETERS) {
     return SmiConstant(Smi::FromInt(value));
-  } else if (mode == INTPTR_PARAMETERS) {
-    return IntPtrConstant(value);
   } else {
-    DCHECK_EQ(INTEGER_PARAMETERS, mode);
-    return Int32Constant(value);
+    DCHECK_EQ(INTPTR_PARAMETERS, mode);
+    return IntPtrConstant(value);
   }
 }
 
@@ -1864,15 +1862,13 @@ Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
   Node* const zero = IntPtrConstant(0);
   Node* const length_intptr = SmiUntag(length);
   const ElementsKind elements_kind = FAST_ELEMENTS;
-  const ParameterMode parameter_mode = INTPTR_PARAMETERS;
 
-  Node* const elements =
-      AllocateFixedArray(elements_kind, length_intptr, parameter_mode);
+  Node* const elements = AllocateFixedArray(elements_kind, length_intptr);
   StoreObjectField(result, JSArray::kElementsOffset, elements);
 
   // Fill in the elements with undefined.
   FillFixedArrayWithValue(elements_kind, elements, zero, length_intptr,
-                          Heap::kUndefinedValueRootIndex, parameter_mode);
+                          Heap::kUndefinedValueRootIndex);
 
   return result;
 }
@@ -3182,12 +3178,13 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   {
     // Load the isolate wide single character string cache.
     Node* cache = LoadRoot(Heap::kSingleCharacterStringCacheRootIndex);
+    Node* code_index = ChangeUint32ToWord(code);
 
     // Check if we have an entry for the {code} in the single character string
     // cache already.
     Label if_entryisundefined(this, Label::kDeferred),
         if_entryisnotundefined(this);
-    Node* entry = LoadFixedArrayElement(cache, code);
+    Node* entry = LoadFixedArrayElement(cache, code_index);
     Branch(WordEqual(entry, UndefinedConstant()), &if_entryisundefined,
            &if_entryisnotundefined);
 
@@ -3198,7 +3195,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
       StoreNoWriteBarrier(
           MachineRepresentation::kWord8, result,
           IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag), code);
-      StoreFixedArrayElement(cache, code, result);
+      StoreFixedArrayElement(cache, code_index, result);
       var_result.Bind(result);
       Goto(&if_done);
     }
@@ -3791,8 +3788,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   Node* index = WordAnd(hash, SmiUntag(BitcastWordToTagged(mask)));
 
   // Cache entry's key must be a heap number
-  Node* number_key =
-      LoadFixedArrayElement(number_string_cache, index, 0, INTPTR_PARAMETERS);
+  Node* number_key = LoadFixedArrayElement(number_string_cache, index);
   GotoIf(TaggedIsSmi(number_key), &runtime);
   map = LoadMap(number_key);
   GotoUnless(IsHeapNumberMap(map), &runtime);
@@ -3807,8 +3803,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
 
   // Heap number match, return value fro cache entry.
   IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
-  result.Bind(LoadFixedArrayElement(number_string_cache, index, kPointerSize,
-                                    INTPTR_PARAMETERS));
+  result.Bind(LoadFixedArrayElement(number_string_cache, index, kPointerSize));
   Goto(&done);
 
   Bind(&runtime);
@@ -4446,8 +4441,7 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     Node* index = EntryToIndex<Dictionary>(entry);
     var_name_index->Bind(index);
 
-    Node* current =
-        LoadFixedArrayElement(dictionary, index, 0, INTPTR_PARAMETERS);
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, unique_name), if_found);
 
     // See Dictionary::NextProbe().
@@ -4476,8 +4470,7 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     Node* index = EntryToIndex<Dictionary>(entry);
     var_name_index->Bind(index);
 
-    Node* current =
-        LoadFixedArrayElement(dictionary, index, 0, INTPTR_PARAMETERS);
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     if (mode == kFindExisting) {
       GotoIf(WordEqual(current, unique_name), if_found);
@@ -4555,8 +4548,7 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
     Node* entry = var_entry->value();
 
     Node* index = EntryToIndex<Dictionary>(entry);
-    Node* current =
-        LoadFixedArrayElement(dictionary, index, 0, INTPTR_PARAMETERS);
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     Label next_probe(this);
     {
@@ -4614,13 +4606,12 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
                                                     Node* index,
                                                     Node* enum_index) {
   // Store name and value.
-  StoreFixedArrayElement(dictionary, index, name, UPDATE_WRITE_BARRIER, 0,
-                         INTPTR_PARAMETERS);
+  StoreFixedArrayElement(dictionary, index, name);
   const int kNameToValueOffset =
       (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
       kPointerSize;
   StoreFixedArrayElement(dictionary, index, value, UPDATE_WRITE_BARRIER,
-                         kNameToValueOffset, INTPTR_PARAMETERS);
+                         kNameToValueOffset);
 
   // Prepare details of the new property.
   Variable var_details(this, MachineRepresentation::kTaggedSigned);
@@ -4648,8 +4639,7 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
       (NameDictionary::kEntryDetailsIndex - NameDictionary::kEntryKeyIndex) *
       kPointerSize;
   StoreFixedArrayElement(dictionary, index, var_details.value(),
-                         SKIP_WRITE_BARRIER, kNameToDetailsOffset,
-                         INTPTR_PARAMETERS);
+                         SKIP_WRITE_BARRIER, kNameToDetailsOffset);
 }
 
 template <>
@@ -4711,16 +4701,15 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
   Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
   Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
 
-  BuildFastLoop(MachineType::PointerRepresentation(), last_exclusive,
-                first_inclusive,
-                [this, descriptors, unique_name, if_found,
-                 var_name_index](Node* name_index) {
-                  Node* candidate_name = LoadFixedArrayElement(
-                      descriptors, name_index, 0, INTPTR_PARAMETERS);
-                  var_name_index->Bind(name_index);
-                  GotoIf(WordEqual(candidate_name, unique_name), if_found);
-                },
-                -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), last_exclusive, first_inclusive,
+      [this, descriptors, unique_name, if_found,
+       var_name_index](Node* name_index) {
+        Node* candidate_name = LoadFixedArrayElement(descriptors, name_index);
+        var_name_index->Bind(name_index);
+        GotoIf(WordEqual(candidate_name, unique_name), if_found);
+      },
+      -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -4834,8 +4823,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       (DescriptorArray::kDescriptorValue - DescriptorArray::kDescriptorKey) *
       kPointerSize;
 
-  Node* details = LoadAndUntagToWord32FixedArrayElement(
-      descriptors, name_index, name_to_details_offset, INTPTR_PARAMETERS);
+  Node* details = LoadAndUntagToWord32FixedArrayElement(descriptors, name_index,
+                                                        name_to_details_offset);
   var_details->Bind(details);
 
   Node* location = DecodeWord32<PropertyDetails::LocationField>(details);
@@ -4891,8 +4880,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       Comment("if_backing_store");
       Node* properties = LoadProperties(object);
       field_index = IntPtrSub(field_index, inobject_properties);
-      Node* value =
-          LoadFixedArrayElement(properties, field_index, 0, INTPTR_PARAMETERS);
+      Node* value = LoadFixedArrayElement(properties, field_index);
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,
@@ -4919,8 +4907,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
   }
   Bind(&if_in_descriptor);
   {
-    Node* value = LoadFixedArrayElement(
-        descriptors, name_index, name_to_value_offset, INTPTR_PARAMETERS);
+    Node* value =
+        LoadFixedArrayElement(descriptors, name_index, name_to_value_offset);
     var_value->Bind(value);
     Goto(&done);
   }
@@ -4942,12 +4930,12 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
       (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
       kPointerSize;
 
-  Node* details = LoadAndUntagToWord32FixedArrayElement(
-      dictionary, name_index, name_to_details_offset, INTPTR_PARAMETERS);
+  Node* details = LoadAndUntagToWord32FixedArrayElement(dictionary, name_index,
+                                                        name_to_details_offset);
 
   var_details->Bind(details);
-  var_value->Bind(LoadFixedArrayElement(
-      dictionary, name_index, name_to_value_offset, INTPTR_PARAMETERS));
+  var_value->Bind(
+      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset));
 
   Comment("] LoadPropertyFromNameDictionary");
 }
@@ -4964,8 +4952,8 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
       (GlobalDictionary::kEntryValueIndex - GlobalDictionary::kEntryKeyIndex) *
       kPointerSize;
 
-  Node* property_cell = LoadFixedArrayElement(
-      dictionary, name_index, name_to_value_offset, INTPTR_PARAMETERS);
+  Node* property_cell =
+      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset);
 
   Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
   GotoIf(WordEqual(value, TheHoleConstant()), if_deleted);
@@ -5127,8 +5115,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
 
     GotoUnless(UintPtrLessThan(intptr_index, length), &if_oob);
 
-    Node* element =
-        LoadFixedArrayElement(elements, intptr_index, 0, INTPTR_PARAMETERS);
+    Node* element = LoadFixedArrayElement(elements, intptr_index);
     Node* the_hole = TheHoleConstant();
     Branch(WordEqual(element, the_hole), if_not_found, if_found);
   }
@@ -5447,19 +5434,12 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
     constant_index = ToSmiConstant(index_node, smi_index);
     if (constant_index) index = smi_index->value();
     index_node = BitcastTaggedToWord(index_node);
-  } else if (mode == INTEGER_PARAMETERS) {
-    int32_t temp = 0;
-    constant_index = ToInt32Constant(index_node, temp);
-    index = static_cast<intptr_t>(temp);
   } else {
     DCHECK(mode == INTPTR_PARAMETERS);
     constant_index = ToIntPtrConstant(index_node, index);
   }
   if (constant_index) {
     return IntPtrConstant(base_size + element_size * index);
-  }
-  if (Is64() && mode == INTEGER_PARAMETERS) {
-    index_node = ChangeInt32ToInt64(index_node);
   }
 
   Node* shifted_index =
@@ -5486,11 +5466,11 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback,
   // our new feedback in place.
   // TODO(interpreter): Consider passing the feedback as Smi already to avoid
   // the tagging completely.
-  Node* previous_feedback = LoadFixedArrayElement(type_feedback_vector, slot_id,
-                                                  0, INTPTR_PARAMETERS);
+  Node* previous_feedback =
+      LoadFixedArrayElement(type_feedback_vector, slot_id);
   Node* combined_feedback = SmiOr(previous_feedback, SmiFromWord32(feedback));
   StoreFixedArrayElement(type_feedback_vector, slot_id, combined_feedback,
-                         SKIP_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+                         SKIP_WRITE_BARRIER);
 }
 
 Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
@@ -5682,8 +5662,8 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   GotoIf(UintPtrGreaterThanOrEqual(key, adjusted_length), &if_unmapped);
 
-  Node* mapped_index = LoadFixedArrayElement(
-      elements, IntPtrAdd(key, intptr_two), 0, INTPTR_PARAMETERS);
+  Node* mapped_index =
+      LoadFixedArrayElement(elements, IntPtrAdd(key, intptr_two));
   Branch(WordEqual(mapped_index, TheHoleConstant()), &if_unmapped, &if_mapped);
 
   Bind(&if_mapped);
@@ -5697,13 +5677,11 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
     DCHECK_EQ(Context::SlotOffset(0) + kHeapObjectTag,
               FixedArray::OffsetOfElementAt(0));
     if (is_load) {
-      Node* result = LoadFixedArrayElement(the_context, mapped_index, 0,
-                                           INTPTR_PARAMETERS);
+      Node* result = LoadFixedArrayElement(the_context, mapped_index);
       CSA_ASSERT(this, WordNotEqual(result, TheHoleConstant()));
       var_result.Bind(result);
     } else {
-      StoreFixedArrayElement(the_context, mapped_index, value,
-                             UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+      StoreFixedArrayElement(the_context, mapped_index, value);
     }
     Goto(&end);
   }
@@ -5720,13 +5698,11 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
     // The key falls into unmapped range.
     if (is_load) {
-      Node* result =
-          LoadFixedArrayElement(backing_store, key, 0, INTPTR_PARAMETERS);
+      Node* result = LoadFixedArrayElement(backing_store, key);
       GotoIf(WordEqual(result, TheHoleConstant()), bailout);
       var_result.Bind(result);
     } else {
-      StoreFixedArrayElement(backing_store, key, value, UPDATE_WRITE_BARRIER, 0,
-                             INTPTR_PARAMETERS);
+      StoreFixedArrayElement(backing_store, key, value);
     }
     Goto(&end);
   }
@@ -8141,9 +8117,8 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
 
   Bind(&allocate_iterator);
   {
-    Node* map =
-        LoadFixedArrayElement(LoadNativeContext(context), var_map_index.value(),
-                              0, INTPTR_PARAMETERS);
+    Node* map = LoadFixedArrayElement(LoadNativeContext(context),
+                                      var_map_index.value());
     var_result.Bind(AllocateJSArrayIterator(array, var_array_map.value(), map));
     Goto(&return_result);
   }

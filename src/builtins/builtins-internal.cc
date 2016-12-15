@@ -173,8 +173,7 @@ void Generate_NewArgumentsElements(CodeStubAssembler* assembler,
     assembler->Bind(&if_notempty);
     {
       // Allocate a FixedArray in new space.
-      Node* result = assembler->AllocateFixedArray(
-          kind, length, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* result = assembler->AllocateFixedArray(kind, length);
 
       // Compute the effective {offset} into the {frame}.
       Node* offset = assembler->IntPtrAdd(length, assembler->IntPtrConstant(1));
@@ -200,8 +199,7 @@ void Generate_NewArgumentsElements(CodeStubAssembler* assembler,
 
         // Store the {value} into the {result}.
         assembler->StoreFixedArrayElement(result, index, value,
-                                          SKIP_WRITE_BARRIER, 0,
-                                          CodeStubAssembler::INTPTR_PARAMETERS);
+                                          SKIP_WRITE_BARRIER);
 
         // Continue with next {index}.
         var_index.Bind(

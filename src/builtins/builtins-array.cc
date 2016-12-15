@@ -1570,8 +1570,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.GotoUnless(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.WordEqual(element_k, search_element),
                        &return_true);
 
@@ -1584,8 +1584,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.GotoUnless(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.WordEqual(element_k, undefined), &return_true);
       assembler.GotoIf(assembler.WordEqual(element_k, the_hole), &return_true);
 
@@ -1606,9 +1606,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
         assembler.GotoUnless(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_false);
-        Node* element_k = assembler.LoadFixedArrayElement(
-            elements, index_var.value(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
+        Node* element_k =
+            assembler.LoadFixedArrayElement(elements, index_var.value());
         assembler.GotoUnless(assembler.TaggedIsSmi(element_k), &not_smi);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
@@ -1635,9 +1634,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
         assembler.GotoUnless(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_false);
-        Node* element_k = assembler.LoadFixedArrayElement(
-            elements, index_var.value(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
+        Node* element_k =
+            assembler.LoadFixedArrayElement(elements, index_var.value());
         assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
         assembler.GotoUnless(
             assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
@@ -1657,8 +1655,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.GotoUnless(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
       assembler.GotoUnless(
           assembler.IsStringInstanceType(assembler.LoadInstanceType(element_k)),
@@ -1689,8 +1687,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
 
       Node* map_k = assembler.LoadMap(element_k);
@@ -1732,8 +1730,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64(), 0,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          elements, index_var.value(), MachineType::Float64());
       assembler.Branch(assembler.Float64Equal(element_k, search_num.value()),
                        &return_true, &continue_loop);
       assembler.Bind(&continue_loop);
@@ -1749,8 +1746,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64(), 0,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          elements, index_var.value(), MachineType::Float64());
       assembler.BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
       assembler.Bind(&continue_loop);
       index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
@@ -2011,8 +2007,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.GotoUnless(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.WordEqual(element_k, search_element),
                        &return_found);
 
@@ -2025,8 +2021,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.GotoUnless(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.WordEqual(element_k, undefined),
                        &return_found);
 
@@ -2046,9 +2042,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
         assembler.GotoUnless(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_not_found);
-        Node* element_k = assembler.LoadFixedArrayElement(
-            elements, index_var.value(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
+        Node* element_k =
+            assembler.LoadFixedArrayElement(elements, index_var.value());
         assembler.GotoUnless(assembler.TaggedIsSmi(element_k), &not_smi);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
@@ -2076,8 +2071,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.GotoUnless(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
       assembler.GotoUnless(
           assembler.IsStringInstanceType(assembler.LoadInstanceType(element_k)),
@@ -2108,8 +2103,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
 
-      Node* element_k = assembler.LoadFixedArrayElement(
-          elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      Node* element_k =
+          assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
 
       Node* map_k = assembler.LoadMap(element_k);
@@ -2149,8 +2144,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64(), 0,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          elements, index_var.value(), MachineType::Float64());
       assembler.Branch(assembler.Float64Equal(element_k, search_num.value()),
                        &return_found, &continue_loop);
       assembler.Bind(&continue_loop);
@@ -2709,8 +2703,8 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
             assembler.Int32Constant(LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)),
         &allocate_iterator_result);
 
-    Node* elements =
-        assembler.AllocateFixedArray(FAST_ELEMENTS, assembler.Int32Constant(2));
+    Node* elements = assembler.AllocateFixedArray(FAST_ELEMENTS,
+                                                  assembler.IntPtrConstant(2));
     assembler.StoreFixedArrayElement(elements, 0, index, SKIP_WRITE_BARRIER);
     assembler.StoreFixedArrayElement(elements, 1, var_value.value(),
                                      SKIP_WRITE_BARRIER);

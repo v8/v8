@@ -453,19 +453,19 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
         // Create new FixedArrays to store callbacks, and migrate
         // existing callbacks.
         Node* const deferreds =
-            a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
+            a->AllocateFixedArray(FAST_ELEMENTS, a->IntPtrConstant(2));
         a->StoreFixedArrayElement(deferreds, 0, existing_deferred);
         a->StoreFixedArrayElement(deferreds, 1, deferred);
 
         Node* const fulfill_reactions =
-            a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
+            a->AllocateFixedArray(FAST_ELEMENTS, a->IntPtrConstant(2));
         a->StoreFixedArrayElement(
             fulfill_reactions, 0,
             a->LoadObjectField(promise, JSPromise::kFulfillReactionsOffset));
         a->StoreFixedArrayElement(fulfill_reactions, 1, var_on_resolve.value());
 
         Node* const reject_reactions =
-            a->AllocateFixedArray(FAST_ELEMENTS, a->Int32Constant(2));
+            a->AllocateFixedArray(FAST_ELEMENTS, a->IntPtrConstant(2));
         a->StoreFixedArrayElement(
             reject_reactions, 0,
             a->LoadObjectField(promise, JSPromise::kRejectReactionsOffset));

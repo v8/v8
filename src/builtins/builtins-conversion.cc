@@ -452,8 +452,7 @@ void Builtins::Generate_ToObject(compiler::CodeAssemblerState* state) {
   assembler.Bind(&if_wrapjsvalue);
   Node* native_context = assembler.LoadNativeContext(context);
   Node* constructor = assembler.LoadFixedArrayElement(
-      native_context, constructor_function_index_var.value(), 0,
-      CodeStubAssembler::INTPTR_PARAMETERS);
+      native_context, constructor_function_index_var.value());
   Node* initial_map = assembler.LoadObjectField(
       constructor, JSFunction::kPrototypeOrInitialMapOffset);
   Node* js_value = assembler.Allocate(JSValue::kSize);

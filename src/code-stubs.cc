@@ -2112,8 +2112,7 @@ void StoreScriptContextFieldStub::GenerateAssembly(
 
   Node* script_context = assembler.LoadScriptContext(context, context_index());
   assembler.StoreFixedArrayElement(
-      script_context, assembler.IntPtrConstant(slot_index()), value,
-      UPDATE_WRITE_BARRIER, 0, CodeStubAssembler::INTPTR_PARAMETERS);
+      script_context, assembler.IntPtrConstant(slot_index()), value);
   assembler.Return(value);
 }
 
@@ -2546,8 +2545,7 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   // as the map of the allocated object.
   Node* native_context = assembler->LoadNativeContext(context);
   Node* map_slot_value =
-      assembler->LoadFixedArrayElement(native_context, map_index.value(), 0,
-                                       CodeStubAssembler::INTPTR_PARAMETERS);
+      assembler->LoadFixedArrayElement(native_context, map_index.value());
   assembler->StoreMapNoWriteBarrier(result, map_slot_value);
 
   // Initialize the rest of the function.
@@ -3077,7 +3075,7 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler.AllocateJSArray(
       elements_kind(), array_map,
       assembler.IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler.SmiConstant(Smi::kZero), nullptr);
+      assembler.SmiConstant(Smi::kZero));
   assembler.Return(array);
 }
 

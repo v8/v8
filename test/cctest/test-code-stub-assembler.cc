@@ -1897,10 +1897,10 @@ TEST(AllocatePromiseReactionJobInfo) {
   CodeStubAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.Int32Constant(1));
+  Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred =
-      m.AllocateFixedArray(FAST_ELEMENTS, m.Int32Constant(1));
+      m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(deferred, 0, m.UndefinedConstant());
   Node* const info = m.AllocatePromiseReactionJobInfo(m.SmiConstant(1), tasks,
                                                       deferred, context);
