@@ -958,6 +958,8 @@ DEFINE_BOOL(disable_old_api_accessors, false,
 
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
 DEFINE_BOOL(dump_counters, false, "Dump counters on exit")
+DEFINE_BOOL(dump_counters_nvp, false,
+            "Dump counters as name-value pairs on exit")
 
 DEFINE_STRING(map_counters, "", "Map counters to a file")
 DEFINE_ARGS(js_arguments,

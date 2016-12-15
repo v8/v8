@@ -1688,7 +1688,7 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
 
 
 void Shell::OnExit(v8::Isolate* isolate) {
-  if (i::FLAG_dump_counters) {
+  if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
       number_of_counters++;
@@ -1700,24 +1700,44 @@ void Shell::OnExit(v8::Isolate* isolate) {
       counters[j].key = i.CurrentKey();
     }
     std::sort(counters, counters + number_of_counters);
-    printf("+----------------------------------------------------------------+"
-           "-------------+\n");
-    printf("| Name                                                           |"
-           " Value       |\n");
-    printf("+----------------------------------------------------------------+"
-           "-------------+\n");
-    for (j = 0; j < number_of_counters; j++) {
-      Counter* counter = counters[j].counter;
-      const char* key = counters[j].key;
-      if (counter->is_histogram()) {
-        printf("| c:%-60s | %11i |\n", key, counter->count());
-        printf("| t:%-60s | %11i |\n", key, counter->sample_total());
-      } else {
-        printf("| %-62s | %11i |\n", key, counter->count());
+
+    if (i::FLAG_dump_counters_nvp) {
+      // Dump counters as name-value pairs.
+      for (j = 0; j < number_of_counters; j++) {
+        Counter* counter = counters[j].counter;
+        const char* key = counters[j].key;
+        if (counter->is_histogram()) {
+          printf("\"c:%s\"=%i\n", key, counter->count());
+          printf("\"t:%s\"=%i\n", key, counter->sample_total());
+        } else {
+          printf("\"%s\"=%i\n", key, counter->count());
+        }
       }
+    } else {
+      // Dump counters in formatted boxes.
+      printf(
+          "+----------------------------------------------------------------+"
+          "-------------+\n");
+      printf(
+          "| Name                                                           |"
+          " Value       |\n");
+      printf(
+          "+----------------------------------------------------------------+"
+          "-------------+\n");
+      for (j = 0; j < number_of_counters; j++) {
+        Counter* counter = counters[j].counter;
+        const char* key = counters[j].key;
+        if (counter->is_histogram()) {
+          printf("| c:%-60s | %11i |\n", key, counter->count());
+          printf("| t:%-60s | %11i |\n", key, counter->sample_total());
+        } else {
+          printf("| %-62s | %11i |\n", key, counter->count());
+        }
+      }
+      printf(
+          "+----------------------------------------------------------------+"
+          "-------------+\n");
     }
-    printf("+----------------------------------------------------------------+"
-           "-------------+\n");
     delete [] counters;
   }
 
@@ -2963,7 +2983,7 @@ int Shell::Main(int argc, char* argv[]) {
       base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
-  if (i::FLAG_dump_counters || i::FLAG_gc_stats) {
+  if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp || i::FLAG_gc_stats) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
