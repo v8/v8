@@ -20,7 +20,6 @@ namespace internal {
 
 // Forward declarations.
 class CodeStubAssembler;
-class ObjectLiteral;
 namespace compiler {
 class CodeAssemblerLabel;
 class CodeAssemblerState;
@@ -923,6 +922,11 @@ class FastCloneRegExpStub final : public TurboFanCodeStub {
 
 class FastCloneShallowArrayStub : public TurboFanCodeStub {
  public:
+  // Maximum number of elements in copied array (chosen so that even an array
+  // backed by a double backing store will fit into new-space).
+  static const int kMaximumClonedElements =
+      JSArray::kInitialMaxFastElementArray * kPointerSize / kDoubleSize;
+
   FastCloneShallowArrayStub(Isolate* isolate,
                             AllocationSiteMode allocation_site_mode)
       : TurboFanCodeStub(isolate) {
@@ -964,7 +968,6 @@ class FastCloneShallowObjectStub : public TurboFanCodeStub {
       compiler::Node* closure, compiler::Node* literals_index,
       compiler::Node* properties_count);
 
-  static bool IsSupported(ObjectLiteral* expr);
   static int PropertiesCount(int literal_length);
 
   int length() const { return LengthBits::decode(minor_key_); }

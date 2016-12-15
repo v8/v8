@@ -378,10 +378,10 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
-  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
-  // initial length limit for arrays with "fast" elements kind.
+  // Use the FastCloneShallowArrayStub only for shallow boilerplates without
+  // properties up to the number of elements that the stubs can handle.
   if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
-      p.length() < JSArray::kInitialMaxFastElementArray) {
+      p.length() < FastCloneShallowArrayStub::kMaximumClonedElements) {
     Callable callable = CodeFactory::FastCloneShallowArray(isolate());
     ReplaceWithStubCall(node, callable, flags);
   } else {

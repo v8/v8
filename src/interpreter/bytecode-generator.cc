@@ -1591,9 +1591,9 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  // Copy the literal boilerplate.
+  // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
-      FastCloneShallowObjectStub::IsSupported(expr),
+      expr->IsFastCloningSupported(),
       FastCloneShallowObjectStub::PropertiesCount(expr->properties_count()),
       expr->ComputeFlags());
   // If constant properties is an empty fixed array, use our cached
@@ -1769,12 +1769,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
-  int runtime_flags = expr->ComputeFlags();
-  bool use_fast_shallow_clone =
-      (runtime_flags & ArrayLiteral::kShallowElements) != 0 &&
-      expr->values()->length() <= JSArray::kInitialMaxFastElementArray;
-  uint8_t flags =
-      CreateArrayLiteralFlags::Encode(use_fast_shallow_clone, runtime_flags);
+  uint8_t flags = CreateArrayLiteralFlags::Encode(
+      expr->IsFastCloningSupported(), expr->ComputeFlags());
   builder()->CreateArrayLiteral(expr->constant_elements(),
                                 expr->literal_index(), flags);
   Register index, literal;

@@ -1415,6 +1415,9 @@ class ObjectLiteral final : public MaterializedLiteral {
   // marked expressions, no store code is emitted.
   void CalculateEmitStore(Zone* zone);
 
+  // Determines whether the {FastCloneShallowObjectStub} can be used.
+  bool IsFastCloningSupported() const;
+
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
@@ -1557,6 +1560,9 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
+
+  // Determines whether the {FastCloneShallowArrayStub} can be used.
+  bool IsFastCloningSupported() const;
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {

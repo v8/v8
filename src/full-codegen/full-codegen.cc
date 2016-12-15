@@ -176,15 +176,13 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 
 bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
     ObjectLiteral* expr) const {
-  return masm()->serializer_enabled() ||
-         !FastCloneShallowObjectStub::IsSupported(expr);
+  return masm()->serializer_enabled() || !expr->IsFastCloningSupported();
 }
 
 
 bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
     ArrayLiteral* expr) const {
-  return expr->depth() > 1 ||
-         expr->values()->length() > JSArray::kInitialMaxFastElementArray;
+  return !expr->IsFastCloningSupported();
 }
 
 void FullCodeGenerator::Initialize(uintptr_t stack_limit) {

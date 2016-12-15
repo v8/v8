@@ -2158,15 +2158,6 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
 }
 
 // static
-bool FastCloneShallowObjectStub::IsSupported(ObjectLiteral* expr) {
-  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
-  // support copy-on-write (COW) elements for now.
-  // TODO(mvstanton): make object literals support COW elements.
-  return expr->fast_elements() && expr->has_shallow_properties() &&
-         expr->properties_count() <= kMaximumClonedProperties;
-}
-
-// static
 int FastCloneShallowObjectStub::PropertiesCount(int literal_length) {
   // This heuristic of setting empty literals to have
   // kInitialGlobalObjectUnusedPropertiesCount must remain in-sync with the

@@ -162,7 +162,9 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
           }
         }
       }
-    } else if (!boilerplate->HasFastDoubleElements()) {
+    } else if (boilerplate->HasFastDoubleElements()) {
+      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
+    } else {
       return false;
     }
   }

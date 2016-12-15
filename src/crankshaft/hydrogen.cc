@@ -5455,7 +5455,9 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
           }
         }
       }
-    } else if (!boilerplate->HasFastDoubleElements()) {
+    } else if (boilerplate->HasFastDoubleElements()) {
+      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
+    } else {
       return false;
     }
   }
