@@ -22,6 +22,12 @@ Callable make_callable(Stub& stub) {
 }  // namespace
 
 // static
+Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
+  CEntryStub stub(isolate, result_size);
+  return stub.GetCode();
+}
+
+// static
 Callable CodeFactory::LoadIC(Isolate* isolate) {
   LoadICTrampolineStub stub(isolate);
   return make_callable(stub);

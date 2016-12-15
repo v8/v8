@@ -6,6 +6,7 @@
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
 #include "src/assembler.h"
+#include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -705,22 +706,27 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Call a given call descriptor and the given arguments and frame-state.
   Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
                             Node* frame_state);
-  // Call to a runtime function with zero arguments.
-  Node* CallRuntime0(Runtime::FunctionId function, Node* context);
-  // Call to a runtime function with one arguments.
-  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
-  // Call to a runtime function with two arguments.
-  Node* CallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* context);
-  // Call to a runtime function with three arguments.
-  Node* CallRuntime3(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* arg3, Node* context);
-  // Call to a runtime function with four arguments.
-  Node* CallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* arg3, Node* arg4, Node* context);
-  // Call to a runtime function with five arguments.
-  Node* CallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* arg3, Node* arg4, Node* arg5, Node* context);
+
+  // Call to a runtime function with given arguments.
+  template <class... TArgs>
+  Node* CallRuntime(Runtime::FunctionId function, Node* context,
+                    TArgs... args) {
+    int argc = static_cast<int>(sizeof...(args));
+    CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
+        zone(), function, argc, Operator::kNoProperties,
+        CallDescriptor::kNoFlags);
+    int return_count = static_cast<int>(descriptor->ReturnCount());
+
+    Node* centry =
+        HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
+    Node* ref = AddNode(
+        common()->ExternalConstant(ExternalReference(function, isolate())));
+    Node* arity = Int32Constant(argc);
+
+    return AddNode(common()->Call(descriptor), centry, args..., ref, arity,
+                   context);
+  }
+
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.

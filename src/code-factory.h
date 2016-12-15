@@ -30,6 +30,12 @@ class Callable final BASE_EMBEDDED {
 
 class V8_EXPORT_PRIVATE CodeFactory final {
  public:
+  // CEntryStub has var-args semantics (all the arguments are passed on the
+  // stack and the arguments count is passed via register) which currently
+  // can't be expressed in CallInterfaceDescriptor. Therefore only the code
+  // is exported here.
+  static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
+
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate);
   static Callable LoadICInOptimizedCode(Isolate* isolate);

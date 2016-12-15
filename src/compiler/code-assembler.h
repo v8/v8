@@ -300,16 +300,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Projection(int index, Node* value);
 
   // Calls
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3, Node* arg4);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3, Node* arg4, Node* arg5);
+  template <class... TArgs>
+  Node* CallRuntime(Runtime::FunctionId function, Node* context, TArgs... args);
 
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context);
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,

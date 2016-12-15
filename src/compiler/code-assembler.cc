@@ -22,6 +22,15 @@
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
+#define REPEAT_1_TO_2(V, T) V(T) V(T, T)
+#define REPEAT_1_TO_3(V, T) REPEAT_1_TO_2(V, T) V(T, T, T)
+#define REPEAT_1_TO_4(V, T) REPEAT_1_TO_3(V, T) V(T, T, T, T)
+#define REPEAT_1_TO_5(V, T) REPEAT_1_TO_4(V, T) V(T, T, T, T, T)
+#define REPEAT_1_TO_6(V, T) REPEAT_1_TO_5(V, T) V(T, T, T, T, T, T)
+#define REPEAT_1_TO_7(V, T) REPEAT_1_TO_6(V, T) V(T, T, T, T, T, T)
+#define REPEAT_1_TO_8(V, T) REPEAT_1_TO_7(V, T) V(T, T, T, T, T, T, T)
+#define REPEAT_1_TO_9(V, T) REPEAT_1_TO_8(V, T) V(T, T, T, T, T, T, T, T)
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -409,60 +418,21 @@ Node* CodeAssembler::TailCallN(CallDescriptor* descriptor, Node* code_target,
   return raw_assembler()->TailCallN(descriptor, code_target, args);
 }
 
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id,
-                                 Node* context) {
+template <class... TArgs>
+Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
+                                 TArgs... args) {
   CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime0(function_id, context);
+  Node* return_value = raw_assembler()->CallRuntime(function, context, args...);
   CallEpilogue();
   return return_value;
 }
 
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1) {
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime1(function_id, arg1, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2) {
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime2(function_id, arg1, arg2, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2, Node* arg3) {
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime3(function_id, arg1, arg2, arg3, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2, Node* arg3,
-                                 Node* arg4) {
-  CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime4(function_id, arg1, arg2,
-                                                     arg3, arg4, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                                 Node* arg5) {
-  CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime5(function_id, arg1, arg2,
-                                                     arg3, arg4, arg5, context);
-  CallEpilogue();
-  return return_value;
-}
+// Instantiate CallRuntime() with up to 5 arguments.
+#define INSTANTIATE(...)                                       \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::CallRuntime( \
+      Runtime::FunctionId, __VA_ARGS__);
+REPEAT_1_TO_6(INSTANTIATE, Node*)
+#undef INSTANTIATE
 
 Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* context) {
