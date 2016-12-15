@@ -45,7 +45,7 @@ WASM_EXEC_TEST(I32x4Splat) {
   //   return 0
   //
   // return 1
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+  WasmRunner<int32_t> r(kExecuteCompiled, MachineType::Int32());
   byte lane_val = 0;
   byte simd = r.AllocateLocal(kAstS128);
   BUILD(r, WASM_BLOCK(WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(
@@ -58,7 +58,8 @@ WASM_EXEC_TEST(I32x4Splat) {
 
 WASM_EXEC_TEST(I32x4ReplaceLane) {
   FLAG_wasm_simd_prototype = true;
-  WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
+  WasmRunner<int32_t> r(kExecuteCompiled, MachineType::Int32(),
+                        MachineType::Int32());
   byte old_val = 0;
   byte new_val = 1;
   byte simd = r.AllocateLocal(kAstS128);
@@ -91,7 +92,8 @@ WASM_EXEC_TEST(I32x4ReplaceLane) {
 
 WASM_EXEC_TEST(I32x4Add) {
   FLAG_wasm_simd_prototype = true;
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
+  WasmRunner<int32_t> r(kExecuteCompiled, MachineType::Int32(),
+                        MachineType::Int32(), MachineType::Int32());
   byte a = 0;
   byte b = 1;
   byte expected = 2;
@@ -113,7 +115,8 @@ WASM_EXEC_TEST(I32x4Add) {
 
 WASM_EXEC_TEST(I32x4Sub) {
   FLAG_wasm_simd_prototype = true;
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
+  WasmRunner<int32_t> r(kExecuteCompiled, MachineType::Int32(),
+                        MachineType::Int32(), MachineType::Int32());
   byte a = 0;
   byte b = 1;
   byte expected = 2;

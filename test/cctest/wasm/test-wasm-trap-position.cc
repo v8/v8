@@ -62,15 +62,17 @@ void CheckExceptionInfos(Handle<Object> exc,
 
 // Trigger a trap for executing unreachable.
 TEST(Unreachable) {
-  WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
+  TestingModule module;
+
+  WasmFunctionCompiler comp1(sigs.v_v(), &module,
+                             ArrayVector("exec_unreachable"));
   // Set the execution context, such that a runtime error can be thrown.
-  r.SetModuleContext();
+  comp1.SetModuleContext();
+  BUILD(comp1, WASM_UNREACHABLE);
+  uint32_t wasm_index = comp1.CompileAndAdd();
 
-  BUILD(r, WASM_UNREACHABLE);
-  uint32_t wasm_index = r.function()->func_index;
-
-  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index);
+  Handle<JSFunction> js_wasm_wrapper = module.WrapCode(wasm_index);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -96,22 +98,23 @@ TEST(Unreachable) {
 
 // Trigger a trap for loading from out-of-bounds.
 TEST(IllegalLoad) {
-  WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
+  TestingModule module;
+
+  WasmFunctionCompiler comp1(sigs.v_v(), &module, ArrayVector("mem_oob"));
   // Set the execution context, such that a runtime error can be thrown.
-  r.SetModuleContext();
+  comp1.SetModuleContext();
+  BUILD(comp1, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
+                                                        WASM_I32V_1(-3)),
+                                          WASM_DROP)));
+  uint32_t wasm_index = comp1.CompileAndAdd();
 
-  BUILD(r, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
-                                                    WASM_I32V_1(-3)),
-                                      WASM_DROP)));
-  uint32_t wasm_index_1 = r.function()->func_index;
-
-  WasmFunctionCompiler& f2 = r.NewFunction<void>();
+  WasmFunctionCompiler comp2(sigs.v_v(), &module, ArrayVector("call_mem_oob"));
   // Insert a NOP such that the position of the call is not one.
-  BUILD(f2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1));
-  uint32_t wasm_index_2 = f2.function_index();
+  BUILD(comp2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index));
+  uint32_t wasm_index_2 = comp2.CompileAndAdd();
 
-  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = module.WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -129,7 +132,7 @@ TEST(IllegalLoad) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_1) + 1, 8},  // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 8},    // --
       {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 3},  // --
       {"callFn", 1, 24}                                           // --
   };
