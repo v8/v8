@@ -154,6 +154,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
     function_literal_id_ = function_literal_id;
   }
 
+  int max_function_literal_id() const { return max_function_literal_id_; }
+  void set_max_function_literal_id(int max_function_literal_id) {
+    max_function_literal_id_ = max_function_literal_id;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   bool requires_class_field_init() const;
@@ -236,6 +241,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int start_position_;
   int end_position_;
   int function_literal_id_;
+  int max_function_literal_id_;
 
   // TODO(titzer): Move handles and isolate out of ParseInfo.
   Isolate* isolate_;

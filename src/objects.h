@@ -7127,7 +7127,7 @@ class Script: public Struct {
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, Object)
+  DECL_ACCESSORS(shared_function_infos, FixedArray)
 
   // [flags]: Holds an exciting bitfield.
   DECL_INT_ACCESSORS(flags)
@@ -7212,7 +7212,8 @@ class Script: public Struct {
 
   // Look through the list of existing shared function infos to find one
   // that matches the function literal.  Return empty handle if not found.
-  MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(FunctionLiteral* fun);
+  MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(Isolate* isolate,
+                                                         FunctionLiteral* fun);
 
   // Iterate over all script objects on the heap.
   class Iterator {
@@ -7740,9 +7741,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that the the shared function info is deserialized from cache.
   DECL_BOOLEAN_ACCESSORS(deserialized)
 
-  // Indicates that the the shared function info has never been compiled before.
-  DECL_BOOLEAN_ACCESSORS(never_compiled)
-
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
@@ -7830,19 +7828,35 @@ class SharedFunctionInfo: public HeapObject {
 
   void ResetForNewContext(int new_ic_age);
 
-  // Iterate over all shared function infos.
-  class Iterator {
+  // Iterate over all shared function infos in a given script.
+  class ScriptIterator {
    public:
-    explicit Iterator(Isolate* isolate);
+    explicit ScriptIterator(Handle<Script> script);
+    ScriptIterator(Isolate* isolate, Handle<FixedArray> shared_function_infos);
+    SharedFunctionInfo* Next();
+
+    // Reset the iterator to run on |script|.
+    void Reset(Handle<Script> script);
+
+   private:
+    Isolate* isolate_;
+    Handle<FixedArray> shared_function_infos_;
+    int index_;
+    DISALLOW_COPY_AND_ASSIGN(ScriptIterator);
+  };
+
+  // Iterate over all shared function infos on the heap.
+  class GlobalIterator {
+   public:
+    explicit GlobalIterator(Isolate* isolate);
     SharedFunctionInfo* Next();
 
    private:
-    bool NextScript();
-
     Script::Iterator script_iterator_;
-    WeakFixedArray::Iterator sfi_iterator_;
+    WeakFixedArray::Iterator noscript_sfi_iterator_;
+    SharedFunctionInfo::ScriptIterator sfi_iterator_;
     DisallowHeapAllocation no_gc_;
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
+    DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
   };
 
   DECLARE_CAST(SharedFunctionInfo)
@@ -8002,7 +8016,7 @@ class SharedFunctionInfo: public HeapObject {
     kAllowLazyCompilation,
     kMarkedForTierUp,
     kOptimizationDisabled,
-    kNeverCompiled,
+    kIsClassFieldInitializer,
     kNative,
     kStrictModeFunction,
     kUsesArguments,
@@ -8024,7 +8038,6 @@ class SharedFunctionInfo: public HeapObject {
     kIsDeclaration,
     kIsAsmWasmBroken,
     kRequiresClassFieldInit,
-    kIsClassFieldInitializer,
     kCompilerHintsCount,  // Pseudo entry
   };
   // kFunctionKind has to be byte-aligned
