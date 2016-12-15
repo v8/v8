@@ -433,6 +433,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "deoptimize";
     case kFlags_set:
       return os << "set";
+    case kFlags_trap:
+      return os << "trap";
   }
   UNREACHABLE();
   return os;

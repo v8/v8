@@ -926,13 +926,21 @@ namespace internal {
   F(IsSharedIntegerTypedArray, 1, 1)         \
   F(IsSharedInteger32TypedArray, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F) \
-  F(WasmGrowMemory, 1, 1)          \
-  F(WasmMemorySize, 0, 1)          \
-  F(ThrowWasmError, 2, 1)          \
-  F(WasmThrowTypeError, 0, 1)      \
-  F(WasmThrow, 2, 1)               \
-  F(WasmGetCaughtExceptionValue, 1, 1)
+#define FOR_EACH_INTRINSIC_WASM(F)           \
+  F(WasmGrowMemory, 1, 1)                    \
+  F(WasmMemorySize, 0, 1)                    \
+  F(ThrowWasmError, 2, 1)                    \
+  F(WasmThrowTypeError, 0, 1)                \
+  F(WasmThrow, 2, 1)                         \
+  F(WasmGetCaughtExceptionValue, 1, 1)       \
+  F(ThrowWasmTrapUnreachable, 0, 1)          \
+  F(ThrowWasmTrapMemOutOfBounds, 0, 1)       \
+  F(ThrowWasmTrapDivByZero, 0, 1)            \
+  F(ThrowWasmTrapDivUnrepresentable, 0, 1)   \
+  F(ThrowWasmTrapRemByZero, 0, 1)            \
+  F(ThrowWasmTrapFloatUnrepresentable, 0, 1) \
+  F(ThrowWasmTrapFuncInvalid, 0, 1)          \
+  F(ThrowWasmTrapFuncSigMismatch, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -1016,14 +1024,13 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 
 class Runtime : public AllStatic {
  public:
-  enum FunctionId {
+  enum FunctionId : int32_t {
 #define F(name, nargs, ressize) k##name,
 #define I(name, nargs, ressize) kInline##name,
-  FOR_EACH_INTRINSIC(F)
-  FOR_EACH_INTRINSIC(I)
+    FOR_EACH_INTRINSIC(F) FOR_EACH_INTRINSIC(I)
 #undef I
 #undef F
-    kNumFunctions,
+        kNumFunctions,
   };
 
   enum IntrinsicType { RUNTIME, INLINE };

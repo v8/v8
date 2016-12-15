@@ -284,6 +284,11 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kDeoptimize:
     case IrOpcode::kReturn:
     case IrOpcode::kThrow:

@@ -1702,6 +1702,10 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ B(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  UNREACHABLE();
+}
 
 // Assemble boolean materializations after this instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,

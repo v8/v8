@@ -2546,6 +2546,10 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
+void InstructionSelector::VisitTrapIf(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitTrapUnless(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   Arm64OperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));

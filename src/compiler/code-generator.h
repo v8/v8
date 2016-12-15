@@ -70,6 +70,12 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   void AddProtectedInstruction(int instr_offset, int landing_offset);
 
+  void AssembleSourcePosition(Instruction* instr);
+
+  // Record a safepoint with the given pointer map.
+  void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
+                       int arguments, Safepoint::DeoptMode deopt_mode);
+
  private:
   MacroAssembler* masm() { return &masm_; }
   GapResolver* resolver() { return &resolver_; }
@@ -87,10 +93,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   // assembling code, in which case, a fall-through can be used.
   bool IsNextInAssemblyOrder(RpoNumber block) const;
 
-  // Record a safepoint with the given pointer map.
-  void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
-                       int arguments, Safepoint::DeoptMode deopt_mode);
-
   // Check if a heap object can be materialized by loading from a heap root,
   // which is cheaper on some platforms than materializing the actual heap
   // object constant.
@@ -105,7 +107,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Assemble code for the specified instruction.
   CodeGenResult AssembleInstruction(Instruction* instr,
                                     const InstructionBlock* block);
-  void AssembleSourcePosition(Instruction* instr);
   void AssembleGaps(Instruction* instr);
 
   // Returns true if a instruction is a tail call that needs to adjust the stack
@@ -121,6 +122,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
+  void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 

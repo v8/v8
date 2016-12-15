@@ -417,12 +417,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   if (instr->IsJump() && block->must_deconstruct_frame()) {
     AssembleDeconstructFrame();
   }
-  AssembleSourcePosition(instr);
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  if (mode != kFlags_trap) {
+    AssembleSourcePosition(instr);
+  }
   // Assemble architecture-specific code for the instruction.
   CodeGenResult result = AssembleArchInstruction(instr);
   if (result != kSuccess) return result;
 
-  FlagsMode mode = FlagsModeField::decode(instr->opcode());
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
     case kFlags_branch: {
@@ -472,6 +474,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_set: {
       // Assemble a boolean materialization after this instruction.
       AssembleArchBoolean(instr, condition);
+      break;
+    }
+    case kFlags_trap: {
+      AssembleArchTrap(instr, condition);
       break;
     }
     case kFlags_none: {

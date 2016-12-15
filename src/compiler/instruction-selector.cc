@@ -127,7 +127,6 @@ void InstructionSelector::AddInstruction(Instruction* instr) {
   }
 }
 
-
 Instruction* InstructionSelector::Emit(InstructionCode opcode,
                                        InstructionOperand output,
                                        size_t temp_count,
@@ -819,6 +818,13 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
 }
 
+bool InstructionSelector::IsSourcePositionUsed(Node* node) {
+  return (source_position_mode_ == kAllSourcePositions ||
+          node->opcode() == IrOpcode::kCall ||
+          node->opcode() == IrOpcode::kTrapIf ||
+          node->opcode() == IrOpcode::kTrapUnless);
+}
+
 void InstructionSelector::VisitBlock(BasicBlock* block) {
   DCHECK(!current_block_);
   current_block_ = block;
@@ -860,9 +866,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (instructions_.size() == current_node_end) continue;
     // Mark source position on first instruction emitted.
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
-    if (source_position.IsKnown() &&
-        (source_position_mode_ == kAllSourcePositions ||
-         node->opcode() == IrOpcode::kCall)) {
+    if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
       sequence()->SetSourcePosition(instructions_[current_node_end],
                                     source_position);
     }
@@ -1036,6 +1040,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
+    case IrOpcode::kTrapIf:
+      return VisitTrapIf(node);
+    case IrOpcode::kTrapUnless:
+      return VisitTrapUnless(node);
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:

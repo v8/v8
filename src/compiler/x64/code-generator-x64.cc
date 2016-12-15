@@ -2226,6 +2226,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   return kSuccess;
 }  // NOLINT(readability/fn_size)
 
+namespace {
+
+Condition FlagsConditionToCondition(FlagsCondition condition) {
+  switch (condition) {
+    case kUnorderedEqual:
+    case kEqual:
+      return equal;
+    case kUnorderedNotEqual:
+    case kNotEqual:
+      return not_equal;
+    case kSignedLessThan:
+      return less;
+    case kSignedGreaterThanOrEqual:
+      return greater_equal;
+    case kSignedLessThanOrEqual:
+      return less_equal;
+    case kSignedGreaterThan:
+      return greater;
+    case kUnsignedLessThan:
+      return below;
+    case kUnsignedGreaterThanOrEqual:
+      return above_equal;
+    case kUnsignedLessThanOrEqual:
+      return below_equal;
+    case kUnsignedGreaterThan:
+      return above;
+    case kOverflow:
+      return overflow;
+    case kNotOverflow:
+      return no_overflow;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return no_condition;
+}
+
+}  // namespace
 
 // Assembles branches after this instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
@@ -2234,53 +2272,13 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
       branch->fallthru ? Label::kNear : Label::kFar;
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
-  switch (branch->condition) {
-    case kUnorderedEqual:
-      __ j(parity_even, flabel, flabel_distance);
-    // Fall through.
-    case kEqual:
-      __ j(equal, tlabel);
-      break;
-    case kUnorderedNotEqual:
-      __ j(parity_even, tlabel);
-    // Fall through.
-    case kNotEqual:
-      __ j(not_equal, tlabel);
-      break;
-    case kSignedLessThan:
-      __ j(less, tlabel);
-      break;
-    case kSignedGreaterThanOrEqual:
-      __ j(greater_equal, tlabel);
-      break;
-    case kSignedLessThanOrEqual:
-      __ j(less_equal, tlabel);
-      break;
-    case kSignedGreaterThan:
-      __ j(greater, tlabel);
-      break;
-    case kUnsignedLessThan:
-      __ j(below, tlabel);
-      break;
-    case kUnsignedGreaterThanOrEqual:
-      __ j(above_equal, tlabel);
-      break;
-    case kUnsignedLessThanOrEqual:
-      __ j(below_equal, tlabel);
-      break;
-    case kUnsignedGreaterThan:
-      __ j(above, tlabel);
-      break;
-    case kOverflow:
-      __ j(overflow, tlabel);
-      break;
-    case kNotOverflow:
-      __ j(no_overflow, tlabel);
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  if (branch->condition == kUnorderedEqual) {
+    __ j(parity_even, flabel, flabel_distance);
+  } else if (branch->condition == kUnorderedNotEqual) {
+    __ j(parity_even, tlabel);
   }
+  __ j(FlagsConditionToCondition(branch->condition), tlabel);
+
   if (!branch->fallthru) __ jmp(flabel, flabel_distance);
 }
 
@@ -2289,6 +2287,71 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  class OutOfLineTrap final : public OutOfLineCode {
+   public:
+    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
+        : OutOfLineCode(gen),
+          frame_elided_(frame_elided),
+          instr_(instr),
+          gen_(gen) {}
+
+    void Generate() final {
+      X64OperandConverter i(gen_, instr_);
+
+      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
+          i.InputInt32(instr_->InputCount() - 1));
+      bool old_has_frame = __ has_frame();
+      if (frame_elided_) {
+        __ set_has_frame(true);
+        __ EnterFrame(StackFrame::WASM);
+      }
+      GenerateCallToTrap(trap_id);
+      if (frame_elided_) {
+        __ set_has_frame(old_has_frame);
+      }
+      if (FLAG_debug_code) {
+        __ ud2();
+      }
+    }
+
+   private:
+    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
+      if (trap_id == Runtime::kNumFunctions) {
+        // We cannot test calls to the runtime in cctest/test-run-wasm.
+        // Therefore we emit a call to C here instead of a call to the runtime.
+        __ PrepareCallCFunction(0);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
+            0);
+      } else {
+        __ Move(rsi, isolate()->native_context());
+        gen_->AssembleSourcePosition(instr_);
+        __ CallRuntime(trap_id);
+      }
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+    }
+
+    bool frame_elided_;
+    Instruction* instr_;
+    CodeGenerator* gen_;
+  };
+  bool frame_elided = !frame_access_state()->has_frame();
+  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  Label* tlabel = ool->entry();
+  Label end;
+  if (condition == kUnorderedEqual) {
+    __ j(parity_even, &end);
+  } else if (condition == kUnorderedNotEqual) {
+    __ j(parity_even, tlabel);
+  }
+  __ j(FlagsConditionToCondition(condition), tlabel);
+  __ bind(&end);
+}
 
 // Assembles boolean materializations after this instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
@@ -2301,60 +2364,17 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Label check;
   DCHECK_NE(0u, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
-  Condition cc = no_condition;
-  switch (condition) {
-    case kUnorderedEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(0));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
-    case kEqual:
-      cc = equal;
-      break;
-    case kUnorderedNotEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(1));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
-    case kNotEqual:
-      cc = not_equal;
-      break;
-    case kSignedLessThan:
-      cc = less;
-      break;
-    case kSignedGreaterThanOrEqual:
-      cc = greater_equal;
-      break;
-    case kSignedLessThanOrEqual:
-      cc = less_equal;
-      break;
-    case kSignedGreaterThan:
-      cc = greater;
-      break;
-    case kUnsignedLessThan:
-      cc = below;
-      break;
-    case kUnsignedGreaterThanOrEqual:
-      cc = above_equal;
-      break;
-    case kUnsignedLessThanOrEqual:
-      cc = below_equal;
-      break;
-    case kUnsignedGreaterThan:
-      cc = above;
-      break;
-    case kOverflow:
-      cc = overflow;
-      break;
-    case kNotOverflow:
-      cc = no_overflow;
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  if (condition == kUnorderedEqual) {
+    __ j(parity_odd, &check, Label::kNear);
+    __ movl(reg, Immediate(0));
+    __ jmp(&done, Label::kNear);
+  } else if (condition == kUnorderedNotEqual) {
+    __ j(parity_odd, &check, Label::kNear);
+    __ movl(reg, Immediate(1));
+    __ jmp(&done, Label::kNear);
   }
   __ bind(&check);
-  __ setcc(cc, reg);
+  __ setcc(FlagsConditionToCondition(condition), reg);
   __ movzxbl(reg, reg);
   __ bind(&done);
 }

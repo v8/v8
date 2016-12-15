@@ -25,6 +25,8 @@
   V(Deoptimize)            \
   V(DeoptimizeIf)          \
   V(DeoptimizeUnless)      \
+  V(TrapIf)                \
+  V(TrapUnless)            \
   V(Return)                \
   V(TailCall)              \
   V(Terminate)             \

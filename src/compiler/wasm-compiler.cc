@@ -168,21 +168,60 @@ class WasmTrapHelper : public ZoneObject {
     return TrapIfEq64(reason, node, 0, position);
   }
 
+  int32_t GetFunctionIdForTrap(wasm::TrapReason reason) {
+    int32_t trap_id;
+    if (builder_->module_ && !builder_->module_->instance->context.is_null()) {
+      trap_id = wasm::WasmOpcodes::TrapReasonToFunctionId(reason);
+    } else {
+      // We use Runtime::kNumFunctions as a marker to tell the code generator
+      // to generate a call to a testing c-function instead of a runtime
+      // function. This code should only be called from a cctest.
+      trap_id = Runtime::kNumFunctions;
+    }
+    return trap_id;
+  }
+
+#if V8_TARGET_ARCH_X64
+#define WASM_TRAP_IF_SUPPORTED
+#endif
+
   // Add a trap if {cond} is true.
   void AddTrapIfTrue(wasm::TrapReason reason, Node* cond,
                      wasm::WasmCodePosition position) {
-    AddTrapIf(reason, cond, true, position);
+#ifdef WASM_TRAP_IF_SUPPORTED
+    if (FLAG_wasm_trap_if) {
+      int32_t trap_id = GetFunctionIdForTrap(reason);
+      Node* node = graph()->NewNode(common()->TrapIf(trap_id), cond,
+                                    builder_->Effect(), builder_->Control());
+      *builder_->control_ = node;
+      builder_->SetSourcePosition(node, position);
+      return;
+    }
+#endif  // V8_TARGET_ARCH_X64
+    BuildTrapIf(reason, cond, true, position);
   }
 
   // Add a trap if {cond} is false.
   void AddTrapIfFalse(wasm::TrapReason reason, Node* cond,
                       wasm::WasmCodePosition position) {
-    AddTrapIf(reason, cond, false, position);
+#ifdef WASM_TRAP_IF_SUPPORTED
+    if (FLAG_wasm_trap_if) {
+      int32_t trap_id = GetFunctionIdForTrap(reason);
+
+      Node* node = graph()->NewNode(common()->TrapUnless(trap_id), cond,
+                                    builder_->Effect(), builder_->Control());
+      *builder_->control_ = node;
+      builder_->SetSourcePosition(node, position);
+      return;
+    }
+#endif  // V8_TARGET_ARCH_X64
+
+    BuildTrapIf(reason, cond, false, position);
   }
 
   // Add a trap if {cond} is true or false according to {iftrue}.
-  void AddTrapIf(wasm::TrapReason reason, Node* cond, bool iftrue,
-                 wasm::WasmCodePosition position) {
+  void BuildTrapIf(wasm::TrapReason reason, Node* cond, bool iftrue,
+                   wasm::WasmCodePosition position) {
     Node** effect_ptr = builder_->effect_;
     Node** control_ptr = builder_->control_;
     Node* before = *effect_ptr;
@@ -2090,6 +2129,8 @@ Node* WasmGraphBuilder::BuildI64RemS(Node* left, Node* right,
   Diamond d(jsgraph()->graph(), jsgraph()->common(),
             graph()->NewNode(jsgraph()->machine()->Word64Equal(), right,
                              jsgraph()->Int64Constant(-1)));
+
+  d.Chain(*control_);
 
   Node* rem = graph()->NewNode(jsgraph()->machine()->Int64Mod(), left, right,
                                d.if_false);

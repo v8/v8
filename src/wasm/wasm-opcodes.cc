@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-opcodes.h"
 #include "src/messages.h"
+#include "src/runtime/runtime.h"
 #include "src/signature.h"
 
 namespace v8 {
@@ -172,6 +173,19 @@ int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
 #undef TRAPREASON_TO_MESSAGE
     default:
       return MessageTemplate::kNone;
+  }
+}
+
+int32_t WasmOpcodes::TrapReasonToFunctionId(TrapReason reason) {
+  switch (reason) {
+#define TRAPREASON_TO_MESSAGE(name) \
+  case k##name:                     \
+    return static_cast<int32_t>(Runtime::kThrowWasm##name);
+    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
+#undef TRAPREASON_TO_MESSAGE
+    default:
+      UNREACHABLE();
+      return -1;
   }
 }
 

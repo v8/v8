@@ -32,6 +32,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kFlags_branch:
       case kFlags_deoptimize:
       case kFlags_set:
+      case kFlags_trap:
         return SetCC;
       case kFlags_none:
         return LeaveCC;
@@ -1590,6 +1591,10 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  UNREACHABLE();
+}
 
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,

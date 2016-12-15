@@ -512,8 +512,7 @@ enum WasmOpcode {
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncInvalid)               \
-  V(TrapFuncSigMismatch)           \
-  V(TrapInvalidIndex)
+  V(TrapFuncSigMismatch)
 
 enum TrapReason {
 #define DECLARE_ENUM(name) k##name,
@@ -534,6 +533,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
 
   static int TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
+  static int32_t TrapReasonToFunctionId(TrapReason reason);
 
   static byte MemSize(MachineType type) {
     return 1 << ElementSizeLog2Of(type.representation());

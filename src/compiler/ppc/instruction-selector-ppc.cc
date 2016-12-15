@@ -1787,6 +1787,10 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 
+void InstructionSelector::VisitTrapIf(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitTrapUnless(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   PPCOperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));

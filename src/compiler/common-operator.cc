@@ -330,6 +330,21 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(WrongInstanceType)                   \
   V(WrongMap)
 
+#define CACHED_TRAP_IF_LIST(V) \
+  V(TrapDivUnrepresentable)    \
+  V(TrapFloatUnrepresentable)
+
+// The reason for a trap.
+#define CACHED_TRAP_UNLESS_LIST(V) \
+  V(TrapUnreachable)               \
+  V(TrapMemOutOfBounds)            \
+  V(TrapDivByZero)                 \
+  V(TrapDivUnrepresentable)        \
+  V(TrapRemByZero)                 \
+  V(TrapFloatUnrepresentable)      \
+  V(TrapFuncInvalid)               \
+  V(TrapFuncSigMismatch)
+
 #define CACHED_PARAMETER_LIST(V) \
   V(0)                           \
   V(1)                           \
@@ -529,6 +544,38 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
+  template <int32_t trap_id>
+  struct TrapIfOperator final : public Operator1<int32_t> {
+    TrapIfOperator()
+        : Operator1<int32_t>(                            // --
+              IrOpcode::kTrapIf,                         // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // properties
+              "TrapIf",                                  // name
+              1, 1, 1, 0, 0, 1,                          // counts
+              trap_id) {}                                // parameter
+  };
+#define CACHED_TRAP_IF(Trap)                                      \
+  TrapIfOperator<static_cast<int32_t>(Runtime::kThrowWasm##Trap)> \
+      kTrapIf##Trap##Operator;
+  CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
+#undef CACHED_TRAP_IF
+
+  template <int32_t trap_id>
+  struct TrapUnlessOperator final : public Operator1<int32_t> {
+    TrapUnlessOperator()
+        : Operator1<int32_t>(                            // --
+              IrOpcode::kTrapUnless,                     // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // properties
+              "TrapUnless",                              // name
+              1, 1, 1, 0, 0, 1,                          // counts
+              trap_id) {}                                // parameter
+  };
+#define CACHED_TRAP_UNLESS(Trap)                                      \
+  TrapUnlessOperator<static_cast<int32_t>(Runtime::kThrowWasm##Trap)> \
+      kTrapUnless##Trap##Operator;
+  CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
+#undef CACHED_TRAP_UNLESS
+
   template <MachineRepresentation kRep, int kInputCount>
   struct PhiOperator final : public Operator1<MachineRepresentation> {
     PhiOperator()
@@ -727,6 +774,43 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       reason);                                      // parameter
 }
 
+const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
+  switch (trap_id) {
+#define CACHED_TRAP_IF(Trap)      \
+  case Runtime::kThrowWasm##Trap: \
+    return &cache_.kTrapIf##Trap##Operator;
+    CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
+#undef CACHED_TRAP_IF
+    default:
+      break;
+  }
+  // Uncached
+  return new (zone()) Operator1<int>(            // --
+      IrOpcode::kTrapIf,                         // opcode
+      Operator::kFoldable | Operator::kNoThrow,  // properties
+      "TrapIf",                                  // name
+      1, 1, 1, 0, 0, 1,                          // counts
+      trap_id);                                  // parameter
+}
+
+const Operator* CommonOperatorBuilder::TrapUnless(int32_t trap_id) {
+  switch (trap_id) {
+#define CACHED_TRAP_UNLESS(Trap)  \
+  case Runtime::kThrowWasm##Trap: \
+    return &cache_.kTrapUnless##Trap##Operator;
+    CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
+#undef CACHED_TRAP_UNLESS
+    default:
+      break;
+  }
+  // Uncached
+  return new (zone()) Operator1<int>(            // --
+      IrOpcode::kTrapUnless,                     // opcode
+      Operator::kFoldable | Operator::kNoThrow,  // properties
+      "TrapUnless",                              // name
+      1, 1, 1, 0, 0, 1,                          // counts
+      trap_id);                                  // parameter
+}
 
 const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
   return new (zone()) Operator(               // --

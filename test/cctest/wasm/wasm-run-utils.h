@@ -5,6 +5,7 @@
 #ifndef WASM_RUN_UTILS_H
 #define WASM_RUN_UTILS_H
 
+#include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
 #include "src/wasm/ast-decoder.h"
+#include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-macro-gen.h"
@@ -611,6 +613,12 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   }
 };
 
+template <typename ReturnType>
+union ReturnTypeUnion {
+  ReturnType value;
+  uint64_t trap;
+};
+
 // A helper class to build graphs from Wasm bytecode, generate machine
 // code, and run that code.
 template <typename ReturnType>
@@ -723,20 +731,39 @@ class WasmRunner {
     }
   }
 
+  static jmp_buf jump_buffer;
+  static int jump_value;
+  static ReturnTypeUnion<ReturnType> return_value;
+
+  template <typename P0, typename P1, typename P2, typename P3>
+  void DoCall(P0 p0, P1 p1, P2 p2, P3 p3) {
+    auto trap_callback = []() {
+      WasmRunner<ReturnType>::return_value.trap = 0xdeadbeefdeadbeef;
+      longjmp(WasmRunner<ReturnType>::jump_buffer, 1);
+    };
+    set_trap_callback_for_testing(trap_callback);
+    CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
+                               wrapper_.GetWrapperCode(), wrapper_.signature());
+
+    int32_t result = runner.Call<void*, void*, void*, void*, void*>(
+        &p0, &p1, &p2, &p3, &WasmRunner<ReturnType>::return_value.value);
+    CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
+  }
+
   template <typename P0, typename P1, typename P2, typename P3>
   ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
     if (interpret()) {
       WasmVal args[] = {WasmVal(p0), WasmVal(p1), WasmVal(p2), WasmVal(p3)};
       return CallInterpreter(ArrayVector(args));
     } else {
-      CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
-                                 wrapper_.GetWrapperCode(),
-                                 wrapper_.signature());
-      ReturnType return_value;
-      int32_t result = runner.Call<void*, void*, void*, void*, void*>(
-          &p0, &p1, &p2, &p3, &return_value);
-      CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
-      return return_value;
+      // Use setjmp/longjmp to deal with traps in WebAssembly code.
+      WasmRunner<ReturnType>::jump_value =
+          setjmp(WasmRunner<ReturnType>::jump_buffer);
+      if (!WasmRunner<ReturnType>::jump_value) {
+        DoCall(p0, p1, p2, p3);
+      }
+      set_trap_callback_for_testing(nullptr);
+      return WasmRunner<ReturnType>::return_value.value;
     }
   }
 
@@ -789,10 +816,30 @@ class WasmRunner {
   }
 };
 
+template <typename ReturnType>
+jmp_buf WasmRunner<ReturnType>::jump_buffer;
+template <typename ReturnType>
+int WasmRunner<ReturnType>::jump_value;
+template <typename ReturnType>
+ReturnTypeUnion<ReturnType> WasmRunner<ReturnType>::return_value;
+
 // A macro to define tests that run in different engine configurations.
 #define WASM_EXEC_TEST(name)                                               \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
   TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
+  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
+
+#define WASM_EXEC_TEST_WITH_TRAP(name)                                     \
+  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
+  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
+  TEST(RunWasmCompiledWithTrapIf_##name) {                                 \
+    bool trap_if = FLAG_wasm_trap_if;                                      \
+    FLAG_wasm_trap_if = true;                                              \
+    RunWasm_##name(kExecuteCompiled);                                      \
+    FLAG_wasm_trap_if = trap_if;                                           \
+  }                                                                        \
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
