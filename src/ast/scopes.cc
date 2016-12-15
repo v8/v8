@@ -1946,6 +1946,7 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK_EQ(this, var->scope());
     if (uses_sloppy_arguments) {
       var->set_is_used();
+      var->set_maybe_assigned();
       var->ForceContextAllocation();
     }
     AllocateParameter(var, i);

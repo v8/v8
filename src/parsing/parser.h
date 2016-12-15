@@ -1066,19 +1066,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       auto mode = is_simple || parameter->is_rest ? VAR : TEMPORARY;
       if (!is_simple) scope->SetHasNonSimpleParameters();
       bool is_optional = parameter->initializer != nullptr;
-      Variable* var =
-          scope->DeclareParameter(name, mode, is_optional, parameter->is_rest,
-                                  &is_duplicate, ast_value_factory());
+      scope->DeclareParameter(name, mode, is_optional, parameter->is_rest,
+                              &is_duplicate, ast_value_factory());
       if (is_duplicate &&
           classifier()->is_valid_formal_parameter_list_without_duplicates()) {
         classifier()->RecordDuplicateFormalParameterError(
             scanner()->location());
-      }
-      if (is_sloppy(scope->language_mode())) {
-        // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-        // conservative approximation necessary to account for parameters
-        // that are assigned via the arguments array.
-        var->set_maybe_assigned();
       }
     }
   }
