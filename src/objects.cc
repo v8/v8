@@ -2177,31 +2177,36 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
 }
 
 bool Object::IterationHasObservableEffects() {
-  if (IsJSArray()) {
-    // Check that the spread arg has fast elements
-    JSArray* spread_array = JSArray::cast(this);
-    ElementsKind array_kind = spread_array->GetElementsKind();
-    Isolate* isolate = spread_array->GetIsolate();
+  // Check that this object is an array.
+  if (!IsJSArray()) return true;
+  JSArray* spread_array = JSArray::cast(this);
+  Isolate* isolate = spread_array->GetIsolate();
 
-    // And that it has the orignal ArrayPrototype
-    JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
-    Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
+  // Check that we have the original ArrayPrototype.
+  JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
+  if (!isolate->is_initial_array_prototype(array_proto)) return true;
 
-    // Check that the iterator acts as expected.
-    // If IsArrayIteratorLookupChainIntact(), then we know that the initial
-    // ArrayIterator is being used. If the map of the prototype has changed,
-    // then take the slow path.
-    if (isolate->is_initial_array_prototype(array_proto) &&
-        isolate->IsArrayIteratorLookupChainIntact() &&
-        isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
-      if (IsFastPackedElementsKind(array_kind)) {
-        return false;
-      }
-      if (IsFastHoleyElementsKind(array_kind) &&
-          isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-        return false;
-      }
-    }
+  // Check that the ArrayPrototype hasn't been modified in a way that would
+  // affect iteration.
+  if (!isolate->IsArrayIteratorLookupChainIntact()) return true;
+
+  // Check that the map of the initial array iterator hasn't changed.
+  Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
+  if (!isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
+    return true;
+  }
+
+  // For FastPacked kinds, iteration will have the same effect as simply
+  // accessing each property in order.
+  ElementsKind array_kind = spread_array->GetElementsKind();
+  if (IsFastPackedElementsKind(array_kind)) return false;
+
+  // For FastHoley kinds, an element access on a hole would cause a lookup on
+  // the prototype. This could have different results if the prototype has been
+  // changed.
+  if (IsFastHoleyElementsKind(array_kind) &&
+      isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+    return false;
   }
   return true;
 }
