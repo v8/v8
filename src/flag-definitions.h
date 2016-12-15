@@ -444,6 +444,9 @@ DEFINE_STRING(turbo_verify_machine_graph, nullptr,
 DEFINE_BOOL(csa_verify, DEBUG_BOOL,
             "verify TurboFan machine graph of code stubs")
 DEFINE_BOOL(trace_csa_verify, false, "trace code stubs verification")
+DEFINE_STRING(csa_trap_on_node, nullptr,
+              "trigger break point when a node with given id is created in "
+              "given stub. The format is: StubName,NodeId")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_stats_nvp, false,
             "print TurboFan statistics in machine-readable format")

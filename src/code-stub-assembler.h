@@ -53,8 +53,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
  public:
   typedef compiler::Node Node;
 
-  CodeStubAssembler(compiler::CodeAssemblerState* state)
-      : compiler::CodeAssembler(state) {}
+  CodeStubAssembler(compiler::CodeAssemblerState* state);
 
   enum AllocationFlag : uint8_t {
     kNone = 0,
@@ -1123,6 +1122,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
  private:
   friend class CodeStubArguments;
+
+  void HandleBreakOnNode();
 
   Node* AllocateRawAligned(Node* size_in_bytes, AllocationFlags flags,
                            Node* top_address, Node* limit_address);

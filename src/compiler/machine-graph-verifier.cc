@@ -275,8 +275,12 @@ class MachineRepresentationChecker {
  public:
   MachineRepresentationChecker(
       Schedule const* const schedule,
-      MachineRepresentationInferrer const* const inferrer, bool is_stub)
-      : schedule_(schedule), inferrer_(inferrer), is_stub_(is_stub) {}
+      MachineRepresentationInferrer const* const inferrer, bool is_stub,
+      const char* name)
+      : schedule_(schedule),
+        inferrer_(inferrer),
+        is_stub_(is_stub),
+        name_(name) {}
 
   void Run() {
     BasicBlockVector const* blocks = schedule_->all_blocks();
@@ -520,6 +524,7 @@ class MachineRepresentationChecker {
               std::stringstream str;
               str << "Node #" << node->id() << ":" << *node->op()
                   << " in the machine graph is not being checked.";
+              PrintDebugHelp(str, node);
               FATAL(str.str().c_str());
             }
             break;
@@ -549,6 +554,7 @@ class MachineRepresentationChecker {
           << " uses node #" << input->id() << ":" << *input->op() << ":"
           << input_representation << " which doesn't have a " << representation
           << " representation.";
+      PrintDebugHelp(str, node);
       FATAL(str.str().c_str());
     }
   }
@@ -567,6 +573,7 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a tagged representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
@@ -599,6 +606,7 @@ class MachineRepresentationChecker {
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << " uses node #" << input->id() << ":" << *input->op()
           << " which doesn't have a tagged or pointer representation.";
+      PrintDebugHelp(str, node);
       FATAL(str.str().c_str());
     }
   }
@@ -615,6 +623,7 @@ class MachineRepresentationChecker {
         std::ostringstream str;
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
+        PrintDebugHelp(str, node);
         FATAL(str.str().c_str());
         break;
       }
@@ -625,6 +634,7 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have an int32-compatible representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
@@ -639,6 +649,7 @@ class MachineRepresentationChecker {
         std::ostringstream str;
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
+        PrintDebugHelp(str, node);
         FATAL(str.str().c_str());
         break;
       }
@@ -651,6 +662,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op() << ":"
         << input_representation
         << " which doesn't have a kWord64 representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
@@ -664,6 +676,7 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat32 representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
@@ -677,6 +690,7 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat64 representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
@@ -703,6 +717,7 @@ class MachineRepresentationChecker {
       }
     }
     if (should_log_error) {
+      PrintDebugHelp(str, node);
       FATAL(str.str().c_str());
     }
   }
@@ -765,20 +780,28 @@ class MachineRepresentationChecker {
     return false;
   }
 
+  void PrintDebugHelp(std::ostream& out, Node const* node) {
+    if (DEBUG_BOOL) {
+      out << "\n#\n# Specify option --csa-trap-on-node=" << name_ << ","
+          << node->id() << " for debugging.";
+    }
+  }
+
   Schedule const* const schedule_;
   MachineRepresentationInferrer const* const inferrer_;
   bool is_stub_;
+  const char* name_;
 };
 
 }  // namespace
 
 void MachineGraphVerifier::Run(Graph* graph, Schedule const* const schedule,
-                               Linkage* linkage, bool is_stub,
+                               Linkage* linkage, bool is_stub, const char* name,
                                Zone* temp_zone) {
   MachineRepresentationInferrer representation_inferrer(schedule, graph,
                                                         linkage, temp_zone);
   MachineRepresentationChecker checker(schedule, &representation_inferrer,
-                                       is_stub);
+                                       is_stub, name);
   checker.Run();
 }
 

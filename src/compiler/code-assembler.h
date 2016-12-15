@@ -454,6 +454,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   CodeAssemblerState* state() { return state_; }
 
+  void BreakOnNode(int node_id);
+
  protected:
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
@@ -462,6 +464,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
  private:
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
+
+  void InstallBreakOnNodeDecorator();
 
   RawMachineAssembler* raw_assembler() const;
 
@@ -544,6 +548,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
                      Code::Flags flags, const char* name);
 
   ~CodeAssemblerState();
+
+  const char* name() const { return name_; }
 
  private:
   friend class CodeAssembler;

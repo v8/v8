@@ -65,6 +65,28 @@ CodeAssemblerState::~CodeAssemblerState() {}
 
 CodeAssembler::~CodeAssembler() {}
 
+class BreakOnNodeDecorator final : public GraphDecorator {
+ public:
+  explicit BreakOnNodeDecorator(NodeId node_id) : node_id_(node_id) {}
+
+  void Decorate(Node* node) final {
+    if (node->id() == node_id_) {
+      base::OS::DebugBreak();
+    }
+  }
+
+ private:
+  NodeId node_id_;
+};
+
+void CodeAssembler::BreakOnNode(int node_id) {
+  Graph* graph = raw_assembler()->graph();
+  Zone* zone = graph->zone();
+  GraphDecorator* decorator =
+      new (zone) BreakOnNodeDecorator(static_cast<NodeId>(node_id));
+  graph->AddDecorator(decorator);
+}
+
 void CodeAssembler::CallPrologue() {}
 
 void CodeAssembler::CallEpilogue() {}

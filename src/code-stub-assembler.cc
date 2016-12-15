@@ -11,6 +11,38 @@ namespace internal {
 
 using compiler::Node;
 
+CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
+    : compiler::CodeAssembler(state) {
+  if (DEBUG_BOOL && FLAG_csa_trap_on_node != nullptr) {
+    HandleBreakOnNode();
+  }
+}
+
+void CodeStubAssembler::HandleBreakOnNode() {
+  // FLAG_csa_trap_on_node should be in a form "STUB,NODE" where STUB is a
+  // string specifying the name of a stub and NODE is number specifying node id.
+  const char* name = state()->name();
+  size_t name_length = strlen(name);
+  if (strncmp(FLAG_csa_trap_on_node, name, name_length) != 0) {
+    // Different name.
+    return;
+  }
+  size_t option_length = strlen(FLAG_csa_trap_on_node);
+  if (option_length < name_length + 2 ||
+      FLAG_csa_trap_on_node[name_length] != ',') {
+    // Option is too short.
+    return;
+  }
+  const char* start = &FLAG_csa_trap_on_node[name_length + 1];
+  char* end;
+  int node_id = static_cast<int>(strtol(start, &end, 10));
+  if (start == end) {
+    // Bad node id.
+    return;
+  }
+  BreakOnNode(node_id);
+}
+
 void CodeStubAssembler::Assert(const NodeGenerator& codition_body,
                                const char* message, const char* file,
                                int line) {
