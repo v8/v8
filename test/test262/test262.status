@@ -360,12 +360,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5137
-  'annexB/built-ins/RegExp/prototype/compile/flags-undefined': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-distinct': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-same': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/pattern-undefined': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5139
   'annexB/built-ins/Date/prototype/setYear/time-clip': [FAIL],
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],

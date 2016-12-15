@@ -852,12 +852,9 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
     Bind(&next);
   }
 
-  RegExpInitialize(context, receiver, var_pattern.value(), var_flags.value());
-
-  // Return undefined for compatibility with JSC.
-  // See http://crbug.com/585775 for web compat details.
-
-  Return(UndefinedConstant());
+  Node* const result = RegExpInitialize(context, receiver, var_pattern.value(),
+                                        var_flags.value());
+  Return(result);
 }
 
 // ES6 21.2.5.10.
