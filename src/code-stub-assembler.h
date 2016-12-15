@@ -1096,8 +1096,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // provides a helper for certain init patterns.
   void PromiseSet(Node* promise, Node* status, Node* result);
 
-  Node* AllocatePromiseReactionJobInfo(Node* value, Node* tasks, Node* deferred,
-                                       Node* context);
+  Node* AllocatePromiseReactionJobInfo(Node* value, Node* promise, Node* tasks,
+                                       Node* deferred, Node* context);
 
  protected:
   void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,

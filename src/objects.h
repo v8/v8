@@ -6893,9 +6893,12 @@ class PromiseResolveThenableJobInfo : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobInfo);
 };
 
+class JSPromise;
+
 // Struct to hold state required for PromiseReactionJob.
 class PromiseReactionJobInfo : public Struct {
  public:
+  DECL_ACCESSORS(promise, JSPromise)
   DECL_ACCESSORS(value, Object)
   DECL_ACCESSORS(tasks, Object)
   DECL_ACCESSORS(deferred, Object)
@@ -6903,7 +6906,8 @@ class PromiseReactionJobInfo : public Struct {
   DECL_ACCESSORS(debug_name, Object)
   DECL_ACCESSORS(context, Context)
 
-  static const int kValueOffset = Struct::kHeaderSize;
+  static const int kPromiseOffset = Struct::kHeaderSize;
+  static const int kValueOffset = kPromiseOffset + kPointerSize;
   static const int kTasksOffset = kValueOffset + kPointerSize;
   static const int kDeferredOffset = kTasksOffset + kPointerSize;
   static const int kDebugIdOffset = kDeferredOffset + kPointerSize;

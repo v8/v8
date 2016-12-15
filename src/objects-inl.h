@@ -5746,6 +5746,7 @@ ACCESSORS(PromiseResolveThenableJobInfo, debug_id, Object, kDebugIdOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, debug_name, Object, kDebugNameOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
 
+ACCESSORS(PromiseReactionJobInfo, promise, JSPromise, kPromiseOffset);
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
 ACCESSORS(PromiseReactionJobInfo, deferred, Object, kDeferredOffset);

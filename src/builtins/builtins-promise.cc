@@ -500,8 +500,8 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
                     &reject);
 
       // TODO(gsathya): Move this to TF.
-      a->CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, result,
-                     var_on_resolve.value(), deferred,
+      a->CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise,
+                     result, var_on_resolve.value(), deferred,
                      a->SmiConstant(kPromiseFulfilled));
       a->Goto(&out);
 
@@ -517,8 +517,8 @@ compiler::Node* InternalPerformPromiseThen(CodeStubAssembler* a,
 
         a->Bind(&enqueue);
         {
-          a->CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, result,
-                         var_on_reject.value(), deferred,
+          a->CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise,
+                         result, var_on_reject.value(), deferred,
                          a->SmiConstant(kPromiseRejected));
 
           a->Goto(&out);
@@ -909,17 +909,17 @@ void Builtins::Generate_PromiseHandle(compiler::CodeAssemblerState* state) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* const value = a.Parameter(1);
-  Node* const handler = a.Parameter(2);
-  Node* const deferred = a.Parameter(3);
-  Node* const context = a.Parameter(6);
+  Node* const value = a.Parameter(2);
+  Node* const handler = a.Parameter(3);
+  Node* const deferred = a.Parameter(4);
+  Node* const context = a.Parameter(7);
   Isolate* isolate = a.isolate();
 
   // Get promise from deferred
   // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
   Callable getproperty_callable = CodeFactory::GetProperty(isolate);
   Node* const key = a.HeapConstant(isolate->factory()->promise_string());
-  Node* const promise =
+  Node* const deferred_promise =
       a.CallStub(getproperty_callable, context, deferred, key);
 
   Variable var_reason(&a, MachineRepresentation::kTagged);
@@ -931,7 +931,7 @@ void Builtins::Generate_PromiseHandle(compiler::CodeAssemblerState* state) {
 
   a.Bind(&debug_push);
   {
-    a.CallRuntime(Runtime::kDebugPushPromise, context, promise);
+    a.CallRuntime(Runtime::kDebugPushPromise, context, deferred_promise);
     a.Goto(&run_handler);
   }
 
@@ -953,7 +953,7 @@ void Builtins::Generate_PromiseHandle(compiler::CodeAssemblerState* state) {
     a.Branch(a.IsUndefined(on_resolve), &if_internalhandler, &if_customhandler);
 
     a.Bind(&if_internalhandler);
-    InternalResolvePromise(&a, context, promise, result, &debug_pop);
+    InternalResolvePromise(&a, context, deferred_promise, result, &debug_pop);
 
     a.Bind(&if_customhandler);
     {
@@ -972,7 +972,7 @@ void Builtins::Generate_PromiseHandle(compiler::CodeAssemblerState* state) {
         a.CallStub(getproperty_callable, context, deferred, key);
 
     Callable promise_handle_reject = CodeFactory::PromiseHandleReject(isolate);
-    a.CallStub(promise_handle_reject, context, promise, on_reject,
+    a.CallStub(promise_handle_reject, context, deferred_promise, on_reject,
                var_reason.value());
     a.Goto(&debug_pop);
   }

@@ -8273,12 +8273,12 @@ void CodeStubAssembler::PromiseSet(Node* promise, Node* status, Node* result) {
   StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
 }
 
-Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(Node* value,
-                                                        Node* tasks,
-                                                        Node* deferred,
-                                                        Node* context) {
+Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
+    Node* value, Node* promise, Node* tasks, Node* deferred, Node* context) {
   Node* const result = Allocate(PromiseReactionJobInfo::kSize);
   StoreMapNoWriteBarrier(result, Heap::kPromiseReactionJobInfoMapRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kPromiseOffset,
+                                 promise);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kValueOffset,
                                  value);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kTasksOffset,

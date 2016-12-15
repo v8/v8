@@ -1011,11 +1011,12 @@ Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
 }
 
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
-    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
-    Handle<Object> debug_id, Handle<Object> debug_name,
+    Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
+    Handle<Object> deferred, Handle<Object> debug_id, Handle<Object> debug_name,
     Handle<Context> context) {
   Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
       NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
+  result->set_promise(*promise);
   result->set_value(*value);
   result->set_tasks(*tasks);
   result->set_deferred(*deferred);

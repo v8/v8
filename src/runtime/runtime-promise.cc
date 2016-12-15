@@ -57,9 +57,9 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 }
 
 namespace {
-void EnqueuePromiseReactionJob(Isolate* isolate, Handle<Object> value,
-                               Handle<Object> tasks, Handle<Object> deferred,
-                               Handle<Object> status) {
+void EnqueuePromiseReactionJob(Isolate* isolate, Handle<JSPromise> promise,
+                               Handle<Object> value, Handle<Object> tasks,
+                               Handle<Object> deferred, Handle<Object> status) {
   Handle<Object> debug_id = isolate->factory()->undefined_value();
   Handle<Object> debug_name = isolate->factory()->undefined_value();
   if (isolate->debug()->is_active()) {
@@ -87,9 +87,9 @@ void EnqueuePromiseReactionJob(Isolate* isolate, Handle<Object> value,
     }
   }
   Handle<PromiseReactionJobInfo> info =
-      isolate->factory()->NewPromiseReactionJobInfo(value, tasks, deferred,
-                                                    debug_id, debug_name,
-                                                    isolate->native_context());
+      isolate->factory()->NewPromiseReactionJobInfo(
+          promise, value, tasks, deferred, debug_id, debug_name,
+          isolate->native_context());
   isolate->EnqueueMicrotask(info);
 }
 
@@ -111,7 +111,7 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
                              : promise->reject_reactions(),
                          isolate);
     Handle<Object> deferred(promise->deferred(), isolate);
-    EnqueuePromiseReactionJob(isolate, value, tasks, deferred, status);
+    EnqueuePromiseReactionJob(isolate, promise, value, tasks, deferred, status);
   }
 
   PromiseSet(isolate, promise, status->value(), value);
@@ -145,12 +145,13 @@ RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, tasks, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, deferred, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, status, 3);
-  EnqueuePromiseReactionJob(isolate, value, tasks, deferred, status);
+  DCHECK(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, tasks, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, deferred, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, status, 4);
+  EnqueuePromiseReactionJob(isolate, promise, value, tasks, deferred, status);
   return isolate->heap()->undefined_value();
 }
 

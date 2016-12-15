@@ -1897,13 +1897,14 @@ TEST(AllocatePromiseReactionJobInfo) {
   CodeStubAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
   Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred =
       m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(deferred, 0, m.UndefinedConstant());
-  Node* const info = m.AllocatePromiseReactionJobInfo(m.SmiConstant(1), tasks,
-                                                      deferred, context);
+  Node* const info = m.AllocatePromiseReactionJobInfo(m.SmiConstant(1), promise,
+                                                      tasks, deferred, context);
   m.Return(info);
 
   Handle<Code> code = data.GenerateCode();
@@ -1916,6 +1917,7 @@ TEST(AllocatePromiseReactionJobInfo) {
   Handle<PromiseReactionJobInfo> promise_info =
       Handle<PromiseReactionJobInfo>::cast(result);
   CHECK_EQ(Smi::FromInt(1), promise_info->value());
+  CHECK(promise_info->promise()->IsJSPromise());
   CHECK(promise_info->tasks()->IsFixedArray());
   CHECK(promise_info->deferred()->IsFixedArray());
   CHECK(promise_info->context()->IsContext());

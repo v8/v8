@@ -71,9 +71,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Create a new PromiseReactionJobInfo struct.
   Handle<PromiseReactionJobInfo> NewPromiseReactionJobInfo(
-      Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
-      Handle<Object> debug_id, Handle<Object> debug_name,
-      Handle<Context> context);
+      Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
+      Handle<Object> deferred, Handle<Object> debug_id,
+      Handle<Object> debug_name, Handle<Context> context);
 
   // Create a new PromiseResolveThenableJobInfo struct.
   Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(

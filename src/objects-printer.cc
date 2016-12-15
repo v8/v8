@@ -1242,6 +1242,7 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
 void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PromiseReactionJobInfo");
+  os << "\n - promise: " << Brief(promise());
   os << "\n - value: " << Brief(value());
   os << "\n - tasks: " << Brief(tasks());
   os << "\n - deferred: " << Brief(deferred());
