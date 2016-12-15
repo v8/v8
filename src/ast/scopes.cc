@@ -1536,6 +1536,19 @@ void Scope::Print(int n) {
     PrintVar(n1, function);
   }
 
+  // Print temporaries.
+  {
+    bool printed_header = false;
+    for (Variable* local : locals_) {
+      if (local->mode() != TEMPORARY) continue;
+      if (!printed_header) {
+        printed_header = true;
+        Indent(n1, "// temporary vars:\n");
+      }
+      PrintVar(n1, local);
+    }
+  }
+
   if (variables_.occupancy() > 0) {
     PrintMap(n1, "// local vars:\n", &variables_, true, function);
     PrintMap(n1, "// dynamic vars:\n", &variables_, false, function);
