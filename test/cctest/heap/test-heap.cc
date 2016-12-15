@@ -7025,5 +7025,37 @@ TEST(RememberedSetRemoveRange) {
   });
 }
 
+HEAP_TEST(Regress670675) {
+  if (!FLAG_incremental_marking) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
+  if (marking->IsStopped()) {
+    marking->Start(i::GarbageCollectionReason::kTesting);
+  }
+  size_t array_length = Page::kPageSize / kPointerSize + 100;
+  size_t n = heap->OldGenerationSpaceAvailable() / array_length;
+  for (size_t i = 0; i < n + 40; i++) {
+    {
+      HandleScope inner_scope(isolate);
+      isolate->factory()->NewFixedArray(static_cast<int>(array_length));
+    }
+    if (marking->IsStopped()) break;
+    double deadline = heap->MonotonicallyIncreasingTimeInMs() + 1;
+    marking->AdvanceIncrementalMarking(
+        deadline, IncrementalMarking::GC_VIA_STACK_GUARD,
+        IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
+  }
+  DCHECK(marking->IsStopped());
+}
+
 }  // namespace internal
 }  // namespace v8

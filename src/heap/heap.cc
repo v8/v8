@@ -264,6 +264,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
+  if (incremental_marking()->NeedsFinalization() &&
+      AllocationLimitOvershotByLargeMargin()) {
+    *reason = "Incremental marking needs finalization";
+    return MARK_COMPACTOR;
+  }
+
   // Is there enough space left in OLD to guarantee that a scavenge can
   // succeed?
   //
@@ -960,6 +966,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
       !ShouldFinalizeIncrementalMarking() && !ShouldAbortIncrementalMarking() &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
+      !incremental_marking()->NeedsFinalization() &&
       !IsCloseToOutOfMemory(new_space_->Capacity())) {
     if (!incremental_marking()->IsComplete() &&
         !mark_compact_collector()->marking_deque()->IsEmpty() &&
@@ -5302,11 +5309,15 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
 // major GC. It happens when the old generation allocation limit is reached and
 // - either we need to optimize for memory usage,
 // - or the incremental marking is not in progress and we cannot start it.
-bool Heap::ShouldExpandOldGenerationOnAllocationFailure() {
+bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
   if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
   // We reached the old generation allocation limit.
 
   if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (incremental_marking()->NeedsFinalization()) {
+    return !AllocationLimitOvershotByLargeMargin();
+  }
 
   if (incremental_marking()->IsStopped() &&
       IncrementalMarkingLimitReached() == IncrementalMarkingLimit::kNoLimit) {
