@@ -365,7 +365,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
  private:
   friend class BytecodeRegisterAllocator;
-  template <OperandType... operand_types>
+  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+            OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
   // Returns the current source position for the given |bytecode|.
@@ -393,7 +394,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  void PrepareToOutputBytecode(Bytecode bytecode);
+  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  void PrepareToOutputBytecode();
 
   void LeaveBasicBlock() { return_seen_in_block_ = false; }
 
