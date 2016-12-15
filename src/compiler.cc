@@ -1366,12 +1366,22 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
   }
 }
 
-bool ContainsAsmModule(Handle<Script> script) {
-  WeakFixedArray::Iterator iter(script->shared_function_infos());
-  DisallowHeapAllocation no_gc;
-
-  while (SharedFunctionInfo* info = iter.Next<SharedFunctionInfo>()) {
-    if (info->HasAsmWasmData()) return true;
+bool ContainsAsmModule(const Scope* scope, Zone* zone) {
+  DCHECK_NOT_NULL(scope);
+  DCHECK_NOT_NULL(zone);
+  ZoneQueue<const Scope*> worklist(zone);
+  // We assume scopes form a tree, so no need to check for cycles
+  worklist.push(scope);
+  while (!worklist.empty()) {
+    const Scope* s = worklist.front();
+    worklist.pop();
+    if (s->IsAsmModule()) {
+      return true;
+    }
+    for (const Scope* child = s->inner_scope(); child != nullptr;
+         child = child->sibling()) {
+      worklist.push(child);
+    }
   }
   return false;
 }
@@ -1518,7 +1528,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       compilation_cache->PutScript(source, context, language_mode, result);
       if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache &&
-          !ContainsAsmModule(script)) {
+          !ContainsAsmModule(info.scope(), &zone)) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
         RuntimeCallTimerScope runtimeTimer(isolate,
