@@ -105,7 +105,7 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 13
+frame size: 9
 parameter count: 1
 bytecode array length: 96
 bytecodes: [
@@ -120,17 +120,17 @@ bytecodes: [
   /*  140 E> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
                 B(Star), R(4),
                 B(LdaUndefined),
-                B(Star), R(7),
+                B(Star), R(5),
                 B(CreateArrayLiteral), U8(0), U8(0), U8(9),
-                B(Star), R(8),
+                B(Star), R(6),
                 B(LdaUndefined),
-                B(Star), R(11),
-                B(Mov), R(2), R(12),
-  /*  152 E> */ B(CallJSRuntime), U8(157), R(11), U8(2),
-                B(Star), R(9),
+                B(Star), R(7),
+                B(Mov), R(2), R(8),
+  /*  152 E> */ B(CallJSRuntime), U8(157), R(7), U8(2),
+                B(Star), R(7),
                 B(CreateArrayLiteral), U8(1), U8(1), U8(9),
-                B(Star), R(10),
-                B(CallJSRuntime), U8(156), R(7), U8(4),
+                B(Star), R(8),
+                B(CallJSRuntime), U8(156), R(5), U8(4),
                 B(Star), R(5),
                 B(Mov), R(0), R(6),
   /*  140 E> */ B(CallJSRuntime), U8(153), R(3), U8(4),
