@@ -1345,6 +1345,26 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
   }
 }
 
+bool ContainsAsmModule(const Scope* scope, Zone* zone) {
+  DCHECK_NOT_NULL(scope);
+  DCHECK_NOT_NULL(zone);
+  ZoneQueue<const Scope*> worklist(zone);
+  // We assume scopes form a tree, so no need to check for cycles
+  worklist.push(scope);
+  while (!worklist.empty()) {
+    const Scope* s = worklist.front();
+    worklist.pop();
+    if (s->IsAsmModule()) {
+      return true;
+    }
+    for (const Scope* child = s->inner_scope(); child != nullptr;
+         child = child->sibling()) {
+      worklist.push(child);
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
@@ -1486,7 +1506,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, context, language_mode, result);
       if (FLAG_serialize_toplevel &&
-          compile_options == ScriptCompiler::kProduceCodeCache) {
+          compile_options == ScriptCompiler::kProduceCodeCache &&
+          !ContainsAsmModule(info.scope(), &zone)) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
         RuntimeCallTimerScope runtimeTimer(isolate,
