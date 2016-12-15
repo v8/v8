@@ -1899,12 +1899,13 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
 }
 
 Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
-                                                 Node* elements) {
+                                                 Node* elements,
+                                                 AllocationFlags flags) {
   CSA_ASSERT(this, IsMap(map));
   Node* size =
       IntPtrMul(LoadMapInstanceSize(map), IntPtrConstant(kPointerSize));
   CSA_ASSERT(this, IsRegularHeapObjectSize(size));
-  Node* object = Allocate(size);
+  Node* object = Allocate(size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeJSObjectFromMap(object, map, size, properties, elements);
   return object;

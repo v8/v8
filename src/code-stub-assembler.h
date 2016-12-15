@@ -503,7 +503,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateNameDictionary(Node* capacity);
 
   Node* AllocateJSObjectFromMap(Node* map, Node* properties = nullptr,
-                                Node* elements = nullptr);
+                                Node* elements = nullptr,
+                                AllocationFlags flags = kNone);
 
   void InitializeJSObjectFromMap(Node* object, Node* map, Node* size,
                                  Node* properties = nullptr,
