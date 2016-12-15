@@ -88,8 +88,7 @@ Object* DeclareGlobal(
       // function.
       PropertyDetails old_details = it.property_details();
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
-          (it.state() == LookupIterator::ACCESSOR &&
-           it.GetAccessors()->IsAccessorPair())) {
+          (it.state() == LookupIterator::ACCESSOR)) {
         // ECMA-262 section 15.1.11 GlobalDeclarationInstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         // ECMA-262 section 18.2.1.3 EvalDeclarationInstantiation 8.a.iv.1.b:
