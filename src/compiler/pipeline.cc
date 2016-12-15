@@ -1614,14 +1614,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   return ScheduleAndSelectInstructions(linkage, true);
 }
 
-// TODO(ishell): Remove verify_graph parameter and always enable the
-// verification once all the issues are fixed.
 Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                CallDescriptor* call_descriptor,
                                                Graph* graph, Schedule* schedule,
                                                Code::Flags flags,
-                                               const char* debug_name,
-                                               bool verify_graph) {
+                                               const char* debug_name) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
   if (isolate->serializer_enabled()) info.PrepareForSerializing();
 
@@ -1629,7 +1626,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
-  data.set_verify_graph(verify_graph);
+  data.set_verify_graph(FLAG_csa_verify);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));

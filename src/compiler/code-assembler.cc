@@ -70,17 +70,14 @@ void CodeAssembler::CallPrologue() {}
 void CodeAssembler::CallEpilogue() {}
 
 // static
-Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
-                                         bool verify_graph) {
-  // TODO(ishell): Remove verify_graph parameter and always enable the
-  // verification once all the issues are fixed.
+Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
   DCHECK(!state->code_generated_);
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
   Schedule* schedule = rasm->Export();
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->flags_, state->name_, verify_graph);
+      state->flags_, state->name_);
 
   state->code_generated_ = true;
   return code;

@@ -16,6 +16,9 @@ namespace internal {
 using compiler::CodeAssemblerTester;
 using compiler::FunctionTester;
 using compiler::Node;
+using compiler::CodeAssemblerLabel;
+using compiler::CodeAssemblerVariable;
+using compiler::CodeAssemblerVariableList;
 
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -37,7 +40,7 @@ TEST(LoadHeapNumberValue) {
   CodeAssemblerTester data(isolate);
   CodeStubAssembler m(data.state());
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1234);
-  m.Return(m.SmiTag(
+  m.Return(m.SmiFromWord32(
       m.ChangeFloat64ToUint32(m.LoadHeapNumberValue(m.HeapConstant(number)))));
   Handle<Code> code = data.GenerateCode();
   FunctionTester ft(code);
@@ -50,7 +53,7 @@ TEST(LoadInstanceType) {
   CodeAssemblerTester data(isolate);
   CodeStubAssembler m(data.state());
   Handle<HeapObject> undefined = isolate->factory()->undefined_value();
-  m.Return(m.SmiTag(m.LoadInstanceType(m.HeapConstant(undefined))));
+  m.Return(m.SmiFromWord32(m.LoadInstanceType(m.HeapConstant(undefined))));
   Handle<Code> code = data.GenerateCode();
   FunctionTester ft(code);
   MaybeHandle<Object> result = ft.Call();
@@ -98,7 +101,7 @@ TEST(ComputeIntegerHash) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
   m.Return(m.SmiFromWord32(m.ComputeIntegerHash(
-      m.SmiToWord32(m.Parameter(0)), m.SmiToWord32(m.Parameter(1)))));
+      m.SmiUntag(m.Parameter(0)), m.SmiToWord32(m.Parameter(1)))));
 
   Handle<Code> code = data.GenerateCode();
   FunctionTester ft(code, kNumParams);
@@ -218,8 +221,8 @@ TEST(FlattenString) {
 }
 
 TEST(TryToName) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 3;
@@ -383,8 +386,8 @@ namespace {
 
 template <typename Dictionary>
 void TestNameDictionaryLookup() {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
@@ -408,7 +411,7 @@ void TestNameDictionaryLookup() {
     m.GotoUnless(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
-    m.Branch(m.Word32Equal(m.SmiToWord32(expected_arg), var_name_index.value()),
+    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_name_index.value()),
              &passed, &failed);
 
     m.Bind(&if_not_found);
@@ -490,8 +493,8 @@ namespace {
 
 template <typename Dictionary>
 void TestNumberDictionaryLookup() {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
@@ -501,7 +504,7 @@ void TestNumberDictionaryLookup() {
   enum Result { kFound, kNotFound };
   {
     Node* dictionary = m.Parameter(0);
-    Node* key = m.SmiToWord32(m.Parameter(1));
+    Node* key = m.SmiUntag(m.Parameter(1));
     Node* expected_result = m.Parameter(2);
     Node* expected_arg = m.Parameter(3);
 
@@ -515,8 +518,8 @@ void TestNumberDictionaryLookup() {
     m.GotoUnless(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
-    m.Branch(m.Word32Equal(m.SmiToWord32(expected_arg), var_entry.value()),
-             &passed, &failed);
+    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_entry.value()), &passed,
+             &failed);
 
     m.Bind(&if_not_found);
     m.Branch(
@@ -629,7 +632,7 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
 }  // namespace
 
 TEST(TryHasOwnProperty) {
-  typedef CodeStubAssembler::Label Label;
+  typedef CodeAssemblerLabel Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
@@ -814,8 +817,8 @@ TEST(TryHasOwnProperty) {
 }
 
 TEST(TryGetOwnProperty) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
   Factory* factory = isolate->factory();
 
@@ -1033,7 +1036,7 @@ void AddElement(Handle<JSObject> object, uint32_t index, Handle<Object> value,
 }  // namespace
 
 TEST(TryLookupElement) {
-  typedef CodeStubAssembler::Label Label;
+  typedef CodeAssemblerLabel Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 3;
@@ -1043,7 +1046,7 @@ TEST(TryLookupElement) {
   enum Result { kFound, kNotFound, kBailout };
   {
     Node* object = m.Parameter(0);
-    Node* index = m.SmiToWord32(m.Parameter(1));
+    Node* index = m.SmiUntag(m.Parameter(1));
     Node* expected_result = m.Parameter(2);
 
     Label passed(&m), failed(&m);
@@ -1217,189 +1220,6 @@ TEST(TryLookupElement) {
     CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
-}
-
-TEST(DeferredCodePhiHints) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
-  Label block1(&m, Label::kDeferred);
-  m.Goto(&block1);
-  m.Bind(&block1);
-  {
-    Variable var_object(&m, MachineRepresentation::kTagged);
-    Label loop(&m, &var_object);
-    var_object.Bind(m.IntPtrConstant(0));
-    m.Goto(&loop);
-    m.Bind(&loop);
-    {
-      Node* map = m.LoadMap(var_object.value());
-      var_object.Bind(map);
-      m.Goto(&loop);
-    }
-  }
-  CHECK(!data.GenerateCode().is_null());
-}
-
-TEST(TestOutOfScopeVariable) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate);
-  CodeStubAssembler m(data.state());
-  Label block1(&m);
-  Label block2(&m);
-  Label block3(&m);
-  Label block4(&m);
-  m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block1, &block4);
-  m.Bind(&block4);
-  {
-    Variable var_object(&m, MachineRepresentation::kTagged);
-    m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block2,
-             &block3);
-
-    m.Bind(&block2);
-    var_object.Bind(m.IntPtrConstant(55));
-    m.Goto(&block1);
-
-    m.Bind(&block3);
-    var_object.Bind(m.IntPtrConstant(66));
-    m.Goto(&block1);
-  }
-  m.Bind(&block1);
-  CHECK(!data.GenerateCode().is_null());
-}
-
-TEST(GotoIfException) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
-
-  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* to_string_tag =
-      m.HeapConstant(isolate->factory()->to_string_tag_symbol());
-  Variable exception(&m, MachineRepresentation::kTagged);
-
-  Label exception_handler(&m);
-  Callable to_string = CodeFactory::ToString(isolate);
-  Node* string = m.CallStub(to_string, context, to_string_tag);
-  m.GotoIfException(string, &exception_handler, &exception);
-  m.Return(string);
-
-  m.Bind(&exception_handler);
-  m.Return(exception.value());
-
-  Handle<Code> code = data.GenerateCode();
-  CHECK(!code.is_null());
-
-  FunctionTester ft(code, kNumParams);
-  Handle<Object> result = ft.Call().ToHandleChecked();
-
-  // Should be a TypeError.
-  CHECK(result->IsJSObject());
-
-  Handle<Object> constructor =
-      Object::GetPropertyOrElement(result,
-                                   isolate->factory()->constructor_string())
-          .ToHandleChecked();
-  CHECK(constructor->SameValue(*isolate->type_error_function()));
-}
-
-TEST(GotoIfExceptionMultiple) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 4;  // receiver, first, second, third
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
-
-  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* first_value = m.Parameter(0);
-  Node* second_value = m.Parameter(1);
-  Node* third_value = m.Parameter(2);
-
-  Label exception_handler1(&m);
-  Label exception_handler2(&m);
-  Label exception_handler3(&m);
-  Variable return_value(&m, MachineRepresentation::kWord32);
-  Variable error(&m, MachineRepresentation::kTagged);
-
-  return_value.Bind(m.Int32Constant(0));
-
-  // try { return ToString(param1) } catch (e) { ... }
-  Callable to_string = CodeFactory::ToString(isolate);
-  Node* string = m.CallStub(to_string, context, first_value);
-  m.GotoIfException(string, &exception_handler1, &error);
-  m.Return(string);
-
-  // try { ToString(param2); return 7 } catch (e) { ... }
-  m.Bind(&exception_handler1);
-  return_value.Bind(m.Int32Constant(7));
-  error.Bind(m.UndefinedConstant());
-  string = m.CallStub(to_string, context, second_value);
-  m.GotoIfException(string, &exception_handler2, &error);
-  m.Return(m.SmiFromWord32(return_value.value()));
-
-  // try { ToString(param3); return 7 & ~2; } catch (e) { return e; }
-  m.Bind(&exception_handler2);
-  // Return returnValue & ~2
-  error.Bind(m.UndefinedConstant());
-  string = m.CallStub(to_string, context, third_value);
-  m.GotoIfException(string, &exception_handler3, &error);
-  m.Return(m.SmiFromWord32(
-      m.Word32And(return_value.value(),
-                  m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1)))));
-
-  m.Bind(&exception_handler3);
-  m.Return(error.value());
-
-  Handle<Code> code = data.GenerateCode();
-  CHECK(!code.is_null());
-
-  FunctionTester ft(code, kNumParams);
-
-  Handle<Object> result;
-  // First handler does not throw, returns result of first value.
-  result = ft.Call(isolate->factory()->undefined_value(),
-                   isolate->factory()->to_string_tag_symbol())
-               .ToHandleChecked();
-  CHECK(String::cast(*result)->IsOneByteEqualTo(OneByteVector("undefined")));
-
-  // First handler returns a number.
-  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
-                   isolate->factory()->undefined_value())
-               .ToHandleChecked();
-  CHECK_EQ(7, Smi::cast(*result)->value());
-
-  // First handler throws, second handler returns a number.
-  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
-                   isolate->factory()->to_primitive_symbol())
-               .ToHandleChecked();
-  CHECK_EQ(7 & ~2, Smi::cast(*result)->value());
-
-  // First handler throws, second handler throws, third handler returns thrown
-  // value.
-  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
-                   isolate->factory()->to_primitive_symbol(),
-                   isolate->factory()->unscopables_symbol())
-               .ToHandleChecked();
-
-  // Should be a TypeError.
-  CHECK(result->IsJSObject());
-
-  Handle<Object> constructor =
-      Object::GetPropertyOrElement(result,
-                                   isolate->factory()->constructor_string())
-          .ToHandleChecked();
-  CHECK(constructor->SameValue(*isolate->type_error_function()));
 }
 
 TEST(AllocateJSObjectFromMap) {
@@ -1705,7 +1525,7 @@ TEST(Arguments) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
+  CodeStubArguments arguments(&m, m.Int32Constant(3));
 
   CSA_ASSERT(
       &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
@@ -1735,15 +1555,15 @@ TEST(ArgumentsForEach) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
+  CodeStubArguments arguments(&m, m.Int32Constant(3));
 
-  CodeStubAssembler::Variable sum(&m, MachineType::PointerRepresentation());
-  CodeStubAssembler::VariableList list({&sum}, m.zone());
+  CodeAssemblerVariable sum(&m, MachineRepresentation::kTagged);
+  CodeAssemblerVariableList list({&sum}, m.zone());
 
-  sum.Bind(m.IntPtrConstant(0));
+  sum.Bind(m.SmiConstant(0));
 
   arguments.ForEach(
-      list, [&m, &sum](Node* arg) { sum.Bind(m.IntPtrAdd(sum.value(), arg)); });
+      list, [&m, &sum](Node* arg) { sum.Bind(m.SmiAdd(sum.value(), arg)); });
 
   m.Return(sum.value());
 
@@ -1766,7 +1586,7 @@ TEST(IsDebugActive) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubAssembler::Label if_active(&m), if_not_active(&m);
+  CodeAssemblerLabel if_active(&m), if_not_active(&m);
 
   m.Branch(m.IsDebugActive(), &if_active, &if_not_active);
   m.Bind(&if_active);
@@ -1805,8 +1625,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
   void TestAppendJSArrayImpl(Isolate* isolate, CodeAssemblerTester* tester,
                              Object* o1, Object* o2, Object* o3, Object* o4,
                              int initial_size, int result_size) {
-    typedef CodeStubAssembler::Variable Variable;
-    typedef CodeStubAssembler::Label Label;
+    typedef CodeAssemblerVariable Variable;
+    typedef CodeAssemblerLabel Label;
     Handle<JSArray> array = isolate->factory()->NewJSArray(
         kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
     JSObject::SetElement(isolate, array, 0,
@@ -1815,7 +1635,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     JSObject::SetElement(isolate, array, 1,
                          Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
         .Check();
-    CodeStubArguments args(this, IntPtrConstant(kNumParams));
+    CodeStubArguments args(this, Int32Constant(kNumParams));
     Variable arg_index(this, MachineType::PointerRepresentation());
     Label bailout(this);
     arg_index.Bind(IntPtrConstant(0));

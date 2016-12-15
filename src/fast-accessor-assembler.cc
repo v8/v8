@@ -240,8 +240,8 @@ void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
 
 MaybeHandle<Code> FastAccessorAssembler::Build() {
   CHECK_EQ(kBuilding, state_);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      assembler_state_.get(), FLAG_csa_verify);
+  Handle<Code> code =
+      compiler::CodeAssembler::GenerateCode(assembler_state_.get());
   state_ = !code.is_null() ? kBuilt : kError;
   Clear();
   return code;

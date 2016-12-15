@@ -36,7 +36,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       CHECK_EQ(StubCache::kSecondary, table);
       result = m.StubCacheSecondaryOffsetForTesting(name, primary_offset);
     }
-    m.Return(m.SmiFromWord32(result));
+    m.Return(m.SmiTag(result));
   }
 
   Handle<Code> code = data.GenerateCode();
