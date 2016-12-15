@@ -1081,8 +1081,8 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 void MacroAssembler::VmovExtended(Register dst, int src_code) {
-  DCHECK_LE(32, src_code);
-  DCHECK_GT(64, src_code);
+  DCHECK_LE(SwVfpRegister::kMaxNumRegisters, src_code);
+  DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, src_code);
   if (src_code & 0x1) {
     VmovHigh(dst, DwVfpRegister::from_code(src_code / 2));
   } else {
@@ -1091,8 +1091,8 @@ void MacroAssembler::VmovExtended(Register dst, int src_code) {
 }
 
 void MacroAssembler::VmovExtended(int dst_code, Register src) {
-  DCHECK_LE(32, dst_code);
-  DCHECK_GT(64, dst_code);
+  DCHECK_LE(SwVfpRegister::kMaxNumRegisters, dst_code);
+  DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, dst_code);
   if (dst_code & 0x1) {
     VmovHigh(DwVfpRegister::from_code(dst_code / 2), src);
   } else {
@@ -1102,22 +1102,23 @@ void MacroAssembler::VmovExtended(int dst_code, Register src) {
 
 void MacroAssembler::VmovExtended(int dst_code, int src_code,
                                   Register scratch) {
-  if (src_code < 32 && dst_code < 32) {
+  if (src_code < SwVfpRegister::kMaxNumRegisters &&
+      dst_code < SwVfpRegister::kMaxNumRegisters) {
     // src and dst are both s-registers.
     vmov(SwVfpRegister::from_code(dst_code),
          SwVfpRegister::from_code(src_code));
-  } else if (src_code < 32) {
+  } else if (src_code < SwVfpRegister::kMaxNumRegisters) {
     // src is an s-register.
     vmov(scratch, SwVfpRegister::from_code(src_code));
     VmovExtended(dst_code, scratch);
-  } else if (dst_code < 32) {
+  } else if (dst_code < SwVfpRegister::kMaxNumRegisters) {
     // dst is an s-register.
     VmovExtended(scratch, src_code);
     vmov(SwVfpRegister::from_code(dst_code), scratch);
   } else {
     // Neither src or dst are s-registers.
-    DCHECK_GT(64, src_code);
-    DCHECK_GT(64, dst_code);
+    DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, src_code);
+    DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, dst_code);
     VmovExtended(scratch, src_code);
     VmovExtended(dst_code, scratch);
   }
@@ -1125,7 +1126,7 @@ void MacroAssembler::VmovExtended(int dst_code, int src_code,
 
 void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
                                   Register scratch) {
-  if (dst_code >= 32) {
+  if (dst_code >= SwVfpRegister::kMaxNumRegisters) {
     ldr(scratch, src);
     VmovExtended(dst_code, scratch);
   } else {
@@ -1135,12 +1136,53 @@ void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
 
 void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
                                   Register scratch) {
-  if (src_code >= 32) {
+  if (src_code >= SwVfpRegister::kMaxNumRegisters) {
     VmovExtended(scratch, src_code);
     str(scratch, dst);
   } else {
     vstr(SwVfpRegister::from_code(src_code), dst);
   }
+}
+
+void MacroAssembler::ExtractLane(Register dst, QwNeonRegister src,
+                                 NeonDataType dt, int lane) {
+  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
+  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
+  int byte = lane << log2_bytes_per_lane;
+  int double_word = byte >> kDoubleSizeLog2;
+  int double_byte = byte & (kDoubleSize - 1);
+  int double_lane = double_byte >> log2_bytes_per_lane;
+  DwVfpRegister double_source =
+      DwVfpRegister::from_code(src.code() * 2 + double_word);
+  vmov(dt, dst, double_source, double_lane);
+}
+
+void MacroAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
+                                 Register scratch, int lane) {
+  int s_code = src.code() * 4 + lane;
+  VmovExtended(dst.code(), s_code, scratch);
+}
+
+void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                                 Register src_lane, NeonDataType dt, int lane) {
+  Move(dst, src);
+  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
+  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
+  int byte = lane << log2_bytes_per_lane;
+  int double_word = byte >> kDoubleSizeLog2;
+  int double_byte = byte & (kDoubleSize - 1);
+  int double_lane = double_byte >> log2_bytes_per_lane;
+  DwVfpRegister double_dst =
+      DwVfpRegister::from_code(dst.code() * 2 + double_word);
+  vmov(dt, double_dst, double_lane, src_lane);
+}
+
+void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                                 SwVfpRegister src_lane, Register scratch,
+                                 int lane) {
+  Move(dst, src);
+  int s_code = dst.code() * 4 + lane;
+  VmovExtended(s_code, src_lane.code(), scratch);
 }
 
 void MacroAssembler::LslPair(Register dst_low, Register dst_high,
