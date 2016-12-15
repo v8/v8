@@ -57,7 +57,7 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
       const std::vector<std::pair<std::string, std::string>>&
           expected_liveness) {
     BytecodeAnalysis analysis(bytecode, zone(), true);
-    analysis.Analyze();
+    analysis.Analyze(BailoutId::None());
 
     interpreter::BytecodeArrayIterator iterator(bytecode);
     for (auto liveness : expected_liveness) {
