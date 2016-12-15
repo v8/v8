@@ -1179,10 +1179,7 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
   // the parse, since context allocation of those variables is already
   // guaranteed to be correct.
   for (const Scope* s = this; s != outer; s = s->outer_scope_) {
-    // Eval forces context allocation on all outer scopes, so we don't need to
-    // look at those scopes. Sloppy eval makes all top-level variables dynamic,
-    // whereas strict-mode requires context allocation.
-    if (s->is_eval_scope()) return !is_strict(s->language_mode());
+    if (s->is_eval_scope()) return false;
     // Catch scopes force context allocation of all variables.
     if (s->is_catch_scope()) continue;
     // With scopes do not introduce variables that need allocation.
