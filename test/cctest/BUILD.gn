@@ -359,7 +359,9 @@ v8_executable("cctest") {
 
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
-      v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+      v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
+      v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
+      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
     cflags += [ "-ffp-contract=off" ]

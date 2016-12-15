@@ -887,6 +887,15 @@ class MacroAssembler: public Assembler {
   // general-purpose register.
   void Mfhc1(Register rt, FPURegister fs);
 
+  void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+  void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+  void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+  void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+
   // Wrapper functions for the different cmp/branch types.
   inline void BranchF32(Label* target, Label* nan, Condition cc,
                         FPURegister cmp1, FPURegister cmp2,

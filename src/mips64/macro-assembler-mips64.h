@@ -940,10 +940,13 @@ class MacroAssembler: public Assembler {
   void SubNanPreservePayloadAndSign_d(FPURegister fd, FPURegister fs,
                                       FPURegister ft);
 
-  void Madd_d(FPURegister fd,
-              FPURegister fr,
-              FPURegister fs,
-              FPURegister ft,
+  void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+  void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+  void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
+              FPURegister scratch);
+  void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
               FPURegister scratch);
 
   // Wrapper functions for the different cmp/branch types.
