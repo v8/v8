@@ -416,8 +416,8 @@ void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
 
 namespace {
 
-InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
-                                   FrameStateInputKind kind,
+InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
+                                   Node* input, FrameStateInputKind kind,
                                    MachineRepresentation rep) {
   if (rep == MachineRepresentation::kNone) {
     return g->TempImmediate(FrameStateDescriptor::kImpossibleValue);
@@ -429,8 +429,30 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
     case IrOpcode::kNumberConstant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
-    case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
+    case IrOpcode::kHeapConstant: {
+      if (!CanBeTaggedPointer(rep)) {
+        // If we have inconsistent static and dynamic types, e.g. if we
+        // smi-check a string, we can get here with a heap object that
+        // says it is a smi. In that case, we return an invalid instruction
+        // operand, which will be interpreted as an optimized-out value.
+
+        // TODO(jarin) Ideally, we should turn the current instruction
+        // into an abort (we should never execute it).
+        return InstructionOperand();
+      }
+
+      Handle<HeapObject> constant = OpParameter<Handle<HeapObject>>(input);
+      Heap::RootListIndex root_index;
+      if (isolate->heap()->IsRootHandle(constant, &root_index) &&
+          root_index == Heap::kOptimizedOutRootIndex) {
+        // For an optimized-out object we return an invalid instruction
+        // operand, so that we take the fast path for optimized-out values.
+        return InstructionOperand();
+      }
+
+      return g->UseImmediate(input);
+    }
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       UNREACHABLE();
@@ -508,19 +530,17 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
       }
     }
     default: {
-      Heap* const heap = isolate()->heap();
-      if (input->opcode() == IrOpcode::kHeapConstant) {
-        Handle<HeapObject> constant = OpParameter<Handle<HeapObject>>(input);
-        Heap::RootListIndex root_index;
-        if (heap->IsRootHandle(constant, &root_index) &&
-            root_index == Heap::kOptimizedOutRootIndex) {
-          values->PushOptimizedOut();
-          return 0;
-        }
+      InstructionOperand op =
+          OperandForDeopt(isolate(), g, input, kind, type.representation());
+      if (op.kind() == InstructionOperand::INVALID) {
+        // Invalid operand means the value is impossible or optimized-out.
+        values->PushOptimizedOut();
+        return 0;
+      } else {
+        inputs->push_back(op);
+        values->PushPlain(type);
+        return 1;
       }
-      inputs->push_back(OperandForDeopt(g, input, kind, type.representation()));
-      values->PushPlain(type);
-      return 1;
     }
   }
 }
