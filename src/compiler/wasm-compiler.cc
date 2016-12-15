@@ -168,20 +168,27 @@ class WasmTrapHelper : public ZoneObject {
     return TrapIfEq64(reason, node, 0, position);
   }
 
-  int32_t GetFunctionIdForTrap(wasm::TrapReason reason) {
-    int32_t trap_id;
+  Runtime::FunctionId GetFunctionIdForTrap(wasm::TrapReason reason) {
     if (builder_->module_ && !builder_->module_->instance->context.is_null()) {
-      trap_id = wasm::WasmOpcodes::TrapReasonToFunctionId(reason);
+      switch (reason) {
+#define TRAPREASON_TO_MESSAGE(name) \
+  case wasm::k##name:               \
+    return Runtime::kThrowWasm##name;
+        FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
+#undef TRAPREASON_TO_MESSAGE
+        default:
+          UNREACHABLE();
+          return Runtime::kNumFunctions;
+      }
     } else {
       // We use Runtime::kNumFunctions as a marker to tell the code generator
       // to generate a call to a testing c-function instead of a runtime
       // function. This code should only be called from a cctest.
-      trap_id = Runtime::kNumFunctions;
+      return Runtime::kNumFunctions;
     }
-    return trap_id;
   }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 #define WASM_TRAP_IF_SUPPORTED
 #endif
 
@@ -197,7 +204,7 @@ class WasmTrapHelper : public ZoneObject {
       builder_->SetSourcePosition(node, position);
       return;
     }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // WASM_TRAP_IF_SUPPORTED
     BuildTrapIf(reason, cond, true, position);
   }
 
@@ -214,7 +221,7 @@ class WasmTrapHelper : public ZoneObject {
       builder_->SetSourcePosition(node, position);
       return;
     }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // WASM_TRAP_IF_SUPPORTED
 
     BuildTrapIf(reason, cond, false, position);
   }

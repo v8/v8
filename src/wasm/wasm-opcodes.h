@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/runtime/runtime.h"
 #include "src/signature.h"
 
 namespace v8 {
@@ -533,7 +534,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
 
   static int TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
-  static int32_t TrapReasonToFunctionId(TrapReason reason);
 
   static byte MemSize(MachineType type) {
     return 1 << ElementSizeLog2Of(type.representation());

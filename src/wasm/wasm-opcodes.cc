@@ -176,19 +176,6 @@ int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   }
 }
 
-int32_t WasmOpcodes::TrapReasonToFunctionId(TrapReason reason) {
-  switch (reason) {
-#define TRAPREASON_TO_MESSAGE(name) \
-  case k##name:                     \
-    return static_cast<int32_t>(Runtime::kThrowWasm##name);
-    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
-#undef TRAPREASON_TO_MESSAGE
-    default:
-      UNREACHABLE();
-      return -1;
-  }
-}
-
 const char* WasmOpcodes::TrapReasonMessage(TrapReason reason) {
   return MessageTemplate::TemplateString(TrapReasonToMessageId(reason));
 }
