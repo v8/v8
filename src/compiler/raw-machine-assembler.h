@@ -732,9 +732,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
 
-  // Tail call the given call descriptor and the given arguments.
-  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
-
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch
   // the current basic block or create new basic blocks for labels.

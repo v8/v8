@@ -1009,9 +1009,9 @@ Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset) {
   InterpreterDispatchDescriptor descriptor(isolate());
-  Node* args[] = {GetAccumulatorUnchecked(), bytecode_offset,
-                  BytecodeArrayTaggedPointer(), DispatchTableRawPointer()};
-  return TailCallBytecodeDispatch(descriptor, handler_entry, args);
+  return TailCallBytecodeDispatch(
+      descriptor, handler_entry, GetAccumulatorUnchecked(), bytecode_offset,
+      BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {

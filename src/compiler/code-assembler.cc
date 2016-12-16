@@ -405,19 +405,6 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   Bind(&success);
 }
 
-Node* CodeAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
-                           Node** args) {
-  CallPrologue();
-  Node* return_value = raw_assembler()->CallN(descriptor, code_target, args);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::TailCallN(CallDescriptor* descriptor, Node* code_target,
-                               Node** args) {
-  return raw_assembler()->TailCallN(descriptor, code_target, args);
-}
-
 template <class... TArgs>
 Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
                                  TArgs... args) {
@@ -535,14 +522,21 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
 REPEAT_1_TO_7(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
+template <class... TArgs>
 Node* CodeAssembler::TailCallBytecodeDispatch(
-    const CallInterfaceDescriptor& interface_descriptor,
-    Node* code_target_address, Node** args) {
-  CallDescriptor* descriptor = Linkage::GetBytecodeDispatchCallDescriptor(
-      isolate(), zone(), interface_descriptor,
-      interface_descriptor.GetStackParameterCount());
-  return raw_assembler()->TailCallN(descriptor, code_target_address, args);
+    const CallInterfaceDescriptor& descriptor, Node* target, TArgs... args) {
+  DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
+  CallDescriptor* desc = Linkage::GetBytecodeDispatchCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount());
+
+  Node* nodes[] = {target, args...};
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
+
+// Instantiate TailCallBytecodeDispatch() with 4 arguments.
+template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
+    const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
+    Node*, Node*);
 
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,

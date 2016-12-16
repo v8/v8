@@ -337,8 +337,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, TArgs... args);
 
+  template <class... TArgs>
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
-                                 Node* code_target_address, Node** args);
+                                 Node* target, TArgs... args);
 
   template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
@@ -372,9 +373,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   virtual void CallEpilogue();
 
  private:
-  Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-  Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-
   RawMachineAssembler* raw_assembler() const;
 
   CodeAssemblerState* state_;
