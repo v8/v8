@@ -2863,6 +2863,7 @@ void Heap::CreateInitialObjects() {
   set_array_buffer_neutering_protector(*cell);
 
   set_serialized_templates(empty_fixed_array());
+  set_serialized_global_proxy_sizes(empty_fixed_array());
 
   set_weak_stack_trace_list(Smi::kZero);
 
@@ -2896,6 +2897,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:
+    case kSerializedGlobalProxySizesRootIndex:
     case kPublicSymbolTableRootIndex:
     case kApiSymbolTableRootIndex:
     case kApiPrivateSymbolTableRootIndex:

@@ -210,6 +210,7 @@ using v8::MemoryPressureLevel;
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   /* Configured values */                                                      \
   V(TemplateList, message_listeners, MessageListeners)                         \
   V(Code, js_entry_code, JsEntryCode)                                          \
@@ -877,6 +878,7 @@ class Heap {
   inline int GetNextTemplateSerialNumber();
 
   inline void SetSerializedTemplates(FixedArray* templates);
+  inline void SetSerializedGlobalProxySizes(FixedArray* sizes);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);

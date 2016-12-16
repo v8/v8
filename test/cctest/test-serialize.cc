@@ -2384,6 +2384,7 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
           v8::ObjectTemplate::New(isolate);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback);
+      global_template->SetInternalFieldCount(3);
       global_template->Set(v8_str("f"), callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
@@ -2455,6 +2456,7 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
         }
 
         v8::Local<v8::Object> global = context->Global();
+        CHECK_EQ(3, global->InternalFieldCount());
         context->DetachGlobal();
 
         // New context, but reuse global proxy.

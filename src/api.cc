@@ -551,6 +551,8 @@ StartupData SnapshotCreator::CreateBlob(
   DCHECK(!data->created_);
   DCHECK(!data->default_context_.IsEmpty());
 
+  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+
   {
     int num_templates = static_cast<int>(data->templates_.Size());
     i::HandleScope scope(isolate);
@@ -561,6 +563,18 @@ StartupData SnapshotCreator::CreateBlob(
     }
     isolate->heap()->SetSerializedTemplates(*templates);
     data->templates_.Clear();
+
+    // We need to store the global proxy size upfront in case we need the
+    // bootstrapper to create a global proxy before we deserialize the context.
+    i::Handle<i::FixedArray> global_proxy_sizes =
+        isolate->factory()->NewFixedArray(num_additional_contexts, i::TENURED);
+    for (int i = 0; i < num_additional_contexts; i++) {
+      i::Handle<i::Context> context =
+          v8::Utils::OpenHandle(*data->contexts_.Get(i));
+      global_proxy_sizes->set(i,
+                              i::Smi::FromInt(context->global_proxy()->Size()));
+    }
+    isolate->heap()->SetSerializedGlobalProxySizes(*global_proxy_sizes);
   }
 
   // If we don't do this then we end up with a stray root pointing at the
@@ -571,7 +585,6 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
   i::List<i::Object*> contexts(num_additional_contexts);
   i::Object* default_context;
   {

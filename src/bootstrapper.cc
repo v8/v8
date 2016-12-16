@@ -4473,12 +4473,22 @@ Genesis::Genesis(Isolate* isolate,
   // and initialize it later in CreateNewGlobals.
   Handle<JSGlobalProxy> global_proxy;
   if (!maybe_global_proxy.ToHandle(&global_proxy)) {
-    const int internal_field_count =
-        !global_proxy_template.IsEmpty()
-            ? global_proxy_template->InternalFieldCount()
-            : 0;
-    global_proxy = isolate->factory()->NewUninitializedJSGlobalProxy(
-        JSGlobalProxy::SizeWithInternalFields(internal_field_count));
+    int instance_size = 0;
+    if (context_snapshot_index > 0) {
+      // The global proxy function to reinitialize this global proxy is in the
+      // context that is yet to be deserialized. We need to prepare a global
+      // proxy of the correct size.
+      Object* size = isolate->heap()->serialized_global_proxy_sizes()->get(
+          static_cast<int>(context_snapshot_index) - 1);
+      instance_size = Smi::cast(size)->value();
+    } else {
+      instance_size = JSGlobalProxy::SizeWithInternalFields(
+          global_proxy_template.IsEmpty()
+              ? 0
+              : global_proxy_template->InternalFieldCount());
+    }
+    global_proxy =
+        isolate->factory()->NewUninitializedJSGlobalProxy(instance_size);
   }
 
   // We can only de-serialize a context if the isolate was initialized from
