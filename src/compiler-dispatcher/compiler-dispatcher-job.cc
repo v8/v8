@@ -263,5 +263,36 @@ void CompilerDispatcherJob::ResetOnMainThread() {
   status_ = CompileJobStatus::kInitial;
 }
 
+double CompilerDispatcherJob::EstimateRuntimeOfNextStepInMs() const {
+  switch (status_) {
+    case CompileJobStatus::kInitial:
+      return tracer_->EstimatePrepareToParseInMs();
+
+    case CompileJobStatus::kReadyToParse:
+      return tracer_->EstimateParseInMs(parse_info_->end_position() -
+                                        parse_info_->start_position());
+
+    case CompileJobStatus::kParsed:
+      return tracer_->EstimateFinalizeParsingInMs();
+
+    case CompileJobStatus::kReadyToAnalyse:
+      return tracer_->EstimatePrepareToCompileInMs();
+
+    case CompileJobStatus::kReadyToCompile:
+      return tracer_->EstimateCompileInMs(
+          parse_info_->literal()->ast_node_count());
+
+    case CompileJobStatus::kCompiled:
+      return tracer_->EstimateFinalizeCompilingInMs();
+
+    case CompileJobStatus::kFailed:
+    case CompileJobStatus::kDone:
+      return 0.0;
+  }
+
+  UNREACHABLE();
+  return 0.0;
+}
+
 }  // namespace internal
 }  // namespace v8

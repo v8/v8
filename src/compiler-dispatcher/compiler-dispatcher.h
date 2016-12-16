@@ -11,8 +11,12 @@
 
 #include "src/base/macros.h"
 #include "src/globals.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
+
+class Platform;
+
 namespace internal {
 
 class CompilerDispatcherJob;
@@ -23,11 +27,14 @@ class SharedFunctionInfo;
 template <typename T>
 class Handle;
 
+// The CompilerDispatcher uses a combination of idle tasks and background tasks
+// to parse and compile lazily parsed functions.
 class V8_EXPORT_PRIVATE CompilerDispatcher {
  public:
   enum class BlockingBehavior { kBlock, kDontBlock };
 
-  CompilerDispatcher(Isolate* isolate, size_t max_stack_size);
+  CompilerDispatcher(Isolate* isolate, Platform* platform,
+                     size_t max_stack_size);
   ~CompilerDispatcher();
 
   // Returns true if a job was enqueued.
@@ -47,14 +54,23 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void AbortAll(BlockingBehavior blocking);
 
  private:
+  FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
+
   typedef std::multimap<std::pair<int, int>,
                         std::unique_ptr<CompilerDispatcherJob>>
       JobMap;
+  class IdleTask;
+
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
+  void ScheduleIdleTaskIfNeeded();
+  void DoIdleWork(double deadline_in_seconds);
 
   Isolate* isolate_;
+  Platform* platform_;
   size_t max_stack_size_;
   std::unique_ptr<CompilerDispatcherTracer> tracer_;
+
+  bool idle_task_scheduled_;
 
   // Mapping from (script id, function literal id) to job. We use a multimap,
   // as script id is not necessarily unique.
