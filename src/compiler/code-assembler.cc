@@ -27,9 +27,9 @@
 #define REPEAT_1_TO_4(V, T) REPEAT_1_TO_3(V, T) V(T, T, T, T)
 #define REPEAT_1_TO_5(V, T) REPEAT_1_TO_4(V, T) V(T, T, T, T, T)
 #define REPEAT_1_TO_6(V, T) REPEAT_1_TO_5(V, T) V(T, T, T, T, T, T)
-#define REPEAT_1_TO_7(V, T) REPEAT_1_TO_6(V, T) V(T, T, T, T, T, T)
-#define REPEAT_1_TO_8(V, T) REPEAT_1_TO_7(V, T) V(T, T, T, T, T, T, T)
-#define REPEAT_1_TO_9(V, T) REPEAT_1_TO_8(V, T) V(T, T, T, T, T, T, T, T)
+#define REPEAT_1_TO_7(V, T) REPEAT_1_TO_6(V, T) V(T, T, T, T, T, T, T)
+#define REPEAT_1_TO_8(V, T) REPEAT_1_TO_7(V, T) V(T, T, T, T, T, T, T, T)
+#define REPEAT_1_TO_9(V, T) REPEAT_1_TO_8(V, T) V(T, T, T, T, T, T, T, T, T)
 
 namespace v8 {
 namespace internal {
@@ -422,7 +422,22 @@ template <class... TArgs>
 Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
                                  TArgs... args) {
   CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime(function, context, args...);
+
+  int argc = static_cast<int>(sizeof...(args));
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, argc, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* arity = Int32Constant(argc);
+
+  Node* nodes[] = {centry, args..., ref, arity, context};
+
+  Node* return_value = raw_assembler()->CallN(desc, arraysize(nodes), nodes);
+
   CallEpilogue();
   return return_value;
 }
@@ -434,49 +449,37 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
 REPEAT_1_TO_6(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context) {
-  return raw_assembler()->TailCallRuntime0(function_id, context);
+template <class... TArgs>
+Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
+                                     Node* context, TArgs... args) {
+  CallPrologue();
+
+  int argc = static_cast<int>(sizeof...(args));
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, argc, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* arity = Int32Constant(argc);
+
+  Node* nodes[] = {centry, args..., ref, arity, context};
+
+  Node* return_value =
+      raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
+
+  CallEpilogue();
+  return return_value;
 }
 
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1) {
-  return raw_assembler()->TailCallRuntime1(function_id, arg1, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2) {
-  return raw_assembler()->TailCallRuntime2(function_id, arg1, arg2, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3) {
-  return raw_assembler()->TailCallRuntime3(function_id, arg1, arg2, arg3,
-                                           context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3, Node* arg4) {
-  return raw_assembler()->TailCallRuntime4(function_id, arg1, arg2, arg3, arg4,
-                                           context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3, Node* arg4, Node* arg5) {
-  return raw_assembler()->TailCallRuntime5(function_id, arg1, arg2, arg3, arg4,
-                                           arg5, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3, Node* arg4, Node* arg5,
-                                     Node* arg6) {
-  return raw_assembler()->TailCallRuntime6(function_id, arg1, arg2, arg3, arg4,
-                                           arg5, arg6, context);
-}
+// Instantiate TailCallRuntime() with up to 6 arguments.
+#define INSTANTIATE(...)                                           \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallRuntime( \
+      Runtime::FunctionId, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, Node*)
+#undef INSTANTIATE
 
 Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
                               Node* arg1, size_t result_size) {

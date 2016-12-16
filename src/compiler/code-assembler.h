@@ -303,21 +303,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   Node* CallRuntime(Runtime::FunctionId function, Node* context, TArgs... args);
 
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                        Node* arg5);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                        Node* arg5, Node* arg6);
+  template <class... TArgs>
+  Node* TailCallRuntime(Runtime::FunctionId function, Node* context,
+                        TArgs... args);
 
   // A pair of a zero-based argument index and a value.
   // It helps writing arguments order independent code.

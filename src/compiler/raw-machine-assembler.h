@@ -6,7 +6,6 @@
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
 #include "src/assembler.h"
-#include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -707,25 +706,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
                             Node* frame_state);
 
-  // Call to a runtime function with given arguments.
-  template <class... TArgs>
-  Node* CallRuntime(Runtime::FunctionId function, Node* context,
-                    TArgs... args) {
-    int argc = static_cast<int>(sizeof...(args));
-    CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-        zone(), function, argc, Operator::kNoProperties,
-        CallDescriptor::kNoFlags);
-    int return_count = static_cast<int>(descriptor->ReturnCount());
+  // Call a given call descriptor and the given arguments.
+  // The call target is passed as part of the {inputs} array.
+  Node* CallN(CallDescriptor* desc, int input_count, Node* const* inputs);
 
-    Node* centry =
-        HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-    Node* ref = AddNode(
-        common()->ExternalConstant(ExternalReference(function, isolate())));
-    Node* arity = Int32Constant(argc);
-
-    return AddNode(common()->Call(descriptor), centry, args..., ref, arity,
-                   context);
-  }
+  // Tail call a given call descriptor and the given arguments.
+  // The call target is passed as part of the {inputs} array.
+  Node* TailCallN(CallDescriptor* desc, int input_count, Node* const* inputs);
 
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
@@ -747,27 +734,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Tail call the given call descriptor and the given arguments.
   Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
-  // Tail call to a runtime function with zero arguments.
-  Node* TailCallRuntime0(Runtime::FunctionId function, Node* context);
-  // Tail call to a runtime function with one argument.
-  Node* TailCallRuntime1(Runtime::FunctionId function, Node* arg0,
-                         Node* context);
-  // Tail call to a runtime function with two arguments.
-  Node* TailCallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* context);
-  // Tail call to a runtime function with three arguments.
-  Node* TailCallRuntime3(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* context);
-  // Tail call to a runtime function with four arguments.
-  Node* TailCallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* arg4, Node* context);
-  // Tail call to a runtime function with five arguments.
-  Node* TailCallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* arg4, Node* arg5, Node* context);
-  // Tail call to a runtime function with six arguments.
-  Node* TailCallRuntime6(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* arg4, Node* arg5, Node* arg6,
-                         Node* context);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch

@@ -4,10 +4,10 @@
 
 #include "src/compiler/raw-machine-assembler.h"
 
-#include "src/code-factory.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -183,6 +183,12 @@ Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
   return AddNode(common()->Call(desc), input_count, buffer);
 }
 
+Node* RawMachineAssembler::CallN(CallDescriptor* desc, int input_count,
+                                 Node* const* nodes) {
+  // +1 is for target.
+  DCHECK_EQ(input_count, desc->ParameterCount() + 1);
+  return AddNode(common()->Call(desc), input_count, nodes);
+}
 
 Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
                                                Node* function, Node** args,
@@ -210,163 +216,14 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
   for (int i = 0; i < param_count; i++) {
     buffer[index++] = args[i];
   }
-  Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
+  return TailCallN(desc, input_count, buffer);
 }
 
-Node* RawMachineAssembler::TailCallRuntime0(Runtime::FunctionId function,
-                                            Node* context) {
-  const int kArity = 0;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
-                                            Node* arg1, Node* context) {
-  const int kArity = 1;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-
-Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2,
-                                            Node* context) {
-  const int kArity = 2;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime3(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2, Node* arg3,
-                                            Node* context) {
-  const int kArity = 3;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, arg3, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime4(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2, Node* arg3,
-                                            Node* arg4, Node* context) {
-  const int kArity = 4;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, arg3, arg4, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime5(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2, Node* arg3,
-                                            Node* arg4, Node* arg5,
-                                            Node* context) {
-  const int kArity = 5;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, arg3, arg4, arg5, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime6(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2, Node* arg3,
-                                            Node* arg4, Node* arg5, Node* arg6,
-                                            Node* context) {
-  const int kArity = 6;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, arg3,  arg4,
-                   arg5,   arg6, ref,  arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
+Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, int input_count,
+                                     Node* const* inputs) {
+  // +1 is for target.
+  DCHECK_EQ(input_count, desc->ParameterCount() + 1);
+  Node* tail_call = MakeNode(common()->TailCall(desc), input_count, inputs);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
