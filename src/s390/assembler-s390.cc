@@ -138,29 +138,33 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     // The facilities we are checking for are:
     //   Bit 45 - Distinct Operands for instructions like ARK, SRK, etc.
     // As such, we require only 1 double word
-    int64_t facilities[1];
-    facilities[0] = 0;
+    int64_t facilities[3] = {0L};
     // LHI sets up GPR0
     // STFLE is specified as .insn, as opcode is not recognized.
     // We register the instructions kill r0 (LHI) and the CC (STFLE).
     asm volatile(
-        "lhi   0,0\n"
+        "lhi   0,2\n"
         ".insn s,0xb2b00000,%0\n"
         : "=Q"(facilities)
         :
         : "cc", "r0");
 
+    uint64_t one = static_cast<uint64_t>(1);
     // Test for Distinct Operands Facility - Bit 45
-    if (facilities[0] & (1lu << (63 - 45))) {
+    if (facilities[0] & (one << (63 - 45))) {
       supported_ |= (1u << DISTINCT_OPS);
     }
     // Test for General Instruction Extension Facility - Bit 34
-    if (facilities[0] & (1lu << (63 - 34))) {
+    if (facilities[0] & (one << (63 - 34))) {
       supported_ |= (1u << GENERAL_INSTR_EXT);
     }
     // Test for Floating Point Extension Facility - Bit 37
-    if (facilities[0] & (1lu << (63 - 37))) {
+    if (facilities[0] & (one << (63 - 37))) {
       supported_ |= (1u << FLOATING_POINT_EXT);
+    }
+    // Test for Vector Facility - Bit 129
+    if (facilities[2] & (one << (63 - (129 - 128)))) {
+      supported_ |= (1u << VECTOR_FACILITY);
     }
   }
 #else
@@ -171,6 +175,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   supported_ |= (1u << FLOATING_POINT_EXT);
   USE(performSTFLE);  // To avoid assert
+  supported_ |= (1u << VECTOR_FACILITY);
 #endif
   supported_ |= (1u << FPU);
 }
@@ -192,6 +197,7 @@ void CpuFeatures::PrintFeatures() {
   printf("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
   printf("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
   printf("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
+  printf("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
 }
 
 Register ToRegister(int num) {

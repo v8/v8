@@ -157,9 +157,33 @@ typedef uint16_t TwoByteInstr;
 typedef uint32_t FourByteInstr;
 typedef uint64_t SixByteInstr;
 
+#define VRR_A_OPCODE_LIST(V)                                          \
+  V(wfc, WFC, 0xE7CB)     /* VECTOR FP COMPARE SCALAR */              \
+  V(vcdg, VCDG, 0xE7D3)   /* VECTOR FP CONVERT FROM FIXED 64-BIT */   \
+  V(vcdlg, VCDLG, 0xE7C1) /* VECTOR FP CONVERT FROM LOGICAL 64-BIT */ \
+  V(vcgd, VCGD, 0xE7C2)   /* VECTOR FP CONVERT TO FIXED 64-BIT */     \
+  V(vclgd, VCLGD, 0xE7C0) /* VECTOR FP CONVERT TO LOGICAL 64-BIT */   \
+  V(vfi, VFI, 0xE7C7)     /* VECTOR LOAD FP INTEGER */                \
+  V(vlde, VLDE, 0xE7C4)   /* VECTOR FP LOAD LENGTHENED */             \
+  V(vled, VLED, 0xE7C5)   /* VECTOR FP LOAD ROUNDED */                \
+  V(vfpso, VFPSO, 0xE7CC) /* VECTOR FP PERFORM SIGN OPERATION */      \
+  V(vfsq, VFSQ, 0xE7CE)   /* VECTOR FP SQUARE ROOT */                 \
+  V(wfk, WFK, 0xE7CA)     /* VECTOR FP COMPARE AND SIGNAL SCALAR */
+
+#define VRR_C_OPCODE_LIST(V)                   \
+  V(vfa, VFA, 0xE7E3) /* VECTOR FP ADD */      \
+  V(vfs, VFS, 0xE7E2) /* VECTOR FP SUBTRACT */ \
+  V(vfm, VFM, 0xE7E7) /* VECTOR FP MULTIPLY */ \
+  V(vfd, VFD, 0xE7E5) /* VECTOR FP DIVIDE */
+
 // Opcodes as defined in Appendix B-2 table
 enum Opcode {
-  A = 0x5A,           // Add (32)
+#define DECLARE_OPCODES(name, opcode_name, opcode_value) \
+  opcode_name = opcode_value,
+  VRR_A_OPCODE_LIST(DECLARE_OPCODES) VRR_C_OPCODE_LIST(DECLARE_OPCODES)
+#undef DECLARE_OPCODES
+
+      A = 0x5A,       // Add (32)
   ADB = 0xED1A,       // Add (long BFP)
   ADBR = 0xB31A,      // Add (long BFP)
   ADTR = 0xB3D2,      // Add (long DFP)
@@ -1302,6 +1326,23 @@ class Instruction {
  private:
   // We need to prevent the creation of instances of class Instruction.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Instruction);
+};
+
+#define DECLARE_FIELD_FOR_SIX_BYTE_INSTR(name, T, lo, hi)   \
+  inline int name() const {                                 \
+    return Bits<SixByteInstr, T>(47 - (lo), 47 - (hi) + 1); \
+  }
+
+// VRR Instruction
+class VRR_C_Instruction : Instruction {
+ public:
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R1Value, int, 8, 12);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R2Value, int, 12, 16);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R3Value, int, 16, 20);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M6Value, uint32_t, 24, 28);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M5Value, uint32_t, 28, 32);
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M4Value, uint32_t, 32, 36);
+  inline int size() const { return 6; }
 };
 
 // I Instruction -- suspect this will not be used,

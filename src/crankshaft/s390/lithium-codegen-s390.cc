@@ -1969,20 +1969,38 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   DoubleRegister left = ToDoubleRegister(instr->left());
   DoubleRegister right = ToDoubleRegister(instr->right());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  // All operations except MOD are computed in-place.
-  DCHECK(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ adbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfa(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ adbr(result, right);
+      }
       break;
     case Token::SUB:
-      __ sdbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfs(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ sdbr(result, right);
+      }
       break;
     case Token::MUL:
-      __ mdbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfm(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ mdbr(result, right);
+      }
       break;
     case Token::DIV:
-      __ ddbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ ddbr(result, right);
+      }
       break;
     case Token::MOD: {
       __ PrepareCallCFunction(0, 2, scratch0());

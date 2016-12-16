@@ -1055,6 +1055,12 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case DUMY:
       Format(instr, "dumy\t'r1, 'd2 ( 'r2d, 'r3 )");
       break;
+#define DECODE_VRR_C_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'f2,'f3");                          \
+    break;
+      VRR_A_OPCODE_LIST(DECODE_VRR_C_INSTRUCTIONS)
+#undef DECODE_VRR_C_INSTRUCTIONS
     case LLILF:
       Format(instr, "llilf\t'r1,'i7");
       break;

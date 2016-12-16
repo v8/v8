@@ -619,7 +619,9 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
     LArithmeticD* result = new (zone()) LArithmeticD(op, left, right);
-    return DefineSameAsFirst(result);
+    return CpuFeatures::IsSupported(VECTOR_FACILITY)
+               ? DefineAsRegister(result)
+               : DefineSameAsFirst(result);
   }
 }
 

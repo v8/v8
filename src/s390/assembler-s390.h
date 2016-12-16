@@ -758,6 +758,55 @@ class Assembler : public AssemblerBase {
   void name(Register r3, Register b1, Disp d1, Register b2, Disp d2); \
   void name(Register r3, const MemOperand& opnd1, const MemOperand& opnd2)
 
+#define DECLARE_VRR_A_INSTRUCTIONS(name, opcode_name, opcode_value)           \
+  void name(DoubleRegister v1, DoubleRegister v2, Condition m5, Condition m4, \
+            Condition m3) {                                                   \
+    uint64_t code = (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 |    \
+                    (static_cast<uint64_t>(v1.code())) * B36 |                \
+                    (static_cast<uint64_t>(v2.code())) * B32 |                \
+                    (static_cast<uint64_t>(m5 & 0xF)) * B20 |                 \
+                    (static_cast<uint64_t>(m4 & 0xF)) * B16 |                 \
+                    (static_cast<uint64_t>(m3 & 0xF)) * B12 |                 \
+                    (static_cast<uint64_t>(opcode_value & 0x00FF));           \
+    emit6bytes(code);                                                         \
+  }
+  VRR_A_OPCODE_LIST(DECLARE_VRR_A_INSTRUCTIONS)
+#undef DECLARE_VRR_A_INSTRUCTIONS
+
+#define DECLARE_VRR_C_INSTRUCTIONS(name, opcode_name, opcode_value)        \
+  void name(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3,       \
+            Condition m6, Condition m5, Condition m4) {                    \
+    uint64_t code = (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 | \
+                    (static_cast<uint64_t>(v1.code())) * B36 |             \
+                    (static_cast<uint64_t>(v2.code())) * B32 |             \
+                    (static_cast<uint64_t>(v3.code())) * B28 |             \
+                    (static_cast<uint64_t>(m6 & 0xF)) * B20 |              \
+                    (static_cast<uint64_t>(m5 & 0xF)) * B16 |              \
+                    (static_cast<uint64_t>(m4 & 0xF)) * B12 |              \
+                    (static_cast<uint64_t>(opcode_value & 0x00FF));        \
+    emit6bytes(code);                                                      \
+  }
+  VRR_C_OPCODE_LIST(DECLARE_VRR_C_INSTRUCTIONS)
+#undef DECLARE_VRR_C_INSTRUCTIONS
+
+  // Single Element format
+  void vfa(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3) {
+    vfa(v1, v2, v3, static_cast<Condition>(0), static_cast<Condition>(8),
+        static_cast<Condition>(3));
+  }
+  void vfs(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3) {
+    vfs(v1, v2, v3, static_cast<Condition>(0), static_cast<Condition>(8),
+        static_cast<Condition>(3));
+  }
+  void vfm(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3) {
+    vfm(v1, v2, v3, static_cast<Condition>(0), static_cast<Condition>(8),
+        static_cast<Condition>(3));
+  }
+  void vfd(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3) {
+    vfd(v1, v2, v3, static_cast<Condition>(0), static_cast<Condition>(8),
+        static_cast<Condition>(3));
+  }
+
   // S390 instruction sets
   RX_FORM(bc);
   RR_FORM(bctr);

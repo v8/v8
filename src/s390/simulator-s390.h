@@ -522,6 +522,11 @@ class Simulator {
   static void EvalTableInit();
 
 #define EVALUATE(name) int Evaluate_##name(Instruction* instr)
+#define EVALUATE_VRR_INSTRUCTIONS(name, op_name, op_value) EVALUATE(op_name);
+  VRR_C_OPCODE_LIST(EVALUATE_VRR_INSTRUCTIONS)
+  VRR_A_OPCODE_LIST(EVALUATE_VRR_INSTRUCTIONS)
+#undef EVALUATE_VRR_INSTRUCTIONS
+
   EVALUATE(DUMY);
   EVALUATE(BKPT);
   EVALUATE(SPM);
