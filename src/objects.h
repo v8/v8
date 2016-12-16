@@ -9919,6 +9919,7 @@ class String: public Name {
   // returned structure will report so, and can't provide a vector of either
   // kind.
   FlatContent GetFlatContent();
+  FlatContent GetFlattenedContent();
 
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()

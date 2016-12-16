@@ -454,7 +454,7 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 6);
 
-  Handle<Object> callee = args.at<Object>(0);
+  Handle<Object> callee = args.at(0);
 
   // If "eval" didn't refer to the original GlobalEval, it's not a
   // direct call to eval.

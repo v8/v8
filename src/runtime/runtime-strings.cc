@@ -86,17 +86,32 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   return isolate->StackOverflow();
 }
 
-
+// ES6 #sec-string.prototype.indexof
+// String.prototype.indexOf(searchString [, position])
 RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  return String::IndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
-                         args.at<Object>(2));
+  return String::IndexOf(isolate, args.at(0), args.at(1), args.at(2));
+}
+
+// ES6 #sec-string.prototype.indexof
+// String.prototype.indexOf(searchString, position)
+// Fast version that assumes that does not perform conversions of the incoming
+// arguments.
+RUNTIME_FUNCTION(Runtime_StringIndexOfUnchecked) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  Handle<String> receiver_string = args.at<String>(0);
+  Handle<String> search_string = args.at<String>(1);
+  int index = std::min(std::max(args.smi_at(2), 0), receiver_string->length());
+
+  return Smi::FromInt(String::IndexOf(isolate, receiver_string, search_string,
+                                      static_cast<uint32_t>(index)));
 }
 
 RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
   HandleScope handle_scope(isolate);
-  return String::LastIndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
+  return String::LastIndexOf(isolate, args.at(0), args.at(1),
                              isolate->factory()->undefined_value());
 }
 

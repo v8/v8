@@ -14,6 +14,46 @@ namespace internal {
 typedef CodeStubAssembler::ResultMode ResultMode;
 typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 
+class StringBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit StringBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  Node* LoadOneByteChar(Node* string, Node* index) {
+    return Load(MachineType::Uint8(), string, OneByteCharOffset(index));
+  }
+
+  Node* OneByteCharAddress(Node* string, Node* index) {
+    Node* offset = OneByteCharOffset(index);
+    return IntPtrAdd(BitcastTaggedToWord(string), offset);
+  }
+
+  Node* OneByteCharOffset(Node* index) {
+    return CharOffset(String::ONE_BYTE_ENCODING, index);
+  }
+
+  Node* CharOffset(String::Encoding encoding, Node* index) {
+    const int header = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+    Node* offset = index;
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset = IntPtrAddFoldConstants(offset, offset);
+    }
+    offset = IntPtrAddFoldConstants(offset, IntPtrConstant(header));
+    return offset;
+  }
+
+  void BranchIfSimpleOneByteStringInstanceType(Node* instance_type,
+                                               Label* if_true,
+                                               Label* if_false) {
+    const int kMask = kStringRepresentationMask | kStringEncodingMask;
+    const int kType = kOneByteStringTag | kSeqStringTag;
+    Branch(Word32Equal(Word32And(instance_type, Int32Constant(kMask)),
+                       Int32Constant(kType)),
+           if_true, if_false);
+  }
+};
+
 namespace {
 
 void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
@@ -567,7 +607,7 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
 }
 
 uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
-  Handle<Object> value = args.at<Object>(1 + index);
+  Handle<Object> value = args.at(1 + index);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::ToNumber(value), -1);
   if (!IsValidCodePoint(isolate, value)) {
     isolate->Throw(*isolate->factory()->NewRangeError(
@@ -831,13 +871,131 @@ BUILTIN(StringPrototypeIncludes) {
   return *isolate->factory()->ToBoolean(index_in_str != -1);
 }
 
-// ES6 section 21.1.3.8 String.prototype.indexOf ( searchString [ , position ] )
-BUILTIN(StringPrototypeIndexOf) {
-  HandleScope handle_scope(isolate);
+// ES6 #sec-string.prototype.indexof
+TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
+  Variable search_string(this, MachineRepresentation::kTagged),
+      position(this, MachineRepresentation::kTagged);
+  Label call_runtime(this), call_runtime_unchecked(this), argc_0(this),
+      no_argc_0(this), argc_1(this), no_argc_1(this), argc_2(this),
+      fast_path(this), return_minus_1(this);
 
-  return String::IndexOf(isolate, args.receiver(),
-                         args.atOrUndefined(isolate, 1),
-                         args.atOrUndefined(isolate, 2));
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  CodeStubArguments arguments(this, argc);
+  Node* receiver = arguments.GetReceiver();
+  // From now on use word-size argc value.
+  argc = arguments.GetLength();
+
+  GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &argc_0);
+  GotoIf(IntPtrEqual(argc, IntPtrConstant(1)), &argc_1);
+  Goto(&argc_2);
+  Bind(&argc_0);
+  {
+    Comment("0 Argument case");
+    Node* undefined = UndefinedConstant();
+    search_string.Bind(undefined);
+    position.Bind(undefined);
+    Goto(&call_runtime);
+  }
+  Bind(&argc_1);
+  {
+    Comment("1 Argument case");
+    search_string.Bind(arguments.AtIndex(0));
+    position.Bind(SmiConstant(0));
+    Goto(&fast_path);
+  }
+  Bind(&argc_2);
+  {
+    Comment("2 Argument case");
+    search_string.Bind(arguments.AtIndex(0));
+    position.Bind(arguments.AtIndex(1));
+    GotoUnless(TaggedIsSmi(position.value()), &call_runtime);
+    Goto(&fast_path);
+  }
+
+  Bind(&fast_path);
+  {
+    Comment("Fast Path");
+    Label zero_length_needle(this);
+    GotoIf(TaggedIsSmi(receiver), &call_runtime);
+    Node* needle = search_string.value();
+    GotoIf(TaggedIsSmi(needle), &call_runtime);
+    Node* instance_type = LoadInstanceType(receiver);
+    GotoUnless(IsStringInstanceType(instance_type), &call_runtime);
+
+    Node* needle_instance_type = LoadInstanceType(needle);
+    GotoUnless(IsStringInstanceType(needle_instance_type), &call_runtime);
+
+    // At this point we know that the receiver and the needle are Strings and
+    // that position is a Smi.
+
+    Node* needle_length = SmiUntag(LoadStringLength(needle));
+    // Use possibly faster runtime fallback for long search strings.
+    GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
+           &call_runtime_unchecked);
+    Node* string_length = SmiUntag(LoadStringLength(receiver));
+    Node* start_position = SmiUntag(position.value());
+
+    GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
+    // Check that the needle fits in the start position.
+    GotoUnless(IntPtrLessThanOrEqual(needle_length,
+                                     IntPtrSub(string_length, start_position)),
+               &return_minus_1);
+    // Only support one-byte strings on the fast path.
+    Label check_needle(this), continue_fast_path(this);
+    BranchIfSimpleOneByteStringInstanceType(instance_type, &check_needle,
+                                            &call_runtime_unchecked);
+    Bind(&check_needle);
+    BranchIfSimpleOneByteStringInstanceType(
+        needle_instance_type, &continue_fast_path, &call_runtime_unchecked);
+    Bind(&continue_fast_path);
+    {
+      Node* needle_byte =
+          ChangeInt32ToIntPtr(LoadOneByteChar(needle, IntPtrConstant(0)));
+      Node* start_address = OneByteCharAddress(receiver, start_position);
+      Node* search_length = IntPtrSub(string_length, start_position);
+      // Call out to the highly optimized memchr to perform the actual byte
+      // search.
+      Node* memchr =
+          ExternalConstant(ExternalReference::libc_memchr_function(isolate()));
+      Node* result_address =
+          CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
+                         MachineType::IntPtr(), MachineType::UintPtr(), memchr,
+                         start_address, needle_byte, search_length);
+      GotoIf(WordEqual(result_address, IntPtrConstant(0)), &return_minus_1);
+      Node* result_index =
+          IntPtrAdd(IntPtrSub(result_address, start_address), start_position);
+      arguments.PopAndReturn(SmiTag(result_index));
+    }
+    Bind(&zero_length_needle);
+    {
+      Comment("0-length needle");
+      arguments.PopAndReturn(SmiTag(IntPtrMin(string_length, start_position)));
+    }
+  }
+
+  Bind(&return_minus_1);
+  { arguments.PopAndReturn(SmiConstant(-1)); }
+
+  Bind(&call_runtime);
+  {
+    Comment("Call Runtime");
+    Node* result = CallRuntime(Runtime::kStringIndexOf, context, receiver,
+                               search_string.value(), position.value());
+    arguments.PopAndReturn(result);
+  }
+
+  Bind(&call_runtime_unchecked);
+  {
+    // Simplified version of the runtime call where the types of the arguments
+    // are already known due to type checks in this stub.
+    Comment("Call Runtime Unchecked");
+    Node* result =
+        CallRuntime(Runtime::kStringIndexOfUnchecked, context, receiver,
+                    search_string.value(), position.value());
+    arguments.PopAndReturn(result);
+  }
 }
 
 // ES6 section 21.1.3.9
@@ -861,8 +1019,8 @@ BUILTIN(StringPrototypeLocaleCompare) {
 
   TO_THIS_STRING(str1, "String.prototype.localeCompare");
   Handle<String> str2;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, str2, Object::ToString(isolate, args.at<Object>(1)));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str2,
+                                     Object::ToString(isolate, args.at(1)));
 
   if (str1.is_identical_to(str2)) return Smi::kZero;  // Equal.
   int str1_length = str1->length();

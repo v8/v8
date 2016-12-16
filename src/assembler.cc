@@ -35,7 +35,9 @@
 #include "src/assembler.h"
 
 #include <math.h>
+#include <string.h>
 #include <cmath>
+
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
@@ -1549,6 +1551,14 @@ ExternalReference ExternalReference::ieee754_tan_function(Isolate* isolate) {
 ExternalReference ExternalReference::ieee754_tanh_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
+}
+
+void* libc_memchr(void* string, int character, size_t search_length) {
+  return memchr(string, character, search_length);
+}
+
+ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
 }
 
 ExternalReference ExternalReference::page_flags(Page* page) {

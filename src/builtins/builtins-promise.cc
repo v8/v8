@@ -43,7 +43,7 @@ BUILTIN(CreateResolvingFunctions) {
   DCHECK_EQ(3, args.length());
 
   Handle<JSObject> promise = args.at<JSObject>(1);
-  Handle<Object> debug_event = args.at<Object>(2);
+  Handle<Object> debug_event = args.at(2);
   Handle<JSFunction> resolve, reject;
 
   PromiseUtils::CreateResolvingFunctions(isolate, promise, debug_event,

@@ -162,7 +162,7 @@ BUILTIN(ObjectAssign) {
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
-    Handle<Object> next_source = args.at<Object>(i);
+    Handle<Object> next_source = args.at(i);
     Maybe<bool> fast_assign = FastAssign(to, next_source);
     if (fast_assign.IsNothing()) return isolate->heap()->exception();
     if (fast_assign.FromJust()) continue;
@@ -558,8 +558,8 @@ void Builtins::Generate_ObjectCreate(compiler::CodeAssemblerState* state) {
 BUILTIN(ObjectDefineProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> properties = args.at<Object>(2);
+  Handle<Object> target = args.at(1);
+  Handle<Object> properties = args.at(2);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSReceiver::DefineProperties(isolate, target, properties));
@@ -569,9 +569,9 @@ BUILTIN(ObjectDefineProperties) {
 BUILTIN(ObjectDefineProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
-  Handle<Object> attributes = args.at<Object>(3);
+  Handle<Object> target = args.at(1);
+  Handle<Object> key = args.at(2);
+  Handle<Object> attributes = args.at(3);
 
   return JSReceiver::DefineProperty(isolate, target, key, attributes);
 }
@@ -671,9 +671,9 @@ Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
 // https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
 BUILTIN(ObjectDefineGetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);  // Receiver.
-  Handle<Object> name = args.at<Object>(1);
-  Handle<Object> getter = args.at<Object>(2);
+  Handle<Object> object = args.at(0);  // Receiver.
+  Handle<Object> name = args.at(1);
+  Handle<Object> getter = args.at(2);
   return ObjectDefineAccessor<ACCESSOR_GETTER>(isolate, object, name, getter);
 }
 
@@ -681,9 +681,9 @@ BUILTIN(ObjectDefineGetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
 BUILTIN(ObjectDefineSetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);  // Receiver.
-  Handle<Object> name = args.at<Object>(1);
-  Handle<Object> setter = args.at<Object>(2);
+  Handle<Object> object = args.at(0);  // Receiver.
+  Handle<Object> name = args.at(1);
+  Handle<Object> setter = args.at(2);
   return ObjectDefineAccessor<ACCESSOR_SETTER>(isolate, object, name, setter);
 }
 
@@ -691,8 +691,8 @@ BUILTIN(ObjectDefineSetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__lookupGetter__
 BUILTIN(ObjectLookupGetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> object = args.at(0);
+  Handle<Object> name = args.at(1);
   return ObjectLookupAccessor(isolate, object, name, ACCESSOR_GETTER);
 }
 
@@ -700,8 +700,8 @@ BUILTIN(ObjectLookupGetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__lookupSetter__
 BUILTIN(ObjectLookupSetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> object = args.at(0);
+  Handle<Object> name = args.at(1);
   return ObjectLookupAccessor(isolate, object, name, ACCESSOR_SETTER);
 }
 
@@ -790,7 +790,7 @@ BUILTIN(ObjectPrototypeSetProto) {
   }
 
   // 2. If Type(proto) is neither Object nor Null, return undefined.
-  Handle<Object> proto = args.at<Object>(1);
+  Handle<Object> proto = args.at(1);
   if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
     return isolate->heap()->undefined_value();
   }
@@ -865,8 +865,8 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
 BUILTIN(ObjectIs) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> value1 = args.at<Object>(1);
-  Handle<Object> value2 = args.at<Object>(2);
+  Handle<Object> value1 = args.at(1);
+  Handle<Object> value2 = args.at(2);
   return isolate->heap()->ToBoolean(value1->SameValue(*value2));
 }
 

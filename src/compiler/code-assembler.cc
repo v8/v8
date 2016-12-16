@@ -546,6 +546,15 @@ Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                          function, arg0, arg1);
 }
 
+Node* CodeAssembler::CallCFunction3(MachineType return_type,
+                                    MachineType arg0_type,
+                                    MachineType arg1_type,
+                                    MachineType arg2_type, Node* function,
+                                    Node* arg0, Node* arg1, Node* arg2) {
+  return raw_assembler()->CallCFunction3(return_type, arg0_type, arg1_type,
+                                         arg2_type, function, arg0, arg1, arg2);
+}
+
 void CodeAssembler::Goto(Label* label) {
   label->MergeVariables();
   raw_assembler()->Goto(label->label_);
@@ -718,12 +727,13 @@ void CodeAssemblerLabel::Bind() {
   for (auto var : variable_phis_) {
     CodeAssemblerVariable::Impl* var_impl = var.first;
     auto i = variable_merges_.find(var_impl);
-    // If the following assert fires, then a variable that has been marked as
+    // If the following asserts fire, then a variable that has been marked as
     // being merged at the label--either by explicitly marking it so in the
     // label constructor or by having seen different bound values at branches
     // into the label--doesn't have a bound value along all of the paths that
     // have been merged into the label up to this point.
-    DCHECK(i != variable_merges_.end() && i->second.size() == merge_count_);
+    DCHECK(i != variable_merges_.end());
+    DCHECK_EQ(i->second.size(), merge_count_);
     Node* phi = state_->raw_assembler_->Phi(
         var.first->rep_, static_cast<int>(merge_count_), &(i->second[0]));
     variable_phis_[var_impl] = phi;

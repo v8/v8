@@ -106,9 +106,9 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
   CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
 
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<Object> arg0 = (args.length() > 1) ? args.at<Object>(1) : undefined;
-  Handle<Object> arg1 = (args.length() > 2) ? args.at<Object>(2) : undefined;
-  Handle<Object> arg2 = (args.length() > 3) ? args.at<Object>(3) : undefined;
+  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined;
+  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined;
+  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined;
 
   MessageTemplate::Template message_id =
       static_cast<MessageTemplate::Template>(message_id_smi);

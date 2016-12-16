@@ -254,6 +254,21 @@ Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
   return AddNode(common()->Call(descriptor), function, arg0, arg1);
 }
 
+Node* RawMachineAssembler::CallCFunction3(MachineType return_type,
+                                          MachineType arg0_type,
+                                          MachineType arg1_type,
+                                          MachineType arg2_type, Node* function,
+                                          Node* arg0, Node* arg1, Node* arg2) {
+  MachineSignature::Builder builder(zone(), 1, 3);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2);
+}
 
 Node* RawMachineAssembler::CallCFunction8(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,

@@ -30,7 +30,7 @@ class BuiltinArguments : public Arguments {
     return Arguments::operator[](index);
   }
 
-  template <class S>
+  template <class S = Object>
   Handle<S> at(int index) {
     DCHECK_LT(index, length());
     return Arguments::at<S>(index);

@@ -133,7 +133,7 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
 // ES6 19.1.3.2
 RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   HandleScope scope(isolate);
-  Handle<Object> property = args.at<Object>(1);
+  Handle<Object> property = args.at(1);
 
   Handle<Name> key;
   uint32_t index;
@@ -145,7 +145,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     key_is_array_index = key->AsArrayIndex(&index);
   }
 
-  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> object = args.at(0);
 
   if (object->IsJSObject()) {
     Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
@@ -212,7 +212,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 // an Object.create stub.
 RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   HandleScope scope(isolate);
-  Handle<Object> prototype = args.at<Object>(0);
+  Handle<Object> prototype = args.at(0);
   if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
@@ -262,7 +262,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   }
 
   // Define the properties if properties was specified and is not undefined.
-  Handle<Object> properties = args.at<Object>(1);
+  Handle<Object> properties = args.at(1);
   if (!properties->IsUndefined(isolate)) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, JSReceiver::DefineProperties(isolate, object, properties));

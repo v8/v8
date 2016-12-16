@@ -1608,3 +1608,38 @@ TEST(Regress609831) {
     CHECK(v8::Utils::OpenHandle(*result)->IsSeqTwoByteString());
   }
 }
+
+TEST(ExternalStringIndexOf) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* raw_string = "abcdefghijklmnopqrstuvwxyz";
+  v8::Local<v8::String> string =
+      v8::String::NewExternalOneByte(CcTest::isolate(),
+                                     new StaticOneByteResource(raw_string))
+          .ToLocalChecked();
+  v8::Local<v8::Object> global = context->Global();
+  global->Set(context.local(), v8_str("external"), string).FromJust();
+
+  char source[] = "external.indexOf('%')";
+  for (size_t i = 0; i < strlen(raw_string); i++) {
+    source[18] = raw_string[i];
+    int result_position = static_cast<int>(i);
+    CHECK_EQ(result_position,
+             CompileRun(source)->Int32Value(context.local()).FromJust());
+  }
+  CHECK_EQ(-1,
+           CompileRun("external.indexOf('abcdefghijklmnopqrstuvwxyz%%%%%%')")
+               ->Int32Value(context.local())
+               .FromJust());
+  CHECK_EQ(1, CompileRun("external.indexOf('', 1)")
+                  ->Int32Value(context.local())
+                  .FromJust());
+  CHECK_EQ(-1, CompileRun("external.indexOf('a', 1)")
+                   ->Int32Value(context.local())
+                   .FromJust());
+  CHECK_EQ(-1, CompileRun("external.indexOf('$')")
+                   ->Int32Value(context.local())
+                   .FromJust());
+}

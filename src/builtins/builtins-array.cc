@@ -151,7 +151,7 @@ MUST_USE_RESULT static Object* CallJsIntrinsic(Isolate* isolate,
   int argc = args.length() - 1;
   ScopedVector<Handle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at<Object>(i + 1);
+    argv[i] = args.at(i + 1);
   }
   RETURN_RESULT_OR_FAILURE(
       isolate,

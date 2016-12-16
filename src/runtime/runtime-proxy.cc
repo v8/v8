@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
     // 6.a. Return Call(target, thisArgument, argumentsList).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at<Object>(i + 1);
+      argv[i] = args.at(i + 1);
     }
     RETURN_RESULT_OR_FAILURE(
         isolate, Execution::Call(isolate, target, receiver, arguments_length,
@@ -100,7 +100,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
     // 6.b. Return Construct(target, argumentsList, newTarget).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at<Object>(i + 1);
+      argv[i] = args.at(i + 1);
     }
     RETURN_RESULT_OR_FAILURE(
         isolate, Execution::New(isolate, target, new_target, arguments_length,

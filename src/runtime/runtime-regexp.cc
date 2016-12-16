@@ -1495,7 +1495,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, recv, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 1);
-  Handle<Object> replace_obj = args.at<Object>(2);
+  Handle<Object> replace_obj = args.at(2);
 
   Factory* factory = isolate->factory();
 

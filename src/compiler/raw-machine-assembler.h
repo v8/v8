@@ -723,6 +723,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
+  // Call to a C function with three arguments.
+  Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2);
   // Call to a C function with eight arguments.
   Node* CallCFunction8(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,

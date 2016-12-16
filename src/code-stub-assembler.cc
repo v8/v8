@@ -4380,6 +4380,11 @@ Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
                         MachineType::PointerRepresentation());
 }
 
+Node* CodeStubAssembler::IntPtrMin(Node* left, Node* right) {
+  return SelectConstant(IntPtrLessThanOrEqual(left, right), left, right,
+                        MachineType::PointerRepresentation());
+}
+
 template <class Dictionary>
 Node* CodeStubAssembler::GetNumberOfElements(Node* dictionary) {
   return LoadFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex);

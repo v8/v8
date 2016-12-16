@@ -2636,7 +2636,7 @@ RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> function = args.at<Object>(0);
+  Handle<Object> function = args.at(0);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2652,7 +2652,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> receiver = args.at<Object>(0);
+  Handle<Object> receiver = args.at(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
@@ -2749,8 +2749,8 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
+  Handle<Object> receiver = args.at(0);
+  Handle<Object> key = args.at(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2765,8 +2765,8 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   typedef LoadWithVectorDescriptor Descriptor;
   DCHECK_EQ(Descriptor::kParameterCount, args.length());
-  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
-  Handle<Object> key = args.at<Object>(Descriptor::kName);
+  Handle<Object> receiver = args.at(Descriptor::kReceiver);
+  Handle<Object> key = args.at(Descriptor::kName);
   Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
   Handle<TypeFeedbackVector> vector =
       args.at<TypeFeedbackVector>(Descriptor::kVector);
@@ -2783,10 +2783,10 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
-  Handle<Object> receiver = args.at<Object>(3);
+  Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
@@ -2810,11 +2810,11 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
-  Handle<Object> receiver = args.at<Object>(3);
-  Handle<Object> key = args.at<Object>(4);
+  Handle<Object> receiver = args.at(3);
+  Handle<Object> key = args.at(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2827,10 +2827,10 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> value = args.at(0);
   // slot and vector parameters are not used.
-  Handle<Object> object = args.at<Object>(3);
-  Handle<Object> key = args.at<Object>(4);
+  Handle<Object> object = args.at(3);
+  Handle<Object> key = args.at(4);
   LanguageMode language_mode;
   KeyedStoreICNexus nexus(isolate);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2844,9 +2844,9 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   HandleScope scope(isolate);
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> value = args.at<Object>(2);
+  Handle<Object> object = args.at(0);
+  Handle<Object> key = args.at(1);
+  Handle<Object> value = args.at(2);
   Handle<Map> map = args.at<Map>(3);
   LanguageMode language_mode;
   KeyedStoreICNexus nexus(isolate);
@@ -2995,8 +2995,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   typedef BinaryOpDescriptor Descriptor;
-  Handle<Object> left = args.at<Object>(Descriptor::kLeft);
-  Handle<Object> right = args.at<Object>(Descriptor::kRight);
+  Handle<Object> left = args.at(Descriptor::kLeft);
+  Handle<Object> right = args.at(Descriptor::kRight);
   BinaryOpIC ic(isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate, ic.Transition(Handle<AllocationSite>::null(), left, right));
@@ -3009,8 +3009,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_MissWithAllocationSite) {
   typedef BinaryOpWithAllocationSiteDescriptor Descriptor;
   Handle<AllocationSite> allocation_site =
       args.at<AllocationSite>(Descriptor::kAllocationSite);
-  Handle<Object> left = args.at<Object>(Descriptor::kLeft);
-  Handle<Object> right = args.at<Object>(Descriptor::kRight);
+  Handle<Object> left = args.at(Descriptor::kLeft);
+  Handle<Object> right = args.at(Descriptor::kRight);
   BinaryOpIC ic(isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            ic.Transition(allocation_site, left, right));
@@ -3093,7 +3093,7 @@ RUNTIME_FUNCTION(Runtime_CompareIC_Miss) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
-  return ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
+  return ic.UpdateCaches(args.at(0), args.at(1));
 }
 
 
@@ -3116,7 +3116,7 @@ Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
 RUNTIME_FUNCTION(Runtime_ToBooleanIC_Miss) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> object = args.at(0);
   ToBooleanIC ic(isolate);
   return *ic.ToBoolean(object);
 }
@@ -3127,7 +3127,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<JSObject> holder = args.at<JSObject>(1);
   Handle<HeapObject> callback_or_cell = args.at<HeapObject>(2);
   Handle<Name> name = args.at<Name>(3);
-  Handle<Object> value = args.at<Object>(4);
+  Handle<Object> value = args.at(4);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 5);
   HandleScope scope(isolate);
 
@@ -3171,7 +3171,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<Object> receiver =
-      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+      args.at(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
@@ -3207,7 +3207,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<Object> receiver =
-      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+      args.at(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
 
@@ -3263,7 +3263,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
-  Handle<Object> value = args.at<Object>(2);
+  Handle<Object> value = args.at(2);
 
   DCHECK(receiver->HasNamedInterceptor());
   InterceptorInfo* interceptor = receiver->GetNamedInterceptor();

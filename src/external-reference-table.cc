@@ -230,6 +230,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "f64_mod_wrapper");
   Add(ExternalReference::wasm_call_trap_callback_for_testing(isolate).address(),
       "wasm::call_trap_callback_for_testing");
+  Add(ExternalReference::libc_memchr_function(isolate).address(),
+      "libc_memchr");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

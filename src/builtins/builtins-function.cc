@@ -43,8 +43,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         if (i > 1) builder.AppendCharacter(',');
         Handle<String> param;
         ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, param, Object::ToString(isolate, args.at<Object>(i)),
-            Object);
+            isolate, param, Object::ToString(isolate, args.at(i)), Object);
         param = String::Flatten(param);
         builder.AppendString(param);
         // If the formal parameters string include ) - an illegal
@@ -68,8 +67,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     if (argc > 0) {
       Handle<String> body;
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, body, Object::ToString(isolate, args.at<Object>(argc)),
-          Object);
+          isolate, body, Object::ToString(isolate, args.at(argc)), Object);
       builder.AppendString(body);
     }
     builder.AppendCString("\n})");
@@ -180,9 +178,9 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   Handle<Object> this_arg = isolate->factory()->undefined_value();
   ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
   if (args.length() > 1) {
-    this_arg = args.at<Object>(1);
+    this_arg = args.at(1);
     for (int i = 2; i < args.length(); ++i) {
-      argv[i - 2] = args.at<Object>(i);
+      argv[i - 2] = args.at(i);
     }
   }
   Handle<JSBoundFunction> function;

@@ -163,6 +163,7 @@ typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
   V(Float64RoundTiesEven)               \
   V(Float64RoundTruncate)               \
   V(Word32Clz)                          \
+  V(Word32Not)                          \
   V(Word32BinaryNot)
 
 // A "public" interface used by components outside of compiler directory to
@@ -353,6 +354,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
+
+  // Call to a C function with three arguments.
+  Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2);
 
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
