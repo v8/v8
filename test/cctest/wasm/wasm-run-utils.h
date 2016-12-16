@@ -666,11 +666,13 @@ class WasmRunner : public WasmRunnerBase {
     // Use setjmp/longjmp to deal with traps in WebAssembly code.
     // Make the return value volatile, to give defined semantics if accessed
     // after setjmp.
-    volatile ReturnType return_value =
-        static_cast<ReturnType>(0xdeadbeefdeadbeef);
-    int jump_value = setjmp(WasmRunnerBase::jump_buffer);
-    // jump_value == 0 --> first return; jump_value == 1 --> longjmp happened.
-    if (!jump_value) DoCall(&return_value, p...);
+    ReturnType return_value = static_cast<ReturnType>(0xdeadbeefdeadbeef);
+    static int setjmp_ret;
+    setjmp_ret = setjmp(WasmRunnerBase::jump_buffer);
+    // setjmp returns 0 on the first return, 1 (passed to longjmp) after trap.
+    if (setjmp_ret == 0) {
+      DoCall(static_cast<void*>(&p)..., static_cast<void*>(&return_value));
+    }
     return return_value;
   }
 
@@ -696,7 +698,8 @@ class WasmRunner : public WasmRunnerBase {
  private:
   // Don't inline this function. The setjmp above should be followed immediately
   // by a call.
-  V8_NOINLINE void DoCall(volatile ReturnType* return_value, ParamTypes... p) {
+  template <typename... Ptrs>
+  V8_NOINLINE void DoCall(Ptrs... ptrs) {
     auto trap_callback = []() -> void {
       set_trap_callback_for_testing(nullptr);
       longjmp(WasmRunnerBase::jump_buffer, 1);
@@ -707,10 +710,7 @@ class WasmRunner : public WasmRunnerBase {
         module_.GetFunctionCode(functions_[0]->function_index()));
     CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                wrapper_.GetWrapperCode(), wrapper_.signature());
-    ReturnType return_value_local;
-    int32_t result = runner.Call(static_cast<void*>(&p)...,
-                                 static_cast<void*>(&return_value_local));
-    *return_value = return_value_local;
+    int32_t result = runner.Call(ptrs...);
     // If we arrive here, no trap happened.
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
   }
@@ -726,9 +726,6 @@ jmp_buf WasmRunnerBase::jump_buffer;
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
-#if V8_CC_MSVC
-#define WASM_EXEC_TEST_WITH_TRAP(name) WASM_EXEC_TEST(name)
-#else
 #define WASM_EXEC_TEST_WITH_TRAP(name)                                     \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
   TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
@@ -741,7 +738,6 @@ jmp_buf WasmRunnerBase::jump_buffer;
   }                                                                        \
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
-#endif
 
 #define WASM_EXEC_COMPILED_TEST(name)                                \
   void RunWasm_##name(WasmExecutionMode execution_mode);             \
