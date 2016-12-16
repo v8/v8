@@ -19,7 +19,6 @@ namespace {
 
 using ::testing::_;
 using ::testing::Invoke;
-using ::testing::Return;
 
 class ValueSerializerTest : public TestWithIsolate {
  protected:
@@ -130,20 +129,13 @@ class ValueSerializerTest : public TestWithIsolate {
     encoded_data_functor(buffer);
   }
 
-  template <typename InputFunctor, typename MessageFunctor>
-  void InvalidEncodeTest(const InputFunctor& input_functor,
-                         const MessageFunctor& functor) {
-    Context::Scope scope(serialization_context());
-    TryCatch try_catch(isolate());
-    Local<Value> input_value = input_functor();
-    ASSERT_TRUE(DoEncode(input_value).IsNothing());
-    functor(try_catch.Message());
-  }
-
   template <typename MessageFunctor>
   void InvalidEncodeTest(const char* source, const MessageFunctor& functor) {
-    InvalidEncodeTest(
-        [this, source]() { return EvaluateScriptForInput(source); }, functor);
+    Context::Scope scope(serialization_context());
+    TryCatch try_catch(isolate());
+    Local<Value> input_value = EvaluateScriptForInput(source);
+    ASSERT_TRUE(DoEncode(input_value).IsNothing());
+    functor(try_catch.Message());
   }
 
   void InvalidEncodeTest(const char* source) {
@@ -2050,8 +2042,7 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
  protected:
   static const size_t kTestByteLength = 4;
 
-  ValueSerializerTestWithSharedArrayBufferTransfer()
-      : serializer_delegate_(this) {
+  ValueSerializerTestWithSharedArrayBufferTransfer() {
     const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xff};
     memcpy(data_, data, kTestByteLength);
     {
@@ -2069,6 +2060,10 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
   const Local<SharedArrayBuffer>& input_buffer() { return input_buffer_; }
   const Local<SharedArrayBuffer>& output_buffer() { return output_buffer_; }
 
+  void BeforeEncode(ValueSerializer* serializer) override {
+    serializer->TransferSharedArrayBuffer(0, input_buffer_);
+  }
+
   void BeforeDecode(ValueDeserializer* deserializer) override {
     deserializer->TransferSharedArrayBuffer(0, output_buffer_);
   }
@@ -2085,39 +2080,6 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
     flag_was_enabled_ = false;
   }
 
- protected:
-// GMock doesn't use the "override" keyword.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winconsistent-missing-override"
-#endif
-
-  class SerializerDelegate : public ValueSerializer::Delegate {
-   public:
-    explicit SerializerDelegate(
-        ValueSerializerTestWithSharedArrayBufferTransfer* test)
-        : test_(test) {}
-    MOCK_METHOD2(GetSharedArrayBufferId,
-                 Maybe<uint32_t>(Isolate* isolate,
-                                 Local<SharedArrayBuffer> shared_array_buffer));
-    void ThrowDataCloneError(Local<String> message) override {
-      test_->isolate()->ThrowException(Exception::Error(message));
-    }
-
-   private:
-    ValueSerializerTestWithSharedArrayBufferTransfer* test_;
-  };
-
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-
-  ValueSerializer::Delegate* GetSerializerDelegate() override {
-    return &serializer_delegate_;
-  }
-
-  SerializerDelegate serializer_delegate_;
-
  private:
   static bool flag_was_enabled_;
   uint8_t data_[kTestByteLength];
@@ -2130,10 +2092,6 @@ bool ValueSerializerTestWithSharedArrayBufferTransfer::flag_was_enabled_ =
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
        RoundTripSharedArrayBufferTransfer) {
-  EXPECT_CALL(serializer_delegate_,
-              GetSharedArrayBufferId(isolate(), input_buffer()))
-      .WillRepeatedly(Return(Just(0U)));
-
   RoundTripTest([this]() { return input_buffer(); },
                 [this](Local<Value> value) {
                   ASSERT_TRUE(value->IsSharedArrayBuffer());
@@ -2163,6 +2121,12 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
         EXPECT_TRUE(EvaluateScriptForResultBool(
             "new Uint8Array(result.a).toString() === '0,1,128,255'"));
       });
+}
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
+       SharedArrayBufferMustBeTransferred) {
+  // A SharedArrayBuffer which was not marked for transfer should fail encoding.
+  InvalidEncodeTest("new SharedArrayBuffer(32)");
 }
 
 TEST_F(ValueSerializerTest, UnsupportedHostObject) {

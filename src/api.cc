@@ -3033,15 +3033,6 @@ Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
   return Nothing<bool>();
 }
 
-Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
-    Isolate* v8_isolate, Local<SharedArrayBuffer> shared_array_buffer) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  isolate->ScheduleThrow(*isolate->factory()->NewError(
-      isolate->error_function(), i::MessageTemplate::kDataCloneError,
-      Utils::OpenHandle(*shared_array_buffer)));
-  return Nothing<uint32_t>();
-}
-
 void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
                                                         size_t* actual_size) {

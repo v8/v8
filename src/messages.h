@@ -677,8 +677,8 @@ class ErrorUtils : public AllStatic {
   T(DataCloneError, "% could not be cloned.")                                  \
   T(DataCloneErrorNeuteredArrayBuffer,                                         \
     "An ArrayBuffer is neutered and could not be cloned.")                     \
-  T(DataCloneErrorSharedArrayBufferTransferred,                                \
-    "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must not be "  \
+  T(DataCloneErrorSharedArrayBufferNotTransferred,                             \
+    "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must be "      \
     "transferred.")                                                            \
   T(DataCloneDeserializationError, "Unable to deserialize cloned data.")       \
   T(DataCloneDeserializationVersionError,                                      \
