@@ -56,7 +56,13 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::cast(len_obj)->value());
-  return *out <= object->elements()->length();
+
+  FixedArray* parameters = FixedArray::cast(object->elements());
+  if (object->HasSloppyArgumentsElements()) {
+    FixedArray* arguments = FixedArray::cast(parameters->get(1));
+    return *out <= arguments->length();
+  }
+  return *out <= parameters->length();
 }
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
