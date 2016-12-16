@@ -485,11 +485,11 @@ Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
   return CallStubN(descriptor, result_size, arraysize(nodes), nodes);
 }
 
-// Instantiate CallStubR() with up to 5 arguments.
+// Instantiate CallStubR() with up to 6 arguments.
 #define INSTANTIATE(...)                                     \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR( \
       const CallInterfaceDescriptor& descriptor, size_t, Node*, __VA_ARGS__);
-REPEAT_1_TO_6(INSTANTIATE, Node*)
+REPEAT_1_TO_7(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
@@ -511,18 +511,6 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   Node* return_value = raw_assembler()->CallN(desc, input_count, inputs);
   CallEpilogue();
   return return_value;
-}
-
-Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
-                               int js_parameter_count, Node* target,
-                               Node** args, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor,
-      descriptor.GetStackParameterCount() + js_parameter_count,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  return CallN(call_descriptor, target, args);
 }
 
 Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
@@ -678,72 +666,6 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
       isolate(), zone(), interface_descriptor,
       interface_descriptor.GetStackParameterCount());
   return raw_assembler()->TailCallN(descriptor, code_target_address, args);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver,
-                            size_t result_size) {
-  const int argc = 0;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver, Node* arg1,
-                            size_t result_size) {
-  const int argc = 1;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = arg1;
-  args[4] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver, Node* arg1,
-                            Node* arg2, size_t result_size) {
-  const int argc = 2;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = arg1;
-  args[4] = arg2;
-  args[5] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver, Node* arg1,
-                            Node* arg2, Node* arg3, size_t result_size) {
-  const int argc = 3;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = arg1;
-  args[4] = arg2;
-  args[5] = arg3;
-  args[6] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
 Node* CodeAssembler::CallCFunction2(MachineType return_type,

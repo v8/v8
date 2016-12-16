@@ -327,14 +327,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallStubN(const CallInterfaceDescriptor& descriptor, size_t result_size,
                   int input_count, Node* const* inputs);
 
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor,
-                  int js_parameter_count, Node* target, Node** args,
-                  size_t result_size = 1);
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
-                  Node** args, size_t result_size = 1) {
-    return CallStubN(descriptor, 0, target, args, result_size);
-  }
-
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      size_t result_size = 1);
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
@@ -370,15 +362,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
                                  Node* code_target_address, Node** args);
 
+  template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, Node* arg2, Node* arg3,
-               size_t result_size = 1);
+               Node* receiver, TArgs... args) {
+    int argc = static_cast<int>(sizeof...(args));
+    Node* arity = Int32Constant(argc);
+    return CallStub(callable, context, function, arity, receiver, args...);
+  }
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
@@ -406,8 +396,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
  private:
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-
-  void InstallBreakOnNodeDecorator();
 
   RawMachineAssembler* raw_assembler() const;
 
