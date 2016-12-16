@@ -1119,6 +1119,10 @@ DEFINE_STRING(redirect_code_traces_to, NULL,
 DEFINE_BOOL(hydrogen_track_positions, false,
             "track source code positions when building IR")
 
+DEFINE_BOOL(print_opt_source, false,
+            "print source code of optimized and inlined functions")
+DEFINE_IMPLICATION(hydrogen_track_positions, print_opt_source)
+
 //
 // Disassembler only flags
 //

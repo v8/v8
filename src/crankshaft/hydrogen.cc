@@ -1362,10 +1362,6 @@ HGraph* HGraphBuilder::CreateGraph() {
   DCHECK(!FLAG_minimal);
   graph_ = new (zone()) HGraph(info_, descriptor_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
-  if (!info_->IsStub() && is_tracking_positions()) {
-    TraceInlinedFunction(info_->shared_info(), SourcePosition::Unknown(),
-                         SourcePosition::kNotInlined);
-  }
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
@@ -1373,57 +1369,6 @@ HGraph* HGraphBuilder::CreateGraph() {
   return graph_;
 }
 
-void HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                                         SourcePosition position,
-                                         int inlining_id) {
-  DCHECK(is_tracking_positions());
-
-  if (!shared->script()->IsUndefined(isolate())) {
-    Handle<Script> script(Script::cast(shared->script()), isolate());
-
-    if (FLAG_hydrogen_track_positions &&
-        !script->source()->IsUndefined(isolate())) {
-      CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-      Object* source_name = script->name();
-      OFStream os(tracing_scope.file());
-      os << "--- FUNCTION SOURCE (";
-      if (source_name->IsString()) {
-        os << String::cast(source_name)->ToCString().get() << ":";
-      }
-      os << shared->DebugName()->ToCString().get() << ") id{";
-      os << info_->optimization_id() << "," << inlining_id << "} start{";
-      os << shared->start_position() << "} ---\n";
-      {
-        DisallowHeapAllocation no_allocation;
-        int start = shared->start_position();
-        int len = shared->end_position() - start;
-        String::SubStringRange source(String::cast(script->source()), start,
-                                      len);
-        for (const auto& c : source) {
-          os << AsReversiblyEscapedUC16(c);
-        }
-      }
-
-      os << "\n--- END ---\n";
-    }
-  }
-
-  if (FLAG_hydrogen_track_positions &&
-      inlining_id != SourcePosition::kNotInlined) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
-       << info_->optimization_id() << "," << inlining_id << "} AS "
-       << inlining_id << " AT ";
-    if (position.IsKnown()) {
-      os << "<" << position.InliningId() << ":" << position.ScriptOffset()
-         << ">";
-    } else {
-      os << "<?>";
-    }
-    os << std::endl;
-  }
-}
 
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
   DCHECK(current_block() != NULL);
@@ -8170,10 +8115,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
            target_info.scope(), target_info.osr_ast_id(), target_info.literal(),
            &bounds_)
       .Run();
-
-  if (is_tracking_positions()) {
-    TraceInlinedFunction(target_shared, source_position(), inlining_id);
-  }
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it

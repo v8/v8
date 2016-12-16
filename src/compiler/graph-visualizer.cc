@@ -497,6 +497,9 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         if (positions != nullptr) {
           SourcePosition position = positions->GetSourcePosition(node);
           if (position.IsKnown()) {
+            if (position.isInlined()) {
+              os_ << "inlining(" << position.InliningId() << "),";
+            }
             os_ << " pos:" << position.ScriptOffset();
           }
         }

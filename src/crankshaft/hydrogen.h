@@ -463,12 +463,6 @@ class HGraph final : public ZoneObject {
   void DecrementInNoSideEffectsScope() { no_side_effects_scope_count_--; }
   bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
 
-  // If we are tracking source positions then this function assigns a unique
-  // identifier to each inlining and dumps function source if it was inlined
-  // for the first time during the current optimization.
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position);
-
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
@@ -1852,9 +1846,6 @@ class HGraphBuilder {
   void set_source_position(SourcePosition position) { position_ = position; }
 
   bool is_tracking_positions() { return track_positions_; }
-
-  void TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                            SourcePosition position, int inlining_id);
 
   HValue* BuildAllocateEmptyArrayBuffer(HValue* byte_length);
   template <typename ViewClass>
