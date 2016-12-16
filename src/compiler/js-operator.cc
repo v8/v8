@@ -854,8 +854,8 @@ const Operator* JSOperatorBuilder::CreateClosure(
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralArray(
-    Handle<FixedArray> constant_elements, int literal_flags, int literal_index,
-    int number_of_elements) {
+    Handle<ConstantElementsPair> constant_elements, int literal_flags,
+    int literal_index, int number_of_elements) {
   CreateLiteralParameters parameters(constant_elements, number_of_elements,
                                      literal_flags, literal_index);
   return new (zone()) Operator1<CreateLiteralParameters>(        // --

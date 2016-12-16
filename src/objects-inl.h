@@ -5806,6 +5806,10 @@ ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
 ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
+SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
+ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
+          kConstantValuesOffset)
+
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
 ACCESSORS(Module, code, Object, kCodeOffset)

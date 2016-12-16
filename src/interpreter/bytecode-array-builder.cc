@@ -638,7 +638,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
-    Handle<FixedArray> constant_elements, int literal_index, int flags) {
+    Handle<ConstantElementsPair> constant_elements, int literal_index,
+    int flags) {
   size_t constant_elements_entry = GetConstantPoolEntry(constant_elements);
   OutputCreateArrayLiteral(constant_elements_entry, literal_index, flags);
   return *this;

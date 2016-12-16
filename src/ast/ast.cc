@@ -645,11 +645,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     accessor->CopyElements(fixed_array, from_kind, elements, constants_length);
   }
 
-  // Remember both the literal's constant values as well as the ElementsKind
-  // in a 2-element FixedArray.
-  Handle<FixedArray> literals = isolate->factory()->NewFixedArray(2, TENURED);
-  literals->set(0, Smi::FromInt(kind));
-  literals->set(1, *elements);
+  // Remember both the literal's constant values as well as the ElementsKind.
+  Handle<ConstantElementsPair> literals =
+      isolate->factory()->NewConstantElementsPair(kind, elements);
 
   constant_elements_ = literals;
   set_is_simple(is_simple);

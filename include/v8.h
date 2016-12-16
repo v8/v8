@@ -8353,8 +8353,8 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSObjectType = 0xbd;
-  static const int kJSApiObjectType = 0xbc;
+  static const int kJSObjectType = 0xbe;
+  static const int kJSApiObjectType = 0xbd;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;

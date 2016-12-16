@@ -18,7 +18,7 @@ bytecodes: [
   /*   51 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
 ]
 handlers: [
 ]
@@ -48,7 +48,7 @@ bytecodes: [
   /*   66 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
 ]
 handlers: [
 ]
@@ -66,7 +66,7 @@ bytecodes: [
   /*   62 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
 ]
 handlers: [
 ]
@@ -108,9 +108,9 @@ bytecodes: [
   /*   77 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
-  FIXED_ARRAY_TYPE,
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
 ]
 handlers: [
 ]

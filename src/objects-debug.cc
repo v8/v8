@@ -1108,6 +1108,11 @@ void ContextExtension::ContextExtensionVerify() {
   VerifyObjectField(kExtensionOffset);
 }
 
+void ConstantElementsPair::ConstantElementsPairVerify() {
+  CHECK(IsConstantElementsPair());
+  VerifySmiField(kElementsKindOffset);
+  VerifyObjectField(kConstantValuesOffset);
+}
 
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());

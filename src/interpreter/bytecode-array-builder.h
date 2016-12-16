@@ -188,8 +188,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,
                                             int literal_index, int flags);
-  BytecodeArrayBuilder& CreateArrayLiteral(Handle<FixedArray> constant_elements,
-                                           int literal_index, int flags);
+  BytecodeArrayBuilder& CreateArrayLiteral(
+      Handle<ConstantElementsPair> constant_elements, int literal_index,
+      int flags);
   BytecodeArrayBuilder& CreateObjectLiteral(
       Handle<FixedArray> constant_properties, int literal_index, int flags,
       Register output);

@@ -391,6 +391,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
   V(CONTEXT_EXTENSION_TYPE)                                     \
+  V(CONSTANT_ELEMENTS_PAIR_TYPE)                                \
   V(MODULE_TYPE)                                                \
   V(MODULE_INFO_ENTRY_TYPE)                                     \
                                                                 \
@@ -559,7 +560,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TUPLE3, Tuple3, tuple3)                                                  \
   V(MODULE, Module, module)                                                  \
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
-  V(CONTEXT_EXTENSION, ContextExtension, context_extension)
+  V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
+  V(CONSTANT_ELEMENTS_PAIR, ConstantElementsPair, constant_elements_pair)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -738,6 +740,7 @@ enum InstanceType {
   TUPLE2_TYPE,
   TUPLE3_TYPE,
   CONTEXT_EXTENSION_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
 
@@ -7059,6 +7062,27 @@ class ContextExtension : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ContextExtension);
 };
 
+// Pair of {ElementsKind} and an array of constant values for {ArrayLiteral}
+// expressions. Used to communicate with the runtime for literal boilerplate
+// creation within the {Runtime_CreateArrayLiteral} method.
+class ConstantElementsPair : public Struct {
+ public:
+  DECL_INT_ACCESSORS(elements_kind)
+  DECL_ACCESSORS(constant_values, FixedArrayBase)
+
+  DECLARE_CAST(ConstantElementsPair)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(ConstantElementsPair)
+  DECLARE_VERIFIER(ConstantElementsPair)
+
+  static const int kElementsKindOffset = HeapObject::kHeaderSize;
+  static const int kConstantValuesOffset = kElementsKindOffset + kPointerSize;
+  static const int kSize = kConstantValuesOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantElementsPair);
+};
 
 // Script describes a script which has been added to the VM.
 class Script: public Struct {

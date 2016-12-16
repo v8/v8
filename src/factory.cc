@@ -129,6 +129,15 @@ Handle<ContextExtension> Factory::NewContextExtension(
   return result;
 }
 
+Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
+    ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
+  Handle<ConstantElementsPair> result = Handle<ConstantElementsPair>::cast(
+      NewStruct(CONSTANT_ELEMENTS_PAIR_TYPE));
+  result->set_elements_kind(elements_kind);
+  result->set_constant_values(*constant_values);
+  return result;
+}
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {

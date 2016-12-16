@@ -1200,8 +1200,9 @@ void BytecodeGraphBuilder::VisitCreateRegExpLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
-  Handle<FixedArray> constant_elements = Handle<FixedArray>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(0));
+  Handle<ConstantElementsPair> constant_elements =
+      Handle<ConstantElementsPair>::cast(
+          bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
   int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
   int literal_flags =
@@ -1213,8 +1214,7 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   literal_flags |= ArrayLiteral::kDisableMementos;
   // TODO(mstarzinger): Thread through number of elements. The below number is
   // only an estimate and does not match {ArrayLiteral::values::length}.
-  int number_of_elements =
-      FixedArrayBase::cast(constant_elements->get(1))->length();
+  int number_of_elements = constant_elements->constant_values()->length();
   Node* literal = NewNode(
       javascript()->CreateLiteralArray(constant_elements, literal_flags,
                                        literal_index, number_of_elements),

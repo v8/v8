@@ -1299,6 +1299,13 @@ void ContextExtension::ContextExtensionPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void ConstantElementsPair::ConstantElementsPairPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "ConstantElementsPair");
+  os << "\n - elements_kind: " << static_cast<ElementsKind>(elements_kind());
+  os << "\n - constant_values: " << Brief(constant_values());
+  os << "\n";
+}
 
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorPair");

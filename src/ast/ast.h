@@ -1540,11 +1540,11 @@ class RegExpLiteral final : public MaterializedLiteral {
 // for minimizing the work when constructing it at runtime.
 class ArrayLiteral final : public MaterializedLiteral {
  public:
-  Handle<FixedArray> constant_elements() const { return constant_elements_; }
+  Handle<ConstantElementsPair> constant_elements() const {
+    return constant_elements_;
+  }
   ElementsKind constant_elements_kind() const {
-    DCHECK_EQ(2, constant_elements_->length());
-    return static_cast<ElementsKind>(
-        Smi::cast(constant_elements_->get(0))->value());
+    return static_cast<ElementsKind>(constant_elements()->elements_kind());
   }
 
   ZoneList<Expression*>* values() const { return values_; }
@@ -1610,7 +1610,7 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   int first_spread_index_;
   FeedbackVectorSlot literal_slot_;
-  Handle<FixedArray> constant_elements_;
+  Handle<ConstantElementsPair> constant_elements_;
   ZoneList<Expression*>* values_;
 };
 

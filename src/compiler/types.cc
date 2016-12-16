@@ -326,6 +326,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
+    case CONSTANT_ELEMENTS_PAIR_TYPE:
       UNREACHABLE();
       return kNone;
   }

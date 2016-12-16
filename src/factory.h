@@ -96,6 +96,10 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<ContextExtension> NewContextExtension(Handle<ScopeInfo> scope_info,
                                                Handle<Object> extension);
 
+  // Create a new ConstantElementsPair struct.
+  Handle<ConstantElementsPair> NewConstantElementsPair(
+      ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
+
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 

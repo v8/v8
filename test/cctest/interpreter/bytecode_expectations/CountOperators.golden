@@ -273,7 +273,7 @@ bytecodes: [
   /*   84 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
 ]
 handlers: [
 ]

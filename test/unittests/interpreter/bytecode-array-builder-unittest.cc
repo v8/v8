@@ -125,7 +125,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
-      .CreateArrayLiteral(factory->NewFixedArray(1), 0, 0)
+      .CreateArrayLiteral(factory->NewConstantElementsPair(
+                              FAST_ELEMENTS, factory->empty_fixed_array()),
+                          0, 0)
       .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0, reg);
 
   // Call operations.
@@ -329,9 +331,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateClosure(1000, NOT_TENURED);
 
   // Emit wide variant of literal creation operations.
-  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"),
-                              0, 0)
-      .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
+  builder
+      .CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"), 0,
+                           0)
+      .CreateArrayLiteral(factory->NewConstantElementsPair(
+                              FAST_ELEMENTS, factory->empty_fixed_array()),
+                          0, 0)
       .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0, reg);
 
   // Emit load and store operations for module variables.
