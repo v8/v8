@@ -192,23 +192,13 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
   Node* context = assembler_->Parameter(kContextParameter);
   Node* target = assembler_->HeapConstant(stub.GetCode());
 
-  int param_count = descriptor.GetParameterCount();
-  Node** args = zone()->NewArray<Node*>(param_count + 1 + kJSParameterCount);
-  // Stub/register parameters:
-  args[0] = assembler_->UndefinedConstant();  // callee (there's no JSFunction)
-  args[1] = assembler_->UndefinedConstant();  // call_data (undefined)
-  args[2] = assembler_->Parameter(0);  // receiver (same as holder in this case)
-  args[3] = assembler_->ExternalConstant(callback);  // API callback function
-
-  // JS arguments, on stack:
-  args[4] = FromId(arg);
-
-  // Context.
-  args[5] = context;
-
-  Node* call =
-      assembler_->CallStubN(descriptor, kJSParameterCount, target, args);
-
+  Node* call = assembler_->CallStub(
+      descriptor, target, context,
+      assembler_->UndefinedConstant(),  // callee (there's no JSFunction)
+      assembler_->UndefinedConstant(),  // call_data (undefined)
+      assembler_->Parameter(0),  // receiver (same as holder in this case)
+      assembler_->ExternalConstant(callback),  // API callback function
+      FromId(arg));                            // JS argument, on stack
   return FromRaw(call);
 }
 

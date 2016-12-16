@@ -222,14 +222,16 @@ Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
 Node* IntrinsicsHelper::IntrinsicAsStubCall(Node* args_reg, Node* context,
                                             Callable const& callable) {
   int param_count = callable.descriptor().GetParameterCount();
-  Node** args = zone()->NewArray<Node*>(param_count + 1);  // 1 for context
+  int input_count = param_count + 2;  // +2 for target and context
+  Node** args = zone()->NewArray<Node*>(input_count);
+  int index = 0;
+  args[index++] = __ HeapConstant(callable.code());
   for (int i = 0; i < param_count; i++) {
-    args[i] = __ LoadRegister(args_reg);
+    args[index++] = __ LoadRegister(args_reg);
     args_reg = __ NextRegister(args_reg);
   }
-  args[param_count] = context;
-
-  return __ CallStubN(callable, args);
+  args[index++] = context;
+  return __ CallStubN(callable.descriptor(), 1, input_count, args);
 }
 
 Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,

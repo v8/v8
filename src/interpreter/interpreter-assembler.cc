@@ -847,8 +847,8 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
       Load(MachineType::Pointer(), function,
            IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  first_arg, function_entry, result_size);
+  return CallStubR(callable.descriptor(), result_size, code_target, context,
+                   arg_count, first_arg, function_entry);
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {

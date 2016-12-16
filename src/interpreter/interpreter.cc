@@ -1357,9 +1357,9 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
     AddWithFeedbackStub stub(__ isolate());
     Callable callable =
         Callable(stub.GetCode(), AddWithFeedbackStub::Descriptor(__ isolate()));
-    Node* args[] = {left, right, __ TruncateWordToWord32(slot_index),
-                    type_feedback_vector, context};
-    var_result.Bind(__ CallStubN(callable, args, 1));
+    var_result.Bind(__ CallStub(callable, context, left, right,
+                                __ TruncateWordToWord32(slot_index),
+                                type_feedback_vector));
     __ Goto(&end);
   }
   __ Bind(&end);
@@ -1411,9 +1411,9 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
     SubtractWithFeedbackStub stub(__ isolate());
     Callable callable = Callable(
         stub.GetCode(), SubtractWithFeedbackStub::Descriptor(__ isolate()));
-    Node* args[] = {left, right, __ TruncateWordToWord32(slot_index),
-                    type_feedback_vector, context};
-    var_result.Bind(__ CallStubN(callable, args, 1));
+    var_result.Bind(__ CallStub(callable, context, left, right,
+                                __ TruncateWordToWord32(slot_index),
+                                type_feedback_vector));
     __ Goto(&end);
   }
   __ Bind(&end);

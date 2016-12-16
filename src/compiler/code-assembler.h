@@ -12,6 +12,7 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/code-factory.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
@@ -316,32 +317,24 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Node* const value;
   };
 
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, Node* arg3, size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, Node* arg3, Node* arg4, size_t result_size = 1);
-  Node* CallStubN(Callable const& callable, Node** args,
-                  size_t result_size = 1);
+  template <class... TArgs>
+  Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
+    Node* target = HeapConstant(callable.code());
+    return CallStub(callable.descriptor(), target, context, args...);
+  }
 
+  template <class... TArgs>
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                 Node* arg5, size_t result_size = 1);
+                 Node* context, TArgs... args) {
+    return CallStubR(descriptor, 1, target, context, args...);
+  }
+
+  template <class... TArgs>
+  Node* CallStubR(const CallInterfaceDescriptor& descriptor, size_t result_size,
+                  Node* target, Node* context, TArgs... args);
+
+  Node* CallStubN(const CallInterfaceDescriptor& descriptor, size_t result_size,
+                  int input_count, Node* const* inputs);
 
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, const Arg& arg1, const Arg& arg2,
