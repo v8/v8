@@ -35,14 +35,14 @@ TEST(Run_WasmInt8Const_i) {
 }
 
 TEST(Run_WasmIfElse) {
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Int32());
+  WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
   BUILD(r, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I8(9), WASM_I8(10)));
   CHECK_EQ(10, r.Call(0));
   CHECK_EQ(9, r.Call(1));
 }
 
 TEST(Run_WasmIfReturn) {
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Int32());
+  WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
   BUILD(r, WASM_IF(WASM_GET_LOCAL(0), WASM_RETURN1(WASM_I8(77))), WASM_I8(65));
   CHECK_EQ(65, r.Call(0));
   CHECK_EQ(77, r.Call(1));
@@ -131,8 +131,7 @@ TEST(Run_WasmBlockBreakN) {
 }
 
 TEST(Run_Wasm_nested_ifs_i) {
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Int32(),
-                        MachineType::Int32());
+  WasmRunner<int32_t, int32_t, int32_t> r(kExecuteInterpreted);
 
   BUILD(r, WASM_IF_ELSE_I(
                WASM_GET_LOCAL(0),
@@ -180,8 +179,7 @@ TEST(Breakpoint_I32Add) {
       Find(code, sizeof(code), kNumBreakpoints, kExprGetLocal, kExprGetLocal,
            kExprI32Add);
 
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Uint32(),
-                        MachineType::Uint32());
+  WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteInterpreted);
 
   r.Build(code, code + arraysize(code));
 
@@ -220,8 +218,7 @@ TEST(Step_I32Mul) {
   static const int kTraceLength = 4;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
 
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Uint32(),
-                        MachineType::Uint32());
+  WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteInterpreted);
 
   r.Build(code, code + arraysize(code));
 
@@ -259,8 +256,7 @@ TEST(Breakpoint_I32And_disable) {
   std::unique_ptr<int[]> offsets =
       Find(code, sizeof(code), kNumBreakpoints, kExprI32And);
 
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Uint32(),
-                        MachineType::Uint32());
+  WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteInterpreted);
 
   r.Build(code, code + arraysize(code));
 
@@ -297,9 +293,8 @@ TEST(Breakpoint_I32And_disable) {
 }
 
 TEST(GrowMemory) {
-  TestingModule module(kExecuteInterpreted);
-  WasmRunner<int32_t> r(&module, MachineType::Uint32());
-  module.AddMemory(WasmModule::kPageSize);
+  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(WasmModule::kPageSize);
   BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
   CHECK_EQ(1, r.Call(1));
 }
@@ -307,9 +302,8 @@ TEST(GrowMemory) {
 TEST(GrowMemoryPreservesData) {
   int32_t index = 16;
   int32_t value = 2335;
-  TestingModule module(kExecuteInterpreted);
-  WasmRunner<int32_t> r(&module, MachineType::Uint32());
-  module.AddMemory(WasmModule::kPageSize);
+  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(WasmModule::kPageSize);
   BUILD(r, WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
                           WASM_I32V(value)),
         WASM_GROW_MEMORY(WASM_GET_LOCAL(0)), WASM_DROP,
@@ -320,16 +314,14 @@ TEST(GrowMemoryPreservesData) {
 TEST(GrowMemoryInvalidSize) {
   {
     // Grow memory by an invalid amount without initial memory.
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<int32_t> r(&module, MachineType::Uint32());
+    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
     BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
     CHECK_EQ(-1, r.Call(1048575));
   }
   {
     // Grow memory by an invalid amount without initial memory.
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<int32_t> r(&module, MachineType::Uint32());
-    module.AddMemory(WasmModule::kPageSize);
+    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
     BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
     CHECK_EQ(-1, r.Call(1048575));
   }
@@ -338,9 +330,7 @@ TEST(GrowMemoryInvalidSize) {
 TEST(TestPossibleNondeterminism) {
   {
     // F32Div may produced NaN
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<float> r(&module, MachineType::Float32(),
-                        MachineType::Float32());
+    WasmRunner<float, float, float> r(kExecuteInterpreted);
     BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
     r.Call(1048575.5f, 2.5f);
     CHECK(!r.possible_nondeterminism());
@@ -349,8 +339,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     // F32Sqrt may produced NaN
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<float> r(&module, MachineType::Float32());
+    WasmRunner<float, float> r(kExecuteInterpreted);
     BUILD(r, WASM_F32_SQRT(WASM_GET_LOCAL(0)));
     r.Call(16.0f);
     CHECK(!r.possible_nondeterminism());
@@ -359,9 +348,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     // F32Mul may produced NaN
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<float> r(&module, MachineType::Float32(),
-                        MachineType::Float32());
+    WasmRunner<float, float, float> r(kExecuteInterpreted);
     BUILD(r, WASM_F32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
     r.Call(1048575.5f, 2.5f);
     CHECK(!r.possible_nondeterminism());
@@ -370,9 +357,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     // F64Div may produced NaN
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<double> r(&module, MachineType::Float64(),
-                         MachineType::Float64());
+    WasmRunner<double, double, double> r(kExecuteInterpreted);
     BUILD(r, WASM_F64_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
     r.Call(1048575.5, 2.5);
     CHECK(!r.possible_nondeterminism());
@@ -381,8 +366,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     // F64Sqrt may produced NaN
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<double> r(&module, MachineType::Float64());
+    WasmRunner<double, double> r(kExecuteInterpreted);
     BUILD(r, WASM_F64_SQRT(WASM_GET_LOCAL(0)));
     r.Call(1048575.5);
     CHECK(!r.possible_nondeterminism());
@@ -391,9 +375,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     // F64Mul may produced NaN
-    TestingModule module(kExecuteInterpreted);
-    WasmRunner<double> r(&module, MachineType::Float64(),
-                         MachineType::Float64());
+    WasmRunner<double, double, double> r(kExecuteInterpreted);
     BUILD(r, WASM_F64_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
     r.Call(1048575.5, 2.5);
     CHECK(!r.possible_nondeterminism());
