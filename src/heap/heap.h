@@ -1850,6 +1850,14 @@ class Heap {
   // Growing strategy. =========================================================
   // ===========================================================================
 
+  // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
+  // This constant limits the effect of load RAIL mode on GC.
+  // The value is arbitrary and chosen as the largest load time observed in
+  // v8 browsing benchmarks.
+  static const int kMaxLoadTimeMs = 3000;
+
+  bool ShouldOptimizeForLoadTime();
+
   // Decrease the allocation limit if the new limit based on the given
   // parameters is lower than the current limit.
   void DampenOldGenerationAllocationLimit(size_t old_gen_size, double gc_speed,

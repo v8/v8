@@ -5306,6 +5306,13 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
   }
 }
 
+bool Heap::ShouldOptimizeForLoadTime() {
+  return isolate()->rail_mode() == PERFORMANCE_LOAD &&
+         PromotedTotalSize() < initial_old_generation_size_ &&
+         MonotonicallyIncreasingTimeInMs() <
+             isolate()->LoadStartTimeMs() + kMaxLoadTimeMs;
+}
+
 // This predicate is called when an old generation space cannot allocated from
 // the free list and is about to add a new page. Returning false will cause a
 // major GC. It happens when the old generation allocation limit is reached and
@@ -5316,6 +5323,8 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
   // We reached the old generation allocation limit.
 
   if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (ShouldOptimizeForLoadTime()) return true;
 
   if (incremental_marking()->NeedsFinalization()) {
     return !AllocationLimitOvershotByLargeMargin();

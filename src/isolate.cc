@@ -2148,6 +2148,7 @@ Isolate::Isolate(bool enable_serializer)
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
       rail_mode_(PERFORMANCE_ANIMATION),
+      load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
@@ -3505,8 +3506,22 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
+double Isolate::LoadStartTimeMs() {
+  base::LockGuard<base::Mutex> guard(&rail_mutex_);
+  return load_start_time_ms_;
+}
+
 void Isolate::SetRAILMode(RAILMode rail_mode) {
+  RAILMode old_rail_mode = rail_mode_.Value();
+  if (old_rail_mode != PERFORMANCE_LOAD && rail_mode == PERFORMANCE_LOAD) {
+    base::LockGuard<base::Mutex> guard(&rail_mutex_);
+    load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
+  }
   rail_mode_.SetValue(rail_mode);
+  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
+    heap()->incremental_marking()->incremental_marking_job()->ScheduleTask(
+        heap());
+  }
   if (FLAG_trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
   }
