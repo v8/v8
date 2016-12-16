@@ -255,7 +255,7 @@ function testCallPrint() {
   var main = builder.instantiate({print: print}).exports.main;
 
   for (var i = -9; i < 900; i += 16.125) {
-      main(i);
+    main(i);
   }
 }
 
@@ -281,3 +281,23 @@ function testCallImport2(foo, bar, expected) {
 }
 
 testCallImport2(function() { return 33; }, function () { return 44; }, 77);
+
+
+function testImportName(name) {
+  var builder = new WasmModuleBuilder();
+  builder.addImportWithModule("M", name, kSig_i_v);
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprCallFunction, 0
+    ])
+    .exportFunc();
+
+  let main = builder.instantiate({M: {[name]: () => 42}}).exports.main;
+  assertEquals(42, main());
+}
+
+testImportName("bla");
+testImportName("0");
+testImportName("  a @#$2 324 ");
+// TODO(bradnelson): This should succeed.
+// testImportName("");

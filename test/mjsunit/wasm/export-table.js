@@ -54,6 +54,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertSame(module.exports.blah, module.exports.foo);
 })();
 
+(function testEmptyName() {
+  print("TestEmptyName...");
+  var kReturnValue = 93;
+
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprI8Const,
+      kReturnValue,
+      kExprReturn
+    ])
+    .exportAs("");
+
+  var module = builder.instantiate();
+
+  assertEquals("object", typeof module.exports);
+  assertEquals("function", typeof module.exports[""]);
+
+  assertEquals(kReturnValue, module.exports[""]());
+})();
 
 (function testNumericName() {
   print("TestNumericName...");

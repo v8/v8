@@ -699,6 +699,10 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
       isolate->native_context()->wasm_compile_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->CompileError_string(),
                         compile_error, attributes);
+  Handle<JSFunction> link_error(
+      isolate->native_context()->wasm_link_error_function());
+  JSObject::AddProperty(webassembly, isolate->factory()->LinkError_string(),
+                        link_error, attributes);
   Handle<JSFunction> runtime_error(
       isolate->native_context()->wasm_runtime_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),

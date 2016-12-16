@@ -164,6 +164,7 @@
   V(TypeError_string, "TypeError")                                 \
   V(type_string, "type")                                           \
   V(CompileError_string, "CompileError")                           \
+  V(LinkError_string, "LinkError")                                 \
   V(RuntimeError_string, "RuntimeError")                           \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \

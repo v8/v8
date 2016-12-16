@@ -649,6 +649,7 @@ class V8_EXPORT_PRIVATE Factory final {
   DECLARE_ERROR(SyntaxError)
   DECLARE_ERROR(TypeError)
   DECLARE_ERROR(WasmCompileError)
+  DECLARE_ERROR(WasmLinkError)
   DECLARE_ERROR(WasmRuntimeError)
 #undef DECLARE_ERROR
 

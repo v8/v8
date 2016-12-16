@@ -1390,60 +1390,55 @@ class WasmInstanceBuilder {
   std::vector<TableInstance> table_instances_;
   std::vector<Handle<JSFunction>> js_wrappers_;
 
-  // Helper routine to print out errors with imports (FFI).
-  MaybeHandle<JSFunction> ReportFFIError(const char* error, uint32_t index,
-                                         Handle<String> module_name,
-                                         MaybeHandle<String> function_name) {
-    Handle<String> function_name_handle;
-    if (function_name.ToHandle(&function_name_handle)) {
-      thrower_->TypeError(
-          "Import #%d module=\"%.*s\" function=\"%.*s\" error: %s", index,
-          module_name->length(), module_name->ToCString().get(),
-          function_name_handle->length(),
-          function_name_handle->ToCString().get(), error);
-    } else {
-      thrower_->TypeError("Import #%d module=\"%.*s\" error: %s", index,
-                          module_name->length(), module_name->ToCString().get(),
-                          error);
-    }
-    thrower_->TypeError("Import ");
-    return MaybeHandle<JSFunction>();
+  // Helper routines to print out errors with imports.
+  void ReportLinkError(const char* error, uint32_t index,
+                       Handle<String> module_name,
+                       Handle<String> import_name) {
+    thrower_->LinkError(
+        "Import #%d module=\"%.*s\" function=\"%.*s\" error: %s", index,
+        module_name->length(), module_name->ToCString().get(),
+        import_name->length(), import_name->ToCString().get(), error);
+  }
+
+  MaybeHandle<Object> ReportTypeError(const char* error, uint32_t index,
+                                      Handle<String> module_name) {
+    thrower_->TypeError("Import #%d module=\"%.*s\" error: %s", index,
+                        module_name->length(), module_name->ToCString().get(),
+                        error);
+    return MaybeHandle<Object>();
   }
 
   // Look up an import value in the {ffi_} object.
   MaybeHandle<Object> LookupImport(uint32_t index, Handle<String> module_name,
-                                   MaybeHandle<String> import_name) {
+                                   Handle<String> import_name) {
     if (ffi_.is_null()) {
-      return ReportFFIError("FFI is not an object", index, module_name,
-                            import_name);
+      return ReportTypeError("FFI is not an object", index, module_name);
     }
 
     // Look up the module first.
     MaybeHandle<Object> result =
         Object::GetPropertyOrElement(ffi_, module_name);
     if (result.is_null()) {
-      return ReportFFIError("module not found", index, module_name,
-                            import_name);
+      return ReportTypeError("module not found", index, module_name);
     }
 
     Handle<Object> module = result.ToHandleChecked();
 
-    if (!import_name.is_null()) {
+    // TODO(bradnelson): Making this conditional on non-empty names violates the
+    // Wasm spec, but seems to be a hack intended for the asm-to-wasm pipeline.
+    // We need to get rid of it.
+    if (import_name->length() != 0) {
       // Look up the value in the module.
       if (!module->IsJSReceiver()) {
-        return ReportFFIError("module is not an object or function", index,
-                              module_name, import_name);
+        return ReportTypeError("module is not an object or function", index,
+                             module_name);
       }
 
-      result =
-          Object::GetPropertyOrElement(module, import_name.ToHandleChecked());
+      result = Object::GetPropertyOrElement(module, import_name);
       if (result.is_null()) {
-        return ReportFFIError("import not found", index, module_name,
-                              import_name);
+        ReportLinkError("import not found", index, module_name, import_name);
+        return MaybeHandle<JSFunction>();
       }
-    } else {
-      // No function specified. Use the "default export".
-      result = module;
     }
 
     return result;
@@ -1473,7 +1468,7 @@ class WasmInstanceBuilder {
       uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
       if (dest_offset >= mem_size || source_size >= mem_size ||
           dest_offset > (mem_size - source_size)) {
-        thrower_->TypeError("data segment (start = %" PRIu32 ", size = %" PRIu32
+        thrower_->LinkError("data segment (start = %" PRIu32 ", size = %" PRIu32
                             ") does not fit into memory (size = %" PRIuS ")",
                             dest_offset, source_size, mem_size);
         return;
@@ -1525,40 +1520,43 @@ class WasmInstanceBuilder {
     for (int index = 0; index < static_cast<int>(module_->import_table.size());
          ++index) {
       WasmImport& import = module_->import_table[index];
-      Handle<String> module_name =
+
+      Handle<String> module_name;
+      MaybeHandle<String> maybe_module_name =
           ExtractStringFromModuleBytes(isolate_, compiled_module_,
                                        import.module_name_offset,
-                                       import.module_name_length)
-              .ToHandleChecked();
-      Handle<String> function_name = Handle<String>::null();
-      if (import.field_name_length > 0) {
-        function_name = ExtractStringFromModuleBytes(isolate_, compiled_module_,
-                                                     import.field_name_offset,
-                                                     import.field_name_length)
-                            .ToHandleChecked();
-      }
+                                       import.module_name_length);
+      if (!maybe_module_name.ToHandle(&module_name)) return -1;
+
+      Handle<String> import_name;
+      MaybeHandle<String> maybe_import_name =
+          ExtractStringFromModuleBytes(isolate_, compiled_module_,
+                                       import.field_name_offset,
+                                       import.field_name_length);
+      if (!maybe_import_name.ToHandle(&import_name)) return -1;
 
       MaybeHandle<Object> result =
-          LookupImport(index, module_name, function_name);
+          LookupImport(index, module_name, import_name);
       if (thrower_->error()) return -1;
+      Handle<Object> value = result.ToHandleChecked();
 
       switch (import.kind) {
         case kExternalFunction: {
           // Function imports must be callable.
-          Handle<Object> function = result.ToHandleChecked();
-          if (!function->IsCallable()) {
-            ReportFFIError("function import requires a callable", index,
-                           module_name, function_name);
+          if (!value->IsCallable()) {
+            ReportLinkError("function import requires a callable", index,
+                            module_name, import_name);
             return -1;
           }
 
           Handle<Code> import_wrapper = CompileImportWrapper(
               isolate_, index, module_->functions[import.index].sig,
-              Handle<JSReceiver>::cast(function), module_name, function_name,
+              Handle<JSReceiver>::cast(value), module_name, import_name,
               module_->origin);
           if (import_wrapper.is_null()) {
-            ReportFFIError("imported function does not match the expected type",
-                           index, module_name, function_name);
+            ReportLinkError(
+                "imported function does not match the expected type",
+                index, module_name, import_name);
             return -1;
           }
           code_table->set(num_imported_functions, *import_wrapper);
@@ -1567,10 +1565,9 @@ class WasmInstanceBuilder {
           break;
         }
         case kExternalTable: {
-          Handle<Object> value = result.ToHandleChecked();
           if (!WasmJs::IsWasmTableObject(isolate_, value)) {
-            ReportFFIError("table import requires a WebAssembly.Table", index,
-                           module_name, function_name);
+            ReportLinkError("table import requires a WebAssembly.Table", index,
+                            module_name, import_name);
             return -1;
           }
           WasmIndirectFunctionTable& table =
@@ -1583,7 +1580,7 @@ class WasmInstanceBuilder {
           // TODO(titzer): import table size must match exactly for now.
           int table_size = table_instance.js_wrappers->length();
           if (table_size != static_cast<int>(table.min_size)) {
-            thrower_->TypeError(
+            thrower_->LinkError(
                 "table import %d is wrong size (%d), expected %u", index,
                 table_size, table.min_size);
             return -1;
@@ -1604,7 +1601,7 @@ class WasmInstanceBuilder {
             WasmFunction* function =
                 GetWasmFunctionForImportWrapper(isolate_, val);
             if (function == nullptr) {
-              thrower_->TypeError("table import %d[%d] is not a WASM function",
+              thrower_->LinkError("table import %d[%d] is not a WASM function",
                                   index, i);
               return -1;
             }
@@ -1618,13 +1615,12 @@ class WasmInstanceBuilder {
           break;
         }
         case kExternalMemory: {
-          Handle<Object> object = result.ToHandleChecked();
-          if (!WasmJs::IsWasmMemoryObject(isolate_, object)) {
-            ReportFFIError("memory import must be a WebAssembly.Memory object",
-                           index, module_name, function_name);
+          if (!WasmJs::IsWasmMemoryObject(isolate_, value)) {
+            ReportLinkError("memory import must be a WebAssembly.Memory object",
+                            index, module_name, import_name);
             return -1;
           }
-          auto memory = Handle<WasmMemoryObject>::cast(object);
+          auto memory = Handle<WasmMemoryObject>::cast(value);
           DCHECK(WasmJs::IsWasmMemoryObject(isolate_, memory));
           instance->set_memory_object(*memory);
           memory_ = Handle<JSArrayBuffer>(memory->get_buffer(), isolate_);
@@ -1633,15 +1629,12 @@ class WasmInstanceBuilder {
         case kExternalGlobal: {
           // Global imports are converted to numbers and written into the
           // {globals_} array buffer.
-          Handle<Object> object = result.ToHandleChecked();
-          MaybeHandle<Object> number = Object::ToNumber(object);
-          if (number.is_null()) {
-            ReportFFIError("global import could not be converted to number",
-                           index, module_name, function_name);
+          if (!value->IsNumber()) {
+            ReportLinkError("global import must be a number",
+                            index, module_name, import_name);
             return -1;
           }
-          Handle<Object> val = number.ToHandleChecked();
-          WriteGlobalValue(module_->globals[import.index], val);
+          WriteGlobalValue(module_->globals[import.index], value);
           break;
         }
         default:
@@ -1863,7 +1856,7 @@ class WasmInstanceBuilder {
       v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
           isolate_, exports_object, name, &desc, Object::THROW_ON_ERROR);
       if (!status.IsJust()) {
-        thrower_->TypeError("export of %.*s failed.", name->length(),
+        thrower_->LinkError("export of %.*s failed.", name->length(),
                             name->ToCString().get());
         return;
       }
@@ -1913,7 +1906,7 @@ class WasmInstanceBuilder {
         if (base > static_cast<uint32_t>(table_size) ||
             (base + table_init.entries.size() >
              static_cast<uint32_t>(table_size))) {
-          thrower_->CompileError("table initializer is out of bounds");
+          thrower_->LinkError("table initializer is out of bounds");
           continue;
         }
         for (int i = 0; i < static_cast<int>(table_init.entries.size()); ++i) {

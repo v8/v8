@@ -2220,6 +2220,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallError(isolate, dummy, factory->CompileError_string(),
                  Context::WASM_COMPILE_ERROR_FUNCTION_INDEX);
 
+    // -- L i n k E r r o r
+    InstallError(isolate, dummy, factory->LinkError_string(),
+                 Context::WASM_LINK_ERROR_FUNCTION_INDEX);
+
     // -- R u n t i m e E r r o r
     InstallError(isolate, dummy, factory->RuntimeError_string(),
                  Context::WASM_RUNTIME_ERROR_FUNCTION_INDEX);

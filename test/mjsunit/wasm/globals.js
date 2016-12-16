@@ -24,7 +24,6 @@ function TestImported(type, val, expected) {
 TestImported(kAstI32, 300.1, 300);
 TestImported(kAstF32, 87234.87238, Math.fround(87234.87238));
 TestImported(kAstF64, 77777.88888, 77777.88888);
-TestImported(kAstF64, "89", 89);
 
 
 function TestExported(type, val, expected) {
