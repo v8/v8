@@ -105,6 +105,9 @@ class RegisterList {
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}
 
+  // Increases the size of the register list by one.
+  void IncrementRegisterCount() { register_count_++; }
+
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.
   const RegisterList Truncate(int new_count) {

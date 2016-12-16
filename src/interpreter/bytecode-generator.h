@@ -72,10 +72,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Used by flow control routines to evaluate loop condition.
   void VisitCondition(Expression* expr);
 
-  // Visit the arguments expressions in |args| and store them in |args_regs|
-  // starting at register |first_argument_register| in the list.
-  void VisitArguments(ZoneList<Expression*>* args, RegisterList arg_regs,
-                      size_t first_argument_register = 0);
+  // Visit the arguments expressions in |args| and store them in |args_regs|,
+  // growing |args_regs| for each argument visited.
+  void VisitArguments(ZoneList<Expression*>* args, RegisterList* arg_regs);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -92,7 +91,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                    Register opt_receiver_out);
 
   void VisitPropertyLoad(Register obj, Property* expr);
-  void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
+  void VisitPropertyLoadForRegister(Register obj, Property* expr,
+                                    Register destination);
 
   void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
                          HoleCheckMode hole_check_mode,
@@ -152,12 +152,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Visit a statement and switch scopes, the context is in the accumulator.
   void VisitInScope(Statement* stmt, Scope* scope);
 
+  void BuildPushUndefinedIntoRegisterList(RegisterList* reg_list);
+
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect.
   void VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
+  void VisitAndPushIntoRegisterList(Expression* expr, RegisterList* reg_list);
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
