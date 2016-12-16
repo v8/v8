@@ -476,11 +476,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode, bool* ok);
 
-  Expression* InstallHomeObject(Expression* function_literal,
-                                Expression* home_object);
-  FunctionLiteral* SynthesizeClassFieldInitializer(int count);
-  FunctionLiteral* InsertClassFieldInitializer(FunctionLiteral* constructor);
-
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
 
@@ -523,8 +518,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
-                                      bool requires_class_field_init, int pos,
-                                      int end_pos, LanguageMode language_mode);
+                                      int pos, int end_pos,
+                                      LanguageMode language_mode);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.

@@ -14039,9 +14039,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_asm_function(lit->scope()->asm_function());
-  shared_info->set_requires_class_field_init(lit->requires_class_field_init());
-  shared_info->set_is_class_field_initializer(
-      lit->is_class_field_initializer());
   shared_info->set_function_literal_id(lit->function_literal_id());
   SetExpectedNofPropertiesFromEstimate(shared_info, lit);
 }

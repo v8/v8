@@ -291,7 +291,6 @@ class AstValue : public ZoneObject {
   F(default, "default")                         \
   F(done, "done")                               \
   F(dot, ".")                                   \
-  F(dot_class_field_init, ".class-field-init")  \
   F(dot_for, ".for")                            \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
