@@ -450,6 +450,14 @@
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],
 
+  # Symbol.iterator on namespace objects was removed, tests need to be updated.
+  'language/module-code/namespace/Symbol.iterator/*': [SKIP],
+  'language/module-code/namespace/internals/get-own-property-sym': [SKIP],
+  'language/module-code/namespace/internals/get-sym-found': [SKIP],
+  'language/module-code/namespace/internals/has-property-sym-found': [SKIP],
+  'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
+  'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
+
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

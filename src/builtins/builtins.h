@@ -711,9 +711,6 @@ namespace internal {
   TFJ(TypedArrayPrototypeKeys, 0)                                             \
   /* ES6 #sec-%typedarray%.prototype.values */                                \
   TFJ(TypedArrayPrototypeValues, 0)                                           \
-                                                                              \
-  CPP(ModuleNamespaceIterator)                                                \
-  CPP(FixedArrayIteratorNext)
 
 #define IGNORE_BUILTIN(...)
 

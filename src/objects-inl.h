@@ -708,7 +708,6 @@ TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
-TYPE_CHECKER(JSFixedArrayIterator, JS_FIXED_ARRAY_ITERATOR_TYPE)
 
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
@@ -2106,8 +2105,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSObject::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:
       return JSStringIterator::kSize;
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
-      return JSFixedArrayIterator::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kSize;
     default:
@@ -3319,7 +3316,6 @@ CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSModuleNamespace)
-CAST_ACCESSOR(JSFixedArrayIterator)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
@@ -5811,10 +5807,6 @@ ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
 ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
-
-ACCESSORS(JSFixedArrayIterator, array, FixedArray, kArrayOffset)
-SMI_ACCESSORS(JSFixedArrayIterator, index, kIndexOffset)
-ACCESSORS(JSFixedArrayIterator, initial_next, JSFunction, kNextOffset)
 
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
