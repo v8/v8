@@ -23,6 +23,8 @@ class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
 
+enum class LazyCompilationMode { kAlways, kIfRequested };
+
 // The V8 compiler API.
 //
 // This is the central hub for dispatching to the various compilers within V8.
@@ -51,9 +53,11 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
-  // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
+  // Prepare a compilation job for unoptimized code. If |mode| is
+  // LazyCompilationMode::kAlways, the returned job will not compile any inner
+  // functions. Requires ParseAndAnalyse.
   static CompilationJob* PrepareUnoptimizedCompilationJob(
-      CompilationInfo* info);
+      CompilationInfo* info, LazyCompilationMode mode);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job);
@@ -115,7 +119,8 @@ class Compiler : public AllStatic {
 
   // Create a shared function info object (the code may be lazily compiled).
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
-      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
+      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer,
+      LazyCompilationMode mode = LazyCompilationMode::kIfRequested);
 
   // Create a shared function info object for a native function literal.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(

@@ -323,5 +323,36 @@ TEST_F(IgnitionCompilerDispatcherJobTest, CompileOnBackgroundThread) {
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
 }
 
+TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
+  const char script[] =
+      "function g() {\n"
+      "  f = function() {\n"
+      "    e = (function() { return 42; });\n"
+      "    return e;\n"
+      "  };\n"
+      "  return f;\n"
+      "}\n"
+      "g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
+
+  job->PrepareToParseOnMainThread();
+  job->Parse();
+  ASSERT_TRUE(job->FinalizeParsingOnMainThread());
+  ASSERT_TRUE(job->PrepareToCompileOnMainThread());
+  job->Compile();
+  ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
+  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+
+  Handle<JSFunction> e = Handle<JSFunction>::cast(RunJS(isolate(), "f();"));
+
+  ASSERT_FALSE(e->shared()->HasBaselineCode());
+
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -366,7 +366,8 @@ bool ShouldUseIgnition(CompilationInfo* info) {
   return shared->PassesFilter(FLAG_ignition_filter);
 }
 
-CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
+CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info,
+                                             LazyCompilationMode mode) {
   // Function should have been parsed and analyzed before creating a compilation
   // job.
   DCHECK_NOT_NULL(info->literal());
@@ -374,9 +375,9 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
 
   EnsureFeedbackMetadata(info);
   if (ShouldUseIgnition(info)) {
-    return interpreter::Interpreter::NewCompilationJob(info);
+    return interpreter::Interpreter::NewCompilationJob(info, mode);
   } else {
-    return FullCodeGenerator::NewCompilationJob(info);
+    return FullCodeGenerator::NewCompilationJob(info, mode);
   }
 }
 
@@ -439,7 +440,8 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
     }
   }
 
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+  std::unique_ptr<CompilationJob> job(
+      GetUnoptimizedCompilationJob(info, LazyCompilationMode::kIfRequested));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) return false;
   if (FinalizeUnoptimizedCompilationJob(job.get()) !=
@@ -1565,10 +1567,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
   return result;
 }
 
-
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
-    CompilationInfo* outer_info) {
+    CompilationInfo* outer_info, LazyCompilationMode mode) {
   // Precondition: code has been parsed and scopes have been analyzed.
   Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
@@ -1620,7 +1621,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // This is especially important for generators. We must not replace the
   // code for generators, as there may be suspended generator objects.
   if (!result->is_compiled()) {
-    if (!literal->ShouldEagerCompile()) {
+    if (mode == LazyCompilationMode::kAlways ||
+        !literal->ShouldEagerCompile()) {
       info.SetCode(isolate->builtins()->CompileLazy());
       Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
       if (outer_scope) {
@@ -1693,9 +1695,9 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 }
 
 CompilationJob* Compiler::PrepareUnoptimizedCompilationJob(
-    CompilationInfo* info) {
+    CompilationInfo* info, LazyCompilationMode mode) {
   VMState<COMPILER> state(info->isolate());
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info, mode));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) {
     return nullptr;
   }
