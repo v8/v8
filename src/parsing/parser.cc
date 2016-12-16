@@ -2612,11 +2612,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // will migrate unresolved variable into a Scope in the main Zone.
   // TODO(marja): Refactor parsing modes: simplify this.
   bool use_temp_zone =
-      (FLAG_lazy_inner_functions
+      (FLAG_aggressive_lazy_inner_functions
            ? can_preparse
            : (is_lazy_top_level_function ||
-              (allow_lazy_ && function_type == FunctionLiteral::kDeclaration &&
+              (parse_lazily() &&
+               function_type == FunctionLiteral::kDeclaration &&
                eager_compile_hint == FunctionLiteral::kShouldLazyCompile)));
+
+  DCHECK_IMPLIES(
+      (is_lazy_top_level_function ||
+       (parse_lazily() && function_type == FunctionLiteral::kDeclaration &&
+        eager_compile_hint == FunctionLiteral::kShouldLazyCompile)),
+      can_preparse);
   bool is_lazy_inner_function =
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
 
