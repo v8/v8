@@ -726,6 +726,9 @@ jmp_buf WasmRunnerBase::jump_buffer;
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
+#if V8_CC_MSVC
+#define WASM_EXEC_TEST_WITH_TRAP(name) WASM_EXEC_TEST(name)
+#else
 #define WASM_EXEC_TEST_WITH_TRAP(name)                                     \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
   TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
@@ -738,6 +741,7 @@ jmp_buf WasmRunnerBase::jump_buffer;
   }                                                                        \
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
+#endif
 
 #define WASM_EXEC_COMPILED_TEST(name)                                \
   void RunWasm_##name(WasmExecutionMode execution_mode);             \
