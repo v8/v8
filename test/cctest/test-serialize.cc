@@ -2389,15 +2389,37 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       global_template->SetAccessor(v8_str("y"), AccessorForSerialization);
+      v8::Local<v8::Private> priv =
+          v8::Private::ForApi(isolate, v8_str("cached"));
+      global_template->SetAccessorProperty(
+          v8_str("cached"),
+          v8::FunctionTemplate::NewWithCache(isolate, SerializedCallback, priv,
+                                             v8::Local<v8::Value>()));
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, &extensions, global_template);
       v8::Context::Scope context_scope(context);
+
+      CHECK(context->Global()
+                ->SetPrivate(context, priv, v8_str("cached string"))
+                .FromJust());
+      v8::Local<v8::Private> hidden =
+          v8::Private::ForApi(isolate, v8_str("hidden"));
+      CHECK(context->Global()
+                ->SetPrivate(context, hidden, v8_str("hidden string"))
+                .FromJust());
+
       ExpectInt32("f()", 42);
       ExpectInt32("g()", 12);
       ExpectInt32("h()", 13);
       ExpectInt32("o.p", 7);
       ExpectInt32("x", 2016);
       ExpectInt32("y", 2017);
+      CHECK(v8_str("hidden string")
+                ->Equals(context, context->Global()
+                                      ->GetPrivate(context, hidden)
+                                      .ToLocalChecked())
+                .FromJust());
+
       CHECK_EQ(0u, creator.AddContext(context));
     }
     blob = creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear,
@@ -2453,6 +2475,14 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
           ExpectInt32("j()", 25);
           ExpectInt32("o.p", 8);
           ExpectInt32("x", 2016);
+          v8::Local<v8::Private> hidden =
+              v8::Private::ForApi(isolate, v8_str("hidden"));
+          CHECK(v8_str("hidden string")
+                    ->Equals(context, context->Global()
+                                          ->GetPrivate(context, hidden)
+                                          .ToLocalChecked())
+                    .FromJust());
+          ExpectString("cached", "cached string");
         }
 
         v8::Local<v8::Object> global = context->Global();
@@ -2473,6 +2503,21 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
           ExpectInt32("j()", 25);
           ExpectInt32("o.p", 8);
           ExpectInt32("x", 2016);
+          v8::Local<v8::Private> hidden =
+              v8::Private::ForApi(isolate, v8_str("hidden"));
+          CHECK(v8_str("hidden string")
+                    ->Equals(context2, context2->Global()
+                                           ->GetPrivate(context2, hidden)
+                                           .ToLocalChecked())
+                    .FromJust());
+
+          // Set cached accessor property again.
+          v8::Local<v8::Private> priv =
+              v8::Private::ForApi(isolate, v8_str("cached"));
+          CHECK(context2->Global()
+                    ->SetPrivate(context2, priv, v8_str("cached string 1"))
+                    .FromJust());
+          ExpectString("cached", "cached string 1");
         }
 
         CHECK(context2->Global()->Equals(context2, global).FromJust());
