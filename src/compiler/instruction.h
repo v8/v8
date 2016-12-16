@@ -1570,8 +1570,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void ValidateDeferredBlockEntryPaths() const;
   void ValidateSSA() const;
 
-  const RegisterConfiguration* GetRegisterConfigurationForTesting();
-
  private:
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os, const PrintableInstructionSequence& code);

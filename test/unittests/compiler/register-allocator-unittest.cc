@@ -321,11 +321,11 @@ TEST_F(RegisterAllocatorTest, SpillPhi) {
   EndBlock(Branch(Imm(), 1, 2));
 
   StartBlock();
-  auto left = Define(Reg(GetAllocatableCode(0)));
+  auto left = Define(Reg(0));
   EndBlock(Jump(2));
 
   StartBlock();
-  auto right = Define(Reg(GetAllocatableCode(0)));
+  auto right = Define(Reg(0));
   EndBlock();
 
   StartBlock();
