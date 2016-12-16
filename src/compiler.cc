@@ -897,7 +897,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return cached_code;
   }
 
-  if (function->shared()->marked_for_tier_up()) {
+  if (function->shared()->is_compiled() &&
+      function->shared()->marked_for_tier_up()) {
     DCHECK(FLAG_mark_shared_functions_for_tier_up);
 
     function->shared()->set_marked_for_tier_up(false);
