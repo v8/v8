@@ -265,7 +265,9 @@ namespace internal {
   V(kWrongArgumentCountForInvokeIntrinsic,                                     \
     "Wrong number of arguments for intrinsic")                                 \
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
-    "Should not directly enter OSR-compiled function")
+    "Should not directly enter OSR-compiled function")                         \
+  V(kUnexpectedReturnFromWasmTrap,                                             \
+    "Should not return after throwing a wasm trap")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum BailoutReason {

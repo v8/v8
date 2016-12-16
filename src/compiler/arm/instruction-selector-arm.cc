@@ -267,6 +267,9 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
                              cont->reason(), cont->frame_state());
+  } else if (cont->IsTrap()) {
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -890,6 +893,9 @@ void VisitShift(InstructionSelector* selector, Node* node,
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
                              cont->reason(), cont->frame_state());
+  } else if (cont->IsTrap()) {
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -1257,10 +1263,14 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
     InstructionOperand in[] = {temp_operand, result_operand, shift_31};
     selector->EmitDeoptimize(opcode, 0, nullptr, 3, in, cont->reason(),
                              cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), temp_operand,
                    result_operand, shift_31);
+  } else {
+    DCHECK(cont->IsTrap());
+    InstructionOperand in[] = {temp_operand, result_operand, shift_31,
+                               g.UseImmediate(cont->trap_id())};
+    selector->Emit(opcode, 0, nullptr, 4, in);
   }
 }
 
@@ -1648,9 +1658,12 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
                              cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1841,6 +1854,9 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
                              cont->reason(), cont->frame_state());
+  } else if (cont->IsTrap()) {
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -1997,10 +2013,13 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), value_operand, value_operand,
                              cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    value_operand);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), value_operand, value_operand,
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -2024,9 +2043,18 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitTrapIf(Node* node) {
+  FlagsContinuation cont = FlagsContinuation::ForTrap(
+      kNotEqual, OpParameter<Runtime::FunctionId>(node->op()),
+      node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
 
-void InstructionSelector::VisitTrapUnless(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitTrapUnless(Node* node) {
+  FlagsContinuation cont = FlagsContinuation::ForTrap(
+      kEqual, OpParameter<Runtime::FunctionId>(node->op()), node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   ArmOperandGenerator g(this);
