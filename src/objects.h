@@ -1298,23 +1298,24 @@ class Object {
       Handle<Object> input, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.3 ToNumber
-  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(Handle<Object> input);
+  MUST_USE_RESULT static inline MaybeHandle<Object> ToNumber(
+      Handle<Object> input);
 
   // ES6 section 7.1.4 ToInteger
-  MUST_USE_RESULT static MaybeHandle<Object> ToInteger(Isolate* isolate,
-                                                       Handle<Object> input);
+  MUST_USE_RESULT static inline MaybeHandle<Object> ToInteger(
+      Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.5 ToInt32
-  MUST_USE_RESULT static MaybeHandle<Object> ToInt32(Isolate* isolate,
-                                                     Handle<Object> input);
+  MUST_USE_RESULT static inline MaybeHandle<Object> ToInt32(
+      Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.6 ToUint32
-  MUST_USE_RESULT static MaybeHandle<Object> ToUint32(Isolate* isolate,
-                                                      Handle<Object> input);
+  MUST_USE_RESULT inline static MaybeHandle<Object> ToUint32(
+      Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.12 ToString
-  MUST_USE_RESULT static MaybeHandle<String> ToString(Isolate* isolate,
-                                                      Handle<Object> input);
+  MUST_USE_RESULT static inline MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<Object> input);
 
   static Handle<String> NoSideEffectsToString(Isolate* isolate,
                                               Handle<Object> input);
@@ -1563,7 +1564,16 @@ class Object {
 
   MUST_USE_RESULT static MaybeHandle<Name> ConvertToName(Isolate* isolate,
                                                          Handle<Object> input);
-
+  MUST_USE_RESULT static MaybeHandle<String> ConvertToString(
+      Isolate* isolate, Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ConvertToNumber(
+      Isolate* isolate, Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ConvertToInteger(
+      Isolate* isolate, Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ConvertToInt32(
+      Isolate* isolate, Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ConvertToUint32(
+      Isolate* isolate, Handle<Object> input);
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
 
@@ -1590,6 +1600,10 @@ class Smi: public Object {
  public:
   // Returns the integer value.
   inline int value() const { return Internals::SmiValue(this); }
+  inline Smi* ToUint32Smi() {
+    if (value() <= 0) return Smi::kZero;
+    return Smi::FromInt(static_cast<uint32_t>(value()));
+  }
 
   // Convert a value to a Smi object.
   static inline Smi* FromInt(int value) {

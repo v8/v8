@@ -139,7 +139,8 @@ MaybeHandle<JSReceiver> Object::ConvertReceiver(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
+MaybeHandle<Object> Object::ConvertToNumber(Isolate* isolate,
+                                            Handle<Object> input) {
   while (true) {
     if (input->IsNumber()) {
       return input;
@@ -150,7 +151,6 @@ MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
     if (input->IsOddball()) {
       return Oddball::ToNumber(Handle<Oddball>::cast(input));
     }
-    Isolate* const isolate = Handle<HeapObject>::cast(input)->GetIsolate();
     if (input->IsSymbol()) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
                       Object);
@@ -166,27 +166,32 @@ MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
   }
 }
 
-
 // static
-MaybeHandle<Object> Object::ToInteger(Isolate* isolate, Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+MaybeHandle<Object> Object::ConvertToInteger(Isolate* isolate,
+                                             Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input),
+                             Object);
+  if (input->IsSmi()) return input;
   return isolate->factory()->NewNumber(DoubleToInteger(input->Number()));
 }
 
-
 // static
-MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+MaybeHandle<Object> Object::ConvertToInt32(Isolate* isolate,
+                                           Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input),
+                             Object);
+  if (input->IsSmi()) return input;
   return isolate->factory()->NewNumberFromInt(DoubleToInt32(input->Number()));
 }
 
-
 // static
-MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+MaybeHandle<Object> Object::ConvertToUint32(Isolate* isolate,
+                                            Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input),
+                             Object);
+  if (input->IsSmi()) return handle(Smi::cast(*input)->ToUint32Smi(), isolate);
   return isolate->factory()->NewNumberFromUint(DoubleToUint32(input->Number()));
 }
-
 
 // static
 MaybeHandle<Name> Object::ConvertToName(Isolate* isolate,
@@ -199,11 +204,9 @@ MaybeHandle<Name> Object::ConvertToName(Isolate* isolate,
 }
 
 // static
-MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
+MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
+                                            Handle<Object> input) {
   while (true) {
-    if (input->IsString()) {
-      return Handle<String>::cast(input);
-    }
     if (input->IsOddball()) {
       return handle(Handle<Oddball>::cast(input)->to_string(), isolate);
     }
@@ -221,6 +224,11 @@ MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
                                                 ToPrimitiveHint::kString),
         String);
+    // The previous isString() check happened in Object::ToString and thus we
+    // put it at the end of the loop in this helper.
+    if (input->IsString()) {
+      return Handle<String>::cast(input);
+    }
   }
 }
 

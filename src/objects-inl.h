@@ -651,7 +651,7 @@ class Utf8StringKey : public HashTableKey {
 
 
 bool Object::IsNumber() const {
-  return IsSmi() || IsHeapNumber();
+  return IsSmi() || HeapObject::cast(this)->IsHeapNumber();
 }
 
 
@@ -1080,6 +1080,35 @@ MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
   return JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input), hint);
 }
 
+// static
+MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
+  if (input->IsNumber()) return input;
+  return ConvertToNumber(HeapObject::cast(*input)->GetIsolate(), input);
+}
+
+// static
+MaybeHandle<Object> Object::ToInteger(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) return input;
+  return ConvertToInteger(isolate, input);
+}
+
+// static
+MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) return input;
+  return ConvertToInt32(isolate, input);
+}
+
+// static
+MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) return handle(Smi::cast(*input)->ToUint32Smi(), isolate);
+  return ConvertToUint32(isolate, input);
+}
+
+// static
+MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
+  if (input->IsString()) return Handle<String>::cast(input);
+  return ConvertToString(isolate, input);
+}
 
 bool Object::HasSpecificClassOf(String* name) {
   return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
