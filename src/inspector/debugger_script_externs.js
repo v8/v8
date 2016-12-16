@@ -200,7 +200,8 @@ var ScopeType = { Global: 0,
                   Catch: 4,
                   Block: 5,
                   Script: 6,
-                  Eval: 7 };
+                  Eval: 7,
+                  Module: 8};
 
 
 /** @typedef {{

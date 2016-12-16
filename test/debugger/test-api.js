@@ -433,6 +433,7 @@ class DebugWrapper {
       case "block": return this.ScopeType.Block;
       case "script": return this.ScopeType.Script;
       case "eval": return this.ScopeType.Eval;
+      case "module": return this.ScopeType.Module;
       default: %AbortJS("Unexpected scope type");
     }
   }

@@ -43,6 +43,7 @@ DebuggerScript._scopeTypeNames.set(ScopeType.Catch, "catch");
 DebuggerScript._scopeTypeNames.set(ScopeType.Block, "block");
 DebuggerScript._scopeTypeNames.set(ScopeType.Script, "script");
 DebuggerScript._scopeTypeNames.set(ScopeType.Eval, "eval");
+DebuggerScript._scopeTypeNames.set(ScopeType.Module, "module");
 
 /**
  * @param {function()} fun
@@ -543,6 +544,7 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
     case ScopeType.Block:
     case ScopeType.Script:
     case ScopeType.Eval:
+    case ScopeType.Module:
         // For transient objects we create a "persistent" copy that contains
         // the same properties.
         // Reset scope object prototype to null so that the proto properties
@@ -552,7 +554,8 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
         // Also drop empty Block, Eval and Script scopes, should we get any.
         if (!properties.length && (scopeType === ScopeType.Script ||
                                    scopeType === ScopeType.Block ||
-                                   scopeType === ScopeType.Eval)) {
+                                   scopeType === ScopeType.Eval ||
+                                   scopeType === ScopeType.Module)) {
             break;
         }
         result = { __proto__: null };

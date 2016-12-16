@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --expose-debug-as debug
 
 
 var Debug = debug.Debug;
@@ -51,7 +50,8 @@ function assertScopeMirrorEquals(scope1, scope2) {
   assertEquals(scope1.scopeType(), scope2.scopeType());
   assertEquals(scope1.frameIndex(), scope2.frameIndex());
   assertEquals(scope1.scopeIndex(), scope2.scopeIndex());
-  assertPropertiesEqual(scope1.scopeObject().value(), scope2.scopeObject().value());
+  assertPropertiesEqual(scope1.scopeObject().value(),
+                        scope2.scopeObject().value());
 }
 
 function CheckFastAllScopes(scopes, exec_state)
@@ -61,7 +61,6 @@ function CheckFastAllScopes(scopes, exec_state)
   assertTrue(scopes.length >= length);
   for (var i = 0; i < scopes.length && i < length; i++) {
     var scope = fast_all_scopes[length - i - 1];
-    assertTrue(scope.isScope());
     assertEquals(scopes[scopes.length - i - 1], scope.scopeType());
   }
 }
@@ -74,7 +73,6 @@ function CheckScopeChain(scopes, exec_state) {
   assertEquals(scopes.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
     assertScopeMirrorEquals(all_scopes[i], scope);
   }
@@ -86,7 +84,8 @@ function CheckScopeDoesNotHave(properties, number, exec_state) {
   var scope = exec_state.frame().scope(number);
   for (var p of properties) {
     var property_mirror = scope.scopeObject().property(p);
-    assertTrue(property_mirror.isUndefined(), 'property ' + p + ' found in scope');
+    assertTrue(property_mirror.isUndefined(),
+               'property ' + p + ' found in scope');
   }
 }
 
@@ -98,12 +97,10 @@ function CheckScopeContent(minimum_content, number, exec_state) {
   var minimum_count = 0;
   for (var p in minimum_content) {
     var property_mirror = scope.scopeObject().property(p);
-    assertFalse(property_mirror.isUndefined(), 'property ' + p + ' not found in scope');
-    if (typeof(minimum_content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(minimum_content[p], property_mirror.value().value(), 'property ' + p + ' has unexpected value');
-    }
+    assertFalse(property_mirror.isUndefined(),
+                'property ' + p + ' not found in scope');
+    assertEquals(minimum_content[p], property_mirror.value().value(),
+                 'property ' + p + ' has unexpected value');
     minimum_count++;
   }
 

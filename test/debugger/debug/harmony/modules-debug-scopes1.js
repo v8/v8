@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --expose-debug-as debug --allow-natives-syntax --noanalyze-environment-liveness
+// Flags: --allow-natives-syntax --noanalyze-environment-liveness
 
 // These tests are copied from mjsunit/debug-scopes.js and adapted for modules.
 
@@ -70,7 +70,6 @@ function CheckFastAllScopes(scopes, exec_state)
   assertTrue(scopes.length >= length);
   for (var i = 0; i < scopes.length && i < length; i++) {
     var scope = fast_all_scopes[length - i - 1];
-    assertTrue(scope.isScope());
     assertEquals(scopes[scopes.length - i - 1], scope.scopeType());
   }
 }
@@ -84,7 +83,6 @@ function CheckScopeChain(scopes, exec_state) {
                "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
     assertScopeMirrorEquals(all_scopes[i], scope);
   }
@@ -98,7 +96,6 @@ function CheckScopeChainNames(names, exec_state) {
   assertEquals(names.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < names.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     assertEquals(names[i], scope.details().name())
   }
 }
@@ -113,12 +110,8 @@ function CheckScopeContent(minimum_content, number, exec_state) {
     var property_mirror = scope.scopeObject().property(p);
     assertFalse(property_mirror.isUndefined(),
                 'property ' + p + ' not found in scope');
-    if (typeof(minimum_content[p]) === 'function') {
-      assertTrue(property_mirror.value().isFunction());
-    } else {
-      assertEquals(minimum_content[p], property_mirror.value().value(),
-                   'property ' + p + ' has unexpected value');
-    }
+    assertEquals(minimum_content[p], property_mirror.value().value(),
+                 'property ' + p + ' has unexpected value');
     minimum_count++;
   }
 
@@ -152,7 +145,6 @@ function CheckScopeChainPositions(positions, exec_state) {
              "FrameMirror.allScopes length");
   for (var i = 0; i < positions.length; i++) {
     var scope = exec_state.frame().scope(i);
-    assertTrue(scope.isScope());
     var position = positions[i];
     if (!position)
       continue;
@@ -408,7 +400,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Module,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,f:undefined}, 1, exec_state);
   CheckScopeChainNames(["f", "closure_4", undefined, undefined, undefined],
                        exec_state)
 };
@@ -440,7 +432,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Module,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,f:undefined}, 1, exec_state);
   CheckScopeChainNames(["f", "closure_5", undefined, undefined, undefined],
                        exec_state)
 };
@@ -475,7 +467,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
-  CheckScopeContent({f:function(){}}, 2, exec_state);
+  CheckScopeContent({f:undefined}, 2, exec_state);
   CheckScopeChainNames(
       [undefined, "f", "closure_6", undefined, undefined, undefined],
       exec_state);
@@ -515,7 +507,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4}, 1, exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 2, exec_state);
+  CheckScopeContent({a:1,b:2,x:3,y:4,f:undefined}, 2, exec_state);
   CheckScopeChainNames(
       [undefined, "f", "closure_7", undefined, undefined, undefined],
       exec_state);
