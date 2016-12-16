@@ -27,7 +27,6 @@ namespace interpreter {
 using compiler::Node;
 typedef CodeStubAssembler::Label Label;
 typedef CodeStubAssembler::Variable Variable;
-typedef InterpreterAssembler::Arg Arg;
 
 #define __ assembler->
 
@@ -416,17 +415,13 @@ void Interpreter::DoMov(InterpreterAssembler* assembler) {
 Node* Interpreter::BuildLoadGlobal(Callable ic, Node* context, Node* name_index,
                                    Node* feedback_slot,
                                    InterpreterAssembler* assembler) {
-  typedef LoadGlobalWithVectorDescriptor Descriptor;
-
   // Load the global via the LoadGlobalIC.
   Node* code_target = __ HeapConstant(ic.code());
   Node* name = __ LoadConstantPoolEntry(name_index);
   Node* smi_slot = __ SmiTag(feedback_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  return __ CallStub(ic.descriptor(), code_target, context,
-                     Arg(Descriptor::kName, name),
-                     Arg(Descriptor::kSlot, smi_slot),
-                     Arg(Descriptor::kVector, type_feedback_vector));
+  return __ CallStub(ic.descriptor(), code_target, context, name, smi_slot,
+                     type_feedback_vector);
 }
 
 // LdaGlobal <name_index> <slot>
@@ -464,7 +459,6 @@ void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
 }
 
 void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
   // Get the global object.
   Node* context = __ GetContext();
   Node* native_context = __ LoadNativeContext(context);
@@ -479,10 +473,8 @@ void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
   Node* raw_slot = __ BytecodeOperandIdx(1);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  __ CallStub(ic.descriptor(), code_target, context,
-              Arg(Descriptor::kReceiver, global), Arg(Descriptor::kName, name),
-              Arg(Descriptor::kValue, value), Arg(Descriptor::kSlot, smi_slot),
-              Arg(Descriptor::kVector, type_feedback_vector));
+  __ CallStub(ic.descriptor(), code_target, context, global, name, value,
+              smi_slot, type_feedback_vector);
   __ Dispatch();
 }
 
@@ -716,7 +708,6 @@ void Interpreter::DoStaLookupSlotStrict(InterpreterAssembler* assembler) {
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
 void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* code_target = __ HeapConstant(ic.code());
   Node* register_index = __ BytecodeOperandReg(0);
@@ -727,10 +718,8 @@ void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallStub(
-      ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
-      Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
-      Arg(Descriptor::kVector, type_feedback_vector));
+  Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
+                             name, smi_slot, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -740,7 +729,6 @@ void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
 void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
   Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
   Node* code_target = __ HeapConstant(ic.code());
   Node* reg_index = __ BytecodeOperandReg(0);
@@ -750,16 +738,13 @@ void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallStub(
-      ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
-      Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
-      Arg(Descriptor::kVector, type_feedback_vector));
+  Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
+                             name, smi_slot, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
 void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
   Node* code_target = __ HeapConstant(ic.code());
   Node* object_reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(object_reg_index);
@@ -770,10 +755,8 @@ void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  __ CallStub(ic.descriptor(), code_target, context,
-              Arg(Descriptor::kReceiver, object), Arg(Descriptor::kName, name),
-              Arg(Descriptor::kValue, value), Arg(Descriptor::kSlot, smi_slot),
-              Arg(Descriptor::kVector, type_feedback_vector));
+  __ CallStub(ic.descriptor(), code_target, context, object, name, value,
+              smi_slot, type_feedback_vector);
   __ Dispatch();
 }
 
@@ -798,7 +781,6 @@ void Interpreter::DoStaNamedPropertyStrict(InterpreterAssembler* assembler) {
 }
 
 void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
   Node* code_target = __ HeapConstant(ic.code());
   Node* object_reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(object_reg_index);
@@ -809,10 +791,8 @@ void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  __ CallStub(ic.descriptor(), code_target, context,
-              Arg(Descriptor::kReceiver, object), Arg(Descriptor::kName, name),
-              Arg(Descriptor::kValue, value), Arg(Descriptor::kSlot, smi_slot),
-              Arg(Descriptor::kVector, type_feedback_vector));
+  __ CallStub(ic.descriptor(), code_target, context, object, name, value,
+              smi_slot, type_feedback_vector);
   __ Dispatch();
 }
 

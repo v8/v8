@@ -168,11 +168,8 @@ void AccessorAssemblerImpl::HandleLoadICHandlerCase(
   Bind(&call_handler);
   {
     typedef LoadWithVectorDescriptor Descriptor;
-    TailCallStub(Descriptor(isolate()), handler, p->context,
-                 Arg(Descriptor::kReceiver, p->receiver),
-                 Arg(Descriptor::kName, p->name),
-                 Arg(Descriptor::kSlot, p->slot),
-                 Arg(Descriptor::kVector, p->vector));
+    TailCallStub(Descriptor(isolate()), handler, p->context, p->receiver,
+                 p->name, p->slot, p->vector);
   }
 }
 
@@ -374,12 +371,8 @@ void AccessorAssemblerImpl::HandleLoadICProtoHandlerCase(
     typedef LoadICProtoArrayDescriptor Descriptor;
     LoadICProtoArrayStub stub(isolate(), throw_reference_error_if_nonexistent);
     Node* target = HeapConstant(stub.GetCode());
-    TailCallStub(Descriptor(isolate()), target, p->context,
-                 Arg(Descriptor::kReceiver, p->receiver),
-                 Arg(Descriptor::kName, p->name),
-                 Arg(Descriptor::kSlot, p->slot),
-                 Arg(Descriptor::kVector, p->vector),
-                 Arg(Descriptor::kHandler, handler));
+    TailCallStub(Descriptor(isolate()), target, p->context, p->receiver,
+                 p->name, p->slot, p->vector, handler);
   }
 }
 
