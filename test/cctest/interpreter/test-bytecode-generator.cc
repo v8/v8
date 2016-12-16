@@ -1753,17 +1753,40 @@ TEST(GenerateTestUndetectable) {
       "var b = 10;\n"
       "if (obj_a == null) { b = 20;}\n"
       "return b;\n",
+
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a == undefined) { b = 20;}\n"
       "return b;\n",
+
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a != null) { b = 20;}\n"
       "return b;\n",
+
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a != undefined) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a === null) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a === undefined) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a !== null) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a !== undefined) { b = 20;}\n"
       "return b;\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

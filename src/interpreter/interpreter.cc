@@ -1918,7 +1918,7 @@ void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
 
 // TestUndetectable <src>
 //
-// Test if the value in the <src> register equals to Null/Undefined. This is
+// Test if the value in the <src> register equals to null/undefined. This is
 // done by checking undetectable bit on the map of the object.
 void Interpreter::DoTestUndetectable(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
@@ -1941,6 +1941,53 @@ void Interpreter::DoTestUndetectable(InterpreterAssembler* assembler) {
   __ Bind(&not_equal);
   {
     __ SetAccumulator(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
+}
+
+// TestNull <src>
+//
+// Test if the value in the <src> register is strictly equal to null.
+void Interpreter::DoTestNull(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(reg_index);
+  Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
+
+  Label equal(assembler), end(assembler);
+  __ GotoIf(__ WordEqual(object, null_value), &equal);
+  __ SetAccumulator(__ BooleanConstant(false));
+  __ Goto(&end);
+
+  __ Bind(&equal);
+  {
+    __ SetAccumulator(__ BooleanConstant(true));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ Dispatch();
+}
+
+// TestUndefined <src>
+//
+// Test if the value in the <src> register is strictly equal to undefined.
+void Interpreter::DoTestUndefined(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(reg_index);
+  Node* undefined_value =
+      __ HeapConstant(isolate_->factory()->undefined_value());
+
+  Label equal(assembler), end(assembler);
+  __ GotoIf(__ WordEqual(object, undefined_value), &equal);
+  __ SetAccumulator(__ BooleanConstant(false));
+  __ Goto(&end);
+
+  __ Bind(&equal);
+  {
+    __ SetAccumulator(__ BooleanConstant(true));
     __ Goto(&end);
   }
 

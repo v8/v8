@@ -1678,6 +1678,22 @@ void BytecodeGraphBuilder::VisitTestUndetectable() {
   environment()->BindAccumulator(node);
 }
 
+void BytecodeGraphBuilder::VisitTestNull() {
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* result = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
+                         object, jsgraph()->NullConstant());
+  environment()->BindAccumulator(result);
+}
+
+void BytecodeGraphBuilder::VisitTestUndefined() {
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* result = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
+                         object, jsgraph()->UndefinedConstant());
+  environment()->BindAccumulator(result);
+}
+
 void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
   PrepareEagerCheckpoint();
   Node* value = NewNode(js_op, environment()->LookupAccumulator());

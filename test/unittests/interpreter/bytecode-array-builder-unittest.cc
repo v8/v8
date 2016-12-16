@@ -202,7 +202,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadUndefined()
       .CompareOperation(Token::Value::EQ, reg, 1)
       .LoadNull()
-      .CompareOperation(Token::Value::EQ, reg, 1);
+      .CompareOperation(Token::Value::EQ, reg, 1)
+      .LoadUndefined()
+      .CompareOperation(Token::Value::EQ_STRICT, reg, 1)
+      .LoadNull()
+      .CompareOperation(Token::Value::EQ_STRICT, reg, 1);
 
   // Emit conversion operator invocations.
   builder.ConvertAccumulatorToNumber(reg)
@@ -416,6 +420,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     scorecard[Bytecodes::ToByte(Bytecode::kShiftLeftSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kShiftRightSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kTestUndetectable)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kTestUndefined)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kTestNull)] = 1;
   }
 
   // Check return occurs at the end and only once in the BytecodeArray.
