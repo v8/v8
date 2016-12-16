@@ -2148,11 +2148,11 @@ Isolate::Isolate(bool enable_serializer)
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
       rail_mode_(PERFORMANCE_ANIMATION),
+      promise_hook_(NULL),
       load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
-      is_promisehook_enabled_(false),
       is_tail_call_elimination_enabled_(true),
       is_isolate_in_background_(false),
       cpu_profiler_(NULL),
@@ -3170,9 +3170,14 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
-void Isolate::EnablePromiseHook() { is_promisehook_enabled_ = true; }
+void Isolate::SetPromiseHook(PromiseHook hook) { promise_hook_ = hook; }
 
-void Isolate::DisablePromiseHook() { is_promisehook_enabled_ = false; }
+void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+                             Handle<Object> parent) {
+  if (promise_hook_ == nullptr) return;
+  promise_hook_(type, v8::Utils::PromiseToLocal(promise),
+                v8::Utils::ToLocal(parent));
+}
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   promise_reject_callback_ = callback;

@@ -253,8 +253,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "double_absolute_constant");
   Add(ExternalReference::address_of_double_neg_constant().address(),
       "double_negate_constant");
-  Add(ExternalReference::is_promisehook_enabled_address(isolate).address(),
-      "Isolate::is_promisehook_enabled_address()");
+  Add(ExternalReference::promise_hook_address(isolate).address(),
+      "Isolate::promise_hook_address()");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),

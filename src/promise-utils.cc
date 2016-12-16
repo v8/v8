@@ -11,8 +11,8 @@
 namespace v8 {
 namespace internal {
 
-JSObject* PromiseUtils::GetPromise(Handle<Context> context) {
-  return JSObject::cast(context->get(kPromiseSlot));
+JSPromise* PromiseUtils::GetPromise(Handle<Context> context) {
+  return JSPromise::cast(context->get(kPromiseSlot));
 }
 
 Object* PromiseUtils::GetDebugEvent(Handle<Context> context) {

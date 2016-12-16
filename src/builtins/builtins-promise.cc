@@ -371,6 +371,12 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   Label do_enqueue(this), fulfill(this), if_cycle(this, Label::kDeferred),
       if_rejectpromise(this, Label::kDeferred);
 
+  Label cycle_check(this);
+  GotoUnless(IsPromiseHookEnabled(), &cycle_check);
+  CallRuntime(Runtime::kPromiseHookResolve, context, promise);
+  Goto(&cycle_check);
+
+  Bind(&cycle_check);
   // 6. If SameValue(resolution, promise) is true, then
   GotoIf(SameValue(promise, result, context), &if_cycle);
 
@@ -591,6 +597,9 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   {
     Node* const instance = AllocateJSPromise(context);
     var_result.Bind(instance);
+    GotoUnless(IsPromiseHookEnabled(), &init);
+    CallRuntime(Runtime::kPromiseHookInit, context, instance,
+                UndefinedConstant());
     Goto(&init);
   }
 
@@ -671,9 +680,17 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
-  Node* const context = Parameter(3);
+  Node* const parent = Parameter(1);
+  Node* const context = Parameter(4);
   Node* const instance = AllocateJSPromise(context);
   PromiseInit(instance);
+
+  Label out(this);
+  GotoUnless(IsPromiseHookEnabled(), &out);
+  CallRuntime(Runtime::kPromiseHookInit, context, instance, parent);
+  Goto(&out);
+  Bind(&out);
+
   Return(instance);
 }
 
@@ -684,6 +701,13 @@ TF_BUILTIN(PromiseCreateAndSet, PromiseBuiltinsAssembler) {
 
   Node* const instance = AllocateJSPromise(context);
   PromiseSet(instance, status, result);
+
+  Label out(this);
+  GotoUnless(IsPromiseHookEnabled(), &out);
+  CallRuntime(Runtime::kPromiseHookInit, context, instance,
+              UndefinedConstant());
+  Goto(&out);
+  Bind(&out);
   Return(instance);
 }
 
@@ -752,7 +776,7 @@ TF_BUILTIN(PromiseThen, PromiseBuiltinsAssembler) {
         native_context, Context::INTERNAL_PROMISE_CAPABILITY_INDEX);
     Node* const capability =
         CallJS(call_callable, context, promise_internal_capability,
-               UndefinedConstant());
+               UndefinedConstant(), promise);
     var_deferred.Bind(capability);
     Goto(&perform_promise_then);
   }
@@ -849,6 +873,7 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(1);
   Node* const value = Parameter(2);
   Node* const handler = Parameter(3);
   Node* const deferred = Parameter(4);
@@ -865,13 +890,17 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   Variable var_reason(this, MachineRepresentation::kTagged);
 
   Node* const is_debug_active = IsDebugActive();
-  Label run_handler(this), if_rejectpromise(this),
-      debug_push(this, Label::kDeferred), debug_pop(this, Label::kDeferred);
-  Branch(is_debug_active, &debug_push, &run_handler);
+  Label run_handler(this), if_rejectpromise(this), promisehook_before(this),
+      promisehook_after(this), debug_pop(this);
 
-  Bind(&debug_push);
+  GotoUnless(is_debug_active, &promisehook_before);
+  CallRuntime(Runtime::kDebugPushPromise, context, deferred_promise);
+  Goto(&promisehook_before);
+
+  Bind(&promisehook_before);
   {
-    CallRuntime(Runtime::kDebugPushPromise, context, deferred_promise);
+    GotoUnless(IsPromiseHookEnabled(), &run_handler);
+    CallRuntime(Runtime::kPromiseHookBefore, context, promise);
     Goto(&run_handler);
   }
 
@@ -893,14 +922,15 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
     Branch(IsUndefined(on_resolve), &if_internalhandler, &if_customhandler);
 
     Bind(&if_internalhandler);
-    InternalResolvePromise(context, deferred_promise, result, &debug_pop);
+    InternalResolvePromise(context, deferred_promise, result,
+                           &promisehook_after);
 
     Bind(&if_customhandler);
     {
       Node* const maybe_exception = CallJS(call_callable, context, on_resolve,
                                            UndefinedConstant(), result);
       GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
-      Goto(&debug_pop);
+      Goto(&promisehook_after);
     }
   }
 
@@ -914,6 +944,13 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
     Callable promise_handle_reject = CodeFactory::PromiseHandleReject(isolate);
     CallStub(promise_handle_reject, context, deferred_promise, on_reject,
              var_reason.value());
+    Goto(&promisehook_after);
+  }
+
+  Bind(&promisehook_after);
+  {
+    GotoUnless(IsPromiseHookEnabled(), &debug_pop);
+    CallRuntime(Runtime::kPromiseHookAfter, context, promise);
     Goto(&debug_pop);
   }
 

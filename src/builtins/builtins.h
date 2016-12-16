@@ -566,7 +566,7 @@ namespace internal {
                                                                                \
   /* Promise */                                                                \
   TFJ(PromiseConstructor, 1)                                                   \
-  TFJ(PromiseInternalConstructor, 0)                                           \
+  TFJ(PromiseInternalConstructor, 1)                                           \
   TFJ(IsPromise, 1)                                                            \
   CPP(CreateResolvingFunctions)                                                \
   TFJ(PromiseResolveClosure, 1)                                                \

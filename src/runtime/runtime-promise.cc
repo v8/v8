@@ -15,6 +15,9 @@ namespace {
 void PromiseRejectEvent(Isolate* isolate, Handle<JSPromise> promise,
                         Handle<Object> rejected_promise, Handle<Object> value,
                         bool debug_event) {
+  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
+                          isolate->factory()->undefined_value());
+
   if (isolate->debug()->is_active() && debug_event) {
     isolate->debug()->OnPromiseReject(rejected_promise, value);
   }
@@ -281,6 +284,42 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
 
   promise->set_has_handler(true);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, parent, 1);
+  isolate->RunPromiseHook(PromiseHookType::kInit, promise, parent);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseHookResolve) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
+                          isolate->factory()->undefined_value());
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->RunPromiseHook(PromiseHookType::kBefore, promise,
+                          isolate->factory()->undefined_value());
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->RunPromiseHook(PromiseHookType::kAfter, promise,
+                          isolate->factory()->undefined_value());
   return isolate->heap()->undefined_value();
 }
 

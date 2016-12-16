@@ -8247,11 +8247,10 @@ Node* CodeStubAssembler::IsDebugActive() {
 }
 
 Node* CodeStubAssembler::IsPromiseHookEnabled() {
-  Node* const is_promisehook_enabled =
-      Load(MachineType::Uint8(),
-           ExternalConstant(
-               ExternalReference::is_promisehook_enabled_address(isolate())));
-  return Word32NotEqual(is_promisehook_enabled, Int32Constant(0));
+  Node* const promise_hook = Load(
+      MachineType::Pointer(),
+      ExternalConstant(ExternalReference::promise_hook_address(isolate())));
+  return WordNotEqual(promise_hook, IntPtrConstant(0));
 }
 
 Node* CodeStubAssembler::AllocateJSPromise(Node* context) {

@@ -1392,8 +1392,7 @@ class WasmInstanceBuilder {
 
   // Helper routines to print out errors with imports.
   void ReportLinkError(const char* error, uint32_t index,
-                       Handle<String> module_name,
-                       Handle<String> import_name) {
+                       Handle<String> module_name, Handle<String> import_name) {
     thrower_->LinkError(
         "Import #%d module=\"%.*s\" function=\"%.*s\" error: %s", index,
         module_name->length(), module_name->ToCString().get(),
@@ -1431,7 +1430,7 @@ class WasmInstanceBuilder {
       // Look up the value in the module.
       if (!module->IsJSReceiver()) {
         return ReportTypeError("module is not an object or function", index,
-                             module_name);
+                               module_name);
       }
 
       result = Object::GetPropertyOrElement(module, import_name);
@@ -1522,17 +1521,15 @@ class WasmInstanceBuilder {
       WasmImport& import = module_->import_table[index];
 
       Handle<String> module_name;
-      MaybeHandle<String> maybe_module_name =
-          ExtractStringFromModuleBytes(isolate_, compiled_module_,
-                                       import.module_name_offset,
-                                       import.module_name_length);
+      MaybeHandle<String> maybe_module_name = ExtractStringFromModuleBytes(
+          isolate_, compiled_module_, import.module_name_offset,
+          import.module_name_length);
       if (!maybe_module_name.ToHandle(&module_name)) return -1;
 
       Handle<String> import_name;
-      MaybeHandle<String> maybe_import_name =
-          ExtractStringFromModuleBytes(isolate_, compiled_module_,
-                                       import.field_name_offset,
-                                       import.field_name_length);
+      MaybeHandle<String> maybe_import_name = ExtractStringFromModuleBytes(
+          isolate_, compiled_module_, import.field_name_offset,
+          import.field_name_length);
       if (!maybe_import_name.ToHandle(&import_name)) return -1;
 
       MaybeHandle<Object> result =
@@ -1555,8 +1552,8 @@ class WasmInstanceBuilder {
               module_->origin);
           if (import_wrapper.is_null()) {
             ReportLinkError(
-                "imported function does not match the expected type",
-                index, module_name, import_name);
+                "imported function does not match the expected type", index,
+                module_name, import_name);
             return -1;
           }
           code_table->set(num_imported_functions, *import_wrapper);
@@ -1630,8 +1627,8 @@ class WasmInstanceBuilder {
           // Global imports are converted to numbers and written into the
           // {globals_} array buffer.
           if (!value->IsNumber()) {
-            ReportLinkError("global import must be a number",
-                            index, module_name, import_name);
+            ReportLinkError("global import must be a number", index,
+                            module_name, import_name);
             return -1;
           }
           WriteGlobalValue(module_->globals[import.index], value);

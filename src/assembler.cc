@@ -1582,9 +1582,8 @@ ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
   return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
 }
 
-ExternalReference ExternalReference::is_promisehook_enabled_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->is_promisehook_enabled_address());
+ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
+  return ExternalReference(isolate->promise_hook_address());
 }
 
 ExternalReference ExternalReference::debug_is_active_address(

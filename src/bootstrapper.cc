@@ -1890,7 +1890,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {  // Internal: PromiseInternalConstructor
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPromiseInternalConstructor, 0, false);
+                               Builtins::kPromiseInternalConstructor, 1, false);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::PROMISE_INTERNAL_CONSTRUCTOR_INDEX);
     }

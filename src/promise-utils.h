@@ -29,7 +29,7 @@ class PromiseUtils : public AllStatic {
 
   // These get and set the slots on the PromiseResolvingContext, which
   // is used by the resolve/reject promise callbacks.
-  static JSObject* GetPromise(Handle<Context> context);
+  static JSPromise* GetPromise(Handle<Context> context);
   static Object* GetDebugEvent(Handle<Context> context);
   static bool HasAlreadyVisited(Handle<Context> context);
   static void SetAlreadyVisited(Handle<Context> context);

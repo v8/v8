@@ -1792,6 +1792,9 @@ TEST(CodeStubAssemblerGraphsCorrectness) {
   v8_isolate->Dispose();
 }
 
+void CustomPromiseHook(v8::PromiseHookType type, v8::Local<v8::Promise> promise,
+                       v8::Local<v8::Value> parentPromise) {}
+
 TEST(IsPromiseHookEnabled) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
@@ -1805,16 +1808,15 @@ TEST(IsPromiseHookEnabled) {
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
-  CHECK_EQ(false, isolate->IsPromiseHookEnabled());
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->false_value(), *result);
 
-  isolate->EnablePromiseHook();
+  isolate->SetPromiseHook(CustomPromiseHook);
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->true_value(), *result);
 
-  isolate->DisablePromiseHook();
+  isolate->SetPromiseHook(nullptr);
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->false_value(), *result);
 }

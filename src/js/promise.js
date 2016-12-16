@@ -76,7 +76,7 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 
 // This is used by utils and v8-extras.
 function PromiseCreate() {
-  return %promise_internal_constructor();
+  return %promise_internal_constructor(UNDEFINED);
 }
 
 // Only used by async-await.js
@@ -92,9 +92,9 @@ function DoRejectPromise(promise, reason) {
 // The resultCapability.promise is only ever fulfilled internally,
 // so we don't need the closures to protect against accidentally
 // calling them multiple times.
-function CreateInternalPromiseCapability() {
+function CreateInternalPromiseCapability(parent) {
   return {
-    promise: %promise_internal_constructor(),
+    promise: %promise_internal_constructor(parent),
     resolve: UNDEFINED,
     reject: UNDEFINED
   };
@@ -105,7 +105,7 @@ function CreateInternalPromiseCapability() {
 function NewPromiseCapability(C, debugEvent) {
   if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
-    var promise = %promise_internal_constructor();
+    var promise = %promise_internal_constructor(UNDEFINED);
     // TODO(gsathya): Remove container for callbacks when this is
     // moved to CPP/TF.
     var callbacks = %create_resolving_functions(promise, debugEvent);
@@ -168,7 +168,7 @@ function PromiseResolve(x) {
 
   // Avoid creating resolving functions.
   if (this === GlobalPromise) {
-    var promise = %promise_internal_constructor();
+    var promise = %promise_internal_constructor(UNDEFINED);
     %promise_resolve(promise, x);
     return promise;
   }

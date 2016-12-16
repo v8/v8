@@ -82,7 +82,7 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
   }
 
   // Just forwarding the exception, so no debugEvent for throwawayCapability.
-  var throwawayCapability = CreateInternalPromiseCapability();
+  var throwawayCapability = CreateInternalPromiseCapability(promise);
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done
