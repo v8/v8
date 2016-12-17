@@ -2267,7 +2267,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 // Assembles branches after this instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
-  X64OperandConverter i(this, instr);
   Label::Distance flabel_distance =
       branch->fallthru ? Label::kNear : Label::kFar;
   Label* tlabel = branch->true_label;
