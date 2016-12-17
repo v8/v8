@@ -1362,6 +1362,10 @@ class Assembler : public AssemblerBase {
   void vcvt_s32_f32(const QwNeonRegister dst, const QwNeonRegister src);
   void vcvt_u32_f32(const QwNeonRegister dst, const QwNeonRegister src);
 
+  void vabs(const QwNeonRegister dst, const QwNeonRegister src);
+  void vabs(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
+  void vneg(const QwNeonRegister dst, const QwNeonRegister src);
+  void vneg(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
   void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(const QwNeonRegister dst, const QwNeonRegister src1,
@@ -1372,12 +1376,25 @@ class Assembler : public AssemblerBase {
             const QwNeonRegister src2);
   void vsub(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
+  void vmul(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vmul(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
   void vtst(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
   void vceq(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
   void vbsl(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
+  void vext(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2, int bytes);
+  void vzip(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
+  void vrev16(NeonSize size, const QwNeonRegister dst,
+            const QwNeonRegister src);
+  void vrev32(NeonSize size, const QwNeonRegister dst,
+            const QwNeonRegister src);
+  void vrev64(NeonSize size, const QwNeonRegister dst,
+            const QwNeonRegister src);
   void vtbl(const DwVfpRegister dst, const NeonListOperand& list,
             const DwVfpRegister index);
   void vtbx(const DwVfpRegister dst, const NeonListOperand& list,

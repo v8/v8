@@ -1001,6 +1001,22 @@ TEST(Neon) {
               "f3fbe742       vcvt.s32.f32 q15, q1");
       COMPARE(vcvt_u32_f32(q8, q9),
               "f3fb07e2       vcvt.u32.f32 q8, q9");
+      COMPARE(vabs(q0, q1),
+              "f3b90742       vabs.f32 q0, q1");
+      COMPARE(vabs(Neon8, q6, q7),
+              "f3b1c34e       vabs.s8 q6, q7");
+      COMPARE(vabs(Neon16, q0, q1),
+              "f3b50342       vabs.s16 q0, q1");
+      COMPARE(vabs(Neon32, q0, q1),
+              "f3b90342       vabs.s32 q0, q1");
+      COMPARE(vneg(q0, q1),
+              "f3b907c2       vneg.f32 q0, q1");
+      COMPARE(vneg(Neon8, q6, q7),
+              "f3b1c3ce       vneg.s8 q6, q7");
+      COMPARE(vneg(Neon16, q0, q1),
+              "f3b503c2       vneg.s16 q0, q1");
+      COMPARE(vneg(Neon32, q0, q1),
+              "f3b903c2       vneg.s32 q0, q1");
       COMPARE(veor(d0, d1, d2),
               "f3010112       veor d0, d1, d2");
       COMPARE(veor(d0, d30, d31),
@@ -1025,6 +1041,14 @@ TEST(Neon) {
               "f3142860       vsub.i16 q1, q2, q8");
       COMPARE(vsub(Neon32, q15, q0, q8),
               "f360e860       vsub.i32 q15, q0, q8");
+      COMPARE(vmul(q0, q1, q2),
+              "f3020d54       vmul.f32 q0, q1, q2");
+      COMPARE(vmul(Neon8, q0, q1, q2),
+              "f2020954       vmul.i8 q0, q1, q2");
+      COMPARE(vmul(Neon16, q1, q2, q8),
+              "f2142970       vmul.i16 q1, q2, q8");
+      COMPARE(vmul(Neon32, q15, q0, q8),
+              "f260e970       vmul.i32 q15, q0, q8");
       COMPARE(vtst(Neon8, q0, q1, q2),
               "f2020854       vtst.i8 q0, q1, q2");
       COMPARE(vtst(Neon16, q1, q2, q8),
@@ -1041,6 +1065,12 @@ TEST(Neon) {
               "f3120154       vbsl q0, q1, q2");
       COMPARE(vbsl(q15, q0, q8),
               "f350e170       vbsl q15, q0, q8");
+      COMPARE(vext(q15, q0, q8, 3),
+              "f2f0e360       vext.8 q15, q0, q8, #3");
+      COMPARE(vzip(Neon16, q15, q0),
+              "f3f6e1c0       vzip.16 q15, q0");
+      COMPARE(vrev64(Neon8, q15, q0),
+              "f3f0e040       vrev64.8 q15, q0");
       COMPARE(vtbl(d0, NeonListOperand(d1, 1), d2),
               "f3b10802       vtbl.8 d0, {d1}, d2");
       COMPARE(vtbl(d31, NeonListOperand(d0, 2), d4),
