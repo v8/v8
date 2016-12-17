@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "test/unittests/compiler/live-range-builder.h"
 #include "test/unittests/test-utils.h"
-
 
 // TODO(mtrofin): would we want to centralize this definition?
 #ifdef DEBUG
@@ -28,7 +26,6 @@ class LiveRangeUnitTest : public TestWithZone {
   LiveRange* Split(LiveRange* range, int pos) {
     return range->SplitAt(LifetimePosition::FromInt(pos), zone());
   }
-
 
   TopLevelLiveRange* Splinter(TopLevelLiveRange* top, int start, int end,
                               int new_id = 0) {
@@ -70,7 +67,6 @@ class LiveRangeUnitTest : public TestWithZone {
   }
 };
 
-
 TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
@@ -81,30 +77,25 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
       ".*");
 }
 
-
 TEST_F(LiveRangeUnitTest, SplitInvalidStart) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
   V8_ASSERT_DEBUG_DEATH(Split(range, 0), ".*");
 }
-
 
 TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(InvalidSplitEnd)) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
   ASSERT_DEATH_IF_SUPPORTED(Split(range, 1), ".*");
 }
 
-
 TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(SplitInvalidPreStart)) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(1, 2);
   ASSERT_DEATH_IF_SUPPORTED(Split(range, 0), ".*");
 }
 
-
 TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(SplitInvalidPostEnd)) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
   ASSERT_DEATH_IF_SUPPORTED(Split(range, 2), ".*");
 }
-
 
 TEST_F(LiveRangeUnitTest, SplitSingleIntervalNoUsePositions) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 2);
@@ -119,7 +110,6 @@ TEST_F(LiveRangeUnitTest, SplitSingleIntervalNoUsePositions) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplitManyIntervalNoUsePositionsBetween) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 2).Add(4, 6).Build();
@@ -133,7 +123,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalNoUsePositionsBetween) {
   EXPECT_TRUE(RangesMatch(expected_top, range));
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplitManyIntervalNoUsePositionsFront) {
   TopLevelLiveRange* range =
@@ -150,7 +139,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalNoUsePositionsFront) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplitManyIntervalNoUsePositionsAfter) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 2).Add(4, 6).Build();
@@ -165,7 +153,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalNoUsePositionsAfter) {
   EXPECT_TRUE(RangesMatch(expected_top, range));
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplitSingleIntervalUsePositions) {
   TopLevelLiveRange* range =
@@ -184,7 +171,6 @@ TEST_F(LiveRangeUnitTest, SplitSingleIntervalUsePositions) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplitSingleIntervalUsePositionsAtPos) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 3).AddUse(0).AddUse(2).Build();
@@ -200,7 +186,6 @@ TEST_F(LiveRangeUnitTest, SplitSingleIntervalUsePositionsAtPos) {
   EXPECT_TRUE(RangesMatch(expected_top, range));
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsBetween) {
   TopLevelLiveRange* range =
@@ -218,7 +203,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsBetween) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsAtInterval) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 2).Add(4, 6).AddUse(1).AddUse(4).Build();
@@ -234,7 +218,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsAtInterval) {
   EXPECT_TRUE(RangesMatch(expected_top, range));
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsFront) {
   TopLevelLiveRange* range =
@@ -252,7 +235,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsFront) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsAfter) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 2).Add(4, 6).AddUse(1).AddUse(5).Build();
@@ -268,7 +250,6 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsAfter) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplinterSingleInterval) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 6);
   TopLevelLiveRange* splinter = Splinter(range, 3, 5);
@@ -283,7 +264,6 @@ TEST_F(LiveRangeUnitTest, SplinterSingleInterval) {
   EXPECT_TRUE(RangesMatch(expected_splinter, splinter));
 }
 
-
 TEST_F(LiveRangeUnitTest, MergeSingleInterval) {
   TopLevelLiveRange* original = TestRangeBuilder(zone()).Build(0, 6);
   TopLevelLiveRange* splinter = Splinter(original, 3, 5);
@@ -295,7 +275,6 @@ TEST_F(LiveRangeUnitTest, MergeSingleInterval) {
 
   EXPECT_TRUE(RangesMatch(result, original));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsOutside) {
   TopLevelLiveRange* range =
@@ -313,7 +292,6 @@ TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsOutside) {
   EXPECT_TRUE(RangesMatch(expected_splinter, splinter));
 }
 
-
 TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsOutside) {
   TopLevelLiveRange* original =
       TestRangeBuilder(zone()).Add(0, 3).Add(5, 8).Build();
@@ -327,13 +305,11 @@ TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsOutside) {
   EXPECT_TRUE(RangesMatch(result, original));
 }
 
-
 TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsInside) {
   TopLevelLiveRange* range =
       TestRangeBuilder(zone()).Add(0, 3).Add(5, 8).Build();
   V8_ASSERT_DEBUG_DEATH(Splinter(range, 3, 5), ".*");
 }
-
 
 TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsLeft) {
   TopLevelLiveRange* range =
@@ -350,7 +326,6 @@ TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsLeft) {
   EXPECT_TRUE(RangesMatch(expected_splinter, splinter));
 }
 
-
 TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsLeft) {
   TopLevelLiveRange* original =
       TestRangeBuilder(zone()).Add(0, 3).Add(5, 8).Build();
@@ -362,7 +337,6 @@ TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsLeft) {
   Split(result, 2);
   EXPECT_TRUE(RangesMatch(result, original));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsRight) {
   TopLevelLiveRange* range =
@@ -378,7 +352,6 @@ TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsRight) {
   EXPECT_TRUE(RangesMatch(expected_source, range));
   EXPECT_TRUE(RangesMatch(expected_splinter, splinter));
 }
-
 
 TEST_F(LiveRangeUnitTest, SplinterMergeMultipleTimes) {
   TopLevelLiveRange* range =
@@ -398,7 +371,6 @@ TEST_F(LiveRangeUnitTest, SplinterMergeMultipleTimes) {
   EXPECT_TRUE(RangesMatch(expected_splinter, splinter));
 }
 
-
 TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsRight) {
   TopLevelLiveRange* original =
       TestRangeBuilder(zone()).Add(0, 3).Add(5, 8).Build();
@@ -412,7 +384,6 @@ TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsRight) {
 
   EXPECT_TRUE(RangesMatch(result, original));
 }
-
 
 TEST_F(LiveRangeUnitTest, MergeAfterSplitting) {
   TopLevelLiveRange* original = TestRangeBuilder(zone()).Build(0, 8);
@@ -429,7 +400,6 @@ TEST_F(LiveRangeUnitTest, MergeAfterSplitting) {
 
   EXPECT_TRUE(RangesMatch(result, original));
 }
-
 
 TEST_F(LiveRangeUnitTest, IDGeneration) {
   TopLevelLiveRange* vreg = TestRangeBuilder(zone()).Id(2).Build(0, 100);

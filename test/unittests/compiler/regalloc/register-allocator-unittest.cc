@@ -9,7 +9,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
 namespace {
 
 // We can't just use the size of the moves collection, because of
@@ -23,7 +22,6 @@ int GetMoveCount(const ParallelMove& moves) {
   return move_count;
 }
 
-
 bool AreOperandsOfSameType(
     const AllocatedOperand& op,
     const InstructionSequenceTest::TestOperand& test_op) {
@@ -36,7 +34,6 @@ bool AreOperandsOfSameType(
          (op.IsStackSlot() && !test_op_is_reg);
 }
 
-
 bool AllocatedOperandMatches(
     const AllocatedOperand& op,
     const InstructionSequenceTest::TestOperand& test_op) {
@@ -46,7 +43,6 @@ bool AllocatedOperandMatches(
           test_op.value_ == InstructionSequenceTest::kNoValue);
 }
 
-
 int GetParallelMoveCount(int instr_index, Instruction::GapPosition gap_pos,
                          const InstructionSequence* sequence) {
   const ParallelMove* moves =
@@ -54,7 +50,6 @@ int GetParallelMoveCount(int instr_index, Instruction::GapPosition gap_pos,
   if (moves == nullptr) return 0;
   return GetMoveCount(*moves);
 }
-
 
 bool IsParallelMovePresent(int instr_index, Instruction::GapPosition gap_pos,
                            const InstructionSequence* sequence,
@@ -79,7 +74,6 @@ bool IsParallelMovePresent(int instr_index, Instruction::GapPosition gap_pos,
 
 }  // namespace
 
-
 class RegisterAllocatorTest : public InstructionSequenceTest {
  public:
   void Allocate() {
@@ -87,7 +81,6 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
     Pipeline::AllocateRegistersForTesting(config(), sequence(), true);
   }
 };
-
 
 TEST_F(RegisterAllocatorTest, CanAllocateThreeRegisters) {
   // return p0 + p1;
@@ -136,7 +129,6 @@ TEST_F(RegisterAllocatorTest, SimpleLoop) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, SimpleBranch) {
   // return i ? K1 : K2
   StartBlock();
@@ -153,7 +145,6 @@ TEST_F(RegisterAllocatorTest, SimpleBranch) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, SimpleDiamond) {
   // return p0 ? p0 : p0
@@ -174,7 +165,6 @@ TEST_F(RegisterAllocatorTest, SimpleDiamond) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, SimpleDiamondPhi) {
   // return i ? K1 : K2
   StartBlock();
@@ -194,7 +184,6 @@ TEST_F(RegisterAllocatorTest, SimpleDiamondPhi) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, DiamondManyPhis) {
   const int kPhis = kDefaultNRegs * 2;
@@ -226,7 +215,6 @@ TEST_F(RegisterAllocatorTest, DiamondManyPhis) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, DoubleDiamondManyRedundantPhis) {
   const int kPhis = kDefaultNRegs * 2;
@@ -265,7 +253,6 @@ TEST_F(RegisterAllocatorTest, DoubleDiamondManyRedundantPhis) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, RegressionPhisNeedTooManyRegisters) {
   const size_t kNumRegs = 3;
@@ -315,7 +302,6 @@ TEST_F(RegisterAllocatorTest, RegressionPhisNeedTooManyRegisters) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, SpillPhi) {
   StartBlock();
   EndBlock(Branch(Imm(), 1, 2));
@@ -337,7 +323,6 @@ TEST_F(RegisterAllocatorTest, SpillPhi) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, MoveLotsOfConstants) {
   StartBlock();
   VReg constants[kDefaultNRegs];
@@ -356,7 +341,6 @@ TEST_F(RegisterAllocatorTest, MoveLotsOfConstants) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, SplitBeforeInstruction) {
   const int kNumRegs = 6;
@@ -383,7 +367,6 @@ TEST_F(RegisterAllocatorTest, SplitBeforeInstruction) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, SplitBeforeInstruction2) {
   const int kNumRegs = 6;
   SetNumRegs(kNumRegs, kNumRegs);
@@ -407,7 +390,6 @@ TEST_F(RegisterAllocatorTest, SplitBeforeInstruction2) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, NestedDiamondPhiMerge) {
   // Outer diamond.
@@ -455,7 +437,6 @@ TEST_F(RegisterAllocatorTest, NestedDiamondPhiMerge) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, NestedDiamondPhiMergeDifferent) {
   // Outer diamond.
   StartBlock();
@@ -502,7 +483,6 @@ TEST_F(RegisterAllocatorTest, NestedDiamondPhiMergeDifferent) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, RegressionSplitBeforeAndMove) {
   StartBlock();
 
@@ -529,7 +509,6 @@ TEST_F(RegisterAllocatorTest, RegressionSplitBeforeAndMove) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
   StartBlock();
   auto p_0 = Parameter(Reg(1));
@@ -538,7 +517,6 @@ TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
 
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
   StartBlock();
@@ -574,7 +552,6 @@ TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, DiamondWithCallFirstBlock) {
   StartBlock();
   auto x = EmitOI(Reg(0));
@@ -595,7 +572,6 @@ TEST_F(RegisterAllocatorTest, DiamondWithCallFirstBlock) {
   Allocate();
 }
 
-
 TEST_F(RegisterAllocatorTest, DiamondWithCallSecondBlock) {
   StartBlock();
   auto x = EmitOI(Reg(0));
@@ -615,7 +591,6 @@ TEST_F(RegisterAllocatorTest, DiamondWithCallSecondBlock) {
   EndBlock();
   Allocate();
 }
-
 
 TEST_F(RegisterAllocatorTest, SingleDeferredBlockSpill) {
   StartBlock();  // B0
@@ -654,7 +629,6 @@ TEST_F(RegisterAllocatorTest, SingleDeferredBlockSpill) {
   EXPECT_TRUE(IsParallelMovePresent(expect_spill_move, Instruction::START,
                                     sequence(), Reg(0), Slot(0)));
 }
-
 
 TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
   if (!FLAG_turbo_preprocess_ranges) return;
@@ -706,11 +680,9 @@ TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
   EXPECT_TRUE(IsParallelMovePresent(end_of_b2, Instruction::START, sequence(),
                                     Slot(var3_slot), Reg()));
 
-
   EXPECT_EQ(0,
             GetParallelMoveCount(start_of_b3, Instruction::START, sequence()));
 }
-
 
 namespace {
 
@@ -737,7 +709,6 @@ class SlotConstraintTest : public RegisterAllocatorTest,
 };
 
 }  // namespace
-
 
 #if GTEST_HAS_COMBINE
 
@@ -784,7 +755,6 @@ TEST_P(SlotConstraintTest, SlotConstraint) {
 
   Allocate();
 }
-
 
 INSTANTIATE_TEST_CASE_P(
     RegisterAllocatorTest, SlotConstraintTest,

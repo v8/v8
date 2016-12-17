@@ -98,7 +98,6 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   }
 };
 
-
 TEST_F(MoveOptimizerTest, RemovesRedundant) {
   StartBlock();
   auto first_instr = EmitNop();
@@ -126,7 +125,6 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
   CHECK(Contains(move, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64)));
   CHECK(Contains(move, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32)));
 }
-
 
 TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
   int index1 = GetAllocatableCode(0);
@@ -167,7 +165,6 @@ TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
   CHECK(Contains(move, FPReg(f32_1, kFloat32), ExplicitFPReg(f32_2, kFloat32)));
 }
 
-
 TEST_F(MoveOptimizerTest, SplitsConstants) {
   StartBlock();
   EndBlock(Last());
@@ -190,7 +187,6 @@ TEST_F(MoveOptimizerTest, SplitsConstants) {
   CHECK(Contains(move, Reg(0), Slot(1)));
   CHECK(Contains(move, Reg(0), Slot(2)));
 }
-
 
 TEST_F(MoveOptimizerTest, SimpleMerge) {
   StartBlock();
@@ -226,7 +222,6 @@ TEST_F(MoveOptimizerTest, SimpleMerge) {
   CHECK(Contains(move, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64)));
   CHECK(Contains(move, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32)));
 }
-
 
 TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   StartBlock();
@@ -279,7 +274,6 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   CHECK(Contains(move, FPReg(kF32_2, kFloat32), FPReg(kF32_1, kFloat32)));
 }
 
-
 TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
   StartBlock();
   int const_index = 1;
@@ -317,7 +311,6 @@ TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
   CHECK_EQ(1, assignment);
 }
 
-
 TEST_F(MoveOptimizerTest, SubsetMovesMerge) {
   StartBlock();
   EndBlock(Branch(Imm(), 1, 2));
@@ -353,7 +346,6 @@ TEST_F(MoveOptimizerTest, SubsetMovesMerge) {
   CHECK_EQ(1, NonRedundantSize(b2_move));
   CHECK(Contains(b2_move, Reg(4), Reg(5)));
 }
-
 
 TEST_F(MoveOptimizerTest, GapConflictSubsetMovesDoNotMerge) {
   StartBlock();
