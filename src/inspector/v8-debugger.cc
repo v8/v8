@@ -26,6 +26,11 @@ static const char v8AsyncTaskEventWillHandle[] = "willHandle";
 static const char v8AsyncTaskEventDidHandle[] = "didHandle";
 static const char v8AsyncTaskEventCancel[] = "cancel";
 
+// Based on DevTools frontend measurement, with asyncCallStackDepth = 4,
+// average async call stack tail requires ~1 Kb. Let's reserve ~ 128 Mb
+// for async stacks.
+static const int kMaxAsyncTaskStacks = 128 * 1024;
+
 inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
   return value ? v8::True(isolate) : v8::False(isolate);
 }
@@ -55,6 +60,8 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_breakpointsActivated(true),
       m_runningNestedMessageLoop(false),
       m_ignoreScriptParsedEventsCounter(0),
+      m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
+      m_lastTaskId(0),
       m_maxAsyncCallStackDepth(0),
       m_pauseOnExceptionsState(v8::debug::NoBreakOnException),
       m_wasmTranslation(isolate) {}
@@ -901,6 +908,13 @@ void V8Debugger::asyncTaskScheduled(const String16& taskName, void* task,
   if (chain) {
     m_asyncTaskStacks[task] = std::move(chain);
     if (recurring) m_recurringTasks.insert(task);
+    int id = ++m_lastTaskId;
+    m_taskToId[task] = id;
+    m_idToTask[id] = task;
+    if (static_cast<int>(m_idToTask.size()) > m_maxAsyncCallStacks) {
+      void* taskToRemove = m_idToTask.begin()->second;
+      asyncTaskCanceled(taskToRemove);
+    }
   }
 }
 
@@ -908,6 +922,10 @@ void V8Debugger::asyncTaskCanceled(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   m_asyncTaskStacks.erase(task);
   m_recurringTasks.erase(task);
+  auto it = m_taskToId.find(task);
+  if (it == m_taskToId.end()) return;
+  m_idToTask.erase(it->second);
+  m_taskToId.erase(it);
 }
 
 void V8Debugger::asyncTaskStarted(void* task) {
@@ -936,8 +954,13 @@ void V8Debugger::asyncTaskFinished(void* task) {
   m_currentTasks.pop_back();
 
   m_currentStacks.pop_back();
-  if (m_recurringTasks.find(task) == m_recurringTasks.end())
+  if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
     m_asyncTaskStacks.erase(task);
+    auto it = m_taskToId.find(task);
+    if (it == m_taskToId.end()) return;
+    m_idToTask.erase(it->second);
+    m_taskToId.erase(it);
+  }
 }
 
 void V8Debugger::allAsyncTasksCanceled() {
@@ -945,6 +968,9 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_recurringTasks.clear();
   m_currentStacks.clear();
   m_currentTasks.clear();
+  m_idToTask.clear();
+  m_taskToId.clear();
+  m_lastTaskId = 0;
 }
 
 void V8Debugger::muteScriptParsedEvents() {

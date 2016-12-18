@@ -93,6 +93,8 @@ class V8Debugger {
 
   WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
 
+  void setMaxAsyncTaskStacksForTest(int limit) { m_maxAsyncCallStacks = limit; }
+
  private:
   void compileDebuggerScript();
   v8::MaybeLocal<v8::Value> callDebuggerMethod(const char* functionName,
@@ -150,6 +152,10 @@ class V8Debugger {
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
+  int m_maxAsyncCallStacks;
+  std::map<int, void*> m_idToTask;
+  std::unordered_map<void*, int> m_taskToId;
+  int m_lastTaskId;
   protocol::HashSet<void*> m_recurringTasks;
   int m_maxAsyncCallStackDepth;
   std::vector<void*> m_currentTasks;

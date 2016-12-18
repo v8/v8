@@ -53,6 +53,8 @@
       'inspector/string-16.h',
       'inspector/string-util.cc',
       'inspector/string-util.h',
+      'inspector/test-interface.cc',
+      'inspector/test-interface.h',
       'inspector/v8-console.cc',
       'inspector/v8-console.h',
       'inspector/v8-console-agent-impl.cc',

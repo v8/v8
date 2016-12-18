@@ -13,6 +13,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
+#include "src/inspector/test-interface.h"
 #include "src/utils.h"
 #include "src/vector.h"
 
@@ -257,7 +258,8 @@ class InspectorExtension : public v8::Extension {
   InspectorExtension()
       : v8::Extension("v8_inspector/inspector",
                       "native function attachInspector();"
-                      "native function detachInspector();") {}
+                      "native function detachInspector();"
+                      "native function setMaxAsyncTaskStacks();") {}
 
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -274,6 +276,13 @@ class InspectorExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, InspectorExtension::Detach);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "setMaxAsyncTaskStacks",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, InspectorExtension::SetMaxAsyncTaskStacks);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -302,6 +311,20 @@ class InspectorExtension : public v8::Extension {
       Exit();
     }
     inspector->contextDestroyed(context);
+  }
+
+  static void SetMaxAsyncTaskStacks(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      fprintf(stderr, "Internal error: setMaxAsyncTaskStacks(max).");
+      Exit();
+    }
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(
+            args.GetIsolate()->GetCurrentContext());
+    CHECK(inspector);
+    v8_inspector::SetMaxAsyncTaskStacksForTest(
+        inspector, args[0].As<v8::Int32>()->Value());
   }
 };
 
