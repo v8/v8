@@ -944,8 +944,9 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     const std::unique_ptr<JavaScriptCallFrame>& currentCallFrame =
         m_pausedCallFrames[frameOrdinal];
 
-    v8::Local<v8::Object> details = currentCallFrame->details();
-    if (details.IsEmpty()) return Response::InternalError();
+    v8::Local<v8::Object> details;
+    if (!currentCallFrame->details().ToLocal(&details))
+      return Response::InternalError();
 
     int contextId = currentCallFrame->contextId();
 

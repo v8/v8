@@ -27,6 +27,9 @@
 
   # Slow test
   'debug/debug-scopes': [PASS, SLOW],
+
+  # Too slow in debug mode with --stress-opt mode.
+  'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64)', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
