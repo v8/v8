@@ -431,7 +431,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
       !info->shared_info()->is_asm_wasm_broken() && !info->is_debug()) {
     EnsureFeedbackMetadata(info);
     MaybeHandle<FixedArray> wasm_data;
-    wasm_data = AsmJs::CompileAsmViaWasm(info->parse_info());
+    wasm_data = AsmJs::CompileAsmViaWasm(info);
     if (!wasm_data.is_null()) {
       info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
       info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());

@@ -20,6 +20,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/codegen.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"
@@ -46,7 +47,7 @@ struct ForeignVariable {
 
 class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
-  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone,
+  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, CompilationInfo* info,
                      AstValueFactory* ast_value_factory, Handle<Script> script,
                      FunctionLiteral* literal, AsmTyper* typer)
       : local_variables_(ZoneHashMap::kDefaultHashMapCapacity,
@@ -61,6 +62,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         literal_(literal),
         isolate_(isolate),
         zone_(zone),
+        info_(info),
         ast_value_factory_(ast_value_factory),
         script_(script),
         typer_(typer),
@@ -136,12 +138,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     DeclarationScope* new_func_scope = nullptr;
     if (decl->fun()->body() == nullptr) {
-      // TODO(bradnelson): Refactor parser so we don't need a
-      // SharedFunctionInfo to parse a single function,
-      // or squirrel away the SharedFunctionInfo to use later.
-      Handle<SharedFunctionInfo> shared =
-          isolate_->factory()->NewSharedFunctionInfoForLiteral(decl->fun(),
-                                                               script_);
+      // TODO(titzer/bradnelson): Reuse SharedFunctionInfos used here when
+      // compiling the wasm module.
+      Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfo(
+          decl->fun(), script_, info_, LazyCompilationMode::kAlways);
       shared->set_is_toplevel(false);
       ParseInfo info(&zone, script_);
       info.set_shared_info(shared);
@@ -1938,6 +1938,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   FunctionLiteral* literal_;
   Isolate* isolate_;
   Zone* zone_;
+  CompilationInfo* info_;
   AstValueFactory* ast_value_factory_;
   Handle<Script> script_;
   AsmTyper* typer_;
@@ -1959,26 +1960,22 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   DISALLOW_COPY_AND_ASSIGN(AsmWasmBuilderImpl);
 };
 
-AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
-                               AstValueFactory* ast_value_factory,
-                               Handle<Script> script, FunctionLiteral* literal)
-    : isolate_(isolate),
-      zone_(zone),
-      ast_value_factory_(ast_value_factory),
-      script_(script),
-      literal_(literal),
-      typer_(isolate, zone, script, literal) {}
+AsmWasmBuilder::AsmWasmBuilder(CompilationInfo* info)
+    : info_(info),
+      typer_(info->isolate(), info->zone(), info->script(), info->literal()) {}
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
 AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
-  AsmWasmBuilderImpl impl(isolate_, zone_, ast_value_factory_, script_,
-                          literal_, &typer_);
+  Zone* zone = info_->zone();
+  AsmWasmBuilderImpl impl(info_->isolate(), zone, info_,
+                          info_->parse_info()->ast_value_factory(),
+                          info_->script(), info_->literal(), &typer_);
   bool success = impl.Build();
   *foreign_args = impl.GetForeignArgs();
-  ZoneBuffer* module_buffer = new (zone_) ZoneBuffer(zone_);
+  ZoneBuffer* module_buffer = new (zone) ZoneBuffer(zone);
   impl.builder_->WriteTo(*module_buffer);
-  ZoneBuffer* asm_offsets_buffer = new (zone_) ZoneBuffer(zone_);
+  ZoneBuffer* asm_offsets_buffer = new (zone) ZoneBuffer(zone);
   impl.builder_->WriteAsmJsOffsetTable(*asm_offsets_buffer);
   return {module_buffer, asm_offsets_buffer, success};
 }

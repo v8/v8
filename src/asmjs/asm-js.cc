@@ -9,6 +9,7 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
+#include "src/compilation-info.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/handles.h"
@@ -160,13 +161,11 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
 
 }  // namespace
 
-MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(ParseInfo* info) {
+MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
   base::ElapsedTimer asm_wasm_timer;
   asm_wasm_timer.Start();
-  wasm::AsmWasmBuilder builder(info->isolate(), info->zone(),
-                               info->ast_value_factory(), info->script(),
-                               info->literal());
+  wasm::AsmWasmBuilder builder(info);
   Handle<FixedArray> foreign_globals;
   auto asm_wasm_result = builder.Run(&foreign_globals);
   if (!asm_wasm_result.success) {
