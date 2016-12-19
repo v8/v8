@@ -10924,11 +10924,14 @@ static bool IsClassOfTest(CompareOperation* expr) {
   Literal* literal = expr->right()->AsLiteral();
   if (literal == NULL) return false;
   if (!literal->value()->IsString()) return false;
-  if (call->is_jsruntime()) return false;
-  if (call->function()->function_id != Runtime::kInlineClassOf) return false;
-  DCHECK_EQ(call->arguments()->length(), 1);
+  if (!call->is_jsruntime() &&
+      call->function()->function_id != Runtime::kInlineClassOf) {
+    return false;
+  }
+  DCHECK(call->arguments()->length() == 1);
   return true;
 }
+
 
 void HOptimizedGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   DCHECK(!HasStackOverflow());
