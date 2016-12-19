@@ -1059,7 +1059,7 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
   case opcode_name:                                                \
     Format(instr, #name "\t'f1,'f2,'f3");                          \
     break;
-      VRR_A_OPCODE_LIST(DECODE_VRR_C_INSTRUCTIONS)
+      S390_VRR_C_OPCODE_LIST(DECODE_VRR_C_INSTRUCTIONS)
 #undef DECODE_VRR_C_INSTRUCTIONS
     case LLILF:
       Format(instr, "llilf\t'r1,'i7");

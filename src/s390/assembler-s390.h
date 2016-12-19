@@ -770,7 +770,7 @@ class Assembler : public AssemblerBase {
                     (static_cast<uint64_t>(opcode_value & 0x00FF));           \
     emit6bytes(code);                                                         \
   }
-  VRR_A_OPCODE_LIST(DECLARE_VRR_A_INSTRUCTIONS)
+  S390_VRR_A_OPCODE_LIST(DECLARE_VRR_A_INSTRUCTIONS)
 #undef DECLARE_VRR_A_INSTRUCTIONS
 
 #define DECLARE_VRR_C_INSTRUCTIONS(name, opcode_name, opcode_value)        \
@@ -786,7 +786,7 @@ class Assembler : public AssemblerBase {
                     (static_cast<uint64_t>(opcode_value & 0x00FF));        \
     emit6bytes(code);                                                      \
   }
-  VRR_C_OPCODE_LIST(DECLARE_VRR_C_INSTRUCTIONS)
+  S390_VRR_C_OPCODE_LIST(DECLARE_VRR_C_INSTRUCTIONS)
 #undef DECLARE_VRR_C_INSTRUCTIONS
 
   // Single Element format

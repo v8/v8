@@ -743,9 +743,15 @@ void Simulator::EvalTableInit() {
     EvalTable[i] = &Simulator::Evaluate_Unknown;
   }
 
+#define S390_SUPPORTED_VECTOR_OPCODE_LIST(V)                 \
+  V(vfs, VFS, 0xE7E2) /* type = VRR_C VECTOR FP SUBTRACT  */ \
+  V(vfa, VFA, 0xE7E3) /* type = VRR_C VECTOR FP ADD  */      \
+  V(vfd, VFD, 0xE7E5) /* type = VRR_C VECTOR FP DIVIDE  */   \
+  V(vfm, VFM, 0xE7E7) /* type = VRR_C VECTOR FP MULTIPLY  */
+
 #define CREATE_EVALUATE_TABLE(name, op_name, op_value) \
   EvalTable[op_name] = &Simulator::Evaluate_##op_name;
-  VRR_C_OPCODE_LIST(CREATE_EVALUATE_TABLE);
+  S390_SUPPORTED_VECTOR_OPCODE_LIST(CREATE_EVALUATE_TABLE);
 #undef CREATE_EVALUATE_TABLE
 
   EvalTable[DUMY] = &Simulator::Evaluate_DUMY;
