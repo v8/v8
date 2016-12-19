@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 var exception = false;
@@ -48,11 +47,11 @@ function listener(event, exec_state, event_data, data) {
         // debugger code.
         exec_state.frame(0).evaluate(
             "print('A');\n" +
-            "debugger;   // BREAK\n" +
-            "print('B'); // BREAK");
+            "debugger;\n" +
+            "print('B');");
         break;
       case 1:
-        exec_state.prepareStep(Debug.StepAction.StepNext);
+        assertUnreachable();
         break;
       }
     }

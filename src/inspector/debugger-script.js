@@ -493,7 +493,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
      */
     function evaluate(expression)
     {
-        return frameMirror.evaluate(expression, false).value();
+        return frameMirror.evaluate(expression).value();
     }
 
     /** @return {undefined} */

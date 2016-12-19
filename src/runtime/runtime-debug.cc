@@ -1243,21 +1243,19 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK(args.length() == 6);
+  DCHECK(args.length() == 4);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
-  CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 4);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, context_extension, 5);
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
-                                    disable_break, context_extension));
+      isolate,
+      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source));
 }
 
 
@@ -1266,17 +1264,13 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK(args.length() == 4);
+  DCHECK(args.length() == 2);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, context_extension, 3);
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DebugEvaluate::Global(isolate, source, disable_break, context_extension));
+  RETURN_RESULT_OR_FAILURE(isolate, DebugEvaluate::Global(isolate, source));
 }
 
 

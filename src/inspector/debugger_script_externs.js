@@ -171,10 +171,8 @@ function ExecutionState() {}
 
 /**
  * @param {string} source
- * @param {boolean} disableBreak
- * @param {*=} additionalContext
  */
-ExecutionState.prototype.evaluateGlobal = function(source, disableBreak, additionalContext) {}
+ExecutionState.prototype.evaluateGlobal = function(source) {}
 
 /** @return {number} */
 ExecutionState.prototype.frameCount = function() {}
@@ -439,9 +437,8 @@ FrameMirror.prototype.script = function() {}
 
 /**
  * @param {string} source
- * @param {boolean} disableBreak
  */
-FrameMirror.prototype.evaluate = function(source, disableBreak) {}
+FrameMirror.prototype.evaluate = function(source) {}
 
 FrameMirror.prototype.restart = function() {}
 

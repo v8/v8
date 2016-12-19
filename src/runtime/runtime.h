@@ -173,8 +173,8 @@ namespace internal {
   F(PrepareStep, 2, 1)                          \
   F(PrepareStepFrame, 0, 1)                     \
   F(ClearStepping, 0, 1)                        \
-  F(DebugEvaluate, 6, 1)                        \
-  F(DebugEvaluateGlobal, 4, 1)                  \
+  F(DebugEvaluate, 4, 1)                        \
+  F(DebugEvaluateGlobal, 2, 1)                  \
   F(DebugGetLoadedScripts, 0, 1)                \
   F(DebugReferencedBy, 3, 1)                    \
   F(DebugConstructedBy, 2, 1)                   \
