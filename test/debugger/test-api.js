@@ -819,8 +819,6 @@ class DebugWrapper {
         break;
     }
 
-    if (!params.callFrames[0]) return;
-
     // Skip break events in this file.
     if (params.callFrames[0].location.scriptId == this.thisScriptId) return;
 

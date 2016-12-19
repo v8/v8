@@ -1931,8 +1931,9 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
                                     "Maximum call stack size exceeded",
                                     v8::NewStringType::kNormal)
                 .ToLocalChecked();
-        Local<Value> value = exception->Get(context, key).ToLocalChecked();
-        CHECK(value->StrictEquals(expected));
+        CHECK(exception->Get(context, key)
+                  .ToLocalChecked()
+                  ->StrictEquals(expected));
       }
 #endif
     }

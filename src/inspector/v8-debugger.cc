@@ -50,7 +50,6 @@ v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
       debuggerScript
           ->Get(context, toV8StringInternalized(m_isolate, functionName))
           .ToLocalChecked());
-  v8::TryCatch try_catch(m_isolate);
   return function->Call(context, debuggerScript, argc, argv);
 }
 
@@ -410,16 +409,16 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
                 ->Get(debuggerContext(),
                       toV8StringInternalized(m_isolate, "currentCallFrames"))
                 .ToLocalChecked());
-    if (!v8::debug::Call(debuggerContext(), currentCallFramesFunction,
-                         v8::Integer::New(m_isolate, limit))
-             .ToLocal(&currentCallFramesV8))
-      return JavaScriptCallFrames();
+    currentCallFramesV8 =
+        v8::debug::Call(debuggerContext(), currentCallFramesFunction,
+                        v8::Integer::New(m_isolate, limit))
+            .ToLocalChecked();
   } else {
     v8::Local<v8::Value> argv[] = {m_executionState,
                                    v8::Integer::New(m_isolate, limit)};
-    if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv)
-             .ToLocal(&currentCallFramesV8))
-      return JavaScriptCallFrames();
+    currentCallFramesV8 =
+        callDebuggerMethod("currentCallFrames", arraysize(argv), argv)
+            .ToLocalChecked();
   }
   DCHECK(!currentCallFramesV8.IsEmpty());
   if (!currentCallFramesV8->IsArray()) return JavaScriptCallFrames();
@@ -589,10 +588,8 @@ void V8Debugger::handleV8DebugEvent(
                        isUncaught);
   } else if (event == v8::Break) {
     v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-    v8::Local<v8::Value> hitBreakpoints;
-    if (!callDebuggerMethod("getBreakpointNumbers", 1, argv)
-             .ToLocal(&hitBreakpoints))
-      return;
+    v8::Local<v8::Value> hitBreakpoints =
+        callDebuggerMethod("getBreakpointNumbers", 1, argv).ToLocalChecked();
     DCHECK(hitBreakpoints->IsArray());
     handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
                        v8::Local<v8::Value>(), hitBreakpoints.As<v8::Array>());
@@ -780,11 +777,9 @@ v8::Local<v8::Value> V8Debugger::collectionEntries(
     return v8::Undefined(m_isolate);
   }
   v8::Local<v8::Value> argv[] = {object};
-  v8::Local<v8::Value> entriesValue;
-  if (!callDebuggerMethod("getCollectionEntries", 1, argv)
-           .ToLocal(&entriesValue) ||
-      !entriesValue->IsArray())
-    return v8::Undefined(m_isolate);
+  v8::Local<v8::Value> entriesValue =
+      callDebuggerMethod("getCollectionEntries", 1, argv).ToLocalChecked();
+  if (!entriesValue->IsArray()) return v8::Undefined(m_isolate);
 
   v8::Local<v8::Array> entries = entriesValue.As<v8::Array>();
   v8::Local<v8::Array> copiedArray =
@@ -817,11 +812,11 @@ v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
     return v8::Null(m_isolate);
   }
   v8::Local<v8::Value> argv[] = {object};
-  v8::Local<v8::Value> location;
+  v8::Local<v8::Value> location =
+      callDebuggerMethod("getGeneratorObjectLocation", 1, argv)
+          .ToLocalChecked();
   v8::Local<v8::Value> copied;
-  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv)
-           .ToLocal(&location) ||
-      !copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
+  if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
                                     location)
            .ToLocal(&copied) ||
       !copied->IsObject())
