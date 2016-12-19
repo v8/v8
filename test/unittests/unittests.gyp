@@ -118,6 +118,7 @@
       'heap/scavenge-job-unittest.cc',
       'heap/slot-set-unittest.cc',
       'locked-queue-unittest.cc',
+      'object-unittest.cc',
       'register-configuration-unittest.cc',
       'run-all-unittests.cc',
       'source-position-table-unittest.cc',

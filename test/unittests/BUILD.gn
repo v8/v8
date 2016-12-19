@@ -120,6 +120,7 @@ v8_executable("unittests") {
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "locked-queue-unittest.cc",
+    "object-unittest.cc",
     "register-configuration-unittest.cc",
     "run-all-unittests.cc",
     "source-position-table-unittest.cc",

@@ -320,38 +320,34 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
 #define INSTANCE_TYPE_LIST(V)                                   \
-  V(STRING_TYPE)                                                \
-  V(ONE_BYTE_STRING_TYPE)                                       \
-  V(CONS_STRING_TYPE)                                           \
-  V(CONS_ONE_BYTE_STRING_TYPE)                                  \
-  V(SLICED_STRING_TYPE)                                         \
-  V(SLICED_ONE_BYTE_STRING_TYPE)                                \
-  V(EXTERNAL_STRING_TYPE)                                       \
-  V(EXTERNAL_ONE_BYTE_STRING_TYPE)                              \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                    \
-  V(SHORT_EXTERNAL_STRING_TYPE)                                 \
-  V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
-  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
-                                                                \
   V(INTERNALIZED_STRING_TYPE)                                   \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                          \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                          \
+  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                          \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                 \
   V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)       \
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
   V(SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
+  V(STRING_TYPE)                                                \
+  V(CONS_STRING_TYPE)                                           \
+  V(EXTERNAL_STRING_TYPE)                                       \
+  V(SLICED_STRING_TYPE)                                         \
+  V(ONE_BYTE_STRING_TYPE)                                       \
+  V(CONS_ONE_BYTE_STRING_TYPE)                                  \
+  V(EXTERNAL_ONE_BYTE_STRING_TYPE)                              \
+  V(SLICED_ONE_BYTE_STRING_TYPE)                                \
+  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                    \
+  V(SHORT_EXTERNAL_STRING_TYPE)                                 \
+  V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
+  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
                                                                 \
   V(SYMBOL_TYPE)                                                \
+  V(HEAP_NUMBER_TYPE)                                           \
   V(SIMD128_VALUE_TYPE)                                         \
+  V(ODDBALL_TYPE)                                               \
                                                                 \
   V(MAP_TYPE)                                                   \
   V(CODE_TYPE)                                                  \
-  V(ODDBALL_TYPE)                                               \
-  V(CELL_TYPE)                                                  \
-  V(PROPERTY_CELL_TYPE)                                         \
-                                                                \
-  V(HEAP_NUMBER_TYPE)                                           \
   V(MUTABLE_HEAP_NUMBER_TYPE)                                   \
   V(FOREIGN_TYPE)                                               \
   V(BYTE_ARRAY_TYPE)                                            \
@@ -368,6 +364,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_FLOAT64_ARRAY_TYPE)                                   \
   V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                             \
                                                                 \
+  V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
   V(FILLER_TYPE)                                                \
                                                                 \
   V(ACCESSOR_INFO_TYPE)                                         \
@@ -377,16 +374,16 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CALL_HANDLER_INFO_TYPE)                                     \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
   V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
-  V(SIGNATURE_INFO_TYPE)                                        \
-  V(TYPE_SWITCH_INFO_TYPE)                                      \
-  V(ALLOCATION_MEMENTO_TYPE)                                    \
   V(ALLOCATION_SITE_TYPE)                                       \
+  V(ALLOCATION_MEMENTO_TYPE)                                    \
   V(SCRIPT_TYPE)                                                \
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(DEBUG_INFO_TYPE)                                            \
+  V(BREAK_POINT_INFO_TYPE)                                      \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
@@ -394,31 +391,30 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CONSTANT_ELEMENTS_PAIR_TYPE)                                \
   V(MODULE_TYPE)                                                \
   V(MODULE_INFO_ENTRY_TYPE)                                     \
-                                                                \
   V(FIXED_ARRAY_TYPE)                                           \
-  V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
-  V(SHARED_FUNCTION_INFO_TYPE)                                  \
-  V(WEAK_CELL_TYPE)                                             \
   V(TRANSITION_ARRAY_TYPE)                                      \
+  V(SHARED_FUNCTION_INFO_TYPE)                                  \
+  V(CELL_TYPE)                                                  \
+  V(WEAK_CELL_TYPE)                                             \
+  V(PROPERTY_CELL_TYPE)                                         \
                                                                 \
-  V(JS_MESSAGE_OBJECT_TYPE)                                     \
-                                                                \
+  V(JS_PROXY_TYPE)                                              \
+  V(JS_GLOBAL_OBJECT_TYPE)                                      \
+  V(JS_GLOBAL_PROXY_TYPE)                                       \
+  V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
   V(JS_VALUE_TYPE)                                              \
+  V(JS_MESSAGE_OBJECT_TYPE)                                     \
   V(JS_DATE_TYPE)                                               \
+  V(JS_API_OBJECT_TYPE)                                         \
   V(JS_OBJECT_TYPE)                                             \
   V(JS_ARGUMENTS_TYPE)                                          \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
   V(JS_MODULE_NAMESPACE_TYPE)                                   \
-  V(JS_GLOBAL_OBJECT_TYPE)                                      \
-  V(JS_GLOBAL_PROXY_TYPE)                                       \
-  V(JS_API_OBJECT_TYPE)                                         \
-  V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
   V(JS_ARRAY_TYPE)                                              \
   V(JS_ARRAY_BUFFER_TYPE)                                       \
   V(JS_TYPED_ARRAY_TYPE)                                        \
   V(JS_DATA_VIEW_TYPE)                                          \
-  V(JS_PROXY_TYPE)                                              \
   V(JS_SET_TYPE)                                                \
   V(JS_MAP_TYPE)                                                \
   V(JS_SET_ITERATOR_TYPE)                                       \
@@ -434,12 +430,12 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                            \
   V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                         \
                                                                 \
-  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
   V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
-  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)                      \
   V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
-  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
+  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
   V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                    \
+  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                     \
   V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
   V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
   V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
@@ -452,12 +448,12 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)         \
   V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)                   \
                                                                 \
-  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                          \
   V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                         \
-  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                          \
   V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                        \
-  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                         \
+  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                         \
   V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                        \
+  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                         \
   V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)                       \
   V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)                       \
   V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)                 \
@@ -471,9 +467,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)                       \
                                                                 \
   V(JS_BOUND_FUNCTION_TYPE)                                     \
-  V(JS_FUNCTION_TYPE)                                           \
-  V(DEBUG_INFO_TYPE)                                            \
-  V(BREAK_POINT_INFO_TYPE)
+  V(JS_FUNCTION_TYPE)
 
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
@@ -536,11 +530,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
 #define STRUCT_LIST(V)                                                       \
-  V(BOX, Box, box)                                                           \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
-    promise_resolve_thenable_job_info)                                       \
-  V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
-    promise_reaction_job_info)                                               \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
@@ -548,20 +537,25 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CALL_HANDLER_INFO, CallHandlerInfo, call_handler_info)                   \
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
-  V(SCRIPT, Script, script)                                                  \
   V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
   V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
+  V(SCRIPT, Script, script)                                                  \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                \
   V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry) \
+  V(BOX, Box, box)                                                           \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
+    promise_resolve_thenable_job_info)                                       \
+  V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
+    promise_reaction_job_info)                                               \
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
   V(TUPLE2, Tuple2, tuple2)                                                  \
   V(TUPLE3, Tuple3, tuple3)                                                  \
-  V(MODULE, Module, module)                                                  \
-  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
-  V(CONSTANT_ELEMENTS_PAIR, ConstantElementsPair, constant_elements_pair)
+  V(CONSTANT_ELEMENTS_PAIR, ConstantElementsPair, constant_elements_pair)    \
+  V(MODULE, Module, module)                                                  \
+  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -718,8 +712,6 @@ enum InstanceType {
   CALL_HANDLER_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,
-  SIGNATURE_INFO_TYPE,
-  TYPE_SWITCH_INFO_TYPE,
   ALLOCATION_SITE_TYPE,
   ALLOCATION_MEMENTO_TYPE,
   SCRIPT_TYPE,
@@ -730,12 +722,6 @@ enum InstanceType {
   PROMISE_REACTION_JOB_INFO_TYPE,
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
-  FIXED_ARRAY_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
-  CELL_TYPE,
-  WEAK_CELL_TYPE,
-  TRANSITION_ARRAY_TYPE,
-  PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
@@ -743,6 +729,12 @@ enum InstanceType {
   CONSTANT_ELEMENTS_PAIR_TYPE,
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
+  FIXED_ARRAY_TYPE,
+  TRANSITION_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  CELL_TYPE,
+  WEAK_CELL_TYPE,
+  PROPERTY_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
