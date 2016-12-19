@@ -1041,9 +1041,11 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
     case IrOpcode::kTrapIf:
-      return VisitTrapIf(node);
+      return VisitTrapIf(node, static_cast<Runtime::FunctionId>(
+                                   OpParameter<int32_t>(node->op())));
     case IrOpcode::kTrapUnless:
-      return VisitTrapUnless(node);
+      return VisitTrapUnless(node, static_cast<Runtime::FunctionId>(
+                                       OpParameter<int32_t>(node->op())));
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:

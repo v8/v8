@@ -2076,16 +2076,16 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(Node* node) {
-  FlagsContinuation cont = FlagsContinuation::ForTrap(
-      kNotEqual, OpParameter<Runtime::FunctionId>(node->op()),
-      node->InputAt(1));
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapUnless(Node* node) {
-  FlagsContinuation cont = FlagsContinuation::ForTrap(
-      kEqual, OpParameter<Runtime::FunctionId>(node->op()), node->InputAt(1));
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 

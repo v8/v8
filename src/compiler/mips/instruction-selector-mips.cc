@@ -1605,9 +1605,14 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  UNREACHABLE();
+}
 
-void InstructionSelector::VisitTrapUnless(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  UNREACHABLE();
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   MipsOperandGenerator g(this);

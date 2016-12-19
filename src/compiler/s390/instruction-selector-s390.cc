@@ -1786,9 +1786,14 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  UNREACHABLE();
+}
 
-void InstructionSelector::VisitTrapUnless(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  UNREACHABLE();
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   S390OperandGenerator g(this);
