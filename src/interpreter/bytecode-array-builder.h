@@ -124,10 +124,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
-  BytecodeArrayBuilder& StoreDataPropertyInLiteral(Register object,
-                                                   Register name,
-                                                   Register value,
-                                                   Register attrs);
+  BytecodeArrayBuilder& StoreDataPropertyInLiteral(
+      Register object, Register name, Register value,
+      DataPropertyInLiteralFlags flags);
 
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,

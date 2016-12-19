@@ -817,11 +817,11 @@ void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   DoKeyedStoreIC(ic, assembler);
 }
 
-// StaDataPropertyInLiteral <object> <name> <value> <attrs>
+// StaDataPropertyInLiteral <object> <name> <value> <flags>
 //
-// Define a property <name> with value <value> in <object>. Use property
-// attributes <attrs> in the definition and set the name property of <value>
-// according to the flag in the accumulator.
+// Define a property <name> with value <value> in <object>. Property attributes
+// and whether set_function_name are stored in DataPropertyInLiteralFlags
+// <flags>.
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
@@ -832,15 +832,12 @@ void Interpreter::DoStaDataPropertyInLiteral(InterpreterAssembler* assembler) {
   Node* name = __ LoadRegister(name_reg_index);
   Node* value_reg_index = __ BytecodeOperandReg(2);
   Node* value = __ LoadRegister(value_reg_index);
-  Node* attrs_reg_index = __ BytecodeOperandReg(3);
-  Node* attrs = __ LoadRegister(attrs_reg_index);
-
-  Node* set_function_name = __ GetAccumulator();
+  Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(3));
 
   Node* context = __ GetContext();
 
   __ CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
-                 value, attrs, set_function_name);
+                 value, flags);
   __ Dispatch();
 }
 

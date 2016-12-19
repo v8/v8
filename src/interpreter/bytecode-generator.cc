@@ -1500,9 +1500,11 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 
     switch (property->kind()) {
       case ClassLiteral::Property::METHOD: {
-        builder()
-            ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
-            .StoreDataPropertyInLiteral(receiver, key, value, attr);
+        DataPropertyInLiteralFlags flags = DataPropertyInLiteralFlag::kDontEnum;
+        if (property->NeedsSetFunctionName()) {
+          flags |= DataPropertyInLiteralFlag::kSetFunctionName;
+        }
+        builder()->StoreDataPropertyInLiteral(receiver, key, value, flags);
         break;
       }
       case ClassLiteral::Property::GETTER: {
@@ -1737,13 +1739,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         Register value = VisitForRegisterValue(property->value());
         VisitSetHomeObject(value, literal, property);
 
-        Register attr = register_allocator()->NewRegister();
+        DataPropertyInLiteralFlags data_property_flags =
+            DataPropertyInLiteralFlag::kNoFlags;
+        if (property->NeedsSetFunctionName()) {
+          data_property_flags |= DataPropertyInLiteralFlag::kSetFunctionName;
+        }
 
-        builder()
-            ->LoadLiteral(Smi::FromInt(NONE))
-            .StoreAccumulatorInRegister(attr)
-            .LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
-            .StoreDataPropertyInLiteral(literal, key, value, attr);
+        builder()->StoreDataPropertyInLiteral(literal, key, value,
+                                              data_property_flags);
         break;
       }
       case ObjectLiteral::Property::GETTER:

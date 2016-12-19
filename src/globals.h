@@ -11,6 +11,7 @@
 #include <ostream>
 
 #include "src/base/build_config.h"
+#include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -1309,6 +1310,17 @@ inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
   UNREACHABLE();
   return os;
 }
+
+// Flags for the runtime function kDefineDataPropertyInLiteral. A property can
+// be enumerable or not, and, in case of functions, the function name
+// can be set or not.
+enum class DataPropertyInLiteralFlag {
+  kNoFlags = 0,
+  kDontEnum = 1 << 0,
+  kSetFunctionName = 1 << 1
+};
+typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
+DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
 
 }  // namespace internal
 }  // namespace v8

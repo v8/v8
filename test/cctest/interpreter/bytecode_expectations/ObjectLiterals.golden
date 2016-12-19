@@ -285,9 +285,9 @@ handlers: [
 snippet: "
   var a = 'test'; return { [a]: 1 };
 "
-frame size: 5
+frame size: 4
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -296,10 +296,7 @@ bytecodes: [
   /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), U8(1),
                 B(Star), R(3),
-                B(LdaZero),
-                B(Star), R(4),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), U8(0),
                 B(Ldar), R(1),
   /*   69 S> */ B(Return),
 ]
@@ -314,9 +311,9 @@ handlers: [
 snippet: "
   var a = 'test'; return { val: a, [a]: 1 };
 "
-frame size: 5
+frame size: 4
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -326,10 +323,7 @@ bytecodes: [
   /*   68 E> */ B(ToName), R(2),
                 B(LdaSmi), U8(1),
                 B(Star), R(3),
-                B(LdaZero),
-                B(Star), R(4),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), U8(0),
                 B(Ldar), R(1),
   /*   77 S> */ B(Return),
 ]
@@ -347,7 +341,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 40
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -356,10 +350,7 @@ bytecodes: [
   /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), U8(1),
                 B(Star), R(3),
-                B(LdaZero),
-                B(Star), R(4),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), U8(0),
                 B(CreateObjectLiteral), U8(1), U8(0), U8(35), R(4),
                 B(Mov), R(1), R(2),
                 B(Mov), R(4), R(3),
@@ -380,7 +371,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 65
+bytecode array length: 61
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -389,10 +380,7 @@ bytecodes: [
   /*   60 E> */ B(ToName), R(2),
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
-                B(LdaZero),
-                B(Star), R(4),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(1), R(2), R(3), R(4),
+                B(StaDataPropertyInLiteral), R(1), R(2), R(3), U8(0),
                 B(LdaConstant), U8(3),
                 B(ToName), R(3),
                 B(CreateClosure), U8(4), U8(2),

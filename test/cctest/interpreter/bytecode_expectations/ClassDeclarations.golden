@@ -12,9 +12,9 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 9
+frame size: 8
 parameter count: 1
-bytecode array length: 75
+bytecode array length: 72
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(2),
@@ -38,9 +38,7 @@ bytecodes: [
                 B(CreateClosure), U8(3), U8(2),
                 B(Star), R(7),
                 B(LdaSmi), U8(2),
-                B(Star), R(8),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(4), R(6), R(7), R(8),
+                B(StaDataPropertyInLiteral), R(4), R(6), R(7), U8(1),
                 B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(3), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
                 B(Star), R(0),
@@ -65,9 +63,9 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 9
+frame size: 8
 parameter count: 1
-bytecode array length: 75
+bytecode array length: 72
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(2),
@@ -91,9 +89,7 @@ bytecodes: [
                 B(CreateClosure), U8(3), U8(2),
                 B(Star), R(7),
                 B(LdaSmi), U8(2),
-                B(Star), R(8),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(4), R(6), R(7), R(8),
+                B(StaDataPropertyInLiteral), R(4), R(6), R(7), U8(1),
                 B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(3), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
                 B(Star), R(0),
@@ -122,7 +118,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 119
+bytecode array length: 115
 bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(3),
@@ -152,9 +148,8 @@ bytecodes: [
                 B(CreateClosure), U8(4), U8(2),
                 B(Star), R(8),
                 B(LdaSmi), U8(2),
+                B(StaDataPropertyInLiteral), R(5), R(7), R(8), U8(3),
                 B(Star), R(9),
-                B(LdaSmi), U8(1),
-                B(StaDataPropertyInLiteral), R(5), R(7), R(8), R(9),
                 B(LdaCurrentContextSlot), U8(5),
   /*  106 E> */ B(ToName), R(7),
                 B(LdaConstant), U8(3),
@@ -164,8 +159,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
                 B(CreateClosure), U8(5), U8(2),
                 B(Star), R(8),
-                B(LdaSmi), U8(1),
-                B(StaDataPropertyInLiteral), R(6), R(7), R(8), R(9),
+                B(StaDataPropertyInLiteral), R(6), R(7), R(8), U8(3),
                 B(CallRuntime), U16(Runtime::kInstallClassNameAccessorWithCheck), R(4), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(4), U8(1),
                 B(Star), R(0),
@@ -237,9 +231,9 @@ snippet: "
   (class {})
   class E { static name () {}}
 "
-frame size: 10
+frame size: 9
 parameter count: 1
-bytecode array length: 104
+bytecode array length: 101
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(3),
@@ -277,9 +271,7 @@ bytecodes: [
                 B(CreateClosure), U8(4), U8(2),
                 B(Star), R(8),
                 B(LdaSmi), U8(2),
-                B(Star), R(9),
-                B(LdaZero),
-                B(StaDataPropertyInLiteral), R(4), R(7), R(8), R(9),
+                B(StaDataPropertyInLiteral), R(4), R(7), R(8), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(4), U8(1),
                 B(Star), R(0),
                 B(Star), R(2),
