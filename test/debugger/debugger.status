@@ -27,6 +27,9 @@
 
   # Slow test
   'debug/debug-scopes': [PASS, SLOW],
+
+  # Too slow in debug mode and on slow platforms.
+  'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################

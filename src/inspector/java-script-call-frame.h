@@ -55,7 +55,7 @@ class JavaScriptCallFrame {
   int contextId() const;
 
   bool isAtReturn() const;
-  v8::Local<v8::Object> details() const;
+  v8::MaybeLocal<v8::Object> details() const;
 
   v8::MaybeLocal<v8::Value> evaluate(v8::Local<v8::Value> expression);
   v8::MaybeLocal<v8::Value> restart();
