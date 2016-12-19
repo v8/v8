@@ -3837,6 +3837,9 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   Bind(&if_isdictionary);
   {
+    // Negative keys must be converted to property names.
+    GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), if_bailout);
+
     Variable var_entry(this, MachineType::PointerRepresentation());
     Node* elements = LoadElements(object);
     NumberDictionaryLookup<SeededNumberDictionary>(
