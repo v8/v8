@@ -46,6 +46,10 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
                                &return_false, &call_runtime);
 
   assembler->Bind(&keyisindex);
+  // Handle negative keys in the runtime.
+  assembler->GotoIf(assembler->IntPtrLessThan(var_index.value(),
+                                              assembler->IntPtrConstant(0)),
+                    &call_runtime);
   assembler->TryLookupElement(object, map, instance_type, var_index.value(),
                               &return_true, &return_false, &call_runtime);
 
