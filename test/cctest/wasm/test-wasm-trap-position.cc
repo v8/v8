@@ -88,8 +88,8 @@ TEST(Unreachable) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 2},  // --
-      {"callFn", 1, 24}                                         // --
+      {"main", static_cast<int>(wasm_index) + 1, 2},  // --
+      {"callFn", 1, 24}                               // --
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
@@ -106,7 +106,7 @@ TEST(IllegalLoad) {
                                       WASM_DROP)));
   uint32_t wasm_index_1 = r.function()->func_index;
 
-  WasmFunctionCompiler& f2 = r.NewFunction<void>();
+  WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
   // Insert a NOP such that the position of the call is not one.
   BUILD(f2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1));
   uint32_t wasm_index_2 = f2.function_index();
@@ -129,9 +129,9 @@ TEST(IllegalLoad) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_1) + 1, 8},  // --
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 3},  // --
-      {"callFn", 1, 24}                                           // --
+      {"main", static_cast<int>(wasm_index_1) + 1, 8},       // --
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 3},  // --
+      {"callFn", 1, 24}                                      // --
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

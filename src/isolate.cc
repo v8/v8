@@ -512,19 +512,15 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
       case StackFrame::WASM: {
         WasmFrame* wasm_frame = WasmFrame::cast(frame);
-        Handle<Object> instance(wasm_frame->wasm_instance(), this);
+        Handle<WasmInstanceObject> instance(wasm_frame->wasm_instance(), this);
         const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
         Handle<AbstractCode> abstract_code(AbstractCode::cast(code), this);
         const int offset =
             static_cast<int>(wasm_frame->pc() - code->instruction_start());
 
-        // TODO(wasm): The wasm object returned by the WasmFrame should always
-        //             be a wasm object.
-        DCHECK(wasm::IsWasmInstance(*instance) || instance->IsUndefined(this));
-
         int flags = 0;
-        if (wasm::WasmIsAsmJs(*instance, this)) {
+        if (instance->get_compiled_module()->is_asm_js()) {
           flags |= FrameArray::kIsAsmJsWasmFrame;
           if (wasm_frame->at_to_number_conversion()) {
             flags |= FrameArray::kAsmJsAtNumberConversion;
@@ -708,9 +704,10 @@ class CaptureStackTraceHelper {
         factory()->NewJSObject(isolate_->object_function());
 
     if (!function_key_.is_null()) {
-      Handle<String> name = wasm::GetWasmFunctionName(
-          isolate_, handle(frame->wasm_instance(), isolate_),
-          frame->function_index());
+      Handle<WasmCompiledModule> compiled_module(
+          frame->wasm_instance()->get_compiled_module(), isolate_);
+      Handle<String> name = WasmCompiledModule::GetFunctionName(
+          isolate_, compiled_module, frame->function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
     // Encode the function index as line number (1-based).

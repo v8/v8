@@ -91,6 +91,7 @@ class TestingModule : public ModuleEnv {
     instance->mem_start = nullptr;
     instance->mem_size = 0;
     memset(global_data, 0, sizeof(global_data));
+    instance_object_ = InitInstanceObject();
   }
 
   ~TestingModule() {
@@ -180,7 +181,7 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
-  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code) {
+  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name) {
     if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
       // structs from moving.
@@ -188,6 +189,11 @@ class TestingModule : public ModuleEnv {
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
     module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false, false});
+    if (name) {
+      Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
+      module_.functions.back().name_offset = AddBytes(name_vec);
+      module_.functions.back().name_length = name_vec.length();
+    }
     instance->function_code.push_back(code);
     if (interpreter_) {
       const WasmFunction* function = &module->functions.back();
@@ -201,7 +207,7 @@ class TestingModule : public ModuleEnv {
   uint32_t AddJsFunction(FunctionSig* sig, const char* source) {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
-    uint32_t index = AddFunction(sig, Handle<Code>::null());
+    uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
     Handle<Code> code = CompileWasmToJSWrapper(
         isolate_, jsfunc, sig, index, Handle<String>::null(),
         Handle<String>::null(), module->origin);
@@ -265,6 +271,7 @@ class TestingModule : public ModuleEnv {
   WasmInterpreter* interpreter() { return interpreter_; }
   WasmExecutionMode execution_mode() { return execution_mode_; }
   Isolate* isolate() { return isolate_; }
+  Handle<WasmInstanceObject> instance_object() { return instance_object_; }
 
  private:
   WasmExecutionMode execution_mode_;
@@ -274,6 +281,7 @@ class TestingModule : public ModuleEnv {
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
   WasmInterpreter* interpreter_;
+  Handle<WasmInstanceObject> instance_object_;
 
   const WasmGlobal* AddGlobal(LocalType type) {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
@@ -284,6 +292,36 @@ class TestingModule : public ModuleEnv {
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
     return &module->globals.back();
+  }
+
+  uint32_t AddBytes(Vector<const byte> bytes) {
+    Handle<SeqOneByteString> old_bytes =
+        instance_object_->get_compiled_module()->module_bytes();
+    uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
+    ScopedVector<byte> new_bytes(old_size + bytes.length());
+    memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
+    memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
+    Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
+        isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
+    instance_object_->get_compiled_module()->set_module_bytes(new_bytes_str);
+    return old_size;
+  }
+
+  Handle<WasmInstanceObject> InitInstanceObject() {
+    Handle<Managed<wasm::WasmModule>> module_wrapper =
+        Managed<wasm::WasmModule>::New(isolate_, &module_, false);
+    Handle<WasmCompiledModule> compiled_module =
+        WasmCompiledModule::New(isolate_, module_wrapper);
+    // Minimally initialize the compiled module such that IsWasmCompiledModule
+    // passes.
+    // If tests need more (correct) information, add it later.
+    compiled_module->set_min_mem_pages(0);
+    compiled_module->set_max_mem_pages(Smi::kMaxValue);
+    Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
+        isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
+    compiled_module->set_module_bytes(empty_string);
+    DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
+    return WasmInstanceObject::New(isolate_, compiled_module);
   }
 };
 
@@ -486,7 +524,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   friend class WasmRunnerBase;
 
   explicit WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
-                                TestingModule* module)
+                                TestingModule* module, const char* name)
       : GraphAndBuilders(zone),
         jsgraph(module->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
@@ -497,7 +535,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
         source_position_table_(this->graph()),
         interpreter_(module->interpreter()) {
     // Get a new function from the testing module.
-    int index = module->AddFunction(sig, Handle<Code>::null());
+    int index = module->AddFunction(sig, Handle<Code>::null(), name);
     function_ = testing_module_->GetFunctionAt(index);
   }
 
@@ -516,12 +554,14 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
     Handle<Code> code = info.code();
 
-    // Length is always 2, since usually <wasm_obj, func_index> is stored in
-    // the deopt data. Here, we only store the function index.
+    // Deopt data holds <WeakCell<wasm_instance>, func_index>.
     DCHECK(code->deoptimization_data() == nullptr ||
            code->deoptimization_data()->length() == 0);
     Handle<FixedArray> deopt_data =
         isolate()->factory()->NewFixedArray(2, TENURED);
+    Handle<Object> weak_instance =
+        isolate()->factory()->NewWeakCell(testing_module_->instance_object());
+    deopt_data->set(0, *weak_instance);
     deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
     deopt_data->set_length(2);
     code->set_deoptimization_data(*deopt_data);
@@ -569,15 +609,17 @@ class WasmRunnerBase : public HandleAndZoneScope {
   // Resets the state for building the next function.
   // The main function called will always be the first function.
   template <typename ReturnType, typename... ParamTypes>
-  WasmFunctionCompiler& NewFunction() {
-    return NewFunction(CreateSig<ReturnType, ParamTypes...>());
+  WasmFunctionCompiler& NewFunction(const char* name = nullptr) {
+    return NewFunction(CreateSig<ReturnType, ParamTypes...>(), name);
   }
 
   // Resets the state for building the next function.
   // The main function called will be the last generated function.
   // Returns the index of the previously built function.
-  WasmFunctionCompiler& NewFunction(FunctionSig* sig) {
-    functions_.emplace_back(new WasmFunctionCompiler(&zone_, sig, &module_));
+  WasmFunctionCompiler& NewFunction(FunctionSig* sig,
+                                    const char* name = nullptr) {
+    functions_.emplace_back(
+        new WasmFunctionCompiler(&zone_, sig, &module_, name));
     return *functions_.back();
   }
 
@@ -651,9 +693,10 @@ class WasmRunnerBase : public HandleAndZoneScope {
 template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
-  explicit WasmRunner(WasmExecutionMode execution_mode)
+  explicit WasmRunner(WasmExecutionMode execution_mode,
+                      const char* main_fn_name = "main")
       : WasmRunnerBase(execution_mode, sizeof...(ParamTypes)) {
-    NewFunction<ReturnType, ParamTypes...>();
+    NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     if (!interpret()) {
       wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());
     }

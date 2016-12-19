@@ -87,7 +87,7 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
   uint32_t wasm_index_1 = r.function()->func_index;
 
-  WasmFunctionCompiler& f2 = r.NewFunction<void>();
+  WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
   BUILD(f2, WASM_CALL_FUNCTION0(wasm_index_1));
   uint32_t wasm_index_2 = f2.function_index();
 
@@ -109,11 +109,11 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},                                                // -
-      {"js", 4, 2},                                               // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_1) + 1, 3},  // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 2},  // -
-      {"callFn", 1, 24}                                           // -
+      {"a", 3, 8},                                           // -
+      {"js", 4, 2},                                          // -
+      {"main", static_cast<int>(wasm_index_1) + 1, 3},       // -
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
+      {"callFn", 1, 24}                                      // -
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
@@ -128,7 +128,7 @@ TEST(CollectDetailedWasmStack_WasmError) {
   BUILD(r, WASM_UNREACHABLE);
   uint32_t wasm_index_1 = r.function()->func_index;
 
-  WasmFunctionCompiler& f2 = r.NewFunction<int>();
+  WasmFunctionCompiler& f2 = r.NewFunction<int>("call_main");
   BUILD(f2, WASM_CALL_FUNCTION0(0));
   uint32_t wasm_index_2 = f2.function_index();
 
@@ -150,9 +150,9 @@ TEST(CollectDetailedWasmStack_WasmError) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_1) + 1, 2},  // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 2},  // -
-      {"callFn", 1, 24}                                           //-
+      {"main", static_cast<int>(wasm_index_1) + 1, 2},       // -
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
+      {"callFn", 1, 24}                                      //-
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

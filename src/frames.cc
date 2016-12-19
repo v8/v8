@@ -1558,10 +1558,11 @@ Address WasmFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-Object* WasmFrame::wasm_instance() const {
+WasmInstanceObject* WasmFrame::wasm_instance() const {
   Object* ret = wasm::GetOwningWasmInstance(LookupCode());
-  if (ret == nullptr) ret = isolate()->heap()->undefined_value();
-  return ret;
+  // This is a live stack frame, there must be a live wasm instance available.
+  DCHECK_NOT_NULL(ret);
+  return WasmInstanceObject::cast(ret);
 }
 
 uint32_t WasmFrame::function_index() const {
@@ -1577,7 +1578,7 @@ Script* WasmFrame::script() const {
 
 int WasmFrame::position() const {
   int position = StandardFrame::position();
-  if (wasm::WasmIsAsmJs(wasm_instance(), isolate())) {
+  if (wasm_instance()->get_compiled_module()->is_asm_js()) {
     Handle<WasmCompiledModule> compiled_module(
         WasmInstanceObject::cast(wasm_instance())->get_compiled_module(),
         isolate());

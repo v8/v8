@@ -526,11 +526,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<Object> wasm_instance_or_undef(it.wasm_frame()->wasm_instance(),
-                                          isolate);
+    Handle<WasmCompiledModule> compiled_module(
+        it.wasm_frame()->wasm_instance()->get_compiled_module(), isolate);
     int func_index = it.wasm_frame()->function_index();
-    Handle<String> func_name =
-        wasm::GetWasmFunctionName(isolate, wasm_instance_or_undef, func_index);
+    Handle<String> func_name = WasmCompiledModule::GetFunctionName(
+        isolate, compiled_module, func_index);
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -549,14 +549,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // position, such that together with the script it uniquely identifies the
     // position.
     Handle<Object> positionValue;
-    if (position != kNoSourcePosition &&
-        !wasm_instance_or_undef->IsUndefined(isolate)) {
+    if (position != kNoSourcePosition) {
       int translated_position = position;
-      if (!wasm::WasmIsAsmJs(*wasm_instance_or_undef, isolate)) {
-        Handle<WasmCompiledModule> compiled_module(
-            WasmInstanceObject::cast(*wasm_instance_or_undef)
-                ->get_compiled_module(),
-            isolate);
+      // No further translation needed for asm.js modules.
+      if (!compiled_module->is_asm_js()) {
         translated_position +=
             wasm::GetFunctionCodeOffset(compiled_module, func_index);
       }

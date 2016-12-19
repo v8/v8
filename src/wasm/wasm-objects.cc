@@ -360,6 +360,22 @@ void WasmCompiledModule::InitId() {
 #endif
 }
 
+MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    uint32_t offset, uint32_t size) {
+  // TODO(wasm): cache strings from modules if it's a performance win.
+  Handle<SeqOneByteString> module_bytes = compiled_module->module_bytes();
+  DCHECK_GE(module_bytes->length(), offset);
+  DCHECK_GE(module_bytes->length() - offset, size);
+  Address raw = module_bytes->GetCharsAddress() + offset;
+  if (!unibrow::Utf8::Validate(reinterpret_cast<const byte*>(raw), size))
+    return {};  // UTF8 decoding error for name.
+  DCHECK_GE(kMaxInt, offset);
+  DCHECK_GE(kMaxInt, size);
+  return isolate->factory()->NewStringFromUtf8SubString(
+      module_bytes, static_cast<int>(offset), static_cast<int>(size));
+}
+
 bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
   if (!obj->IsFixedArray()) return false;
   FixedArray* arr = FixedArray::cast(obj);
@@ -395,12 +411,60 @@ void WasmCompiledModule::PrintInstancesChain() {
 #endif
 }
 
+void WasmCompiledModule::RecreateModuleWrapper(Isolate* isolate,
+                                               Handle<FixedArray> array) {
+  Handle<WasmCompiledModule> compiled_module(
+      reinterpret_cast<WasmCompiledModule*>(*array), isolate);
+
+  WasmModule* module = nullptr;
+  {
+    Handle<SeqOneByteString> module_bytes = compiled_module->module_bytes();
+    // We parse the module again directly from the module bytes, so
+    // the underlying storage must not be moved meanwhile.
+    DisallowHeapAllocation no_allocation;
+    const byte* start =
+        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
+    const byte* end = start + module_bytes->length();
+    // TODO(titzer): remember the module origin in the compiled_module
+    // For now, we assume serialized modules did not originate from asm.js.
+    ModuleResult result =
+        DecodeWasmModule(isolate, start, end, false, kWasmOrigin);
+    CHECK(result.ok());
+    CHECK_NOT_NULL(result.val);
+    module = const_cast<WasmModule*>(result.val);
+  }
+
+  Handle<WasmModuleWrapper> module_wrapper =
+      WasmModuleWrapper::New(isolate, module);
+
+  compiled_module->set_module_wrapper(module_wrapper);
+  DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
+}
+
 uint32_t WasmCompiledModule::mem_size() const {
   return has_memory() ? memory()->byte_length()->Number() : default_mem_size();
 }
 
 uint32_t WasmCompiledModule::default_mem_size() const {
   return min_mem_pages() * WasmModule::kPageSize;
+}
+
+MaybeHandle<String> WasmCompiledModule::GetFunctionNameOrNull(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    uint32_t func_index) {
+  DCHECK_LT(func_index, compiled_module->module()->functions.size());
+  WasmFunction& function = compiled_module->module()->functions[func_index];
+  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+      isolate, compiled_module, function.name_offset, function.name_length);
+}
+
+Handle<String> WasmCompiledModule::GetFunctionName(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    uint32_t func_index) {
+  MaybeHandle<String> name =
+      GetFunctionNameOrNull(isolate, compiled_module, func_index);
+  if (!name.is_null()) return name.ToHandleChecked();
+  return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
 }
 
 Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(

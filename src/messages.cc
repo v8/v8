@@ -659,7 +659,8 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
   Handle<WasmCompiledModule> compiled_module(
       Handle<WasmInstanceObject>::cast(wasm_instance_)->get_compiled_module(),
       isolate_);
-  if (!WasmCompiledModule::GetFunctionName(compiled_module, wasm_func_index_)
+  if (!WasmCompiledModule::GetFunctionNameOrNull(isolate_, compiled_module,
+                                                 wasm_func_index_)
            .ToHandle(&name)) {
     name = isolate_->factory()->null_value();
   }

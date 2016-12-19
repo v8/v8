@@ -254,6 +254,9 @@ class WasmCompiledModule : public FixedArray {
 
   static bool IsWasmCompiledModule(Object* obj);
 
+  // Check whether this module wasm generated from asm.js source.
+  bool is_asm_js() const { return has_asm_js_offset_table(); }
+
   void PrintInstancesChain();
 
   static void RecreateModuleWrapper(Isolate* isolate,
@@ -262,8 +265,16 @@ class WasmCompiledModule : public FixedArray {
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
   // UTF-8 string.
-  static MaybeHandle<String> GetFunctionName(
-      Handle<WasmCompiledModule> compiled_module, uint32_t func_index);
+  static MaybeHandle<String> GetFunctionNameOrNull(
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+      uint32_t func_index);
+
+  // Get the function name of the function identified by the given index.
+  // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
+  // valid UTF-8 string.
+  static Handle<String> GetFunctionName(
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+      uint32_t func_index);
 
   // Get the raw bytes of the function name of the function identified by the
   // given index.
@@ -298,6 +309,13 @@ class WasmCompiledModule : public FixedArray {
   // The list is guaranteed to be ordered by the byte_offset.
   // Returns an empty string and empty vector if the function index is invalid.
   debug::WasmDisassembly DisassembleFunction(int func_index);
+
+  // Extract a portion of the wire bytes as UTF-8 string.
+  // Returns a null handle if the respective bytes do not form a valid UTF-8
+  // string.
+  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+      uint32_t offset, uint32_t size);
 
  private:
   void InitId();

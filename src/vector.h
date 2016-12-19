@@ -119,6 +119,9 @@ class Vector {
     return Vector<T>(start_ + offset, length_ - offset);
   }
 
+  // Implicit conversion from Vector<T> to Vector<const T>.
+  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
+
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
 

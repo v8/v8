@@ -373,13 +373,6 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
-// Extract a function name from the given wasm instance.
-// Returns "<WASM UNNAMED>" if no instance is passed, the function is unnamed or
-// the name is not a valid UTF-8 string.
-// TODO(5620): Refactor once we always get a wasm instance.
-Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> instance,
-                                   uint32_t func_index);
-
 // Get the debug info associated with the given wasm object.
 // If no debug info exists yet, it is created automatically.
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
@@ -390,9 +383,6 @@ Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 // special marker as internal field, which will definitely never occur anywhere
 // else.
 bool IsWasmInstance(Object* instance);
-
-// Check whether the wasm module was generated from asm.js code.
-bool WasmIsAsmJs(Object* instance, Isolate* isolate);
 
 // Get the script of the wasm module. If the origin of the module is asm.js, the
 // returned Script will be a JavaScript Script of Script::TYPE_NORMAL, otherwise
