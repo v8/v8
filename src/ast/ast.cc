@@ -28,6 +28,8 @@ namespace internal {
 
 #ifdef DEBUG
 
+void AstNode::Print() { Print(Isolate::Current()); }
+
 void AstNode::Print(Isolate* isolate) {
   AstPrinter::PrintOut(isolate, this);
 }
