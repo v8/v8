@@ -170,40 +170,21 @@ void RawMachineAssembler::Comment(const char* msg) {
   AddNode(machine()->Comment(msg));
 }
 
-Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
-                                 Node** args) {
-  int param_count = static_cast<int>(desc->ParameterCount());
-  int input_count = param_count + 1;
-  Node** buffer = zone()->NewArray<Node*>(input_count);
-  int index = 0;
-  buffer[index++] = function;
-  for (int i = 0; i < param_count; i++) {
-    buffer[index++] = args[i];
-  }
-  return AddNode(common()->Call(desc), input_count, buffer);
-}
-
 Node* RawMachineAssembler::CallN(CallDescriptor* desc, int input_count,
-                                 Node* const* nodes) {
+                                 Node* const* inputs) {
+  DCHECK(!desc->NeedsFrameState());
   // +1 is for target.
   DCHECK_EQ(input_count, desc->ParameterCount() + 1);
-  return AddNode(common()->Call(desc), input_count, nodes);
+  return AddNode(common()->Call(desc), input_count, inputs);
 }
 
 Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
-                                               Node* function, Node** args,
-                                               Node* frame_state) {
+                                               int input_count,
+                                               Node* const* inputs) {
   DCHECK(desc->NeedsFrameState());
-  int param_count = static_cast<int>(desc->ParameterCount());
-  int input_count = param_count + 2;
-  Node** buffer = zone()->NewArray<Node*>(input_count);
-  int index = 0;
-  buffer[index++] = function;
-  for (int i = 0; i < param_count; i++) {
-    buffer[index++] = args[i];
-  }
-  buffer[index++] = frame_state;
-  return AddNode(common()->Call(desc), input_count, buffer);
+  // +2 is for target and frame state.
+  DCHECK_EQ(input_count, desc->ParameterCount() + 2);
+  return AddNode(common()->Call(desc), input_count, inputs);
 }
 
 Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, int input_count,

@@ -701,14 +701,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Call a given call descriptor and the given arguments.
-  Node* CallN(CallDescriptor* desc, Node* function, Node** args);
-  // Call a given call descriptor and the given arguments and frame-state.
-  Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
-                            Node* frame_state);
-
-  // Call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
   Node* CallN(CallDescriptor* desc, int input_count, Node* const* inputs);
+
+  // Call a given call descriptor and the given arguments and frame-state.
+  // The call target and frame state are passed as part of the {inputs} array.
+  Node* CallNWithFrameState(CallDescriptor* desc, int input_count,
+                            Node* const* inputs);
 
   // Tail call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.

@@ -376,9 +376,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.UndefinedConstant());
 
   // Build the call.
-  Node* args[] = {receiver, m.UndefinedConstant(), m.Int32Constant(1), context};
-  Node* call =
-      m.CallNWithFrameState(descriptor, function_node, args, state_node);
+  Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
+                   m.Int32Constant(1), context,  state_node};
+  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -433,9 +433,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
       m.UndefinedConstant());
 
   // Build the call.
-  Node* args[] = {function_node, receiver, context};
   Node* stub_code = m.HeapConstant(callable.code());
-  Node* call = m.CallNWithFrameState(descriptor, stub_code, args, state_node);
+  Node* nodes[] = {stub_code, function_node, receiver, context, state_node};
+  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -537,9 +537,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
       frame_state_parent);
 
   // Build the call.
-  Node* args[] = {function_node, receiver, context2};
   Node* stub_code = m.HeapConstant(callable.code());
-  Node* call = m.CallNWithFrameState(descriptor, stub_code, args, state_node);
+  Node* nodes[] = {stub_code, function_node, receiver, context2, state_node};
+  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
