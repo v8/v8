@@ -25,6 +25,7 @@ namespace {
     std::string* error_message =                                           \
         Check##NAME##Impl<decltype(lhs), decltype(rhs)>((lhs), (rhs), ""); \
     EXPECT_NE(nullptr, error_message);                                     \
+    delete error_message;                                                  \
   }
 
 }  // namespace
