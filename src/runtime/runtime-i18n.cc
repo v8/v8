@@ -8,13 +8,15 @@
 
 #include <memory>
 
-#include "src/api.h"
 #include "src/api-natives.h"
+#include "src/api.h"
 #include "src/arguments.h"
 #include "src/factory.h"
 #include "src/i18n.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/string-case.h"
+#include "src/utils.h"
 
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
@@ -1041,15 +1043,14 @@ bool ToUpperFastASCII(const Vector<const Char>& src,
 const uint16_t sharp_s = 0xDF;
 
 template <typename Char>
-bool ToUpperOneByte(const Vector<const Char>& src,
-                    Handle<SeqOneByteString> result, int* sharp_s_count) {
+bool ToUpperOneByte(const Vector<const Char>& src, uint8_t* dest,
+                    int* sharp_s_count) {
   // Still pretty-fast path for the input with non-ASCII Latin-1 characters.
 
   // There are two special cases.
   //  1. U+00B5 and U+00FF are mapped to a character beyond U+00FF.
   //  2. Lower case sharp-S converts to "SS" (two characters)
   *sharp_s_count = 0;
-  int32_t index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
     uint16_t ch = static_cast<uint16_t>(*it);
     if (V8_UNLIKELY(ch == sharp_s)) {
@@ -1061,7 +1062,7 @@ bool ToUpperOneByte(const Vector<const Char>& src,
       // need to take the 16-bit path.
       return false;
     }
-    result->SeqOneByteStringSet(index++, ToLatin1Upper(ch));
+    *dest++ = ToLatin1Upper(ch);
   }
 
   return true;
@@ -1082,6 +1083,16 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
   }
 }
 
+inline int FindFirstUpperOrNonAscii(Handle<String> s, int length) {
+  for (int index = 0; index < length; ++index) {
+    uint16_t ch = s->Get(index);
+    if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
+      return index;
+    }
+  }
+  return length;
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
@@ -1091,60 +1102,65 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
 
   int length = s->length();
   s = String::Flatten(s);
-  // First scan the string for uppercase and non-ASCII characters:
-  if (s->HasOnlyOneByteChars()) {
-    int first_index_to_lower = length;
-    for (int index = 0; index < length; ++index) {
-      // Blink specializes this path for one-byte strings, so it
-      // does not need to do a generic get, but can do the equivalent
-      // of SeqOneByteStringGet.
-      uint16_t ch = s->Get(index);
-      if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
-        first_index_to_lower = index;
-        break;
-      }
-    }
 
-    // Nothing to do if the string is all ASCII with no uppercase.
-    if (first_index_to_lower == length) return *s;
-
-    // We depend here on the invariant that the length of a Latin1
-    // string is invariant under ToLowerCase, and the result always
-    // fits in the Latin1 range in the *root locale*. It does not hold
-    // for ToUpperCase even in the root locale.
-    Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawOneByteString(length));
-
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat = s->GetFlatContent();
-    if (flat.IsOneByte()) {
-      const uint8_t* src = flat.ToOneByteVector().start();
-      CopyChars(result->GetChars(), src,
-                static_cast<size_t>(first_index_to_lower));
-      for (int index = first_index_to_lower; index < length; ++index) {
-        uint16_t ch = static_cast<uint16_t>(src[index]);
-        result->SeqOneByteStringSet(index, ToLatin1Lower(ch));
-      }
-    } else {
-      const uint16_t* src = flat.ToUC16Vector().start();
-      CopyChars(result->GetChars(), src,
-                static_cast<size_t>(first_index_to_lower));
-      for (int index = first_index_to_lower; index < length; ++index) {
-        uint16_t ch = src[index];
-        result->SeqOneByteStringSet(index, ToLatin1Lower(ch));
-      }
-    }
-
-    return *result;
+  if (!s->HasOnlyOneByteChars()) {
+    // Use a slower implementation for strings with characters beyond U+00FF.
+    return LocaleConvertCase(s, isolate, false, "");
   }
 
-  // Blink had an additional case here for ASCII 2-byte strings, but
-  // that is subsumed by the above code (assuming there isn't a false
-  // negative for HasOnlyOneByteChars).
+  // We depend here on the invariant that the length of a Latin1
+  // string is invariant under ToLowerCase, and the result always
+  // fits in the Latin1 range in the *root locale*. It does not hold
+  // for ToUpperCase even in the root locale.
 
-  // Do a slower implementation for cases that include non-ASCII characters.
-  return LocaleConvertCase(s, isolate, false, "");
+  // Scan the string for uppercase and non-ASCII characters for strings
+  // shorter than a machine-word without any memory allocation overhead.
+  // TODO(jshin): Apply this to a longer input by breaking FastAsciiConvert()
+  // to two parts, one for scanning the prefix with no change and the other for
+  // handling ASCII-only characters.
+  int index_to_first_unprocessed = length;
+  const bool is_short = length < static_cast<int>(sizeof(uintptr_t));
+  if (is_short) {
+    index_to_first_unprocessed = FindFirstUpperOrNonAscii(s, length);
+    // Nothing to do if the string is all ASCII with no uppercase.
+    if (index_to_first_unprocessed == length) return *s;
+  }
+
+  Handle<SeqOneByteString> result =
+      isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = s->GetFlatContent();
+  uint8_t* dest = result->GetChars();
+  if (flat.IsOneByte()) {
+    const uint8_t* src = flat.ToOneByteVector().start();
+    bool has_changed_character = false;
+    index_to_first_unprocessed = FastAsciiConvert<true>(
+        reinterpret_cast<char*>(dest), reinterpret_cast<const char*>(src),
+        length, &has_changed_character);
+    // If not ASCII, we keep the result up to index_to_first_unprocessed and
+    // process the rest.
+    if (index_to_first_unprocessed == length)
+      return has_changed_character ? *result : *s;
+
+    for (int index = index_to_first_unprocessed; index < length; ++index) {
+      dest[index] = ToLatin1Lower(static_cast<uint16_t>(src[index]));
+    }
+  } else {
+    if (index_to_first_unprocessed == length) {
+      DCHECK(!is_short);
+      index_to_first_unprocessed = FindFirstUpperOrNonAscii(s, length);
+    }
+    // Nothing to do if the string is all ASCII with no uppercase.
+    if (index_to_first_unprocessed == length) return *s;
+    const uint16_t* src = flat.ToUC16Vector().start();
+    CopyChars(dest, src, index_to_first_unprocessed);
+    for (int index = index_to_first_unprocessed; index < length; ++index) {
+      dest[index] = ToLatin1Lower(static_cast<uint16_t>(src[index]));
+    }
+  }
+
+  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
@@ -1152,35 +1168,38 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
 
-  // This function could be optimized for no-op cases the way lowercase
-  // counterpart is, but in empirical testing, few actual calls to upper()
-  // are no-ops. So, it wouldn't be worth the extra time for pre-scanning.
-
   int32_t length = s->length();
   s = String::Flatten(s);
 
   if (s->HasOnlyOneByteChars()) {
-    Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawOneByteString(length));
+    Handle<SeqOneByteString> result =
+        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
     int sharp_s_count;
     bool is_result_single_byte;
     {
       DisallowHeapAllocation no_gc;
       String::FlatContent flat = s->GetFlatContent();
-      // If it was ok to slow down ASCII-only input slightly, ToUpperFastASCII
-      // could be removed  because ToUpperOneByte is pretty fast now (it
-      // does not call ICU API any more.).
+      uint8_t* dest = result->GetChars();
       if (flat.IsOneByte()) {
         Vector<const uint8_t> src = flat.ToOneByteVector();
-        if (ToUpperFastASCII(src, result)) return *result;
-        is_result_single_byte = ToUpperOneByte(src, result, &sharp_s_count);
+        bool has_changed_character = false;
+        int index_to_first_unprocessed =
+            FastAsciiConvert<false>(reinterpret_cast<char*>(result->GetChars()),
+                                    reinterpret_cast<const char*>(src.start()),
+                                    length, &has_changed_character);
+        if (index_to_first_unprocessed == length)
+          return has_changed_character ? *result : *s;
+        // If not ASCII, we keep the result up to index_to_first_unprocessed and
+        // process the rest.
+        is_result_single_byte =
+            ToUpperOneByte(src.SubVector(index_to_first_unprocessed, length),
+                           dest + index_to_first_unprocessed, &sharp_s_count);
       } else {
         DCHECK(flat.IsTwoByte());
         Vector<const uint16_t> src = flat.ToUC16Vector();
         if (ToUpperFastASCII(src, result)) return *result;
-        is_result_single_byte = ToUpperOneByte(src, result, &sharp_s_count);
+        is_result_single_byte = ToUpperOneByte(src, dest, &sharp_s_count);
       }
     }
 

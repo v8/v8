@@ -1228,6 +1228,8 @@
         'startup-data-util.h',
         'string-builder.cc',
         'string-builder.h',
+        'string-case.cc',
+        'string-case.h',
         'string-search.h',
         'string-stream.cc',
         'string-stream.h',

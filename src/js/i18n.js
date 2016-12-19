@@ -2121,27 +2121,16 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
 );
 
 function ToLowerCaseI18N() {
-  if (!IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
-  }
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
-  var s = TO_STRING(this);
-  return %StringToLowerCaseI18N(s);
+  return %StringToLowerCaseI18N(TO_STRING(this));
 }
 
 function ToUpperCaseI18N() {
-  if (!IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
-  }
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
-  var s = TO_STRING(this);
-  return %StringToUpperCaseI18N(s);
+  return %StringToUpperCaseI18N(TO_STRING(this));
 }
 
 function ToLocaleLowerCaseI18N(locales) {
-  if (!IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
-  }
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
   return LocaleConvertCase(TO_STRING(this), locales, false);
 }
@@ -2149,9 +2138,6 @@ function ToLocaleLowerCaseI18N(locales) {
 %FunctionSetLength(ToLocaleLowerCaseI18N, 0);
 
 function ToLocaleUpperCaseI18N(locales) {
-  if (!IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
-  }
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
   return LocaleConvertCase(TO_STRING(this), locales, true);
 }
