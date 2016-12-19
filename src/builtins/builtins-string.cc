@@ -801,9 +801,7 @@ BUILTIN(StringPrototypeEndsWith) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
                                        Object::ToInteger(isolate, position));
-    double index = std::max(position->Number(), 0.0);
-    index = std::min(index, static_cast<double>(str->length()));
-    end = static_cast<uint32_t>(index);
+    end = str->ToValidIndex(*position);
   }
 
   int start = end - search_string->length();
@@ -863,11 +861,8 @@ BUILTIN(StringPrototypeIncludes) {
       isolate, position,
       Object::ToInteger(isolate, args.atOrUndefined(isolate, 2)));
 
-  double index = std::max(position->Number(), 0.0);
-  index = std::min(index, static_cast<double>(str->length()));
-
-  int index_in_str = String::IndexOf(isolate, str, search_string,
-                                     static_cast<uint32_t>(index));
+  uint32_t index = str->ToValidIndex(*position);
+  int index_in_str = String::IndexOf(isolate, str, search_string, index);
   return *isolate->factory()->ToBoolean(index_in_str != -1);
 }
 
@@ -1360,9 +1355,7 @@ BUILTIN(StringPrototypeStartsWith) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
                                        Object::ToInteger(isolate, position));
-    double index = std::max(position->Number(), 0.0);
-    index = std::min(index, static_cast<double>(str->length()));
-    start = static_cast<uint32_t>(index);
+    start = str->ToValidIndex(*position);
   }
 
   if (start + search_string->length() > str->length()) {

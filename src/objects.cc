@@ -11747,11 +11747,9 @@ Object* String::IndexOf(Isolate* isolate, Handle<Object> receiver,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
                                      Object::ToInteger(isolate, position));
 
-  double index = std::max(position->Number(), 0.0);
-  index = std::min(index, static_cast<double>(receiver_string->length()));
-
-  return Smi::FromInt(String::IndexOf(isolate, receiver_string, search_string,
-                                      static_cast<uint32_t>(index)));
+  uint32_t index = receiver_string->ToValidIndex(*position);
+  return Smi::FromInt(
+      String::IndexOf(isolate, receiver_string, search_string, index));
 }
 
 namespace {
@@ -11957,11 +11955,7 @@ Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
                                        Object::ToInteger(isolate, position));
-
-    double position_number = std::max(position->Number(), 0.0);
-    position_number = std::min(position_number,
-                               static_cast<double>(receiver_string->length()));
-    start_index = static_cast<uint32_t>(position_number);
+    start_index = receiver_string->ToValidIndex(*position);
   }
 
   uint32_t pattern_length = search_string->length();

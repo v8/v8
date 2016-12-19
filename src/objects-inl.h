@@ -3878,6 +3878,12 @@ inline Vector<const uc16> String::GetCharVector() {
   return flat.ToUC16Vector();
 }
 
+uint32_t String::ToValidIndex(Object* number) {
+  uint32_t index = PositiveNumberToUint32(number);
+  uint32_t length_value = static_cast<uint32_t>(length());
+  if (index > length_value) return length_value;
+  return index;
+}
 
 uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());

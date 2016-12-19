@@ -128,10 +128,24 @@ int32_t NumberToInt32(Object* number) {
   return DoubleToInt32(number->Number());
 }
 
-
 uint32_t NumberToUint32(Object* number) {
   if (number->IsSmi()) return Smi::cast(number)->value();
   return DoubleToUint32(number->Number());
+}
+
+uint32_t PositiveNumberToUint32(Object* number) {
+  if (number->IsSmi()) {
+    int value = Smi::cast(number)->value();
+    if (value <= 0) return 0;
+    return value;
+  }
+  DCHECK(number->IsHeapNumber());
+  double value = number->Number();
+  // Catch all values smaller than 1 and use the double-negation trick for NANs.
+  if (!(value >= 1)) return 0;
+  uint32_t max = std::numeric_limits<uint32_t>::max();
+  if (value < max) return static_cast<uint32_t>(value);
+  return max;
 }
 
 int64_t NumberToInt64(Object* number) {

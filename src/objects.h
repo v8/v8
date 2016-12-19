@@ -10015,6 +10015,7 @@ class String: public Name {
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
+  uint32_t inline ToValidIndex(Object* number);
 
   // Trimming.
   enum TrimMode { kTrim, kTrimLeft, kTrimRight };
