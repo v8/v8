@@ -1169,7 +1169,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, Map::kSize,
-                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
+                                 ClearRecordedSlots::kNo);
             maps->Add(free_space_address);
           } else {
             perform_gc = true;
@@ -1200,7 +1200,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, size,
-                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
+                                 ClearRecordedSlots::kNo);
             DCHECK(space < SerializerDeserializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -2100,8 +2100,7 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   DCHECK(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo,
-                       ClearBlackArea::kNo);
+  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -3065,8 +3064,8 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   return result;
 }
 
-void Heap::CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode,
-                                ClearBlackArea black_area_mode) {
+void Heap::CreateFillerObjectAt(Address addr, int size,
+                                ClearRecordedSlots mode) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3083,16 +3082,6 @@ void Heap::CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode,
   }
   if (mode == ClearRecordedSlots::kYes) {
     ClearRecordedSlotRange(addr, addr + size);
-  }
-
-  // If the location where the filler is created is within a black area we have
-  // to clear the mark bits of the filler space.
-  if (black_area_mode == ClearBlackArea::kYes &&
-      incremental_marking()->black_allocation() &&
-      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(addr))) {
-    Page* page = Page::FromAddress(addr);
-    page->markbits()->ClearRange(page->AddressToMarkbitIndex(addr),
-                                 page->AddressToMarkbitIndex(addr + size));
   }
 
   // At this point, we may be deserializing the heap from a snapshot, and
@@ -3169,6 +3158,17 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
+
+  // Clear the mark bits of the black area that belongs now to the filler.
+  // This is an optimization. The sweeper will release black fillers anyway.
+  if (incremental_marking()->black_allocation() &&
+      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(old_start))) {
+    Page* page = Page::FromAddress(old_start);
+    page->markbits()->ClearRange(
+        page->AddressToMarkbitIndex(old_start),
+        page->AddressToMarkbitIndex(old_start + bytes_to_trim));
+  }
+
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
   // object does not require synchronization.
@@ -3238,6 +3238,16 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
     CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
+  }
+
+  // Clear the mark bits of the black area that belongs now to the filler.
+  // This is an optimization. The sweeper will release black fillers anyway.
+  if (incremental_marking()->black_allocation() &&
+      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(new_end))) {
+    Page* page = Page::FromAddress(new_end);
+    page->markbits()->ClearRange(
+        page->AddressToMarkbitIndex(new_end),
+        page->AddressToMarkbitIndex(new_end + bytes_to_trim));
   }
 
   // Initialize header of the trimmed array. We are storing the new length

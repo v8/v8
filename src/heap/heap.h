@@ -352,8 +352,6 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
-enum class ClearBlackArea { kYes, kNo };
-
 enum class GarbageCollectionReason {
   kUnknown = 0,
   kAllocationFailure = 1,
@@ -740,12 +738,8 @@ class Heap {
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo. If the filler was created in a black area
-  // we may want to clear the corresponding mark bits with ClearBlackArea::kYes,
-  // which is the default. ClearBlackArea::kNo does not clear the mark bits.
-  void CreateFillerObjectAt(
-      Address addr, int size, ClearRecordedSlots mode,
-      ClearBlackArea black_area_mode = ClearBlackArea::kYes);
+  // pass ClearRecordedSlots::kNo.
+  void CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode);
 
   bool CanMoveObjectStart(HeapObject* object);
 
