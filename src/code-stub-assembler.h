@@ -402,6 +402,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadContextElement(Node* context, Node* slot_index);
   Node* StoreContextElement(Node* context, int slot_index, Node* value);
   Node* StoreContextElement(Node* context, Node* slot_index, Node* value);
+  Node* StoreContextElementNoWriteBarrier(Node* context, int slot_index,
+                                          Node* value);
   Node* LoadNativeContext(Node* context);
 
   Node* LoadJSArrayElementsMap(ElementsKind kind, Node* native_context);
@@ -1092,6 +1094,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                ParameterMode mode, int base_size = 0);
+
+  Node* AllocateFunctionWithMapAndContext(Node* map, Node* shared_info,
+                                          Node* context);
 
   // Promise helpers
   Node* IsPromiseHookEnabled();

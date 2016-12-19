@@ -1382,6 +1382,14 @@ Node* CodeStubAssembler::StoreContextElement(Node* context, Node* slot_index,
   return Store(context, offset, value);
 }
 
+Node* CodeStubAssembler::StoreContextElementNoWriteBarrier(Node* context,
+                                                           int slot_index,
+                                                           Node* value) {
+  int offset = Context::SlotOffset(slot_index);
+  return StoreNoWriteBarrier(MachineRepresentation::kTagged, context,
+                             IntPtrConstant(offset), value);
+}
+
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
   return LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX);
 }
@@ -8288,6 +8296,35 @@ Node* CodeStubAssembler::IsPromiseHookEnabled() {
       MachineType::Pointer(),
       ExternalConstant(ExternalReference::promise_hook_address(isolate())));
   return WordNotEqual(promise_hook, IntPtrConstant(0));
+}
+
+Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
+                                                           Node* shared_info,
+                                                           Node* context) {
+  Node* const code = BitcastTaggedToWord(
+      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset));
+  Node* const code_entry =
+      IntPtrAdd(code, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
+
+  Node* const fun = Allocate(JSFunction::kSize);
+  StoreMapNoWriteBarrier(fun, map);
+  StoreObjectFieldRoot(fun, JSObject::kPropertiesOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldRoot(fun, JSObject::kElementsOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldRoot(fun, JSFunction::kLiteralsOffset,
+                       Heap::kEmptyLiteralsArrayRootIndex);
+  StoreObjectFieldRoot(fun, JSFunction::kPrototypeOrInitialMapOffset,
+                       Heap::kTheHoleValueRootIndex);
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
+                                 shared_info);
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeEntryOffset, code_entry,
+                                 MachineType::PointerRepresentation());
+  StoreObjectFieldRoot(fun, JSFunction::kNextFunctionLinkOffset,
+                       Heap::kUndefinedValueRootIndex);
+
+  return fun;
 }
 
 Node* CodeStubAssembler::AllocateJSPromise(Node* context) {

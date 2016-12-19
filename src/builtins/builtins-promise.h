@@ -38,6 +38,12 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
                         Label* if_ismodified);
+
+  Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
+                                               Node* native_context);
+
+  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
+      Node* promise, Node* native_context, Node* promise_context);
 };
 
 }  // namespace internal

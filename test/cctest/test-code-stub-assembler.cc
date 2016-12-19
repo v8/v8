@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/isolate.h"
+#include "src/promise-utils.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -1994,6 +1995,108 @@ TEST(PromiseHasHandler) {
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->false_value(), *result);
+}
+
+TEST(CreatePromiseResolvingFunctionsContext) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const native_context = m.LoadNativeContext(context);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
+      promise, m.BooleanConstant(false), native_context);
+  m.Return(promise_context);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsContext());
+  Handle<Context> context_js = Handle<Context>::cast(result);
+  CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
+  CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
+  CHECK_EQ(*isolate->native_context(), context_js->native_context());
+  CHECK_EQ(Smi::FromInt(0), context_js->get(PromiseUtils::kAlreadyVisitedSlot));
+  CHECK(context_js->get(PromiseUtils::kPromiseSlot)->IsJSPromise());
+  CHECK_EQ(isolate->heap()->false_value(),
+           context_js->get(PromiseUtils::kDebugEventSlot));
+}
+
+TEST(CreatePromiseResolvingFunctions) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const native_context = m.LoadNativeContext(context);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  Node *resolve, *reject;
+  std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
+      promise, m.BooleanConstant(false), native_context);
+  Node* const kSize = m.IntPtrConstant(2);
+  Node* const arr = m.AllocateFixedArray(FAST_ELEMENTS, kSize);
+  m.StoreFixedArrayElement(arr, 0, resolve);
+  m.StoreFixedArrayElement(arr, 1, reject);
+  m.Return(arr);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result_obj =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result_obj->IsFixedArray());
+  Handle<FixedArray> result_arr = Handle<FixedArray>::cast(result_obj);
+  CHECK(result_arr->get(0)->IsJSFunction());
+  CHECK(result_arr->get(1)->IsJSFunction());
+}
+
+TEST(AllocateFunctionWithMapAndContext) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const native_context = m.LoadNativeContext(context);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
+      promise, m.BooleanConstant(false), native_context);
+  Node* resolve_info =
+      m.LoadContextElement(native_context, Context::PROMISE_RESOLVE_SHARED_FUN);
+  Node* const map = m.LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  Node* const resolve =
+      m.AllocateFunctionWithMapAndContext(map, resolve_info, promise_context);
+  m.Return(resolve);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result_obj =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result_obj->IsJSFunction());
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
+  CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->properties());
+  CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
+  CHECK_EQ(isolate->heap()->empty_literals_array(), fun->literals());
+  CHECK_EQ(isolate->heap()->the_hole_value(), fun->prototype_or_initial_map());
+  CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
+  CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());
+  CHECK_EQ(isolate->heap()->undefined_value(), fun->next_function_link());
 }
 
 }  // namespace internal

@@ -569,7 +569,7 @@ namespace internal {
   TFJ(PromiseConstructor, 1)                                                   \
   TFJ(PromiseInternalConstructor, 1)                                           \
   TFJ(IsPromise, 1)                                                            \
-  CPP(CreateResolvingFunctions)                                                \
+  TFJ(CreateResolvingFunctions, 2)                                             \
   TFJ(PromiseResolveClosure, 1)                                                \
   CPP(PromiseRejectClosure)                                                    \
   TFJ(PromiseThen, 2)                                                          \

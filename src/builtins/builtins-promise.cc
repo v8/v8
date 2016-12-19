@@ -16,6 +16,52 @@ typedef compiler::Node Node;
 typedef CodeStubAssembler::ParameterMode ParameterMode;
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
+Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
+    Node* promise, Node* debug_event, Node* native_context) {
+  Node* const context =
+      Allocate(FixedArray::SizeFor(PromiseUtils::kPromiseContextLength));
+  StoreMapNoWriteBarrier(context, Heap::kFunctionContextMapRootIndex);
+  StoreObjectFieldNoWriteBarrier(
+      context, FixedArray::kLengthOffset,
+      SmiConstant(PromiseUtils::kPromiseContextLength));
+
+  Node* const empty_fn =
+      LoadContextElement(native_context, Context::CLOSURE_INDEX);
+  StoreContextElementNoWriteBarrier(context, Context::CLOSURE_INDEX, empty_fn);
+  StoreContextElementNoWriteBarrier(context, Context::PREVIOUS_INDEX,
+                                    UndefinedConstant());
+  StoreContextElementNoWriteBarrier(context, Context::EXTENSION_INDEX,
+                                    TheHoleConstant());
+  StoreContextElementNoWriteBarrier(context, Context::NATIVE_CONTEXT_INDEX,
+                                    native_context);
+  StoreContextElementNoWriteBarrier(context, PromiseUtils::kAlreadyVisitedSlot,
+                                    SmiConstant(0));
+  StoreContextElementNoWriteBarrier(context, PromiseUtils::kPromiseSlot,
+                                    promise);
+  StoreContextElementNoWriteBarrier(context, PromiseUtils::kDebugEventSlot,
+                                    debug_event);
+  return context;
+}
+
+std::pair<Node*, Node*>
+PromiseBuiltinsAssembler::CreatePromiseResolvingFunctions(
+    Node* promise, Node* debug_event, Node* native_context) {
+  Node* const promise_context = CreatePromiseResolvingFunctionsContext(
+      promise, debug_event, native_context);
+  Node* const map = LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  Node* const resolve_info =
+      LoadContextElement(native_context, Context::PROMISE_RESOLVE_SHARED_FUN);
+  Node* const resolve =
+      AllocateFunctionWithMapAndContext(map, resolve_info, promise_context);
+  Node* const reject_info =
+      LoadContextElement(native_context, Context::PROMISE_REJECT_SHARED_FUN);
+  Node* const reject =
+      AllocateFunctionWithMapAndContext(map, reject_info, promise_context);
+
+  return std::make_pair(resolve, reject);
+}
+
 Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
     Node* context, Node* value, MessageTemplate::Template msg_template) {
   Label out(this), throw_exception(this, Label::kDeferred);
@@ -513,23 +559,33 @@ BUILTIN(PromiseRejectClosure) {
 
 // ES#sec-createresolvingfunctions
 // CreateResolvingFunctions ( promise )
-BUILTIN(CreateResolvingFunctions) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+TF_BUILTIN(CreateResolvingFunctions, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(1);
+  Node* const debug_event = Parameter(2);
+  Node* const context = Parameter(5);
+  Node* const native_context = LoadNativeContext(context);
 
-  Handle<JSObject> promise = args.at<JSObject>(1);
-  Handle<Object> debug_event = args.at<Object>(2);
-  Handle<JSFunction> resolve, reject;
+  Node* resolve = nullptr;
+  Node* reject = nullptr;
 
-  PromiseUtils::CreateResolvingFunctions(isolate, promise, debug_event,
-                                         &resolve, &reject);
+  std::tie(resolve, reject) =
+      CreatePromiseResolvingFunctions(promise, debug_event, native_context);
 
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2);
-  result->set(0, *resolve);
-  result->set(1, *reject);
+  Node* const kSize = IntPtrConstant(2);
+  const ElementsKind kind = FAST_ELEMENTS;
+  const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
+  const ParameterMode parameter_mode = INTPTR_PARAMETERS;
+  Node* const arr = AllocateFixedArray(kind, kSize, parameter_mode);
+  StoreFixedArrayElement(arr, 0, resolve, barrier_mode);
+  StoreFixedArrayElement(arr, 1, reject, barrier_mode);
 
-  return *isolate->factory()->NewJSArrayWithElements(result, FAST_ELEMENTS, 2,
-                                                     NOT_TENURED);
+  Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+  Node* const length = SmiTag(kSize);
+  Node* const result = AllocateUninitializedJSArrayWithoutElements(
+      kind, array_map, length, nullptr);
+
+  StoreObjectField(result, JSObject::kElementsOffset, arr);
+  Return(result);
 }
 
 TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
@@ -600,13 +656,9 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   {
     Label out(this), if_rejectpromise(this), debug_pop(this, Label::kDeferred);
 
-    // TODO(gsathya): Move this to TF.
-    Node* const resolving_functions = CallRuntime(
-        Runtime::kCreateResolvingFunctions, context, var_result.value());
-    Node* const resolve =
-        LoadFixedArrayElement(resolving_functions, IntPtrConstant(0));
-    Node* const reject =
-        LoadFixedArrayElement(resolving_functions, IntPtrConstant(1));
+    Node *resolve, *reject;
+    std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
+        var_result.value(), TrueConstant(), native_context);
     Callable call_callable = CodeFactory::Call(isolate);
 
     Node* const maybe_exception = CallJS(call_callable, context, executor,
