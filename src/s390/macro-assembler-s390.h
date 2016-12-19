@@ -1539,7 +1539,7 @@ class MacroAssembler : public Assembler {
     } else if (is_int20(value.offset())) {
       tmy(value, Operand(1));
     } else {
-      LoadP(r0, value);
+      LoadB(r0, value);
       tmll(r0, Operand(1));
     }
   }
