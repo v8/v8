@@ -397,8 +397,8 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32x4ExtractLane, 0xe51c, _)         \
   V(I32x4ReplaceLane, 0xe51d, _)         \
   V(I16x8ExtractLane, 0xe539, _)         \
-  V(I8x16ExtractLane, 0xe558, _)         \
   V(I16x8ReplaceLane, 0xe53a, _)         \
+  V(I8x16ExtractLane, 0xe558, _)         \
   V(I8x16ReplaceLane, 0xe559, _)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \

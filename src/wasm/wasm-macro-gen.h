@@ -460,6 +460,8 @@ class LocalDeclEncoder {
       static_cast<byte>(index)
 #define WASM_UNOP(opcode, x) x, static_cast<byte>(opcode)
 #define WASM_BINOP(opcode, x, y) x, y, static_cast<byte>(opcode)
+#define WASM_SIMD_BINOP(opcode, x, y) \
+  x, y, kSimdPrefix, static_cast<byte>(opcode)
 
 //------------------------------------------------------------------------------
 // Int32 operations
@@ -621,19 +623,31 @@ class LocalDeclEncoder {
 //------------------------------------------------------------------------------
 // Simd Operations.
 //------------------------------------------------------------------------------
+#define WASM_SIMD_F32x4_SPLAT(x) x, kSimdPrefix, kExprF32x4Splat & 0xff
+#define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
+  x, kSimdPrefix, kExprF32x4ExtractLane & 0xff, static_cast<byte>(lane)
+#define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
+  x, y, kSimdPrefix, kExprF32x4ReplaceLane & 0xff, static_cast<byte>(lane)
+#define WASM_SIMD_F32x4_FROM_I32x4(x) \
+  x, kSimdPrefix, kExprF32x4FromInt32x4 & 0xff
+#define WASM_SIMD_F32x4_FROM_U32x4(x) \
+  x, kSimdPrefix, kExprF32x4FromUint32x4 & 0xff
+#define WASM_SIMD_F32x4_ADD(x, y) x, y, kSimdPrefix, kExprF32x4Add & 0xff
+#define WASM_SIMD_F32x4_SUB(x, y) x, y, kSimdPrefix, kExprF32x4Sub & 0xff
+
 #define WASM_SIMD_I32x4_SPLAT(x) x, kSimdPrefix, kExprI32x4Splat & 0xff
 #define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x) \
   x, kSimdPrefix, kExprI32x4ExtractLane & 0xff, static_cast<byte>(lane)
 #define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y) \
   x, y, kSimdPrefix, kExprI32x4ReplaceLane & 0xff, static_cast<byte>(lane)
+#define WASM_SIMD_I32x4_FROM_F32x4(x) \
+  x, kSimdPrefix, kExprI32x4FromFloat32x4 & 0xff
+#define WASM_SIMD_U32x4_FROM_F32x4(x) \
+  x, kSimdPrefix, kExprUi32x4FromFloat32x4 & 0xff
+#define WASM_SIMD_S32x4_SELECT(x, y, z) \
+  x, y, z, kSimdPrefix, kExprS32x4Select & 0xff
 #define WASM_SIMD_I32x4_ADD(x, y) x, y, kSimdPrefix, kExprI32x4Add & 0xff
 #define WASM_SIMD_I32x4_SUB(x, y) x, y, kSimdPrefix, kExprI32x4Sub & 0xff
-#define WASM_SIMD_F32x4_SPLAT(x) x, kSimdPrefix, kExprF32x4Splat & 0xff
-#define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
-  x, kSimdPrefix, kExprF32x4ExtractLane & 0xff, static_cast<byte>(lane)
-#define WASM_SIMD_F32x4_ADD(x, y) x, y, kSimdPrefix, kExprF32x4Add & 0xff
-#define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
-  x, y, kSimdPrefix, kExprF32x4ReplaceLane & 0xff, static_cast<byte>(lane)
 
 #define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
 #define SIZEOF_SIG_ENTRY_v_v 3

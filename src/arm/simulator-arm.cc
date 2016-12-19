@@ -3360,12 +3360,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       int vn = instr->VFPNRegValue(kDoublePrecision);
       int rt = instr->RtValue();
       int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
+      uint64_t data;
+      get_d_register(vn, &data);
       if ((opc1_opc2 & 0xb) == 0) {
         // NeonS32 / NeonU32
-        double dn_value = get_double_from_d_register(vn);
-        int32_t data[2];
-        memcpy(data, &dn_value, 8);
-        set_register(rt, data[instr->Bit(21)]);
+        int32_t int_data[2];
+        memcpy(int_data, &data, sizeof(int_data));
+        set_register(rt, int_data[instr->Bit(21)]);
       } else {
         uint64_t data;
         get_d_register(vn, &data);

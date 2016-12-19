@@ -206,7 +206,7 @@ v8_executable("cctest") {
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
-      "wasm/test-run-wasm-simd-lowering.cc",
+      "wasm/test-run-wasm-simd.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###

@@ -2286,6 +2286,113 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   Emit(code, 0, nullptr, input_count, inputs);
 }
 
+void InstructionSelector::VisitCreateFloat32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitFloat32x4ExtractLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmFloat32x4ExtractLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitFloat32x4ReplaceLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmFloat32x4ReplaceLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitFloat32x4FromInt32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4FromInt32x4, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitFloat32x4FromUint32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4FromUint32x4, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitFloat32x4Add(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Add, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitFloat32x4Sub(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Sub, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitCreateInt32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmInt32x4ExtractLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitInt32x4ReplaceLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmInt32x4ReplaceLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4FromFloat32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4FromFloat32x4, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitUint32x4FromFloat32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint32x4FromFloat32x4, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitInt32x4Add(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Add, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Sub(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Sub, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Equal(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Eq, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4NotEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Ne, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitSimd32x4Select(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmSimd32x4Select, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

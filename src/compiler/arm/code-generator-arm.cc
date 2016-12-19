@@ -1505,6 +1505,91 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmFloat32x4Splat: {
+      __ vdup(i.OutputSimd128Register(), i.InputFloatRegister(0));
+      break;
+    }
+    case kArmFloat32x4ExtractLane: {
+      __ ExtractLane(i.OutputFloatRegister(), i.InputSimd128Register(0),
+                     kScratchReg, i.InputInt8(1));
+      break;
+    }
+    case kArmFloat32x4ReplaceLane: {
+      __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputFloatRegister(2), kScratchReg, i.InputInt8(1));
+      break;
+    }
+    case kArmFloat32x4FromInt32x4: {
+      __ vcvt_f32_s32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4FromUint32x4: {
+      __ vcvt_f32_u32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4Add: {
+      __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Sub: {
+      __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Splat: {
+      __ vdup(Neon32, i.OutputSimd128Register(), i.InputRegister(0));
+      break;
+    }
+    case kArmInt32x4ExtractLane: {
+      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS32,
+                     i.InputInt8(1));
+      break;
+    }
+    case kArmInt32x4ReplaceLane: {
+      __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputRegister(2), NeonS32, i.InputInt8(1));
+      break;
+    }
+    case kArmInt32x4FromFloat32x4: {
+      __ vcvt_s32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmUint32x4FromFloat32x4: {
+      __ vcvt_u32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmInt32x4Add: {
+      __ vadd(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Sub: {
+      __ vsub(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Eq: {
+      __ vceq(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Ne: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vceq(Neon32, dst, i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      __ vmvn(dst, dst);
+      break;
+    }
+    case kArmSimd32x4Select: {
+      // Select is a ternary op, so we need to move one input into the
+      // destination. Use vtst to canonicalize the 'boolean' input #0.
+      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
+      break;
+    }
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(ldrsb);
       break;

@@ -1427,16 +1427,40 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);
+    case IrOpcode::kCreateFloat32x4:
+      return MarkAsSimd128(node), VisitCreateFloat32x4(node);
+    case IrOpcode::kFloat32x4ExtractLane:
+      return MarkAsFloat32(node), VisitFloat32x4ExtractLane(node);
+    case IrOpcode::kFloat32x4ReplaceLane:
+      return MarkAsSimd128(node), VisitFloat32x4ReplaceLane(node);
+    case IrOpcode::kFloat32x4FromInt32x4:
+      return MarkAsSimd128(node), VisitFloat32x4FromInt32x4(node);
+    case IrOpcode::kFloat32x4FromUint32x4:
+      return MarkAsSimd128(node), VisitFloat32x4FromUint32x4(node);
+    case IrOpcode::kFloat32x4Add:
+      return MarkAsSimd128(node), VisitFloat32x4Add(node);
+    case IrOpcode::kFloat32x4Sub:
+      return MarkAsSimd128(node), VisitFloat32x4Sub(node);
     case IrOpcode::kCreateInt32x4:
       return MarkAsSimd128(node), VisitCreateInt32x4(node);
     case IrOpcode::kInt32x4ExtractLane:
       return MarkAsWord32(node), VisitInt32x4ExtractLane(node);
     case IrOpcode::kInt32x4ReplaceLane:
       return MarkAsSimd128(node), VisitInt32x4ReplaceLane(node);
+    case IrOpcode::kInt32x4FromFloat32x4:
+      return MarkAsSimd128(node), VisitInt32x4FromFloat32x4(node);
+    case IrOpcode::kUint32x4FromFloat32x4:
+      return MarkAsSimd128(node), VisitUint32x4FromFloat32x4(node);
     case IrOpcode::kInt32x4Add:
       return MarkAsSimd128(node), VisitInt32x4Add(node);
     case IrOpcode::kInt32x4Sub:
       return MarkAsSimd128(node), VisitInt32x4Sub(node);
+    case IrOpcode::kInt32x4Equal:
+      return MarkAsSimd128(node), VisitInt32x4Equal(node);
+    case IrOpcode::kInt32x4NotEqual:
+      return MarkAsSimd128(node), VisitInt32x4NotEqual(node);
+    case IrOpcode::kSimd32x4Select:
+      return MarkAsSimd128(node), VisitSimd32x4Select(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1764,7 +1788,7 @@ void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitCreateInt32x4(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
@@ -1778,7 +1802,46 @@ void InstructionSelector::VisitInt32x4ReplaceLane(Node* node) {
 void InstructionSelector::VisitInt32x4Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt32x4Sub(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
+
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
+
+#if !V8_TARGET_ARCH_ARM
+void InstructionSelector::VisitCreateFloat32x4(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitFloat32x4ExtractLane(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitFloat32x4ReplaceLane(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitFloat32x4FromInt32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitFloat32x4FromUint32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitFloat32x4Add(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitFloat32x4Sub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32x4FromFloat32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint32x4FromFloat32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitInt32x4Equal(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32x4NotEqual(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd32x4Select(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
