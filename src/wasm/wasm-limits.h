@@ -18,14 +18,15 @@ const size_t kV8MaxWasmExports = 100000;
 const size_t kV8MaxWasmGlobals = 1000000;
 const size_t kV8MaxWasmDataSegments = 100000;
 const size_t kV8MaxWasmMemoryPages = 16384;  // = 1 GiB
-const size_t kV8MaxWasmStringSize = 256;
+const size_t kV8MaxWasmStringSize = 100000;
 const size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 const size_t kV8MaxWasmFunctionSize = 128 * 1024;
 const size_t kV8MaxWasmFunctionLocals = 50000;
 const size_t kV8MaxWasmFunctionParams = 1000;
 const size_t kV8MaxWasmFunctionMultiReturns = 1000;
 const size_t kV8MaxWasmFunctionReturns = 1;
-const size_t kV8MaxWasmTableSize = 16 * 1024 * 1024;
+const size_t kV8MaxWasmTableSize = 10000000;
+const size_t kV8MaxWasmTableEntries = 10000000;
 const size_t kV8MaxWasmTables = 1;
 const size_t kV8MaxWasmMemories = 1;
 

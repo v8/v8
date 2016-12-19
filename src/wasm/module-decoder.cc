@@ -540,7 +540,8 @@ class ModuleDecoder : public Decoder {
           table = &module->function_tables[table_index];
         }
         WasmInitExpr offset = consume_init_expr(module, kAstI32);
-        uint32_t num_elem = consume_u32v("number of elements");
+        uint32_t num_elem =
+            consume_count("number of elements", kV8MaxWasmTableEntries);
         std::vector<uint32_t> vector;
         module->table_inits.push_back({table_index, offset, vector});
         WasmTableInit* init = &module->table_inits.back();
@@ -550,7 +551,6 @@ class ModuleDecoder : public Decoder {
           init->entries.push_back(index);
           if (table && index < module->functions.size()) {
             // Canonicalize signature indices during decoding.
-            // TODO(titzer): suboptimal, redundant when verifying only.
             table->map.FindOrInsert(module->functions[index].sig);
           }
         }
