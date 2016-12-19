@@ -1101,24 +1101,6 @@ class MacroAssembler : public Assembler {
 
   // ---- String Utilities ----
 
-
-  // Jump to label if either object is not a sequential one-byte string.
-  // Optionally perform a smi check on the objects first.
-  void JumpIfEitherIsNotSequentialOneByteStrings(
-      Register first, Register second, Register scratch1, Register scratch2,
-      Label* failure, SmiCheckType smi_check = DO_SMI_CHECK);
-
-  // Check if instance type is sequential one-byte string and jump to label if
-  // it is not.
-  void JumpIfInstanceTypeIsNotSequentialOneByte(Register type, Register scratch,
-                                                Label* failure);
-
-  // Checks if both instance types are sequential one-byte strings and jumps to
-  // label if either is not.
-  void JumpIfEitherInstanceTypeIsNotSequentialOneByte(
-      Register first_object_instance_type, Register second_object_instance_type,
-      Register scratch1, Register scratch2, Label* failure);
-
   // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
   void JumpIfBothInstanceTypesAreNotSequentialOneByte(
@@ -1359,32 +1341,6 @@ class MacroAssembler : public Assembler {
 
   void FastAllocate(int object_size, Register result, Register scratch1,
                     Register scratch2, AllocationFlags flags);
-
-  void AllocateTwoByteString(Register result,
-                             Register length,
-                             Register scratch1,
-                             Register scratch2,
-                             Register scratch3,
-                             Label* gc_required);
-  void AllocateOneByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-  void AllocateTwoByteConsString(Register result,
-                                 Register length,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
-  void AllocateOneByteConsString(Register result, Register length,
-                                 Register scratch1, Register scratch2,
-                                 Label* gc_required);
-  void AllocateTwoByteSlicedString(Register result,
-                                   Register length,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Label* gc_required);
-  void AllocateOneByteSlicedString(Register result, Register length,
-                                   Register scratch1, Register scratch2,
-                                   Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed.
