@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/builtins/builtins-promise.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
@@ -1972,6 +1973,27 @@ TEST(IsPrivateSymbol) {
 
   result = ft.Call(isolate->factory()->NewPrivateSymbol()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->true_value(), *result);
+}
+
+TEST(PromiseHasHandler) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseInit(promise);
+  m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(isolate->heap()->false_value(), *result);
 }
 
 }  // namespace internal

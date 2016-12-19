@@ -499,6 +499,7 @@
         'builtins/builtins-number.cc',
         'builtins/builtins-object.cc',
         'builtins/builtins-promise.cc',
+        'builtins/builtins-promise.h',
         'builtins/builtins-proxy.cc',
         'builtins/builtins-reflect.cc',
         'builtins/builtins-regexp.cc',
