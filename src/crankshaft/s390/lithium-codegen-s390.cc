@@ -4870,14 +4870,42 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
-  __ TestIfSmi(ToRegister(input));
+  if (input->IsRegister()) {
+    __ TestIfSmi(ToRegister(input));
+  } else if (input->IsStackSlot()) {
+    MemOperand value = ToMemOperand(input);
+#if !V8_TARGET_LITTLE_ENDIAN
+#if V8_TARGET_ARCH_S390X
+    __ TestIfSmi(MemOperand(value.rb(), value.offset() + 7));
+#else
+    __ TestIfSmi(MemOperand(value.rb(), value.offset() + 3));
+#endif
+#else
+    __ TestIfSmi(value);
+#endif
+  }
   DeoptimizeIf(ne, instr, DeoptimizeReason::kNotASmi, cr0);
 }
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   if (!instr->hydrogen()->value()->type().IsHeapObject()) {
     LOperand* input = instr->value();
-    __ TestIfSmi(ToRegister(input));
+    if (input->IsRegister()) {
+      __ TestIfSmi(ToRegister(input));
+    } else if (input->IsStackSlot()) {
+      MemOperand value = ToMemOperand(input);
+#if !V8_TARGET_LITTLE_ENDIAN
+#if V8_TARGET_ARCH_S390X
+      __ TestIfSmi(MemOperand(value.rb(), value.offset() + 7));
+#else
+      __ TestIfSmi(MemOperand(value.rb(), value.offset() + 3));
+#endif
+#else
+      __ TestIfSmi(value);
+#endif
+    } else {
+      UNIMPLEMENTED();
+    }
     DeoptimizeIf(eq, instr, DeoptimizeReason::kSmi, cr0);
   }
 }

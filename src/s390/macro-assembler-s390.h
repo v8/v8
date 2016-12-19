@@ -1533,6 +1533,17 @@ class MacroAssembler : public Assembler {
 
   inline void TestIfSmi(Register value) { tmll(value, Operand(1)); }
 
+  inline void TestIfSmi(MemOperand value) {
+    if (is_uint12(value.offset())) {
+      tm(value, Operand(1));
+    } else if (is_int20(value.offset())) {
+      tmy(value, Operand(1));
+    } else {
+      LoadP(r0, value);
+      tmll(r0, Operand(1));
+    }
+  }
+
   inline void TestIfPositiveSmi(Register value, Register scratch) {
     STATIC_ASSERT((kSmiTagMask | kSmiSignMask) ==
                   (intptr_t)(1UL << (kBitsPerPointer - 1) | 1));
