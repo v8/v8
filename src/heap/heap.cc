@@ -5308,7 +5308,7 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
 
 bool Heap::ShouldOptimizeForLoadTime() {
   return isolate()->rail_mode() == PERFORMANCE_LOAD &&
-         PromotedTotalSize() < initial_old_generation_size_ &&
+         !AllocationLimitOvershotByLargeMargin() &&
          MonotonicallyIncreasingTimeInMs() <
              isolate()->LoadStartTimeMs() + kMaxLoadTimeMs;
 }
@@ -5360,9 +5360,13 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available > new_space_->Capacity()) {
     return IncrementalMarkingLimit::kNoLimit;
   }
-  // We are close to the allocation limit.
-  // Choose between the hard and the soft limits.
-  if (old_generation_space_available == 0 || ShouldOptimizeForMemoryUsage()) {
+  if (ShouldOptimizeForMemoryUsage()) {
+    return IncrementalMarkingLimit::kHardLimit;
+  }
+  if (ShouldOptimizeForLoadTime()) {
+    return IncrementalMarkingLimit::kNoLimit;
+  }
+  if (old_generation_space_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
   return IncrementalMarkingLimit::kSoftLimit;

@@ -1854,7 +1854,7 @@ class Heap {
   // This constant limits the effect of load RAIL mode on GC.
   // The value is arbitrary and chosen as the largest load time observed in
   // v8 browsing benchmarks.
-  static const int kMaxLoadTimeMs = 3000;
+  static const int kMaxLoadTimeMs = 7000;
 
   bool ShouldOptimizeForLoadTime();
 
