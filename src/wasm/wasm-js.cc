@@ -579,8 +579,7 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp).ToHandleChecked();
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(object, name, function, attributes);
   return function;
 }
@@ -592,7 +591,7 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp).ToHandleChecked();
   v8::PropertyAttribute attributes =
-      static_cast<v8::PropertyAttribute>(v8::DontDelete | v8::ReadOnly);
+      static_cast<v8::PropertyAttribute>(v8::DontEnum);
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
                                               Local<Function>(), attributes);
@@ -694,7 +693,7 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
 
   // Setup errors
-  attributes = static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->CompileError_string(),

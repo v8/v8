@@ -1723,7 +1723,7 @@ class WasmInstanceBuilder {
           isolate_->factory()->NewJSObject(object_function, TENURED);
       Handle<String> exports_name =
           isolate_->factory()->InternalizeUtf8String("exports");
-      JSObject::AddProperty(instance, exports_name, exports_object, READ_ONLY);
+      JSObject::AddProperty(instance, exports_name, exports_object, NONE);
     }
 
     PropertyDescriptor desc;
