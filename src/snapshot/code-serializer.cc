@@ -104,6 +104,12 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     return SerializeObject(isolate()->heap()->undefined_value(), how_to_code,
                            where_to_point, skip);
   }
+
+  if (obj->IsScript()) {
+    // Wrapper object is a context-dependent JSValue. Reset it here.
+    Script::cast(obj)->set_wrapper(isolate()->heap()->undefined_value());
+  }
+
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
