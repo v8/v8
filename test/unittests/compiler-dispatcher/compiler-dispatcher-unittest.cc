@@ -104,12 +104,12 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
-  ASSERT_FALSE(shared->HasBaselineCode());
+  ASSERT_FALSE(shared->is_compiled());
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   // Finishing removes the SFI from the queue.
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(shared->HasBaselineCode());
+  ASSERT_TRUE(shared->is_compiled());
 }
 
 TEST_F(CompilerDispatcherTest, IdleTask) {
@@ -131,7 +131,7 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(shared->HasBaselineCode());
+  ASSERT_TRUE(shared->is_compiled());
 }
 
 TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
@@ -157,7 +157,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   platform.RunIdleTask(2.0, 1.0);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-  ASSERT_FALSE(shared->HasBaselineCode());
+  ASSERT_FALSE(shared->is_compiled());
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // The job should be still scheduled for the main thread, but ready for
@@ -170,7 +170,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(shared->HasBaselineCode());
+  ASSERT_TRUE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
 }
 
@@ -199,7 +199,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_FALSE(shared->HasBaselineCode());
+  ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(try_catch.HasCaught());
 }
 
