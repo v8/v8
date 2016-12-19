@@ -1259,6 +1259,10 @@ Type* Typer::Visitor::JSOrdinaryHasInstanceTyper(Type* lhs, Type* rhs,
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
+  return Type::Callable();
+}
+
 // JS context operators.
 
 

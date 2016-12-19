@@ -324,6 +324,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetSuperConstructor(Register out) {
+  OutputGetSuperConstructor(out);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     Token::Value op, Register reg, int feedback_slot) {
   switch (op) {

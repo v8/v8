@@ -143,6 +143,9 @@ namespace interpreter {
   V(DeletePropertyStrict, AccumulatorUse::kReadWrite, OperandType::kReg)       \
   V(DeletePropertySloppy, AccumulatorUse::kReadWrite, OperandType::kReg)       \
                                                                                \
+  /* GetSuperConstructor operator */                                           \
+  V(GetSuperConstructor, AccumulatorUse::kRead, OperandType::kRegOut)          \
+                                                                               \
   /* Call operations */                                                        \
   V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kRegList,    \
     OperandType::kRegCount, OperandType::kIdx)                                 \

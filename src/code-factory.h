@@ -128,6 +128,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable SubString(Isolate* isolate);
 
   static Callable Typeof(Isolate* isolate);
+  static Callable GetSuperConstructor(Isolate* isolate);
 
   static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate);

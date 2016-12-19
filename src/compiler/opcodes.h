@@ -144,7 +144,8 @@
   V(JSStoreGlobal)                \
   V(JSStoreDataPropertyInLiteral) \
   V(JSDeleteProperty)             \
-  V(JSHasProperty)
+  V(JSHasProperty)                \
+  V(JSGetSuperConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSLoadContext)            \

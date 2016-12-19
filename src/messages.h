@@ -342,7 +342,9 @@ class ErrorUtils : public AllStatic {
   T(NotIterable, "% is not iterable")                                          \
   T(NotPropertyName, "% is not a valid property name")                         \
   T(NotTypedArray, "this is not a typed array.")                               \
-  T(NotSharedTypedArray, "% is not a shared typed array.")                     \
+  T(NotSuperConstructor, "Super constructor % of % is not a constructor")      \
+  T(NotSuperConstructorAnonymousClass,                                         \
+    "Super constructor % of anonymous class is not a constructor")             \
   T(NotIntegerSharedTypedArray, "% is not an integer shared typed array.")     \
   T(NotInt32SharedTypedArray, "% is not an int32 shared typed array.")         \
   T(ObjectGetterExpectingFunction,                                             \

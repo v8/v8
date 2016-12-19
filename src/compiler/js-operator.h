@@ -521,6 +521,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* HasProperty();
 
+  const Operator* GetSuperConstructor();
+
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const VectorSlotPair& feedback,
                              TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);

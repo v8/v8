@@ -273,6 +273,12 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
                                    : Runtime::kDeleteProperty_Sloppy);
 }
 
+void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::GetSuperConstructor(isolate());
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSInstanceOf(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::InstanceOf(isolate());

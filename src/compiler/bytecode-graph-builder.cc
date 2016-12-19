@@ -1626,6 +1626,13 @@ void BytecodeGraphBuilder::VisitDeletePropertySloppy() {
   BuildDelete(LanguageMode::SLOPPY);
 }
 
+void BytecodeGraphBuilder::VisitGetSuperConstructor() {
+  Node* node = NewNode(javascript()->GetSuperConstructor(),
+                       environment()->LookupAccumulator());
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node,
+                              Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::BuildCompareOp(const Operator* js_op) {
   PrepareEagerCheckpoint();
   Node* left =

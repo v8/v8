@@ -2513,11 +2513,9 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   SuperCallReference* super = expr->expression()->AsSuperCallReference();
 
   // Prepare the constructor to the super call.
-  Register this_function = VisitForRegisterValue(super->this_function_var());
-  builder()->CallRuntime(Runtime::kInlineGetSuperConstructor, this_function);
-
-  Register constructor = this_function;  // Re-use dead this_function register.
-  builder()->StoreAccumulatorInRegister(constructor);
+  VisitForAccumulatorValue(super->this_function_var());
+  Register constructor = register_allocator()->NewRegister();
+  builder()->GetSuperConstructor(constructor);
 
   ZoneList<Expression*>* args = expr->arguments();
 

@@ -213,6 +213,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .ConvertAccumulatorToObject(reg)
       .ConvertAccumulatorToName(reg);
 
+  // Emit GetSuperConstructor.
+  builder.GetSuperConstructor(reg);
+
   // Short jumps with Imm8 operands
   {
     BytecodeLabel start, after_jump1, after_jump2, after_jump3, after_jump4,

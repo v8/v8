@@ -179,6 +179,7 @@ namespace internal {
   TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion)                     \
   TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion)                      \
   TFS(Typeof, BUILTIN, kNoExtraICState, Typeof)                                \
+  TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion)           \
                                                                                \
   /* Handlers */                                                               \
   TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,              \

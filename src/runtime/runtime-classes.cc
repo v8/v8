@@ -27,7 +27,6 @@ RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
       isolate, NewReferenceError(MessageTemplate::kNonMethod));
 }
 
-
 RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
@@ -58,6 +57,47 @@ RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStaticPrototype));
+}
+
+namespace {
+
+Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
+                                 Handle<JSFunction> function) {
+  Handle<Object> super_name;
+  if (constructor->IsJSFunction()) {
+    super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->name(),
+                        isolate);
+  } else if (constructor->IsOddball()) {
+    DCHECK(constructor->IsNull(isolate));
+    super_name = isolate->factory()->null_string();
+  } else {
+    super_name = Object::NoSideEffectsToString(isolate, constructor);
+  }
+  // null constructor
+  if (Handle<String>::cast(super_name)->length() == 0) {
+    super_name = isolate->factory()->null_string();
+  }
+  Handle<Object> function_name(function->shared()->name(), isolate);
+  // anonymous class
+  if (Handle<String>::cast(function_name)->length() == 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kNotSuperConstructorAnonymousClass,
+                     super_name));
+  }
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotSuperConstructor, super_name,
+                            function_name));
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
+  return ThrowNotSuperConstructor(isolate, constructor, function);
 }
 
 RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
@@ -422,8 +462,14 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
 RUNTIME_FUNCTION(Runtime_GetSuperConstructor) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSFunction, active_function, 0);
-  return active_function->map()->prototype();
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, active_function, 0);
+  Object* prototype = active_function->map()->prototype();
+  if (!prototype->IsConstructor()) {
+    return ThrowNotSuperConstructor(
+        isolate, Handle<JSFunction>::cast(handle(prototype, isolate)),
+        active_function);
+  }
+  return prototype;
 }
 
 RUNTIME_FUNCTION(Runtime_NewWithSpread) {

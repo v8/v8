@@ -640,6 +640,13 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is String.
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kJSGetSuperConstructor:
+      // We don't check the input for Type::Function because
+      // this_function can be context-allocated.
+      // Any -> Callable.
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Callable());
+      break;
 
     case IrOpcode::kJSLoadContext:
       // Type can be anything.

@@ -658,6 +658,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsHashTable(Node* object);
   Node* IsDictionary(Node* object);
   Node* IsUnseededNumberDictionary(Node* object);
+  Node* IsConstructorMap(Node* map);
+  Node* IsJSFunction(Node* object);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
@@ -1077,6 +1079,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ForInFilter(Node* key, Node* object, Node* context);
 
   Node* Typeof(Node* value, Node* context);
+
+  Node* GetSuperConstructor(Node* value, Node* context);
 
   Node* InstanceOf(Node* object, Node* callable, Node* context);
 

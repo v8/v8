@@ -1675,6 +1675,19 @@ void Interpreter::DoDeletePropertySloppy(InterpreterAssembler* assembler) {
   DoDelete(Runtime::kDeleteProperty_Sloppy, assembler);
 }
 
+// GetSuperConstructor
+//
+// Get the super constructor from the object referenced by the accumulator.
+// The result is stored in register |reg|.
+void Interpreter::DoGetSuperConstructor(InterpreterAssembler* assembler) {
+  Node* active_function = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = __ GetSuperConstructor(active_function, context);
+  Node* reg = __ BytecodeOperandReg(0);
+  __ StoreRegister(result, reg);
+  __ Dispatch();
+}
+
 void Interpreter::DoJSCall(InterpreterAssembler* assembler,
                            TailCallMode tail_call_mode) {
   Node* function_reg = __ BytecodeOperandReg(0);

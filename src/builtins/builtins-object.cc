@@ -1078,5 +1078,17 @@ void Builtins::Generate_OrdinaryHasInstance(
   assembler.Return(assembler.OrdinaryHasInstance(context, constructor, object));
 }
 
+void Builtins::Generate_GetSuperConstructor(
+    compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  typedef TypeofDescriptor Descriptor;
+  CodeStubAssembler assembler(state);
+
+  Node* object = assembler.Parameter(Descriptor::kObject);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+
+  assembler.Return(assembler.GetSuperConstructor(object, context));
+}
+
 }  // namespace internal
 }  // namespace v8

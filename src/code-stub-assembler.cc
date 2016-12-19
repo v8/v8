@@ -2896,6 +2896,13 @@ Node* CodeStubAssembler::IsCallableMap(Node* map) {
       Int32Constant(0));
 }
 
+Node* CodeStubAssembler::IsConstructorMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return Word32NotEqual(
+      Word32And(LoadMapBitField(map), Int32Constant(1 << Map::kIsConstructor)),
+      Int32Constant(0));
+}
+
 Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
   STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
   return Int32LessThanOrEqual(instance_type,
@@ -2990,6 +2997,10 @@ Node* CodeStubAssembler::IsDictionary(Node* object) {
 Node* CodeStubAssembler::IsUnseededNumberDictionary(Node* object) {
   return WordEqual(LoadMap(object),
                    LoadRoot(Heap::kUnseededNumberDictionaryMapRootIndex));
+}
+
+Node* CodeStubAssembler::IsJSFunction(Node* object) {
+  return HasInstanceType(object, JS_FUNCTION_TYPE);
 }
 
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
@@ -7844,6 +7855,32 @@ Node* CodeStubAssembler::Typeof(Node* value, Node* context) {
 
   Bind(&return_result);
   return result_var.value();
+}
+
+Node* CodeStubAssembler::GetSuperConstructor(Node* active_function,
+                                             Node* context) {
+  CSA_ASSERT(this, IsJSFunction(active_function));
+
+  Label is_not_constructor(this, Label::kDeferred), out(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  Node* map = LoadMap(active_function);
+  Node* prototype = LoadMapPrototype(map);
+  Node* prototype_map = LoadMap(prototype);
+  GotoUnless(IsConstructorMap(prototype_map), &is_not_constructor);
+
+  result.Bind(prototype);
+  Goto(&out);
+
+  Bind(&is_not_constructor);
+  {
+    result.Bind(CallRuntime(Runtime::kThrowNotSuperConstructor, context,
+                            prototype, active_function));
+    Goto(&out);
+  }
+
+  Bind(&out);
+  return result.value();
 }
 
 Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,

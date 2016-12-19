@@ -251,6 +251,7 @@ TFS_BUILTIN(ForInFilter)
 TFS_BUILTIN(NewUnmappedArgumentsElements)
 TFS_BUILTIN(NewRestParameterElements)
 TFS_BUILTIN(PromiseHandleReject)
+TFS_BUILTIN(GetSuperConstructor)
 
 #undef TFS_BUILTIN
 
