@@ -959,10 +959,11 @@ bool Heap::CollectGarbage(GarbageCollector collector,
     }
   }
 
-  if (collector == MARK_COMPACTOR && !ShouldFinalizeIncrementalMarking() &&
-      !ShouldAbortIncrementalMarking() && !incremental_marking()->IsStopped() &&
-      !incremental_marking()->should_hurry() && FLAG_incremental_marking &&
-      OldGenerationSpaceAvailable() <= 0) {
+  if (collector == MARK_COMPACTOR && FLAG_incremental_marking &&
+      !ShouldFinalizeIncrementalMarking() && !ShouldAbortIncrementalMarking() &&
+      !incremental_marking()->IsStopped() &&
+      !incremental_marking()->should_hurry() &&
+      !IsCloseToOutOfMemory(new_space_->Capacity())) {
     if (!incremental_marking()->IsComplete() &&
         !mark_compact_collector()->marking_deque()->IsEmpty() &&
         !FLAG_gc_global) {

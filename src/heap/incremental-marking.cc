@@ -1075,6 +1075,13 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   // target step count are chosen based on benchmarks.
   const int kRampUpIntervalMs = 300;
   const size_t kTargetStepCount = 128;
+  const size_t kTargetStepCountAtOOM = 16;
+  size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
+
+  if (heap()->IsCloseToOutOfMemory(oom_slack)) {
+    return heap()->PromotedSpaceSizeOfObjects() / kTargetStepCountAtOOM;
+  }
+
   size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,
                          IncrementalMarking::kAllocatedThreshold);
   double time_passed_ms =
