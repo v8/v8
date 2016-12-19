@@ -266,6 +266,19 @@ class TestingModule : public ModuleEnv {
     }
   }
 
+  uint32_t AddBytes(Vector<const byte> bytes) {
+    Handle<SeqOneByteString> old_bytes =
+        instance_object_->get_compiled_module()->module_bytes();
+    uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
+    ScopedVector<byte> new_bytes(old_size + bytes.length());
+    memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
+    memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
+    Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
+        isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
+    instance_object_->get_compiled_module()->set_module_bytes(new_bytes_str);
+    return old_size;
+  }
+
   WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
 
   WasmInterpreter* interpreter() { return interpreter_; }
@@ -292,19 +305,6 @@ class TestingModule : public ModuleEnv {
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
     return &module->globals.back();
-  }
-
-  uint32_t AddBytes(Vector<const byte> bytes) {
-    Handle<SeqOneByteString> old_bytes =
-        instance_object_->get_compiled_module()->module_bytes();
-    uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
-    ScopedVector<byte> new_bytes(old_size + bytes.length());
-    memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
-    memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
-    Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
-        isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
-    instance_object_->get_compiled_module()->set_module_bytes(new_bytes_str);
-    return old_size;
   }
 
   Handle<WasmInstanceObject> InitInstanceObject() {
@@ -498,6 +498,13 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
   void Build(const byte* start, const byte* end) {
     local_decls.Prepend(zone(), &start, &end);
+
+    CHECK_GE(kMaxInt, end - start);
+    int len = static_cast<int>(end - start);
+    function_->code_start_offset =
+        testing_module_->AddBytes(Vector<const byte>(start, len));
+    function_->code_end_offset = function_->code_start_offset + len;
+
     if (interpreter_) {
       // Add the code to the interpreter.
       CHECK(interpreter_->SetFunctionCodeForTesting(function_, start, end));

@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/utils.h"
 
+#include "src/debug/debug-interface.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-text.h"
@@ -650,6 +651,77 @@ v8::debug::WasmDisassembly WasmCompiledModule::DisassembleFunction(
                 disassembly_os, &offset_table);
 
   return {disassembly_os.str(), std::move(offset_table)};
+}
+
+bool WasmCompiledModule::GetPossibleBreakpoints(
+    const v8::debug::Location& start, const v8::debug::Location& end,
+    std::vector<v8::debug::Location>* locations) const {
+  DisallowHeapAllocation no_gc;
+
+  std::vector<WasmFunction>& functions = module()->functions;
+  if (start.GetLineNumber() < 0 || start.GetColumnNumber() < 0 ||
+      (!end.IsEmpty() &&
+       (end.GetLineNumber() < 0 || end.GetColumnNumber() < 0)))
+    return false;
+
+  // start_func_index, start_offset and end_func_index is inclusive.
+  // end_offset is exclusive.
+  // start_offset and end_offset are module-relative byte offsets.
+  uint32_t start_func_index = start.GetLineNumber();
+  if (start_func_index >= functions.size()) return false;
+  int start_func_len = functions[start_func_index].code_end_offset -
+                       functions[start_func_index].code_start_offset;
+  if (start.GetColumnNumber() > start_func_len) return false;
+  uint32_t start_offset =
+      functions[start_func_index].code_start_offset + start.GetColumnNumber();
+  uint32_t end_func_index;
+  uint32_t end_offset;
+  if (end.IsEmpty()) {
+    // Default: everything till the end of the Script.
+    end_func_index = static_cast<uint32_t>(functions.size() - 1);
+    end_offset = functions[end_func_index].code_end_offset;
+  } else {
+    // If end is specified: Use it and check for valid input.
+    end_func_index = static_cast<uint32_t>(end.GetLineNumber());
+
+    // Special case: Stop before the start of the next function. Change to: Stop
+    // at the end of the function before, such that we don't disassemble the
+    // next function also.
+    if (end.GetColumnNumber() == 0 && end_func_index > 0) {
+      --end_func_index;
+      end_offset = functions[end_func_index].code_end_offset;
+    } else {
+      if (end_func_index >= functions.size()) return false;
+      end_offset =
+          functions[end_func_index].code_start_offset + end.GetColumnNumber();
+      if (end_offset > functions[end_func_index].code_end_offset) return false;
+    }
+  }
+
+  AccountingAllocator alloc;
+  Zone tmp(&alloc, ZONE_NAME);
+  const byte* module_start = ptr_to_module_bytes()->GetChars();
+
+  for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
+       ++func_idx) {
+    WasmFunction& func = functions[func_idx];
+    if (func.code_start_offset == func.code_end_offset) continue;
+
+    AstLocalDecls locals(&tmp);
+    BytecodeIterator iterator(module_start + func.code_start_offset,
+                              module_start + func.code_end_offset, &locals);
+    DCHECK_LT(0u, locals.decls_encoded_size);
+    for (; iterator.has_next(); iterator.next()) {
+      uint32_t offset = func.code_start_offset + iterator.pc_offset();
+      if (offset >= end_offset) {
+        DCHECK_EQ(end_func_index, func_idx);
+        break;
+      }
+      if (offset < start_offset) continue;
+      locations->push_back(v8::debug::Location(func_idx, iterator.pc_offset()));
+    }
+  }
+  return true;
 }
 
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(

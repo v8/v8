@@ -317,6 +317,11 @@ class WasmCompiledModule : public FixedArray {
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
       uint32_t offset, uint32_t size);
 
+  // Get a list of all possible breakpoints within a given range of this module.
+  bool GetPossibleBreakpoints(const debug::Location& start,
+                              const debug::Location& end,
+                              std::vector<debug::Location>* locations) const;
+
  private:
   void InitId();
 
