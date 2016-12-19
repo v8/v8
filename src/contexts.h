@@ -43,6 +43,7 @@ enum ContextLookupFlags {
   V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)                  \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                      \
   V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                        \
+  V(OBJECT_CREATE, JSFunction, object_create)                                \
   V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)          \
   V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)              \
   V(OBJECT_FREEZE, JSFunction, object_freeze)                                \

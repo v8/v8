@@ -1156,8 +1156,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     SimpleInstallFunction(object_function, factory->assign_string(),
                           Builtins::kObjectAssign, 2, false);
-    SimpleInstallFunction(object_function, factory->create_string(),
-                          Builtins::kObjectCreate, 2, true);
     SimpleInstallFunction(object_function, "getOwnPropertyDescriptor",
                           Builtins::kObjectGetOwnPropertyDescriptor, 2, false);
     SimpleInstallFunction(object_function,
@@ -1173,6 +1171,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kObjectPreventExtensions, 1, false);
     SimpleInstallFunction(object_function, "seal",
                           Builtins::kObjectSeal, 1, false);
+
+    Handle<JSFunction> object_create =
+        SimpleInstallFunction(object_function, factory->create_string(),
+                              Builtins::kObjectCreate, 2, true);
+    native_context()->set_object_create(*object_create);
 
     Handle<JSFunction> object_define_properties = SimpleInstallFunction(
         object_function, "defineProperties",

@@ -1518,6 +1518,8 @@ function toDateTimeOptions(options, required, defaults) {
     options = TO_OBJECT(options);
   }
 
+  options = %object_create(options);
+
   var needsDefault = true;
   if ((required === 'date' || required === 'any') &&
       (!IS_UNDEFINED(options.weekday) || !IS_UNDEFINED(options.year) ||
