@@ -369,7 +369,6 @@ class CpuProfilesCollection {
 class ProfileGenerator {
  public:
   ProfileGenerator(Isolate* isolate, CpuProfilesCollection* profiles);
-  ~ProfileGenerator();
 
   void RecordTickSample(const TickSample& sample);
 
@@ -382,7 +381,6 @@ class ProfileGenerator {
   Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
-  std::vector<CodeEntry*> code_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };

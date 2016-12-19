@@ -649,13 +649,8 @@ ProfileGenerator::ProfileGenerator(Isolate* isolate,
     DCHECK(counter->name());
     auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
                                CodeEntry::kEmptyNamePrefix, "native V8Runtime");
-    code_entries_.push_back(entry);
     code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }
-}
-
-ProfileGenerator::~ProfileGenerator() {
-  for (auto code_entry : code_entries_) delete code_entry;
 }
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
