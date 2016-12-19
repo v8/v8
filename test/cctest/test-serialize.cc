@@ -2172,11 +2172,14 @@ v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder,
   return {payload, size};
 }
 
+std::vector<InternalFieldData*> deserialized_data;
+
 void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
                                v8::StartupData payload) {
   InternalFieldData* data = new InternalFieldData{0};
   memcpy(data, payload.data, payload.raw_size);
   holder->SetAlignedPointerInInternalField(index, data);
+  deserialized_data.push_back(data);
 }
 
 TEST(SnapshotCreatorTemplates) {
@@ -2314,9 +2317,8 @@ TEST(SnapshotCreatorTemplates) {
         CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
         CHECK(v8::Context::FromSnapshot(isolate, 1).IsEmpty());
 
-        delete a1;
-        delete b0;
-        delete c0;
+        for (auto data : deserialized_data) delete data;
+        deserialized_data.clear();
       }
 
       {
@@ -2334,6 +2336,9 @@ TEST(SnapshotCreatorTemplates) {
         v8::Context::Scope context_scope(context);
         ExpectInt32("g()", 1337);
         ExpectInt32("f()", 42);
+
+        for (auto data : deserialized_data) delete data;
+        deserialized_data.clear();
       }
     }
     isolate->Dispose();
