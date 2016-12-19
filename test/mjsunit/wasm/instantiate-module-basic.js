@@ -25,6 +25,10 @@ function CheckInstance(instance) {
   assertFalse(instance === 0);
   assertEquals("object", typeof instance);
 
+  // Check the exports object is frozen.
+  assertFalse(Object.isExtensible(instance.exports));
+  assertTrue(Object.isFrozen(instance.exports));
+
   // Check the memory is an ArrayBuffer.
   var mem = instance.exports.memory;
   assertFalse(mem === undefined);

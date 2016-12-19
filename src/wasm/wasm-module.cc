@@ -1846,6 +1846,13 @@ class WasmInstanceBuilder {
         return;
       }
     }
+
+    if (module_->origin == kWasmOrigin) {
+      v8::Maybe<bool> success = JSReceiver::SetIntegrityLevel(
+          exports_object, FROZEN, Object::DONT_THROW);
+      DCHECK(success.FromMaybe(false));
+      USE(success);
+    }
   }
 
   void InitializeTables(Handle<FixedArray> code_table,

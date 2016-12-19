@@ -12,6 +12,13 @@ function testAddGetter(object, name, val) {
   assertSame(val, object[name]);
 }
 
+function testAddGetterFails(object, name, val) {
+  function assign() {
+    Object.defineProperty(object, name, { get: function() { return val; } });
+  }
+  assertThrows(assign, TypeError);
+}
+
 function testAddGetterBothWays(object, name, val) {
   print("Object.defineProperty");
   Object.defineProperty(object, name, { get: function() { return val; } });
@@ -64,5 +71,5 @@ function makeBuilder() {
   var builder = makeBuilder();
   var exports = builder.instantiate().exports;
   testFailToAddGetter(exports, "f", 9834);
-  testAddGetter(exports, "nag", new Number(2));
+  testAddGetterFails(exports, "nag", new Number(2));
 })();
