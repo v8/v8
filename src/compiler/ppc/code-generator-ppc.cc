@@ -764,36 +764,33 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, asm_instrx)   \
-  do {                                                        \
-    Label done;                                               \
-    Register result = i.OutputRegister();                     \
-    AddressingMode mode = kMode_None;                         \
-    MemOperand operand = i.MemoryOperand(&mode);              \
-    __ sync();                                                \
-    if (mode == kMode_MRI) {                                  \
-    __ asm_instr(result, operand);                            \
-    } else {                                                  \
-    __ asm_instrx(result, operand);                           \
-    }                                                         \
-    __ bind(&done);                                           \
-    __ cmp(result, result);                                   \
-    __ bne(&done);                                            \
-    __ isync();                                               \
+#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, asm_instrx) \
+  do {                                                      \
+    Label done;                                             \
+    Register result = i.OutputRegister();                   \
+    AddressingMode mode = kMode_None;                       \
+    MemOperand operand = i.MemoryOperand(&mode);            \
+    if (mode == kMode_MRI) {                                \
+      __ asm_instr(result, operand);                        \
+    } else {                                                \
+      __ asm_instrx(result, operand);                       \
+    }                                                       \
+    __ lwsync();                                            \
   } while (0)
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx)  \
-  do {                                                        \
-    size_t index = 0;                                         \
-    AddressingMode mode = kMode_None;                         \
-    MemOperand operand = i.MemoryOperand(&mode, &index);      \
-    Register value = i.InputRegister(index);                  \
-    __ sync();                                                \
-    if (mode == kMode_MRI) {                                  \
-      __ asm_instr(value, operand);                           \
-    } else {                                                  \
-      __ asm_instrx(value, operand);                          \
-    }                                                         \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx) \
+  do {                                                       \
+    size_t index = 0;                                        \
+    AddressingMode mode = kMode_None;                        \
+    MemOperand operand = i.MemoryOperand(&mode, &index);     \
+    Register value = i.InputRegister(index);                 \
+    __ lwsync();                                             \
+    if (mode == kMode_MRI) {                                 \
+      __ asm_instr(value, operand);                          \
+    } else {                                                 \
+      __ asm_instrx(value, operand);                         \
+    }                                                        \
+    __ sync();                                               \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
