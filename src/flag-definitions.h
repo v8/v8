@@ -210,8 +210,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
     "harmony restrictions on generator declarations")       \
   V(harmony_tailcalls, "harmony tail calls")                \
   V(harmony_trailing_commas,                                \
-    "harmony trailing commas in function parameter lists")  \
-  V(harmony_string_padding, "harmony String-padding methods")
+    "harmony trailing commas in function parameter lists")
 
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_STAGED(V)                                          \
@@ -222,7 +221,9 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V) V(harmony_async_await, "harmony async-await")
+#define HARMONY_SHIPPING_BASE(V)                \
+  V(harmony_async_await, "harmony async-await") \
+  V(harmony_string_padding, "harmony String-padding methods")
 
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_SHIPPING(V) \
