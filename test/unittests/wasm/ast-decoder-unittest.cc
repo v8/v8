@@ -2669,7 +2669,7 @@ TEST_F(BytecodeIteratorTest, SimpleForeach) {
   WasmOpcode expected[] = {kExprI8Const, kExprIf,      kExprI8Const,
                            kExprElse,    kExprI8Const, kExprEnd};
   size_t pos = 0;
-  for (WasmOpcode opcode : iter) {
+  for (WasmOpcode opcode : iter.opcodes()) {
     if (pos >= arraysize(expected)) {
       EXPECT_TRUE(false);
       break;
@@ -2685,15 +2685,35 @@ TEST_F(BytecodeIteratorTest, ForeachTwice) {
   int count = 0;
 
   count = 0;
-  for (WasmOpcode opcode : iter) {
+  for (WasmOpcode opcode : iter.opcodes()) {
     USE(opcode);
     count++;
   }
   EXPECT_EQ(6, count);
 
   count = 0;
-  for (WasmOpcode opcode : iter) {
+  for (WasmOpcode opcode : iter.opcodes()) {
     USE(opcode);
+    count++;
+  }
+  EXPECT_EQ(6, count);
+}
+
+TEST_F(BytecodeIteratorTest, ForeachOffset) {
+  byte code[] = {WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO)};
+  BytecodeIterator iter(code, code + sizeof(code));
+  int count = 0;
+
+  count = 0;
+  for (auto offset : iter.offsets()) {
+    USE(offset);
+    count++;
+  }
+  EXPECT_EQ(6, count);
+
+  count = 0;
+  for (auto offset : iter.offsets()) {
+    USE(offset);
     count++;
   }
   EXPECT_EQ(6, count);

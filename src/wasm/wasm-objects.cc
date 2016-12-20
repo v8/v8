@@ -711,14 +711,14 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
     BytecodeIterator iterator(module_start + func.code_start_offset,
                               module_start + func.code_end_offset, &locals);
     DCHECK_LT(0u, locals.decls_encoded_size);
-    for (; iterator.has_next(); iterator.next()) {
-      uint32_t offset = func.code_start_offset + iterator.pc_offset();
-      if (offset >= end_offset) {
+    for (uint32_t offset : iterator.offsets()) {
+      uint32_t total_offset = func.code_start_offset + offset;
+      if (total_offset >= end_offset) {
         DCHECK_EQ(end_func_index, func_idx);
         break;
       }
-      if (offset < start_offset) continue;
-      locations->push_back(v8::debug::Location(func_idx, iterator.pc_offset()));
+      if (total_offset < start_offset) continue;
+      locations->push_back(v8::debug::Location(func_idx, offset));
     }
   }
   return true;

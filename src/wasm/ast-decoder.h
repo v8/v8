@@ -5,7 +5,10 @@
 #ifndef V8_WASM_AST_DECODER_H_
 #define V8_WASM_AST_DECODER_H_
 
+#include <iterator>
+
 #include "src/base/compiler-specific.h"
+#include "src/base/iterator.h"
 #include "src/globals.h"
 #include "src/signature.h"
 #include "src/wasm/decoder.h"
@@ -382,31 +385,59 @@ V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 
 // A simple forward iterator for bytecodes.
 class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
- public:
-  // If one wants to iterate over the bytecode without looking at {pc_offset()}.
-  class iterator {
+  // Base class for both iterators defined below.
+  class iterator_base {
    public:
-    inline iterator& operator++() {
+    inline iterator_base& operator++() {
       DCHECK_LT(ptr_, end_);
       ptr_ += OpcodeLength(ptr_, end_);
       return *this;
     }
+    inline bool operator==(const iterator_base& that) {
+      return this->ptr_ == that.ptr_;
+    }
+    inline bool operator!=(const iterator_base& that) {
+      return this->ptr_ != that.ptr_;
+    }
+
+   protected:
+    const byte* ptr_;
+    const byte* end_;
+    iterator_base(const byte* ptr, const byte* end) : ptr_(ptr), end_(end) {}
+  };
+
+ public:
+  // If one wants to iterate over the bytecode without looking at {pc_offset()}.
+  class opcode_iterator
+      : public iterator_base,
+        public std::iterator<std::input_iterator_tag, WasmOpcode> {
+   public:
     inline WasmOpcode operator*() {
       DCHECK_LT(ptr_, end_);
       return static_cast<WasmOpcode>(*ptr_);
     }
-    inline bool operator==(const iterator& that) {
-      return this->ptr_ == that.ptr_;
-    }
-    inline bool operator!=(const iterator& that) {
-      return this->ptr_ != that.ptr_;
-    }
 
    private:
     friend class BytecodeIterator;
-    const byte* ptr_;
-    const byte* end_;
-    iterator(const byte* ptr, const byte* end) : ptr_(ptr), end_(end) {}
+    opcode_iterator(const byte* ptr, const byte* end)
+        : iterator_base(ptr, end) {}
+  };
+  // If one wants to iterate over the instruction offsets without looking at
+  // opcodes.
+  class offset_iterator
+      : public iterator_base,
+        public std::iterator<std::input_iterator_tag, uint32_t> {
+   public:
+    inline uint32_t operator*() {
+      DCHECK_LT(ptr_, end_);
+      return static_cast<uint32_t>(ptr_ - start_);
+    }
+
+   private:
+    const byte* start_;
+    friend class BytecodeIterator;
+    offset_iterator(const byte* start, const byte* ptr, const byte* end)
+        : iterator_base(ptr, end), start_(start) {}
   };
 
   // Create a new {BytecodeIterator}. If the {decls} pointer is non-null,
@@ -415,8 +446,16 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   BytecodeIterator(const byte* start, const byte* end,
                    AstLocalDecls* decls = nullptr);
 
-  inline iterator begin() const { return iterator(pc_, end_); }
-  inline iterator end() const { return iterator(end_, end_); }
+  base::iterator_range<opcode_iterator> opcodes() {
+    return base::iterator_range<opcode_iterator>(opcode_iterator(pc_, end_),
+                                                 opcode_iterator(end_, end_));
+  }
+
+  base::iterator_range<offset_iterator> offsets() {
+    return base::iterator_range<offset_iterator>(
+        offset_iterator(start_, pc_, end_),
+        offset_iterator(start_, end_, end_));
+  }
 
   WasmOpcode current() {
     return static_cast<WasmOpcode>(
