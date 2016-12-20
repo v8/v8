@@ -7508,6 +7508,12 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     HValue* string = Pop();
     HInstruction* char_code = BuildStringCharCodeAt(string, index);
     AddInstruction(char_code);
+    if (char_code->IsConstant()) {
+      HConstant* c_code = HConstant::cast(char_code);
+      if (c_code->HasNumberValue() && std::isnan(c_code->DoubleValue())) {
+        Add<HDeoptimize>(DeoptimizeReason::kOutOfBounds, Deoptimizer::EAGER);
+      }
+    }
     instr = NewUncasted<HStringCharFromCode>(char_code);
 
   } else if (expr->key()->IsPropertyName()) {
