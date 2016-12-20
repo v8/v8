@@ -906,6 +906,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     search_string.Bind(arguments.AtIndex(0));
     position.Bind(arguments.AtIndex(1));
     GotoUnless(TaggedIsSmi(position.value()), &call_runtime);
+    position.Bind(SmiMax(position.value(), SmiConstant(0)));
     Goto(&fast_path);
   }
 
