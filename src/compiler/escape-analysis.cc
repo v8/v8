@@ -1083,6 +1083,9 @@ bool EscapeAnalysis::Process(Node* node) {
       ProcessAllocationUsers(node);
       break;
   }
+  if (OperatorProperties::HasFrameStateInput(node->op())) {
+    virtual_states_[node->id()]->SetCopyRequired();
+  }
   return true;
 }
 
@@ -1176,8 +1179,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
           static_cast<void*>(virtual_states_[effect->id()]),
           effect->op()->mnemonic(), effect->id(), node->op()->mnemonic(),
           node->id());
-    if (status_analysis_->IsEffectBranchPoint(effect) ||
-        OperatorProperties::HasFrameStateInput(node->op())) {
+    if (status_analysis_->IsEffectBranchPoint(effect)) {
       virtual_states_[node->id()]->SetCopyRequired();
       TRACE(", effect input %s#%d is branch point", effect->op()->mnemonic(),
             effect->id());
