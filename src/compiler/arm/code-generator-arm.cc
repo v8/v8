@@ -1527,6 +1527,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vcvt_f32_u32(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmFloat32x4Abs: {
+      __ vabs(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4Neg: {
+      __ vneg(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmFloat32x4Add: {
       __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1535,6 +1543,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmFloat32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Eq: {
+      __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Ne: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vceq(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ vmvn(dst, dst);
       break;
     }
     case kArmInt32x4Splat: {

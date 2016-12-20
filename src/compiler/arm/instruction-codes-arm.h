@@ -125,8 +125,12 @@ namespace compiler {
   V(ArmFloat32x4ReplaceLane)       \
   V(ArmFloat32x4FromInt32x4)       \
   V(ArmFloat32x4FromUint32x4)      \
+  V(ArmFloat32x4Abs)               \
+  V(ArmFloat32x4Neg)               \
   V(ArmFloat32x4Add)               \
   V(ArmFloat32x4Sub)               \
+  V(ArmFloat32x4Eq)                \
+  V(ArmFloat32x4Ne)                \
   V(ArmInt32x4Splat)               \
   V(ArmInt32x4ExtractLane)         \
   V(ArmInt32x4ReplaceLane)         \

@@ -15,8 +15,15 @@ using namespace v8::internal::wasm;
 
 namespace {
 
+typedef float (*FloatUnOp)(float);
 typedef float (*FloatBinOp)(float, float);
+typedef int32_t (*FloatCompareOp)(float, float);
 typedef int32_t (*Int32BinOp)(int32_t, int32_t);
+
+template <typename T>
+T Negate(T a) {
+  return -a;
+}
 
 template <typename T>
 T Add(T a, T b) {
@@ -37,6 +44,12 @@ template <typename T>
 int32_t NotEqual(T a, T b) {
   return a != b ? 0xFFFFFFFF : 0;
 }
+
+#if V8_TARGET_ARCH_ARM
+int32_t Equal(float a, float b) { return a == b ? 0xFFFFFFFF : 0; }
+
+int32_t NotEqual(float a, float b) { return a != b ? 0xFFFFFFFF : 0; }
+#endif  // V8_TARGET_ARCH_ARM
 
 }  // namespace
 
@@ -180,7 +193,29 @@ WASM_EXEC_TEST(S32x4Select) {
   CHECK_EQ(1, r.Call(0x1234, 0x5678));
 }
 
-static void RunF32x4BinopTest(WasmOpcode simd_op, FloatBinOp expected_op) {
+void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op) {
+  FLAG_wasm_simd_prototype = true;
+  WasmRunner<int32_t, float, float> r(kExecuteCompiled);
+  byte a = 0;
+  byte expected = 1;
+  byte simd = r.AllocateLocal(kAstS128);
+  BUILD(r, WASM_BLOCK(
+               WASM_SET_LOCAL(simd, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
+               WASM_SET_LOCAL(
+                   simd, WASM_SIMD_UNOP(simd_op & 0xffu, WASM_GET_LOCAL(simd))),
+               WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd, expected),
+               WASM_RETURN1(WASM_ONE)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (std::isnan(*i)) continue;
+    CHECK_EQ(1, r.Call(*i, expected_op(*i)));
+  }
+}
+
+WASM_EXEC_TEST(F32x4Abs) { RunF32x4UnOpTest(kExprF32x4Abs, std::abs); }
+WASM_EXEC_TEST(F32x4Neg) { RunF32x4UnOpTest(kExprF32x4Neg, Negate); }
+
+void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, float, float, float> r(kExecuteCompiled);
   byte a = 0;
@@ -206,8 +241,37 @@ static void RunF32x4BinopTest(WasmOpcode simd_op, FloatBinOp expected_op) {
   }
 }
 
-WASM_EXEC_TEST(F32x4Add) { RunF32x4BinopTest(kExprF32x4Add, Add); }
-WASM_EXEC_TEST(F32x4Sub) { RunF32x4BinopTest(kExprF32x4Sub, Sub); }
+WASM_EXEC_TEST(F32x4Add) { RunF32x4BinOpTest(kExprF32x4Add, Add); }
+WASM_EXEC_TEST(F32x4Sub) { RunF32x4BinOpTest(kExprF32x4Sub, Sub); }
+
+void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
+  FLAG_wasm_simd_prototype = true;
+  WasmRunner<int32_t, float, float, int32_t> r(kExecuteCompiled);
+  byte a = 0;
+  byte b = 1;
+  byte expected = 2;
+  byte simd0 = r.AllocateLocal(kAstS128);
+  byte simd1 = r.AllocateLocal(kAstS128);
+  BUILD(r, WASM_BLOCK(
+               WASM_SET_LOCAL(simd0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
+               WASM_SET_LOCAL(simd1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(b))),
+               WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(simd_op & 0xffu,
+                                                     WASM_GET_LOCAL(simd0),
+                                                     WASM_GET_LOCAL(simd1))),
+               WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected),
+               WASM_RETURN1(WASM_ONE)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (std::isnan(*i)) continue;
+    FOR_FLOAT32_INPUTS(j) {
+      if (std::isnan(*j)) continue;
+      CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
+    }
+  }
+}
+
+WASM_EXEC_TEST(F32x4Equal) { RunF32x4CompareOpTest(kExprF32x4Eq, Equal); }
+WASM_EXEC_TEST(F32x4NotEqual) { RunF32x4CompareOpTest(kExprF32x4Ne, NotEqual); }
 #endif  // V8_TARGET_ARCH_ARM
 
 WASM_EXEC_TEST(I32x4Splat) {
@@ -337,7 +401,7 @@ WASM_EXEC_TEST(I32x4FromFloat32x4) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-static void RunI32x4BinopTest(WasmOpcode simd_op, Int32BinOp expected_op) {
+void RunI32x4BinOpTest(WasmOpcode simd_op, Int32BinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
   byte a = 0;
@@ -359,12 +423,12 @@ static void RunI32x4BinopTest(WasmOpcode simd_op, Int32BinOp expected_op) {
   }
 }
 
-WASM_EXEC_TEST(I32x4Add) { RunI32x4BinopTest(kExprI32x4Add, Add); }
+WASM_EXEC_TEST(I32x4Add) { RunI32x4BinOpTest(kExprI32x4Add, Add); }
 
-WASM_EXEC_TEST(I32x4Sub) { RunI32x4BinopTest(kExprI32x4Sub, Sub); }
+WASM_EXEC_TEST(I32x4Sub) { RunI32x4BinOpTest(kExprI32x4Sub, Sub); }
 
 #if V8_TARGET_ARCH_ARM
-WASM_EXEC_TEST(I32x4Equal) { RunI32x4BinopTest(kExprI32x4Eq, Equal); }
+WASM_EXEC_TEST(I32x4Equal) { RunI32x4BinOpTest(kExprI32x4Eq, Equal); }
 
-WASM_EXEC_TEST(I32x4NotEqual) { RunI32x4BinopTest(kExprI32x4Ne, NotEqual); }
+WASM_EXEC_TEST(I32x4NotEqual) { RunI32x4BinOpTest(kExprI32x4Ne, NotEqual); }
 #endif  // V8_TARGET_ARCH_ARM

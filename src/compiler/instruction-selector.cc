@@ -1448,10 +1448,18 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitFloat32x4FromInt32x4(node);
     case IrOpcode::kFloat32x4FromUint32x4:
       return MarkAsSimd128(node), VisitFloat32x4FromUint32x4(node);
+    case IrOpcode::kFloat32x4Abs:
+      return MarkAsSimd128(node), VisitFloat32x4Abs(node);
+    case IrOpcode::kFloat32x4Neg:
+      return MarkAsSimd128(node), VisitFloat32x4Neg(node);
     case IrOpcode::kFloat32x4Add:
       return MarkAsSimd128(node), VisitFloat32x4Add(node);
     case IrOpcode::kFloat32x4Sub:
       return MarkAsSimd128(node), VisitFloat32x4Sub(node);
+    case IrOpcode::kFloat32x4Equal:
+      return MarkAsSimd128(node), VisitFloat32x4Equal(node);
+    case IrOpcode::kFloat32x4NotEqual:
+      return MarkAsSimd128(node), VisitFloat32x4NotEqual(node);
     case IrOpcode::kCreateInt32x4:
       return MarkAsSimd128(node), VisitCreateInt32x4(node);
     case IrOpcode::kInt32x4ExtractLane:
@@ -1835,9 +1843,19 @@ void InstructionSelector::VisitFloat32x4FromUint32x4(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitFloat32x4Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitFloat32x4Neg(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitFloat32x4Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitFloat32x4Sub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitFloat32x4Equal(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitFloat32x4NotEqual(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitInt32x4FromFloat32x4(Node* node) {
   UNIMPLEMENTED();

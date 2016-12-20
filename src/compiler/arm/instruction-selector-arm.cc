@@ -2318,6 +2318,18 @@ void InstructionSelector::VisitFloat32x4FromUint32x4(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitFloat32x4Abs(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Abs, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitFloat32x4Neg(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Neg, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitFloat32x4Add(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmFloat32x4Add, g.DefineAsRegister(node),
@@ -2327,6 +2339,18 @@ void InstructionSelector::VisitFloat32x4Add(Node* node) {
 void InstructionSelector::VisitFloat32x4Sub(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmFloat32x4Sub, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitFloat32x4Equal(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Eq, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitFloat32x4NotEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmFloat32x4Ne, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 

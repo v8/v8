@@ -113,8 +113,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmFloat32x4ReplaceLane:
     case kArmFloat32x4FromInt32x4:
     case kArmFloat32x4FromUint32x4:
+    case kArmFloat32x4Abs:
+    case kArmFloat32x4Neg:
     case kArmFloat32x4Add:
     case kArmFloat32x4Sub:
+    case kArmFloat32x4Eq:
+    case kArmFloat32x4Ne:
     case kArmInt32x4Splat:
     case kArmInt32x4ExtractLane:
     case kArmInt32x4ReplaceLane:

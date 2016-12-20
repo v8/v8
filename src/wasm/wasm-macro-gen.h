@@ -460,6 +460,7 @@ class LocalDeclEncoder {
       static_cast<byte>(index)
 #define WASM_UNOP(opcode, x) x, static_cast<byte>(opcode)
 #define WASM_BINOP(opcode, x, y) x, y, static_cast<byte>(opcode)
+#define WASM_SIMD_UNOP(opcode, x) x, kSimdPrefix, static_cast<byte>(opcode)
 #define WASM_SIMD_BINOP(opcode, x, y) \
   x, y, kSimdPrefix, static_cast<byte>(opcode)
 

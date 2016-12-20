@@ -3244,12 +3244,22 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprF32x4FromUint32x4:
       return graph()->NewNode(jsgraph()->machine()->Float32x4FromUint32x4(),
                               inputs[0]);
+    case wasm::kExprF32x4Abs:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Abs(), inputs[0]);
+    case wasm::kExprF32x4Neg:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Neg(), inputs[0]);
     case wasm::kExprF32x4Add:
       return graph()->NewNode(jsgraph()->machine()->Float32x4Add(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Sub:
       return graph()->NewNode(jsgraph()->machine()->Float32x4Sub(), inputs[0],
                               inputs[1]);
+    case wasm::kExprF32x4Eq:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Equal(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF32x4Ne:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4NotEqual(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
                               inputs[0], inputs[0], inputs[0]);
