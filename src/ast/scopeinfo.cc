@@ -4,6 +4,8 @@
 
 #include <stdlib.h>
 
+#include "src/objects/scope-info.h"
+
 #include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"

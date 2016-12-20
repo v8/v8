@@ -30,6 +30,7 @@
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
+#include "src/objects/scope-info.h"
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
@@ -8059,29 +8060,6 @@ Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
   return key;
 }
 
-
-bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
-
-
-bool ScopeInfo::IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
-
-
-bool ScopeInfo::HasSimpleParameters() {
-  return HasSimpleParametersField::decode(Flags());
-}
-
-
-#define SCOPE_INFO_FIELD_ACCESSORS(name)                                      \
-  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  int ScopeInfo::name() {                                                     \
-    if (length() > 0) {                                                       \
-      return Smi::cast(get(k##name))->value();                                \
-    } else {                                                                  \
-      return 0;                                                               \
-    }                                                                         \
-  }
-FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
-#undef SCOPE_INFO_FIELD_ACCESSORS
 
 ACCESSORS(ModuleInfoEntry, export_name, Object, kExportNameOffset)
 ACCESSORS(ModuleInfoEntry, local_name, Object, kLocalNameOffset)
