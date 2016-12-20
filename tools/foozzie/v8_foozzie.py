@@ -8,7 +8,9 @@ V8 correctness fuzzer launcher script.
 """
 
 import argparse
+import hashlib
 import itertools
+import json
 import os
 import re
 import sys
@@ -115,6 +117,20 @@ def parse_args():
           os.path.isfile(options.testcase)), (
       'Test case %s doesn\'t exist' % options.testcase)
 
+  resources_path = os.path.join(
+      os.path.dirname(options.testcase),
+      'resources' + os.path.basename(options.testcase)[len('fuzz'):])
+  assert os.path.exists(resources_path), (
+      'Resources file %s doesn\'t exist' % resources_path)
+
+  with open(resources_path) as f:
+    resources = f.read().strip().splitlines()
+    assert len(resources) == 1
+    options.meta_data_path = os.path.join(
+        os.path.dirname(resources_path), resources[0])
+  assert os.path.exists(options.meta_data_path), (
+      'Metadata %s doesn\'t exist' % options.meta_data_path)
+
   # Use first d8 as default for second d8.
   options.second_d8 = options.second_d8 or options.first_d8
 
@@ -181,6 +197,10 @@ def main():
   if test_pattern_bailout(options.testcase, suppress.ignore):
     return RETURN_FAIL
 
+  # Get metadata.
+  with open(options.meta_data_path) as f:
+    metadata = json.load(f)
+
   common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
   first_config_flags = common_flags + CONFIGS[options.first_config]
   second_config_flags = common_flags + CONFIGS[options.second_config]
@@ -219,9 +239,10 @@ def main():
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
+    hsh = lambda x: hashlib.sha1(x).hexdigest()[:8]
     print FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
-        sources='', # TODO
+        sources=','.join(map(hsh, metadata['sources'])),
         suppression='', # We can't tie bugs to differences.
         first_config_label=first_config_label,
         second_config_label=second_config_label,

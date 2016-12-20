@@ -342,6 +342,7 @@ class SourceProcessor(SourceFileProcessor):
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
+                       'resources-test1.js',
                        'rjsmin.py',
                        'script-breakpoint.h',
                        'sqlite.js',
