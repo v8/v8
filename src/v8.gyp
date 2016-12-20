@@ -431,6 +431,7 @@
         'asmjs/switch-logic.cc',
         'assembler.cc',
         'assembler.h',
+        'assembler-inl.h',
         'assert-scope.h',
         'assert-scope.cc',
         'ast/ast-expression-rewriter.cc',

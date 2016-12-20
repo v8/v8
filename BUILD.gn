@@ -892,6 +892,7 @@ v8_source_set("v8_base") {
     "src/asmjs/switch-logic.h",
     "src/assembler.cc",
     "src/assembler.h",
+    "src/assembler-inl.h",
     "src/assert-scope.cc",
     "src/assert-scope.h",
     "src/ast/ast-expression-rewriter.cc",

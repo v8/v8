@@ -4,12 +4,12 @@
 
 #include <memory>
 
+#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/base/atomic-utils.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
-#include "src/macro-assembler.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
 #include "src/simulator.h"
