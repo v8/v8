@@ -14579,13 +14579,18 @@ void SetFunctionEntryHookTest::RunTest() {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
-    } else {
+    } else if (i::FLAG_crankshaft || i::FLAG_turbo) {
       // For ignition we don't see the actual functions being called, instead
-      // we see the IterpreterEntryTrampoline at least 102 times
+      // we see the InterpreterEntryTrampoline at least 102 times
       // (100 unoptimized calls to foo, and 2 calls to bar).
       CHECK_LE(102, CountInvocations(NULL, "InterpreterEntryTrampoline"));
       // We should also see the calls to the optimized function foo.
       CHECK_EQ(100, CountInvocations(NULL, "foo"));
+    } else {
+      // For ignition without an optimizing compiler, we should only see the
+      // InterpreterEntryTrampoline.
+      // (200 unoptimized calls to foo, and 2 calls to bar).
+      CHECK_LE(202, CountInvocations(NULL, "InterpreterEntryTrampoline"));
     }
 
     // Verify that we have an entry hook on some specific stubs.
