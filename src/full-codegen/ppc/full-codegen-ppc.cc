@@ -208,7 +208,8 @@ void FullCodeGenerator::Generate() {
       }
       if (slots <= FastNewFunctionContextStub::MaximumSlots()) {
         FastNewFunctionContextStub stub(isolate(), info->scope()->scope_type());
-        __ mov(FastNewFContextDescriptor::SlotsRegister(), Operand(slots));
+        __ mov(FastNewFunctionContextDescriptor::SlotsRegister(),
+               Operand(slots));
         __ CallStub(&stub);
         // Result of FastNewFunctionContextStub is always in new space.
         need_write_barrier = false;
