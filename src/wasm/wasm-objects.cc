@@ -326,10 +326,10 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     MaybeHandle<String> maybe_name, int func_index, int arity,
     Handle<Code> export_wrapper) {
-  ScopedVector<char> buffer(16);
-  int length = SNPrintF(buffer, "%d", func_index);
   Handle<String> name;
   if (maybe_name.is_null()) {
+    EmbeddedVector<char, 16> buffer;
+    int length = SNPrintF(buffer, "%d", func_index);
     name = isolate->factory()
                ->NewStringFromAscii(
                    Vector<const char>::cast(buffer.SubVector(0, length)))
