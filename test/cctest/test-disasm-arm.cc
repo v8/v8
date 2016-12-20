@@ -1055,6 +1055,8 @@ TEST(Neon) {
               "f2142870       vtst.i16 q1, q2, q8");
       COMPARE(vtst(Neon32, q15, q0, q8),
               "f260e870       vtst.i32 q15, q0, q8");
+      COMPARE(vceq(q0, q1, q2),
+              "f2020e44       vceq.f32 q0, q1, q2");
       COMPARE(vceq(Neon8, q0, q1, q2),
               "f3020854       vceq.i8 q0, q1, q2");
       COMPARE(vceq(Neon16, q1, q2, q8),

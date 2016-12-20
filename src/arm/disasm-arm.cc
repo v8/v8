@@ -1892,6 +1892,14 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         // vmul.i<size> Qd, Qm, Qn.
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vmul.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+      } else if (instr->Bits(21, 20) == 0 && instr->Bits(11, 8) == 0xe &&
+                 instr->Bit(4) == 0) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vceq.f32 Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
       } else {
         Unknown(instr);
       }

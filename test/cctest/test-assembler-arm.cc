@@ -1289,7 +1289,7 @@ TEST(15) {
     uint32_t vadd8[4], vadd16[4], vadd32[4];
     uint32_t vsub8[4], vsub16[4], vsub32[4];
     uint32_t vmul8[4], vmul16[4], vmul32[4];
-    uint32_t vtst[4], vceq[4], vbsl[4];
+    uint32_t vtst[4], vceq[4], vceqf[4], vbsl[4];
     uint32_t vext[4];
     uint32_t vzip8a[4], vzip8b[4], vzip16a[4], vzip16b[4], vzip32a[4],
         vzip32b[4];
@@ -1481,6 +1481,13 @@ TEST(15) {
     __ vdup(q1, s4);
     __ vmul(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmulf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vceq (float).
+    __ vmov(s4, 1.0);
+    __ vdup(q0, s4);
+    __ vdup(q1, s4);
+    __ vceq(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vceqf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
     // vadd (integer).
@@ -1743,6 +1750,7 @@ TEST(15) {
     CHECK_EQ_SPLAT(vaddf, 2.0);
     CHECK_EQ_SPLAT(vsubf, -1.0);
     CHECK_EQ_SPLAT(vmulf, 4.0);
+    CHECK_EQ_SPLAT(vceqf, 0xffffffffu);
     CHECK_EQ_SPLAT(vadd8, 0x03030303u);
     CHECK_EQ_SPLAT(vadd16, 0x00030003u);
     CHECK_EQ_SPLAT(vadd32, 0x00000003u);

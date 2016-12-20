@@ -3983,6 +3983,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             break;
         }
         set_q_register(Vd, src1);
+      } else if (instr->Bits(21, 20) == 0 && instr->Bits(11, 8) == 0xe &&
+                 instr->Bit(4) == 0) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        uint32_t src1[4], src2[4];
+        get_q_register(Vn, src1);
+        get_q_register(Vm, src2);
+        for (int i = 0; i < 4; i++) {
+          src1[i] = bit_cast<float>(src1[i]) == bit_cast<float>(src2[i])
+                        ? 0xFFFFFFFF
+                        : 0;
+        }
+        set_q_register(Vd, src1);
+
       } else {
         UNIMPLEMENTED();
       }
@@ -4495,6 +4510,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         } else {
           UNIMPLEMENTED();
         }
+      } else {
+        UNIMPLEMENTED();
       }
       break;
     case 8:

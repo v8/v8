@@ -4257,6 +4257,21 @@ void Assembler::vtst(NeonSize size, QwNeonRegister dst,
        n * B7 | B6 | m * B5 | B4 | vm);
 }
 
+void Assembler::vceq(const QwNeonRegister dst, const QwNeonRegister src1,
+                     const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vceq(Qn, Qm) SIMD integer compare equal.
+  // Instruction details available in ARM DDI 0406C.b, A8-844.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(0x1E4U * B23 | d * B22 | vn * B16 | vd * B12 | 0xe * B8 | n * B7 | B6 |
+       m * B5 | vm);
+}
+
 void Assembler::vceq(NeonSize size, QwNeonRegister dst,
                      const QwNeonRegister src1, const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
