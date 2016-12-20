@@ -1801,9 +1801,11 @@ class HGraphBuilder {
                                     HValue* previous_object_size,
                                     HValue* payload);
 
-  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant);
+  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
+                                      bool ensure_no_elements = false);
   HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                                        Handle<JSObject> holder);
+                                        Handle<JSObject> holder,
+                                        bool ensure_no_elements = false);
 
   HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
@@ -2377,6 +2379,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                         TailCallMode syntactic_tail_call_mode);
   static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
   static bool CanInlineArrayResizeOperation(Handle<Map> receiver_map);
+  static bool NoElementsInPrototypeChain(Handle<Map> receiver_map);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a

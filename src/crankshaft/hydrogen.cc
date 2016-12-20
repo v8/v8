@@ -7567,27 +7567,38 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   BuildLoad(expr, expr->id());
 }
 
-
-HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant) {
+HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
+                                                   bool ensure_no_elements) {
   HCheckMaps* check = Add<HCheckMaps>(
       Add<HConstant>(constant), handle(constant->map()));
   check->ClearDependsOnFlag(kElementsKind);
+  if (ensure_no_elements) {
+    // TODO(ishell): remove this once we support NO_ELEMENTS elements kind.
+    HValue* elements = AddLoadElements(check, nullptr);
+    HValue* empty_elements =
+        Add<HConstant>(isolate()->factory()->empty_fixed_array());
+    IfBuilder if_empty(this);
+    if_empty.IfNot<HCompareObjectEqAndBranch>(elements, empty_elements);
+    if_empty.ThenDeopt(DeoptimizeReason::kWrongMap);
+    if_empty.End();
+  }
   return check;
 }
 
-
 HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                                                     Handle<JSObject> holder) {
+                                                     Handle<JSObject> holder,
+                                                     bool ensure_no_elements) {
   PrototypeIterator iter(isolate(), prototype, kStartAtReceiver);
   while (holder.is_null() ||
          !PrototypeIterator::GetCurrent(iter).is_identical_to(holder)) {
-    BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));
+    BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter),
+                          ensure_no_elements);
     iter.Advance();
     if (iter.IsAtEnd()) {
       return NULL;
     }
   }
-  return BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));
+  return BuildConstantMapCheck(holder);
 }
 
 
@@ -8448,6 +8459,23 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinGetterCall(
   }
 }
 
+// static
+bool HOptimizedGraphBuilder::NoElementsInPrototypeChain(
+    Handle<Map> receiver_map) {
+  // TODO(ishell): remove this once we support NO_ELEMENTS elements kind.
+  PrototypeIterator iter(receiver_map);
+  Handle<Object> empty_fixed_array =
+      iter.isolate()->factory()->empty_fixed_array();
+  while (true) {
+    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
+    if (current->elements() != *empty_fixed_array) return false;
+    iter.Advance();
+    if (iter.IsAtEnd()) {
+      return true;
+    }
+  }
+}
+
 bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     Handle<JSFunction> function, Handle<Map> receiver_map, BailoutId ast_id,
     int args_count_no_receiver) {
@@ -8702,6 +8730,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     }
     case kArrayShift: {
       if (!CanInlineArrayResizeOperation(receiver_map)) return false;
+      if (!NoElementsInPrototypeChain(receiver_map)) return false;
       ElementsKind kind = receiver_map->elements_kind();
 
       // If there may be elements accessors in the prototype chain, the fast
@@ -8715,7 +8744,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       // in a map change.
       BuildCheckPrototypeMaps(
           handle(JSObject::cast(receiver_map->prototype()), isolate()),
-          Handle<JSObject>::null());
+          Handle<JSObject>::null(), true);
 
       // Threshold for fast inlined Array.shift().
       HConstant* inline_threshold = Add<HConstant>(static_cast<int32_t>(16));
