@@ -2165,6 +2165,10 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kSize;
     default:
+      if (type >= FIRST_ARRAY_ITERATOR_TYPE &&
+          type <= LAST_ARRAY_ITERATOR_TYPE) {
+        return JSArrayIterator::kSize;
+      }
       UNREACHABLE();
       return 0;
   }
