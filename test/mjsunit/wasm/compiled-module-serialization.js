@@ -12,8 +12,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addMemory(1,1, true);
   var kSig_v_i = makeSig([kAstI32], []);
   var signature = builder.addType(kSig_v_i);
-  builder.addImport("some_value", kSig_i_v);
-  builder.addImport("writer", signature);
+  builder.addImport("", "some_value", kSig_i_v);
+  builder.addImport("", "writer", signature);
 
   builder.addFunction("main", kSig_i_i)
     .addBody([
@@ -48,8 +48,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   view_1[0] = 42;
 
   var outval_1;
-  var i1 = new WebAssembly.Instance(module, {some_value: () => 1,
-                                    writer: (x)=>outval_1 = x }, mem_1);
+  var i1 = new WebAssembly.Instance(module, {"": {some_value: () => 1,
+                                                  writer: (x)=>outval_1 = x }}, mem_1);
 
   assertEquals(43, i1.exports.main(0));
 

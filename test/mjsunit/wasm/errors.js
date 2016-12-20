@@ -71,13 +71,13 @@ function assertConversionError(bytes, imports = {}) {
   let b;
 
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertTypeError(b.toBuffer(), {});
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {}});
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {bar: 9}});
 
   b = builder();
@@ -132,7 +132,7 @@ function assertConversionError(bytes, imports = {}) {
 
 (function TestConversionError() {
   let b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_l);
+  b.addImport("foo", "bar", kSig_v_l);
   assertConversionError(b.addFunction("run", kSig_v_v).addBody([
     kExprI64Const, 0, kExprCallFunction, 0
   ]).exportFunc().end().toBuffer());

@@ -328,10 +328,10 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     size_t start = EmitSection(kImportSectionCode, buffer);
     buffer.write_size(imports_.size());
     for (auto import : imports_) {
-      buffer.write_u32v(import.name_length);  // module name length
-      buffer.write(reinterpret_cast<const byte*>(import.name),  // module name
+      buffer.write_u32v(0);                   // module name length
+      buffer.write_u32v(import.name_length);  // field name length
+      buffer.write(reinterpret_cast<const byte*>(import.name),  // field name
                    import.name_length);
-      buffer.write_u32v(0);  // field name length
       buffer.write_u8(kExternalFunction);
       buffer.write_u32v(import.sig_index);
     }

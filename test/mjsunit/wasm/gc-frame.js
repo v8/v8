@@ -11,7 +11,7 @@ function makeFFI(func, t) {
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(makeSig([t,t,t,t,t,t,t,t,t,t], [t]));
-  builder.addImport("func", sig_index);
+  builder.addImport("m", "func", sig_index);
   // Try to create a frame with lots of spilled values and parameters
   // on the stack to try to catch GC bugs in the reference maps for
   // the different parts of the stack.
@@ -43,7 +43,7 @@ function makeFFI(func, t) {
     ])                          // --
     .exportFunc();
 
-  return builder.instantiate({func: func}).exports.main;
+  return builder.instantiate({m: {func: func}}).exports.main;
 }
 
 

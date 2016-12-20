@@ -27,13 +27,13 @@ function instantiate(buffer, ffi) {
 
 (function ImportTest() {
     let builder = new WasmModuleBuilder();
-    var index = builder.addImport("print", makeSig_v_x(kAstI32));
+  var index = builder.addImport("", "print", makeSig_v_x(kAstI32));
     builder.addFunction("foo", kSig_v_v)
         .addBody([kExprI8Const, 13, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = builder.toBuffer(debug);
-    var instance = instantiate(buffer, {print: print});
+    var instance = instantiate(buffer, {"": {print: print}});
     print("should print 13! ");
     instance.exports.main();
 })();
@@ -145,7 +145,7 @@ function instantiate(buffer, ffi) {
 
 (function ImportTestTwoLevel() {
     let builder = new WasmModuleBuilder();
-    var index = builder.addImportWithModule("mod", "print", makeSig_v_x(kAstI32));
+    var index = builder.addImport("mod", "print", makeSig_v_x(kAstI32));
     builder.addFunction("foo", kSig_v_v)
         .addBody([kExprI8Const, 19, kExprCallFunction, index])
         .exportAs("main");

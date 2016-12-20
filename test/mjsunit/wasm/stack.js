@@ -42,7 +42,7 @@ function STACK() {
 
 var builder = new WasmModuleBuilder();
 
-builder.addImport("func", kSig_v_v);
+builder.addImport("mod", "func", kSig_v_v);
 
 builder.addFunction("main", kSig_v_v)
   .addBody([kExprCallFunction, 0])
@@ -63,7 +63,7 @@ builder.addFunction("call_mem_out_of_bounds", kSig_i_v)
   .addBody([kExprCallFunction, mem_oob_func.index])
   .exportAs("call_mem_out_of_bounds");
 
-var module = builder.instantiate({func: STACK});
+var module = builder.instantiate({mod: {func: STACK}});
 
 (function testSimpleStack() {
   var expected_string = "Error\n" +

@@ -39,7 +39,7 @@ let exportingModuleBinary = (() => {
 
 let importingModuleBinary = (() => {
   var builder = new WasmModuleBuilder();
-  builder.addImport("f", kSig_i_v);
+  builder.addImport("", "f", kSig_i_v);
   return new Int8Array(builder.toBuffer());
 })();
 

@@ -280,9 +280,6 @@ class ModuleDecoder : public Decoder {
         const byte* pos = pc_;
         import->module_name_offset =
             consume_string(&import->module_name_length, true);
-        if (import->module_name_length == 0) {
-          error(pos, "import module name cannot be NULL");
-        }
         import->field_name_offset =
             consume_string(&import->field_name_length, true);
 

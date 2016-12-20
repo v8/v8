@@ -79,32 +79,32 @@ var test_catch = (function () {
       throw value;
     }
     var sig_index = builder.addType(kSig_v_i);
-    var kJSThrowI = builder.addImport("throw_i", sig_index);
+    var kJSThrowI = builder.addImport("", "throw_i", sig_index);
 
     // Helper function that throws a string. Wasm should not catch it.
     function throw_string() {
       throw "use wasm;";
     }
     sig_index = builder.addType(kSig_v_v);
-    var kJSThrowString = builder.addImport("throw_string", sig_index);
+    var kJSThrowString = builder.addImport("", "throw_string", sig_index);
 
     // Helper function that throws undefined. Wasm should not catch it.
     function throw_undefined() {
       throw undefined;
     }
-    var kJSThrowUndefined = builder.addImport("throw_undefined", sig_index);
+    var kJSThrowUndefined = builder.addImport("", "throw_undefined", sig_index);
 
     // Helper function that throws an fp. Wasm should not catch it.
     function throw_fp() {
       throw 10.5;
     }
-    var kJSThrowFP = builder.addImport("throw_fp", sig_index);
+    var kJSThrowFP = builder.addImport("", "throw_fp", sig_index);
 
     // Helper function that throws a large number. Wasm should not catch it.
     function throw_large() {
       throw 1e+28;
     }
-    var kJSThrowLarge = builder.addImport("throw_large", sig_index);
+    var kJSThrowLarge = builder.addImport("", "throw_large", sig_index);
 
     // Helper function for throwing from WebAssembly.
     var kWasmThrowFunction =
@@ -335,13 +335,13 @@ var test_catch = (function () {
       ])
       .exportFunc();
 
-  return builder.instantiate({
+  return builder.instantiate({"": {
       throw_i: throw_value,
       throw_string: throw_string,
       throw_fp: throw_fp,
       throw_large, throw_large,
       throw_undefined: throw_undefined
-  });
+  }});
 })();
 
 // Check the test_catch exists.

@@ -48,7 +48,7 @@ var builder = new WasmModuleBuilder();
 // wasm_1 calls wasm_2 on offset 2.
 // wasm_2 calls call_debugger on offset 1.
 
-builder.addImport('func', kSig_v_v);
+builder.addImport("mod", 'func', kSig_v_v);
 
 builder.addFunction('wasm_1', kSig_v_v)
     .addBody([kExprNop, kExprCallFunction, 2])
@@ -60,7 +60,7 @@ function call_debugger() {
   debugger;
 }
 
-var module = builder.instantiate({func: call_debugger});
+var module = builder.instantiate({mod: {func: call_debugger}});
 
 (function testFrameInspection() {
   Debug.setListener(listener);

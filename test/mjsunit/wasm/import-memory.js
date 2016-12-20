@@ -13,14 +13,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(kPageSize, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
   let builder = new WasmModuleBuilder();
-  builder.addImportedMemory("mine");
+  builder.addImportedMemory("mod", "mine");
   builder.addFunction("main", kSig_i_v)
     .addBody([
       kExprI32Const, 0,
       kExprI32LoadMem, 0, 0])
     .exportAs("main");
 
-  let main = builder.instantiate({mine: memory}).exports.main;
+  let main = builder.instantiate({mod: {mine: memory}}).exports.main;
   assertEquals(0, main());
 
   i32[0] = 993377;
@@ -33,10 +33,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let memory = new WebAssembly.Memory({initial: 1});
   let i32 = new Int32Array(memory.buffer);
   let builder = new WasmModuleBuilder();
-  builder.addImportedMemory("garg");
+  builder.addImportedMemory("dad", "garg");
   builder.exportMemoryAs("daggle");
 
-  let instance = builder.instantiate({garg: memory});
+  let instance = builder.instantiate({dad: {garg: memory}});
   assertSame(memory, instance.exports.daggle);
 })();
 
@@ -59,13 +59,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 1, false);
-    builder.addImportedMemory("imported_mem");
+    builder.addImportedMemory("fil", "imported_mem");
     builder.addFunction("bar", kSig_i_i)
       .addBody([
         kExprGetLocal, 0,
         kExprI32LoadMem, 0, 0])
       .exportAs("bar");
-    i2 = builder.instantiate({imported_mem: i1.exports.exported_mem});
+    i2 = builder.instantiate({fil: {imported_mem: i1.exports.exported_mem}});
   }
 
   let i32 = new Int32Array(i1.exports.exported_mem.buffer);
@@ -86,8 +86,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(kPageSize, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
   let builder = new WasmModuleBuilder();
-  // builder.addImportedMemory("mine");
-  builder.addImportedMemory("mine");
+  builder.addImportedMemory("gaz", "mine");
   builder.addFunction("load", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
@@ -96,7 +95,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                 kExprGetLocal, 1])
       .exportFunc();
   var offset;
-  let instance = builder.instantiate({mine: memory});
+  let instance = builder.instantiate({gaz: {mine: memory}});
   function load() { return instance.exports.load(offset); }
   function store(value) { return instance.exports.store(offset, value); }
 
@@ -117,7 +116,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(kPageSize, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
   let builder = new WasmModuleBuilder();
-  builder.addImportedMemory("mine", "", 0, 20);
+  builder.addImportedMemory("mine", "dog", 0, 20);
   builder.addFunction("load", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
@@ -126,7 +125,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                 kExprGetLocal, 1])
       .exportFunc();
   var offset;
-  let instance = builder.instantiate({mine: memory});
+  let instance = builder.instantiate({mine: {dog: memory}});
   function load() { return instance.exports.load(offset); }
   function store(value) { return instance.exports.store(offset, value); }
 
@@ -155,7 +154,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
   let builder = new WasmModuleBuilder();
-  builder.addImportedMemory("mine");
+  builder.addImportedMemory("mine", "fro");
   builder.addFunction("load", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
@@ -164,7 +163,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                 kExprGetLocal, 1])
       .exportFunc();
   var offset;
-  let instance = builder.instantiate({mine: memory});
+  let instance = builder.instantiate({mine: {fro: memory}});
   function load() { return instance.exports.load(offset); }
   function store(value) { return instance.exports.store(offset, value); }
 
@@ -189,8 +188,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("grow", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
       .exportFunc();
-  builder.addImportedMemory("mine");
-  let instance = builder.instantiate({mine: memory});
+  builder.addImportedMemory("cat", "mine");
+  let instance = builder.instantiate({cat: {mine: memory}});
   function grow(pages) { return instance.exports.grow(pages); }
   assertEquals(2, grow(3));
   assertEquals(5*kPageSize, memory.buffer.byteLength);
@@ -212,15 +211,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var instance;
   {
     var builder = new WasmModuleBuilder();
-    builder.addImportedMemory("imported_mem");
+    builder.addImportedMemory("fur", "imported_mem");
     builder.addFunction("mem_size", kSig_i_v)
       .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
     builder.addFunction("grow", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
       .exportFunc();
-    instance = builder.instantiate({
-      imported_mem: exp_instance.exports.exported_mem});
+    instance = builder.instantiate({fur: {
+      imported_mem: exp_instance.exports.exported_mem}});
   }
   for (var i = initial_size; i < maximum_size; i++) {
     assertEquals(i, instance.exports.grow(1));
@@ -233,7 +232,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print("TestMemoryGrowWebAssemblyInstances");
   let memory = new WebAssembly.Memory({initial: 1, maximum: 15});
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("imported_mem");
+  builder.addImportedMemory("lit", "imported_mem");
   builder.addFunction("mem_size", kSig_i_v)
     .addBody([kExprMemorySize, kMemoryZero])
     .exportAs("mem_size");
@@ -243,7 +242,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var module = new WebAssembly.Module(builder.toBuffer());
   var instances = [];
   for (var i = 0; i < 6; i++) {
-    instances.push(new WebAssembly.Instance(module, {imported_mem: memory}));
+    instances.push(new WebAssembly.Instance(module, {lit: {imported_mem: memory}}));
   }
   function verify_mem_size(expected_pages) {
     assertEquals(expected_pages*kPageSize,
@@ -274,7 +273,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print("TestImportMemoryMultipleInstances");
   let memory = new WebAssembly.Memory({initial: 5, maximum: 100});
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("imported_mem");
+  builder.addImportedMemory("nob", "imported_mem");
   builder.addFunction("mem_size", kSig_i_v)
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
@@ -283,7 +282,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 5; i++) {
-    instances.push(builder.instantiate({imported_mem: memory}));
+    instances.push(builder.instantiate({nob: {imported_mem: memory}}));
   }
   function grow_instance_0(pages) { return instances[0].exports.grow(pages); }
   function grow_instance_1(pages) { return instances[1].exports.grow(pages); }
@@ -342,7 +341,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     instance = builder.instantiate();
   }
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("imported_mem");
+  builder.addImportedMemory("doo", "imported_mem");
   builder.addFunction("mem_size", kSig_i_v)
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
@@ -352,7 +351,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var instances = [];
   for (var i = 0; i < 10; i++) {
     instances.push(builder.instantiate({
-      imported_mem: instance.exports.exported_mem}));
+      doo: {imported_mem: instance.exports.exported_mem}}));
   }
   function verify_mem_size(expected_pages) {
     for (var i = 0; i < 10; i++) {

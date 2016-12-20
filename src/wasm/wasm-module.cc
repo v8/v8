@@ -1462,21 +1462,16 @@ class WasmInstanceBuilder {
 
     Handle<Object> module = result.ToHandleChecked();
 
-    // TODO(bradnelson): Making this conditional on non-empty names violates the
-    // Wasm spec, but seems to be a hack intended for the asm-to-wasm pipeline.
-    // We need to get rid of it.
-    if (import_name->length() != 0) {
-      // Look up the value in the module.
-      if (!module->IsJSReceiver()) {
-        return ReportTypeError("module is not an object or function", index,
-                               module_name);
-      }
+    // Look up the value in the module.
+    if (!module->IsJSReceiver()) {
+      return ReportTypeError("module is not an object or function", index,
+                             module_name);
+    }
 
-      result = Object::GetPropertyOrElement(module, import_name);
-      if (result.is_null()) {
-        ReportLinkError("import not found", index, module_name, import_name);
-        return MaybeHandle<JSFunction>();
-      }
+    result = Object::GetPropertyOrElement(module, import_name);
+    if (result.is_null()) {
+      ReportLinkError("import not found", index, module_name, import_name);
+      return MaybeHandle<JSFunction>();
     }
 
     return result;

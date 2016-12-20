@@ -141,11 +141,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   function js() {}
 
-  var a = builder.addImport("a", kSig_v_v);
+  var a = builder.addImport("m", "a", kSig_v_v);
   builder.addExport("f", a);
   builder.addExport("g", a);
 
-  let instance = builder.instantiate({a: js});
+  let instance = builder.instantiate({m: {a: js}});
   let e = instance.exports;
   assertEquals("function", typeof e.f);
   assertEquals("function", typeof e.g);
@@ -161,12 +161,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   function js() {}
 
-  var a = builder.addImport("a", kSig_v_v);
-  var b = builder.addImport("b", kSig_v_v);
+  var a = builder.addImport("q", "a", kSig_v_v);
+  var b = builder.addImport("q", "b", kSig_v_v);
   builder.addExport("f", a);
   builder.addExport("g", b);
 
-  let instance = builder.instantiate({a: js, b: js});
+  let instance = builder.instantiate({q: {a: js, b: js}});
   let e = instance.exports;
   assertEquals("function", typeof e.f);
   assertEquals("function", typeof e.g);

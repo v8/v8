@@ -179,32 +179,28 @@ class WasmModuleBuilder {
     return func;
   }
 
-  addImportWithModule(module, name, type) {
+  addImport(module = "", name, type) {
     let type_index = (typeof type) == "number" ? type : this.addType(type);
     this.imports.push({module: module, name: name, kind: kExternalFunction,
                        type: type_index});
     return this.num_imported_funcs++;
   }
 
-  addImport(name, type) {
-    return this.addImportWithModule(name, undefined, type);
-  }
-
-  addImportedGlobal(module, name, type) {
+  addImportedGlobal(module = "", name, type) {
     let o = {module: module, name: name, kind: kExternalGlobal, type: type,
              mutable: false}
     this.imports.push(o);
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module, name, initial = 0, maximum) {
+  addImportedMemory(module = "", name, initial = 0, maximum) {
     let o = {module: module, name: name, kind: kExternalMemory,
              initial: initial, maximum: maximum};
     this.imports.push(o);
     return this;
   }
 
-  addImportedTable(module, name, initial, maximum) {
+  addImportedTable(module = "", name, initial, maximum) {
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
              maximum: maximum};
     this.imports.push(o);

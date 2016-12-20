@@ -257,8 +257,18 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
 
   ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
 
+  // Create the ffi object for foreign functions {"": foreign}.
+  Handle<JSObject> ffi_object;
+  if (!foreign.is_null()) {
+    Handle<JSFunction> object_function = Handle<JSFunction>(
+        isolate->native_context()->object_function(), isolate);
+    ffi_object = isolate->factory()->NewJSObject(object_function);
+    JSObject::AddProperty(ffi_object, isolate->factory()->empty_string(),
+                          foreign, NONE);
+  }
+
   i::MaybeHandle<i::JSObject> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, &thrower, module, foreign,
+      i::wasm::WasmModule::Instantiate(isolate, &thrower, module, ffi_object,
                                        memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();

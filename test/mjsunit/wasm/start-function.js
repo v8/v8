@@ -99,15 +99,15 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
 (function testStartFFI() {
   print("testStartFFI");
   var ranned = false;
-  var ffi = { foo : function() {
+  var ffi = {gak: {foo : function() {
     print("we ranned at stert!");
     ranned = true;
-  }};
+  }}};
 
   var builder = new WasmModuleBuilder();
   var sig_index = builder.addType(kSig_v_v);
 
-  builder.addImport("foo", sig_index);
+  builder.addImport("gak", "foo", sig_index);
   var func = builder.addFunction("", sig_index)
     .addBody([kExprCallFunction, 0]);
 

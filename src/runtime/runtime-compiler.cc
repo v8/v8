@@ -92,11 +92,11 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   Handle<JSObject> foreign;
   if (args[2]->IsJSObject()) {
-    foreign = args.at<i::JSObject>(2);
+    foreign = args.at<JSObject>(2);
   }
   Handle<JSArrayBuffer> memory;
   if (args[3]->IsJSArrayBuffer()) {
-    memory = args.at<i::JSArrayBuffer>(3);
+    memory = args.at<JSArrayBuffer>(3);
   }
   if (function->shared()->HasAsmWasmData() &&
       AsmJs::IsStdlibValid(isolate, handle(function->shared()->asm_wasm_data()),
