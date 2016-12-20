@@ -600,7 +600,6 @@ DEFINE_BOOL(script_streaming, true, "enable parsing on background")
 
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")
-DEFINE_STRING(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_BOOL(expose_free_buffer, false, "expose freeBuffer extension")
 DEFINE_BOOL(expose_gc, false, "expose gc extension")
 DEFINE_STRING(expose_gc_as, NULL,
