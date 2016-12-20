@@ -136,11 +136,9 @@ TEST(LocalEmbedderHeapTracer, TraceFinishes) {
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
   EXPECT_CALL(remote_tracer, RegisterV8References(_));
   EXPECT_CALL(remote_tracer, AdvanceTracing(0, _)).WillOnce(Return(false));
-  EXPECT_EQ(
-      false,
-      local_tracer.Trace(
-          0, EmbedderHeapTracer::AdvanceTracingActions(
-                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
+  EXPECT_FALSE(local_tracer.Trace(
+      0, EmbedderHeapTracer::AdvanceTracingActions(
+             EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
   EXPECT_EQ(0u, local_tracer.NumberOfCachedWrappersToTrace());
 }
 
@@ -152,11 +150,9 @@ TEST(LocalEmbedderHeapTracer, TraceDoesNotFinish) {
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
   EXPECT_CALL(remote_tracer, RegisterV8References(_));
   EXPECT_CALL(remote_tracer, AdvanceTracing(0, _)).WillOnce(Return(true));
-  EXPECT_EQ(
-      true,
-      local_tracer.Trace(
-          0, EmbedderHeapTracer::AdvanceTracingActions(
-                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
+  EXPECT_TRUE(local_tracer.Trace(
+      0, EmbedderHeapTracer::AdvanceTracingActions(
+             EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
   EXPECT_EQ(0u, local_tracer.NumberOfCachedWrappersToTrace());
 }
 
