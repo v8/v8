@@ -2724,11 +2724,11 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 #if V8_TARGET_ARCH_S390X
 static const FourByteInstr kInterruptBranchInstruction = 0xA7A40011;
 static const FourByteInstr kOSRBranchInstruction = 0xA7040011;
-static const int16_t kBackEdgeBranchOffset = 0x11 * 2;
+static const int16_t kBackEdgeBranchOffsetInHalfWords = 0x11;
 #else
 static const FourByteInstr kInterruptBranchInstruction = 0xA7A4000D;
 static const FourByteInstr kOSRBranchInstruction = 0xA704000D;
-static const int16_t kBackEdgeBranchOffset = 0xD * 2;
+static const int16_t kBackEdgeBranchOffsetInHalfWords = 0xD;
 #endif
 
 void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
@@ -2746,7 +2746,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
       //         brasrl    r14, <interrupt stub address>
       //  <reset profiling counter>
       //  ok-label
-      patcher.masm()->brc(ge, Operand(kBackEdgeBranchOffset));
+      patcher.masm()->brc(ge, Operand(kBackEdgeBranchOffsetInHalfWords));
       break;
     }
     case ON_STACK_REPLACEMENT:
@@ -2755,7 +2755,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
       //         brasrl    r14, <interrupt stub address>
       //  <reset profiling counter>
       //  ok-label ----- pc_after points here
-      patcher.masm()->brc(CC_NOP, Operand(kBackEdgeBranchOffset));
+      patcher.masm()->brc(CC_NOP, Operand(kBackEdgeBranchOffsetInHalfWords));
       break;
   }
 

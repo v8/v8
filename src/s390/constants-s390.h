@@ -1542,13 +1542,13 @@ typedef uint64_t SixByteInstr;
   V(lcr, LCR, 0x13)     /* type = RR    LOAD COMPLEMENT (32)  */               \
   V(nr, NR, 0x14)       /* type = RR    AND (32)  */                           \
   V(clr, CLR, 0x15)     /* type = RR    COMPARE LOGICAL (32)  */               \
-  V(or, OR, 0x16)       /* type = RR    OR (32)  */                            \
+  V(or_z, OR, 0x16)     /* type = RR    OR (32)  */                            \
   V(xr, XR, 0x17)       /* type = RR    EXCLUSIVE OR (32)  */                  \
   V(lr, LR, 0x18)       /* type = RR    LOAD (32)  */                          \
-  V(cr, CR, 0x19)       /* type = RR    COMPARE (32)  */                       \
+  V(cr_z, CR, 0x19)     /* type = RR    COMPARE (32)  */                       \
   V(ar, AR, 0x1A)       /* type = RR    ADD (32)  */                           \
   V(sr, SR, 0x1B)       /* type = RR    SUBTRACT (32)  */                      \
-  V(mr, MR, 0x1C)       /* type = RR    MULTIPLY (64<-32)  */                  \
+  V(mr_z, MR, 0x1C)     /* type = RR    MULTIPLY (64<-32)  */                  \
   V(dr, DR, 0x1D)       /* type = RR    DIVIDE (32<-64)  */                    \
   V(alr, ALR, 0x1E)     /* type = RR    ADD LOGICAL (32)  */                   \
   V(slr, SLR, 0x1F)     /* type = RR    SUBTRACT LOGICAL (32)  */              \
