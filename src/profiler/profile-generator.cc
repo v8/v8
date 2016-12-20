@@ -424,11 +424,6 @@ namespace {
 void BuildNodeValue(const ProfileNode* node, TracedValue* value) {
   const CodeEntry* entry = node->entry();
   value->BeginDictionary("callFrame");
-// TODO(alph): Extra check to help catch crbug.com/665398
-// Remove before 5.8 branch
-#if V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION == 7
-  CHECK(entry->name());
-#endif
   value->SetString("functionName", entry->name());
   if (*entry->resource_name()) {
     value->SetString("url", entry->resource_name());
