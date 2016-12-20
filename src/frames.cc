@@ -1559,10 +1559,10 @@ Address WasmFrame::GetCallerStackPointer() const {
 }
 
 WasmInstanceObject* WasmFrame::wasm_instance() const {
-  Object* ret = wasm::GetOwningWasmInstance(LookupCode());
-  // This is a live stack frame, there must be a live wasm instance available.
-  DCHECK_NOT_NULL(ret);
-  return WasmInstanceObject::cast(ret);
+  WasmInstanceObject* obj = wasm::GetOwningWasmInstance(LookupCode());
+  // This is a live stack frame; it must have a live instance.
+  DCHECK_NOT_NULL(obj);
+  return obj;
 }
 
 uint32_t WasmFrame::function_index() const {

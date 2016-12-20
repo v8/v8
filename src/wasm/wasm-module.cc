@@ -786,7 +786,7 @@ WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
   DisallowHeapAllocation no_gc;
   FixedArray* deopt_data = code->deoptimization_data();
   DCHECK_NOT_NULL(deopt_data);
-  DCHECK(deopt_data->length() == 2);
+  DCHECK_EQ(2, deopt_data->length());
   Object* weak_link = deopt_data->get(0);
   DCHECK(weak_link->IsWeakCell());
   WeakCell* cell = WeakCell::cast(weak_link);
