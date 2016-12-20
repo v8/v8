@@ -828,7 +828,11 @@ bool InstructionSelector::IsSourcePositionUsed(Node* node) {
 void InstructionSelector::VisitBlock(BasicBlock* block) {
   DCHECK(!current_block_);
   current_block_ = block;
-  int current_block_end = static_cast<int>(instructions_.size());
+  auto current_num_instructions = [&] {
+    DCHECK_GE(kMaxInt, instructions_.size());
+    return static_cast<int>(instructions_.size());
+  };
+  int current_block_end = current_num_instructions();
 
   int effect_level = 0;
   for (Node* const node : *block) {
@@ -847,10 +851,25 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     SetEffectLevel(block->control_input(), effect_level);
   }
 
+  auto FinishEmittedInstructions = [&](Node* node, int instruction_start) {
+    if (instruction_selection_failed()) return false;
+    if (current_num_instructions() == instruction_start) return true;
+    std::reverse(instructions_.begin() + instruction_start,
+                 instructions_.end());
+    if (!node) return true;
+    SourcePosition source_position = source_positions_->GetSourcePosition(node);
+    if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
+      sequence()->SetSourcePosition(instructions_[instruction_start],
+                                    source_position);
+    }
+    return true;
+  };
+
   // Generate code for the block control "top down", but schedule the code
   // "bottom up".
   VisitControl(block);
-  std::reverse(instructions_.begin() + current_block_end, instructions_.end());
+  if (!FinishEmittedInstructions(block->control_input(), current_block_end))
+    return;
 
   // Visit code in reverse control flow order, because architecture-specific
   // matching may cover more than one node at a time.
@@ -859,17 +878,9 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (!IsUsed(node) || IsDefined(node)) continue;
     // Generate code for this node "top down", but schedule the code "bottom
     // up".
-    size_t current_node_end = instructions_.size();
+    int current_node_end = current_num_instructions();
     VisitNode(node);
-    if (instruction_selection_failed()) return;
-    std::reverse(instructions_.begin() + current_node_end, instructions_.end());
-    if (instructions_.size() == current_node_end) continue;
-    // Mark source position on first instruction emitted.
-    SourcePosition source_position = source_positions_->GetSourcePosition(node);
-    if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
-      sequence()->SetSourcePosition(instructions_[current_node_end],
-                                    source_position);
-    }
+    if (!FinishEmittedInstructions(node, current_node_end)) return;
   }
 
   // We're done with the block.
