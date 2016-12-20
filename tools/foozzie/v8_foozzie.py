@@ -33,7 +33,7 @@ TIMEOUT = 3
 
 # Return codes.
 RETURN_PASS = 0
-RETURN_FAILURE = 2
+RETURN_FAIL = 2
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 PREAMBLE = [
@@ -47,16 +47,15 @@ FLAGS = ['--abort_on_stack_overflow', '--expose-gc', '--allow-natives-syntax',
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
 # Output for suppressed failure case.
-FAILURE_HEADER_TEMPLATE = """
-#
+FAILURE_HEADER_TEMPLATE = """#
 # V8 correctness failure
 # V8 correctness configs: %(configs)s
 # V8 correctness sources: %(sources)s
-# V8 correctness suppression: %(suppression)s""".strip()
+# V8 correctness suppression: %(suppression)s
+"""
 
 # Extended output for failure case. The 'CHECK' is for the minimizer.
-FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """
-#
+FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 # CHECK
 #
 # Compared %(first_config_label)s with %(second_config_label)s
@@ -76,7 +75,7 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """
 ### Start of configuration %(second_config_label)s:
 %(second_config_output)s
 ### End of configuration %(second_config_label)s
-""".strip()
+"""
 
 
 def parse_args():
@@ -180,15 +179,19 @@ def main():
   )
 
   if test_pattern_bailout(options.testcase, suppress.ignore):
-    return RETURN_FAILURE
+    return RETURN_FAIL
 
   common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
   first_config_flags = common_flags + CONFIGS[options.first_config]
   second_config_flags = common_flags + CONFIGS[options.second_config]
 
   def run_d8(d8, config_flags):
+    args = [d8] + config_flags + PREAMBLE + [options.testcase]
+    if d8.endswith('.py'):
+      # Wrap with python in tests.
+      args = [sys.executable] + args
     return v8_commands.Execute(
-        [d8] + config_flags + PREAMBLE + [options.testcase],
+        args,
         cwd=os.path.dirname(options.testcase),
         timeout=TIMEOUT,
     )
@@ -199,7 +202,7 @@ def main():
   if pass_bailout(first_config_output, 1):
     return RETURN_PASS
   if fail_bailout(first_config_output, suppress.ignore_by_output1):
-    return RETURN_FAILURE
+    return RETURN_FAIL
 
   second_config_output = run_d8(options.second_d8, second_config_flags)
 
@@ -207,7 +210,7 @@ def main():
   if pass_bailout(second_config_output, 2):
     return RETURN_PASS
   if fail_bailout(second_config_output, suppress.ignore_by_output2):
-    return RETURN_FAILURE
+    return RETURN_FAIL
 
   difference = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
@@ -228,7 +231,7 @@ def main():
         second_config_output=second_config_output.stdout,
         difference=difference,
     )
-    return RETURN_FAILURE
+    return RETURN_FAIL
 
   # TODO(machenbach): Figure out if we could also return a bug in case there's
   # no difference, but one of the line suppressions has matched - and without
@@ -246,12 +249,12 @@ if __name__ == "__main__":
     # Use one label for all internal and usage errors.
     print FAILURE_HEADER_TEMPLATE % dict(
         configs='', sources='', suppression='wrong_usage')
-    result = RETURN_FAILURE
+    result = RETURN_FAIL
   except Exception as e:
     print FAILURE_HEADER_TEMPLATE % dict(
         configs='', sources='', suppression='internal_error')
     print '# Internal error: %s' % e
     traceback.print_exc(file=sys.stdout)
-    result = RETURN_FAILURE
+    result = RETURN_FAIL
 
   sys.exit(result)
