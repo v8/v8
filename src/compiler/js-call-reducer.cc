@@ -262,6 +262,7 @@ MaybeHandle<Map> InferReceiverMap(Node* node) {
 bool CanInlineApiCall(Isolate* isolate, Node* node,
                       Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(node->opcode() == IrOpcode::kJSCallFunction);
+  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
   if (function_template_info->call_code()->IsUndefined(isolate)) {
     return false;
   }
