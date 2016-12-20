@@ -3699,6 +3699,12 @@ class V8_EXPORT Function : public Object {
  */
 class V8_EXPORT Promise : public Object {
  public:
+  /**
+   * State of the promise. Each value corresponds to one of the possible values
+   * of the [[PromiseState]] field.
+   */
+  enum PromiseState { kPending, kFulfilled, kRejected };
+
   class V8_EXPORT Resolver : public Object {
    public:
     /**
@@ -3754,6 +3760,17 @@ class V8_EXPORT Promise : public Object {
    * therefore resolve/reject handlers (including default handler).
    */
   bool HasHandler();
+
+  /**
+   * Returns the content of the [[PromiseResult]] field. The Promise must not
+   * be pending.
+   */
+  Local<Value> Result();
+
+  /**
+   * Returns the value of the [[PromiseState]] field.
+   */
+  PromiseState State();
 
   V8_INLINE static Promise* Cast(Value* obj);
 

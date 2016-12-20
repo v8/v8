@@ -109,7 +109,7 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
                     Handle<Smi> status, Handle<Object> value) {
   // Check if there are any callbacks.
   if (!promise->deferred()->IsUndefined(isolate)) {
-    Handle<Object> tasks((status->value() == kPromiseFulfilled)
+    Handle<Object> tasks((status->value() == v8::Promise::kFulfilled)
                              ? promise->fulfill_reactions()
                              : promise->reject_reactions(),
                          isolate);
@@ -131,7 +131,7 @@ RUNTIME_FUNCTION(Runtime_PromiseReject) {
 
   PromiseRejectEvent(isolate, promise, promise, reason, debug_event);
 
-  Handle<Smi> status(Smi::FromInt(kPromiseRejected), isolate);
+  Handle<Smi> status(Smi::FromInt(v8::Promise::kRejected), isolate);
   PromiseFulfill(isolate, promise, status, reason);
   return isolate->heap()->undefined_value();
 }

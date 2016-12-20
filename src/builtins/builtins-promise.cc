@@ -230,7 +230,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
   {
     Label fulfilled_check(this);
     Node* const status = LoadObjectField(promise, JSPromise::kStatusOffset);
-    GotoUnless(SmiEqual(status, SmiConstant(kPromisePending)),
+    GotoUnless(SmiEqual(status, SmiConstant(v8::Promise::kPending)),
                &fulfilled_check);
 
     Node* const existing_deferred =
@@ -304,12 +304,13 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     {
       Label reject(this);
       Node* const result = LoadObjectField(promise, JSPromise::kResultOffset);
-      GotoUnless(WordEqual(status, SmiConstant(kPromiseFulfilled)), &reject);
+      GotoUnless(WordEqual(status, SmiConstant(v8::Promise::kFulfilled)),
+                 &reject);
 
       // TODO(gsathya): Move this to TF.
       CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise, result,
                   var_on_resolve.value(), deferred,
-                  SmiConstant(kPromiseFulfilled));
+                  SmiConstant(v8::Promise::kFulfilled));
       Goto(&out);
 
       Bind(&reject);
@@ -326,7 +327,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
         {
           CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise,
                       result, var_on_reject.value(), deferred,
-                      SmiConstant(kPromiseRejected));
+                      SmiConstant(v8::Promise::kRejected));
 
           Goto(&out);
         }
@@ -415,7 +416,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
         LoadObjectField(result, JSPromise::kResultOffset);
 
     Label if_isnotpending(this);
-    GotoUnless(SmiEqual(SmiConstant(kPromisePending), thenable_status),
+    GotoUnless(SmiEqual(SmiConstant(v8::Promise::kPending), thenable_status),
                &if_isnotpending);
 
     // TODO(gsathya): Use a marker here instead of the actual then
@@ -430,13 +431,13 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     Bind(&if_isnotpending);
     {
       Label if_fulfilled(this), if_rejected(this);
-      Branch(SmiEqual(SmiConstant(kPromiseFulfilled), thenable_status),
+      Branch(SmiEqual(SmiConstant(v8::Promise::kFulfilled), thenable_status),
              &if_fulfilled, &if_rejected);
 
       Bind(&if_fulfilled);
       {
         CallRuntime(Runtime::kPromiseFulfill, context, promise,
-                    SmiConstant(kPromiseFulfilled), thenable_value);
+                    SmiConstant(v8::Promise::kFulfilled), thenable_value);
         PromiseSetHasHandler(promise);
         Goto(out);
       }
@@ -507,7 +508,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   Bind(&fulfill);
   {
     CallRuntime(Runtime::kPromiseFulfill, context, promise,
-                SmiConstant(kPromiseFulfilled), result);
+                SmiConstant(v8::Promise::kFulfilled), result);
     Goto(out);
   }
 

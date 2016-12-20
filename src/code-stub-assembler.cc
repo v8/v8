@@ -8340,7 +8340,7 @@ Node* CodeStubAssembler::AllocateJSPromise(Node* context) {
 
 void CodeStubAssembler::PromiseInit(Node* promise) {
   StoreObjectField(promise, JSPromise::kStatusOffset,
-                   SmiConstant(kPromisePending));
+                   SmiConstant(v8::Promise::kPending));
   StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
 }
 

@@ -16484,11 +16484,11 @@ class StringSharedKey : public HashTableKey {
 // static
 const char* JSPromise::Status(int status) {
   switch (status) {
-    case kPromiseFulfilled:
+    case v8::Promise::kFulfilled:
       return "resolved";
-    case kPromisePending:
+    case v8::Promise::kPending:
       return "pending";
-    case kPromiseRejected:
+    case v8::Promise::kRejected:
       return "rejected";
   }
   UNREACHABLE();

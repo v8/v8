@@ -7289,6 +7289,24 @@ bool Promise::HasHandler() {
   return false;
 }
 
+Local<Value> Promise::Result() {
+  i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, Promise, Result);
+  i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
+  Utils::ApiCheck(js_promise->status() != kPending, "v8_Promise_Result",
+                  "Promise is still pending");
+  i::Handle<i::Object> result(js_promise->result(), isolate);
+  return Utils::ToLocal(result);
+}
+
+Promise::PromiseState Promise::State() {
+  i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, Promise, Status);
+  i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
+  return static_cast<PromiseState>(js_promise->status());
+}
 
 Local<Object> Proxy::GetTarget() {
   i::Handle<i::JSProxy> self = Utils::OpenHandle(this);

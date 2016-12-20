@@ -628,6 +628,8 @@ class RuntimeCallTimer final {
   V(Promise_HasRejectHandler)                              \
   V(Promise_Resolver_New)                                  \
   V(Promise_Resolver_Resolve)                              \
+  V(Promise_Result)                                        \
+  V(Promise_Status)                                        \
   V(Promise_Then)                                          \
   V(Proxy_New)                                             \
   V(RangeError_New)                                        \

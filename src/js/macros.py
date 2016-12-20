@@ -199,7 +199,8 @@ define kRegExpPrototypeSourceGetter = 30;
 define kRegExpPrototypeOldFlagGetter = 31;
 
 # [[PromiseState]] values:
-# These values should be kept in sync with PromiseStatus in globals.h
+# These values must be kept in sync with v8::Promise::PromiseState in
+# include/v8.h
 define kPending = 0;
 define kFulfilled = 1;
 define kRejected = 2;

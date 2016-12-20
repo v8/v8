@@ -24352,6 +24352,25 @@ TEST(PromiseThen) {
                   .FromJust());
 }
 
+TEST(PromiseStateAndValue) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Value> result = CompileRun(
+      "var resolver;"
+      "new Promise((res, rej) => { resolver = res; })");
+  v8::Local<v8::Promise> promise = v8::Local<v8::Promise>::Cast(result);
+  CHECK(promise->State() == v8::Promise::PromiseState::kPending);
+
+  CompileRun("resolver('fulfilled')");
+  CHECK(promise->State() == v8::Promise::PromiseState::kFulfilled);
+  CHECK(v8_str("fulfilled")->SameValue(promise->Result()));
+
+  result = CompileRun("Promise.reject('rejected')");
+  promise = v8::Local<v8::Promise>::Cast(result);
+  CHECK(promise->State() == v8::Promise::PromiseState::kRejected);
+  CHECK(v8_str("rejected")->SameValue(promise->Result()));
+}
 
 TEST(DisallowJavascriptExecutionScope) {
   LocalContext context;

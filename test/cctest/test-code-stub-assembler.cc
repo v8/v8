@@ -1863,7 +1863,7 @@ TEST(PromiseInit) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result->IsJSPromise());
   Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
-  CHECK_EQ(kPromisePending, js_promise->status());
+  CHECK_EQ(v8::Promise::kPending, js_promise->status());
   CHECK_EQ(isolate->heap()->undefined_value(), js_promise->result());
   CHECK(!js_promise->has_handler());
 }
@@ -1877,7 +1877,7 @@ TEST(PromiseSet) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
   m.Return(promise);
 
   Handle<Code> code = data.GenerateCode();
@@ -1888,7 +1888,7 @@ TEST(PromiseSet) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result->IsJSPromise());
   Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
-  CHECK_EQ(kPromisePending, js_promise->status());
+  CHECK_EQ(v8::Promise::kPending, js_promise->status());
   CHECK_EQ(Smi::FromInt(1), js_promise->result());
   CHECK(!js_promise->has_handler());
 }
@@ -2007,7 +2007,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
   Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
   Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
@@ -2039,7 +2039,7 @@ TEST(CreatePromiseResolvingFunctions) {
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
   Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
   Node *resolve, *reject;
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
@@ -2071,7 +2071,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
   Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(kPromisePending), m.SmiConstant(1));
+  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   Node* resolve_info =
